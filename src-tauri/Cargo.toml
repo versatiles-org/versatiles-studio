@@ -1,8 +1,8 @@
 [package]
 name = "versatiles-studio"
 version = "0.0.0"
-description = "A Tauri App"
-authors = ["you"]
+description = "A VersaTiles App"
+authors = ["Michael Kreil"]
 license = ""
 repository = ""
 edition = "2021"
