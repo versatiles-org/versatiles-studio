@@ -6,7 +6,7 @@
     "distDir": "../dist"
   },
   "package": {
-    "productName": "versatiles-studio",
+    "productName": "VersaTiles Studio",
     "version": "0.0.0"
   },
   "tauri": {
@@ -34,11 +34,7 @@
     },
     "windows": [
       {
-        "fullscreen": false,
-        "resizable": true,
-        "title": "versatiles-studio",
-        "width": 800,
-        "height": 600
+        "title": "VersaTiles Studio"
       }
     ]
   }
