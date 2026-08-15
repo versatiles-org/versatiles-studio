@@ -69,12 +69,58 @@ that into a button (B3) is close to free, and it is a genuinely delightful featu
 | Repository                                                                                                                                     | Relevance                                                                                                                                                                 |
 |------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | [`versatiles-glyphs-rs`](https://github.com/versatiles-org/versatiles-glyphs-rs)                                                               | SDF glyph generation from TrueType fonts, in Rust, no C++ dependencies. Enables font embedding (D4) and the glyph coverage check (B8) inside the Tauri binary.            |
-| [`versatiles-svg-renderer`](https://github.com/versatiles-org/versatiles-svg-renderer)                                                         | Renders vector maps as SVG. The path to print-quality still export (F6). Note: Node, not Rust.                                                                            |
+| [`versatiles-svg-renderer`](https://github.com/versatiles-org/versatiles-svg-renderer)                                                         | Renders vector maps as SVG. The path to print-quality still export (F6). Runs in the browser as well as in Node — it ships a UMD bundle and a `/maplibre` control subpath. |
 | [`versatiles-choro`](https://github.com/versatiles-org/versatiles-choro)                                                                       | Choropleth workflow aimed at newsrooms and data journalists — the same audience as P1, and directly relevant to E6. Under heavy development; API and formats will change. |
 | [`versatiles-spec`](https://github.com/versatiles-org/versatiles-spec)                                                                         | Container specification, currently v02. The reference for validation (B3).                                                                                                |
 | [`planetiler`](https://github.com/versatiles-org/planetiler), [`shortbread-tilemaker`](https://github.com/versatiles-org/shortbread-tilemaker) | OSM → vector tiles. Candidates for orchestration (E5) rather than reimplementation.                                                                                       |
 | [`node-versatiles-google-cloud`](https://github.com/versatiles-org/node-versatiles-google-cloud)                                               | Precedent for cloud upload (F3).                                                                                                                                          |
 | [`versatiles-documentation`](https://github.com/versatiles-org/versatiles-documentation)                                                       | Learning resources, and a showcase gallery of 76 known projects using VersaTiles — a ready-made list of potential Studio users to talk to.                                |
+
+## Map assets: fonts and sprites
+
+MapLibre needs SDF glyphs and sprite sheets that neither versatiles-rs nor the style library can
+conjure at render time. Numbers as of `versatiles-frontend` v3.14.0, `versatiles-fonts` v2.2.0 and
+`versatiles-style` v5.13.1:
+
+**`frontend-blank`** — "blank frontend with only fonts and sprites", i.e. exactly the two asset
+kinds Studio needs and none of the JS libraries it will bundle itself:
+
+| Asset | Download | Unpacked |
+|---|---|---|
+| `frontend-blank.tar.gz` | 109 MB | ~190 MB |
+| `frontend-blank.br.tar.gz` | 85 MB | ~190 MB |
+
+It contains **47,360 glyph files** plus sprites. Two facts change how we should handle that:
+
+**Fonts are published per family**, so `frontend-blank` is not the only granularity available:
+
+| Family | Size | | Family | Size |
+|---|---|---|---|---|
+| `fonts.tar.gz` (everything) | 107 MB | | `lato` | 5 MB |
+| `noto_sans` | 45 MB | | `nunito` | 4 MB |
+| `fira_sans` | 8 MB | | `roboto` | 3 MB |
+| `source_sans_3` | 6 MB | | `open_sans` | 3 MB |
+| `merriweather_sans` | 2 MB | | `pt_sans`, `libre_baskerville` | <1 MB |
+
+Sprites are a separate 1.3 MB download from `versatiles-style` releases (`sprites.tar.gz`).
+
+**The embedded server serves static content straight out of an archive** — no unpacking:
+
+```sh
+versatiles serve -s "[/assets]static.tar.br" tiles.versatiles
+```
+
+Supported: `.tar`, `.tar.gz`, `.tar.br`, and directories. This matters more than it looks: 47,360
+tiny files on disk is slow to extract, painful on Windows (per-file NTFS overhead, Defender
+scanning each one), and awkward to verify or delete. One archive file is atomic, checksummable and
+removable in one step.
+
+**The Latin-only trick.** `frontend-tiny` keeps glyphs below codepoint 1024 and replaces higher
+ranges with *valid but empty* glyph tiles, so clients get HTTP 200 rather than 404. The whole
+bundle is 1 MB. This is the mechanism that lets a small default ship inside the binary — with the
+caveat that B8 must then distinguish "genuinely empty glyph" from "font not downloaded yet".
+
+See [Q9](decisions.md) for the resulting proposal.
 
 ## What genuinely does not exist yet
 

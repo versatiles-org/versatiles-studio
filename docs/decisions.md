@@ -7,25 +7,6 @@ down with a date and a short rationale.
 
 ## Open questions
 
-### Q1 · Tauri app, or a subcommand serving a browser UI?
-
-Both deliver "a desktop application" in the sense users mean.
-
-|                                             | Tauri app                                   | `versatiles studio` subcommand |
-|---------------------------------------------|---------------------------------------------|--------------------------------|
-| Code signing, notarisation, installers      | required, costs money and ongoing effort    | none                           |
-| Auto-update                                 | must be built                               | comes with the CLI             |
-| Double-click a `.mbtiles` file              | yes                                         | no                             |
-| Drag & drop, native dialogs                 | yes                                         | limited                        |
-| Findable as an application                  | yes                                         | no                             |
-| Works on the server holding the 500 GB file | no                                          | yes, over an SSH tunnel        |
-| UI reusable in `versatiles-frontend-dev`    | no                                          | yes                            |
-| Distribution                                | GitHub releases, Homebrew, package managers | already installed with the CLI |
-
-**Proposal.** One web UI, two shells; treat shell independence as a design constraint from the
-start and ship the Tauri shell first. Retrofitting this later is expensive; keeping the option
-open now is nearly free. Depends on Q3.
-
 ### Q2 · Which audience do we build for first?
 
 Not a question of value but of construction order.
@@ -42,20 +23,25 @@ target audience.
 
 ### Q3 · How does the UI talk to the core?
 
-Tauri IPC commands, or a local HTTP/JSON API used by both shells? IPC is more idiomatic and less
-ceremony; HTTP is portable across shells (Q1), testable without a UI, and scriptable. The embedded
-tile server means an HTTP surface exists in the process anyway.
+Reframed now that Q1 is settled: with Tauri fixed, IPC is a legitimate default rather than a
+lock-in risk.
+
+**Proposal — split the two planes:**
+
+- *Control plane* (open a container, run analysis, edit a pipeline, start a job) → Tauri IPC
+  commands. Typed, no port to bind, no CORS, no authentication problem.
+- *Data plane* (tiles, glyphs, sprites) → the embedded HTTP server. MapLibre stays completely
+  standard, and static assets are served straight from their archives.
+
+Open sub-question: this makes the core hard to drive from tests without a Tauri runtime. Do we
+care enough to keep a thin command interface that both an IPC handler and a test harness can call?
+(Probably yes, and it is cheap if decided now.)
 
 ### Q4 · Where do analysis statistics live?
 
 Scanning a large container is expensive and users will re-open the same files. On-demand with an
 in-memory cache, a persisted sidecar file next to the container, or results in the project file?
 Determines whether cluster B feels instant or sluggish.
-
-### Q5 · How much Node do we tolerate?
-
-`versatiles-svg-renderer` and parts of the style tooling are JS. Bundle a Node runtime, port to
-Rust, or degrade gracefully when Node is absent? Affects F6 most.
 
 ### Q6 · Project file format
 
@@ -71,3 +57,86 @@ Potentially the decisive feature for P2, and the largest single dependency we wo
 ### Q8 · What is the smallest thing worth releasing?
 
 Related to Q2 but distinct: what does v0.1 have to do for someone to install it a second time?
+
+### Q9 · How do fonts and sprites get onto the user's machine?
+
+MapLibre needs SDF glyphs and sprites; neither versatiles-rs nor the style library produces them
+at render time. The obvious candidate is `frontend-blank` — 109 MB to download, ~190 MB and
+47,360 files on disk. Bundling that into every installer is not reasonable, so something has to be
+fetched after installation. The question is *what*, at *what granularity*, and *in what form*. See
+the [inventory](ecosystem.md#map-assets-fonts-and-sprites) for the numbers behind this.
+
+**Proposal — three tiers, and never unpack.**
+
+| Tier | Contents | Size | When |
+|---|---|---|---|
+| **Bundled** | Sprites (1.3 MB) + Latin-only Noto Sans glyphs (~1 MB) | ~2.5 MB | in the installer |
+| **On demand** | One font family at a time from `versatiles-fonts` releases | 1–45 MB each | when a style needs it |
+| **Everything** | `fonts.tar.gz`, all families | 107 MB | one explicit action, for offline and field use |
+
+Rationale:
+
+- **The app works offline from first launch.** No first-run download wall, no "please wait 109 MB"
+  before the user has seen a map. Latin coverage handles the overwhelming majority of first
+  sessions, and the empty-glyph-tile trick means non-Latin text renders blank rather than erroring.
+- **Per-family granularity beats all-or-nothing.** A user who picks Roboto downloads 3 MB, not
+  109 MB. `frontend-blank` only exists as a single bundle; the underlying `versatiles-fonts`
+  releases are already split per family, so this costs us nothing but a manifest.
+- **Serve archives directly, never extract.** `versatiles serve -s` reads `.tar`, `.tar.gz` and
+  `.tar.br`. Avoiding 47,360 loose files matters most on Windows, and makes each asset atomic to
+  verify, replace and delete.
+
+Consequences to design for:
+
+- We need an **asset manifest** pinning versions and checksums per family (G7). The frontend build
+  pins `v${version}` per source; Studio must do the same rather than always fetching "latest".
+  Note that sprites come from a `versatiles-style` **prerelease** channel — pin deliberately.
+- B8 (glyph coverage check) must distinguish "empty glyph tile by design" from "family not
+  installed", or it will report false problems.
+- G5 (no network requirement) becomes "no network requirement *after* the assets you chose are
+  installed" — worth stating honestly rather than claiming more than we deliver.
+- F7 (offline package) and F4 (static site export) both need the full-tier download, so the asset
+  manager is a prerequisite for them, not an optional extra.
+
+Open sub-question: alternatively, `versatiles-glyphs-rs` could generate glyphs locally from TTF
+files. That trades a large glyph download for a smaller font download plus CPU time, and would let
+users add their own fonts (D4). Attractive, but it is a different feature — worth evaluating
+separately rather than blocking the asset strategy on it.
+
+---
+
+## Decided
+
+### 2026-08-16 · Q1 — VersaTiles Studio is a native Tauri application
+
+Not a subcommand serving a browser UI. Native file dialogs, drag & drop, file type associations
+and being findable as an application outweigh the alternative.
+
+**What we accept in exchange:** code signing and notarisation for macOS and Windows, with the cost
+and ongoing effort that implies (G3); building auto-update ourselves (G4); no usable path for
+running Studio on the remote server that holds a very large file; and no reuse of the UI inside
+`versatiles-frontend-dev`.
+
+### 2026-08-16 · Q5 — No Node runtime is shipped
+
+Every JavaScript library Studio needs runs in the browser, so all of it is bundled into the
+webview at build time. Node remains a build-time dependency only (npm, Vite).
+
+Checked individually: `@versatiles/style` and `maplibre-versatiles-styler` are browser libraries;
+`@versatiles/svelte` is a Svelte component library; `@versatiles/svg-renderer` documents browser
+usage explicitly and ships a UMD bundle plus a `/maplibre` control subpath, so F6 runs in the
+webview.
+
+**Consequence:** SVG export (F6) is bounded by what the webview can render. A headless or batch
+image export would have no path under this decision — acceptable, since it is not a v1 goal.
+
+### 2026-08-16 · Build on the existing `versatiles-studio` repository
+
+The previous contents were a Tauri 1 + Svelte 4 template from January 2024 with no substantive
+code. Removed; the history remains in git. Repository name, GitHub project and `app-icon.png` were
+kept.
+
+### 2026-08-16 · Planning documents in English
+
+Consistent with every other repository in versatiles-org, and readable by potential contributors
+on a public repository. Working discussions continue in German.

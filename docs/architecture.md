@@ -1,52 +1,56 @@
 # Architecture
 
-> Draft. The core idea is settled enough to build on; the shell question (Q1) is not.
+> Draft. The shell question is settled ([Q1](decisions.md)); the internal boundaries are not.
 
 ## The central idea
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Shell (Tauri)                                          │
-│  native file dialogs · drag & drop · menus · updates    │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │  UI (web: Svelte + MapLibre GL)                    │ │
-│  │  layer stack · node graph · style editor · charts  │ │
-│  │        │                          ▲                │ │
-│  │        │ commands / IPC           │ tiles via HTTP │ │
-│  └────────┼──────────────────────────┼────────────────┘ │
-│           ▼                          │                  │
-│  ┌────────────────────┐   ┌──────────┴───────────────┐  │
-│  │  Studio core (Rust)│──▶│  embedded tile server    │  │
-│  │  project · jobs    │   │  (versatiles serve, local)│ │
-│  └─────────┬──────────┘   └──────────────────────────┘  │
-│            ▼                                            │
-│  versatiles-rs crates: container · pipeline · geometry  │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Tauri shell                                                │
+│  native file dialogs · drag & drop · menus · updates        │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  UI (web: Svelte + MapLibre GL, all JS bundled)        │  │
+│  │  layer stack · node graph · style editor · charts      │  │
+│  │        │                              ▲                │  │
+│  │        │ IPC commands                 │ HTTP           │  │
+│  └────────┼──────────────────────────────┼────────────────┘  │
+│           ▼                              │                   │
+│  ┌────────────────────┐   ┌──────────────┴────────────────┐  │
+│  │  Studio core (Rust)│──▶│  embedded server               │ │
+│  │  project · jobs    │   │  tiles from the live pipeline  │ │
+│  │  assets · analysis │   │  glyphs & sprites from archives│ │
+│  └─────────┬──────────┘   └────────────────────────────────┘ │
+│            ▼                                                 │
+│  versatiles-rs crates: container · pipeline · geometry       │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-The load-bearing decision is the **embedded tile server**. Instead of pushing tile bytes through
-IPC into the webview, Studio runs `versatiles serve` on localhost against the *current* pipeline
-state and lets MapLibre fetch tiles over HTTP as it normally would.
+The load-bearing decision is the **embedded server**. Instead of pushing tile bytes through IPC
+into the webview, Studio runs `versatiles serve` on localhost against the *current* pipeline state
+and lets MapLibre fetch tiles over HTTP as it normally would.
 
 This buys a great deal:
 
-- Live preview (C3) becomes almost free: change a pipeline parameter, re-point or invalidate the
-  source, MapLibre re-fetches. There is no separate "build" step to design.
+- Live preview (C3) becomes almost free: change a pipeline parameter, invalidate the source,
+  MapLibre re-fetches. There is no separate "build" step to design.
 - MapLibre stays completely standard — no custom protocol handler, no bespoke tile plumbing.
-- The same UI works unchanged when served from a real server, which is what keeps Q1 open.
-- Existing pieces (`@versatiles/svelte`, `maplibre-versatiles-styler`, `versatiles-frontend`) drop
-  in without modification, because they already expect an HTTP tile source.
+- Existing pieces (`@versatiles/svelte`, `maplibre-versatiles-styler`) drop in unmodified, because
+  they already expect an HTTP tile source.
+- The same server handles **glyphs and sprites straight out of their `.tar.br` archives** via
+  `serve -s`, so map assets need no unpacking and no second mechanism. See [Q9](decisions.md).
 
-Cost to watch: cache invalidation on every pipeline edit, and binding to a random free port
-without tripping firewall prompts or exposing the port beyond loopback.
+Cost to watch: cache invalidation on every pipeline edit, and binding to a free port on loopback
+only, without tripping firewall prompts.
 
 ## Layers
 
-**Shell (Tauri).** Native window, menus, file dialogs, drag & drop, file type associations,
-auto-update. Deliberately thin — see Q1.
+**Tauri shell.** Native window, menus, file dialogs, drag & drop, file type associations,
+auto-update. Deliberately thin: it should contain no application logic, only the bridge to the
+platform.
 
-**UI (web).** Svelte, matching the rest of the org. MapLibre GL for the map canvas. Consumes the
-core through a typed command interface and consumes tiles over HTTP.
+**UI (web).** Svelte, matching the rest of the org. MapLibre GL for the map canvas. **All
+JavaScript is bundled at build time and runs in the webview — no Node runtime ships with the app**
+([Q5](decisions.md)). Consumes the core through typed commands and tiles over HTTP.
 
 **Studio core (Rust).** The part worth designing carefully:
 
@@ -54,6 +58,7 @@ core through a typed command interface and consumes tiles over HTTP.
 - *Job runner* — long operations with progress, cancellation and logging (E7); this must exist
   before any export feature, not after
 - *Analysis services* — the probe-derived statistics behind cluster B, cached per container
+- *Asset manager* — download, pin, verify and remove font families and sprite sets (G7)
 - *Server manager* — lifecycle of the embedded server, one instance per previewed pipeline node
 
 **versatiles-rs.** Consumed as a library dependency, not shelled out to. Studio should be a
@@ -75,26 +80,21 @@ cannot be expressed as a command, it probably should not exist.
 
 **Nothing only exists inside Studio.** Every artefact must be exportable in a documented format.
 
+**Assets are archives, not file trees.** Fonts and sprites stay in the compressed archives they
+were downloaded as, and are served from there. Atomic to verify, replace and delete.
+
 ## Open architectural questions
 
 Detailed in [Open Decisions](decisions.md); summarised here.
 
-**Q1 — Tauri app, or `versatiles studio` subcommand serving a browser UI?**
-The subcommand route avoids code signing, installers and auto-update entirely, works over an SSH
-tunnel on the server where the 500 GB file actually lives, and makes the UI reusable in
-`versatiles-frontend-dev`. The Tauri app wins on double-click-to-open, drag & drop, native
-dialogs, and being findable as an application. **Proposal: one web UI, two shells** — adopt that as
-a design constraint from day one even if only the Tauri shell ships first. It costs little now and
-is expensive to retrofit.
+**Q3 — how the UI talks to the core.** Proposal: Tauri IPC for the control plane, the embedded
+HTTP server for the data plane. Sub-question is whether to keep a thin command interface underneath
+the IPC handlers so the core stays testable without a Tauri runtime.
 
-**Q3 — How does the UI talk to the core?** Tauri IPC commands are the obvious answer but tie the
-UI to Tauri, which conflicts with Q1. A local HTTP/JSON API used by both shells is more portable
-and more testable, at the price of some ceremony.
+**Q4 — where analysis statistics live.** In-memory cache, sidecar file next to the container, or
+in the project file. Decides whether cluster B feels instant or sluggish.
 
-**Q4 — Where do the analysis statistics live?** Scanning a large container is expensive.
-Options: compute on demand with an in-memory cache, persist a sidecar cache next to the container,
-or store results in the project file. Affects how B1–B5 feel in practice.
+**Q6 — project file format**, and whether it embeds or references the pipeline and style.
 
-**Q5 — Node integration.** `versatiles-svg-renderer` and parts of the style tooling are Node/JS.
-Do we bundle a Node runtime, port the pieces to Rust, or accept that some features only work when
-Node is installed? Affects F6 in particular.
+**Q9 — asset acquisition strategy.** Proposal: bundle ~2.5 MB, fetch per font family on demand,
+offer a full 107 MB download for offline use — and never unpack.

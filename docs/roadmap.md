@@ -12,13 +12,15 @@ needs anyway.
 
 The unglamorous part that everything rests on.
 
-- Tauri 2 + Svelte project, with the shell kept thin (see [Q1](decisions.md))
+- Tauri 2 + Svelte project, with the shell kept thin
 - versatiles-rs wired in as a library dependency
-- Embedded tile server, MapLibre rendering from it
+- Embedded server: tiles from the pipeline, plus bundled sprites and Latin glyphs served straight
+  from their archives (see [Q9](decisions.md))
 - Command interface between UI and core (see [Q3](decisions.md))
 - CI building for all three platforms — before signing, which comes later (G3)
 
-**Done when** a container can be opened and its tiles appear on a map in the window.
+**Done when** a container can be opened and its tiles appear, correctly labelled, on a map in the
+window.
 
 ## Stage 1 · Viewer & Inspector
 
@@ -56,6 +58,7 @@ The first stage that offers something no other tool does.
 
 ## Stage 4 · Style Generator
 
+- G7 — asset manager, needed here first: a style is what makes a user want a font they do not have
 - D1, D8 — embed `maplibre-versatiles-styler`, presets, recolouring, export
 - D2 — derive a style from the layers actually present
 - D3 — layer tree and expression editing

@@ -102,7 +102,7 @@ its value. Nothing on the market does B2 well.
 | **F3** | Upload to SFTP, S3/R2, Google Cloud, GitHub Pages                                             | P2, P4    | SFTP exists; `node-versatiles-google-cloud` |
 | **F4** | Export a complete static site with `versatiles-frontend` bundled                              | P4        | `versatiles-frontend`                       |
 | **F5** | Copy-paste embed snippet (HTML + JS)                                                          | P1, P4    | new                                         |
-| **F6** | Still-image export as PNG/SVG for print and editorial use                                     | P1        | `versatiles-svg-renderer`                   |
+| **F6** | Still-image export as PNG/SVG for print and editorial use                                     | P1        | `versatiles-svg-renderer` (runs in the webview) |
 | **F7** | Offline package: tiles + style + fonts in one folder for field work                           | P2        | `versatiles-frontend`                       |
 
 ---
@@ -115,8 +115,9 @@ its value. Nothing on the market does B2 well.
 | **G2** | **"Show me the command"**: every GUI action displays its CLI equivalent. Teaches the tool and makes work automatable | P2, P3, P6 | new                                          |
 | **G3** | Cross-platform builds for Windows, macOS and Linux, with code signing and notarisation                               | all        | Tauri; **costs money and time — plan early** |
 | **G4** | Auto-update                                                                                                          | all        | Tauri updater                                |
-| **G5** | No network requirement, no telemetry, no account — as an explicit, documented property                               | P2         | design constraint                            |
+| **G5** | No telemetry, no account, and no network requirement once the chosen assets are installed — as an explicit, documented property | P2 | design constraint; see [Q9](decisions.md) |
 | **G6** | Undo/redo across pipeline and style edits                                                                            | all        | new                                          |
+| **G7** | **Asset manager**: download, pin, verify and remove font families and sprite sets; show what is installed and what a style still needs | all | `versatiles-fonts`, `versatiles-style` releases, `serve -s` |
 
 ---
 
