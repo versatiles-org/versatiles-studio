@@ -2,24 +2,23 @@
 
 > Snapshot taken 2026-08-16. Verify before relying on any single detail.
 
-Studio is unusual among new projects in that most of its engine already exists. This document
-records what is available, so that feature planning can distinguish "wire up something that works"
-from "build something new".
+Most of Studio's engine already exists. This document records what is available, so feature planning
+can tell "wire up something that works" from "build something new". It is the evidence base the
+[decision log](decisions.md) refers back to.
 
 ## versatiles-rs — the engine
 
-A Rust workspace. Studio would depend on these crates directly rather than shelling out to the
-binary.
+A Rust workspace, consumed as a library dependency rather than shelled out to.
 
-| Crate                  | What it gives us                                                                                                                                                              |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `versatiles_container` | Read and write `.versatiles`, `.pmtiles`, `.mbtiles`, `.tar` and directories. Remote read over HTTP(S) and SFTP with byte ranges; SFTP write. This is cluster A's foundation. |
-| `versatiles_pipeline`  | The VersaTiles Pipeline Language (VPL) and roughly 30 operations. This is cluster C and most of cluster E.                                                                    |
-| `versatiles_core`      | Shared types: tile coordinates, bounding boxes, TileJSON, compression.                                                                                                        |
-| `versatiles_geometry`  | Vector geometry and MVT encoding/decoding. The basis for the raw inspector (A4) and the byte breakdown (B2).                                                                  |
-| `versatiles_image`     | Raster encoding: png, jpg, webp, avif. Basis for the format comparison (B6).                                                                                                  |
-| `versatiles_derive`    | Derive macros, including the ones behind operation metadata.                                                                                                                  |
-| `versatiles_node`      | napi bindings — precedent for how the crates get exposed to a JS layer.                                                                                                       |
+| Crate                  | What it gives us                                                                                                                                  |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `versatiles_container` | Read/write `.versatiles`, `.pmtiles`, `.mbtiles`, `.tar`, directories. Remote read over HTTP(S) and SFTP with byte ranges. Cluster A's foundation |
+| `versatiles_pipeline`  | VPL and ~30 operations. Cluster C and most of E                                                                                                   |
+| `versatiles_core`      | Shared types: tile coordinates, bounding boxes, TileJSON, compression                                                                             |
+| `versatiles_geometry`  | Vector geometry and MVT encoding/decoding. Basis for A4 and B2                                                                                    |
+| `versatiles_image`     | Raster encoding: png, jpg, webp, avif. Basis for B6                                                                                               |
+| `versatiles_derive`    | Derive macros, including the ones behind operation metadata                                                                                       |
+| `versatiles_node`      | napi bindings — precedent for exposing the crates to a JS layer                                                                                   |
 
 ### Pipeline operations available today
 
@@ -34,115 +33,96 @@ raster     raster_overview, raster_flatten, raster_levels, raster_tile_resize,
 dem        dem_overview, dem_tile_resize, dem_quantize
 ```
 
-### Three findings that shape the architecture
+## Three findings that shape the architecture
 
-**1. Generated parameter forms (C2) are proven, not hypothetical.**
+### 1. Generated parameter forms (C2) are proven
 
-`versatiles_pipeline` exposes `all_operation_metadata() -> Vec<OperationMeta>`, and the structures
-carry everything a form generator needs:
+`versatiles_pipeline` exposes `all_operation_metadata() -> Vec<OperationMeta>`, carrying everything
+a form generator needs:
 
 ```rust
 struct OperationMeta { tag_name, kind /* "read" | "transform" */, doc, fields }
 struct VPLFieldMeta  { name, rust_type, is_required, is_sources, doc, enum_variants }
 ```
 
-Field name, type, required flag, documentation for labels and tooltips, and enum variants for
-dropdowns. Better still, **the transformation already exists and ships**:
-`versatiles_node/src/codegen.rs` turns this metadata into TypeScript, mapping enum fields to
-string-literal unions, and exposes it as `generateVplTypescript()`. This was flagged earlier as a
-load-bearing assumption to verify — it is verified.
+Better still, the transformation already ships: `versatiles_node/src/codegen.rs` turns this into
+TypeScript via `generateVplTypescript()`, mapping enum fields to string-literal unions.
 
-Two practical details:
+Two practical details: `all_operation_metadata()` sits behind `#[cfg(feature = "codegen")]`, so
+Studio must enable it; and the metadata carries `is_required` but **no default values**, so
+generated forms show empty optional fields unless `VPLFieldMeta` is extended upstream.
 
-- `all_operation_metadata()` sits behind `#[cfg(feature = "codegen")]`, so Studio must enable that
-  feature on the pipeline crate.
-- The metadata carries `is_required` but **no default values**. Generated forms will show empty
-  optional fields rather than pre-filled defaults. Either accept that, or extend `VPLFieldMeta`
-  upstream — a small change, and Studio is a good reason to make it.
+### 2. `versatiles probe` is already an analysis engine
 
-**2. `versatiles probe` is already an analysis engine.**
+| Depth  | What it scans                                                                                                                           | Feeds  |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `-d`   | Container metadata                                                                                                                      | A6     |
+| `-dd`  | All tile sizes                                                                                                                          | B1, B4 |
+| `-ddd` | Tile contents; validates MVT 2.1, reports missing `extent`/`version`, duplicate layer names, polygon winding problems, degenerate rings | B3     |
 
-| Depth  | What it scans                                                                                                                                       | Feeds  |
-| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `-d`   | Container metadata                                                                                                                                  | A6     |
-| `-dd`  | All tile sizes                                                                                                                                      | B1, B4 |
-| `-ddd` | Tile contents; validates MVT 2.1 conformance, reports missing `extent`/`version`, duplicate layer names, polygon winding problems, degenerate rings | B3     |
-
-`probe -ddd` even emits a `fix:` line suggesting the correct `vector_repair` invocation. Turning
-that into a button (B3) is close to free, and it is a genuinely delightful feature.
-
-Three details worth knowing before planning cluster B:
+`probe -ddd` emits a `fix:` line suggesting the right `vector_repair` invocation, so B3 is close to
+free. Three further details drive [Q4](decisions.md) and [Q12](decisions.md):
 
 - **The byte breakdown (B2) already exists.** `versatiles/src/tools/tile_breakdown.rs` splits each
   layer into geometry, tag references, property keys, property values, feature ids and a framing
-  residual, and `probe -ddd` aggregates it by zoom × layer. Only the **per-attribute** split is
-  missing. See [Q12](decisions.md).
-- **Sampling is built in.** `probe --sample PERCENT` reads a deterministic subset chosen as
-  contiguous 64×64 windows, sized so remote sources coalesce them into single range requests
-  (`tile_sampling.rs`). This is what makes analysis over a planet file bounded rather than
-  open-ended, and it is why [Q4](decisions.md) needs no persistence layer.
+  residual; `probe -ddd` aggregates it by zoom × layer. Only the **per-attribute** split is missing.
+- **Sampling is built in.** `probe --sample PERCENT` reads a deterministic subset as contiguous
+  64×64 windows, sized so remote sources coalesce them into single range requests
+  (`tile_sampling.rs`). Scanning tile _sizes_ is cheaper still — all five readers override
+  `tile_size_stream`, so no tile bodies are read.
 - **Compute and rendering are entangled.** Every probe function takes `&mut PrettyPrint` and returns
-  `Result<()>`, so the results are formatted text, not data. Studio must aggregate over the level
-  below — `layer_stats()` and `validate_tile()` both return values. Splitting compute from render
-  upstream would give the CLI a `--json` probe as a side effect.
+  `Result<()>`, so results are text, not data. Studio aggregates over `layer_stats()` and
+  `validate_tile()` instead, which do return values.
 
-**3. The VPL parser only runs one way.**
+### 3. The VPL parser only runs one way
 
-This is the constraint that shapes cluster C, and it was mis-stated in earlier drafts. Text →
-structure is solved: `VPLPipeline` implements `FromStr`, and the nom parser handles quoting, arrays
-and nested sub-pipelines. Structure → text does not exist:
+The constraint that shapes cluster C, and mis-stated in earlier drafts. Text → structure is solved;
+structure → text does not exist:
 
-| Needed for                       | Status                                                                        |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| Parse VPL (C4 input, C1 input)   | ✅ `FromStr` on `VPLPipeline`, `VPLNode::try_from_str`                        |
-| Write VPL back out (C1 output)   | ❌ no `Display`, no `to_string`, no serialiser — only `Debug`                 |
-| Preserve parameter order         | ❌ `properties` is a `BTreeMap`, so a round-trip sorts them alphabetically    |
-| Preserve `#` comments            | ❌ the parser matches and discards them                                       |
-| Error positions for editor marks | ❌ errors are rendered strings via nom's `convert_error`; no structured spans |
+| Needed for                       | Status                                                                     |
+| -------------------------------- | -------------------------------------------------------------------------- |
+| Parse VPL (C1, C4 input)         | ✅ `FromStr` on `VPLPipeline`, `VPLNode::try_from_str`                     |
+| Write VPL back out (C1 output)   | ❌ no `Display`, no `to_string`, no serialiser — only `Debug`              |
+| Preserve parameter order         | ❌ `properties` is a `BTreeMap`, so a round-trip sorts them alphabetically |
+| Preserve `#` comments            | ❌ the parser matches and discards them                                    |
+| Error positions for editor marks | ❌ errors are rendered strings via nom's `convert_error`; no spans         |
 
-Since [Q11](decisions.md) puts the node graph in release 1, a **lossless syntax tree** — spans,
-comments, original ordering — is the first thing stage 2 has to build, ideally upstream in
-`versatiles_pipeline`.
+Since [Q11](decisions.md) puts the node graph in release 1, a **lossless syntax tree** is the first
+thing stage 2 has to build — ideally upstream.
 
 ## Frontend pieces
 
-| Repository                                                                                                  | What it gives us                                                                                                                                                                                                                                                  |
-| ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [`versatiles-style`](https://github.com/versatiles-org/versatiles-style) (`@versatiles/style`)              | Style and sprite generation; presets colorful, eclipse, graybeard, shadow, neutrino, satellite. The core of cluster D.                                                                                                                                            |
-| [`maplibre-versatiles-styler`](https://github.com/versatiles-org/maplibre-versatiles-styler)                | **A working style editor already exists** as a MapLibre control: editable palettes, global recolouring, font and language selection, satellite adjustments, export to `style.json` or `@versatiles/style` code. D1 and D8 are largely a matter of embedding this. |
-| [`node-versatiles-svelte`](https://github.com/versatiles-org/node-versatiles-svelte) (`@versatiles/svelte`) | Svelte component library including `BasicMap` with a bundled MapLibre worker.                                                                                                                                                                                     |
-| [`versatiles-map-editor`](https://github.com/versatiles-org/versatiles-map-editor)                          | SvelteKit drawing and styling app, extracted from the above. Precedent for app structure — and the reason Studio should _not_ do feature editing itself.                                                                                                          |
-| [`versatiles-frontend`](https://github.com/versatiles-org/versatiles-frontend)                              | Pre-packaged web assets — fonts, sprites, MapLibre — in several size tiers. The route to offline operation (G5) and static site export (F4, F7).                                                                                                                  |
+| Repository                                                                                   | What it gives us                                                                                                                                         |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`versatiles-style`](https://github.com/versatiles-org/versatiles-style)                     | Style and sprite generation; presets colorful, eclipse, graybeard, shadow, neutrino, satellite. The core of cluster D                                    |
+| [`maplibre-versatiles-styler`](https://github.com/versatiles-org/maplibre-versatiles-styler) | **A working style editor already exists** as a MapLibre control: palettes, global recolouring, font and language selection, export. D1 and D8 embed this |
+| [`node-versatiles-svelte`](https://github.com/versatiles-org/node-versatiles-svelte)         | Svelte components including `BasicMap` with a bundled MapLibre worker                                                                                    |
+| [`versatiles-map-editor`](https://github.com/versatiles-org/versatiles-map-editor)           | SvelteKit drawing and styling app. Precedent for app structure — and the reason Studio should _not_ do feature editing                                   |
+| [`versatiles-frontend`](https://github.com/versatiles-org/versatiles-frontend)               | Pre-packaged web assets in several size tiers. The route to offline operation (G5) and static site export (F4, F7)                                       |
 
 ## Supporting tools
 
-| Repository                                                                                                                                     | Relevance                                                                                                                                                                                                                                                                                                                                                                |
-| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`versatiles-glyphs-rs`](https://github.com/versatiles-org/versatiles-glyphs-rs)                                                               | SDF glyph generation from TrueType fonts, in Rust, no C++ dependencies. Links straight into the Studio core, so glyph generation from the user's own fonts (D9) and the glyph coverage check (B8) run inside the Tauri binary with no extra runtime. It is also what builds the `versatiles-fonts` releases, so generated and downloaded glyph sets are the same format. |
-| [`versatiles-svg-renderer`](https://github.com/versatiles-org/versatiles-svg-renderer)                                                         | Renders vector maps as SVG. The path to print-quality still export (F6). Runs in the browser as well as in Node — it ships a UMD bundle and a `/maplibre` control subpath.                                                                                                                                                                                               |
-| [`versatiles-choro`](https://github.com/versatiles-org/versatiles-choro)                                                                       | Choropleth workflow aimed at newsrooms and data journalists — the same audience as P1, and directly relevant to E6. Under heavy development; API and formats will change.                                                                                                                                                                                                |
-| [`versatiles-spec`](https://github.com/versatiles-org/versatiles-spec)                                                                         | Container specification, currently v02. The reference for validation (B3).                                                                                                                                                                                                                                                                                               |
-| [`planetiler`](https://github.com/versatiles-org/planetiler), [`shortbread-tilemaker`](https://github.com/versatiles-org/shortbread-tilemaker) | OSM → vector tiles. **Not orchestrated by Studio** — planetiler needs Java 21+ and ~1 GB of auxiliary downloads, tilemaker is a separate C++ binary; [Q7](decisions.md) drops E5. Studio opens and styles what they produce.                                                                                                                                             |
-| [`node-versatiles-google-cloud`](https://github.com/versatiles-org/node-versatiles-google-cloud)                                               | Precedent for cloud upload (F3).                                                                                                                                                                                                                                                                                                                                         |
-| [`versatiles-documentation`](https://github.com/versatiles-org/versatiles-documentation)                                                       | Learning resources, and a showcase gallery of 76 known projects using VersaTiles — a ready-made list of potential Studio users to talk to.                                                                                                                                                                                                                               |
+| Repository                                                                                                                                     | Relevance                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`versatiles-glyphs-rs`](https://github.com/versatiles-org/versatiles-glyphs-rs)                                                               | SDF glyph generation from TrueType, in Rust with no C++ deps — so D9 and B8 run inside the Tauri binary. Also builds the `versatiles-fonts` releases, so generated and downloaded glyph sets share a format |
+| [`versatiles-svg-renderer`](https://github.com/versatiles-org/versatiles-svg-renderer)                                                         | Vector maps as SVG — the path to print-quality export (F6). Ships a UMD bundle and a `/maplibre` subpath, so it runs in the browser                                                                         |
+| [`versatiles-choro`](https://github.com/versatiles-org/versatiles-choro)                                                                       | Choropleth workflow for newsrooms — same audience as P1, directly relevant to E6. Under heavy development; API will change                                                                                  |
+| [`versatiles-spec`](https://github.com/versatiles-org/versatiles-spec)                                                                         | Container specification, currently v02. The reference for B3                                                                                                                                                |
+| [`planetiler`](https://github.com/versatiles-org/planetiler), [`shortbread-tilemaker`](https://github.com/versatiles-org/shortbread-tilemaker) | OSM → vector tiles. **Not orchestrated by Studio** — planetiler needs Java 21+ and ~1 GB of auxiliary downloads, tilemaker is a separate C++ binary ([Q7](decisions.md))                                    |
+| [`node-versatiles-google-cloud`](https://github.com/versatiles-org/node-versatiles-google-cloud)                                               | Precedent for cloud upload (F3)                                                                                                                                                                             |
+| [`versatiles-documentation`](https://github.com/versatiles-org/versatiles-documentation)                                                       | Learning resources, and a gallery of 76 known projects — a ready-made list of users to talk to                                                                                                              |
 
 ## Map assets: fonts and sprites
 
 MapLibre needs SDF glyphs and sprite sheets that neither versatiles-rs nor the style library can
 conjure at render time. Numbers as of `versatiles-frontend` v3.14.0, `versatiles-fonts` v2.2.0 and
-`versatiles-style` v5.13.1:
+`versatiles-style` v5.13.1. See [Q9](decisions.md) for what we do with them.
 
-**`frontend-blank`** — "blank frontend with only fonts and sprites", i.e. exactly the two asset
-kinds Studio needs and none of the JS libraries it will bundle itself:
+`frontend-blank` carries exactly the two asset kinds Studio needs — 109 MB compressed (85 MB
+brotli), ~190 MB unpacked, **47,360 glyph files** plus sprites. Three facts make that the wrong
+granularity:
 
-| Asset                      | Download | Unpacked |
-| -------------------------- | -------- | -------- |
-| `frontend-blank.tar.gz`    | 109 MB   | ~190 MB  |
-| `frontend-blank.br.tar.gz` | 85 MB    | ~190 MB  |
-
-It contains **47,360 glyph files** plus sprites. Two facts change how we should handle that:
-
-**Fonts are published per family**, so `frontend-blank` is not the only granularity available:
+**Fonts are published per family:**
 
 | Family                      | Size   |     | Family                         | Size  |
 | --------------------------- | ------ | --- | ------------------------------ | ----- |
@@ -152,33 +132,24 @@ It contains **47,360 glyph files** plus sprites. Two facts change how we should 
 | `source_sans_3`             | 6 MB   |     | `open_sans`                    | 3 MB  |
 | `merriweather_sans`         | 2 MB   |     | `pt_sans`, `libre_baskerville` | <1 MB |
 
-Sprites are a separate 1.3 MB download from `versatiles-style` releases (`sprites.tar.gz`).
+Sprites are a separate 1.3 MB download from `versatiles-style` releases.
 
-**The embedded server serves static content straight out of an archive** — no unpacking:
+**Archives are served directly, never unpacked** — `versatiles serve -s "[/assets]static.tar.br"`
+reads `.tar`, `.tar.gz`, `.tar.br` and directories. 47,360 tiny files are slow to extract, painful
+on Windows (per-file NTFS overhead, Defender scanning each one) and awkward to verify or delete; one
+archive is atomic and checksummable.
 
-```sh
-versatiles serve -s "[/assets]static.tar.br" tiles.versatiles
-```
-
-Supported: `.tar`, `.tar.gz`, `.tar.br`, and directories. This matters more than it looks: 47,360
-tiny files on disk is slow to extract, painful on Windows (per-file NTFS overhead, Defender
-scanning each one), and awkward to verify or delete. One archive file is atomic, checksummable and
-removable in one step.
-
-**The Latin-only trick.** `frontend-tiny` keeps glyphs below codepoint 1024 and replaces higher
-ranges with _valid but empty_ glyph tiles, so clients get HTTP 200 rather than 404. The whole
-bundle is 1 MB. This is the mechanism that lets a small default ship inside the binary — with the
-caveat that B8 must then distinguish "genuinely empty glyph" from "font not downloaded yet".
-
-See [Q9](decisions.md) for the resulting proposal.
+**The Latin-only trick** — `frontend-tiny` keeps glyphs below codepoint 1024 and replaces higher
+ranges with _valid but empty_ glyph tiles, so clients get HTTP 200 rather than 404. The whole bundle
+is 1 MB, which is what lets a small default ship inside the binary. B8 must then distinguish
+"genuinely empty glyph" from "font not downloaded yet".
 
 ## What genuinely does not exist yet
 
-Worth naming explicitly, because this is the actual construction work:
+The actual construction work:
 
 - The application shell and window/panel layout
 - Multi-source layer stack with comparison modes (A3)
-- Visual analysis surfaces: heat map, breakdown charts, diff view (B1, B2, B5)
 - A lossless VPL syntax tree — spans, comments, parameter order — and a serialiser on top of it
 - The node graph and its synchronisation with VPL text (C1)
 - Deep style editing beyond what the styler control does (D2, D3, D6, D7)
@@ -186,9 +157,10 @@ Worth naming explicitly, because this is the actual construction work:
 - Job queue and progress model (E7)
 - The project file format (G1)
 - Build, signing and update infrastructure (G3, G4)
+- Visual analysis surfaces (B1, B2, B5) — after release 1
 
 ## The state of this repository
 
 The previous contents were a Tauri 1 + Svelte 4 + Vite template from January 2024 — a menu and a
-basic layout, no substantive code. It has been removed; the history remains in git. The repository
-name, the GitHub project and `app-icon.png` were kept.
+basic layout, no substantive code. Removed; the history remains in git. The repository name, the
+GitHub project and `app-icon.png` were kept.

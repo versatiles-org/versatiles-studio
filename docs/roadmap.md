@@ -2,74 +2,51 @@
 
 > Stages, not dates. Feature IDs refer to the [Feature Catalogue](features.md).
 
-**Release 1 is defined by the funding commitment**, not by us. Its stages live in
-[Release 1 Scope](scope-release-1.md); this document holds the shape of the release and everything
-after it.
+**Release 1 is defined by the funding commitment**, not by us. Its scope and its six stages live in
+[Release 1 Scope](scope-release-1.md) and are not repeated here. This document covers how release 1
+ships, and what comes after it.
 
-An earlier version of this roadmap put analysis (cluster B) in stage 2 on the grounds that it was
-cheapest and immediately useful to us. The funded scope reverses that: B is out of release 1
-entirely. See [Q2](decisions.md) for the decision and the evidence behind it.
+An earlier version put analysis (cluster B) in stage 2 as the cheapest useful work. The funded scope
+reverses that — see [Q2](decisions.md).
 
-## Release 1
-
-| Stage | Contents                                                                                                | Delivers                                     |
-| ----- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for Linux and macOS    | foundation                                   |
-| **1** | Cluster A plus a default render style                                                                   | Open and preview all supported formats       |
-| **2** | Lossless VPL syntax tree, node graph, inline errors, generated parameter forms, live preview, undo/redo | Edit VPL and instantly see the result        |
-| **3** | Import wizards on the pipeline layer, job queue, container export                                       | Convert image and vector data into map tiles |
-| **4** | Asset manager, style editing against the user's own layers (on stage 2's undo stack), export            | Create your own map style                    |
-| **5** | Project directory, Linux packaging and Homebrew cask, auto-update                                       | shippability                                 |
+## How release 1 ships
 
 Per [Q8](decisions.md), stages 1 onward ship as `v0.x` releases with an honest "under development"
 banner, aimed at tile operators and ourselves. **1.0 and the public announcement land together**,
 when all four commitments are in — the journalism audience should not meet Studio before it can
 create anything.
 
-Three things worth repeating from the scope document, because they drive the whole plan:
-
-- **Commitments 3 and 4 share one engine.** The import wizards are guided front-ends onto
-  `from_geo`, `from_csv` and GDAL — the same pipeline layer the VPL editor drives. Build the
-  pipeline first and the wizards become a form on top of it, with their preview already solved.
-- **Stage 2 is the long pole.** [Q11](decisions.md) makes the node graph a deliverable, and the
-  lossless VPL syntax tree underneath it does not exist yet — `versatiles_pipeline` parses VPL but
-  cannot write it back. Start that work during stage 1, ideally as an upstream contribution, so the
-  review cycle overlaps with cluster A instead of following it.
-- **Release 1 is Linux plus a Homebrew cask** ([Q10](decisions.md)). Windows and Apple notarisation
-  are deferred, which keeps certificate procurement off the critical path. The cost is a Gatekeeper
-  approval that macOS users have to click through once, so the install instructions are part of the
-  deliverable.
+Release 1 targets **Linux and macOS** via a Homebrew cask ([Q10](decisions.md)). Windows and Apple
+notarisation are deferred, keeping certificate procurement off the critical path; the cost is a
+Gatekeeper approval macOS users click through once, so the install instructions are part of the
+deliverable.
 
 ## Immediately after release 1
 
-The cheapest valuable additions, in the order we would take them:
+The cheapest valuable additions, in order:
 
-- **Apple Developer signing and notarisation** — removes the Gatekeeper dialog that release 1
-  leaves in place, and opens the door to submitting to the official `homebrew-cask` repository
-  rather than only our own tap. $99/year; the lead time is account approval, not the money.
-- **Windows builds and a certificate** — OV, EV, or Azure Artifact Signing. See
-  [Q10](decisions.md); get quotes before committing.
-- **B1, B2, B3** — tile size statistics, byte breakdown, and spec validation with a repair button.
-  Cheaper than this document used to assume: per [Q12](decisions.md) the per-layer byte breakdown
-  already exists in `tile_breakdown.rs` and the size scan is index-only, so what remains is mostly
-  visualisation. B3 turns a `fix:` line that already exists into a button. Only B2's per-attribute
-  split is real new analysis work.
-- **F5, F4** — embed snippet and static site export. Without these, a user who has made a map in
-  Studio still has to ask us what to do next.
+- **Apple Developer signing and notarisation** — removes the Gatekeeper dialog and opens the door to
+  the official `homebrew-cask` repository. $99/year; the lead time is account approval.
+- **Windows builds and a certificate** — OV, EV, or Azure Artifact Signing. Get quotes first
+  ([Q10](decisions.md)).
+- **B1, B2, B3** — tile size statistics, byte breakdown, spec validation with a repair button.
+  Cheaper than once assumed: the per-layer breakdown already exists and the size scan is index-only
+  ([Q12](decisions.md)), so what remains is mostly visualisation. Only B2's per-attribute split is
+  new analysis work.
+- **F5, F4** — embed snippet and static site export. Without these, a user who has made a map still
+  has to ask us what to do next.
 
 ## Later
 
-- **B4, B5** — coverage gaps and container diff, which become valuable once people rebuild data
-  sets regularly.
-- **D5, D6, D7, D9** — dark variants, accessibility checks, legends, glyph generation from the
-  user's own fonts.
+- **B4, B5** — coverage gaps and container diff, valuable once people rebuild data sets regularly.
+- **D5, D6, D7, D9** — dark variants, accessibility checks, legends, glyph generation from own fonts.
 - **E4, E6** — DEM and hillshade, table joins for choropleths.
 - **F3, F6, F7** — upload targets, print-quality image export, offline packages.
 
 ## Deliberately open-ended
 
-B6, B7, B8, B9, C5, C8, D4. All valuable, none blocking. Revisit once real users are telling us
-which ones they miss.
+B6, B7, B8, B9, C5, C8, D4. All valuable, none blocking. Revisit once real users tell us which they
+miss.
 
-E5 (planetiler orchestration) is **not** on this list: [Q7](decisions.md) drops it outright rather
+E5 (planetiler orchestration) is **not** on this list — [Q7](decisions.md) drops it outright rather
 than deferring it.
