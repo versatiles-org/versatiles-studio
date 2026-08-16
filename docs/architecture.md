@@ -8,7 +8,7 @@
 flowchart LR
   subgraph shell["Tauri shell — native dialogs · drag and drop · menus · auto-update"]
     ui["UI (webview)<br/>Svelte · MapLibre GL · all JS bundled at build time<br/>layer stack · node graph · style editor · charts"]
-    core["Studio core (Rust)<br/>project model · job runner · analysis services<br/>asset manager · server manager"]
+    core["Studio core (Rust)<br/>project model · job runner · analysis services<br/>asset manager and glyph generation · server manager"]
     server["Embedded server<br/>tiles from the live pipeline<br/>glyphs and sprites, served straight from their archives"]
     crates["versatiles-rs crates<br/>container · pipeline · geometry · image"]
   end
@@ -53,7 +53,8 @@ JavaScript is bundled at build time and runs in the webview — no Node runtime 
 - _Job runner_ — long operations with progress, cancellation and logging (E7); this must exist
   before any export feature, not after
 - _Analysis services_ — the probe-derived statistics behind cluster B, cached per container
-- _Asset manager_ — download, pin, verify and remove font families and sprite sets (G7)
+- _Asset manager_ — download, pin, verify and remove font families and sprite sets (G7), and
+  generate glyph sets from the user's own fonts via `versatiles-glyphs-rs` (D9)
 - _Server manager_ — lifecycle of the embedded server, one instance per previewed pipeline node
 
 **versatiles-rs.** Consumed as a library dependency, not shelled out to. Studio should be a
@@ -76,7 +77,9 @@ cannot be expressed as a command, it probably should not exist.
 **Nothing only exists inside Studio.** Every artefact must be exportable in a documented format.
 
 **Assets are archives, not file trees.** Fonts and sprites stay in the compressed archives they
-were downloaded as, and are served from there. Atomic to verify, replace and delete.
+were downloaded as, and are served from there. Atomic to verify, replace and delete. Glyph sets
+Studio generates itself (D9) are written as archives too, so downloaded and generated fonts take
+the same path through the manifest, the asset manager and the server.
 
 ## Open architectural questions
 
@@ -90,6 +93,3 @@ the IPC handlers so the core stays testable without a Tauri runtime.
 in the project file. Decides whether cluster B feels instant or sluggish.
 
 **Q6 — project file format**, and whether it embeds or references the pipeline and style.
-
-**Q9 — asset acquisition strategy.** Proposal: bundle ~2.5 MB, fetch per font family on demand,
-offer a full 107 MB download for offline use — and never unpack.

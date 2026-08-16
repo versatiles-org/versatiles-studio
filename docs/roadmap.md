@@ -59,6 +59,7 @@ The first stage that offers something no other tool does.
 ## Stage 4 · Style Generator
 
 - G7 — asset manager, needed here first: a style is what makes a user want a font they do not have
+- D9 — glyph generation from the user's own fonts, once the asset manager can hold the result
 - D1, D8 — embed `maplibre-versatiles-styler`, presets, recolouring, export
 - D2 — derive a style from the layers actually present
 - D3 — layer tree and expression editing

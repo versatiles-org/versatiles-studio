@@ -58,15 +58,15 @@ Potentially the decisive feature for P2, and the largest single dependency we wo
 
 Related to Q2 but distinct: what does v0.1 have to do for someone to install it a second time?
 
-### Q9 · How do fonts and sprites get onto the user's machine?
+---
 
-MapLibre needs SDF glyphs and sprites; neither versatiles-rs nor the style library produces them
-at render time. The obvious candidate is `frontend-blank` — 109 MB to download, ~190 MB and
-47,360 files on disk. Bundling that into every installer is not reasonable, so something has to be
-fetched after installation. The question is _what_, at _what granularity_, and _in what form_. See
-the [inventory](ecosystem.md#map-assets-fonts-and-sprites) for the numbers behind this.
+## Decided
 
-**Proposal — three tiers, and never unpack.**
+### 2026-08-16 · Q9 — Fonts and sprites are fetched per family, and never unpacked
+
+`frontend-blank` is not used as a single bundle. Three tiers instead, drawing on the fact that
+`versatiles-fonts` already publishes one archive per font family. See the
+[inventory](ecosystem.md#map-assets-fonts-and-sprites) for the numbers.
 
 | Tier           | Contents                                                   | Size         | When                                           |
 | -------------- | ---------------------------------------------------------- | ------------ | ---------------------------------------------- |
@@ -74,14 +74,14 @@ the [inventory](ecosystem.md#map-assets-fonts-and-sprites) for the numbers behin
 | **On demand**  | One font family at a time from `versatiles-fonts` releases | 1–45 MB each | when a style needs it                          |
 | **Everything** | `fonts.tar.gz`, all families                               | 107 MB       | one explicit action, for offline and field use |
 
-Rationale:
+Why:
 
 - **The app works offline from first launch.** No first-run download wall, no "please wait 109 MB"
   before the user has seen a map. Latin coverage handles the overwhelming majority of first
   sessions, and the empty-glyph-tile trick means non-Latin text renders blank rather than erroring.
 - **Per-family granularity beats all-or-nothing.** A user who picks Roboto downloads 3 MB, not
-  109 MB. `frontend-blank` only exists as a single bundle; the underlying `versatiles-fonts`
-  releases are already split per family, so this costs us nothing but a manifest.
+  109 MB. `frontend-blank` only exists as a single bundle; the underlying releases are already
+  split per family, so this costs us nothing but a manifest.
 - **Serve archives directly, never extract.** `versatiles serve -s` reads `.tar`, `.tar.gz` and
   `.tar.br`. Avoiding 47,360 loose files matters most on Windows, and makes each asset atomic to
   verify, replace and delete.
@@ -98,14 +98,9 @@ Consequences to design for:
 - F7 (offline package) and F4 (static site export) both need the full-tier download, so the asset
   manager is a prerequisite for them, not an optional extra.
 
-Open sub-question: alternatively, `versatiles-glyphs-rs` could generate glyphs locally from TTF
-files. That trades a large glyph download for a smaller font download plus CPU time, and would let
-users add their own fonts (D4). Attractive, but it is a different feature — worth evaluating
-separately rather than blocking the asset strategy on it.
-
----
-
-## Decided
+Locally generated glyphs (D9) are **complementary, not an alternative**: they add fonts the
+releases do not carry, and they share the same archive format, the same manifest and the same
+serving path as downloaded families.
 
 ### 2026-08-16 · Q1 — VersaTiles Studio is a native Tauri application
 

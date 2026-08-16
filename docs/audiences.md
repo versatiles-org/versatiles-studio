@@ -11,8 +11,8 @@ bit of JavaScript. No GIS training, no patience for a toolchain.
 about how the result should look.
 
 **Needs.** Import wizard (E1, E2), table join to make a choropleth (E6), colour and typography
-control (D1, D3), accessibility checking (D6), embed snippet (F5), and a static image export for
-print (F6).
+control (D1, D3), the newsroom's own house typeface on the map (D9), accessibility checking (D6),
+embed snippet (F5), and a static image export for print (F6).
 
 **Why Studio.** Mapbox Studio costs money and binds the result to one vendor; QGIS is a week of
 learning for a one-off map. Studio is free, local, and the output belongs to them.
@@ -31,8 +31,9 @@ GIS skills, rarely have permission to install a Node toolchain or push data to a
 process that hates subscriptions.
 
 **Needs.** GDAL-backed import (E3), DEM and raster processing (E4), `planetiler` orchestration
-(E5), export plus upload (F2, F3), and reproducibility — the CLI command or CI snippet that lets
-them run the same thing on their own server (C7).
+(E5), export plus upload (F2, F3), the mandated corporate-design typeface (D9), and
+reproducibility — the CLI command or CI snippet that lets them run the same thing on their own
+server (C7).
 
 **Why Studio.** Runs locally, no account, no telemetry, open source, auditable. That combination
 is rare and is the entire pitch for this group.
@@ -81,7 +82,8 @@ and nothing may only exist inside Studio.
 **Who.** People for whom the style _is_ the work.
 
 **Needs.** Deep style editing: layer tree, expressions with live preview (D3), fonts and sprites
-(D4), light/dark derivation (D5), legend generation (D7), colour-blindness simulation (D6).
+(D4), glyph generation from arbitrary typefaces (D9), light/dark derivation (D5), legend
+generation (D7), colour-blindness simulation (D6).
 
 **Why Studio.** Editing a MapLibre style by hand is miserable; the hosted alternatives do not
 support self-hosted tiles well.

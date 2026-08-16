@@ -66,16 +66,17 @@ its value. Nothing on the market does B2 well.
 
 ## Cluster D · Style Generator
 
-| ID     | Feature                                                                                                                                   | Audiences | Basis                                 |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------- |
-| **D1** | Preset styles (colorful, eclipse, graybeard, shadow, neutrino, satellite) with global recolouring — hue, saturation, brightness, contrast | all       | `maplibre-versatiles-styler` (exists) |
-| **D2** | **Style against your own tiles**, not just Shortbread: derive a starting style from the vector layers actually present in the container   | P1, P4    | new; needs A4                         |
-| **D3** | Layer tree with filter / zoom / paint editing, and an expression editor with live preview                                                 | P5        | new                                   |
-| **D4** | Font embedding via `versatiles-glyphs-rs` and sprite management                                                                           | P5        | `versatiles-glyphs-rs`                |
-| **D5** | Derive a dark variant from a light style (and back)                                                                                       | P4, P5    | `@versatiles/style`                   |
-| **D6** | **Accessibility**: contrast checking and colour-blindness simulation (deuteranopia, protanopia, tritanopia)                               | P1, P5    | new                                   |
-| **D7** | Legend generator, exportable alongside the map                                                                                            | P1        | new                                   |
-| **D8** | Export as `style.json`, as `@versatiles/style` code, or as a complete bundle                                                              | all       | `@versatiles/style`                   |
+| ID     | Feature                                                                                                                                                    | Audiences  | Basis                                 |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------- |
+| **D1** | Preset styles (colorful, eclipse, graybeard, shadow, neutrino, satellite) with global recolouring — hue, saturation, brightness, contrast                  | all        | `maplibre-versatiles-styler` (exists) |
+| **D2** | **Style against your own tiles**, not just Shortbread: derive a starting style from the vector layers actually present in the container                    | P1, P4     | new; needs A4                         |
+| **D3** | Layer tree with filter / zoom / paint editing, and an expression editor with live preview                                                                  | P5         | new                                   |
+| **D4** | Font selection from installed families, and sprite sheet management                                                                                        | P5         | G7, `@versatiles/style`               |
+| **D5** | Derive a dark variant from a light style (and back)                                                                                                        | P4, P5     | `@versatiles/style`                   |
+| **D6** | **Accessibility**: contrast checking and colour-blindness simulation (deuteranopia, protanopia, tritanopia)                                                | P1, P5     | new                                   |
+| **D7** | Legend generator, exportable alongside the map                                                                                                             | P1         | new                                   |
+| **D8** | Export as `style.json`, as `@versatiles/style` code, or as a complete bundle                                                                               | all        | `@versatiles/style`                   |
+| **D9** | **Generate SDF glyphs from your own fonts**: drop in a TTF/OTF, get a glyph set Studio can serve, style with and ship — including fonts no release carries | P1, P2, P5 | `versatiles-glyphs-rs`                |
 
 ---
 
@@ -109,15 +110,15 @@ its value. Nothing on the market does B2 well.
 
 ## Cluster G · Platform & Cross-cutting
 
-| ID     | Feature                                                                                                                                | Audiences  | Basis                                                       |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------------------------------------------------------- |
-| **G1** | **Project file in a text format** holding sources, pipeline, style and views — versionable and reviewable                              | all        | new                                                         |
-| **G2** | **"Show me the command"**: every GUI action displays its CLI equivalent. Teaches the tool and makes work automatable                   | P2, P3, P6 | new                                                         |
-| **G3** | Cross-platform builds for Windows, macOS and Linux, with code signing and notarisation                                                 | all        | Tauri; **costs money and time — plan early**                |
-| **G4** | Auto-update                                                                                                                            | all        | Tauri updater                                               |
-| **G5** | No telemetry, no account, and no network requirement once the chosen assets are installed — as an explicit, documented property        | P2         | design constraint; see [Q9](decisions.md)                   |
-| **G6** | Undo/redo across pipeline and style edits                                                                                              | all        | new                                                         |
-| **G7** | **Asset manager**: download, pin, verify and remove font families and sprite sets; show what is installed and what a style still needs | all        | `versatiles-fonts`, `versatiles-style` releases, `serve -s` |
+| ID     | Feature                                                                                                                                                                              | Audiences  | Basis                                                       |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- | ----------------------------------------------------------- |
+| **G1** | **Project file in a text format** holding sources, pipeline, style and views — versionable and reviewable                                                                            | all        | new                                                         |
+| **G2** | **"Show me the command"**: every GUI action displays its CLI equivalent. Teaches the tool and makes work automatable                                                                 | P2, P3, P6 | new                                                         |
+| **G3** | Cross-platform builds for Windows, macOS and Linux, with code signing and notarisation                                                                                               | all        | Tauri; **costs money and time — plan early**                |
+| **G4** | Auto-update                                                                                                                                                                          | all        | Tauri updater                                               |
+| **G5** | No telemetry, no account, and no network requirement once the chosen assets are installed — as an explicit, documented property                                                      | P2         | design constraint; see [Q9](decisions.md)                   |
+| **G6** | Undo/redo across pipeline and style edits                                                                                                                                            | all        | new                                                         |
+| **G7** | **Asset manager**: download, pin, verify and remove font families and sprite sets — including glyph sets generated locally (D9); show what is installed and what a style still needs | all        | `versatiles-fonts`, `versatiles-style` releases, `serve -s` |
 
 ---
 
