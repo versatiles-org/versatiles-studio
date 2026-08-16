@@ -20,16 +20,46 @@ showing its metadata and actual zoom range (A6) hits the same question.
 Requires a JVM. Do we detect and drive an existing installation, download one, or leave this out?
 Potentially the decisive feature for P2, and the largest single dependency we would take on.
 
-### Q8 · Do we ship anything before all four commitments land?
-
-Release 1 is defined ([Q2](decisions.md)), but the stages that lead to it are individually useful:
-stage 1 alone is a working tile viewer. Do we put previews in front of users as we go — early
-feedback, early bug reports, but a public impression formed by an incomplete tool — or stay quiet
-until the committed scope is complete?
-
 ---
 
 ## Decided
+
+### 2026-08-16 · Q8 — Release early under v0.x, but aim it at the tile audience, not the journalists
+
+Ship `v0.x` releases from stage 1 onward. Reserve the announcement — the one aimed at P1 — for the
+point where all four commitments are in.
+
+**Releasing early is how this project's ecosystem already works.** Every versatiles repository that
+ships started small and released often: `versatiles-rs` from v0.5.8 to v4.7.0 across 100 releases,
+`versatiles-style` from v0.0.2 across 78, `versatiles-frontend` from v0.0.3 across 46,
+`maplibre-versatiles-styler` from v0.1.0 across 18. The only two repositories with no releases at
+all — `versatiles-choro` and `versatiles-map-editor` — are the ones not yet usable, and choro
+carries an explicit "under heavy development, do not use in production" banner. Studio releasing at
+v0.2 with the same banner is the house style, not an exception to it.
+
+**But the framing has to be controlled**, because of the positioning risk already noted in Q2. If
+the first public build is a viewer, Studio gets categorised as "a tile viewer", and first
+categorisations are sticky. The funded scope aims at journalists who need the creation half; giving
+them their first impression of an app that cannot yet create anything spends the introduction badly.
+
+So, concretely:
+
+- **GitHub releases only, no announcement campaign.** People who follow the org find it; nobody is
+  invited yet.
+- **A `versatiles-choro`-style banner** in the README, stating plainly what works and what does not.
+- **Early audience is P3 and P6** — tile operators and ourselves. They tolerate rough edges and file
+  good bug reports. That is also the audience stage 1 genuinely serves.
+- **1.0 and the announcement land together**, when the four commitments are complete.
+
+**A concrete reason not to stay silent:** the macOS install path from [Q10](decisions.md) leaves a
+Gatekeeper dialog in front of every user, and we cannot test whether those instructions actually
+work by reading them ourselves. Finding that out at v0.2 with sympathetic users is much cheaper
+than at 1.0 with the target audience. The same argument applies to the diversity of malformed
+containers in the wild, which we cannot manufacture.
+
+**One input we do not have here.** If the funding agreement requires public milestones or a
+particular reporting cadence, that overrides the framing above — it is the funder's call, not ours.
+Worth checking before the first tag.
 
 ### 2026-08-16 · Q6 — A project is a directory of real files, described by a YAML manifest
 

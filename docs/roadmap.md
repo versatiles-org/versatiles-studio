@@ -19,7 +19,12 @@ entirely. See [Q2](decisions.md) for the decision and the evidence behind it.
 | **2** | VPL editing, inline errors, generated parameter forms, live preview                                  | Edit VPL and instantly see the result        |
 | **3** | Import wizards on the pipeline layer, job queue, container export                                    | Convert image and vector data into map tiles |
 | **4** | Asset manager, style editing against the user's own layers, export                                   | Create your own map style                    |
-| **5** | Project file, Linux packaging and Homebrew cask, auto-update                                         | shippability                                 |
+| **5** | Project directory, Linux packaging and Homebrew cask, auto-update                                    | shippability                                 |
+
+Per [Q8](decisions.md), stages 1 onward ship as `v0.x` releases with an honest "under development"
+banner, aimed at tile operators and ourselves. **1.0 and the public announcement land together**,
+when all four commitments are in — the journalism audience should not meet Studio before it can
+create anything.
 
 Two things worth repeating from the scope document, because they drive the whole plan:
 
