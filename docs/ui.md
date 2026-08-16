@@ -22,13 +22,13 @@ panels, the **node graph inside the Pipeline mode** rather than being the whole 
 Not aesthetics — build order. It is the only arrangement that grows monotonically through the stages
 in [Release 1 Scope](scope-release-1.md), with each stage adding a mode and nothing being rebuilt:
 
-| Stage | Ships                    | UI that appears                                                   |
-| ----- | ------------------------ | ----------------------------------------------------------------- |
-| 1     | Cluster A                | Landing screen; the shell: map, sources, inspector, command strip |
-| 2     | Node graph, VPL, preview | Mode bar appears; Pipeline mode tabs graph and text               |
-| 3     | Import wizards           | Import cards join the landing screen and "add source"             |
-| 4     | Style editing            | Style mode joins the bar                                          |
-| 5     | Packaging                | Publish mode joins the bar                                        |
+| Stage | Ships                    | UI that appears                                             |
+| ----- | ------------------------ | ----------------------------------------------------------- |
+| 1     | Cluster A                | Landing screen; Explore mode: map, inspector, command strip |
+| 2     | Node graph, VPL, preview | Mode bar appears; Pipeline mode tabs graph and text         |
+| 3     | Import wizards           | Import cards join the landing screen and "add source"       |
+| 4     | Style editing            | Style mode joins the bar                                    |
+| 5     | Packaging                | Publish mode joins the bar                                  |
 
 The alternatives fail this test. A **pipeline-centric** app where everything is a node needs the
 graph in stage 1, but C1 lands in stage 2 — and a layer tree with paint properties is not a node, so
@@ -43,7 +43,10 @@ True in every mode and every stage. These matter more than the panel arrangement
 
 - **The map never disappears.** Live preview is the entire pitch; no editor goes fullscreen.
 - **The map viewport survives mode switches.** Changing mode must not move, zoom or reload the map —
-  otherwise comparing a style change against a pipeline change is impossible.
+  otherwise comparing a style change against a pipeline change is impossible. The map's _size_ does
+  change between modes (Explore is widest), so the visible extent shifts; centre and zoom must not.
+- **One `Map` instance spans all four modes.** Modes reconfigure panels around it rather than
+  creating their own, so switching mode costs no WebGL context and no reload.
 - **Undo is global and crosses modes** ([Q11](decisions.md) → G6). One stack, or the unified stack
   decided for stage 2 is a fiction.
 - **Jobs are never modal.** E7 runs for hours. A modal progress dialog makes Studio single-tasking.
@@ -81,19 +84,20 @@ window; ⌘N opens another empty one — one window per project ([Q16](decisions
 └───────────────────────────────────────────────────────────┘
 ```
 
-### Stage 1 — the shell
+### Stage 1 — the shell, which is Explore mode
 
-No modes yet. Cluster A needs exactly four regions, and they are the ones every later stage keeps.
+Explore is for _looking_, so it carries no sources strip and no editor pane — the map takes the full
+width and the inspector reports on what is under the cursor or selected.
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │ ≡  MyProject                                    assets ⚙  │
-├────────────┬─────────────────────────────┬────────────────┤
-│ SOURCES    │                             │ INSPECTOR      │
-│ • osm.vt   │           MAP               │ format, zooms  │
-│   places   │      grid overlay (A5)      │ TileJSON (A6)  │
-│ + add …    │      feature popup (A8)     │ bookmarks (A7) │
-├────────────┴─────────────────────────────┴────────────────┤
+├─────────────────────────────────────────┬─────────────────┤
+│                                         │ INSPECTOR       │
+│                  MAP                    │ format, zooms   │
+│            grid overlay (A5)            │ TileJSON (A6)   │
+│            feature popup (A8)           │ bookmarks (A7)  │
+├─────────────────────────────────────────┴─────────────────┤
 │ $ versatiles probe osm.versatiles -d              [copy]  │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -150,49 +154,81 @@ UI to keep in sync, and the escape hatch is the pipeline itself.
 └───────────────────────────────────────────────────────────┘
 ```
 
-### Stages 4 and 5 — Style and Publish
+### Stage 4 — Style mode
 
-Style mode swaps the editor pane for a layer tree and the inspector for paint properties. The map
-and sources do not move, so a style change can be judged against the same viewport as the pipeline
-change that preceded it.
+The editor pane becomes a layer tree, the inspector becomes paint properties. No sources strip — you
+are styling the project's output, not choosing inputs.
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │ Explore │ Pipeline │ Style │ Publish             assets ⚙ │
-├────────────┬─────────────────────────────┬────────────────┤
-│ SOURCES    │           MAP               │ PAINT          │
-│            │                             │ colour, width, │
-│            ├─────────────────────────────┤ opacity, zoom  │
-│            │ LAYER TREE (D3)             │ stops          │
-│            │  ▸ water        ▸ roads     │ expression     │
-│            │  ▸ buildings    ▸ labels    │ editor         │
-├────────────┴─────────────────────────────┴────────────────┤
+├─────────────────────────────────────────┬─────────────────┤
+│                  MAP                    │ PAINT           │
+│                                         │ colour, width,  │
+├─────────────────────────────────────────┤ opacity, zoom   │
+│ LAYER TREE (D3)                         │ stops,          │
+│  ▸ water   ▸ roads   ▸ buildings        │ expressions     │
+│  ▸ labels  ▸ landuse                    │                 │
+├─────────────────────────────────────────┴─────────────────┤
 │ Jobs ▸ …                    $ versatiles serve project/   │
 └───────────────────────────────────────────────────────────┘
 ```
 
-## Panel inventory
+### Stage 5 — Publish mode
 
-| Panel             | Constant?    | Carries                                                       |
-| ----------------- | ------------ | ------------------------------------------------------------- |
-| **Mode bar**      | from stage 2 | Explore · Pipeline · Style · Publish; asset manager (G7)      |
-| **Sources**       | always       | A1, A2, A3 layer stack, A7 recents and bookmarks              |
-| **Map**           | always       | The render target; A5 grid, A8 popups, C3 preview             |
-| **Editor pane**   | per mode     | Graph + VPL (C1, C4) · layer tree (D3) · export options       |
-| **Inspector**     | always       | Selection-driven: A6 metadata · C2 parameter forms · D3 paint |
-| **Job bar**       | always       | E7 progress, cancellation, log                                |
-| **Command strip** | always       | G2 — the CLI equivalent of the last action, copyable          |
+The map becomes an **input device**: F2's crop is a rectangle you drag on it. Nothing here is
+selection-driven, so the inspector collapses rather than sitting empty.
 
-The inspector is the one at risk of becoming a junk drawer. Rule: it only ever shows properties of
-**the current selection**, never global settings. Global settings belong in the asset manager or
-project settings.
+```text
+┌───────────────────────────────────────────────────────────┐
+│ Explore │ Pipeline │ Style │ Publish             assets ⚙ │
+├───────────────────────────────────────────────────────────┤
+│              MAP — drag a rectangle to crop         (F2)  │
+│            ┌ ─ ─ ─ ─ ─ ─ ─ ┐                              │
+│            │   bbox        │                              │
+│            └ ─ ─ ─ ─ ─ ─ ─ ┘                              │
+├───────────────────────────────────────────────────────────┤
+│ EXPORT  .versatiles ▾   zoom 0–14   ~2.3 GB   [ Export ]  │
+│ SERVE   http://192.168.1.5:8080     [QR]            (F1)  │
+├───────────────────────────────────────────────────────────┤
+│ Jobs ▸ …            $ versatiles convert --bbox … --max-zoom 14 │
+└───────────────────────────────────────────────────────────┘
+```
+
+## Modes and panels
+
+Four modes. Only four things are actually constant — **mode bar, map, job bar, command strip**. That
+is the whole shell; everything else is earned per mode.
+
+| Panel             | Explore                                 | Pipeline                   | Style                   | Publish                 |
+| ----------------- | --------------------------------------- | -------------------------- | ----------------------- | ----------------------- |
+| **Mode bar**      | ✓                                       | ✓                          | ✓                       | ✓                       |
+| **Sources**       | —                                       | **inputs to the pipeline** | —                       | —                       |
+| **Map**           | the subject                             | previews the node (C3)     | live style feedback     | crop rectangle (F2)     |
+| **Editor pane**   | —                                       | Graph / VPL tabs (C1, C4)  | layer tree (D3)         | export + serve (F1, F2) |
+| **Inspector**     | metadata, TileJSON (A6), bookmarks (A7) | node parameters (C2)       | paint, expressions (D3) | — collapses             |
+| **Job bar**       | ✓                                       | ✓                          | ✓                       | ✓                       |
+| **Command strip** | ✓                                       | ✓                          | ✓                       | ✓                       |
+
+**The sources strip belongs to Pipeline alone.** Sources are inputs to the thing being built, and
+only Pipeline is building. Explore looks at the result, Style styles the result, Publish ships the
+result — none of them needs a list of inputs. This supersedes the earlier reading in
+[Q14](decisions.md), where the strip was shared and meant two different things depending on mode.
+
+**Explore is the widest mode**: no sources, no editor pane, just map and inspector. Its identity is
+reading rather than working, and the layout should say so.
+
+**The inspector only ever shows properties of the current selection**, never global settings —
+otherwise it becomes the junk drawer where every new feature lands. Global settings live in the asset
+manager or project settings. Where nothing is selectable, as in Publish, it collapses rather than
+showing an empty panel.
 
 ## State that must survive a mode switch
 
 Naming this early, because it is the part that is expensive to retrofit:
 
 - Map viewport — centre, zoom, bearing, pitch
-- Selected source, and the layer stack's visibility and opacity
+- The selected source, and any comparison state (swipe position, split ratio)
 - The pipeline's "look here" node (C3), so returning to Pipeline resumes where you were
 - The global undo stack (G6)
 - Running jobs and their logs
@@ -204,10 +240,17 @@ Naming this early, because it is the part that is expensive to retrofit:
 and Pipeline separate, and [Q15](decisions.md) makes the pipeline pane tabbed. Nothing about the
 shell is open.
 
-What still needs working out, at the level of panels rather than layout:
+Removing the sources strip from three of the four modes settled most of what was loose: Explore's
+missing editor pane is now deliberate rather than an oversight, Style and Publish no longer have an
+undefined panel, and Publish's empty inspector collapses. Publish also turns out to earn its slot —
+F2's crop is a direct-manipulation gesture on the map, not a button.
 
-- **What the Sources panel looks like in each mode**, given Q14 makes it mean two things. The risk is
-  that switching modes looks like a bug rather than a change of affordance.
-- **What Publish mode actually contains.** F1 and F2 are in release 1; F3–F7 are not, so the mode may
-  be thin enough to question whether it earns a slot in the bar at stage 5.
+Two things remain:
+
+- **Where the multi-source layer stack (A3) lives**, now that Explore has no sources strip. Two
+  candidates: express it as a pipeline (`from_stacked` and `from_merged_vector` already exist) so
+  Explore simply shows the result, or give the map a comparison control for swipe and split. The
+  first is more consistent with "the text is the source of truth"; the second matches what comparing
+  actually feels like. A3 is a stretch item, so this can wait — but not past the point where B5
+  (container diff) is planned, since it needs the same mechanism.
 - **Where project settings live**, since the inspector is reserved for selection properties.

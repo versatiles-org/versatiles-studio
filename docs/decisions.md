@@ -95,11 +95,15 @@ They are different activities: Explore is consumption — open what exists, insp
 Pipeline is production — build something new. Collapsing them would save a mode at the cost of
 making both muddier.
 
-**Consequence for the Sources panel**, which is shared and therefore means two things. In Explore it
-is a **view stack**: containers opened for looking at, with visibility, opacity and comparison (A3).
-In Pipeline it is the **input list**: sources the pipeline reads from. Same underlying project
-sources, different affordances — and the panel has to make clear which it is showing, or the two
-modes will feel like a bug.
+**Consequence for the Sources panel — revised.** The first reading was that the panel is shared and
+means two things: a view stack in Explore, an input list in Pipeline. That is rejected. **The sources
+strip exists only in Pipeline.** Sources are inputs to the thing being built, and only Pipeline
+builds; Explore looks at the result, Style styles it, Publish ships it. A panel that changes meaning
+by mode is a panel that reads as a bug.
+
+This makes Explore the widest mode — map and inspector only, no sources strip and no editor pane —
+and its identity becomes reading rather than working. It also leaves the multi-source layer stack
+(A3) without a home, which is now the open item in [ui.md](ui.md).
 
 ### Q15 — The pipeline pane tabs between graph and text
 
