@@ -14,11 +14,14 @@ repository = "https://github.com/versatiles-org/versatiles-studio"
 versatiles_core = "4.7"
 versatiles_container = "4.7"
 versatiles_pipeline = "4.7"
+# `server` for the data plane, `codegen` for `all_operation_metadata()` (C2), `ssh2` for remote
+# sources (A2). Explicitly not `cli` — that pulls clap, env_logger and termimad into a GUI app.
+versatiles = { version = "4.7", default-features = false, features = ["server", "codegen", "ssh2"] }
 
 anyhow = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
 
 [profile.release]
 codegen-units = 1

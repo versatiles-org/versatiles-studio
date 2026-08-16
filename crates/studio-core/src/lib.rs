@@ -5,9 +5,9 @@
 //!
 //! Modules mirror the core services in `docs/architecture.md`.
 
-pub mod project;
-pub mod vpl;
-pub mod jobs;
 pub mod analysis;
 pub mod assets;
+pub mod jobs;
+pub mod project;
 pub mod server;
+pub mod vpl;

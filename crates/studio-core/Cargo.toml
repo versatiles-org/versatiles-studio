@@ -10,6 +10,10 @@ repository.workspace = true
 [dependencies]
 anyhow.workspace = true
 serde.workspace = true
+tokio.workspace = true
+versatiles.workspace = true
+versatiles_container.workspace = true
+versatiles_core.workspace = true
 
 [lints.clippy]
 all = "warn"
