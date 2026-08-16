@@ -155,7 +155,7 @@ Tabs remove that reassurance, so it has to be rebuilt deliberately:
 
 ### Q11 — The node graph (C1) is in release 1, and needs a lossless VPL syntax tree
 
-Commitment 4 means **node graph plus text editor**, not text editor alone. C1 becomes a deliverable
+M4 means **node graph plus text editor**, not text editor alone. C1 becomes a deliverable
 and stage 2 is planned around it.
 
 The catalogue assumed C1 was cheap because "the parser exists". It parses, but it cannot write back:
@@ -228,7 +228,7 @@ clusters as a wide front and Q11 just added the node graph to it.
 
 ### Q8 — Release early under v0.x, aimed at the tile audience
 
-Ship `v0.x` from stage 1; reserve the announcement for when all four commitments are in.
+Ship `v0.x` from stage 1; reserve the announcement for when all four milestones are in.
 
 **Releasing early is house style.** Every versatiles repository that ships started small:
 `versatiles-rs` v0.5.8 → v4.7.0 across 100 releases, `versatiles-style` 78, `versatiles-frontend`
@@ -326,13 +326,13 @@ packaging.
 the money) and the Windows certificate route — OV, EV, or Azure Artifact Signing. Get quotes first;
 certificates issued after 1 June 2023 need hardware-token or HSM storage, which complicates CI.
 
-### Q2 — Scope of release 1 is set by the funding commitment
+### Q2 — Scope of release 1 is set by the funding milestones
 
-Q2 asked whether to build for the analysis or creation audience first. Moot: the four commitments in
+Q2 asked whether to build for the analysis or creation audience first. Moot: the four milestones in
 [Release 1 Scope](scope-release-1.md) are funded, spanning clusters A, D, E and C. **Cluster B is
 not in scope**, reversing the earlier roadmap.
 
-Four independent sources agree with the commitment:
+Four independent sources agree with the milestones:
 
 - **Who uses VersaTiles** — of 76 showcase projects, 24 are tagged `journalism`, 16
   `data-visualisation`, 7 `storytelling`; at least 21 come from news organisations, 37 from Germany.
@@ -346,7 +346,7 @@ Four independent sources agree with the commitment:
   cluster E's engines exist but its wizard UI is the expensive part.
 
 **Risk to watch.** Four clusters is a wide front, and the two most expensive by reuse ratio (D 56%,
-A 63%) are both in it. Hence the minimum reading of each commitment in the scope document.
+A 63%) are both in it. Hence the minimum reading of each milestone in the scope document.
 
 ### Q9 — Fonts and sprites are fetched per family, and never unpacked
 

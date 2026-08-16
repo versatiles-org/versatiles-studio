@@ -1,17 +1,17 @@
 # Release 1 Scope
 
-VersaTiles Studio is funded, and four features are committed. This document maps each commitment to
-the [Feature Catalogue](features.md) and separates what a commitment requires from what merely fits
-near it.
+VersaTiles Studio is funded against four milestones, **M1**–**M4**. This document maps each to the
+[Feature Catalogue](features.md), separates what a milestone requires from what merely fits near it,
+and breaks the work into stage-scoped items (`S2.1`, `S3.4`, …) you can open issues against.
 
-> The four commitments are fixed. The minimum readings, the ordering and the stretch lists are our
-> proposal and open to revision.
+> The four milestones are fixed, and their numbers are the funder's. The minimum readings, the
+> ordering and the stretch lists are our proposal and open to revision.
 
 They span clusters A, D, E and C. Cluster B is out of scope ([Q2](decisions.md)).
 
 ---
 
-## Commitment 1 · Open and preview all supported formats
+## M1 · Open and preview all supported formats
 
 |                      | Features                                                                                                                                                |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -26,7 +26,7 @@ against. Raster preview too, not just vector.
 **Settled:** "all supported formats" includes remote sources. `versatiles_container` supports HTTPS
 and SFTP with byte ranges, so excluding them would arbitrarily narrow the word "all".
 
-## Commitment 2 · Create your own map style
+## M2 · Create your own map style
 
 |              | Features                                                                                                                                                                                                              |
 | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -42,7 +42,7 @@ new construction.
 **Settled:** "create" means start from a preset, recolour, edit layers, export — not authoring from
 an empty document, which is a cartographer's tool (P5) and a far larger surface.
 
-## Commitment 3 · Convert image and vector data into map tiles
+## M3 · Convert image and vector data into map tiles
 
 |                      | Features                                                                                                                                                                 |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -54,7 +54,7 @@ an empty document, which is a cartographer's tool (P5) and a far larger surface.
 E7 is not optional. Conversions run for minutes to hours; without progress and cancellation the
 first long run makes the app look broken.
 
-## Commitment 4 · Edit VPL and instantly see the result
+## M4 · Edit VPL and instantly see the result
 
 |              | Features                                                                                                                                                    |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -74,26 +74,145 @@ come back as rendered strings with no positions.
 
 ## The dependency that saves the most work
 
-**Commitments 3 and 4 share one engine.** E1, E2 and E3 are the `from_geo`, `from_csv` and GDAL
+**M3 and M4 share one engine.** E1, E2 and E3 are the `from_geo`, `from_csv` and GDAL
 operations of the pipeline; the import wizard is a guided front-end onto a VPL pipeline the user
 could equally well have typed. Building the pipeline layer first means the wizard's preview _is_
 C3's preview, every wizard gets a "show me the VPL" escape hatch (G2, satisfying C7), and fixing the
 pipeline fixes the wizard. Building them separately means writing the conversion plumbing twice.
 
-## Proposed order
+## Stage order
 
-Derived from that dependency, not from the numbering of the commitments.
+Derived from that dependency, not from the funder's numbering — which is why the milestones are
+delivered in the order M1, M4, M3, M2.
 
-| Stage | Contents                                                                                                | Delivers             |
-| ----- | ------------------------------------------------------------------------------------------------------- | -------------------- |
-| **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for Linux and macOS    | nothing user-visible |
-| **1** | Cluster A plus a default render style                                                                   | **Commitment 1**     |
-| **2** | Lossless VPL syntax tree, node graph, inline errors, generated parameter forms, live preview, undo/redo | **Commitment 4**     |
-| **3** | Import wizards on the pipeline layer, job queue, container export                                       | **Commitment 3**     |
-| **4** | Asset manager, style editing against the user's own layers (on stage 2's undo stack), export            | **Commitment 2**     |
-| **5** | Project directory (G1), Linux packaging and Homebrew cask (G3), auto-update (G4)                        | shippability         |
+| Stage  | Theme            | Delivers             |
+| ------ | ---------------- | -------------------- |
+| **S0** | Foundation       | nothing user-visible |
+| **S1** | Open & explore   | **M1**               |
+| **S2** | Pipeline editing | **M4**               |
+| **S3** | Import & convert | **M3**               |
+| **S4** | Style            | **M2**               |
+| **S5** | Ship             | shippability         |
 
-Commitment 2 comes last because D2 wants tiles to style, and those come from commitment 3.
+M2 comes last because D2 wants tiles to style, and those come from M3.
+
+## Work items
+
+One line per unit of work, scoped to its stage. **The number is identity, not order** — items are
+listed roughly in dependency order but are never renumbered when something is inserted, and retired
+items are never reused. `*` marks a stretch item, cut first. Where an item delivers a catalogued
+feature the ID is given; where it says _infrastructure_ there is no feature, which is precisely why
+the item needs an ID of its own.
+
+### S0 · Foundation
+
+Nothing user-visible, and a prerequisite for every milestone.
+
+| Item     | Work                                                                                       | Feature        |
+| -------- | ------------------------------------------------------------------------------------------ | -------------- |
+| **S0.1** | Tauri shell: one window per project, native menus, dialogs, drag & drop, file associations | infrastructure |
+| **S0.2** | Studio core skeleton — a plain Rust library with no Tauri types, driven by ordinary tests  | infrastructure |
+| **S0.3** | Control plane: `#[tauri::command]` bindings and `tauri-specta` type generation             | infrastructure |
+| **S0.4** | Event plane: Tauri Channels for progress, warnings and log lines                           | infrastructure |
+| **S0.5** | Embedded server and server manager — one instance, named mounts, loopback only             | infrastructure |
+| **S0.6** | Bundled asset tier: sprites (1.3 MB) and Latin Noto Sans (~1 MB), served from the archive  | infrastructure |
+| **S0.7** | CI for Linux and macOS, including ad-hoc macOS signing                                     | infrastructure |
+| **S0.8** | **Measure the per-webview memory baseline** and confirm the window model holds             | infrastructure |
+| **S0.9** | No telemetry, no account, no analytics dependency — and say so in the README               | G5             |
+
+**S0.8 is a decision checkpoint, not a chore.** [Q16](decisions.md) assumes several webview processes
+are affordable without a figure for our bundle. If they are not, the fallback is tabs plus aggressive
+`Map` disposal, and that is far cheaper to adopt at S0 than at S3.
+
+### S1 · Open & explore → M1
+
+| Item        | Work                                                                                | Feature        |
+| ----------- | ----------------------------------------------------------------------------------- | -------------- |
+| **S1.1**    | Landing screen in an empty window: ways in plus recent files                        | A7             |
+| **S1.2**    | Open local containers — `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories  | A1             |
+| **S1.3**    | Open remote sources over HTTPS and SFTP with byte ranges                            | A2             |
+| **S1.4**    | Map canvas and default render style; one `Map` instance, viewport owned by the core | infrastructure |
+| **S1.5**    | Inspector: container metadata and TileJSON, viewable and editable                   | A6             |
+| **S1.6**    | Feature popup on hover/click                                                        | A8             |
+| **S1.7**    | Tile grid overlay with z/x/y and a jump-to-coordinate box                           | A5             |
+| **S1.8**    | Named view bookmarks stored in the project                                          | A7             |
+| **S1.9**    | Command strip — the CLI equivalent of the last action, copyable                     | G2             |
+| **S1.10\*** | Raw MVT inspector: layers → features → properties, with byte sizes                  | A4             |
+
+### S2 · Pipeline editing → M4
+
+The long pole. S2.1 gates everything after it.
+
+| Item        | Work                                                                                             | Feature        |
+| ----------- | ------------------------------------------------------------------------------------------------ | -------------- |
+| **S2.1**    | **Lossless VPL syntax tree and serialiser** — spans, comments, parameter order. Ideally upstream | infrastructure |
+| **S2.2**    | Mode bar; Explore and Pipeline as separate modes; state that survives a switch                   | infrastructure |
+| **S2.3**    | VPL text editor over the syntax tree                                                             | C1             |
+| **S2.4**    | Inline parse and validation errors at the right position                                         | C4             |
+| **S2.5**    | Node graph, tabbed with VPL: selection sync, error badge, never a stale graph                    | C1             |
+| **S2.6**    | Parameter forms generated from `field_meta`                                                      | C2             |
+| **S2.7**    | Live preview of the selected node, mounted on the embedded server                                | C3             |
+| **S2.8**    | Undo/redo command stack over the syntax tree's edit list                                         | G6             |
+| **S2.9\***  | Recipe library of working starting points                                                        | C5             |
+| **S2.10\*** | Watch mode: source changes on disk refresh the preview                                           | C8             |
+
+**Start S2.1 during S1.** It does not exist upstream, it is not small, and everything in M4 sits on
+it. Offering it to `versatiles_pipeline` early means review overlaps with cluster A rather than
+following it.
+
+### S3 · Import & convert → M3
+
+| Item       | Work                                                                          | Feature        |
+| ---------- | ----------------------------------------------------------------------------- | -------------- |
+| **S3.1**   | Job runner and job bar: progress, cancellation, and an expandable per-job log | E7             |
+| **S3.2**   | Import cards on the landing screen and on "+ Add source"                      | infrastructure |
+| **S3.3**   | Vector import: GeoJSON, NDJSON, shapefile                                     | E1             |
+| **S3.4**   | Tabular point import: CSV with lon/lat columns                                | E2             |
+| **S3.5**   | GDAL path: GeoTIFF, GeoPackage and the rest — the "image data" half of M3     | E3             |
+| **S3.6**   | Write the result to a container                                               | F2             |
+| **S3.7**   | Sampling-based cost estimate, shown where a run is committed                  | C6             |
+| **S3.8\*** | DEM workflow: terrarium encoding, hillshade, quantisation                     | E4             |
+| **S3.9\*** | Table join: existing tiles plus CSV → choropleth                              | E6             |
+
+**No import wizard surface.** A card opens the native file dialog, inserts a node into the pipeline
+and selects it; S2.6's generated form is the configuration UI and S2.7's preview is the preview.
+
+### S4 · Style → M2
+
+| Item        | Work                                                                          | Feature        |
+| ----------- | ----------------------------------------------------------------------------- | -------------- |
+| **S4.1**    | Asset manager: download, pin, verify and remove font families and sprite sets | G7             |
+| **S4.2**    | Style mode: layer tree pane and paint inspector                               | infrastructure |
+| **S4.3**    | Preset styles with global recolouring                                         | D1             |
+| **S4.4**    | Derive a style from the layers actually present in the container              | D2             |
+| **S4.5**    | Layer tree with filter/zoom/paint editing and an expression editor            | D3             |
+| **S4.6**    | Export `style.json`, `@versatiles/style` code, or a bundle                    | D8             |
+| **S4.7**    | Put style edits on S2.8's undo stack rather than building a second one        | G6             |
+| **S4.8\***  | Derive a dark variant from a light style                                      | D5             |
+| **S4.9\***  | Accessibility: contrast checking and colour-blindness simulation              | D6             |
+| **S4.10\*** | Generate SDF glyphs from the user's own fonts                                 | D9             |
+
+**S4.4 is the hardest item in the release.** It cannot assume Shortbread layers — it has to read what
+is in the container, which is the same introspection as A4 (S1.10).
+
+### S5 · Ship
+
+Delivers no milestone, and without it none of them reaches anyone.
+
+| Item     | Work                                                                                     | Feature        |
+| -------- | ---------------------------------------------------------------------------------------- | -------------- |
+| **S5.1** | Project directory: `project.yaml` beside real `.vpl` and `style.json`; zip and "Save As" | G1             |
+| **S5.2** | Publish mode: export options, and the map as a crop input                                | infrastructure |
+| **S5.3** | Local server toggle with LAN URL and QR code                                             | F1             |
+| **S5.4** | Crop by rectangle plus a zoom range                                                      | F2             |
+| **S5.5** | Export as CLI command, serve config, Dockerfile or GitHub Action                         | C7             |
+| **S5.6** | Linux packaging: `.deb` plus an AppImage, from GitHub releases                           | G3             |
+| **S5.7** | macOS Homebrew cask in our own tap, plus install instructions covering Gatekeeper        | G3             |
+| **S5.8** | Auto-update                                                                              | G4             |
+
+**S5.7's deliverable is the instructions, not the cask.** Homebrew still applies quarantine and there
+is no opt-out, so every macOS user meets a security dialog before first launch — and that lands
+hardest on P1.
 
 **Stage 2 is the long pole.** The syntax tree has to exist before the graph can edit anything, so
 start it during stage 1 — ideally as an upstream contribution, so review overlaps with cluster A
@@ -120,4 +239,4 @@ by [Q10](decisions.md).
 on a later roadmap.
 
 B1, B2 and B3 are cheaper than this document once assumed — per [Q12](decisions.md) the byte
-breakdown already exists upstream — and are the natural first additions once the commitments ship.
+breakdown already exists upstream — and are the natural first additions once the milestones ship.

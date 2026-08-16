@@ -10,7 +10,8 @@ takes a week and one that takes a quarter; details are in the
 [Target Audiences](audiences.md).
 
 **Stage values.** `0`–`5` are the release 1 stages from
-[Release 1 Scope](scope-release-1.md#proposed-order). Everything else is after 1.0:
+[Release 1 Scope](scope-release-1.md#stage-order), where each stage is broken into work items
+(`S2.1`, `S3.4`, …). Everything else is after 1.0:
 
 | Value       | Meaning                                                                             |
 | ----------- | ----------------------------------------------------------------------------------- |
@@ -117,7 +118,7 @@ than it looks ([Q12](decisions.md)).
 | **F6** | `later`   | Still-image export as PNG/SVG for print and editorial use                                | `versatiles-svg-renderer` (in the webview)  |
 | **F7** | `later`   | Offline package: tiles + style + fonts in one folder for field work                      | `versatiles-frontend`                       |
 
-**F2 lands twice.** Writing a container is required for commitment 3, so the export itself is stage 3.
+**F2 lands twice.** Writing a container is required for M3, so the export itself is stage 3 (S3.6).
 The crop rectangle is a Publish-mode gesture on the map, and Publish mode arrives at stage 5.
 
 ---

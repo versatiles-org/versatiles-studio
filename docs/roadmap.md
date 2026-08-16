@@ -2,7 +2,8 @@
 
 > Stages, not dates. Feature IDs refer to the [Feature Catalogue](features.md).
 
-**Release 1 is defined by the funding commitment**, not by us. Its scope and its six stages live in
+**Release 1 is defined by four funding milestones (M1–M4)**, not by us. Their scope, the six stages
+and the work items live in
 [Release 1 Scope](scope-release-1.md) and are not repeated here. This document covers how release 1
 ships, and what comes after it.
 
@@ -13,7 +14,7 @@ reverses that — see [Q2](decisions.md).
 
 Per [Q8](decisions.md), stages 1 onward ship as `v0.x` releases with an honest "under development"
 banner, aimed at tile operators and ourselves. **1.0 and the public announcement land together**,
-when all four commitments are in — the journalism audience should not meet Studio before it can
+when all four milestones are in — the journalism audience should not meet Studio before it can
 create anything.
 
 Release 1 targets **Linux and macOS** via a Homebrew cask ([Q10](decisions.md)). Windows and Apple
