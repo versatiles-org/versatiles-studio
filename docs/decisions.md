@@ -47,7 +47,7 @@ So, concretely:
 - **GitHub releases only, no announcement campaign.** People who follow the org find it; nobody is
   invited yet.
 - **A `versatiles-choro`-style banner** in the README, stating plainly what works and what does not.
-- **Early audience is P3 and P6** — tile operators and ourselves. They tolerate rough edges and file
+- **Early audience is P3** — tile operators, plus ourselves. They tolerate rough edges and file
   good bug reports. That is also the audience stage 1 genuinely serves.
 - **1.0 and the announcement land together**, when the four commitments are complete.
 
@@ -63,7 +63,7 @@ Worth checking before the first tag.
 
 ### 2026-08-16 · Q6 — A project is a directory of real files, described by a YAML manifest
 
-```
+```text
 MyProject/
   project.yaml     Studio's manifest: sources, views, references to the files below
   pipeline.vpl     a real VPL file

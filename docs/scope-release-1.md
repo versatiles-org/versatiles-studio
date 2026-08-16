@@ -100,7 +100,7 @@ Derived from that dependency, not from the numbering of the commitments.
 
 | Stage | Contents                                                                                             | Delivers             |
 | ----- | ---------------------------------------------------------------------------------------------------- | -------------------- |
-| **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for three platforms | nothing user-visible |
+| **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for Linux and macOS | nothing user-visible |
 | **1** | Cluster A plus a default render style                                                                | **Commitment 1**     |
 | **2** | VPL editing, inline errors, generated parameter forms, live preview                                  | **Commitment 4**     |
 | **3** | Import wizards on top of the pipeline layer, job queue, container export                             | **Commitment 3**     |

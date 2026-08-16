@@ -19,6 +19,10 @@ Studio is funded, and four features are committed for the first release:
 3. Convert image and vector data into map tiles.
 4. Edit VPL and instantly see the result.
 
+Release 1 targets **Linux and macOS**. Windows builds and Apple notarisation are deferred to a
+later release, which keeps certificate procurement off the critical path — see
+[Q10](docs/decisions.md).
+
 See [Release 1 Scope](docs/scope-release-1.md) for how these map onto the feature catalogue.
 
 ## Planning documents

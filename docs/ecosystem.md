@@ -23,7 +23,7 @@ binary.
 
 ### Pipeline operations available today
 
-```
+```text
 read       from_container, from_tilejson, from_tile, from_color, from_geo, from_csv,
            from_merged_vector, from_stacked, from_stacked_raster, from_debug
 general    filter, meta_update

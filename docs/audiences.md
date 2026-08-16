@@ -1,5 +1,10 @@
 # Target Audiences
 
+> Draft. Everything here is open for discussion.
+
+Five groups, in the order they matter for [Release 1](scope-release-1.md). The IDs `P1`–`P5` are
+stable and are referenced from the [Feature Catalogue](features.md) and from issues.
+
 ---
 
 ## P1 · Data journalists & NGOs
