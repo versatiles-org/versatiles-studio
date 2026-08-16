@@ -7,5 +7,11 @@ export default defineConfig({
 	clearScreen: false,
 	server: { port: 1420, strictPort: true },
 	// Everything is bundled at build time — no Node runtime ships (Q5).
-	build: { target: 'es2022', sourcemap: true }
+	build: {
+		target: 'es2022',
+		sourcemap: true,
+		// MapLibre alone is ~800 kB. Code-splitting a desktop app that loads from disk buys nothing,
+		// so the default 500 kB advisory is noise rather than a signal.
+		chunkSizeWarningLimit: 1500
+	}
 });

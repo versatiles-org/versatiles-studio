@@ -5,5 +5,5 @@ dist/
 src-tauri/gen/
 src-tauri/target/
 src-tauri/icons/
-src/maplibre-gl-worker.js
+public/maplibre-gl-worker.js
 target/

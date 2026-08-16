@@ -6,10 +6,9 @@
 
 	// Since v6 MapLibre loads its worker from a separate file, which bundlers cannot resolve via
 	// `import.meta.url` once they have inlined `maplibre-gl.mjs` into a chunk. We ship a
-	// self-contained copy (scripts/bundle_worker.ts) and point MapLibre at it. A plain `new URL`
-	// keeps this readable by every bundler — a Vite-only `?worker&url` import breaks Vite's own
-	// dependency pre-bundling.
-	maplibre.setWorkerUrl(new URL('../../../maplibre-gl-worker.js', import.meta.url).href);
+	// self-contained copy (scripts/bundle_worker.ts) from `public/`, which Vite copies verbatim, and
+	// point MapLibre at it by path.
+	maplibre.setWorkerUrl('/maplibre-gl-worker.js');
 
 	let {
 		style,
