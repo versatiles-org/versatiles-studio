@@ -12,7 +12,7 @@
 //! [Q3]: ../../../docs/decisions.md
 
 use anyhow::{Context, Result};
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 use versatiles::{config::Config, server::TileServer};
 use versatiles_container::{TileSource, TilesRuntime};
 
@@ -75,6 +75,21 @@ impl ServerManager {
 			.with_context(|| format!("unmounting tile source {name:?}"))
 	}
 
+	/// Mounts a static archive under `url_prefix`, e.g. `glyphs.tar.gz` at `/assets/glyphs`.
+	///
+	/// The archive is served **as an archive** — `.tar`, `.tar.gz` and `.tar.br` are all read in
+	/// place, so the 512 glyph files inside never touch the disk ([Q9]). Unpacking them would cost
+	/// nothing here and everything on Windows, and would make the asset non-atomic to replace.
+	///
+	/// [Q9]: ../../../docs/decisions.md
+	pub async fn mount_static(&mut self, path: &Path, url_prefix: &str) -> Result<()> {
+		self
+			.server
+			.add_static_source(path, url_prefix)
+			.await
+			.with_context(|| format!("mounting {} at {url_prefix}", path.display()))
+	}
+
 	/// The runtime containers are opened with — shared so readers are reused across mounts.
 	#[must_use]
 	pub fn runtime(&self) -> &TilesRuntime {
@@ -101,6 +116,38 @@ mod tests {
 
 		assert_ne!(server.port(), 0, "the OS should have assigned a real port");
 		assert_eq!(server.base_url(), format!("http://127.0.0.1:{}", server.port()));
+
+		server.stop().await;
+		Ok(())
+	}
+
+	/// The bundled tier, end to end: mount the real archive and fetch a glyph range over HTTP.
+	///
+	/// Skipped when the resources have not been fetched yet, so a fresh clone still passes
+	/// `cargo test` before `npm run assets:fetch` has run.
+	#[tokio::test]
+	async fn serves_bundled_glyphs_straight_from_the_archive() -> Result<()> {
+		let archive = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../src-tauri/resources/glyphs.tar.gz");
+		if !archive.exists() {
+			eprintln!("skipping: run `npm run assets:fetch` first");
+			return Ok(());
+		}
+
+		let mut server = ServerManager::start().await?;
+		server.mount_static(&archive, "/assets/glyphs").await?;
+
+		let url = format!("{}/assets/glyphs/noto_sans_regular/0-255.pbf", server.base_url());
+		let response = reqwest::get(&url).await?;
+
+		assert_eq!(
+			response.status(),
+			200,
+			"glyph range should be served from inside the archive"
+		);
+		assert!(
+			!response.bytes().await?.is_empty(),
+			"0-255 is Latin, so it must not be an empty tile"
+		);
 
 		server.stop().await;
 		Ok(())

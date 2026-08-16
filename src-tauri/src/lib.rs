@@ -4,6 +4,7 @@
 //! the process boundary. The data plane is HTTP and needs no code here: the embedded server lives
 //! in the core (see `docs/architecture.md`).
 
+mod assets;
 mod commands;
 mod events;
 mod state;
@@ -19,7 +20,10 @@ pub fn run() {
 		.setup(|app| {
 			// The server is started once, for the whole application. Blocking here is deliberate:
 			// no window should exist before the data plane does.
-			let server = tauri::async_runtime::block_on(ServerManager::start())?;
+			let mut server = tauri::async_runtime::block_on(ServerManager::start())?;
+			// Sprites and Latin glyphs, mounted straight from their archives (Q9). Without them a
+			// vector map renders but is illegible, so this is part of the shell, not a feature.
+			tauri::async_runtime::block_on(assets::mount_bundled(app.handle(), &mut server))?;
 			tauri::Manager::manage(
 				app,
 				AppState {

@@ -17,3 +17,8 @@ versatiles_core.workspace = true
 
 [lints.clippy]
 all = "warn"
+
+[dev-dependencies]
+# Already in the tree via the server feature; used to prove the data plane actually serves.
+reqwest = { version = "0.13", default-features = false }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }

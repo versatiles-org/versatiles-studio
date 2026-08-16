@@ -46,6 +46,13 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      # The bundled tier is gitignored, so fetch it or the archive-serving test skips itself.
+      - run: npm ci
+      - run: npm run assets:fetch
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets -- -D warnings
       # The core carries the logic and has no Tauri types, so it tests without a display server.
@@ -74,6 +81,7 @@ jobs:
         with:
           key: bundle-${{ matrix.os }}
       - run: npm ci
+      - run: npm run assets:fetch
       # Proves the app actually bundles on both release-1 targets (Q10). Ad-hoc signing on macOS is
       # not optional — on Apple Silicon a binary needs at least that to execute.
       - run: npx tauri build --ci

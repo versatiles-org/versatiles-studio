@@ -106,7 +106,7 @@ Nothing user-visible, and a prerequisite for every milestone.
 | **S0.6**  | Bundled asset tier: sprites (1.3 MB) and Latin-only glyphs (~1.1 MB), pinned in `assets/manifest.json`  | infrastructure |
 | **S0.7**  | CI for Linux and macOS, including ad-hoc macOS signing                                                  | infrastructure |
 | **S0.8**  | **Measure the per-webview memory baseline** and confirm the window model holds                          | infrastructure |
-| **S0.9**  | No telemetry, no account, no analytics dependency — and say so in the README                            | G5             |
+| **S0.9**  | ~~No telemetry, no account, no analytics dependency~~ — **done**, stated in the README                  | G5             |
 | **S0.10** | ~~Decide the GDAL driver list~~ — **settled**: GTiff, COG, VRT, PNG, JPEG, JP2 ([Q19](decisions.md))    | infrastructure |
 | **S0.11** | **Measure the statically bundled binary size** with that driver set; cache the CMake build in CI        | infrastructure |
 | **S0.12** | `scripts/update-assets.ts` — check and move the pinned asset versions deliberately ([Q9](decisions.md)) | infrastructure |

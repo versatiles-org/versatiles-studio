@@ -6,9 +6,10 @@ full GIS.
 
 Built on [Tauri](https://tauri.app) and [versatiles-rs](https://github.com/versatiles-org/versatiles-rs).
 
-> **Status: planning.** There is no application code yet. This repository currently holds the
-> concept work — vision, audiences, feature catalogue, architecture and the decision log.
-> Everything in [`docs/`](docs/) is a draft and up for discussion.
+> **Status: early implementation.** Planning is complete — see the
+> [decision log](docs/decisions.md) — and stage S0, the foundation, is under way. There is nothing
+> usable yet: the shell opens a window, the embedded server runs, and that is all. Everything in
+> [`docs/`](docs/) remains a draft and up for discussion.
 
 ## Release 1
 
@@ -41,6 +42,13 @@ See [Release 1 Scope](docs/scope-release-1.md) for the feature mapping and the w
 | [Svelte Components](docs/components.md)    | The component inventory, and what to reuse as reference    |
 | [Decision Log](docs/decisions.md)          | Every question raised, and how it was settled              |
 | [Roadmap](docs/roadmap.md)                 | Release 1 at a glance, and what comes after                |
+
+## Privacy
+
+Studio has **no telemetry, no analytics dependency and no account**. Nothing is sent anywhere you did
+not ask it to be sent, and after the map assets you chose are installed it needs no network at all
+(G5, [Q9](docs/decisions.md)). This is a design constraint, not a setting — there is nothing to turn
+off, because there is nothing there.
 
 ## Identifiers
 

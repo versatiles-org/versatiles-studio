@@ -13,7 +13,8 @@
 		"format": "prettier --write --log-level warn .",
 		"format:check": "prettier --check .",
 		"assets:check": "tsx scripts/update-assets.ts",
-		"assets:update": "tsx scripts/update-assets.ts --update"
+		"assets:update": "tsx scripts/update-assets.ts --update",
+		"assets:fetch": "tsx scripts/fetch-assets.ts"
 	},
 	"devDependencies": {
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
