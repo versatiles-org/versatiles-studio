@@ -153,6 +153,32 @@ mod tests {
 		Ok(())
 	}
 
+	/// The whole S1.2 path: open a container, mount it, fetch a tile over HTTP — no Tauri anywhere.
+	#[tokio::test]
+	async fn serves_tiles_from_a_mounted_container() -> Result<()> {
+		let Some(path) = crate::analysis::tests::sample_container("berlin.versatiles") else {
+			eprintln!("skipping: set STUDIO_TESTDATA to a directory of sample containers");
+			return Ok(());
+		};
+
+		let mut server = ServerManager::start().await?;
+		let (reader, info) = crate::analysis::open(server.runtime(), path.to_str().unwrap()).await?;
+		server.mount("berlin", reader).await?;
+
+		// A tile that must exist: the top-left tile of the container's own minimum zoom.
+		let url = format!("{}/tiles/berlin/{}/0/0", server.base_url(), info.min_zoom);
+		let status = reqwest::get(&url).await?.status();
+		assert!(
+			status.is_success() || status == 204,
+			"mounted container should answer at {url}, got {status}"
+		);
+
+		// And unmounting really removes it.
+		assert!(server.unmount("berlin")?);
+		server.stop().await;
+		Ok(())
+	}
+
 	#[tokio::test]
 	async fn unmounting_an_absent_source_is_not_an_error() -> Result<()> {
 		let mut server = ServerManager::start().await?;

@@ -18,6 +18,7 @@ use tokio::sync::Mutex;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
 	tauri::Builder::default()
+		.plugin(tauri_plugin_dialog::init())
 		.setup(|app| {
 			// The server is started once, for the whole application. Blocking here is deliberate:
 			// no window should exist before the data plane does.
@@ -38,7 +39,8 @@ pub fn run() {
 			commands::app_version,
 			commands::server_base_url,
 			commands::demo_job,
-			commands::open_window
+			commands::open_window,
+			commands::sources::open_container
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running VersaTiles Studio");

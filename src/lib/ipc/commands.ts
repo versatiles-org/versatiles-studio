@@ -29,3 +29,28 @@ export function demoJob(onEvent: (event: JobEvent) => void): Promise<void> {
 	channel.onmessage = onEvent;
 	return invoke<void>('demo_job', { channel });
 }
+
+/** Mirrors `studio_core::analysis::ContainerInfo`. */
+export interface ContainerInfo {
+	source: string;
+	container: string;
+	tileFormat: string;
+	tileCompression: string;
+	minZoom: number;
+	maxZoom: number;
+	/** `[west, south, east, north]`. */
+	bbox: [number, number, number, number] | null;
+	tileJson: Record<string, unknown>;
+}
+
+export interface OpenedContainer {
+	name: string;
+	/** Ready-made MapLibre template; the server port is ephemeral, so never assume it. */
+	tileUrl: string;
+	info: ContainerInfo;
+}
+
+/** Opens a container and mounts it on the embedded server (A1). */
+export function openContainer(source: string): Promise<OpenedContainer> {
+	return invoke<OpenedContainer>('open_container', { source });
+}
