@@ -112,14 +112,14 @@ Building them separately would mean writing the same conversion plumbing twice.
 
 Derived from that dependency, not from the numbering of the commitments.
 
-| Stage | Contents                                                                                             | Delivers             |
-| ----- | ---------------------------------------------------------------------------------------------------- | -------------------- |
-| **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for Linux and macOS | nothing user-visible |
-| **1** | Cluster A plus a default render style                                                                | **Commitment 1**     |
-| **2** | Lossless VPL syntax tree, node graph, inline errors, generated parameter forms, live preview         | **Commitment 4**     |
-| **3** | Import wizards on top of the pipeline layer, job queue, container export                             | **Commitment 3**     |
-| **4** | Asset manager, style editing against the user's own layers, export                                   | **Commitment 2**     |
-| **5** | Project directory (G1), Linux packaging and Homebrew cask (G3), auto-update (G4)                     | shippability         |
+| Stage | Contents                                                                                                | Delivers             |
+| ----- | ------------------------------------------------------------------------------------------------------- | -------------------- |
+| **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for Linux and macOS    | nothing user-visible |
+| **1** | Cluster A plus a default render style                                                                   | **Commitment 1**     |
+| **2** | Lossless VPL syntax tree, node graph, inline errors, generated parameter forms, live preview, undo/redo | **Commitment 4**     |
+| **3** | Import wizards on top of the pipeline layer, job queue, container export                                | **Commitment 3**     |
+| **4** | Asset manager, style editing against the user's own layers (on stage 2's undo stack), export            | **Commitment 2**     |
+| **5** | Project directory (G1), Linux packaging and Homebrew cask (G3), auto-update (G4)                        | shippability         |
 
 Commitment 2 comes last because D2 wants tiles to style, and those come from commitment 3.
 
@@ -127,6 +127,18 @@ Commitment 2 comes last because D2 wants tiles to style, and those come from com
 lossless VPL syntax tree it needs has to be built before the graph can edit anything. Start that
 work early — ideally as an upstream contribution to `versatiles_pipeline` during stage 1, so the
 review cycle overlaps with cluster A rather than following it.
+
+**Undo/redo (G6) is in stage 2, not after release 1.** A node graph invites experimentation, and
+experimentation without undo is punishing — dragging a connection to the wrong node has to be
+recoverable. Doing it here rather than later is also the cheap moment: stage 2 already has to route
+every graph interaction through a small set of text edits over the syntax tree, and that edit list
+_is_ the command stack. Retrofitting undo onto an editor built without it means finding every
+mutation path afterwards.
+
+Note what this does and does not deliver. G6 is specified as undo/redo "across pipeline and style
+edits", and style editing does not exist until stage 4. So stage 2 delivers the command stack and
+pipeline undo; **stage 4 has to put style edits on the same stack** rather than inventing a second
+one. That is a constraint on how the style editor is built, and it belongs in stage 4's plan.
 
 Stage 5 is not polish — without a distribution path the application does not reach anyone. Per
 [Q10](decisions.md), release 1 ships **Linux packages and a Homebrew cask**; Windows and Apple
@@ -141,7 +153,7 @@ ad-hoc signature to run at all.
 ## Explicitly out of release 1
 
 Cluster B in full (analysis, including B2), F3–F7 (upload, static site export, embed snippet, image
-export, offline package), G6 (undo/redo), and the stretch items listed above.
+export, offline package), and the stretch items listed above.
 
 Also out: **Windows builds** and **Apple Developer signing and notarisation**. Both are deferred to
 a later release by [Q10](decisions.md).

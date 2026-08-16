@@ -12,14 +12,14 @@ entirely. See [Q2](decisions.md) for the decision and the evidence behind it.
 
 ## Release 1
 
-| Stage | Contents                                                                                             | Delivers                                     |
-| ----- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for Linux and macOS | foundation                                   |
-| **1** | Cluster A plus a default render style                                                                | Open and preview all supported formats       |
-| **2** | Lossless VPL syntax tree, node graph, inline errors, generated parameter forms, live preview         | Edit VPL and instantly see the result        |
-| **3** | Import wizards on the pipeline layer, job queue, container export                                    | Convert image and vector data into map tiles |
-| **4** | Asset manager, style editing against the user's own layers, export                                   | Create your own map style                    |
-| **5** | Project directory, Linux packaging and Homebrew cask, auto-update                                    | shippability                                 |
+| Stage | Contents                                                                                                | Delivers                                     |
+| ----- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for Linux and macOS    | foundation                                   |
+| **1** | Cluster A plus a default render style                                                                   | Open and preview all supported formats       |
+| **2** | Lossless VPL syntax tree, node graph, inline errors, generated parameter forms, live preview, undo/redo | Edit VPL and instantly see the result        |
+| **3** | Import wizards on the pipeline layer, job queue, container export                                       | Convert image and vector data into map tiles |
+| **4** | Asset manager, style editing against the user's own layers (on stage 2's undo stack), export            | Create your own map style                    |
+| **5** | Project directory, Linux packaging and Homebrew cask, auto-update                                       | shippability                                 |
 
 Per [Q8](decisions.md), stages 1 onward ship as `v0.x` releases with an honest "under development"
 banner, aimed at tile operators and ourselves. **1.0 and the public announcement land together**,
@@ -56,9 +56,6 @@ The cheapest valuable additions, in the order we would take them:
   split is real new analysis work.
 - **F5, F4** — embed snippet and static site export. Without these, a user who has made a map in
   Studio still has to ask us what to do next.
-- **G6** — undo/redo. Now the most likely regret in release 1: a node graph ([Q11](decisions.md))
-  invites experimentation, and experimentation without undo is punishing. Worth reconsidering as a
-  stage 2 item rather than a post-release one.
 
 ## Later
 

@@ -3,9 +3,6 @@
 Two lists: questions still open, and decisions already taken. When a question is answered, move it
 down with a date and a short rationale.
 
-As of 2026-08-16 the first list is empty — every question raised during the concept phase has been
-settled, and the planning documents no longer contain an unresolved "we should decide this".
-
 ---
 
 ## Open questions
@@ -54,6 +51,16 @@ class of bug that the source-of-truth principle exists to prevent.
 formatter and a lossless parse are useful to the CLI too, and it keeps one grammar rather than two.
 If upstream cannot take it in time, Studio carries it and it is offered upstream afterwards. What
 must not happen is Studio hand-rolling a _second, divergent_ VPL grammar.
+
+**Consequence: undo/redo (G6) moves into release 1, in stage 2.** It was previously listed as a
+post-release addition. A graph that invites experimentation needs experiments to be reversible, and
+stage 2 is the cheap moment to build it: every graph interaction already has to become a small text
+edit against the syntax tree, and that edit list is the command stack. Retrofitting undo later means
+hunting down every mutation path after the fact.
+
+Since G6 covers "pipeline and style edits" and style editing arrives in stage 4, stage 2 delivers
+the command stack plus pipeline undo, and **stage 4 must put style edits on the same stack** rather
+than building a second one.
 
 ### 2026-08-16 · Q4 — Analysis statistics live in memory, keyed by container identity
 
