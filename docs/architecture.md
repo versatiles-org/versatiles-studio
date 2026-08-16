@@ -4,25 +4,20 @@
 
 ## The central idea
 
-```
-┌───────────────────────────────────────────────────────────────────┐
-│  Tauri shell                                                      │
-│  native file dialogs · drag & drop · menus · updates              │
-│  ┌─────────────────────────────────────────────────────────────┐  │
-│  │  UI (web: Svelte + MapLibre GL, all JS bundled)             │  │
-│  │  layer stack · node graph · style editor · charts           │  │
-│  │        │                                 ▲                  │  │
-│  │        │ IPC commands                    │ HTTP             │  │
-│  └────────┼─────────────────────────────────┼──────────────────┘  │
-│           ▼                                 │                     │
-│  ┌────────────────────┐   ┌─────────────────┴────────────────┐    │
-│  │  Studio core (Rust)│──▶│  embedded server                 │    │
-│  │  project · jobs    │   │  tiles from the live pipeline    │    │
-│  │  assets · analysis │   │  glyphs & sprites from archives  │    │
-│  └────────┬───────────┘   └──────────────────────────────────┘    │
-│           ▼                                                       │
-│  versatiles-rs crates: container · pipeline · geometry            │
-└───────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+  subgraph shell["Tauri shell — native dialogs · drag and drop · menus · auto-update"]
+    ui["UI (webview)<br/>Svelte · MapLibre GL · all JS bundled at build time<br/>layer stack · node graph · style editor · charts"]
+    core["Studio core (Rust)<br/>project model · job runner · analysis services<br/>asset manager · server manager"]
+    server["Embedded server<br/>tiles from the live pipeline<br/>glyphs and sprites, served straight from their archives"]
+    crates["versatiles-rs crates<br/>container · pipeline · geometry · image"]
+  end
+
+  ui -->|"IPC commands<br/>control plane"| core
+  server -->|"HTTP<br/>data plane"| ui
+  core -->|"starts and reconfigures"| server
+  core --> crates
+  server --> crates
 ```
 
 The load-bearing decision is the **embedded server**. Instead of pushing tile bytes through IPC
