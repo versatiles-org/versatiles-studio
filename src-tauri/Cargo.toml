@@ -1,0 +1,24 @@
+[package]
+name = "versatiles-studio"
+description = "VersaTiles Studio — Tauri shell. Deliberately thin: the bridge to the platform, no application logic."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+name = "versatiles_studio_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6", features = [] }
+
+[dependencies]
+studio-core = { path = "../crates/studio-core" }
+tauri = { version = "2.11", features = [] }
+serde.workspace = true
+serde_json.workspace = true
+
+[lints.clippy]
+all = "warn"

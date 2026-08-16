@@ -1,0 +1,26 @@
+[workspace]
+members = ["crates/studio-core", "src-tauri"]
+resolver = "3"
+
+[workspace.package]
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+license = "MIT"
+repository = "https://github.com/versatiles-org/versatiles-studio"
+
+[workspace.dependencies]
+# versatiles-rs — consumed as a library, never shelled out to (see docs/architecture.md)
+versatiles_core = "4.7"
+versatiles_container = "4.7"
+versatiles_pipeline = "4.7"
+
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true

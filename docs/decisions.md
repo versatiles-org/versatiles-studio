@@ -318,9 +318,12 @@ without a Tauri runtime. `versatiles_node` demonstrates the shape — `TileServe
 Mirror its vocabulary rather than inventing a second one.
 
 **Types across the boundary:** [`tauri-specta`](https://github.com/specta-rs/tauri-specta) generates
-TypeScript from the Rust definitions, for commands and events. Community-maintained, so hand-written
-types are the fallback — but two hand-kept copies of the command surface is exactly the drift the
-generated-UI principle exists to avoid.
+TypeScript from the Rust definitions, for commands and events. Two hand-kept copies of the command
+surface is exactly the drift the generated-UI principle exists to avoid, so generation is worth some
+risk — but note the risk is larger than "community-maintained" suggests: **the Tauri v2 line is
+`2.0.0-rc.25`, with no stable 2.x.** Pin it exactly, expect breakage between release candidates, and
+keep the fallbacks in view: hand-written wrappers over generated _types_ (`ts-rs` is stable), or
+hand-written types outright.
 
 **Consequence:** the embedded server is load-bearing, its lifecycle is a core service, loopback
 only.

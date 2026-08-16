@@ -1,6 +1,9 @@
 CHANGELOG.md
 node_modules/
 package-lock.json
-package.json
+dist/
+src-tauri/gen/
+src-tauri/target/
+src-tauri/icons/
+src/maplibre-gl-worker.js
 target/
-*.code-workspace
