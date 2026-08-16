@@ -5,28 +5,28 @@
 ## The central idea
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Tauri shell                                                │
-│  native file dialogs · drag & drop · menus · updates        │
-│  ┌───────────────────────────────────────────────────────┐  │
-│  │  UI (web: Svelte + MapLibre GL, all JS bundled)        │  │
-│  │  layer stack · node graph · style editor · charts      │  │
-│  │        │                              ▲                │  │
-│  │        │ IPC commands                 │ HTTP           │  │
-│  └────────┼──────────────────────────────┼────────────────┘  │
-│           ▼                              │                   │
-│  ┌────────────────────┐   ┌──────────────┴────────────────┐  │
-│  │  Studio core (Rust)│──▶│  embedded server               │ │
-│  │  project · jobs    │   │  tiles from the live pipeline  │ │
-│  │  assets · analysis │   │  glyphs & sprites from archives│ │
-│  └─────────┬──────────┘   └────────────────────────────────┘ │
-│            ▼                                                 │
-│  versatiles-rs crates: container · pipeline · geometry       │
-└─────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│  Tauri shell                                                      │
+│  native file dialogs · drag & drop · menus · updates              │
+│  ┌─────────────────────────────────────────────────────────────┐  │
+│  │  UI (web: Svelte + MapLibre GL, all JS bundled)             │  │
+│  │  layer stack · node graph · style editor · charts           │  │
+│  │        │                                 ▲                  │  │
+│  │        │ IPC commands                    │ HTTP             │  │
+│  └────────┼─────────────────────────────────┼──────────────────┘  │
+│           ▼                                 │                     │
+│  ┌────────────────────┐   ┌─────────────────┴────────────────┐    │
+│  │  Studio core (Rust)│──▶│  embedded server                 │    │
+│  │  project · jobs    │   │  tiles from the live pipeline    │    │
+│  │  assets · analysis │   │  glyphs & sprites from archives  │    │
+│  └────────┬───────────┘   └──────────────────────────────────┘    │
+│           ▼                                                       │
+│  versatiles-rs crates: container · pipeline · geometry            │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
 The load-bearing decision is the **embedded server**. Instead of pushing tile bytes through IPC
-into the webview, Studio runs `versatiles serve` on localhost against the *current* pipeline state
+into the webview, Studio runs `versatiles serve` on localhost against the _current_ pipeline state
 and lets MapLibre fetch tiles over HTTP as it normally would.
 
 This buys a great deal:
@@ -54,12 +54,12 @@ JavaScript is bundled at build time and runs in the webview — no Node runtime 
 
 **Studio core (Rust).** The part worth designing carefully:
 
-- *Project model* — sources, pipeline, style, views; serialised to the project file (G1)
-- *Job runner* — long operations with progress, cancellation and logging (E7); this must exist
+- _Project model_ — sources, pipeline, style, views; serialised to the project file (G1)
+- _Job runner_ — long operations with progress, cancellation and logging (E7); this must exist
   before any export feature, not after
-- *Analysis services* — the probe-derived statistics behind cluster B, cached per container
-- *Asset manager* — download, pin, verify and remove font families and sprite sets (G7)
-- *Server manager* — lifecycle of the embedded server, one instance per previewed pipeline node
+- _Analysis services_ — the probe-derived statistics behind cluster B, cached per container
+- _Asset manager_ — download, pin, verify and remove font families and sprite sets (G7)
+- _Server manager_ — lifecycle of the embedded server, one instance per previewed pipeline node
 
 **versatiles-rs.** Consumed as a library dependency, not shelled out to. Studio should be a
 first-class consumer of the crates, and pressure to improve their APIs is a welcome side effect.

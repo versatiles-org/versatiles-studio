@@ -78,7 +78,7 @@ and nothing may only exist inside Studio.
 
 ## P5 · Cartographers & designers
 
-**Who.** People for whom the style *is* the work.
+**Who.** People for whom the style _is_ the work.
 
 **Needs.** Deep style editing: layer tree, expressions with live preview (D3), fonts and sprites
 (D4), light/dark derivation (D5), legend generation (D7), colour-blindness simulation (D6).

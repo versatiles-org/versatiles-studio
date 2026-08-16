@@ -13,7 +13,7 @@ Built on [Tauri](https://tauri.app) and [versatiles-rs](https://github.com/versa
 ## Planning documents
 
 | Document                                 | Contents                                                   |
-|------------------------------------------|------------------------------------------------------------|
+| ---------------------------------------- | ---------------------------------------------------------- |
 | [Vision & Scope](docs/vision.md)         | What Studio is, what it deliberately is not                |
 | [Target Audiences](docs/audiences.md)    | Who we build for, and what each group needs                |
 | [Feature Catalogue](docs/features.md)    | The full idea pool, grouped and individually referenceable |

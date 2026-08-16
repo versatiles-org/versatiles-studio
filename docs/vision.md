@@ -13,8 +13,8 @@ and without a full GIS.
 Working with vector and raster tiles today means assembling a toolchain by hand:
 
 - **Inspecting** a tile set means CLI tools, `sqlite3` on an `.mbtiles` file, or ad-hoc scripts.
-  Questions like *"why are my z14 tiles so large?"* or *"does this container actually conform to
-  the MVT spec?"* are surprisingly hard to answer.
+  Questions like _"why are my z14 tiles so large?"_ or _"does this container actually conform to
+  the MVT spec?"_ are surprisingly hard to answer.
 - **Producing** tiles means learning `tippecanoe`, `planetiler`, `gdal`, or the VersaTiles CLI —
   each with its own mental model.
 - **Styling** means hand-editing a `style.json` of several thousand lines, or paying for a hosted
@@ -48,8 +48,8 @@ Four properties we want to hold on to:
 Saying no early keeps the scope buildable.
 
 | Not this             | Because                                                                                                                                                                      |
-|----------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| A QGIS replacement   | No general geoprocessing, no attribute-table editing, no projections zoo, no plugin ecosystem for spatial analysis. Studio is about *tiles*, not about *geodata in general*. |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A QGIS replacement   | No general geoprocessing, no attribute-table editing, no projections zoo, no plugin ecosystem for spatial analysis. Studio is about _tiles_, not about _geodata in general_. |
 | A geodata editor     | Drawing and editing features is [`versatiles-map-editor`](https://github.com/versatiles-org/versatiles-map-editor) and iD. Studio consumes geodata, it does not author it.   |
 | A new tile generator | We orchestrate `planetiler` / `tilemaker` where useful, rather than reimplementing them. The VPL pipeline covers the transformations we own.                                 |
 | A hosting product    | Studio can upload to somewhere, and can run a local server for testing. It is not a server, and it is not a subscription.                                                    |

@@ -1,0 +1,13 @@
+{
+	"name": "versatiles-studio",
+	"private": true,
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"format": "prettier --write --log-level warn .",
+		"format:check": "prettier --check ."
+	},
+	"devDependencies": {
+		"prettier": "^3.9.6"
+	}
+}

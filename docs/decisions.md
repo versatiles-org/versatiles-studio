@@ -28,9 +28,9 @@ lock-in risk.
 
 **Proposal — split the two planes:**
 
-- *Control plane* (open a container, run analysis, edit a pipeline, start a job) → Tauri IPC
+- _Control plane_ (open a container, run analysis, edit a pipeline, start a job) → Tauri IPC
   commands. Typed, no port to bind, no CORS, no authentication problem.
-- *Data plane* (tiles, glyphs, sprites) → the embedded HTTP server. MapLibre stays completely
+- _Data plane_ (tiles, glyphs, sprites) → the embedded HTTP server. MapLibre stays completely
   standard, and static assets are served straight from their archives.
 
 Open sub-question: this makes the core hard to drive from tests without a Tauri runtime. Do we
@@ -63,16 +63,16 @@ Related to Q2 but distinct: what does v0.1 have to do for someone to install it 
 MapLibre needs SDF glyphs and sprites; neither versatiles-rs nor the style library produces them
 at render time. The obvious candidate is `frontend-blank` — 109 MB to download, ~190 MB and
 47,360 files on disk. Bundling that into every installer is not reasonable, so something has to be
-fetched after installation. The question is *what*, at *what granularity*, and *in what form*. See
+fetched after installation. The question is _what_, at _what granularity_, and _in what form_. See
 the [inventory](ecosystem.md#map-assets-fonts-and-sprites) for the numbers behind this.
 
 **Proposal — three tiers, and never unpack.**
 
-| Tier | Contents | Size | When |
-|---|---|---|---|
-| **Bundled** | Sprites (1.3 MB) + Latin-only Noto Sans glyphs (~1 MB) | ~2.5 MB | in the installer |
-| **On demand** | One font family at a time from `versatiles-fonts` releases | 1–45 MB each | when a style needs it |
-| **Everything** | `fonts.tar.gz`, all families | 107 MB | one explicit action, for offline and field use |
+| Tier           | Contents                                                   | Size         | When                                           |
+| -------------- | ---------------------------------------------------------- | ------------ | ---------------------------------------------- |
+| **Bundled**    | Sprites (1.3 MB) + Latin-only Noto Sans glyphs (~1 MB)     | ~2.5 MB      | in the installer                               |
+| **On demand**  | One font family at a time from `versatiles-fonts` releases | 1–45 MB each | when a style needs it                          |
+| **Everything** | `fonts.tar.gz`, all families                               | 107 MB       | one explicit action, for offline and field use |
 
 Rationale:
 
@@ -93,7 +93,7 @@ Consequences to design for:
   Note that sprites come from a `versatiles-style` **prerelease** channel — pin deliberately.
 - B8 (glyph coverage check) must distinguish "empty glyph tile by design" from "family not
   installed", or it will report false problems.
-- G5 (no network requirement) becomes "no network requirement *after* the assets you chose are
+- G5 (no network requirement) becomes "no network requirement _after_ the assets you chose are
   installed" — worth stating honestly rather than claiming more than we deliver.
 - F7 (offline package) and F4 (static site export) both need the full-tier download, so the asset
   manager is a prerequisite for them, not an optional extra.

@@ -17,7 +17,7 @@ takes a week and one that takes a quarter.
 The foundation. Everything else renders into this surface.
 
 | ID     | Feature                                                                                                                             | Audiences | Basis                               |
-|--------|-------------------------------------------------------------------------------------------------------------------------------------|-----------|-------------------------------------|
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------- | --------- | ----------------------------------- |
 | **A1** | Open local containers by drag & drop or file dialog: `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories                     | all       | `versatiles_container`              |
 | **A2** | Open remote sources over HTTPS and SFTP by URL, with byte-range fetching so a planet file opens instantly                           | P3, P6    | `versatiles_container`              |
 | **A3** | Multi-source workspace: several containers as a layer stack, with opacity, swipe comparison and split view                          | P3, P6    | new                                 |
@@ -36,7 +36,7 @@ analysis `versatiles probe` already performs, which makes it unusually cheap to 
 its value. Nothing on the market does B2 well.
 
 | ID     | Feature                                                                                                                                                                           | Audiences | Basis                                          |
-|--------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|------------------------------------------------|
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------- |
 | **B1** | Tile size heat map overlaid on the map per zoom level; p50/p95/max statistics; top-N largest tiles, clickable to navigate there                                                   | P3, P6    | `probe -dd`                                    |
 | **B2** | **Byte breakdown per layer and per attribute** — "which layer, which property is eating your z14 tiles". The single most requested thing that no tool does well today             | P3, P6    | `versatiles_geometry`                          |
 | **B3** | Spec validation against MVT 2.1, versatiles-spec, TileJSON schema and the MapLibre style schema — with a **"repair" button** that generates and runs the `vector_repair` pipeline | P3, P6    | `probe -ddd` already emits a `fix:` suggestion |
@@ -52,7 +52,7 @@ its value. Nothing on the market does B2 well.
 ## Cluster C · Pipeline Editor (VPL)
 
 | ID     | Feature                                                                                                                                                                               | Audiences | Basis                        |
-|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|------------------------------|
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------- |
 | **C1** | **Bidirectional node graph ⟷ VPL text.** The text stays the source of truth (diffable, git-friendly); the graph is a view onto it                                                     | P3, P2    | `versatiles_pipeline` parser |
 | **C2** | **Parameter forms generated automatically from `field_meta`** — no hand-written UI per operation, and new operations appear in Studio for free                                        | all       | `vpl/field_meta.rs`          |
 | **C3** | Live preview per node: "look here" renders the intermediate state on the map; before/after as a swipe                                                                                 | all       | embedded `serve`             |
@@ -67,7 +67,7 @@ its value. Nothing on the market does B2 well.
 ## Cluster D · Style Generator
 
 | ID     | Feature                                                                                                                                   | Audiences | Basis                                 |
-|--------|-------------------------------------------------------------------------------------------------------------------------------------------|-----------|---------------------------------------|
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------- |
 | **D1** | Preset styles (colorful, eclipse, graybeard, shadow, neutrino, satellite) with global recolouring — hue, saturation, brightness, contrast | all       | `maplibre-versatiles-styler` (exists) |
 | **D2** | **Style against your own tiles**, not just Shortbread: derive a starting style from the vector layers actually present in the container   | P1, P4    | new; needs A4                         |
 | **D3** | Layer tree with filter / zoom / paint editing, and an expression editor with live preview                                                 | P5        | new                                   |
@@ -82,7 +82,7 @@ its value. Nothing on the market does B2 well.
 ## Cluster E · Create Data
 
 | ID     | Feature                                                                                                                                                              | Audiences | Basis                                          |
-|--------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|------------------------------------------------|
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------- |
 | **E1** | Import wizard for vector data: GeoJSON, NDJSON, shapefile → tiles. Map columns, choose layer name, zoom range, simplification — with a preview before the full build | P1, P2    | `from_geo`                                     |
 | **E2** | Import wizard for tabular point data: CSV with lon/lat columns                                                                                                       | P1        | `from_csv`                                     |
 | **E3** | GDAL path for GeoPackage, GeoTIFF and the rest                                                                                                                       | P2        | GDAL feature in versatiles-rs                  |
@@ -95,29 +95,29 @@ its value. Nothing on the market does B2 well.
 
 ## Cluster F · Publish
 
-| ID     | Feature                                                                                       | Audiences | Basis                                       |
-|--------|-----------------------------------------------------------------------------------------------|-----------|---------------------------------------------|
-| **F1** | Local server at the press of a button, plus a LAN URL and QR code for testing on a phone      | all       | `versatiles serve`                          |
-| **F2** | Crop by drawing a rectangle on the map plus a zoom range, then export to any supported format | all       | `convert --bbox`                            |
-| **F3** | Upload to SFTP, S3/R2, Google Cloud, GitHub Pages                                             | P2, P4    | SFTP exists; `node-versatiles-google-cloud` |
-| **F4** | Export a complete static site with `versatiles-frontend` bundled                              | P4        | `versatiles-frontend`                       |
-| **F5** | Copy-paste embed snippet (HTML + JS)                                                          | P1, P4    | new                                         |
+| ID     | Feature                                                                                       | Audiences | Basis                                           |
+| ------ | --------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------- |
+| **F1** | Local server at the press of a button, plus a LAN URL and QR code for testing on a phone      | all       | `versatiles serve`                              |
+| **F2** | Crop by drawing a rectangle on the map plus a zoom range, then export to any supported format | all       | `convert --bbox`                                |
+| **F3** | Upload to SFTP, S3/R2, Google Cloud, GitHub Pages                                             | P2, P4    | SFTP exists; `node-versatiles-google-cloud`     |
+| **F4** | Export a complete static site with `versatiles-frontend` bundled                              | P4        | `versatiles-frontend`                           |
+| **F5** | Copy-paste embed snippet (HTML + JS)                                                          | P1, P4    | new                                             |
 | **F6** | Still-image export as PNG/SVG for print and editorial use                                     | P1        | `versatiles-svg-renderer` (runs in the webview) |
-| **F7** | Offline package: tiles + style + fonts in one folder for field work                           | P2        | `versatiles-frontend`                       |
+| **F7** | Offline package: tiles + style + fonts in one folder for field work                           | P2        | `versatiles-frontend`                           |
 
 ---
 
 ## Cluster G · Platform & Cross-cutting
 
-| ID     | Feature                                                                                                              | Audiences  | Basis                                        |
-|--------|----------------------------------------------------------------------------------------------------------------------|------------|----------------------------------------------|
-| **G1** | **Project file in a text format** holding sources, pipeline, style and views — versionable and reviewable            | all        | new                                          |
-| **G2** | **"Show me the command"**: every GUI action displays its CLI equivalent. Teaches the tool and makes work automatable | P2, P3, P6 | new                                          |
-| **G3** | Cross-platform builds for Windows, macOS and Linux, with code signing and notarisation                               | all        | Tauri; **costs money and time — plan early** |
-| **G4** | Auto-update                                                                                                          | all        | Tauri updater                                |
-| **G5** | No telemetry, no account, and no network requirement once the chosen assets are installed — as an explicit, documented property | P2 | design constraint; see [Q9](decisions.md) |
-| **G6** | Undo/redo across pipeline and style edits                                                                            | all        | new                                          |
-| **G7** | **Asset manager**: download, pin, verify and remove font families and sprite sets; show what is installed and what a style still needs | all | `versatiles-fonts`, `versatiles-style` releases, `serve -s` |
+| ID     | Feature                                                                                                                                | Audiences  | Basis                                                       |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ----------------------------------------------------------- |
+| **G1** | **Project file in a text format** holding sources, pipeline, style and views — versionable and reviewable                              | all        | new                                                         |
+| **G2** | **"Show me the command"**: every GUI action displays its CLI equivalent. Teaches the tool and makes work automatable                   | P2, P3, P6 | new                                                         |
+| **G3** | Cross-platform builds for Windows, macOS and Linux, with code signing and notarisation                                                 | all        | Tauri; **costs money and time — plan early**                |
+| **G4** | Auto-update                                                                                                                            | all        | Tauri updater                                               |
+| **G5** | No telemetry, no account, and no network requirement once the chosen assets are installed — as an explicit, documented property        | P2         | design constraint; see [Q9](decisions.md)                   |
+| **G6** | Undo/redo across pipeline and style edits                                                                                              | all        | new                                                         |
+| **G7** | **Asset manager**: download, pin, verify and remove font families and sprite sets; show what is installed and what a style still needs | all        | `versatiles-fonts`, `versatiles-style` releases, `serve -s` |
 
 ---
 

@@ -37,7 +37,7 @@ window.
 The first stage that offers something no other tool does.
 
 - B1 — tile size heat map and statistics
-- B2 — byte breakdown per layer and attribute *(killer feature candidate)*
+- B2 — byte breakdown per layer and attribute _(killer feature candidate)_
 - B3 — spec validation with a repair button
 - B4 — coverage gaps
 - E7 — job queue, needed here first for long scans
