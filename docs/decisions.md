@@ -7,20 +7,6 @@ down with a date and a short rationale.
 
 ## Open questions
 
-### Q2 · Which audience do we build for first?
-
-Not a question of value but of construction order.
-
-- **Analysis first.** Weeks rather than months, because `probe` already does the work.
-  Serves us immediately, generates community feedback, and builds the foundation — map canvas,
-  layer stack, container abstraction — that the pipeline editor and style generator sit on. Small
-  audience.
-- **Creation first.** Much larger audience and the stronger story, but far more work, a
-  higher polish bar, and direct competition with QGIS, Felt and Mapbox Studio.
-
-**Proposal.** Analysis first, explicitly as the foundation for creation later — not as a change of
-target audience.
-
 ### Q3 · How does the UI talk to the core?
 
 Reframed now that Q1 is settled: with Tauri fixed, IPC is a legitimate default rather than a
@@ -41,7 +27,9 @@ care enough to keep a thin command interface that both an IPC handler and a test
 
 Scanning a large container is expensive and users will re-open the same files. On-demand with an
 in-memory cache, a persisted sidecar file next to the container, or results in the project file?
-Determines whether cluster B feels instant or sluggish.
+
+Lower priority now that cluster B is out of release 1, but not gone: opening a large container and
+showing its metadata and actual zoom range (A6) hits the same question.
 
 ### Q6 · Project file format
 
@@ -54,13 +42,59 @@ editable by other tools and produces cleaner diffs.
 Requires a JVM. Do we detect and drive an existing installation, download one, or leave this out?
 Potentially the decisive feature for P2, and the largest single dependency we would take on.
 
-### Q8 · What is the smallest thing worth releasing?
+### Q8 · Do we ship anything before all four commitments land?
 
-Related to Q2 but distinct: what does v0.1 have to do for someone to install it a second time?
+Release 1 is defined ([Q2](decisions.md)), but the stages that lead to it are individually useful:
+stage 1 alone is a working tile viewer. Do we put previews in front of users as we go — early
+feedback, early bug reports, but a public impression formed by an incomplete tool — or stay quiet
+until the committed scope is complete?
 
 ---
 
 ## Decided
+
+### 2026-08-16 · Q2 — Scope of release 1 is set by the funding commitment
+
+Q2 asked whether to build for the analysis audience or the creation audience first. It is moot:
+VersaTiles Studio is funded, and four features are committed for the first release.
+
+1. Open and preview all supported tile container formats.
+2. Create your own map style.
+3. Convert image and vector data into map tiles.
+4. Edit VPL and instantly see the result.
+
+These span clusters A, D, E and C. **Cluster B (analysis) is not in the funded scope**, which
+reverses the roadmap proposed earlier. See [Release 1 Scope](scope-release-1.md) for the mapping
+from commitments to feature IDs.
+
+**The evidence supports the commitment.** An analysis run on 2026-08-16 across four independent
+sources pointed at creation and styling, which is what was funded:
+
+- _Who uses VersaTiles_ — of 76 showcase projects, 24 are tagged `journalism`, 16
+  `data-visualisation`, 7 `storytelling`. At least 21 come from news organisations (SWR 8, NDR 5,
+  Berliner Morgenpost 3, datajournal.org 2, Thüringer Allgemeine 2, taz 1). 37 are from Germany.
+  Caveat: the gallery only records public web maps, so it under-counts tile operators by
+  construction.
+- _What people ask for_ — the documentation backlog is almost entirely creation workflows:
+  GeoJSON → vector tiles, mbtiles → versatiles, "put 1000 points on a map", complex geometries,
+  own fonts, hillshades and terrain, data-visualisation overlays, QGIS interop. Analysis demand
+  exists but is quieter and phrased as CLI ergonomics (`versatiles dev measure-tile-sizes`,
+  pretty-printed probe metadata).
+- _What gets used_ — `@versatiles/style` sees 53,183 npm downloads a year, an order of magnitude
+  more than anything else in the ecosystem. `versatiles-rs` has 13,294 release downloads and 315
+  stars; `versatiles-frontend` 6,367; the remaining npm packages 2–3k each.
+- _What it costs_ — share of features per cluster that build on existing machinery rather than new
+  construction: B 89%, E 86%, F 86%, C 75%, A 63%, G 57%, D 56%. Note that this measures whether an
+  _engine_ exists, not total effort: cluster E's engines exist but its wizard UI is the expensive
+  part. Cluster D is the most expensive cluster we have, and it is committed.
+
+**What we give up.** Cluster B drops out of release 1, including B2 (byte breakdown), which the
+feature catalogue names as the strongest differentiator. B1 and B3 remain nearly free by-products
+of `probe` and are the obvious first additions after release 1.
+
+**Risk to watch.** Four clusters in one release is a wide front, and the two most expensive
+clusters by reuse ratio (D at 56%, A at 63%) are both in it. The scope document defines a minimum
+reading of each commitment for exactly this reason.
 
 ### 2026-08-16 · Q9 — Fonts and sprites are fetched per family, and never unpacked
 
