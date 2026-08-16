@@ -48,9 +48,17 @@ struct VPLFieldMeta  { name, rust_type, is_required, is_sources, doc, enum_varia
 Better still, the transformation already ships: `versatiles_node/src/codegen.rs` turns this into
 TypeScript via `generateVplTypescript()`, mapping enum fields to string-literal unions.
 
-Two practical details: `all_operation_metadata()` sits behind `#[cfg(feature = "codegen")]`, so
-Studio must enable it; and the metadata carries `is_required` but **no default values**, so
-generated forms show empty optional fields unless `VPLFieldMeta` is extended upstream.
+Three practical details:
+
+- `all_operation_metadata()` sits behind `#[cfg(feature = "codegen")]`, so Studio must enable it.
+- The metadata carries `is_required` but **no default values**, so generated forms show empty
+  optional fields.
+- `OperationMeta` is `{ tag_name, kind, doc, fields }` where `kind` is only `"read"` or
+  `"transform"` — there is **no input or output data type**. A node graph therefore cannot check
+  that `vector_filter_layers` is not fed a raster tile; it can only infer from the `raster_*` /
+  `vector_*` / `dem_*` naming convention, which is a convention rather than a contract. This matters
+  now that C1 is a deliverable ([Q11](decisions.md)): a graph that lets you draw an invalid
+  connection and fails at run time is a bad graph.
 
 ### 2. `versatiles probe` is already an analysis engine
 
@@ -89,6 +97,23 @@ structure → text does not exist:
 
 Since [Q11](decisions.md) puts the node graph in release 1, a **lossless syntax tree** is the first
 thing stage 2 has to build — ideally upstream.
+
+## Upstream asks
+
+Five small changes to versatiles-rs that Studio is a good reason to make. Collected here because
+they are otherwise scattered across the decision log, and this is the list to take to a
+versatiles-rs planning session. None of them blocks Studio; each removes a workaround.
+
+| Ask                                           | Why                                                                              | Raised by                                 |
+| --------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------- |
+| **A lossless VPL syntax tree and serialiser** | The node graph must edit text without reordering parameters or dropping comments | [Q11](decisions.md); the largest of these |
+| **Data types on `OperationMeta`**             | So the graph can reject invalid connections instead of failing at run time       | finding 1 above                           |
+| **Default values on `VPLFieldMeta`**          | So generated forms are pre-filled rather than empty                              | finding 1 above                           |
+| **A compute/render split in `probe`**         | Studio needs data, not `PrettyPrint` text; the CLI would gain `--json` for free  | [Q4](decisions.md)                        |
+| **An ignored `x-` namespace in `Config`**     | `deny_unknown_fields` stops one file serving as both project and serve config    | [Q6](decisions.md)                        |
+
+The first is on the critical path for stage 2 and should be offered upstream during stage 1, so
+review overlaps with cluster A rather than following it. The rest can land whenever.
 
 ## Frontend pieces
 

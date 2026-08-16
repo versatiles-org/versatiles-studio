@@ -45,8 +45,18 @@ True in every mode and every stage. These matter more than the panel arrangement
 - **The map viewport survives mode switches.** Changing mode must not move, zoom or reload the map —
   otherwise comparing a style change against a pipeline change is impossible. The map's _size_ does
   change between modes (Explore is widest), so the visible extent shifts; centre and zoom must not.
-- **One `Map` instance spans all four modes.** Modes reconfigure panels around it rather than
-  creating their own, so switching mode costs no WebGL context and no reload.
+- **The job bar expands into a log.** E7 promises progress, cancellation _and_ a log, and a conversion
+  that fails at minute 40 has to be able to say why. Clicking the bar opens a drawer listing running
+  and recent jobs with their output; it is never modal, it survives mode switches, and a failed job
+  stays until dismissed rather than vanishing.
+
+**The cost estimate (C6) appears where a run is committed** — in the inspector of a node that is
+about to be executed, and again beside Publish's export button. Not on a screen of its own: an
+estimate the user has to go looking for is an estimate they will not see.
+
+**One `Map` instance spans all four modes.** Modes reconfigure panels around it rather than
+creating their own, so switching mode costs no WebGL context and no reload.
+
 - **Undo is global and crosses modes** ([Q11](decisions.md) → G6). One stack, or the unified stack
   decided for stage 2 is a fiction.
 - **Jobs are never modal.** E7 runs for hours. A modal progress dialog makes Studio single-tasking.
@@ -137,9 +147,22 @@ was proposed for a reason (seeing that the graph and the file agree), so the tab
 
 ### Stage 3 — import cards
 
-The landing screen gains import cards, and "+ Add source" opens the same set. Each card runs a short
-flow whose result **is** a pipeline — the same one the user could have typed — so there is no second
-UI to keep in sync, and the escape hatch is the pipeline itself.
+The landing screen gains import cards, and "+ Add source" opens the same set. Each card's result
+**is** a pipeline — the same one the user could have typed — so there is no second UI to keep in
+sync, and the escape hatch is the pipeline itself.
+
+**There is no wizard surface.** A card opens the native file dialog, then inserts a node into the
+pipeline, selects it, and hands over: the generated parameter form (C2) is the configuration UI, the
+live preview (C3) is the preview, and inline errors (C4) are the validation. E1's "map columns,
+choose layer name, zoom range, simplification, with a preview before the full build" is a filled-in
+form beside a live map, not a sequence of dialog steps. Building a bespoke flow would mean a second
+place where pipelines are authored, which is exactly what [Q11](decisions.md) argues against.
+
+**Import needs no mode of its own, and no split by data type.** Importing is building, and building
+is Pipeline mode. Splitting raster from vector would break mixed pipelines — `from_stacked_raster`
+and `from_merged_vector` are first-class operations, and a hillshade under vector OSM data is one
+pipeline — while adding nothing the generated form does not already handle. VPL makes no such split
+either, so a mode that did would misrepresent the model.
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
@@ -208,7 +231,7 @@ is the whole shell; everything else is earned per mode.
 | **Map**           | the subject                             | previews the node (C3)     | live style feedback     | crop rectangle (F2)     |
 | **Editor pane**   | —                                       | Graph / VPL tabs (C1, C4)  | layer tree (D3)         | export + serve (F1, F2) |
 | **Inspector**     | metadata, TileJSON (A6), bookmarks (A7) | node parameters (C2)       | paint, expressions (D3) | — collapses             |
-| **Job bar**       | ✓                                       | ✓                          | ✓                       | ✓                       |
+| **Job bar**       | ✓ — expands to a per-job log (E7)       | ✓                          | ✓                       | ✓                       |
 | **Command strip** | ✓                                       | ✓                          | ✓                       | ✓                       |
 
 **The sources strip belongs to Pipeline alone.** Sources are inputs to the thing being built, and
