@@ -36,14 +36,19 @@ pub struct OpenedContainer {
 	pub info: ContainerInfo,
 }
 
-/// A URL-safe mount name derived from the source path.
+/// A URL-safe mount name derived from the source.
 ///
-/// Stable for a given path, so re-opening replaces rather than accumulates.
+/// Stable for a given source, so re-opening replaces rather than accumulates — and **unique across
+/// sources**, because the file stem alone is not: `https://a/osm.versatiles` and
+/// `https://b/osm.versatiles` would otherwise mount over each other, silently breaking whichever
+/// map layer resolved first. The hash suffix keeps the name readable while making it unique.
 fn mount_name(source: &str) -> String {
+	use std::hash::{DefaultHasher, Hash, Hasher};
+
 	let stem = std::path::Path::new(source)
 		.file_stem()
 		.map_or_else(|| "source".to_string(), |s| s.to_string_lossy().into_owned());
-	let cleaned: String = stem
+	let mut cleaned: String = stem
 		.chars()
 		.map(|c| {
 			if c.is_ascii_alphanumeric() {
@@ -53,11 +58,14 @@ fn mount_name(source: &str) -> String {
 			}
 		})
 		.collect();
-	if cleaned.is_empty() {
-		"source".to_string()
-	} else {
-		cleaned
+	// All-separator names ("....." → "_____") are as useless as an empty one.
+	if cleaned.is_empty() || cleaned.chars().all(|c| c == '_') {
+		cleaned = "source".to_string();
 	}
+
+	let mut hasher = DefaultHasher::new();
+	source.hash(&mut hasher);
+	format!("{cleaned}_{:06x}", hasher.finish() & 0xff_ffff)
 }
 
 #[cfg(test)]
@@ -65,10 +73,28 @@ mod tests {
 	use super::mount_name;
 
 	#[test]
-	fn mount_names_are_url_safe_and_stable() {
-		assert_eq!(mount_name("/data/Berlin Extract.versatiles"), "berlin_extract");
-		assert_eq!(mount_name("/x/osm.mbtiles"), "osm");
-		assert_eq!(mount_name("/x/....."), "source");
+	fn mount_names_are_url_safe() {
+		let name = mount_name("/data/Berlin Extract.versatiles");
+		assert!(name.starts_with("berlin_extract_"), "got {name}");
+		assert!(
+			name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
+			"{name} must be safe in a URL path"
+		);
+		assert!(mount_name("/x/.....").starts_with("source_"));
+	}
+
+	#[test]
+	fn mount_names_are_stable_per_source() {
 		assert_eq!(mount_name("/a/b.versatiles"), mount_name("/a/b.versatiles"));
+	}
+
+	/// The bug this guards: two containers with the same filename from different places would mount
+	/// over each other, and the first map layer would quietly stop resolving.
+	#[test]
+	fn same_filename_from_different_sources_does_not_collide() {
+		assert_ne!(
+			mount_name("https://a.example/osm.versatiles"),
+			mount_name("https://b.example/osm.versatiles")
+		);
 	}
 }

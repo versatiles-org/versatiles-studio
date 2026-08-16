@@ -65,7 +65,7 @@
 		{#if error}<div class="error">{error}</div>{/if}
 	{/snippet}
 	{#snippet rightPane()}
-		<Inspector {containers} onOpen={pick} />
+		<Inspector {containers} onOpen={pick} onOpenUrl={(url) => void load(url)} />
 	{/snippet}
 	{#snippet commandBar()}
 		<CommandStrip {command} />

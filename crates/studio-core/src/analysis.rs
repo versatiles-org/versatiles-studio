@@ -122,6 +122,36 @@ pub(crate) mod tests {
 		Ok(())
 	}
 
+	/// A2 — remote over HTTPS with byte ranges. Ignored by default: it needs the network, and CI
+	/// should not depend on a third party being up. Run with `cargo test -- --ignored`.
+	#[tokio::test]
+	#[ignore = "requires network"]
+	async fn opens_a_remote_container_without_downloading_it() -> Result<()> {
+		let runtime = versatiles::runtime::create_runtime();
+		let started = std::time::Instant::now();
+
+		let (_source, info) = open(&runtime, "https://download.versatiles.org/osm.versatiles").await?;
+
+		// The point of byte-range reads: a planet file opens from its header, not its bulk.
+		assert!(
+			started.elapsed() < std::time::Duration::from_secs(30),
+			"opening a planet file should read the index, not the body"
+		);
+		assert_eq!(info.tile_format, "mvt");
+		assert!(
+			info.max_zoom >= 14,
+			"planet osm should reach z14, got {}",
+			info.max_zoom
+		);
+		eprintln!(
+			"opened in {:?}: z{}–{}",
+			started.elapsed(),
+			info.min_zoom,
+			info.max_zoom
+		);
+		Ok(())
+	}
+
 	#[tokio::test]
 	async fn a_missing_file_reports_which_one() {
 		let runtime = versatiles::runtime::create_runtime();

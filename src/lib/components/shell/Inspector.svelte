@@ -3,7 +3,19 @@
 	import JsonTree from '../common/JsonTree.svelte';
 
 	// A6 — the right pane shows the parameters of what you are working on, never global settings.
-	let { containers, onOpen }: { containers: ContainerInfo[]; onOpen: () => void } = $props();
+	let {
+		containers,
+		onOpen,
+		onOpenUrl
+	}: { containers: ContainerInfo[]; onOpen: () => void; onOpenUrl: (url: string) => void } = $props();
+
+	let url = $state('');
+
+	function submitUrl(event: SubmitEvent) {
+		event.preventDefault();
+		const trimmed = url.trim();
+		if (trimmed) onOpenUrl(trimmed);
+	}
 
 	function extent(bbox: ContainerInfo['bbox']): string {
 		if (!bbox) return '—';
@@ -13,6 +25,19 @@
 
 <div class="inspector">
 	<button class="open" onclick={onOpen}>Open a tile container…</button>
+
+	<!-- A2: HTTPS and SFTP read through byte ranges, so a planet file opens from its index. -->
+	<form onsubmit={submitUrl}>
+		<input
+			bind:value={url}
+			type="text"
+			placeholder="https://… or sftp://…"
+			spellcheck="false"
+			autocapitalize="off"
+			autocorrect="off"
+		/>
+		<button type="submit" disabled={!url.trim()}>Open</button>
+	</form>
 
 	{#if containers.length === 0}
 		<p class="hint">
@@ -54,6 +79,25 @@
 	.open {
 		font: inherit;
 		padding: 0.35rem;
+	}
+	form {
+		display: flex;
+		gap: 0.3rem;
+	}
+	input {
+		flex: 1;
+		min-width: 0;
+		font:
+			0.75rem ui-monospace,
+			monospace;
+		padding: 0.3rem;
+		border: 1px solid var(--rule);
+		border-radius: 3px;
+	}
+	form button {
+		font: inherit;
+		font-size: 0.75rem;
+		padding: 0.2rem 0.6rem;
 	}
 	.hint {
 		margin: 0;
