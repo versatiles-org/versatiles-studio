@@ -33,8 +33,8 @@ toolchain they came to escape; a **task-first** app needs the pipeline layer bef
 True in every mode and stage. These matter more than the panel arrangement.
 
 - **The map never disappears.** No editor goes fullscreen.
-- **Viewport survives mode switches.** Size changes between modes (Explore is widest) so the visible
-  extent shifts; centre and zoom must not.
+- **Viewport survives mode switches.** Size changes between modes — Explore and Publish have no left
+  pane, so the map runs wider there — which shifts the visible extent; centre and zoom must not.
 - **One `Map` instance spans all four modes.** Switching costs no WebGL context and no reload.
 - **Maps that are not visible are destroyed, not hidden.** WebGL allows ~16 contexts per process and
   evicts the oldest silently. Release 1 needs one map per project, so this is a habit to establish
@@ -51,24 +51,27 @@ True in every mode and stage. These matter more than the panel arrangement.
 
 ## Modes and panels
 
-Only four things are constant — **mode bar, map, job bar, command strip**. That is the shell;
-everything else is earned per mode.
+Five things are constant — **mode bar, map, right pane, job bar, command strip**. Only the **left
+pane** is conditional: it appears where there is a structure to navigate.
 
-| Panel           | Explore                       | Pipeline                   | Style                   | Publish             |
-| --------------- | ----------------------------- | -------------------------- | ----------------------- | ------------------- |
-| **Sources**     | —                             | **inputs to the pipeline** | —                       | —                   |
-| **Map**         | the subject                   | selected node's output     | live style feedback     | crop rectangle (F2) |
-| **Editor pane** | —                             | Graph / VPL tabs (C1, C4)  | layer tree (D3)         | export + serve      |
-| **Inspector**   | metadata, TileJSON, bookmarks | node parameters (C2)       | paint, expressions (D3) | — collapses         |
+| Pane      | Explore                       | Pipeline                  | Style                   | Publish                 |
+| --------- | ----------------------------- | ------------------------- | ----------------------- | ----------------------- |
+| **Left**  | —                             | Graph / VPL tabs (C1, C4) | layer tree (D3)         | —                       |
+| **Map**   | the subject                   | selected node's output    | live style feedback     | crop rectangle (F2)     |
+| **Right** | metadata, TileJSON, bookmarks | node parameters (C2)      | paint, expressions (D3) | export + serve (F1, F2) |
 
-**Sources belong to Pipeline alone.** Sources are inputs to the thing being built, and only Pipeline
-builds; Explore looks at the result, Style styles it, Publish ships it. A panel that changes meaning
-by mode reads as a bug.
+**Left is structure, right is parameters, the map is always between them.** Pipeline and Style both
+have something to navigate — a chain of nodes, a stack of layers — so both get a left pane, in the
+same place, doing the same job. Explore and Publish have no structure to navigate, so the map runs
+wide.
 
-**Explore is the widest mode** — no sources, no editor pane. Its identity is reading, not working.
+**There is no sources pane.** Sources are the `from_*` read nodes at the head of the pipeline, so the
+graph already shows them; a separate list duplicated them. "+ Add source" adds a read node.
 
-**The inspector only ever shows the current selection**, never global settings, or it becomes the
-junk drawer where every new feature lands. Where nothing is selectable it collapses.
+**The right pane shows the parameters of what you are working on** — the container being inspected,
+the selected node, the selected layer, or the export being configured — and never global settings,
+or it becomes the junk drawer where every new feature lands. Global settings live in the asset
+manager or project settings.
 
 ## Layouts
 
@@ -105,16 +108,24 @@ from inside the workbench. Opening a project fills that window; ⌘N opens anoth
 
 ### Pipeline — S2
 
+Graph and VPL tabs take the left pane. A pipeline is mostly a chain, so it reads better stacked in a
+narrow column than spread across a wide canvas.
+
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │ Explore │ Pipeline │                             assets ⚙ │
-├────────────┬─────────────────────────────┬────────────────┤
-│ SOURCES    │   MAP — selected node ●     │ INSPECTOR      │
-│ • places   ├─────────────────────────────┤ parameters of  │
-│  (inputs)  │ [ Graph ] [ VPL ⚠ ]         │ the selected   │
-│            │  ┌────┐  ┌────┐  ┌───┐      │ node (C2)      │
-│            │  │geo ├─►│flt ├─►│ ● │      │                │
-├────────────┴─────────────────────────────┴────────────────┤
+├───────────────────┬──────────────────────┬────────────────┤
+│ [ Graph ] [ VPL ⚠]│                      │ INSPECTOR      │
+│   ┌────────┐      │   MAP — selected     │ parameters of  │
+│   │from_geo│      │        node ●        │ the selected   │
+│   └───┬────┘      │                      │ node, from     │
+│   ┌───▼────┐      │                      │ field_meta     │
+│   │ filter │      │                      │ (C2)           │
+│   └───┬────┘      │                      │                │
+│   ┌───▼────┐      │                      │                │
+│   │   ●    │      │                      │                │
+│   └────────┘      │                      │                │
+├───────────────────┴──────────────────────┴────────────────┤
 │ Jobs ▸ idle          $ versatiles convert pipeline.vpl …  │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -127,33 +138,42 @@ views over one syntax tree.
 
 ### Style — S4
 
+The layer tree takes the left pane, in the same place the graph occupies in Pipeline.
+
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │ Explore │ Pipeline │ Style │ Publish             assets ⚙ │
-├─────────────────────────────────────────┬─────────────────┤
-│                  MAP                    │ PAINT           │
-├─────────────────────────────────────────┤ colour, width,  │
-│ LAYER TREE (D3)                         │ zoom stops,     │
-│  ▸ water  ▸ roads  ▸ buildings ▸ labels │ expressions     │
-├─────────────────────────────────────────┴─────────────────┤
+├───────────────────┬──────────────────────┬────────────────┤
+│ LAYER TREE   (D3) │                      │ PAINT          │
+│  ▸ background     │        MAP           │ colour, width, │
+│  ▸ water          │   live style         │ opacity,       │
+│  ▸ landuse        │     feedback         │ zoom stops,    │
+│  ▸ buildings      │                      │ expressions    │
+│  ▸ roads          │                      │                │
+│  ▸ labels         │                      │                │
+├───────────────────┴──────────────────────┴────────────────┤
 │ Jobs ▸ …                    $ versatiles serve project/   │
 └───────────────────────────────────────────────────────────┘
 ```
 
 ### Publish — S5
 
-The map becomes an **input device**: F2's crop is a rectangle dragged on it. Nothing is
-selection-driven, so the inspector collapses.
+The map becomes an **input device**: F2's crop is a rectangle dragged on it. Export parameters take
+the right pane — the export is what you are configuring, so it belongs where parameters live.
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │ Explore │ Pipeline │ Style │ Publish             assets ⚙ │
-├───────────────────────────────────────────────────────────┤
-│         MAP — drag a rectangle to crop              (F2)  │
-├───────────────────────────────────────────────────────────┤
-│ EXPORT  .versatiles ▾  zoom 0–14  ~2.3 GB    [ Export ]   │
-│ SERVE   http://192.168.1.5:8080   [QR]              (F1)  │
-├───────────────────────────────────────────────────────────┤
+├─────────────────────────────────────────┬─────────────────┤
+│                                         │ EXPORT     (F2) │
+│     MAP — drag a rectangle to crop      │ .versatiles ▾   │
+│        ┌ ─ ─ ─ ─ ─ ─ ─ ┐                │ zoom 0–14       │
+│        │     bbox      │                │ est. 2.3 GB     │
+│        └ ─ ─ ─ ─ ─ ─ ─ ┘                │ [ Export ]      │
+│                                         │ ─────────────── │
+│                                         │ SERVE      (F1) │
+│                                         │ LAN URL · QR    │
+├─────────────────────────────────────────┴─────────────────┤
 │ Jobs ▸ …            $ versatiles convert --bbox … -z 14   │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -180,6 +200,6 @@ jobs and their logs · unsaved edits in every mode, not just the visible one.
 
 **Where project settings live**, since the inspector is reserved for selection properties.
 
-A3 was dropped ([Q17](decisions.md)) once Explore lost its sources strip, so **release 1 has no
+A3 was dropped ([Q17](decisions.md)), so **release 1 has no
 comparison view at all** — C3 shows one node's output on one map. B5 is the first feature needing
 two, and it is post-1.0.

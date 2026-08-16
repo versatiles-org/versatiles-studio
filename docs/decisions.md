@@ -92,13 +92,16 @@ not a wizard.
 Different activities: Explore is consumption, Pipeline is production. Collapsing them saves a mode at
 the cost of muddying both.
 
-**Consequence for the Sources panel — revised.** The first reading had the panel shared, meaning a
-view stack in Explore and an input list in Pipeline. Rejected: **the sources strip exists only in
-Pipeline**, because sources are inputs to the thing being built and only Pipeline builds. A panel
-that changes meaning by mode reads as a bug.
+**Consequence for the Sources panel — settled after two revisions.** First reading: shared, meaning a
+view stack in Explore and an input list in Pipeline — rejected, because a panel that changes meaning
+by mode reads as a bug. Second: Pipeline only. Final: **there is no sources pane at all.** Sources
+are the `from_*` read nodes at the head of the pipeline, so the graph already shows them and a
+separate list duplicated them. "+ Add source" adds a read node.
 
-That makes Explore the widest mode — map and inspector only — and left A3 homeless, which is why
-[Q17](decisions.md) drops it.
+Two things follow. Explore keeps no left pane, which is what left A3 homeless and led
+[Q17](decisions.md) to drop it. And the layout settles into **left is structure, right is
+parameters** — Pipeline's graph and Style's layer tree occupy the same pane, and Explore and Publish
+have no structure to navigate, so the map runs wide.
 
 ### Q15 — The pipeline pane tabs between graph and text
 
