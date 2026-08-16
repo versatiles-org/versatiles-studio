@@ -16,6 +16,54 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16.
 
+### Q22 — One map surface, not four modes. The mode bar separates map work from non-map tools
+
+Explore, Pipeline, Style and Publish are merged into a **single surface**. The mode bar stays, but it
+now means something different: it separates _working with the map_ from tools that are not about the
+map at all — the asset manager (G7) today, glyph generation (D9) and whatever comes next.
+
+```text
+┌───────────────────┬──────────────────────┬────────────────┐
+│ ▸ SOURCES         │                      │ PARAMETERS     │
+│ ▾ PIPELINE        │                      │ of whatever is │
+│   from_geo        │        MAP           │ selected on    │
+│   vector_filter   │                      │ the left       │
+│   ● preview       │                      │                │
+│ ▾ STYLE           │                      │                │
+│   ▸ water · roads │                      │                │
+│ ▸ EXPORT          │                      │                │
+└───────────────────┴──────────────────────┴────────────────┘
+```
+
+**Why.** The four modes asserted a separation the work does not have. Tighten a filter, look at how
+it renders, adjust a colour, notice a missing layer, go back to the filter — every one of those was a
+mode switch. The pipeline produces tiles and the style renders them; they are sequential stages of
+one artefact, and the left pane can show that chain whole.
+
+**Explore was never a mode.** It was map-plus-inspector with no left pane — which is this surface
+with the sections collapsed. "I am not editing right now" is a pane state, not an activity.
+
+**Publish was not one either.** It is an action surface — export options and a serve toggle — plus a
+temporary map tool for drawing the crop rectangle. A collapsible section and a map tool cover it.
+
+**The build-order argument did not favour modes after all.** [Q14](decisions.md) rested partly on
+modes growing monotonically: each stage adds one, rebuilding nothing. Sections grow the same way —
+S1 ships with them collapsed, S2 adds Pipeline, S4 adds Style, S5 adds Export — while adding fewer
+concepts. That argument was presented as more decisive than it was.
+
+**Two invariants become free rather than enforced.** "One `Map` across all modes" and "the viewport
+survives a mode switch" stop being rules when there are no mode switches to survive.
+
+**What we accept.** The left pane carries more: a pipeline chain, a layer tree, export options, and
+[Q15](decisions.md)'s Graph/VPL tabs inside the pipeline section. On the 13-inch laptop Q15 was
+protecting, that is the real risk. **Sections must collapse independently and remember their state**
+— that is load-bearing here, not polish. Node editing and layer reordering also behave differently,
+so the sections must not imply they are the same kind of thing.
+
+**Supersedes [Q14](decisions.md)** entirely, and the Publish-mode reasoning in
+[Q17](decisions.md). [Q13](decisions.md)'s landing screen and [Q15](decisions.md)'s Graph/VPL tabs
+are unaffected.
+
 ### Q21 — Recents and bookmarks are application state in two JSON files, not project state
 
 A7 said view bookmarks are "stored in the project". They are not. Both bookmarks and the
@@ -255,7 +303,10 @@ not a wizard.
 - **It never gates anything.** Everything on it is also reachable from inside the workbench. A
   launcher that becomes a required first step is a wizard by another name.
 
-### Q14 — Explore and Pipeline stay separate modes
+### Q14 — Explore and Pipeline stay separate modes — **superseded by [Q22](decisions.md)**
+
+> Kept for the record. The modes were merged: the separation it defends turned out not to match how
+> the work flows, and the sources-panel reasoning below survives in a different form.
 
 Different activities: Explore is consumption, Pipeline is production. Collapsing them saves a mode at
 the cost of muddying both.

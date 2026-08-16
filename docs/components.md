@@ -25,14 +25,15 @@ distinct or every operation looks half-configured.
 
 The five-region grid from [UI Concept](ui.md). All Studio-specific.
 
-| Component                     | Does                                                                   | Stage |
-| ----------------------------- | ---------------------------------------------------------------------- | ----- |
-| `AppShell`                    | The grid: mode bar, left pane, map, right pane, job bar, command strip | S0.1  |
-| `ModeBar`                     | Explore · Pipeline · Style · Publish, plus the asset manager           | S2.2  |
-| `LeftPane` / `RightPane`      | Containers; left is conditional, right is always present               | S1.4  |
-| `JobBar` + `JobDrawer`        | Progress and cancellation; expands to a per-job log (E7)               | S3.1  |
-| `CommandStrip`                | The CLI equivalent of the last action, copyable (G2)                   | S1.9  |
-| `LandingScreen`, `LaunchCard` | What an empty window shows; gains import cards at S3                   | S1.1  |
+| Component                     | Does                                                                             | Stage |
+| ----------------------------- | -------------------------------------------------------------------------------- | ----- |
+| `AppShell`                    | The grid: mode bar, left pane, map, right pane, job bar, command strip           | S0.1  |
+| `ModeBar`                     | Map work vs non-map tools — assets (G7), later glyphs (D9) ([Q22](decisions.md)) | S2.2  |
+| `LeftPane` + `Section`        | The chain as collapsible sections; collapse state is core-owned                  | S2.2  |
+| `RightPane`                   | Parameters of the current selection                                              | S1.4  |
+| `JobBar` + `JobDrawer`        | Progress and cancellation; expands to a per-job log (E7)                         | S3.1  |
+| `CommandStrip`                | The CLI equivalent of the last action, copyable (G2)                             | S1.9  |
+| `LandingScreen`, `LaunchCard` | What an empty window shows; gains import cards at S3                             | S1.1  |
 
 ## Map
 
@@ -46,7 +47,7 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `FeaturePopup`    | All attributes of the feature under the cursor (A8)                     | S1.6  |
 | `CropOverlay`     | Drag a rectangle to crop (F2) — port `BBoxDrawer`                       | S5.4  |
 
-## Left pane — structure
+## Left pane — the chain
 
 | Component      | Does                                                               | Stage |
 | -------------- | ------------------------------------------------------------------ | ----- |

@@ -119,7 +119,7 @@ than it looks ([Q12](decisions.md)).
 | **F7** | `later`   | Offline package: tiles + style + fonts in one folder for field work                      | `versatiles-frontend`                       |
 
 **F2 lands twice.** Writing a container is required for M3, so the export itself is stage 3 (S3.6).
-The crop rectangle is a Publish-mode gesture on the map, and Publish mode arrives at stage 5.
+The crop rectangle is a map gesture belonging to the Export section, which arrives at stage 5.
 
 ---
 
