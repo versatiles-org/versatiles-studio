@@ -16,6 +16,41 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16.
 
+### Q19 — GDAL is statically bundled, with a deliberately narrow driver set
+
+E3 is **required** for M3 — it is the "image data" half — so GDAL cannot be optional, and it cannot
+be a system dependency. `gdal-src` compiles GDAL from source with CMake during `cargo build` and
+produces static libraries, pulling in PROJ, GEOS (`geos-src`, `geos_static`), SQLite and curl.
+
+**The obvious blocker turns out to be solved.** PROJ normally needs `proj.db` on disk at runtime,
+which would defeat a self-contained binary. PROJ RFC-8 added `EMBED_RESOURCE_FILES`, and it
+**defaults to ON for static builds** — `proj.db`, `proj.ini` and the ITRF files are embedded into
+libproj. PROJ still probes the filesystem first and falls back to the embedded copy.
+
+**Why not the alternatives.**
+
+- _Dynamic linking against system GDAL_ — what versatiles-rs does today, and it costs ~70 Homebrew
+  formulae. For a desktop app "install GDAL first" is exactly the toolchain `vision.md` says P1 and
+  P2 will never get through.
+- _Feature-detect and grey out E3_ — fails M3, which requires it.
+
+**What we accept.**
+
+- **Build time.** CMake compiling GDAL, PROJ, GEOS and SQLite on every clean build. Needs aggressive
+  CI caching; note versatiles-rs already caches its _dynamic_ GDAL tree because installing it takes
+  ~6 minutes.
+- **Size.** The embedded `proj.db` alone is several MB, before GDAL. For scale, [Q9](decisions.md)
+  sized the whole bundled asset tier at ~2.5 MB — GDAL will dwarf the rest of the installer.
+- **GEOS is LGPL 2.1.** Static linking obliges us to let recipients relink against a modified GEOS.
+  Studio is MIT and open-source so this is satisfiable, but it is a real compliance step — ship
+  object files, or source plus build instructions — not a formality. Do it deliberately.
+- **The fork.** versatiles-rs pins a git fork of georust/gdal for GDAL 3.13 pending PR #714. Studio
+  carries the same pin until it lands.
+
+**Two things to settle at S0, not S3** ([S0.10](scope-release-1.md), [S0.11](scope-release-1.md)):
+the driver list, because E3's "and the rest" has to become finite; and the resulting binary size,
+because it is the number that decides whether this is comfortable or merely possible.
+
 ### Q18 — Studio's Svelte components are written from scratch
 
 Studio does not depend on `@versatiles/svelte`. Its code is a **reference to read, not a package to
@@ -365,10 +400,14 @@ Consequences:
 Locally generated glyphs (D9) are complementary: they add fonts the releases lack, through the same
 archive format, manifest and serving path.
 
-### Q1 — VersaTiles Studio is a native Tauri application
+### Q1 — VersaTiles Studio is a native Tauri v2 application
 
 Not a subcommand serving a browser UI. Native file dialogs, drag & drop, file type associations and
 being findable as an application outweigh the alternative.
+
+**Tauri v2**, not v1. The removed template was v1, and everything since assumes v2 — the multi-window
+model of [Q16](decisions.md), the Channels of [Q3](decisions.md), and `tauri-specta`'s v2 support all
+depend on it. Stated here so nobody scaffolds v1 from the old template.
 
 **In exchange:** signing and notarisation costs (G3), building auto-update ourselves (G4), no path
 for running Studio on the remote server holding a very large file, and no UI reuse inside

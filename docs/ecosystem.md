@@ -176,6 +176,7 @@ The actual construction work:
 - Job queue and progress model (E7)
 - The project file format (G1)
 - Build, signing and update infrastructure (G3, G4)
+- A statically bundled GDAL via `gdal-src`, with a fixed driver set ([Q19](decisions.md))
 - Visual analysis surfaces (B1, B2, B5) — after release 1
 
 ## The state of this repository
