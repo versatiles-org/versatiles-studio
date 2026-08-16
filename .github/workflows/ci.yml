@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# Least privilege, applied at the workflow level so every job inherits it. Nothing here writes:
+# the jobs check out, build and test. The GITHUB_TOKEN passed to `assets:check` only lifts the
+# unauthenticated GitHub API rate limit, which needs no extra scope.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
