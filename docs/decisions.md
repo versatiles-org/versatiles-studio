@@ -16,6 +16,25 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16.
 
+### Q20 — GDAL is raster-only in release 1; GeoPackage is not supported
+
+Checking `from_gdal` found only `raster` and `dem` submodules, and the operation is
+`from_gdal_raster`. Vector reading is `from_geo` — GeoJSON, NDJSON, Shapefile — which needs no GDAL
+at all. **There is no GeoPackage path anywhere.**
+
+E3 said "GDAL path for GeoPackage, GeoTIFF and the rest". That was wrong; the catalogue is corrected.
+
+**Accepted for release 1.** GDAL covers raster, which is exactly M3's "image data" half, so the
+milestone still lands. GeoPackage users convert with `ogr2ogr` first.
+
+**What it costs, stated plainly.** `audiences.md` says P2 brings GeoPackages, and telling them to run
+`ogr2ogr` is precisely the toolchain step `vision.md` says they will not get through. This is the
+sharpest instance of that tension in the release, and it is accepted knowingly rather than missed.
+
+**Revisit** if P2 asks: either a `from_gdal_vector` operation upstream, or teaching `from_geo` to
+read GeoPackage directly — it is SQLite, so that needs no new native dependency and is the narrower,
+cheaper fix. Prefer the second.
+
 ### Q19 — GDAL is statically bundled, with a deliberately narrow driver set
 
 E3 is **required** for M3 — it is the "image data" half — so GDAL cannot be optional, and it cannot
@@ -47,9 +66,20 @@ libproj. PROJ still probes the filesystem first and falls back to the embedded c
 - **The fork.** versatiles-rs pins a git fork of georust/gdal for GDAL 3.13 pending PR #714. Studio
   carries the same pin until it lands.
 
-**Two things to settle at S0, not S3** ([S0.10](scope-release-1.md), [S0.11](scope-release-1.md)):
-the driver list, because E3's "and the rest" has to become finite; and the resulting binary size,
-because it is the number that decides whether this is comfortable or merely possible.
+**The driver list (S0.10), settled.** Raster only, per [Q20](decisions.md):
+
+| Driver           | Why                                                          |
+| ---------------- | ------------------------------------------------------------ |
+| `GTiff`, `COG`   | What P2 actually brings                                      |
+| `VRT`            | Free, and makes multi-file mosaics work                      |
+| `PNG`, `JPEG`    | Scanned maps and orthophoto deliveries                       |
+| `JP2` (OpenJPEG) | Common in orthophoto deliveries; adds an OpenJPEG dependency |
+
+Scientific formats — NetCDF, HDF5, GRIB — are **out**. They pull large native dependencies and would
+dominate the binary. Revisit only with a user asking and S0.11's number in hand.
+
+**S0.11 stays open:** the binary size with that driver set is what decides whether this is
+comfortable or merely possible.
 
 ### Q18 — Studio's Svelte components are written from scratch
 
@@ -320,10 +350,14 @@ Mirror its vocabulary rather than inventing a second one.
 **Types across the boundary:** [`tauri-specta`](https://github.com/specta-rs/tauri-specta) generates
 TypeScript from the Rust definitions, for commands and events. Two hand-kept copies of the command
 surface is exactly the drift the generated-UI principle exists to avoid, so generation is worth some
-risk — but note the risk is larger than "community-maintained" suggests: **the Tauri v2 line is
-`2.0.0-rc.25`, with no stable 2.x.** Pin it exactly, expect breakage between release candidates, and
-keep the fallbacks in view: hand-written wrappers over generated _types_ (`ts-rs` is stable), or
-hand-written types outright.
+risk — but the risk is larger than "community-maintained" suggests: **the Tauri v2 line is
+`2.0.0-rc.25`, with no stable 2.x.**
+
+**Deferred, deliberately.** The cost of hand-writing wrappers scales with the size of the command
+surface, and at S0 that surface is three commands. The wrappers stay hand-written for now, and the
+decision is revisited when it starts to hurt — roughly ten commands, or whenever 2.0 stabilises. If
+the RC never settles, the fallback is `ts-rs` (stable) for the _types_, which is where drift actually
+bites, with the small `invoke` calls left manual.
 
 **Consequence:** the embedded server is load-bearing, its lifecycle is a core service, loopback
 only.

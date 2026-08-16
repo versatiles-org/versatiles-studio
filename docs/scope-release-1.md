@@ -39,7 +39,7 @@ an empty document, which is a cartographer's tool (P5) and a far larger surface.
 
 ## M3 · Convert image and vector data into map tiles
 
-**Required** E1 (GeoJSON, NDJSON, shapefile), E2 (CSV with lon/lat), E3 (GDAL — the "image data" half, statically bundled per [Q19](decisions.md)), E7 (job queue), F2 (write the result out) · **strongly implied** C6 · **stretch** E4, E6 ·
+**Required** E1 (GeoJSON, NDJSON, shapefile), E2 (CSV with lon/lat), E3 (GDAL **raster** — the "image data" half, statically bundled per [Q19](decisions.md); no GeoPackage, [Q20](decisions.md)), E7 (job queue), F2 (write the result out) · **strongly implied** C6 · **stretch** E4, E6 ·
 **out** E5, dropped outright ([Q7](decisions.md)).
 
 E7 is not optional. Conversions run for minutes to hours; without progress and cancellation the
@@ -96,25 +96,25 @@ the item needs an ID of its own.
 
 Nothing user-visible, and a prerequisite for every milestone.
 
-| Item      | Work                                                                                             | Feature        |
-| --------- | ------------------------------------------------------------------------------------------------ | -------------- |
-| **S0.1**  | Tauri shell: one window per project, native menus, dialogs, drag & drop, file associations       | infrastructure |
-| **S0.2**  | Studio core skeleton — a plain Rust library with no Tauri types, driven by ordinary tests        | infrastructure |
-| **S0.3**  | Control plane: `#[tauri::command]` bindings and `tauri-specta` type generation                   | infrastructure |
-| **S0.4**  | Event plane: Tauri Channels for progress, warnings and log lines                                 | infrastructure |
-| **S0.5**  | Embedded server and server manager — one instance, named mounts, loopback only                   | infrastructure |
-| **S0.6**  | Bundled asset tier: sprites (1.3 MB) and Latin Noto Sans (~1 MB), served from the archive        | infrastructure |
-| **S0.7**  | CI for Linux and macOS, including ad-hoc macOS signing                                           | infrastructure |
-| **S0.8**  | **Measure the per-webview memory baseline** and confirm the window model holds                   | infrastructure |
-| **S0.9**  | No telemetry, no account, no analytics dependency — and say so in the README                     | G5             |
-| **S0.10** | **Decide the GDAL driver list** — E3's "and the rest" has to become finite ([Q19](decisions.md)) | infrastructure |
-| **S0.11** | **Measure the statically bundled binary size** with that driver set; cache the CMake build in CI | infrastructure |
+| Item      | Work                                                                                                 | Feature        |
+| --------- | ---------------------------------------------------------------------------------------------------- | -------------- |
+| **S0.1**  | Tauri shell: one window per project, native menus, dialogs, drag & drop, file associations           | infrastructure |
+| **S0.2**  | Studio core skeleton — a plain Rust library with no Tauri types, driven by ordinary tests            | infrastructure |
+| **S0.3**  | Control plane: `#[tauri::command]` bindings and `tauri-specta` type generation                       | infrastructure |
+| **S0.4**  | Event plane: Tauri Channels for progress, warnings and log lines                                     | infrastructure |
+| **S0.5**  | Embedded server and server manager — one instance, named mounts, loopback only                       | infrastructure |
+| **S0.6**  | Bundled asset tier: sprites (1.3 MB) and Latin Noto Sans (~1 MB), served from the archive            | infrastructure |
+| **S0.7**  | CI for Linux and macOS, including ad-hoc macOS signing                                               | infrastructure |
+| **S0.8**  | **Measure the per-webview memory baseline** and confirm the window model holds                       | infrastructure |
+| **S0.9**  | No telemetry, no account, no analytics dependency — and say so in the README                         | G5             |
+| **S0.10** | ~~Decide the GDAL driver list~~ — **settled**: GTiff, COG, VRT, PNG, JPEG, JP2 ([Q19](decisions.md)) | infrastructure |
+| **S0.11** | **Measure the statically bundled binary size** with that driver set; cache the CMake build in CI     | infrastructure |
 
 **S0.8, S0.10 and S0.11 are decision checkpoints, not chores.** [Q16](decisions.md) assumes several
 webview processes are affordable without a figure for our bundle; if they are not, the fallback is
 tabs plus aggressive `Map` disposal. [Q19](decisions.md) accepts a statically bundled GDAL without
-knowing what it weighs. Both are far cheaper to answer at S0 than to discover at S3 — and S0.10 gates
-S3.5, since the driver list decides what E3 can actually open.
+knowing what it weighs — far cheaper to answer at S0 than to discover at S3. S0.10 is now settled
+([Q19](decisions.md)); S0.8 and S0.11 remain.
 
 ### S1 · Open & explore → M1
 
@@ -160,7 +160,7 @@ following it.
 | **S3.2**   | Import cards on the landing screen and on "+ Add source"                      | infrastructure |
 | **S3.3**   | Vector import: GeoJSON, NDJSON, shapefile                                     | E1             |
 | **S3.4**   | Tabular point import: CSV with lon/lat columns                                | E2             |
-| **S3.5**   | GDAL path: GeoTIFF, GeoPackage and the rest — the "image data" half of M3     | E3             |
+| **S3.5**   | GDAL raster path: GTiff, COG, VRT, PNG, JPEG, JP2 — M3's "image data" half    | E3             |
 | **S3.6**   | Write the result to a container                                               | F2             |
 | **S3.7**   | Sampling-based cost estimate, shown where a run is committed                  | C6             |
 | **S3.8\*** | DEM workflow: terrarium encoding, hillshade, quantisation                     | E4             |

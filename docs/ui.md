@@ -196,9 +196,11 @@ nothing the generated form does not handle. VPL makes no such split either.
 Map viewport · the selected source · the pipeline's selected node · the global undo stack · running
 jobs and their logs · unsaved edits in every mode, not just the visible one.
 
-## Still loose
+## Settled elsewhere
 
-**Where project settings live**, since the inspector is reserved for selection properties.
+**Project settings open as a dialog from the mode bar**, beside the asset manager. They are edited
+rarely and are not a selection, so a modal is honest — and it keeps the right pane's rule intact
+rather than carving an exception into it.
 
 A3 was dropped ([Q17](decisions.md)), so **release 1 has no
 comparison view at all** — C3 shows one node's output on one map. B5 is the first feature needing

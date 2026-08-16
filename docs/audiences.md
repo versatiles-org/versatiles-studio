@@ -42,7 +42,9 @@ the same thing on their own server (C7).
 **Why Studio.** Local, no account, no telemetry, open source, auditable. That combination is rare and
 is the entire pitch for this group.
 
-**Risk.** Long sales cycle, and they need documentation and stability more than features.
+**Risk.** Long sales cycle, and they need documentation and stability more than features. One
+known unmet need: **GeoPackage is unsupported in release 1** ([Q20](decisions.md)), so a group that
+brings GeoPackages has to convert them first.
 
 ---
 
