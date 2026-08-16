@@ -35,6 +35,7 @@ See [Release 1 Scope](docs/scope-release-1.md) for how these map onto the featur
 | [Release 1 Scope](docs/scope-release-1.md) | The four committed features, mapped to feature IDs         |
 | [Ecosystem Inventory](docs/ecosystem.md)   | What already exists in versatiles-org and can be reused    |
 | [Architecture](docs/architecture.md)       | How the pieces fit together                                |
+| [UI Concept](docs/ui.md)                   | How the features are organised on screen, stage by stage   |
 | [Decision Log](docs/decisions.md)          | Every question raised, and how it was settled              |
 | [Roadmap](docs/roadmap.md)                 | Release 1 at a glance, and what comes after                |
 

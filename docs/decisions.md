@@ -16,6 +16,58 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16.
 
+### Q13 — Studio is a workbench. New projects start from a landing screen
+
+The workbench-versus-P1 tension resolves in favour of the workbench. `vision.md` stands unamended:
+Studio makes the concepts visible rather than hiding them, and P1 is expected to cope. There is no
+separate guided mode.
+
+New projects open on a **landing screen** — a launcher, not a wizard. It offers the ways in, then
+gets out of the way.
+
+**Consequences.**
+
+- **The P1 risk is accepted, not overlooked.** `audiences.md` warns that "a rough edge a developer
+  shrugs off will stop a journalist entirely". Under this decision the mitigation is polish and good
+  defaults, not a simplified mode. If P1 adoption stalls, this is the first decision to revisit.
+- **The landing screen exists from stage 1**, not stage 3. Studio has to show something when it opens
+  with no project. It starts as "open a container" plus recent files (A7), and gains cards as the
+  clusters land: import cards in stage 3 (E1–E3), "start a style" in stage 4.
+- **It never gates anything.** It disappears once a project is open, and everything reachable from it
+  is also reachable from inside the workbench. A launcher that becomes a required first step is a
+  wizard by another name.
+
+### Q14 — Explore and Pipeline stay separate modes
+
+They are different activities: Explore is consumption — open what exists, inspect it, compare it.
+Pipeline is production — build something new. Collapsing them would save a mode at the cost of
+making both muddier.
+
+**Consequence for the Sources panel**, which is shared and therefore means two things. In Explore it
+is a **view stack**: containers opened for looking at, with visibility, opacity and comparison (A3).
+In Pipeline it is the **input list**: sources the pipeline reads from. Same underlying project
+sources, different affordances — and the panel has to make clear which it is showing, or the two
+modes will feel like a bug.
+
+### Q15 — The pipeline pane tabs between graph and text
+
+One pane, two tabs: **Graph** and **VPL**. Not side by side. This replaces the earlier side-by-side
+proposal and settles the small-screen question at the same time — the layout no longer needs ~1400 px
+to be usable, so no drawer or responsive collapse is required.
+
+**What the tabs owe us.** Side-by-side was proposed so a user could see the graph and the file agree.
+Tabs remove that reassurance, so it has to be rebuilt deliberately:
+
+- **Selection survives the switch.** Selecting a node and switching to VPL lands on that node's span,
+  and vice versa. This is the main thing that makes the two tabs feel like one document rather than
+  two tools.
+- **The Graph tab never shows a stale graph.** If the text does not parse, the graph shows the parse
+  failure, not the last good render.
+- **The VPL tab carries an error badge** when parsing or validation fails (C4), so a user working in
+  the graph can see there is something wrong in the text without switching.
+- **Switching is free.** No reparse delay, no lost cursor position or scroll — both tabs are views
+  over the same lossless syntax tree ([Q11](decisions.md)).
+
 ### Q11 — The node graph (C1) is in release 1, and needs a lossless VPL syntax tree
 
 Commitment 4 means **node graph plus text editor**, not text editor alone. C1 becomes a deliverable
