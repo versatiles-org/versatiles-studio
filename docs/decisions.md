@@ -16,6 +16,34 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16.
 
+### Q18 — Studio's Svelte components are written from scratch
+
+Studio does not depend on `@versatiles/svelte`. Its code is a **reference to read, not a package to
+import**.
+
+**Why.** Studio's shell has requirements no other consumer has: one `Map` instance owned by the Rust
+core and restored from it ([Q16](decisions.md)), panes that reconfigure per mode, a graph pane that
+edits text through a syntax tree. Adapting a library built for embedding single maps in pages would
+constrain all of that, and the coupling would run both ways — Studio's needs would start distorting a
+library other projects depend on.
+
+**What we accept.** The org already has `InputRow.svelte` byte-identical in three repositories and
+Studio makes a fourth. That duplication is real, and it is not Studio's to fix.
+
+**Three solved problems to copy deliberately rather than rediscover.** All are cheap to carry over
+and expensive to hit blind:
+
+- **MapLibre 6's worker cannot be bundled naively.** Since v6 the worker loads from a separate file
+  via `import.meta.url`, which stops resolving once a bundler inlines `maplibre-gl.mjs`. The fix is a
+  build step that bundles the worker into the app from the installed `maplibre-gl`, referenced with a
+  plain `new URL(…, import.meta.url)` — a Vite-only `?worker&url` import breaks Vite's own dependency
+  pre-bundling. It also requires pinning `maplibre-gl` exactly, so worker and main thread match. See
+  `node-versatiles-svelte/scripts/bundle_worker.ts`.
+- **`BBoxDrawer`** (227 lines) is drag-to-draw bbox selection on a MapLibre map — most of F2 (S5.4).
+- **The styler's `defaultValue` / `isModified` input pattern**, which shows whether a value differs
+  from its default. That matters more in Studio than anywhere else, because `VPLFieldMeta` carries no
+  defaults at all.
+
 ### Q17 — A3, the multi-source layer stack, is dropped
 
 No stacking several containers in one view with opacity, swipe and split. Dropped, not deferred.

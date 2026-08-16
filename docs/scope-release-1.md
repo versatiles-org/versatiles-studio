@@ -115,18 +115,18 @@ are affordable without a figure for our bundle. If they are not, the fallback is
 
 ### S1 · Open & explore → M1
 
-| Item        | Work                                                                                | Feature        |
-| ----------- | ----------------------------------------------------------------------------------- | -------------- |
-| **S1.1**    | Landing screen in an empty window: ways in plus recent files                        | A7             |
-| **S1.2**    | Open local containers — `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories  | A1             |
-| **S1.3**    | Open remote sources over HTTPS and SFTP with byte ranges                            | A2             |
-| **S1.4**    | Map canvas and default render style; one `Map` instance, viewport owned by the core | infrastructure |
-| **S1.5**    | Inspector: container metadata and TileJSON, viewable and editable                   | A6             |
-| **S1.6**    | Feature popup on hover/click                                                        | A8             |
-| **S1.7**    | Tile grid overlay with z/x/y and a jump-to-coordinate box                           | A5             |
-| **S1.8**    | Named view bookmarks stored in the project                                          | A7             |
-| **S1.9**    | Command strip — the CLI equivalent of the last action, copyable                     | G2             |
-| **S1.10\*** | Raw MVT inspector: layers → features → properties, with byte sizes                  | A4             |
+| Item        | Work                                                                                                                                                                                | Feature        |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **S1.1**    | Landing screen in an empty window: ways in plus recent files                                                                                                                        | A7             |
+| **S1.2**    | Open local containers — `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories                                                                                                  | A1             |
+| **S1.3**    | Open remote sources over HTTPS and SFTP with byte ranges                                                                                                                            | A2             |
+| **S1.4**    | Map canvas and default render style; one `Map` instance, viewport owned by the core. Includes the MapLibre 6 worker build step and an exact `maplibre-gl` pin ([Q18](decisions.md)) | infrastructure |
+| **S1.5**    | Inspector: container metadata and TileJSON, viewable and editable                                                                                                                   | A6             |
+| **S1.6**    | Feature popup on hover/click                                                                                                                                                        | A8             |
+| **S1.7**    | Tile grid overlay with z/x/y and a jump-to-coordinate box                                                                                                                           | A5             |
+| **S1.8**    | Named view bookmarks stored in the project                                                                                                                                          | A7             |
+| **S1.9**    | Command strip — the CLI equivalent of the last action, copyable                                                                                                                     | G2             |
+| **S1.10\*** | Raw MVT inspector: layers → features → properties, with byte sizes                                                                                                                  | A4             |
 
 ### S2 · Pipeline editing → M4
 

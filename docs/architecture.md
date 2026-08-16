@@ -53,8 +53,10 @@ auto-update. Deliberately thin — the bridge to the platform, no application lo
 project, one application instance** ([Q16](decisions.md)): each webview is its own OS process, so a
 project gets both crash isolation and its own WebGL context budget.
 
-**UI (web).** Svelte, matching the rest of the org, with MapLibre GL for the canvas. All JavaScript
-is bundled at build time; **no Node runtime ships** ([Q5](decisions.md)).
+**UI (web).** Svelte 5, matching the rest of the org, with MapLibre GL for the canvas. All
+JavaScript is bundled at build time; **no Node runtime ships** ([Q5](decisions.md)). Components are
+written from scratch rather than imported from `@versatiles/svelte` ([Q18](decisions.md)) — see the
+[component inventory](components.md).
 
 **Studio core (Rust).** The part worth designing carefully:
 
