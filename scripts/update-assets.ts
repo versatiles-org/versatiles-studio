@@ -16,6 +16,39 @@ import { fileURLToPath } from 'node:url';
 
 const MANIFEST = fileURLToPath(new URL('../assets/manifest.json', import.meta.url));
 
+/**
+ * Repositories these scripts may talk to.
+ *
+ * The manifest is data, and data that reaches `fetch()` decides where a build machine connects. A
+ * tampered `assets/manifest.json` in a pull request would otherwise make CI issue arbitrary outbound
+ * requests — with `GITHUB_TOKEN` attached, for the API calls. Constraining the owner turns the
+ * manifest into a choice *among* our releases rather than a free-form URL.
+ */
+const ALLOWED_OWNER = 'versatiles-org';
+
+/** Rejects a repository the manifest is not allowed to name. */
+export function assertAllowedRepo(repo: string): void {
+	if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) {
+		throw new Error(`manifest repo "${repo}" is not in owner/name form`);
+	}
+	const [owner] = repo.split('/');
+	if (owner !== ALLOWED_OWNER) {
+		throw new Error(`manifest repo "${repo}" is outside ${ALLOWED_OWNER}; refusing to fetch it`);
+	}
+}
+
+/** Rejects a release tag or filename that could escape the URL path. */
+export function assertSafeSegment(value: string, what: string): void {
+	if (!/^[\w.+-]+$/.test(value)) {
+		throw new Error(`manifest ${what} "${value}" contains characters that are unsafe in a URL path`);
+	}
+	// The character class above permits dots, so `..` passes it — which is the one input this
+	// function exists to stop. A test caught that; the explicit check is the fix.
+	if (/^\.+$/.test(value)) {
+		throw new Error(`manifest ${what} "${value}" is a path traversal segment`);
+	}
+}
+
 interface PinnedAsset {
 	/** Release asset filename. */
 	file: string;
@@ -42,6 +75,7 @@ interface GhAsset {
 }
 
 async function latestRelease(repo: string): Promise<{ tag: string; assets: GhAsset[] }> {
+	assertAllowedRepo(repo);
 	const headers: Record<string, string> = { accept: 'application/vnd.github+json' };
 	// Optional: lifts the 60/hour unauthenticated rate limit in CI.
 	if (process.env.GITHUB_TOKEN) headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;

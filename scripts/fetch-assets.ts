@@ -21,6 +21,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { assertAllowedRepo, assertSafeSegment } from './update-assets.js';
 
 const run = promisify(execFile);
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -40,8 +41,25 @@ type Manifest = { sources: Record<string, Source> };
 
 const manifest = JSON.parse(await readFile(join(root, 'assets', 'manifest.json'), 'utf8')) as Manifest;
 
+/**
+ * Builds the release URL, refusing anything the manifest is not allowed to name.
+ *
+ * The manifest is data, and data that reaches `fetch()` decides where this machine connects. Without
+ * these checks a tampered `assets/manifest.json` in a pull request would make CI issue arbitrary
+ * outbound requests. The digest check afterwards would stop a bad file being *used*, but not the
+ * request being *made* — so the constraint belongs here, before the fetch.
+ */
 function urlFor(source: Source, asset: PinnedAsset): string {
-	return `https://github.com/${source.repo}/releases/download/${source.version}/${asset.file}`;
+	assertAllowedRepo(source.repo);
+	assertSafeSegment(source.version, 'version');
+	assertSafeSegment(asset.file, 'asset filename');
+
+	const url = new URL(`https://github.com/${source.repo}/releases/download/${source.version}/${asset.file}`);
+	// Belt and braces: whatever the segments contained, the result must still be a GitHub URL.
+	if (url.origin !== 'https://github.com') {
+		throw new Error(`refusing to fetch from ${url.origin}`);
+	}
+	return url.href;
 }
 
 /** Downloads and checks the pin. A mismatch is fatal: an unverified asset is worse than none. */
