@@ -14,7 +14,8 @@
 		"assets:check": "tsx scripts/update-assets.ts",
 		"assets:update": "tsx scripts/update-assets.ts --update",
 		"assets:fetch": "tsx scripts/fetch-assets.ts",
-		"bundle:worker": "tsx scripts/bundle_worker.ts"
+		"bundle:worker": "tsx scripts/bundle_worker.ts",
+		"test": "vitest run"
 	},
 	"devDependencies": {
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
@@ -27,7 +28,8 @@
 		"svelte-check": "^4.4.0",
 		"tsx": "^4.20.0",
 		"typescript": "^6.0.3",
-		"vite": "^8.2.1"
+		"vite": "^8.2.1",
+		"vitest": "^4.1.10"
 	},
 	"dependencies": {
 		"@tauri-apps/api": "2.11.1",

@@ -6,6 +6,9 @@
 	import CommandStrip from './lib/components/shell/CommandStrip.svelte';
 	import Inspector from './lib/components/shell/Inspector.svelte';
 	import MapCanvas from './lib/components/map/MapCanvas.svelte';
+	import FeaturePopup from './lib/components/map/FeaturePopup.svelte';
+	import TileGrid from './lib/components/map/TileGrid.svelte';
+	import CoordinateJump from './lib/components/map/CoordinateJump.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { addContainerToMap } from './lib/map/add-source';
 	import { openContainer, serverBaseUrl, type ContainerInfo } from './lib/ipc/commands';
@@ -17,6 +20,7 @@
 	let containers = $state<ContainerInfo[]>([]);
 	let command = $state<string | null>(null);
 	let error = $state<string | null>(null);
+	let showGrid = $state(false);
 
 	$effect(() => {
 		serverBaseUrl()
@@ -62,6 +66,10 @@
 <AppShell>
 	{#snippet mapPane()}
 		{#if style}<MapCanvas {style} bind:map />{/if}
+		<FeaturePopup {map} />
+		<TileGrid {map} visible={showGrid} />
+		<CoordinateJump {map} />
+		<button class="grid-toggle" class:on={showGrid} onclick={() => (showGrid = !showGrid)}> z/x/y grid </button>
 		{#if error}<div class="error">{error}</div>{/if}
 	{/snippet}
 	{#snippet rightPane()}
@@ -75,6 +83,25 @@
 <style>
 	:global(body) {
 		margin: 0;
+	}
+	.grid-toggle {
+		position: absolute;
+		right: 0.5rem;
+		bottom: 0.5rem;
+		z-index: 4;
+		font:
+			0.72rem system-ui,
+			sans-serif;
+		padding: 0.25rem 0.6rem;
+		border: 1px solid var(--rule);
+		border-radius: 3px;
+		background: rgb(255 255 255 / 0.94);
+		cursor: pointer;
+	}
+	.grid-toggle.on {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: #fff;
 	}
 	.error {
 		position: absolute;

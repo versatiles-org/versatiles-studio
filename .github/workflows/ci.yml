@@ -31,6 +31,7 @@ jobs:
       - run: npm ci
       - run: npm run format:check
       - run: npm run check
+      - run: npm test
       - run: npm run build
       # Fails when an upstream release moves past a pin, or when a pinned digest changes under an
       # unchanged tag. Metadata-only, so it costs nothing (Q9).

@@ -125,8 +125,8 @@ GEOS unlinked, which removes the LGPL obligation entirely.
 | **S1.3**    | ~~Open remote sources over HTTPS and SFTP with byte ranges~~ — **done**; a planet file opens in ~2 s from its index                                                 | A2             |
 | **S1.4**    | ~~Map canvas and default render style; one `Map` instance, viewport owned by the core~~ — **done**, includes the MapLibre 6 worker build step ([Q18](decisions.md)) | infrastructure |
 | **S1.5**    | ~~Inspector: container metadata and TileJSON~~ — **view done**; editing needs the pipeline's `meta_update` (S2)                                                     | A6             |
-| **S1.6**    | Feature popup on hover/click                                                                                                                                        | A8             |
-| **S1.7**    | Tile grid overlay with z/x/y and a jump-to-coordinate box                                                                                                           | A5             |
+| **S1.6**    | ~~Feature popup on hover/click~~ — **done**                                                                                                                         | A8             |
+| **S1.7**    | ~~Tile grid overlay with z/x/y and a jump-to-coordinate box~~ — **done**                                                                                            | A5             |
 | **S1.8**    | Named view bookmarks stored in the project                                                                                                                          | A7             |
 | **S1.9**    | ~~Command strip — the CLI equivalent of the last action, copyable~~ — **done**                                                                                      | G2             |
 | **S1.10\*** | Raw MVT inspector: layers → features → properties, with byte sizes                                                                                                  | A4             |
