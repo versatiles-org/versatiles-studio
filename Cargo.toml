@@ -5,7 +5,10 @@ resolver = "3"
 [workspace.package]
 version = "0.0.0"
 edition = "2024"
-rust-version = "1.85"
+# 1.85 is edition 2024's floor; 1.88 is what a patched serde_with needs (GHSA-7gcf-g7xr-8hxj).
+# This is an application, not a library — we control the build toolchain, so tracking security
+# updates matters more than a low MSRV.
+rust-version = "1.88"
 license = "MIT"
 repository = "https://github.com/versatiles-org/versatiles-studio"
 
