@@ -16,6 +16,58 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16.
 
+### Q16 — One application instance, one window per project
+
+Not tabs, and not separate application instances. Three facts decide it.
+
+**Tauri already gives us process isolation.** In Tauri v2 every webview is a separate OS process, and
+the docs name fault isolation as the point — a crash in one is meant not to take the system down, and
+the core process can restart one that enters an invalid state. A window per project therefore buys
+isolation we would otherwise have to engineer, and a second _application_ instance buys nothing
+beyond it while costing a second core.
+
+**WebGL contexts are capped per process.** Chrome and WebKit allow roughly **16 simultaneous WebGL
+contexts**, and on exceeding the cap the browser **silently discards the oldest**. Tauri uses
+WKWebView and WebKitGTK, so that is the ceiling that applies. MapLibre uses one context per `Map`,
+and Studio wants comparison views (A3 swipe and split, B5 diff, C3 before/after), so a project
+plausibly holds two or three live maps. Five projects in one webview is 10–15 contexts — at the cap,
+where opening a fifth project blanks the map in the first, with no error we raised. Separate windows
+mean separate processes, and a fresh budget per project.
+
+**The server does not need duplicating.** `TileServer::add_tile_source` and `remove_tile_source`
+work on a running server, and the config mounts many named sources at once.
+
+|                    | App instance           | **Window**                       | Tab              |
+| ------------------ | ---------------------- | -------------------------------- | ---------------- |
+| Webview processes  | N                      | N                                | 1                |
+| Rust cores         | N                      | **1**                            | 1                |
+| WebGL budget       | 16 each                | **16 each**                      | 16 _total_       |
+| Crash blast radius | 1 project              | **1 project**                    | **all projects** |
+| Asset manager (G7) | N writers, needs locks | **single writer**                | single writer    |
+| Job queue (E7)     | fragmented             | **unified**                      | unified          |
+| macOS conventions  | wrong                  | **⌘N, Window menu, full screen** | non-native       |
+
+**Consequences.**
+
+- **One embedded server for the whole application**, with mounts named per project and per preview
+  node — not one server per project or per node. This corrects [Architecture](architecture.md).
+- **Nothing may live only in the webview.** A webview crash is then recoverable by reloading that one
+  window, because the core still holds the project, pipeline, jobs and server. Map viewport, selected
+  node, active mode and scroll position must all be restorable from the core. Promoted to an
+  architectural principle.
+- **Destroy `Map` instances that are not visible**, rather than hiding them. The 16-context ceiling
+  applies per process even at one project per window, so a project with several comparison views can
+  still starve itself — and it fails by discarding the context you looked at _first_.
+- **The landing screen is what an empty window shows** ([Q13](decisions.md)). Opening a project fills
+  that window; ⌘N opens another empty one. No separate launcher window.
+- **Measure the per-webview baseline at stage 0.** Several webview processes cost real memory and we
+  have no trustworthy figure for our bundle. If it turns out prohibitive, the fallback is tabs plus
+  aggressive `Map` disposal — worse isolation, same correctness.
+
+**MapLibre's own recovery is imperfect**, which is why the reload path matters more than prevention:
+context loss before style load throws (maplibre-gl-js #7022), and events can fire after `Map#remove`
+(#726).
+
 ### Q13 — Studio is a workbench. New projects start from a landing screen
 
 The workbench-versus-P1 tension resolves in favour of the workbench. `vision.md` stands unamended:

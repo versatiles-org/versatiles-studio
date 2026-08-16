@@ -49,6 +49,10 @@ True in every mode and every stage. These matter more than the panel arrangement
 - **Jobs are never modal.** E7 runs for hours. A modal progress dialog makes Studio single-tasking.
 - **The command strip is persistent, not a dialog.** G2 is an architectural constraint; a menu item
   nobody clicks teaches nobody. Under the map, it teaches continuously.
+- **Nothing lives only in the webview** ([Q16](decisions.md)). Viewport, selected node, active mode
+  and scroll position are restorable from the core, so a crashed window reloads without losing work.
+- **Maps that are not visible are destroyed, not hidden.** WebGL allows ~16 contexts per process and
+  evicts the oldest silently, so comparison views must release their `Map` instances.
 
 ## Layout by stage
 
@@ -58,6 +62,9 @@ Studio has to show something when it opens with no project. Per [Q13](decisions.
 **launcher, not a wizard**: it disappears once a project is open, and everything on it is also
 reachable from inside the workbench. It starts small and gains cards as clusters land — import cards
 in stage 3, "start a style" in stage 4.
+
+It is **what an empty window shows**, not a separate launcher window. Opening a project fills that
+window; ⌘N opens another empty one — one window per project ([Q16](decisions.md)).
 
 ```text
 ┌───────────────────────────────────────────────────────────┐

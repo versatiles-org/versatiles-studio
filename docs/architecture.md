@@ -48,8 +48,10 @@ for large payloads, so tile bytes must not travel over IPC. For a one-off blob �
 
 ## Layers
 
-**Tauri shell.** Native window, menus, file dialogs, drag & drop, file type associations,
-auto-update. Deliberately thin — the bridge to the platform, no application logic.
+**Tauri shell.** Native windows, menus, file dialogs, drag & drop, file type associations,
+auto-update. Deliberately thin — the bridge to the platform, no application logic. **One window per
+project, one application instance** ([Q16](decisions.md)): each webview is its own OS process, so a
+project gets both crash isolation and its own WebGL context budget.
 
 **UI (web).** Svelte, matching the rest of the org, with MapLibre GL for the canvas. All JavaScript
 is bundled at build time; **no Node runtime ships** ([Q5](decisions.md)).
@@ -67,7 +69,9 @@ is bundled at build time; **no Node runtime ships** ([Q5](decisions.md)).
   ([Q4](decisions.md)), aggregating over `layer_stats()` and `validate_tile()`
 - _Asset manager_ — download, pin, verify and remove font families and sprite sets (G7), and
   generate glyph sets from the user's own fonts (D9)
-- _Server manager_ — lifecycle of the embedded server, one instance per previewed pipeline node
+- _Server manager_ — lifecycle of the **single** embedded server. `add_tile_source` and
+  `remove_tile_source` work on a running server, so each project and each previewed pipeline node
+  is a named **mount**, not a server of its own ([Q16](decisions.md))
 
 The core is a plain Rust library with no Tauri types, so it can be driven by ordinary Rust tests;
 `#[tauri::command]` functions are a thin binding over it. `versatiles_node` proves the shape — the
@@ -85,6 +89,11 @@ projects diffable, reviewable and handable to a CLI user.
 Taken seriously it has teeth: a view that edits the text must edit it **surgically**, never
 reformatting, reordering parameters or dropping comments as a side effect. That is why the node
 graph needs a lossless syntax tree rather than a parse-and-print round trip ([Q11](decisions.md)).
+
+**Nothing lives only in the webview.** The core holds the project, pipeline, jobs and server; the
+webview renders them. Map viewport, selected node, active mode and scroll position must all be
+restorable from the core, so a crashed or reloaded window loses nothing ([Q16](decisions.md)). This is
+the source-of-truth principle applied to volatile UI state rather than to files.
 
 **Generate UI from metadata where possible.** Parameter forms come from `field_meta`
 ([inventory](ecosystem.md)). Hand-written UI per operation would rot the first time versatiles-rs
@@ -109,5 +118,6 @@ archives too, so downloaded and generated fonts take the same path.
 | **Q5**   | No Node runtime ships; all JavaScript is bundled into the webview at build time          |
 | **Q6**   | A project is a directory of real files described by a YAML manifest                      |
 | **Q11**  | The node graph is in release 1, and needs a lossless VPL syntax tree                     |
+| **Q16**  | One application instance, one window per project, one embedded server with named mounts  |
 
 See the [decision log](decisions.md) for the reasoning.
