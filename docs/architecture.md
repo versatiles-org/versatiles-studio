@@ -82,6 +82,73 @@ same idea with napi instead of IPC.
 **versatiles-rs.** A library dependency, not shelled out to. Studio should be a first-class consumer
 of the crates, and pressure to improve their APIs is a welcome side effect.
 
+## Repository layout
+
+```text
+versatiles-studio/
+├── Cargo.toml                  workspace: crates/* + src-tauri
+├── package.json                Vite · Svelte 5 · TypeScript — build-time only (Q5)
+├── index.html                  single entry; modes are state, not routes
+│
+├── crates/
+│   └── studio-core/
+│       └── src/
+│           ├── project/        project.yaml, load/save, Save As, zip     (G1, Q6)
+│           ├── vpl/            document model over the syntax tree       (Q11)
+│           ├── jobs/           runner, progress, cancellation, log       (E7)
+│           ├── analysis/       probe stats, in-memory per container      (Q4)
+│           ├── assets/         install, pin, verify; glyph generation    (G7, D9)
+│           └── server/         embedded server lifecycle, named mounts   (Q16)
+│
+├── src-tauri/                  deliberately thin
+│   ├── tauri.conf.json
+│   ├── capabilities/
+│   ├── icons/                  generated from app-icon.png
+│   ├── resources/              bundled tier, shipped as archives         (Q9)
+│   │   ├── sprites.tar.br
+│   │   └── noto_sans_latin.tar.br
+│   └── src/
+│       ├── main.rs             one window per project                    (Q16)
+│       ├── commands/           #[tauri::command] bindings — control plane
+│       └── events/             Channels — event plane                    (Q3)
+│
+├── src/                        the webview
+│   ├── App.svelte
+│   ├── maplibre-gl-worker.js   generated, not hand-written               (Q18)
+│   └── lib/
+│       ├── components/         shell · map · pipeline · style · inputs · common
+│       ├── modes/              Explore · Pipeline · Style · Publish
+│       ├── ipc/                bindings.ts (generated) + typed wrappers
+│       └── state/              view state only — nothing durable         (Q16)
+│
+├── scripts/bundle_worker.ts    MapLibre 6 worker fix                     (S1.4)
+├── .github/workflows/          CI for Linux and macOS                    (S0.7)
+└── docs/
+```
+
+The component tree under `src/lib/components/` is enumerated in
+[Svelte Components](components.md).
+
+**`studio-core` is a separate crate because [Q3](decisions.md) requires it.** Inside `src-tauri` the
+"no Tauri types" rule would be a convention nobody enforces; as a workspace member it is a compile
+error. `src-tauri/src` therefore holds only the two planes that cross the boundary — the third is
+HTTP and needs no code there, since the server lives in the core.
+
+**`resources/` holds archives, not directories.** [Q9](decisions.md) is emphatic that assets are
+never unpacked, and a `resources/sprites/` tree would quietly undo that at build time.
+
+**No `src/routes`.** Studio navigates by mode, not by URL, and has no server or SSR, so SvelteKit's
+value is unused while its cost — an adapter config and a router for a single-page app — is not.
+
+**No `crates/studio-vpl`.** The lossless syntax tree should land upstream in `versatiles_pipeline`
+([Q11](decisions.md)). If that crate ever appears here, it means upstream declined — a signal worth
+noticing rather than a neutral fact.
+
+**`ipc/bindings.ts` is committed, not generated at build time.** `tauri-specta` can do either;
+committing it makes a change to the command surface visible in review, which is the drift
+[Q3](decisions.md) exists to prevent. The cost is staleness, caught by a CI step that regenerates and
+diffs.
+
 ## Principles
 
 **The text is the source of truth.** The VPL text, the style JSON and the project file are the real
