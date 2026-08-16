@@ -18,15 +18,9 @@ pub struct AppState {
 	/// Recent sources and bookmarks. The core owns the lists; this layer owns where they live.
 	pub recents: Mutex<Recents>,
 	pub bookmarks: Mutex<Bookmarks>,
-	pub paths: StorePaths,
-}
-
-/// Where the app-wide state files live.
-///
-/// `app_data_dir`, not `app_config_dir`: these are user *data*, not configuration. The distinction
-/// is invisible on macOS — both land in Application Support — but on Linux it is `~/.local/share`
-/// versus `~/.config`, and bookmarks belong in the former.
-pub struct StorePaths {
-	pub recents: PathBuf,
-	pub bookmarks: PathBuf,
+	/// Where both files live. `app_data_dir`, not `app_config_dir`: these are user *data*, not
+	/// configuration. Invisible on macOS — both land in Application Support — but on Linux it is
+	/// `~/.local/share` versus `~/.config`, and bookmarks belong in the former. The store owns the
+	/// filenames inside it.
+	pub data_dir: PathBuf,
 }

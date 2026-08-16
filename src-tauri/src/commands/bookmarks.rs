@@ -20,13 +20,13 @@ pub async fn save_bookmark(state: State<'_, AppState>, bookmark: Bookmark) -> Re
 	let mut bookmarks = state.bookmarks.lock().await;
 	bookmarks.add(bookmark);
 	// Unlike recents, a failed write is reported: this is the user's own work.
-	bookmarks.save(&state.paths.bookmarks).map_err(|e| format!("{e:#}"))
+	bookmarks.save(&state.data_dir).map_err(|e| format!("{e:#}"))
 }
 
 #[tauri::command]
 pub async fn delete_bookmark(state: State<'_, AppState>, name: String) -> Result<bool, String> {
 	let mut bookmarks = state.bookmarks.lock().await;
 	let removed = bookmarks.remove(&name);
-	bookmarks.save(&state.paths.bookmarks).map_err(|e| format!("{e:#}"))?;
+	bookmarks.save(&state.data_dir).map_err(|e| format!("{e:#}"))?;
 	Ok(removed)
 }

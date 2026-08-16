@@ -9,7 +9,9 @@
 //! on every open, so a corrupt file silently resets. Bookmarks are user-created, so a corrupt file
 //! is an error the user hears about — silently discarding them would be data loss.
 //!
-//! The core takes paths; deciding *which* paths is the platform layer's job.
+//! The core takes a **directory**, not file paths: the filenames are its own business, so a caller
+//! cannot put bookmarks in the recents file or write either somewhere unintended. Deciding *which*
+//! directory is the platform layer's job.
 //!
 //! [Q16]: ../../../docs/decisions.md
 //! [Q21]: ../../../docs/decisions.md
@@ -20,6 +22,10 @@ use std::path::Path;
 
 /// How many recents to keep. Long enough to be useful, short enough to stay scannable.
 const RECENTS_CAPACITY: usize = 12;
+
+/// Filenames are internal — see the module note on why callers pass a directory.
+const RECENTS_FILE: &str = "recents.json";
+const BOOKMARKS_FILE: &str = "bookmarks.json";
 
 // ---------------------------------------------------------------------------------------------
 // Atomic writes
@@ -77,8 +83,8 @@ impl Recents {
 	/// Deliberately infallible: losing a most-recently-used list costs a user nothing, and refusing
 	/// to start over it costs them everything. Bookmarks take the opposite policy.
 	#[must_use]
-	pub fn load(path: &Path) -> Self {
-		std::fs::read_to_string(path)
+	pub fn load(dir: &Path) -> Self {
+		std::fs::read_to_string(dir.join(RECENTS_FILE))
 			.ok()
 			.and_then(|text| serde_json::from_str(&text).ok())
 			.unwrap_or_default()
@@ -146,11 +152,12 @@ impl Bookmarks {
 	/// A missing file is fine — that is a first run. A file that exists but will not parse is not:
 	/// these are user-created, and silently replacing them with an empty list is data loss wearing
 	/// the costume of a clean start.
-	pub fn load(path: &Path) -> Result<Self> {
+	pub fn load(dir: &Path) -> Result<Self> {
+		let path = dir.join(BOOKMARKS_FILE);
 		if !path.exists() {
 			return Ok(Self::default());
 		}
-		let text = std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
+		let text = std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
 		serde_json::from_str(&text).with_context(|| {
 			format!(
 				"{} is not valid bookmark data — it has not been touched",
@@ -159,9 +166,9 @@ impl Bookmarks {
 		})
 	}
 
-	pub fn save(&self, path: &Path) -> Result<()> {
+	pub fn save(&self, dir: &Path) -> Result<()> {
 		write_atomically(
-			path,
+			&dir.join(BOOKMARKS_FILE),
 			&serde_json::to_string_pretty(self).context("serialising bookmarks")?,
 		)
 	}
@@ -190,12 +197,12 @@ impl Bookmarks {
 mod tests {
 	use super::*;
 
-	fn temp(name: &str) -> std::path::PathBuf {
-		let dir = std::env::temp_dir().join("studio-store-tests");
+	/// A clean directory per test, so they cannot tread on each other.
+	fn temp_dir(label: &str) -> std::path::PathBuf {
+		let dir = std::env::temp_dir().join("studio-store-tests").join(label);
+		let _ = std::fs::remove_dir_all(&dir);
 		std::fs::create_dir_all(&dir).unwrap();
-		let path = dir.join(name);
-		let _ = std::fs::remove_file(&path);
-		path
+		dir
 	}
 
 	#[test]
@@ -221,18 +228,19 @@ mod tests {
 	/// Losing an MRU list costs nothing; refusing to start costs everything.
 	#[test]
 	fn corrupt_recents_reset_silently() {
-		let path = temp("recents.json");
-		std::fs::write(&path, "{ not json").unwrap();
-		assert!(Recents::load(&path).entries().is_empty());
+		let dir = temp_dir("corrupt-recents");
+		std::fs::write(dir.join("recents.json"), "{ not json").unwrap();
+		assert!(Recents::load(&dir).entries().is_empty());
 	}
 
 	/// The opposite policy: these are user-created, so silence would be data loss.
 	#[test]
 	fn corrupt_bookmarks_are_an_error_and_the_file_is_left_alone() {
-		let path = temp("bookmarks.json");
+		let dir = temp_dir("corrupt-bookmarks");
+		let path = dir.join("bookmarks.json");
 		std::fs::write(&path, "{ not json").unwrap();
 
-		let error = Bookmarks::load(&path).unwrap_err();
+		let error = Bookmarks::load(&dir).unwrap_err();
 		assert!(format!("{error:#}").contains("has not been touched"));
 		assert_eq!(
 			std::fs::read_to_string(&path).unwrap(),
@@ -243,8 +251,8 @@ mod tests {
 
 	#[test]
 	fn a_missing_bookmarks_file_is_a_first_run_not_an_error() -> Result<()> {
-		let path = temp("absent.json");
-		assert!(Bookmarks::load(&path)?.entries().is_empty());
+		let dir = temp_dir("first-run");
+		assert!(Bookmarks::load(&dir)?.entries().is_empty());
 		Ok(())
 	}
 
@@ -281,7 +289,7 @@ mod tests {
 
 	#[test]
 	fn bookmarks_survive_a_round_trip() -> Result<()> {
-		let path = temp("roundtrip.json");
+		let dir = temp_dir("roundtrip");
 		let mut marks = Bookmarks::default();
 		marks.add(Bookmark {
 			name: "Berlin".into(),
@@ -293,9 +301,9 @@ mod tests {
 			pitch: 30.0,
 			created_at: 0,
 		});
-		marks.save(&path)?;
+		marks.save(&dir)?;
 
-		let loaded = Bookmarks::load(&path)?;
+		let loaded = Bookmarks::load(&dir)?;
 		assert_eq!(loaded.entries()[0].name, "Berlin");
 		assert_eq!(loaded.entries()[0].bearing, 15.0);
 		Ok(())
@@ -304,8 +312,9 @@ mod tests {
 	/// The point of write-then-rename: an interrupted write must not destroy what was there.
 	#[test]
 	fn an_atomic_write_leaves_no_temporary_file_behind() -> Result<()> {
-		let path = temp("atomic.json");
-		Bookmarks::default().save(&path)?;
+		let dir = temp_dir("atomic");
+		Bookmarks::default().save(&dir)?;
+		let path = dir.join("bookmarks.json");
 		assert!(path.exists());
 		assert!(
 			!path.with_extension("tmp").exists(),

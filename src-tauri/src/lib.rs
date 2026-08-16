@@ -10,7 +10,7 @@ mod events;
 mod state;
 mod windows;
 
-use state::{AppState, StorePaths};
+use state::AppState;
 use studio_core::{
 	server::ServerManager,
 	store::{Bookmarks, Recents},
@@ -34,15 +34,10 @@ pub fn run() {
 			let data_dir = tauri::Manager::path(app)
 				.app_data_dir()
 				.unwrap_or_else(|_| std::path::PathBuf::from("."));
-			let paths = StorePaths {
-				recents: data_dir.join("recents.json"),
-				bookmarks: data_dir.join("bookmarks.json"),
-			};
-
 			// Recents reset silently when unreadable; bookmarks do not, because they are the user's
 			// own work. A broken bookmarks file is surfaced and left untouched rather than replaced.
-			let recents = Recents::load(&paths.recents);
-			let bookmarks = match Bookmarks::load(&paths.bookmarks) {
+			let recents = Recents::load(&data_dir);
+			let bookmarks = match Bookmarks::load(&data_dir) {
 				Ok(loaded) => loaded,
 				Err(error) => {
 					eprintln!("bookmarks could not be read and were left alone: {error:#}");
@@ -56,7 +51,7 @@ pub fn run() {
 					server: Mutex::new(server),
 					recents: Mutex::new(recents),
 					bookmarks: Mutex::new(bookmarks),
-					paths,
+					data_dir,
 				},
 			);
 

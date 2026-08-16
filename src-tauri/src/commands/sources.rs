@@ -26,7 +26,7 @@ pub async fn open_container(state: State<'_, AppState>, source: String) -> Resul
 	{
 		let mut recents = state.recents.lock().await;
 		recents.record(&source);
-		if let Err(error) = recents.save(&state.paths.recents) {
+		if let Err(error) = recents.save(&state.data_dir) {
 			// Never fail an open because the MRU list could not be written.
 			eprintln!("could not save recents: {error:#}");
 		}
@@ -123,7 +123,7 @@ pub async fn recent_sources(state: State<'_, AppState>) -> Result<Vec<RecentEntr
 pub async fn forget_recent(state: State<'_, AppState>, source: String) -> Result<(), String> {
 	let mut recents = state.recents.lock().await;
 	recents.forget(&source);
-	recents.save(&state.paths.recents).map_err(|e| format!("{e:#}"))
+	recents.save(&state.data_dir).map_err(|e| format!("{e:#}"))
 }
 
 /// Decodes one tile of an open container, layer by layer (A4).
