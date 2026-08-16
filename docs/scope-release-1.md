@@ -105,17 +105,16 @@ Nothing user-visible, and a prerequisite for every milestone.
 | **S0.5**  | Embedded server and server manager — one instance, named mounts, loopback only                          | infrastructure |
 | **S0.6**  | Bundled asset tier: sprites (1.3 MB) and Latin-only glyphs (~1.1 MB), pinned in `assets/manifest.json`  | infrastructure |
 | **S0.7**  | CI for Linux and macOS, including ad-hoc macOS signing                                                  | infrastructure |
-| **S0.8**  | **Measure the per-webview memory baseline** and confirm the window model holds                          | infrastructure |
+| **S0.8**  | ~~Measure the per-webview memory baseline~~ — **done**: ~28 MB/window ([Q16](decisions.md))             | infrastructure |
 | **S0.9**  | ~~No telemetry, no account, no analytics dependency~~ — **done**, stated in the README                  | G5             |
 | **S0.10** | ~~Decide the GDAL driver list~~ — **settled**: GTiff, COG, VRT, PNG, JPEG, JP2 ([Q19](decisions.md))    | infrastructure |
 | **S0.11** | **Measure the statically bundled binary size** with that driver set; cache the CMake build in CI        | infrastructure |
 | **S0.12** | `scripts/update-assets.ts` — check and move the pinned asset versions deliberately ([Q9](decisions.md)) | infrastructure |
 
-**S0.8, S0.10 and S0.11 are decision checkpoints, not chores.** [Q16](decisions.md) assumes several
-webview processes are affordable without a figure for our bundle; if they are not, the fallback is
-tabs plus aggressive `Map` disposal. [Q19](decisions.md) accepts a statically bundled GDAL without
-knowing what it weighs — far cheaper to answer at S0 than to discover at S3. S0.10 is now settled
-([Q19](decisions.md)); S0.8 and S0.11 remain.
+**These are decision checkpoints, not chores.** S0.8 measured ~28 MB per window, so
+[Q16](decisions.md)'s window model holds and its fallback is not needed. S0.10 is settled by
+[Q19](decisions.md). **S0.11 is the last one open** — Q19 accepts a statically bundled GDAL without
+knowing what it weighs, and that is far cheaper to answer now than to discover at S3.
 
 ### S1 · Open & explore → M1
 

@@ -162,9 +162,23 @@ server, and the config mounts many named sources at once.
 - **Destroy `Map` instances that are not visible.** Not pressing at one map per project, but the
   ceiling discards the context you looked at _first_, so establish the habit before B5.
 - **The landing screen is what an empty window shows** ([Q13](decisions.md)); ⌘N opens another.
-- **Measure the per-webview baseline at S0.8.** No trustworthy figure exists for our bundle. If it is
-  prohibitive the fallback is tabs plus aggressive `Map` disposal — worse isolation, same
-  correctness.
+- **Measured at S0.8 (2026-08-16, macOS, debug build, empty page).** The window model holds
+  comfortably:
+
+  | Process             | Count            | RSS              |
+  | ------------------- | ---------------- | ---------------- |
+  | `versatiles-studio` | 1                | 129.3 MB         |
+  | `WebKit.WebContent` | **1 per window** | **28.3 MB each** |
+  | `WebKit.GPU`        | 1, shared        | 28.4 MB          |
+  | `WebKit.Networking` | 1, shared        | 18.3 MB          |
+
+  **~28 MB per additional window**, on top of ~47 MB of shared WebKit overhead. Five projects cost
+  ~140 MB of webviews — not the constraint the decision worried about. No fallback needed.
+
+  Two caveats. This is a debug binary rendering an empty page; a real map adds per-window cost, so
+  **re-measure at S1** once MapLibre is on screen (`STUDIO_WINDOWS=n` still exists for that). And
+  the **GPU process is shared across windows**, which weakens the "fresh WebGL budget per window"
+  claim above — one more reason to treat context count as headroom rather than a decider.
 
 ### Q13 — Studio is a workbench. New projects start from a landing screen
 

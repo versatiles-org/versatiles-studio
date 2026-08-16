@@ -8,6 +8,7 @@ mod assets;
 mod commands;
 mod events;
 mod state;
+mod windows;
 
 use state::AppState;
 use studio_core::server::ServerManager;
@@ -30,12 +31,14 @@ pub fn run() {
 					server: Mutex::new(server),
 				},
 			);
+			windows::open_extra_from_env(app.handle())?;
 			Ok(())
 		})
 		.invoke_handler(tauri::generate_handler![
 			commands::app_version,
 			commands::server_base_url,
-			commands::demo_job
+			commands::demo_job,
+			commands::open_window
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running VersaTiles Studio");

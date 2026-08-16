@@ -6,7 +6,7 @@
 
 use crate::{events::channel_sink, state::AppState};
 use studio_core::jobs::{CancelToken, JobEvent, JobHandle};
-use tauri::{State, ipc::Channel};
+use tauri::{AppHandle, State, ipc::Channel};
 
 /// Smoke-test command proving the IPC boundary is wired.
 #[tauri::command]
@@ -43,4 +43,15 @@ pub async fn demo_job(channel: Channel<JobEvent>) -> Result<(), String> {
 	job.log("nothing was actually done, which is the point");
 	job.finished();
 	Ok(())
+}
+
+/// Opens another window. One window per project ([Q16]) — this is what ⌘N does.
+///
+/// Each window gets its own webview process, so a crash takes one project down rather than all of
+/// them. The label must be unique; the caller owns that.
+///
+/// [Q16]: ../../docs/decisions.md
+#[tauri::command]
+pub fn open_window(app: AppHandle, label: String) -> Result<(), String> {
+	crate::windows::open(&app, &label).map_err(|e| e.to_string())
 }
