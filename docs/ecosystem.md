@@ -76,9 +76,11 @@ free. Three details drive [Q4](decisions.md) and [Q12](decisions.md):
   64×64 windows, sized so remote sources coalesce them into single range requests
   (`tile_sampling.rs`). Scanning tile _sizes_ is cheaper still — all five readers override
   `tile_size_stream`, so no tile bodies are read.
-- **Compute and rendering are entangled.** Every probe function takes `&mut PrettyPrint` and returns
-  `Result<()>`, so results are text, not data. Studio aggregates over `layer_stats()` and
-  `validate_tile()` instead, which do return values.
+- **Compute and rendering are entangled, and half of it is binary-only.** Every probe function
+  takes `&mut PrettyPrint` and returns `Result<()>`, so results are text, not data.
+  `validate_tile()` is reachable — it lives in `versatiles_geometry`. **`layer_stats()` is not**:
+  `tools` is declared in `versatiles/src/main.rs` rather than `lib.rs`, so the byte breakdown
+  cannot be imported at all.
 
 ### 3. The VPL parser only runs one way
 
@@ -106,6 +108,7 @@ versatiles-rs planning session. None blocks Studio; each removes a workaround.
 | **Data types on `OperationMeta`**             | So the graph can reject invalid connections instead of failing at run time       | finding 1 above                           |
 | **Default values on `VPLFieldMeta`**          | So generated forms are pre-filled rather than empty                              | finding 1 above                           |
 | **A compute/render split in `probe`**         | Studio needs data, not `PrettyPrint` text; the CLI would gain `--json` for free  | [Q4](decisions.md)                        |
+| **`tools` moved into `versatiles`'s lib**     | `layer_stats()` is binary-only, so B2's breakdown cannot be imported             | [Q12](decisions.md)                       |
 | **An ignored `x-` namespace in `Config`**     | `deny_unknown_fields` stops one file serving as both project and serve config    | [Q6](decisions.md)                        |
 
 The first is on the critical path for stage 2 and should be offered upstream during stage 1, so

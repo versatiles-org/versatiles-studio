@@ -1,14 +1,18 @@
 <script lang="ts">
 	import type { Map as MaplibreMap, MapGeoJSONFeature, LngLat, MapMouseEvent } from 'maplibre-gl';
 	import JsonTree from '../common/JsonTree.svelte';
+	import { inspectTile, type TileInspection } from '../../ipc/commands';
+	import { tileForLngLat } from '../../map/tile-grid';
 
 	// A8 — every attribute of the feature under the cursor. Deliberately shows all of them: the point
 	// is answering "what is actually in this tile", which a curated subset would defeat.
-	let { map }: { map: MaplibreMap | undefined } = $props();
+	let { map, source }: { map: MaplibreMap | undefined; source: string | null } = $props();
 
 	let anchor = $state<LngLat | null>(null);
 	let features = $state<MapGeoJSONFeature[]>([]);
 	let screen = $state<{ x: number; y: number } | null>(null);
+	// A4 — what tile did that click land in, and what is inside it?
+	let tile = $state<TileInspection | null>(null);
 
 	$effect(() => {
 		if (!map) return;
@@ -30,6 +34,15 @@
 			features = hits.slice(0, 8);
 			anchor = event.lngLat;
 			reposition();
+
+			tile = null;
+			if (source) {
+				const z = Math.floor(m.getZoom());
+				const { x, y } = tileForLngLat(event.lngLat.lng, event.lngLat.lat, z);
+				void inspectTile(source, z, x, y)
+					.then((result) => (tile = result))
+					.catch(() => (tile = null));
+			}
 		};
 
 		// Hover feedback costs one query per move, which MapLibre already does for its own hit-testing.
@@ -49,15 +62,33 @@
 		};
 	});
 
+	const fmt = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} kB`);
+
 	function close() {
 		anchor = null;
 		screen = null;
+		tile = null;
 	}
 </script>
 
 {#if screen && features.length}
 	<div class="popup" style="left: {screen.x}px; top: {screen.y}px">
 		<button class="close" onclick={close} aria-label="Close">×</button>
+		{#if tile}
+			<article class="tile">
+				<h3>tile {tile.z}/{tile.x}/{tile.y} <span class="id">{fmt(tile.storedBytes)}</span></h3>
+				<ul class="layers">
+					{#each tile.layers as layer (layer.name)}
+						<li>
+							<span class="lname">{layer.name}</span>
+							<span class="bytes">{fmt(layer.encodedBytes)}</span>
+							<span class="feats">{layer.featureCount}&thinsp;f</span>
+						</li>
+					{/each}
+				</ul>
+			</article>
+		{/if}
+
 		{#each features as feature, i (i)}
 			<article>
 				<h3>
@@ -129,6 +160,31 @@
 	}
 	.none {
 		margin: 0;
+		color: var(--ink-2, #667);
+	}
+	.tile .layers {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+	}
+	.tile li {
+		display: grid;
+		grid-template-columns: 1fr auto auto;
+		gap: 0.5rem;
+		font:
+			0.72rem ui-monospace,
+			monospace;
+		line-height: 1.5;
+	}
+	.lname {
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.bytes {
+		color: var(--accent, #0e7c7b);
+	}
+	.feats {
 		color: var(--ink-2, #667);
 	}
 </style>

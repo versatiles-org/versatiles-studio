@@ -152,6 +152,72 @@ pub(crate) mod tests {
 		Ok(())
 	}
 
+	/// Web Mercator tile containing a point — enough to aim a test at real data.
+	fn tile_for(lng: f64, lat: f64, z: u8) -> (u32, u32) {
+		let n = f64::from(2u32.pow(u32::from(z)));
+		let x = ((lng + 180.0) / 360.0 * n).floor();
+		let rad = lat.to_radians();
+		let y = ((1.0 - (rad.tan() + 1.0 / rad.cos()).ln() / std::f64::consts::PI) / 2.0 * n).floor();
+		(x as u32, y as u32)
+	}
+
+	/// A4 — decode a real tile and account for its layers.
+	#[tokio::test]
+	async fn inspects_a_tile_layer_by_layer() -> Result<()> {
+		let Some(path) = sample_container("berlin.versatiles") else {
+			eprintln!("skipping: set STUDIO_TESTDATA to a directory of sample containers");
+			return Ok(());
+		};
+		let runtime = versatiles::runtime::create_runtime();
+		let (source, info) = open(&runtime, path.to_str().unwrap()).await?;
+
+		// Aim at the middle of what the container actually covers. `min_zoom/0/0` is a valid
+		// coordinate but an empty tile — the first version of this test asserted against that and
+		// failed, which is exactly the confusion A4 exists to remove.
+		let bbox = info.bbox.expect("berlin should report an extent");
+		let (lng, lat) = ((bbox[0] + bbox[2]) / 2.0, (bbox[1] + bbox[3]) / 2.0);
+		let (x, y) = tile_for(lng, lat, info.max_zoom);
+
+		let Some(tile) = inspect_tile(&source, info.max_zoom, x, y).await? else {
+			panic!(
+				"expected a tile at {}/{x}/{y}, the centre of the container's own bbox",
+				info.max_zoom
+			);
+		};
+
+		assert!(tile.stored_bytes > 0, "a populated tile should have a size");
+		assert!(!tile.layers.is_empty(), "berlin should have vector layers");
+
+		// Sorted biggest-first, because "what is costing me" is the question this answers.
+		let sizes: Vec<_> = tile.layers.iter().map(|l| l.encoded_bytes).collect();
+		assert!(
+			sizes.windows(2).all(|w| w[0] >= w[1]),
+			"layers must be ordered by size: {sizes:?}"
+		);
+
+		// Layers cannot outweigh the tile that contains them.
+		let total: usize = sizes.iter().sum();
+		assert!(
+			total <= tile.stored_bytes,
+			"layers ({total}) cannot exceed the tile ({})",
+			tile.stored_bytes
+		);
+		Ok(())
+	}
+
+	#[tokio::test]
+	async fn inspecting_an_absent_tile_returns_none() -> Result<()> {
+		let Some(path) = sample_container("berlin.versatiles") else {
+			return Ok(());
+		};
+		let runtime = versatiles::runtime::create_runtime();
+		let (source, _) = open(&runtime, path.to_str().unwrap()).await?;
+
+		// A valid coordinate on the far side of the world from Berlin.
+		assert!(inspect_tile(&source, 14, 0, 0).await?.is_none());
+		Ok(())
+	}
+
 	#[tokio::test]
 	async fn a_missing_file_reports_which_one() {
 		let runtime = versatiles::runtime::create_runtime();
@@ -161,4 +227,77 @@ pub(crate) mod tests {
 			"the error should name the file the user asked for"
 		);
 	}
+}
+
+/// One layer of a decoded vector tile (A4).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LayerInspection {
+	pub name: String,
+	pub feature_count: usize,
+	/// Exact encoded size of this layer, so "which layer is eating my tile" has an answer.
+	pub encoded_bytes: usize,
+	/// Property keys present, for a first look at what is styleable.
+	pub property_keys: Vec<String>,
+}
+
+/// A decoded tile, layer by layer (A4).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TileInspection {
+	pub z: u8,
+	pub x: u32,
+	pub y: u32,
+	/// Bytes as stored in the container, before decompression.
+	pub stored_bytes: usize,
+	pub layers: Vec<LayerInspection>,
+}
+
+/// Decodes one tile and reports its layers with byte sizes.
+///
+/// The per-layer size is computed here rather than reused: `layer_stats()` in versatiles-rs does
+/// exactly this, but `tools` is declared in `main.rs` rather than `lib.rs`, so it is binary-only
+/// and cannot be imported ([Q12]). This is the reachable subset — encoded size per layer, without
+/// the geometry/tag/property split that B2 will want.
+///
+/// [Q12]: ../../../docs/decisions.md
+pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> Result<Option<TileInspection>> {
+	use versatiles_core::{TileCompression, TileCoord};
+
+	let coord = TileCoord::new(z, x, y).context("building the tile coordinate")?;
+	let Some(mut tile) = source.tile(&coord).await.context("reading the tile")? else {
+		return Ok(None);
+	};
+
+	// `Tile` is lazy: ask for the blob and it encodes, ask for the vector and it decodes. The
+	// uncompressed length is what a user means by "how big is this tile" — the number they can
+	// actually shrink.
+	let stored_bytes = tile
+		.as_blob(&TileCompression::Uncompressed)
+		.context("reading the tile blob")?
+		.len() as usize;
+
+	let vector = tile.as_vector().context("decoding the vector tile")?;
+
+	let mut layers: Vec<LayerInspection> = vector
+		.layers
+		.iter()
+		.map(|layer| LayerInspection {
+			name: layer.name.clone(),
+			feature_count: layer.features.len(),
+			encoded_bytes: layer.to_blob().map(|b| b.len() as usize).unwrap_or(0),
+			property_keys: layer.property_manager.iter_key().cloned().collect(),
+		})
+		.collect();
+
+	// Biggest first — the question this answers is always "what is costing me".
+	layers.sort_by_key(|layer| std::cmp::Reverse(layer.encoded_bytes));
+
+	Ok(Some(TileInspection {
+		z,
+		x,
+		y,
+		stored_bytes,
+		layers,
+	}))
 }

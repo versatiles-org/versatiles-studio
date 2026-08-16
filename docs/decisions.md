@@ -291,8 +291,10 @@ explicit, cancellable job (E7).
   directory, for full scans only.
 
 **Design around:** probe computes and renders at once (`&mut PrettyPrint` in, `Result<()>` out), so
-Studio aggregates over `layer_stats()` and `validate_tile()` instead. A compute/render split
-upstream would give the CLI a `--json` probe for free.
+Studio cannot reuse it. `validate_tile()` is reachable — it lives in `versatiles_geometry`, which is
+a library. **`layer_stats()` is not**: `tools` is declared in `versatiles/src/main.rs`, not
+`lib.rs`, so the byte breakdown is binary-only. A compute/render split upstream would give the CLI a
+`--json` probe for free _and_ make both reachable.
 
 ### Q7 — No `planetiler` orchestration. E5 is dropped
 
@@ -311,9 +313,15 @@ untested. Revisit if P2 users say the OSM build is the blocker — with evidence
 
 ### Q12 — Cluster B stays out of release 1, but is cheaper than the catalogue says
 
-Scope holds; the estimate behind it was wrong. `tile_breakdown.rs` already computes B2's per-layer
-byte breakdown and `probe -ddd` aggregates it by zoom × layer. Only the **per-attribute** split and
-a data-returning API are missing.
+Scope holds; the estimate behind it was wrong — though **less wrong than a later reading suggested**.
+`tile_breakdown.rs` computes B2's per-layer byte breakdown and `probe -ddd` aggregates it by
+zoom × layer, so the algorithm exists and is proven.
+
+**Correction (found at S1.10):** it is _not reachable as a library_. `mod tools;` is declared in
+`versatiles/src/main.rs`, not `lib.rs`, so `layer_stats()` is binary-only. Studio therefore either
+reimplements it — around a hundred lines over `versatiles_geometry`, which is public — or asks
+upstream to move it. Either way B2 is cheaper than "new construction" and dearer than "already
+done".
 
 So B1, B2 and B3 after release 1 are mostly **visualisation over existing numbers**, not analysis —
 which strengthens the case for taking them first. Not pulled in now because Q2 already flags four

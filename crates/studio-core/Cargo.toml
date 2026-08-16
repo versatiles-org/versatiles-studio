@@ -15,6 +15,7 @@ tokio.workspace = true
 versatiles.workspace = true
 versatiles_container.workspace = true
 versatiles_core.workspace = true
+versatiles_geometry.workspace = true
 
 [lints.clippy]
 all = "warn"

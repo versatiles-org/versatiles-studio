@@ -17,6 +17,7 @@ repository = "https://github.com/versatiles-org/versatiles-studio"
 versatiles_core = "4.7"
 versatiles_container = "4.7"
 versatiles_pipeline = "4.7"
+versatiles_geometry = "4.7"
 # `server` for the data plane, `codegen` for `all_operation_metadata()` (C2), `ssh2` for remote
 # sources (A2). Explicitly not `cli` — that pulls clap, env_logger and termimad into a GUI app.
 versatiles = { version = "4.7", default-features = false, features = ["server", "codegen", "ssh2"] }

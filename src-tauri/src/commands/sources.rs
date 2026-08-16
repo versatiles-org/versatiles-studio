@@ -2,7 +2,7 @@
 
 use crate::state::AppState;
 use studio_core::{
-	analysis::{self, ContainerInfo},
+	analysis::{self, ContainerInfo, TileInspection},
 	project::RecentEntry,
 };
 use tauri::State;
@@ -124,4 +124,24 @@ pub async fn forget_recent(state: State<'_, AppState>, source: String) -> Result
 	let mut recents = state.recents.lock().await;
 	recents.forget(&source);
 	recents.save(&state.recents_path).map_err(|e| format!("{e:#}"))
+}
+
+/// Decodes one tile of an open container, layer by layer (A4).
+///
+/// Takes the source string rather than the mount name so the webview never has to track both.
+#[tauri::command]
+pub async fn inspect_tile(
+	state: State<'_, AppState>,
+	source: String,
+	z: u8,
+	x: u32,
+	y: u32,
+) -> Result<Option<TileInspection>, String> {
+	let server = state.server.lock().await;
+	let (reader, _) = analysis::open(server.runtime(), &source)
+		.await
+		.map_err(|e| format!("{e:#}"))?;
+	analysis::inspect_tile(&reader, z, x, y)
+		.await
+		.map_err(|e| format!("{e:#}"))
 }

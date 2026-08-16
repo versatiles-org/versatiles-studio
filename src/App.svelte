@@ -88,7 +88,7 @@
 <AppShell>
 	{#snippet mapPane()}
 		{#if style}<MapCanvas {style} bind:map />{/if}
-		<FeaturePopup {map} />
+		<FeaturePopup {map} source={containers.at(-1)?.source ?? null} />
 		<TileGrid {map} visible={showGrid} />
 		{#if empty}
 			<LandingScreen

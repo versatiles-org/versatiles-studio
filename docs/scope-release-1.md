@@ -129,7 +129,7 @@ GEOS unlinked, which removes the LGPL obligation entirely.
 | **S1.7**    | ~~Tile grid overlay with z/x/y and a jump-to-coordinate box~~ — **done**                                                                                            | A5             |
 | **S1.8**    | Named view bookmarks stored in the project                                                                                                                          | A7             |
 | **S1.9**    | ~~Command strip — the CLI equivalent of the last action, copyable~~ — **done**                                                                                      | G2             |
-| **S1.10\*** | Raw MVT inspector: layers → features → properties, with byte sizes                                                                                                  | A4             |
+| **S1.10\*** | ~~Raw MVT inspector: layers → features → properties, with byte sizes~~ — **done**                                                                                   | A4             |
 
 ### S2 · Pipeline editing → M4
 

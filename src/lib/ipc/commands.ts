@@ -70,3 +70,25 @@ export function recentSources(): Promise<RecentEntry[]> {
 export function forgetRecent(source: string): Promise<void> {
 	return invoke<void>('forget_recent', { source });
 }
+
+/** Mirrors `studio_core::analysis::LayerInspection`. */
+export interface LayerInspection {
+	name: string;
+	featureCount: number;
+	encodedBytes: number;
+	propertyKeys: string[];
+}
+
+/** Mirrors `studio_core::analysis::TileInspection`. */
+export interface TileInspection {
+	z: number;
+	x: number;
+	y: number;
+	storedBytes: number;
+	layers: LayerInspection[];
+}
+
+/** Decodes one tile, layer by layer (A4). Null when the tile is absent. */
+export function inspectTile(source: string, z: number, x: number, y: number): Promise<TileInspection | null> {
+	return invoke<TileInspection | null>('inspect_tile', { source, z, x, y });
+}

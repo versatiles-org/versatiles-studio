@@ -51,7 +51,8 @@ pub fn run() {
 			commands::open_window,
 			commands::sources::open_container,
 			commands::sources::recent_sources,
-			commands::sources::forget_recent
+			commands::sources::forget_recent,
+			commands::sources::inspect_tile
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running VersaTiles Studio");
