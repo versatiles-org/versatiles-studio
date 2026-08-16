@@ -1,14 +1,21 @@
 <script lang="ts">
 	import { open } from '@tauri-apps/plugin-dialog';
+	import { getCurrentWebview } from '@tauri-apps/api/webview';
 	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
+	import AppShell from './lib/components/shell/AppShell.svelte';
+	import CommandStrip from './lib/components/shell/CommandStrip.svelte';
+	import Inspector from './lib/components/shell/Inspector.svelte';
 	import MapCanvas from './lib/components/map/MapCanvas.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { addContainerToMap } from './lib/map/add-source';
 	import { openContainer, serverBaseUrl, type ContainerInfo } from './lib/ipc/commands';
 
+	const EXTENSIONS = ['versatiles', 'mbtiles', 'pmtiles', 'tar'];
+
 	let style = $state<StyleSpecification | null>(null);
 	let map = $state<MaplibreMap | undefined>();
-	let opened = $state<ContainerInfo[]>([]);
+	let containers = $state<ContainerInfo[]>([]);
+	let command = $state<string | null>(null);
 	let error = $state<string | null>(null);
 
 	$effect(() => {
@@ -17,89 +24,68 @@
 			.catch((e) => (error = String(e)));
 	});
 
-	async function pickContainer() {
-		error = null;
+	// Drag & drop is a shell affordance, so it goes through the same path as the file dialog.
+	$effect(() => {
+		const unlisten = getCurrentWebview().onDragDropEvent((event) => {
+			if (event.payload.type !== 'drop') return;
+			for (const path of event.payload.paths) {
+				if (EXTENSIONS.some((ext) => path.toLowerCase().endsWith(`.${ext}`))) void load(path);
+			}
+		});
+		return () => void unlisten.then((f) => f());
+	});
+
+	async function pick() {
 		const picked = await open({
 			multiple: false,
-			directory: false,
-			filters: [{ name: 'Tile containers', extensions: ['versatiles', 'mbtiles', 'pmtiles', 'tar'] }]
+			filters: [{ name: 'Tile containers', extensions: EXTENSIONS }]
 		});
-		if (typeof picked !== 'string') return;
-		await load(picked);
+		if (typeof picked === 'string') await load(picked);
 	}
 
 	async function load(source: string) {
+		error = null;
 		try {
 			const result = await openContainer(source);
 			if (map) addContainerToMap(map, result);
-			opened = [...opened.filter((o) => o.source !== result.info.source), result.info];
+			containers = [...containers.filter((c) => c.source !== result.info.source), result.info];
+			// G2: name the CLI equivalent of what just happened.
+			command = `versatiles probe ${shellQuote(source)} -d`;
 		} catch (e) {
 			error = String(e);
 		}
 	}
+
+	const shellQuote = (s: string) => (/[^\w./-]/.test(s) ? `'${s.replaceAll("'", `'\\''`)}'` : s);
 </script>
 
-<main>
-	{#if style}
-		<MapCanvas {style} bind:map />
-	{/if}
-
-	<div class="panel">
-		<button onclick={pickContainer} disabled={!map}>Open a tile container…</button>
-		{#if error}<p class="err">{error}</p>{/if}
-		{#each opened as info (info.source)}
-			<dl>
-				<dt>container</dt>
-				<dd>{info.container}</dd>
-				<dt>tiles</dt>
-				<dd>{info.tileFormat} · {info.tileCompression}</dd>
-				<dt>zoom</dt>
-				<dd>{info.minZoom}–{info.maxZoom}</dd>
-			</dl>
-		{/each}
-	</div>
-</main>
+<AppShell>
+	{#snippet mapPane()}
+		{#if style}<MapCanvas {style} bind:map />{/if}
+		{#if error}<div class="error">{error}</div>{/if}
+	{/snippet}
+	{#snippet rightPane()}
+		<Inspector {containers} onOpen={pick} />
+	{/snippet}
+	{#snippet commandBar()}
+		<CommandStrip {command} />
+	{/snippet}
+</AppShell>
 
 <style>
 	:global(body) {
 		margin: 0;
 	}
-	main {
-		position: relative;
-		height: 100vh;
-		font-family: system-ui, sans-serif;
-	}
-	.panel {
+	.error {
 		position: absolute;
+		left: 0.75rem;
 		top: 0.75rem;
-		right: 0.75rem;
-		width: 15rem;
-		background: rgb(255 255 255 / 0.94);
-		border-radius: 4px;
-		padding: 0.75rem;
-		font-size: 0.8rem;
-		box-shadow: 0 1px 6px rgb(0 0 0 / 0.18);
-	}
-	button {
-		width: 100%;
-		padding: 0.4rem;
-		font: inherit;
-	}
-	dl {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 0.15rem 0.6rem;
-		margin: 0.6rem 0 0;
-	}
-	dt {
-		color: #666;
-	}
-	dd {
-		margin: 0;
-		font-family: ui-monospace, monospace;
-	}
-	.err {
+		background: #fff3f3;
+		border: 1px solid #f0c0c0;
 		color: #b00;
-		margin: 0.5rem 0 0;
+		padding: 0.4rem 0.6rem;
+		border-radius: 3px;
+		font-size: 0.78rem;
+		max-width: 28rem;
 	}
 </style>
