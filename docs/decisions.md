@@ -428,8 +428,12 @@ per family. Three tiers instead ([numbers](ecosystem.md#map-assets-fonts-and-spr
 
 Consequences:
 
-- An **asset manifest** pinning version and checksum per family (G7) — and sprites come from a
-  `versatiles-style` **prerelease** channel, so pin deliberately.
+- An **asset manifest** pinning version and checksum per family (G7). This exists:
+  `assets/manifest.json`, moved only by `npm run assets:update` ([S0.12](scope-release-1.md)).
+  GitHub returns a `sha256` digest on every release asset, so checking and repinning are
+  metadata-only — nothing is downloaded, though the font archives total ~190 MB.
+  **Correction:** an earlier draft said sprites come from a `versatiles-style` prerelease channel.
+  They do not — `sprites.tar.gz` ships on stable releases (v5.13.1 at time of writing).
 - B8 must distinguish "empty glyph tile by design" from "family not installed".
 - G5 becomes "no network requirement _after_ the assets you chose are installed".
 - F4 and F7 need the full tier, so the asset manager is their prerequisite.

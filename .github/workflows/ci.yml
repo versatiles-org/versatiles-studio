@@ -26,6 +26,11 @@ jobs:
       - run: npm run format:check
       - run: npm run check
       - run: npm run build
+      # Fails when an upstream release moves past a pin, or when a pinned digest changes under an
+      # unchanged tag. Metadata-only, so it costs nothing (Q9).
+      - run: npm run assets:check
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   rust:
     name: Rust

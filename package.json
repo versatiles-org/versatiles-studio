@@ -7,11 +7,13 @@
 		"dev": "vite",
 		"build": "vite build",
 		"preview": "vite preview",
-		"check": "svelte-check --tsconfig ./tsconfig.json",
+		"check": "svelte-check --tsconfig ./tsconfig.json && tsc --noEmit -p scripts/tsconfig.json",
 		"tauri": "tauri",
 		"bundle:worker": "tsx scripts/bundle_worker.ts",
 		"format": "prettier --write --log-level warn .",
-		"format:check": "prettier --check ."
+		"format:check": "prettier --check .",
+		"assets:check": "tsx scripts/update-assets.ts",
+		"assets:update": "tsx scripts/update-assets.ts --update"
 	},
 	"devDependencies": {
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
@@ -23,7 +25,8 @@
 		"svelte-check": "^4.4.0",
 		"tsx": "^4.20.0",
 		"typescript": "^5.9.0",
-		"vite": "^8.2.1"
+		"vite": "^8.2.1",
+		"@types/node": "^24.0.0"
 	},
 	"dependencies": {
 		"@tauri-apps/api": "2.11.1",

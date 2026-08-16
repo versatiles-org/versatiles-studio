@@ -1,0 +1,86 @@
+{
+	"$comment": "Pinned map assets (Q9). Never 'latest' — moved deliberately via `npm run assets:update`. Digests come verbatim from GitHub release assets.",
+	"sources": {
+		"sprites": {
+			"repo": "versatiles-org/versatiles-style",
+			"version": "v5.13.1",
+			"purpose": "Sprite sheet for the bundled tier (S0.6) and the asset manager (G7).",
+			"assets": {
+				"sprites": {
+					"file": "sprites.tar.gz",
+					"digest": "sha256:efffd0ee4cb9591bd52f16ff5b269d9618c7dd1db159cd6511943965560ddea5",
+					"bytes": 1371999
+				}
+			}
+		},
+		"glyphs-latin": {
+			"repo": "versatiles-org/versatiles-frontend",
+			"version": "v3.14.0",
+			"purpose": "Source of the Latin-only glyph subset bundled in the installer (S0.6). frontend-tiny keeps glyphs below codepoint 1024 and replaces higher ranges with valid-but-empty tiles.",
+			"assets": {
+				"tiny": {
+					"file": "frontend-tiny.br.tar.gz",
+					"digest": "sha256:241dc78ba27fd61a9339da404908d9a5bd916209ecc0de393d9404e908772c18",
+					"bytes": 1165857
+				}
+			}
+		},
+		"fonts": {
+			"repo": "versatiles-org/versatiles-fonts",
+			"version": "v2.2.0",
+			"purpose": "Per-family archives for the on-demand tier (G7). One family at a time, never the 107 MB combined archive.",
+			"assets": {
+				"noto_sans": {
+					"file": "noto_sans.tar.gz",
+					"digest": "sha256:a2dac39f4096722bc420367ffd4a36687cce7229e8aa760bc12cf657072eea6b",
+					"bytes": 48012413
+				},
+				"fira_sans": {
+					"file": "fira_sans.tar.gz",
+					"digest": "sha256:722205127f57004c33bffd708887c4909a6e8a8f2cbee8a5c1acaf8b2d5f5700",
+					"bytes": 8801338
+				},
+				"source_sans_3": {
+					"file": "source_sans_3.tar.gz",
+					"digest": "sha256:11fd14d830e4848425954b502d1642f6dee12cfafae901394c5e67bd903973f7",
+					"bytes": 6727371
+				},
+				"lato": {
+					"file": "lato.tar.gz",
+					"digest": "sha256:7883b42de277dac833fff57528db86fc030c13f4aa64b53ca4a68cfb7eac42f1",
+					"bytes": 5572413
+				},
+				"nunito": {
+					"file": "nunito.tar.gz",
+					"digest": "sha256:de09006695845093573525b94850008d86b6a8ebde04c5e6722fb8b5d70ef026",
+					"bytes": 4353664
+				},
+				"roboto": {
+					"file": "roboto.tar.gz",
+					"digest": "sha256:c8ec819fd3b9d69f2a6f38e0875b13334e6c446c93f10ca8a1afefaf17bb3545",
+					"bytes": 3194274
+				},
+				"open_sans": {
+					"file": "open_sans.tar.gz",
+					"digest": "sha256:dd2cb3df1e78d0bb53c4584fa9eddce37f6296adf43c2f9a5360e154354a6eb1",
+					"bytes": 3571067
+				},
+				"merriweather_sans": {
+					"file": "merriweather_sans.tar.gz",
+					"digest": "sha256:097cf1f47e43013707a7c6aec65adcfbfdbff9a8eb6219be3b3e8ab51c216e75",
+					"bytes": 2911636
+				},
+				"pt_sans": {
+					"file": "pt_sans.tar.gz",
+					"digest": "sha256:3e4cd4f1b102cee4f2dc66157efe1350e9952c722eedeefbcaae8c895045abbf",
+					"bytes": 788720
+				},
+				"libre_baskerville": {
+					"file": "libre_baskerville.tar.gz",
+					"digest": "sha256:9cb8702a6fcba21d28eeedcc7a93b449c0071c96d8bbeb7bee0aac911cf931fb",
+					"bytes": 788577
+				}
+			}
+		}
+	}
+}

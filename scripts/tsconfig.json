@@ -4,13 +4,10 @@
 		"module": "ESNext",
 		"moduleResolution": "bundler",
 		"strict": true,
-		"resolveJsonModule": true,
-		"isolatedModules": true,
 		"verbatimModuleSyntax": true,
 		"skipLibCheck": true,
 		"noEmit": true,
-		"types": ["svelte", "vite/client"]
+		"types": ["node"]
 	},
-	"include": ["src/**/*.ts", "src/**/*.svelte", "vite.config.ts"],
-	"exclude": ["scripts"]
+	"include": ["**/*.ts"]
 }
