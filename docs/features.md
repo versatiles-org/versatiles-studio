@@ -49,16 +49,16 @@ probe` already performs, which makes it unusually cheap relative to its value. O
 
 ## Cluster C · Pipeline Editor (VPL)
 
-| ID     | Feature                                                                                                  | Audiences | Basis                                                 |
-| ------ | -------------------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------------- |
-| **C1** | **Bidirectional node graph ⟷ VPL text.** The text stays the source of truth; the graph is a view onto it | P3, P2    | parses, but **no serialiser** ([Q11](decisions.md))   |
-| **C2** | **Parameter forms generated from `field_meta`** — no hand-written UI, new operations appear for free     | all       | `all_operation_metadata()`, `generateVplTypescript()` |
-| **C3** | Live preview per node: renders the intermediate state on the map; before/after as a swipe                | all       | embedded `serve`                                      |
-| **C4** | Parse and validation errors marked inline at the correct position                                        | P3        | needs spans the parser does not carry yet             |
-| **C5** | Recipe library: hillshade from DEM, overviews, land mask, choropleth join — working starting points      | P1, P2    | `help.md` examples                                    |
-| **C6** | Sampling-based cost estimate: "~40 min, ~2.3 GB" before you commit                                       | P2, P3    | new                                                   |
-| **C7** | **Export as CLI command, serve config, Dockerfile or GitHub Action** — desktop to production             | P2, P3    | project layout does most of the work                  |
-| **C8** | Watch mode: source file changes on disk → preview updates                                                | P3        | new                                                   |
+| ID     | Feature                                                                                                            | Audiences | Basis                                                 |
+| ------ | ------------------------------------------------------------------------------------------------------------------ | --------- | ----------------------------------------------------- |
+| **C1** | **Bidirectional node graph ⟷ VPL text.** The text stays the source of truth; the graph is a view onto it           | P3, P2    | parses, but **no serialiser** ([Q11](decisions.md))   |
+| **C2** | **Parameter forms generated from `field_meta`** — no hand-written UI, new operations appear for free               | all       | `all_operation_metadata()`, `generateVplTypescript()` |
+| **C3** | Live preview per node: the selected node's output renders on the map, so intermediate pipeline results are visible | all       | embedded `serve`                                      |
+| **C4** | Parse and validation errors marked inline at the correct position                                                  | P3        | needs spans the parser does not carry yet             |
+| **C5** | Recipe library: hillshade from DEM, overviews, land mask, choropleth join — working starting points                | P1, P2    | `help.md` examples                                    |
+| **C6** | Sampling-based cost estimate: "~40 min, ~2.3 GB" before you commit                                                 | P2, P3    | new                                                   |
+| **C7** | **Export as CLI command, serve config, Dockerfile or GitHub Action** — desktop to production                       | P2, P3    | project layout does most of the work                  |
+| **C8** | Watch mode: source file changes on disk → preview updates                                                          | P3        | new                                                   |
 
 ---
 

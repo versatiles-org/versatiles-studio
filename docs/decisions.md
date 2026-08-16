@@ -29,17 +29,17 @@ drop it.
 containers is two windows side by side. Not a swipe, but it is a real answer, it costs nothing to
 build, and it is the platform convention.
 
-**What still needs building anyway.** Comparison does not disappear with A3: **C3 is a release-1
-requirement and specifies before/after as a swipe.** So the map still needs a swipe/split control —
-it is just a preview affordance owned by Pipeline mode, not a property of a source stack. B5
-(container diff, post-1.0) will reuse the same control.
+**Release 1 therefore has no comparison view at all.** C3 is not one — it renders the selected node's
+output on the map so intermediate pipeline results are visible, and that is a single map showing one
+thing at a time. The first feature that genuinely needs two maps side by side is **B5 (container
+diff), which is post-1.0**. So no swipe or split control is needed for release 1, and the question of
+where such a control lives can be answered when B5 is planned.
 
 **What we give up.** Looking at two unrelated containers overlaid in one map, with opacity. P3 is the
 audience that would have wanted it. If it is genuinely missed, it returns as a map control rather
 than as a panel.
 
-**Side effect worth having:** release 1 now needs at most two live `Map` instances per project, both
-inside C3's swipe. That keeps the WebGL budget from [Q16](decisions.md) comfortable.
+**Side effect:** release 1 needs exactly **one live `Map` instance per project**.
 
 ### Q16 — One application instance, one window per project
 
@@ -51,13 +51,17 @@ the core process can restart one that enters an invalid state. A window per proj
 isolation we would otherwise have to engineer, and a second _application_ instance buys nothing
 beyond it while costing a second core.
 
-**WebGL contexts are capped per process.** Chrome and WebKit allow roughly **16 simultaneous WebGL
-contexts**, and on exceeding the cap the browser **silently discards the oldest**. Tauri uses
-WKWebView and WebKitGTK, so that is the ceiling that applies. MapLibre uses one context per `Map`,
-and Studio wants comparison views (C3 before/after, later B5 diff), so a project can hold two live
-maps. Five projects in one webview is 10–15 contexts — at the cap,
-where opening a fifth project blanks the map in the first, with no error we raised. Separate windows
-mean separate processes, and a fresh budget per project.
+**WebGL contexts are capped per process — but this argument is weaker than it first looked.** Chrome
+and WebKit allow roughly **16 simultaneous WebGL contexts**, and on exceeding the cap the browser
+**silently discards the oldest**; Tauri uses WKWebView and WebKitGTK, so that is the ceiling. MapLibre
+uses one context per `Map`. The original reasoning assumed two or three maps per project from
+comparison views, which put five projects near the cap — but [Q17](decisions.md) dropped A3 and C3
+turns out not to be a comparison view, so **release 1 needs one map per project**. Even ten projects
+sit comfortably under 16, and B5 post-1.0 only takes it to two per project.
+
+So treat this as **headroom, not a decider**. Separate processes still mean a separate budget per
+project, which is worth having for free — but the decision rests on isolation and the single core
+below, not on context exhaustion.
 
 **The server does not need duplicating.** `TileServer::add_tile_source` and `remove_tile_source`
 work on a running server, and the config mounts many named sources at once.
@@ -80,9 +84,9 @@ work on a running server, and the config mounts many named sources at once.
   window, because the core still holds the project, pipeline, jobs and server. Map viewport, selected
   node, active mode and scroll position must all be restorable from the core. Promoted to an
   architectural principle.
-- **Destroy `Map` instances that are not visible**, rather than hiding them. The 16-context ceiling
-  applies per process even at one project per window, so a project with several comparison views can
-  still starve itself — and it fails by discarding the context you looked at _first_.
+- **Destroy `Map` instances that are not visible**, rather than hiding them. Not pressing in
+  release 1 at one map per project, but the ceiling fails by discarding the context you looked at
+  _first_, so the habit is worth establishing before B5 adds a second map.
 - **The landing screen is what an empty window shows** ([Q13](decisions.md)). Opening a project fills
   that window; ⌘N opens another empty one. No separate launcher window.
 - **Measure the per-webview baseline at stage 0.** Several webview processes cost real memory and we

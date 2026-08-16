@@ -55,7 +55,8 @@ True in every mode and every stage. These matter more than the panel arrangement
 - **Nothing lives only in the webview** ([Q16](decisions.md)). Viewport, selected node, active mode
   and scroll position are restorable from the core, so a crashed window reloads without losing work.
 - **Maps that are not visible are destroyed, not hidden.** WebGL allows ~16 contexts per process and
-  evicts the oldest silently, so comparison views must release their `Map` instances.
+  evicts the oldest silently. Release 1 needs only one map per project, so this is a habit to
+  establish rather than a present constraint — B5 is the first feature that adds a second.
 
 ## Layout by stage
 
@@ -228,7 +229,7 @@ showing an empty panel.
 Naming this early, because it is the part that is expensive to retrofit:
 
 - Map viewport — centre, zoom, bearing, pitch
-- The selected source, and C3's swipe position if a before/after comparison is open
+- The selected source
 - The pipeline's "look here" node (C3), so returning to Pipeline resumes where you were
 - The global undo stack (G6)
 - Running jobs and their logs
@@ -248,10 +249,11 @@ F2's crop is a direct-manipulation gesture on the map, not a button.
 The multi-source layer stack (A3) had nowhere left to live, so [Q17](decisions.md) drops it.
 Comparing two containers is two windows side by side, which [Q16](decisions.md) gives for free.
 
+**Release 1 has no comparison view at all.** C3 is not one — it renders the selected node's output on
+the map so intermediate results are visible, which is one map showing one thing. B5 (container diff)
+is the first feature needing two, and it is post-1.0, so a swipe or split control can be designed
+then rather than now.
+
 One thing remains:
 
 - **Where project settings live**, since the inspector is reserved for selection properties.
-
-And one thing still has to be built despite A3 going: **C3 specifies before/after as a swipe**, so
-the map needs a swipe/split control regardless. It belongs to Pipeline mode as a preview affordance,
-and B5 will reuse it after release 1.
