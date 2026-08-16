@@ -105,7 +105,7 @@ Derived from that dependency, not from the numbering of the commitments.
 | **2** | VPL editing, inline errors, generated parameter forms, live preview                                  | **Commitment 4**     |
 | **3** | Import wizards on top of the pipeline layer, job queue, container export                             | **Commitment 3**     |
 | **4** | Asset manager, style editing against the user's own layers, export                                   | **Commitment 2**     |
-| **5** | Project file (G1), Linux packaging and Homebrew cask (G3), auto-update (G4)                          | shippability         |
+| **5** | Project directory (G1), Linux packaging and Homebrew cask (G3), auto-update (G4)                     | shippability         |
 
 Commitment 2 comes last because D2 wants tiles to style, and those come from commitment 3.
 

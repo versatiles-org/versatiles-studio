@@ -15,12 +15,6 @@ in-memory cache, a persisted sidecar file next to the container, or results in t
 Lower priority now that cluster B is out of release 1, but not gone: opening a large container and
 showing its metadata and actual zoom range (A6) hits the same question.
 
-### Q6 · Project file format
-
-TOML, YAML or JSON — and does it embed the pipeline and style, or reference sibling files?
-Embedding makes a project one shareable artefact; referencing keeps `.vpl` and `style.json`
-editable by other tools and produces cleaner diffs.
-
 ### Q7 · Scope of `planetiler` orchestration (E5)
 
 Requires a JVM. Do we detect and drive an existing installation, download one, or leave this out?
@@ -36,6 +30,50 @@ until the committed scope is complete?
 ---
 
 ## Decided
+
+### 2026-08-16 · Q6 — A project is a directory of real files, described by a YAML manifest
+
+```
+MyProject/
+  project.yaml     Studio's manifest: sources, views, references to the files below
+  pipeline.vpl     a real VPL file
+  style.json       a real MapLibre style
+```
+
+**Reference, do not embed.** The decisive evidence is that the ecosystem already made this choice:
+the `versatiles serve` configuration lists tile sources as `src: pipeline.vpl` — a path to a
+sibling `.vpl` file — and resolves relative paths against the config file's directory. Following
+that convention means a Studio pipeline is a file the CLI can run unchanged
+(`versatiles convert pipeline.vpl out.versatiles`), and a Studio style is a file MapLibre can load
+unchanged. That is the "nothing only exists inside Studio" principle made concrete rather than
+merely asserted, and it makes C7 nearly free.
+
+It also avoids the alternative's real ugliness: VPL is a text DSL, not a data format. Embedding it
+in JSON means escaped newlines and unreadable diffs.
+
+**YAML for the manifest**, because `versatiles serve --config` is already YAML, so this is one
+format in the user's head rather than two. YAML also permits comments, which matters for a file
+people will hand-edit, and is a JSON superset should embedding ever be wanted. The known YAML
+footguns (the Norway problem, indentation sensitivity) are accepted: Studio writes this file and
+mostly reads its own output. TOML was rejected as a second format in an ecosystem that already
+chose YAML, and as awkward for nested source lists; JSON was rejected for having no comments.
+
+**A constraint found while checking, which rules out the tidier idea.** It is tempting to make
+`project.yaml` simply _be_ a `versatiles serve` config with extra keys, so that
+`versatiles serve project.yaml` just works. It cannot: `versatiles/src/config/main.rs` declares
+`#[serde(deny_unknown_fields)]` on `Config`, so any Studio-specific key makes the file invalid for
+the server.
+
+So instead, **Studio exports a serve config as a derived artefact** — one more output alongside the
+CLI command and CI snippet of C7. Same end result for the user, no upstream change required.
+
+**Worth raising upstream, but not blocking:** an ignored extension namespace (say an `x-` prefix,
+or a single opaque `extra` map) in `versatiles-rs`'s `Config` would let one file serve both
+purposes. Small change, real payoff, and Studio is a good reason to ask.
+
+**Consequence to design for.** A project is a folder, not a single file, so sharing one means
+sending a folder. Studio should offer zip/unzip of a bundle for that, and a "Save As" that copies
+the whole directory rather than just the manifest.
 
 ### 2026-08-16 · Q3 — Three planes: IPC for control, HTTP for data, Channels for events
 

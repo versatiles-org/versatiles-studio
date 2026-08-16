@@ -66,7 +66,8 @@ JavaScript is bundled at build time and runs in the webview — no Node runtime 
 
 **Studio core (Rust).** The part worth designing carefully:
 
-- _Project model_ — sources, pipeline, style, views; serialised to the project file (G1)
+- _Project model_ — sources, pipeline, style, views; a directory holding a `project.yaml` manifest
+  beside real `.vpl` and `style.json` files (G1, [Q6](decisions.md))
 - _Job runner_ — long operations with progress, cancellation and logging (E7); this must exist
   before any export feature, not after
 - _Analysis services_ — the probe-derived statistics behind cluster B, cached per container
@@ -110,4 +111,4 @@ Detailed in [Open Decisions](decisions.md); summarised here.
 **Q4 — where analysis statistics live.** In-memory cache, sidecar file next to the container, or
 in the project file. Decides whether cluster B feels instant or sluggish.
 
-**Q6 — project file format**, and whether it embeds or references the pipeline and style.
+_(Q3 and Q6 have been decided; see the decision log.)_
