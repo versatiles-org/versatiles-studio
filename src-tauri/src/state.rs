@@ -5,10 +5,14 @@
 //!
 //! [Q16]: ../../docs/decisions.md
 
-use studio_core::server::ServerManager;
+use std::path::PathBuf;
+use studio_core::{project::Recents, server::ServerManager};
 use tokio::sync::Mutex;
 
 pub struct AppState {
 	/// One embedded server for the whole application; projects are named mounts on it.
 	pub server: Mutex<ServerManager>,
+	/// Recently opened sources. The core owns the list; the platform layer owns where it lives.
+	pub recents: Mutex<Recents>,
+	pub recents_path: PathBuf,
 }

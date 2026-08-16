@@ -120,7 +120,7 @@ GEOS unlinked, which removes the LGPL obligation entirely.
 
 | Item        | Work                                                                                                                                                                | Feature        |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| **S1.1**    | Landing screen in an empty window: ways in plus recent files                                                                                                        | A7             |
+| **S1.1**    | ~~Landing screen in an empty window: ways in plus recent files~~ — **done**                                                                                         | A7             |
 | **S1.2**    | ~~Open local containers — `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories~~ — **done**                                                                   | A1             |
 | **S1.3**    | ~~Open remote sources over HTTPS and SFTP with byte ranges~~ — **done**; a planet file opens in ~2 s from its index                                                 | A2             |
 | **S1.4**    | ~~Map canvas and default render style; one `Map` instance, viewport owned by the core~~ — **done**, includes the MapLibre 6 worker build step ([Q18](decisions.md)) | infrastructure |

@@ -54,3 +54,19 @@ export interface OpenedContainer {
 export function openContainer(source: string): Promise<OpenedContainer> {
 	return invoke<OpenedContainer>('open_container', { source });
 }
+
+/** Mirrors `studio_core::project::RecentEntry`. */
+export interface RecentEntry {
+	source: string;
+	/** Seconds since the Unix epoch. */
+	openedAt: number;
+}
+
+/** Recently opened sources, newest first (A7). */
+export function recentSources(): Promise<RecentEntry[]> {
+	return invoke<RecentEntry[]>('recent_sources');
+}
+
+export function forgetRecent(source: string): Promise<void> {
+	return invoke<void>('forget_recent', { source });
+}

@@ -1,7 +1,10 @@
 //! Opening tile containers (A1, S1.2).
 
 use crate::state::AppState;
-use studio_core::analysis::{self, ContainerInfo};
+use studio_core::{
+	analysis::{self, ContainerInfo},
+	project::RecentEntry,
+};
 use tauri::State;
 
 /// Opens a container, mounts it on the embedded server, and returns what is cheap to know.
@@ -18,6 +21,16 @@ pub async fn open_container(state: State<'_, AppState>, source: String) -> Resul
 
 	let name = mount_name(&source);
 	server.mount(&name, reader).await.map_err(|e| format!("{e:#}"))?;
+
+	// Only record what actually opened — a failed attempt is not a recent file.
+	{
+		let mut recents = state.recents.lock().await;
+		recents.record(&source);
+		if let Err(error) = recents.save(&state.recents_path) {
+			// Never fail an open because the MRU list could not be written.
+			eprintln!("could not save recents: {error:#}");
+		}
+	}
 
 	Ok(OpenedContainer {
 		tile_url: format!("{}/tiles/{name}/{{z}}/{{x}}/{{y}}", server.base_url()),
@@ -97,4 +110,18 @@ mod tests {
 			mount_name("https://b.example/osm.versatiles")
 		);
 	}
+}
+
+/// The recently opened sources, newest first (A7).
+#[tauri::command]
+pub async fn recent_sources(state: State<'_, AppState>) -> Result<Vec<RecentEntry>, String> {
+	Ok(state.recents.lock().await.entries().to_vec())
+}
+
+/// Drops one entry — for a path that has gone away, or that the user wants gone.
+#[tauri::command]
+pub async fn forget_recent(state: State<'_, AppState>, source: String) -> Result<(), String> {
+	let mut recents = state.recents.lock().await;
+	recents.forget(&source);
+	recents.save(&state.recents_path).map_err(|e| format!("{e:#}"))
 }
