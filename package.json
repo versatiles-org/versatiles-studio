@@ -4,8 +4,8 @@
 	"version": "0.0.0",
 	"type": "module",
 	"scripts": {
-		"dev": "vite",
-		"build": "vite build",
+		"dev": "npm run bundle:worker && vite",
+		"build": "npm run bundle:worker && vite build",
 		"preview": "vite preview",
 		"check": "svelte-check --tsconfig ./tsconfig.json && tsc --noEmit -p scripts/tsconfig.json",
 		"tauri": "tauri",
@@ -13,7 +13,8 @@
 		"format:check": "prettier --check .",
 		"assets:check": "tsx scripts/update-assets.ts",
 		"assets:update": "tsx scripts/update-assets.ts --update",
-		"assets:fetch": "tsx scripts/fetch-assets.ts"
+		"assets:fetch": "tsx scripts/fetch-assets.ts",
+		"bundle:worker": "tsx scripts/bundle_worker.ts"
 	},
 	"devDependencies": {
 		"@sveltejs/vite-plugin-svelte": "^7.3.0",
@@ -25,7 +26,8 @@
 		"tsx": "^4.20.0",
 		"typescript": "^6.0.3",
 		"vite": "^8.2.1",
-		"@types/node": "^26.2.0"
+		"@types/node": "^26.2.0",
+		"esbuild": "^0.28.2"
 	},
 	"dependencies": {
 		"@tauri-apps/api": "2.11.1",
