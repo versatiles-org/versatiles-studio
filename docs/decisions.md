@@ -7,22 +7,136 @@ down with a date and a short rationale.
 
 ## Open questions
 
-### Q4 · Where do analysis statistics live?
+None. Every question raised during the concept phase has been answered; see below.
 
-Scanning a large container is expensive and users will re-open the same files. On-demand with an
-in-memory cache, a persisted sidecar file next to the container, or results in the project file?
-
-Lower priority now that cluster B is out of release 1, but not gone: opening a large container and
-showing its metadata and actual zoom range (A6) hits the same question.
-
-### Q7 · Scope of `planetiler` orchestration (E5)
-
-Requires a JVM. Do we detect and drive an existing installation, download one, or leave this out?
-Potentially the decisive feature for P2, and the largest single dependency we would take on.
+New questions get a `Q` number, go in this section, and move down to **Decided** with a date and a
+rationale once they are settled.
 
 ---
 
 ## Decided
+
+### 2026-08-16 · Q11 — The node graph (C1) is in release 1, and it needs a lossless VPL syntax tree
+
+Commitment 4 is read as **node graph plus text editor**, not text editor alone. C1 moves from
+stretch goal to deliverable, and stage 2 is planned around it.
+
+**What already exists.** Text → structure works: `VPLPipeline` implements `FromStr` and
+`VPLNode::try_from_str` parses a single node. The nom-based parser in
+`versatiles_pipeline/src/vpl/parser.rs` handles quoting, arrays and nested sub-pipelines.
+
+**Three gaps found while checking, all in the same place.** The AST is a lossy projection of the
+text, so the graph → text direction cannot be built by regenerating text from it:
+
+- **No serialiser exists.** `VPLNode` and `VPLPipeline` implement `Debug`, and nothing else — there
+  is no `Display`, no `to_string`, no `to_vpl`. Writing VPL back out is new construction wherever it
+  lives.
+- **Property order is lost.** `VPLNode.properties` is a `BTreeMap<String, Vec<String>>`, so
+  parameters come back sorted alphabetically rather than in the order the user typed them.
+- **Comments are discarded.** VPL supports `#` comments and the parser throws them away
+  (`value((), preceded(char('#'), …))`). A naive round-trip would silently delete every comment in
+  the user's file.
+
+**Consequence, and it is the main piece of new work in stage 2.** The graph must edit the *text*
+through targeted, span-based edits — a lossless concrete syntax tree that keeps comments,
+whitespace and property order — rather than reparsing to an AST and printing it back. This is the
+standard shape for a bidirectional editor and it is compatible with "the text is the source of
+truth"; it is simply larger than "the parser already exists" suggested.
+
+The alternative — regenerate text from the AST — is rejected. Reformatting a user's file and
+deleting their comments on every graph interaction is exactly the "the GUI and the file disagree"
+class of bug that the source-of-truth principle exists to prevent.
+
+**Where the syntax tree should live.** Preferably upstream in `versatiles_pipeline`, since a VPL
+formatter and a lossless parse are useful to the CLI too, and it keeps one grammar rather than two.
+If upstream cannot take it in time, Studio carries it and it is offered upstream afterwards. What
+must not happen is Studio hand-rolling a *second, divergent* VPL grammar.
+
+### 2026-08-16 · Q4 — Analysis statistics live in memory, keyed by container identity
+
+No sidecar files next to the container, and no results in the project file. The question assumed
+scanning is uniformly expensive; checking the code shows it is three different costs, and only the
+most expensive one needed solving.
+
+| Tier                                  | Cost                                                                                                          | Feeds        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------ |
+| Metadata and real zoom range          | Effectively free. `tile_pyramid()` is derived from the block index and memoised via `get_or_compute_tile_pyramid` | A6           |
+| Tile sizes and coverage               | Index-only. All five readers override `tile_size_stream` so no tile bodies are read                            | B1, B4       |
+| Tile contents (validation, breakdown) | Genuinely expensive — decodes every tile. But `probe --sample PERCENT` already exists                          | B2, B3, B7   |
+
+The first two tiers are cheap enough that persistence buys nothing. The third has a sampling escape
+hatch: `tile_sampling.rs` picks deterministic square windows sized to coalesce into single
+byte-range requests, so an approximate answer over a planet file is a bounded cost rather than an
+open-ended one. Default to a sample; make the full scan an explicit, cancellable job (E7).
+
+**Why not a sidecar next to the container.** Containers are frequently read-only, remote (the HTTPS
+and SFTP sources of A2), or shared between people. Writing files next to someone's data is
+sometimes impossible and always surprising.
+
+**Why not the project file.** It would make a file we promised is diffable and git-friendly churn on
+every scan, and a project can reference a container it does not own.
+
+**The escape hatch, if measurement later demands one:** a content-addressed cache in the OS cache
+directory, for full-content scans only. That is where derived data belongs — discardable by
+definition, and never mixed into the user's own files.
+
+**One thing to design around.** The probe functions compute and render at once: `probe_tile_sizes`,
+`probe_mvt_validation` and friends all take `&mut PrettyPrint` and return `Result<()>`, so their
+results are strings, not data. Studio cannot reuse them directly. The reusable primitives are one
+level down — `layer_stats()` and `validate_tile()` both return values — so Studio does its own
+aggregation over those. Worth offering upstream as a compute/render split, since the CLI would then
+gain a `--json` probe for free.
+
+### 2026-08-16 · Q7 — No `planetiler` orchestration. E5 is dropped
+
+Closed as **no**, permanently rather than deferred. Studio will not drive `planetiler`, and does not
+gain an OSM-to-Shortbread button.
+
+**What it would have cost.** Planetiler's own requirements: **Java 21+**, at least 0.5× the
+`.osm.pbf` size in free RAM, 5–10× in disk, and a ~1 GB download of auxiliary data sources (~750 MB
+ocean polygons, ~240 MB Natural Earth) before the first run. Every route to it is bad for a desktop
+app aimed at people who cannot install a Node toolchain:
+
+- _Detect an existing Java_ — the feature is invisible for most of the target audience, and we own
+  the support burden for every JVM version we did not choose.
+- _Download or bundle a JRE_ — 50–190 MB in the installer, and a second runtime to ship, sign,
+  notarise and keep updated.
+- _Docker_ — requires Docker installed and running, which is precisely what public administrations
+  will not have.
+
+The `shortbread-tilemaker` alternative is no lighter: the repository is Lua and JSON configuration
+for `tilemaker`, a separate C++ binary that is not ours, plus its own shapefile downloads.
+
+**What we do instead.** Documentation. The people who need planet-scale OSM builds are running them
+on a server, not on the laptop Studio is installed on, and the honest answer is a CLI recipe rather
+than a button that needs a gigabyte of prerequisites. Studio opens and styles the result perfectly
+well.
+
+**What this costs us.** The feature catalogue named E5 "potentially the decisive feature for P2".
+That claim is now untested and stays untested. If public-administration users tell us the OSM build
+is the blocker, this decision gets revisited with real evidence rather than a guess — but Studio
+takes on no JVM in the meantime.
+
+### 2026-08-16 · Q12 — Cluster B stays out of release 1, but its engine is much further along than the catalogue says
+
+The scope holds: nothing from cluster B enters release 1. The estimate behind it was wrong, though,
+and the correction is worth recording because it changes what "after release 1" costs.
+
+**B2 largely exists upstream.** `versatiles/src/tools/tile_breakdown.rs` computes a per-layer byte
+breakdown — geometry, tag references, property keys, property values, feature ids, and a framing
+residual — from a decoded vector tile, and `probe -ddd` already aggregates it by zoom × layer. The
+catalogue calls B2 "the single most requested thing that no tool does well today" and implies new
+construction. The measurement engine is built; what is missing is the **per-attribute** half (the
+property table is summed whole, not split by property name) and a data-returning API instead of
+`PrettyPrint` output.
+
+So the post-release-1 work for B1, B2 and B3 is largely **visualisation over existing numbers**,
+not analysis. That makes them cheaper than the roadmap assumed, and reinforces rather than weakens
+the argument for taking them first once the commitments are in.
+
+**Why not pull them in anyway.** [Q2](#2026-08-16--q2--scope-of-release-1-is-set-by-the-funding-commitment)
+already flags four clusters in one release as a wide front, and Q11 has just added the node graph to
+it. Cheap is not free, and the four commitments are what was funded.
 
 ### 2026-08-16 · Q8 — Release early under v0.x, but aim it at the tile audience, not the journalists
 
@@ -57,9 +171,8 @@ work by reading them ourselves. Finding that out at v0.2 with sympathetic users 
 than at 1.0 with the target audience. The same argument applies to the diversity of malformed
 containers in the wild, which we cannot manufacture.
 
-**One input we do not have here.** If the funding agreement requires public milestones or a
-particular reporting cadence, that overrides the framing above — it is the funder's call, not ours.
-Worth checking before the first tag.
+**Checked:** the funding agreement requires no public milestones and no particular reporting
+cadence, so the framing above stands on its own. Nothing forces a public release before we want one.
 
 ### 2026-08-16 · Q6 — A project is a directory of real files, described by a YAML manifest
 
