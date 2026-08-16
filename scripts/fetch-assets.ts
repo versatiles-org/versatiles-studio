@@ -21,7 +21,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { assertAllowedRepo, assertSafeSegment } from './update-assets.js';
+import { assertSafeSegment, resolveRepo } from './update-assets.js';
 
 const run = promisify(execFile);
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -42,24 +42,22 @@ type Manifest = { sources: Record<string, Source> };
 const manifest = JSON.parse(await readFile(join(root, 'assets', 'manifest.json'), 'utf8')) as Manifest;
 
 /**
- * Builds the release URL, refusing anything the manifest is not allowed to name.
+ * Builds the release URL from values this file controls.
  *
- * The manifest is data, and data that reaches `fetch()` decides where this machine connects. Without
- * these checks a tampered `assets/manifest.json` in a pull request would make CI issue arbitrary
- * outbound requests. The digest check afterwards would stop a bad file being *used*, but not the
- * request being *made* — so the constraint belongs here, before the fetch.
+ * `resolveRepo` returns an allow-listed **constant**, so the host and repository never come from the
+ * manifest. The remaining segments are validated and then percent-encoded, so a tag or filename
+ * cannot add path segments or a query. Without this a tampered `assets/manifest.json` in a pull
+ * request would make CI issue arbitrary outbound requests — the digest check afterwards would stop a
+ * bad file being *used*, but not the request being *made*.
  */
 function urlFor(source: Source, asset: PinnedAsset): string {
-	assertAllowedRepo(source.repo);
+	const repo = resolveRepo(source.repo);
 	assertSafeSegment(source.version, 'version');
 	assertSafeSegment(asset.file, 'asset filename');
 
-	const url = new URL(`https://github.com/${source.repo}/releases/download/${source.version}/${asset.file}`);
-	// Belt and braces: whatever the segments contained, the result must still be a GitHub URL.
-	if (url.origin !== 'https://github.com') {
-		throw new Error(`refusing to fetch from ${url.origin}`);
-	}
-	return url.href;
+	const version = encodeURIComponent(source.version);
+	const file = encodeURIComponent(asset.file);
+	return `https://github.com/${repo}/releases/download/${version}/${file}`;
 }
 
 /** Downloads and checks the pin. A mismatch is fatal: an unverified asset is worse than none. */

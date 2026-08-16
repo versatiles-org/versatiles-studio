@@ -17,24 +17,32 @@ import { fileURLToPath } from 'node:url';
 const MANIFEST = fileURLToPath(new URL('../assets/manifest.json', import.meta.url));
 
 /**
- * Repositories these scripts may talk to.
+ * The only repositories these scripts may fetch from.
  *
  * The manifest is data, and data that reaches `fetch()` decides where a build machine connects. A
  * tampered `assets/manifest.json` in a pull request would otherwise make CI issue arbitrary outbound
- * requests — with `GITHUB_TOKEN` attached, for the API calls. Constraining the owner turns the
- * manifest into a choice *among* our releases rather than a free-form URL.
+ * requests — with `GITHUB_TOKEN` attached for the API calls.
+ *
+ * `resolveRepo` matches the manifest value against this list and returns **the constant**, so the
+ * string that ends up in a URL comes from this file rather than from the manifest. Validating and
+ * then using the original string would be equally safe at runtime but leaves the data flow intact,
+ * which is both harder to audit and what static analysis rightly objects to.
  */
-const ALLOWED_OWNER = 'versatiles-org';
+const ALLOWED_REPOS = [
+	'versatiles-org/versatiles-style',
+	'versatiles-org/versatiles-fonts',
+	'versatiles-org/versatiles-frontend'
+] as const;
 
-/** Rejects a repository the manifest is not allowed to name. */
-export function assertAllowedRepo(repo: string): void {
-	if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) {
-		throw new Error(`manifest repo "${repo}" is not in owner/name form`);
+export type AllowedRepo = (typeof ALLOWED_REPOS)[number];
+
+/** Returns the allow-listed constant matching `repo`, or throws. */
+export function resolveRepo(repo: string): AllowedRepo {
+	const match = ALLOWED_REPOS.find((allowed) => allowed === repo);
+	if (!match) {
+		throw new Error(`manifest repo "${repo}" is not one this project fetches from`);
 	}
-	const [owner] = repo.split('/');
-	if (owner !== ALLOWED_OWNER) {
-		throw new Error(`manifest repo "${repo}" is outside ${ALLOWED_OWNER}; refusing to fetch it`);
-	}
+	return match;
 }
 
 /** Rejects a release tag or filename that could escape the URL path. */
@@ -75,14 +83,15 @@ interface GhAsset {
 }
 
 async function latestRelease(repo: string): Promise<{ tag: string; assets: GhAsset[] }> {
-	assertAllowedRepo(repo);
+	// The allow-listed constant, not the manifest string.
+	const safeRepo = resolveRepo(repo);
 	const headers: Record<string, string> = { accept: 'application/vnd.github+json' };
 	// Optional: lifts the 60/hour unauthenticated rate limit in CI.
 	if (process.env.GITHUB_TOKEN) headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
 
-	const response = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, { headers });
+	const response = await fetch(`https://api.github.com/repos/${safeRepo}/releases/latest`, { headers });
 	if (!response.ok) {
-		throw new Error(`GitHub returned ${response.status} for ${repo}. Set GITHUB_TOKEN if rate limited.`);
+		throw new Error(`GitHub returned ${response.status} for ${safeRepo}. Set GITHUB_TOKEN if rate limited.`);
 	}
 	const body = (await response.json()) as { tag_name: string; assets: GhAsset[] };
 	return { tag: body.tag_name, assets: body.assets };

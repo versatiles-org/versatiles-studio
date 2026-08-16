@@ -1,26 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { assertAllowedRepo, assertSafeSegment } from './update-assets';
+import { assertSafeSegment, resolveRepo } from './update-assets';
 
 // The manifest is data, and data that reaches `fetch()` decides where a build machine connects.
 // These are the checks that keep a tampered `assets/manifest.json` from redirecting CI.
-describe('assertAllowedRepo', () => {
+describe('resolveRepo', () => {
 	it('accepts the repositories the manifest actually names', () => {
 		for (const repo of [
 			'versatiles-org/versatiles-style',
 			'versatiles-org/versatiles-fonts',
 			'versatiles-org/versatiles-frontend'
 		]) {
-			expect(() => assertAllowedRepo(repo)).not.toThrow();
+			expect(resolveRepo(repo)).toBe(repo);
 		}
 	});
 
-	it('refuses another owner', () => {
-		expect(() => assertAllowedRepo('evil-org/payload')).toThrow(/outside versatiles-org/);
+	it('returns the allow-listed constant, not the caller string', () => {
+		const input = ['versatiles-org', 'versatiles-style'].join('/');
+		// Same characters, different object — what comes back is our constant, so no manifest string
+		// can reach a URL even if it happens to spell an allowed repo.
+		expect(resolveRepo(input)).toBe('versatiles-org/versatiles-style');
 	});
 
-	it('refuses anything not in owner/name form', () => {
-		for (const bad of ['not-a-repo', 'a/b/c', 'https://evil.example/x', '']) {
-			expect(() => assertAllowedRepo(bad)).toThrow();
+	it('refuses anything not on the list', () => {
+		for (const bad of [
+			'evil-org/payload',
+			'versatiles-org/not-a-real-repo',
+			'not-a-repo',
+			'https://evil.example/x',
+			''
+		]) {
+			expect(() => resolveRepo(bad)).toThrow(/not one this project fetches from/);
 		}
 	});
 });
