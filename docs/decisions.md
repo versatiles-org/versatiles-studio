@@ -3,6 +3,9 @@
 Two lists: questions still open, and decisions already taken. When a question is answered, move it
 down with a date and a short rationale.
 
+As of 2026-08-16 the first list is empty — every question raised during the concept phase has been
+settled, and the planning documents no longer contain an unresolved "we should decide this".
+
 ---
 
 ## Open questions
@@ -37,7 +40,7 @@ text, so the graph → text direction cannot be built by regenerating text from 
   (`value((), preceded(char('#'), …))`). A naive round-trip would silently delete every comment in
   the user's file.
 
-**Consequence, and it is the main piece of new work in stage 2.** The graph must edit the *text*
+**Consequence, and it is the main piece of new work in stage 2.** The graph must edit the _text_
 through targeted, span-based edits — a lossless concrete syntax tree that keeps comments,
 whitespace and property order — rather than reparsing to an AST and printing it back. This is the
 standard shape for a bidirectional editor and it is compatible with "the text is the source of
@@ -50,7 +53,7 @@ class of bug that the source-of-truth principle exists to prevent.
 **Where the syntax tree should live.** Preferably upstream in `versatiles_pipeline`, since a VPL
 formatter and a lossless parse are useful to the CLI too, and it keeps one grammar rather than two.
 If upstream cannot take it in time, Studio carries it and it is offered upstream afterwards. What
-must not happen is Studio hand-rolling a *second, divergent* VPL grammar.
+must not happen is Studio hand-rolling a _second, divergent_ VPL grammar.
 
 ### 2026-08-16 · Q4 — Analysis statistics live in memory, keyed by container identity
 
@@ -58,11 +61,11 @@ No sidecar files next to the container, and no results in the project file. The 
 scanning is uniformly expensive; checking the code shows it is three different costs, and only the
 most expensive one needed solving.
 
-| Tier                                  | Cost                                                                                                          | Feeds        |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------ |
-| Metadata and real zoom range          | Effectively free. `tile_pyramid()` is derived from the block index and memoised via `get_or_compute_tile_pyramid` | A6           |
-| Tile sizes and coverage               | Index-only. All five readers override `tile_size_stream` so no tile bodies are read                            | B1, B4       |
-| Tile contents (validation, breakdown) | Genuinely expensive — decodes every tile. But `probe --sample PERCENT` already exists                          | B2, B3, B7   |
+| Tier                                  | Cost                                                                                                              | Feeds      |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------- |
+| Metadata and real zoom range          | Effectively free. `tile_pyramid()` is derived from the block index and memoised via `get_or_compute_tile_pyramid` | A6         |
+| Tile sizes and coverage               | Index-only. All five readers override `tile_size_stream` so no tile bodies are read                               | B1, B4     |
+| Tile contents (validation, breakdown) | Genuinely expensive — decodes every tile. But `probe --sample PERCENT` already exists                             | B2, B3, B7 |
 
 The first two tiers are cheap enough that persistence buys nothing. The third has a sampling escape
 hatch: `tile_sampling.rs` picks deterministic square windows sized to coalesce into single
@@ -134,9 +137,9 @@ So the post-release-1 work for B1, B2 and B3 is largely **visualisation over exi
 not analysis. That makes them cheaper than the roadmap assumed, and reinforces rather than weakens
 the argument for taking them first once the commitments are in.
 
-**Why not pull them in anyway.** [Q2](#2026-08-16--q2--scope-of-release-1-is-set-by-the-funding-commitment)
-already flags four clusters in one release as a wide front, and Q11 has just added the node graph to
-it. Cheap is not free, and the four commitments are what was funded.
+**Why not pull them in anyway.** Q2 below already flags four clusters in one release as a wide
+front, and Q11 has just added the node graph to it. Cheap is not free, and the four commitments are
+what was funded.
 
 ### 2026-08-16 · Q8 — Release early under v0.x, but aim it at the tile audience, not the journalists
 

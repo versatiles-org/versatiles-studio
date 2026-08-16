@@ -16,7 +16,7 @@ entirely. See [Q2](decisions.md) for the decision and the evidence behind it.
 | ----- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------- |
 | **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for Linux and macOS | foundation                                   |
 | **1** | Cluster A plus a default render style                                                                | Open and preview all supported formats       |
-| **2** | VPL editing, inline errors, generated parameter forms, live preview                                  | Edit VPL and instantly see the result        |
+| **2** | Lossless VPL syntax tree, node graph, inline errors, generated parameter forms, live preview         | Edit VPL and instantly see the result        |
 | **3** | Import wizards on the pipeline layer, job queue, container export                                    | Convert image and vector data into map tiles |
 | **4** | Asset manager, style editing against the user's own layers, export                                   | Create your own map style                    |
 | **5** | Project directory, Linux packaging and Homebrew cask, auto-update                                    | shippability                                 |
@@ -26,11 +26,15 @@ banner, aimed at tile operators and ourselves. **1.0 and the public announcement
 when all four commitments are in — the journalism audience should not meet Studio before it can
 create anything.
 
-Two things worth repeating from the scope document, because they drive the whole plan:
+Three things worth repeating from the scope document, because they drive the whole plan:
 
 - **Commitments 3 and 4 share one engine.** The import wizards are guided front-ends onto
   `from_geo`, `from_csv` and GDAL — the same pipeline layer the VPL editor drives. Build the
   pipeline first and the wizards become a form on top of it, with their preview already solved.
+- **Stage 2 is the long pole.** [Q11](decisions.md) makes the node graph a deliverable, and the
+  lossless VPL syntax tree underneath it does not exist yet — `versatiles_pipeline` parses VPL but
+  cannot write it back. Start that work during stage 1, ideally as an upstream contribution, so the
+  review cycle overlaps with cluster A instead of following it.
 - **Release 1 is Linux plus a Homebrew cask** ([Q10](decisions.md)). Windows and Apple notarisation
   are deferred, which keeps certificate procurement off the critical path. The cost is a Gatekeeper
   approval that macOS users have to click through once, so the install instructions are part of the
@@ -45,13 +49,16 @@ The cheapest valuable additions, in the order we would take them:
   rather than only our own tap. $99/year; the lead time is account approval, not the money.
 - **Windows builds and a certificate** — OV, EV, or Azure Artifact Signing. See
   [Q10](decisions.md); get quotes before committing.
-- **B1, B3** — tile size statistics and spec validation with a repair button. Both are close to
-  free by-products of `probe`, and B3 turns a `fix:` line that already exists into a button.
-- **B2** — byte breakdown per layer and attribute. The feature catalogue's strongest
-  differentiator, deferred but not abandoned.
+- **B1, B2, B3** — tile size statistics, byte breakdown, and spec validation with a repair button.
+  Cheaper than this document used to assume: per [Q12](decisions.md) the per-layer byte breakdown
+  already exists in `tile_breakdown.rs` and the size scan is index-only, so what remains is mostly
+  visualisation. B3 turns a `fix:` line that already exists into a button. Only B2's per-attribute
+  split is real new analysis work.
 - **F5, F4** — embed snippet and static site export. Without these, a user who has made a map in
   Studio still has to ask us what to do next.
-- **G6** — undo/redo, which will be conspicuously missing the moment style editing gets real use.
+- **G6** — undo/redo. Now the most likely regret in release 1: a node graph ([Q11](decisions.md))
+  invites experimentation, and experimentation without undo is punishing. Worth reconsidering as a
+  stage 2 item rather than a post-release one.
 
 ## Later
 

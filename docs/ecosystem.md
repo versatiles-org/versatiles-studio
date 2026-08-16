@@ -92,13 +92,13 @@ This is the constraint that shapes cluster C, and it was mis-stated in earlier d
 structure is solved: `VPLPipeline` implements `FromStr`, and the nom parser handles quoting, arrays
 and nested sub-pipelines. Structure → text does not exist:
 
-| Needed for                       | Status                                                                            |
-| -------------------------------- | --------------------------------------------------------------------------------- |
-| Parse VPL (C4 input, C1 input)   | ✅ `FromStr` on `VPLPipeline`, `VPLNode::try_from_str`                            |
-| Write VPL back out (C1 output)   | ❌ no `Display`, no `to_string`, no serialiser — only `Debug`                     |
-| Preserve parameter order         | ❌ `properties` is a `BTreeMap`, so a round-trip sorts them alphabetically        |
-| Preserve `#` comments            | ❌ the parser matches and discards them                                           |
-| Error positions for editor marks | ❌ errors are rendered strings via nom's `convert_error`; no structured spans      |
+| Needed for                       | Status                                                                        |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| Parse VPL (C4 input, C1 input)   | ✅ `FromStr` on `VPLPipeline`, `VPLNode::try_from_str`                        |
+| Write VPL back out (C1 output)   | ❌ no `Display`, no `to_string`, no serialiser — only `Debug`                 |
+| Preserve parameter order         | ❌ `properties` is a `BTreeMap`, so a round-trip sorts them alphabetically    |
+| Preserve `#` comments            | ❌ the parser matches and discards them                                       |
+| Error positions for editor marks | ❌ errors are rendered strings via nom's `convert_error`; no structured spans |
 
 Since [Q11](decisions.md) puts the node graph in release 1, a **lossless syntax tree** — spans,
 comments, original ordering — is the first thing stage 2 has to build, ideally upstream in
@@ -122,7 +122,7 @@ comments, original ordering — is the first thing stage 2 has to build, ideally
 | [`versatiles-svg-renderer`](https://github.com/versatiles-org/versatiles-svg-renderer)                                                         | Renders vector maps as SVG. The path to print-quality still export (F6). Runs in the browser as well as in Node — it ships a UMD bundle and a `/maplibre` control subpath.                                                                                                                                                                                               |
 | [`versatiles-choro`](https://github.com/versatiles-org/versatiles-choro)                                                                       | Choropleth workflow aimed at newsrooms and data journalists — the same audience as P1, and directly relevant to E6. Under heavy development; API and formats will change.                                                                                                                                                                                                |
 | [`versatiles-spec`](https://github.com/versatiles-org/versatiles-spec)                                                                         | Container specification, currently v02. The reference for validation (B3).                                                                                                                                                                                                                                                                                               |
-| [`planetiler`](https://github.com/versatiles-org/planetiler), [`shortbread-tilemaker`](https://github.com/versatiles-org/shortbread-tilemaker) | OSM → vector tiles. **Not orchestrated by Studio** — planetiler needs Java 21+ and ~1 GB of auxiliary downloads, tilemaker is a separate C++ binary; [Q7](decisions.md) drops E5. Studio opens and styles what they produce.                                                                                                                                                                                                                                                                                      |
+| [`planetiler`](https://github.com/versatiles-org/planetiler), [`shortbread-tilemaker`](https://github.com/versatiles-org/shortbread-tilemaker) | OSM → vector tiles. **Not orchestrated by Studio** — planetiler needs Java 21+ and ~1 GB of auxiliary downloads, tilemaker is a separate C++ binary; [Q7](decisions.md) drops E5. Studio opens and styles what they produce.                                                                                                                                             |
 | [`node-versatiles-google-cloud`](https://github.com/versatiles-org/node-versatiles-google-cloud)                                               | Precedent for cloud upload (F3).                                                                                                                                                                                                                                                                                                                                         |
 | [`versatiles-documentation`](https://github.com/versatiles-org/versatiles-documentation)                                                       | Learning resources, and a showcase gallery of 76 known projects using VersaTiles — a ready-made list of potential Studio users to talk to.                                                                                                                                                                                                                               |
 

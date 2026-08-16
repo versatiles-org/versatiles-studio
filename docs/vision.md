@@ -47,13 +47,13 @@ Four properties we want to hold on to:
 
 Saying no early keeps the scope buildable.
 
-| Not this             | Because                                                                                                                                                                      |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A QGIS replacement   | No general geoprocessing, no attribute-table editing, no projections zoo, no plugin ecosystem for spatial analysis. Studio is about _tiles_, not about _geodata in general_. |
-| A geodata editor     | Drawing and editing features is [`versatiles-map-editor`](https://github.com/versatiles-org/versatiles-map-editor) and iD. Studio consumes geodata, it does not author it.   |
+| Not this             | Because                                                                                                                                                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A QGIS replacement   | No general geoprocessing, no attribute-table editing, no projections zoo, no plugin ecosystem for spatial analysis. Studio is about _tiles_, not about _geodata in general_.                                            |
+| A geodata editor     | Drawing and editing features is [`versatiles-map-editor`](https://github.com/versatiles-org/versatiles-map-editor) and iD. Studio consumes geodata, it does not author it.                                              |
 | A new tile generator | The VPL pipeline covers the transformations we own. Planet-scale OSM builds stay with `planetiler` and `tilemaker` on a server — Studio does not orchestrate them ([Q7](decisions.md)), it opens and styles the result. |
-| A hosting product    | Studio can upload to somewhere, and can run a local server for testing. It is not a server, and it is not a subscription.                                                    |
-| A web app            | It touches large local files and runs long jobs. That is a desktop job. (See [architecture](architecture.md) for the shell question, which is subtler than it sounds.)       |
+| A hosting product    | Studio can upload to somewhere, and can run a local server for testing. It is not a server, and it is not a subscription.                                                                                               |
+| A web app            | It touches large local files and runs long jobs. That is a desktop job. (See [architecture](architecture.md) for the shell question, which is subtler than it sounds.)                                                  |
 
 ## Success, concretely
 

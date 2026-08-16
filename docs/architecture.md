@@ -119,13 +119,13 @@ the same path through the manifest, the asset manager and the server.
 
 No architectural question is open. The ones that shaped the design above:
 
-| Question | Answer                                                                                                |
-| -------- | ----------------------------------------------------------------------------------------------------- |
-| **Q1**   | Native Tauri application, not a subcommand serving a browser UI                                       |
-| **Q3**   | Three planes — IPC for control, HTTP for data, Channels for events                                    |
+| Question | Answer                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------ |
+| **Q1**   | Native Tauri application, not a subcommand serving a browser UI                                        |
+| **Q3**   | Three planes — IPC for control, HTTP for data, Channels for events                                     |
 | **Q4**   | Analysis statistics live in memory, keyed by container identity; no sidecars, none in the project file |
-| **Q5**   | No Node runtime ships; all JavaScript is bundled into the webview at build time                       |
-| **Q6**   | A project is a directory of real files described by a YAML manifest                                   |
+| **Q5**   | No Node runtime ships; all JavaScript is bundled into the webview at build time                        |
+| **Q6**   | A project is a directory of real files described by a YAML manifest                                    |
 | **Q11**  | The node graph is in release 1, and needs a lossless VPL syntax tree                                   |
 
 See the [decision log](decisions.md) for the reasoning behind each.
