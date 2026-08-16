@@ -61,9 +61,11 @@ The cheapest valuable additions, in the order we would take them:
   user's own fonts.
 - **E4, E6** — DEM and hillshade, table joins for choropleths.
 - **F3, F6, F7** — upload targets, print-quality image export, offline packages.
-- **C1** — the node graph, if the text editor turns out not to be enough.
 
 ## Deliberately open-ended
 
-E5 (planetiler orchestration, see [Q7](decisions.md)), B6, B7, B8, B9, C5, C8, D4. All valuable,
-none blocking. Revisit once real users are telling us which ones they miss.
+B6, B7, B8, B9, C5, C8, D4. All valuable, none blocking. Revisit once real users are telling us
+which ones they miss.
+
+E5 (planetiler orchestration) is **not** on this list: [Q7](decisions.md) drops it outright rather
+than deferring it.

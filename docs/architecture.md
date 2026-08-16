@@ -1,6 +1,7 @@
 # Architecture
 
-> Draft. The shell question is settled ([Q1](decisions.md)); the internal boundaries are not.
+> Draft. The shell question ([Q1](decisions.md)) and the internal boundaries ([Q3](decisions.md),
+> [Q4](decisions.md), [Q6](decisions.md), [Q11](decisions.md)) are settled. The layout below is not.
 
 ## The central idea
 
@@ -8,7 +9,7 @@
 flowchart LR
   subgraph shell["Tauri shell — native dialogs · drag and drop · menus · auto-update"]
     ui["UI (webview)<br/>Svelte · MapLibre GL · all JS bundled at build time<br/>layer stack · node graph · style editor · charts"]
-    core["Studio core (Rust)<br/>project model · job runner · analysis services<br/>asset manager and glyph generation · server manager"]
+    core["Studio core (Rust)<br/>project model · VPL document model · job runner<br/>analysis services · asset manager and glyph generation · server manager"]
     server["Embedded server<br/>tiles from the live pipeline<br/>glyphs and sprites, served straight from their archives"]
     crates["versatiles-rs crates<br/>container · pipeline · geometry · image"]
   end
@@ -70,10 +71,15 @@ JavaScript is bundled at build time and runs in the webview — no Node runtime 
   beside real `.vpl` and `style.json` files (G1, [Q6](decisions.md))
 - _Job runner_ — long operations with progress, cancellation and logging (E7); this must exist
   before any export feature, not after
-- _Analysis services_ — the probe-derived statistics behind cluster B, cached per container
+- _Analysis services_ — the probe-derived statistics behind cluster B, cached in memory per
+  container ([Q4](decisions.md)); aggregates over `layer_stats()` and `validate_tile()` rather than
+  over probe's text output
 - _Asset manager_ — download, pin, verify and remove font families and sprite sets (G7), and
   generate glyph sets from the user's own fonts via `versatiles-glyphs-rs` (D9)
 - _Server manager_ — lifecycle of the embedded server, one instance per previewed pipeline node
+- _VPL document model_ — a lossless syntax tree over the pipeline text, keeping spans, comments and
+  parameter order, so the node graph (C1) and the inline error markers (C4) both edit and address
+  the real file ([Q11](decisions.md))
 
 The core is a plain Rust library with no Tauri types in it. The `#[tauri::command]` functions are a
 thin binding over it, so the core can be driven by ordinary Rust tests with no Tauri runtime.
@@ -90,6 +96,11 @@ real artefacts; the node graph, the style panels and the layer tree are views on
 what makes projects diffable, reviewable, git-friendly and handable to a CLI user. It also removes
 a whole class of "the GUI and the file disagree" bugs.
 
+Taken seriously, this has teeth. A view that edits the text must edit it **surgically** — it may not
+reformat the file, reorder parameters, or drop comments as a side effect of an unrelated change.
+That is why the node graph needs a lossless syntax tree rather than a parse-and-print round trip
+([Q11](decisions.md)), and it is the single largest piece of new construction in release 1.
+
 **Generate UI from metadata where possible.** Parameter forms come from `field_meta`
 ([see inventory](ecosystem.md)). Hand-written UI per operation would rot the first time
 versatiles-rs adds an operation.
@@ -104,11 +115,17 @@ were downloaded as, and are served from there. Atomic to verify, replace and del
 Studio generates itself (D9) are written as archives too, so downloaded and generated fonts take
 the same path through the manifest, the asset manager and the server.
 
-## Open architectural questions
+## Settled architectural questions
 
-Detailed in [Open Decisions](decisions.md); summarised here.
+No architectural question is open. The ones that shaped the design above:
 
-**Q4 — where analysis statistics live.** In-memory cache, sidecar file next to the container, or
-in the project file. Decides whether cluster B feels instant or sluggish.
+| Question | Answer                                                                                                |
+| -------- | ----------------------------------------------------------------------------------------------------- |
+| **Q1**   | Native Tauri application, not a subcommand serving a browser UI                                       |
+| **Q3**   | Three planes — IPC for control, HTTP for data, Channels for events                                    |
+| **Q4**   | Analysis statistics live in memory, keyed by container identity; no sidecars, none in the project file |
+| **Q5**   | No Node runtime ships; all JavaScript is bundled into the webview at build time                       |
+| **Q6**   | A project is a directory of real files described by a YAML manifest                                   |
+| **Q11**  | The node graph is in release 1, and needs a lossless VPL syntax tree                                   |
 
-_(Q3 and Q6 have been decided; see the decision log.)_
+See the [decision log](decisions.md) for the reasoning behind each.

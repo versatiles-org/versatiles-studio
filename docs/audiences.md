@@ -35,8 +35,8 @@ GIS skills, rarely have permission to install a Node toolchain or push data to a
 **Brings.** Shapefiles, GeoPackages, GeoTIFFs, OSM extracts. A mandate to publish. A procurement
 process that hates subscriptions.
 
-**Needs.** GDAL-backed import (E3), DEM and raster processing (E4), `planetiler` orchestration
-(E5), export plus upload (F2, F3), the mandated corporate-design typeface (D9), and
+**Needs.** GDAL-backed import (E3), DEM and raster processing (E4), export plus upload (F2, F3),
+the mandated corporate-design typeface (D9), and
 reproducibility — the CLI command or CI snippet that lets them run the same thing on their own
 server (C7).
 

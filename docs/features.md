@@ -37,10 +37,10 @@ its value. Nothing on the market does B2 well.
 
 | ID     | Feature                                                                                                                                                                           | Audiences | Basis                                          |
 | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------- |
-| **B1** | Tile size heat map overlaid on the map per zoom level; p50/p95/max statistics; top-N largest tiles, clickable to navigate there                                                   | P3        | `probe -dd`                                    |
-| **B2** | **Byte breakdown per layer and per attribute** — "which layer, which property is eating your z14 tiles". The single most requested thing that no tool does well today             | P3        | `versatiles_geometry`                          |
+| **B1** | Tile size heat map overlaid on the map per zoom level; p50/p95/max statistics; top-N largest tiles, clickable to navigate there                                                   | P3        | `probe -dd`; index-only via `tile_size_stream` |
+| **B2** | **Byte breakdown per layer and per attribute** — "which layer, which property is eating your z14 tiles". The single most requested thing that no tool does well today             | P3        | **`tile_breakdown.rs` already does the per-layer half**; per-attribute is new ([Q12](decisions.md)) |
 | **B3** | Spec validation against MVT 2.1, versatiles-spec, TileJSON schema and the MapLibre style schema — with a **"repair" button** that generates and runs the `vector_repair` pipeline | P3        | `probe -ddd` already emits a `fix:` suggestion |
-| **B4** | Coverage map: which tiles actually exist versus what the bounding box claims — find holes                                                                                         | P3        | `probe -dd`                                    |
+| **B4** | Coverage map: which tiles actually exist versus what the bounding box claims — find holes                                                                                         | P3        | `probe -dd`; index-only via `tile_size_stream` |
 | **B5** | **Container diff**: compare two versions visually and statistically. A regression test for every rebuild                                                                          | P3        | new                                            |
 | **B6** | Compression comparison (gzip / brotli / zstd) and raster format comparison (png / webp / avif) with size and side-by-side visual difference                                       | P3        | `versatiles_image`, convert                    |
 | **B7** | Attribute statistics: value distribution per property — the basis for filtering and styling decisions                                                                             | P1, P5    | `versatiles_geometry`                          |
@@ -88,7 +88,7 @@ its value. Nothing on the market does B2 well.
 | **E2** | Import wizard for tabular point data: CSV with lon/lat columns                                                                                                       | P1        | `from_csv`                                     |
 | **E3** | GDAL path for GeoPackage, GeoTIFF and the rest                                                                                                                       | P2        | GDAL feature in versatiles-rs                  |
 | **E4** | DEM workflow: GeoTIFF → terrarium encoding, hillshade, quantisation                                                                                                  | P2        | `dem_*` operations                             |
-| **E5** | **Planetiler orchestration**: OSM PBF in, Shortbread tiles out, at the press of a button. Potentially the decisive feature for P2                                    | P2        | `planetiler` repo exists                       |
+| ~~E5~~ | ~~**Planetiler orchestration**: OSM PBF in, Shortbread tiles out~~ — **dropped**, needs Java 21+ plus ~1 GB of auxiliary downloads ([Q7](decisions.md))              | P2        | not pursued                                    |
 | **E6** | Table join: existing tiles + CSV → choropleth, attaching attributes to geometries                                                                                    | P1        | `versatiles-choro`, `vector_update_properties` |
 | **E7** | Job queue with progress, cancellation and a log. Long runs are the normal case here, not the exception                                                               | P2, P3    | new                                            |
 
@@ -99,7 +99,7 @@ its value. Nothing on the market does B2 well.
 | ID     | Feature                                                                                       | Audiences | Basis                                           |
 | ------ | --------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------- |
 | **F1** | Local server at the press of a button, plus a LAN URL and QR code for testing on a phone      | all       | `versatiles serve`                              |
-| **F2** | Crop by drawing a rectangle on the map plus a zoom range, then export to any supported format | all       | `convert --bbox`                                |
+| **F2** | Export to any supported container, optionally cropped — draw a rectangle on the map and pick a zoom range                     | all       | `convert --bbox/--min-zoom/--max-zoom` |
 | **F3** | Upload to SFTP, S3/R2, Google Cloud, GitHub Pages                                             | P2, P4    | SFTP exists; `node-versatiles-google-cloud`     |
 | **F4** | Export a complete static site with `versatiles-frontend` bundled                              | P4        | `versatiles-frontend`                           |
 | **F5** | Copy-paste embed snippet (HTML + JS)                                                          | P1, P4    | new                                             |
@@ -126,9 +126,11 @@ its value. Nothing on the market does B2 well.
 
 If we get one thing genuinely right, it should probably be one of these:
 
-1. **B2 — byte breakdown per layer and attribute.** Everyone who builds vector tiles has this
-   problem; nobody solves it well. Small scope, high recognition, immediately useful to us.
-2. **C1 + C3 — pipeline editing with live preview.** The most visually convincing feature, and the
-   one that makes "Studio" the right word for what this is.
+1. **C1 + C3 — pipeline editing with live preview.** The most visually convincing feature, and the
+   one that makes "Studio" the right word for what this is. **In release 1** per
+   [Q11](decisions.md).
+2. **B2 — byte breakdown per layer and attribute.** Everyone who builds vector tiles has this
+   problem; nobody solves it well. High recognition, and cheaper than it looks — the per-layer
+   measurement already exists upstream ([Q12](decisions.md)). Out of release 1, first in line after.
 3. **E1 → F5 — file to published map in five minutes, without a terminal.** The broadest appeal,
    and by far the most work.

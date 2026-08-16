@@ -34,7 +34,7 @@ raster     raster_overview, raster_flatten, raster_levels, raster_tile_resize,
 dem        dem_overview, dem_tile_resize, dem_quantize
 ```
 
-### Two findings that shape the architecture
+### Three findings that shape the architecture
 
 **1. Generated parameter forms (C2) are proven, not hypothetical.**
 
@@ -71,6 +71,39 @@ Two practical details:
 `probe -ddd` even emits a `fix:` line suggesting the correct `vector_repair` invocation. Turning
 that into a button (B3) is close to free, and it is a genuinely delightful feature.
 
+Three details worth knowing before planning cluster B:
+
+- **The byte breakdown (B2) already exists.** `versatiles/src/tools/tile_breakdown.rs` splits each
+  layer into geometry, tag references, property keys, property values, feature ids and a framing
+  residual, and `probe -ddd` aggregates it by zoom × layer. Only the **per-attribute** split is
+  missing. See [Q12](decisions.md).
+- **Sampling is built in.** `probe --sample PERCENT` reads a deterministic subset chosen as
+  contiguous 64×64 windows, sized so remote sources coalesce them into single range requests
+  (`tile_sampling.rs`). This is what makes analysis over a planet file bounded rather than
+  open-ended, and it is why [Q4](decisions.md) needs no persistence layer.
+- **Compute and rendering are entangled.** Every probe function takes `&mut PrettyPrint` and returns
+  `Result<()>`, so the results are formatted text, not data. Studio must aggregate over the level
+  below — `layer_stats()` and `validate_tile()` both return values. Splitting compute from render
+  upstream would give the CLI a `--json` probe as a side effect.
+
+**3. The VPL parser only runs one way.**
+
+This is the constraint that shapes cluster C, and it was mis-stated in earlier drafts. Text →
+structure is solved: `VPLPipeline` implements `FromStr`, and the nom parser handles quoting, arrays
+and nested sub-pipelines. Structure → text does not exist:
+
+| Needed for                       | Status                                                                            |
+| -------------------------------- | --------------------------------------------------------------------------------- |
+| Parse VPL (C4 input, C1 input)   | ✅ `FromStr` on `VPLPipeline`, `VPLNode::try_from_str`                            |
+| Write VPL back out (C1 output)   | ❌ no `Display`, no `to_string`, no serialiser — only `Debug`                     |
+| Preserve parameter order         | ❌ `properties` is a `BTreeMap`, so a round-trip sorts them alphabetically        |
+| Preserve `#` comments            | ❌ the parser matches and discards them                                           |
+| Error positions for editor marks | ❌ errors are rendered strings via nom's `convert_error`; no structured spans      |
+
+Since [Q11](decisions.md) puts the node graph in release 1, a **lossless syntax tree** — spans,
+comments, original ordering — is the first thing stage 2 has to build, ideally upstream in
+`versatiles_pipeline`.
+
 ## Frontend pieces
 
 | Repository                                                                                                  | What it gives us                                                                                                                                                                                                                                                  |
@@ -89,7 +122,7 @@ that into a button (B3) is close to free, and it is a genuinely delightful featu
 | [`versatiles-svg-renderer`](https://github.com/versatiles-org/versatiles-svg-renderer)                                                         | Renders vector maps as SVG. The path to print-quality still export (F6). Runs in the browser as well as in Node — it ships a UMD bundle and a `/maplibre` control subpath.                                                                                                                                                                                               |
 | [`versatiles-choro`](https://github.com/versatiles-org/versatiles-choro)                                                                       | Choropleth workflow aimed at newsrooms and data journalists — the same audience as P1, and directly relevant to E6. Under heavy development; API and formats will change.                                                                                                                                                                                                |
 | [`versatiles-spec`](https://github.com/versatiles-org/versatiles-spec)                                                                         | Container specification, currently v02. The reference for validation (B3).                                                                                                                                                                                                                                                                                               |
-| [`planetiler`](https://github.com/versatiles-org/planetiler), [`shortbread-tilemaker`](https://github.com/versatiles-org/shortbread-tilemaker) | OSM → vector tiles. Candidates for orchestration (E5) rather than reimplementation.                                                                                                                                                                                                                                                                                      |
+| [`planetiler`](https://github.com/versatiles-org/planetiler), [`shortbread-tilemaker`](https://github.com/versatiles-org/shortbread-tilemaker) | OSM → vector tiles. **Not orchestrated by Studio** — planetiler needs Java 21+ and ~1 GB of auxiliary downloads, tilemaker is a separate C++ binary; [Q7](decisions.md) drops E5. Studio opens and styles what they produce.                                                                                                                                                                                                                                                                                      |
 | [`node-versatiles-google-cloud`](https://github.com/versatiles-org/node-versatiles-google-cloud)                                               | Precedent for cloud upload (F3).                                                                                                                                                                                                                                                                                                                                         |
 | [`versatiles-documentation`](https://github.com/versatiles-org/versatiles-documentation)                                                       | Learning resources, and a showcase gallery of 76 known projects using VersaTiles — a ready-made list of potential Studio users to talk to.                                                                                                                                                                                                                               |
 
@@ -146,6 +179,7 @@ Worth naming explicitly, because this is the actual construction work:
 - The application shell and window/panel layout
 - Multi-source layer stack with comparison modes (A3)
 - Visual analysis surfaces: heat map, breakdown charts, diff view (B1, B2, B5)
+- A lossless VPL syntax tree — spans, comments, parameter order — and a serialiser on top of it
 - The node graph and its synchronisation with VPL text (C1)
 - Deep style editing beyond what the styler control does (D2, D3, D6, D7)
 - Import wizards with preview (E1–E3)
