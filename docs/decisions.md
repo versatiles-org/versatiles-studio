@@ -16,6 +16,31 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16.
 
+### Q17 — A3, the multi-source layer stack, is dropped
+
+Studio does not stack several containers in one view with opacity, swipe and split. Dropped rather
+than deferred: it is not on a later roadmap.
+
+**Why it stops mattering.** A3 was a stretch item, and [Q14](decisions.md) removed the sources strip
+from Explore, which left it with nowhere to live. Rather than invent a home for a stretch feature,
+drop it.
+
+**What replaces it, mostly.** [Q16](decisions.md) gives one window per project, so comparing two
+containers is two windows side by side. Not a swipe, but it is a real answer, it costs nothing to
+build, and it is the platform convention.
+
+**What still needs building anyway.** Comparison does not disappear with A3: **C3 is a release-1
+requirement and specifies before/after as a swipe.** So the map still needs a swipe/split control —
+it is just a preview affordance owned by Pipeline mode, not a property of a source stack. B5
+(container diff, post-1.0) will reuse the same control.
+
+**What we give up.** Looking at two unrelated containers overlaid in one map, with opacity. P3 is the
+audience that would have wanted it. If it is genuinely missed, it returns as a map control rather
+than as a panel.
+
+**Side effect worth having:** release 1 now needs at most two live `Map` instances per project, both
+inside C3's swipe. That keeps the WebGL budget from [Q16](decisions.md) comfortable.
+
 ### Q16 — One application instance, one window per project
 
 Not tabs, and not separate application instances. Three facts decide it.
@@ -29,8 +54,8 @@ beyond it while costing a second core.
 **WebGL contexts are capped per process.** Chrome and WebKit allow roughly **16 simultaneous WebGL
 contexts**, and on exceeding the cap the browser **silently discards the oldest**. Tauri uses
 WKWebView and WebKitGTK, so that is the ceiling that applies. MapLibre uses one context per `Map`,
-and Studio wants comparison views (A3 swipe and split, B5 diff, C3 before/after), so a project
-plausibly holds two or three live maps. Five projects in one webview is 10–15 contexts — at the cap,
+and Studio wants comparison views (C3 before/after, later B5 diff), so a project can hold two live
+maps. Five projects in one webview is 10–15 contexts — at the cap,
 where opening a fifth project blanks the map in the first, with no error we raised. Separate windows
 mean separate processes, and a fresh budget per project.
 
@@ -102,8 +127,8 @@ builds; Explore looks at the result, Style styles it, Publish ships it. A panel 
 by mode is a panel that reads as a bug.
 
 This makes Explore the widest mode — map and inspector only, no sources strip and no editor pane —
-and its identity becomes reading rather than working. It also leaves the multi-source layer stack
-(A3) without a home, which is now the open item in [ui.md](ui.md).
+and its identity becomes reading rather than working. It also left the multi-source layer stack (A3)
+without a home, which is why [Q17](decisions.md) drops it.
 
 ### Q15 — The pipeline pane tabs between graph and text
 

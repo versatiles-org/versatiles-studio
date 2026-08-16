@@ -228,7 +228,7 @@ showing an empty panel.
 Naming this early, because it is the part that is expensive to retrofit:
 
 - Map viewport — centre, zoom, bearing, pitch
-- The selected source, and any comparison state (swipe position, split ratio)
+- The selected source, and C3's swipe position if a before/after comparison is open
 - The pipeline's "look here" node (C3), so returning to Pipeline resumes where you were
 - The global undo stack (G6)
 - Running jobs and their logs
@@ -245,12 +245,13 @@ missing editor pane is now deliberate rather than an oversight, Style and Publis
 undefined panel, and Publish's empty inspector collapses. Publish also turns out to earn its slot —
 F2's crop is a direct-manipulation gesture on the map, not a button.
 
-Two things remain:
+The multi-source layer stack (A3) had nowhere left to live, so [Q17](decisions.md) drops it.
+Comparing two containers is two windows side by side, which [Q16](decisions.md) gives for free.
 
-- **Where the multi-source layer stack (A3) lives**, now that Explore has no sources strip. Two
-  candidates: express it as a pipeline (`from_stacked` and `from_merged_vector` already exist) so
-  Explore simply shows the result, or give the map a comparison control for swipe and split. The
-  first is more consistent with "the text is the source of truth"; the second matches what comparing
-  actually feels like. A3 is a stretch item, so this can wait — but not past the point where B5
-  (container diff) is planned, since it needs the same mechanism.
+One thing remains:
+
 - **Where project settings live**, since the inspector is reserved for selection properties.
+
+And one thing still has to be built despite A3 going: **C3 specifies before/after as a swipe**, so
+the map needs a swipe/split control regardless. It belongs to Pipeline mode as a preview affordance,
+and B5 will reuse it after release 1.

@@ -17,7 +17,7 @@ They span clusters A, D, E and C. Cluster B is out of scope ([Q2](decisions.md))
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Required**         | A1 (local: `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories), A2 (remote over HTTPS and SFTP), A6 (metadata and TileJSON), A8 (feature popup) |
 | **Strongly implied** | A5 (tile grid with z/x/y), A7 (recent files)                                                                                                            |
-| **Stretch**          | A3 (multi-source layer stack), A4 (raw MVT inspector)                                                                                                   |
+| **Stretch**          | A4 (raw MVT inspector)                                                                                                                                  |
 
 "Preview" only means something if vector tiles render legibly, so this silently pulls in the bundled
 asset tier from [Q9](decisions.md) — sprites plus Latin glyphs — and a default style to render
@@ -116,7 +116,8 @@ Cluster B in full, F3–F7 (upload, static site export, embed snippet, image exp
 and the stretch items above. Also **Windows builds** and **Apple Developer signing**, both deferred
 by [Q10](decisions.md).
 
-**Dropped rather than deferred:** E5 ([Q7](decisions.md)) — it is not on a later roadmap either.
+**Dropped rather than deferred:** E5 ([Q7](decisions.md)) and A3 ([Q17](decisions.md)). Neither is
+on a later roadmap.
 
 B1, B2 and B3 are cheaper than this document once assumed — per [Q12](decisions.md) the byte
 breakdown already exists upstream — and are the natural first additions once the commitments ship.

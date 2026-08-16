@@ -149,9 +149,9 @@ is 1 MB, which is what lets a small default ship inside the binary. B8 must then
 The actual construction work:
 
 - The application shell and window/panel layout
-- Multi-source layer stack with comparison modes (A3)
 - A lossless VPL syntax tree — spans, comments, parameter order — and a serialiser on top of it
 - The node graph and its synchronisation with VPL text (C1)
+- A map-level swipe/split comparison control, for C3's before/after (and later B5)
 - Deep style editing beyond what the styler control does (D2, D3, D6, D7)
 - Import wizards with preview (E1–E3)
 - Job queue and progress model (E7)
