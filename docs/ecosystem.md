@@ -36,12 +36,29 @@ dem        dem_overview, dem_tile_resize, dem_quantize
 
 ### Two findings that shape the architecture
 
-**1. `versatiles_pipeline/src/vpl/field_meta.rs` carries parameter metadata per operation.**
-This means the pipeline editor's parameter forms (C2) can be _generated_ rather than hand-written.
-Every new operation added to versatiles-rs then appears in Studio with a working UI at no cost.
-This is the difference between a pipeline editor that rots and one that stays current, and it
-should be treated as a load-bearing architectural assumption — worth verifying in depth before
-committing to it.
+**1. Generated parameter forms (C2) are proven, not hypothetical.**
+
+`versatiles_pipeline` exposes `all_operation_metadata() -> Vec<OperationMeta>`, and the structures
+carry everything a form generator needs:
+
+```rust
+struct OperationMeta { tag_name, kind /* "read" | "transform" */, doc, fields }
+struct VPLFieldMeta  { name, rust_type, is_required, is_sources, doc, enum_variants }
+```
+
+Field name, type, required flag, documentation for labels and tooltips, and enum variants for
+dropdowns. Better still, **the transformation already exists and ships**:
+`versatiles_node/src/codegen.rs` turns this metadata into TypeScript, mapping enum fields to
+string-literal unions, and exposes it as `generateVplTypescript()`. This was flagged earlier as a
+load-bearing assumption to verify — it is verified.
+
+Two practical details:
+
+- `all_operation_metadata()` sits behind `#[cfg(feature = "codegen")]`, so Studio must enable that
+  feature on the pipeline crate.
+- The metadata carries `is_required` but **no default values**. Generated forms will show empty
+  optional fields rather than pre-filled defaults. Either accept that, or extend `VPLFieldMeta`
+  upstream — a small change, and Studio is a good reason to make it.
 
 **2. `versatiles probe` is already an analysis engine.**
 

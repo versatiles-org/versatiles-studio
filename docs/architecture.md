@@ -37,6 +37,23 @@ This buys a great deal:
 Cost to watch: cache invalidation on every pipeline edit, and binding to a free port on loopback
 only, without tripping firewall prompts.
 
+## Three planes
+
+Settled by [Q3](decisions.md). The UI reaches the core three different ways, chosen by what is
+being moved.
+
+| Plane       | Carries                                                                          | Mechanism                            |
+| ----------- | -------------------------------------------------------------------------------- | ------------------------------------ |
+| **Control** | open a container, read metadata, list VPL operations, start a job, manage assets | Tauri IPC commands, typed end to end |
+| **Data**    | tiles, glyphs, sprites                                                           | the embedded HTTP server             |
+| **Events**  | job progress, warnings, log lines                                                | Tauri Channels                       |
+
+The split is not stylistic. Tauri serialises command return values as JSON and its own
+documentation warns this is slow for large payloads, which is precisely why tile bytes must not
+travel over IPC. Where a one-off binary blob is genuinely wanted — a raw tile for the MVT inspector
+(A4) — `tauri::ipc::Response` returns an array buffer without JSON, so we do not need an HTTP route
+for every such case.
+
 ## Layers
 
 **Tauri shell.** Native window, menus, file dialogs, drag & drop, file type associations,
@@ -56,6 +73,11 @@ JavaScript is bundled at build time and runs in the webview — no Node runtime 
 - _Asset manager_ — download, pin, verify and remove font families and sprite sets (G7), and
   generate glyph sets from the user's own fonts via `versatiles-glyphs-rs` (D9)
 - _Server manager_ — lifecycle of the embedded server, one instance per previewed pipeline node
+
+The core is a plain Rust library with no Tauri types in it. The `#[tauri::command]` functions are a
+thin binding over it, so the core can be driven by ordinary Rust tests with no Tauri runtime.
+`versatiles_node` is the proof that this shape works — it is the same idea with napi instead of
+IPC — and a useful reference for naming and granularity.
 
 **versatiles-rs.** Consumed as a library dependency, not shelled out to. Studio should be a
 first-class consumer of the crates, and pressure to improve their APIs is a welcome side effect.
@@ -84,10 +106,6 @@ the same path through the manifest, the asset manager and the server.
 ## Open architectural questions
 
 Detailed in [Open Decisions](decisions.md); summarised here.
-
-**Q3 — how the UI talks to the core.** Proposal: Tauri IPC for the control plane, the embedded
-HTTP server for the data plane. Sub-question is whether to keep a thin command interface underneath
-the IPC handlers so the core stays testable without a Tauri runtime.
 
 **Q4 — where analysis statistics live.** In-memory cache, sidecar file next to the container, or
 in the project file. Decides whether cluster B feels instant or sluggish.

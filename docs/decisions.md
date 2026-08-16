@@ -7,22 +7,6 @@ down with a date and a short rationale.
 
 ## Open questions
 
-### Q3 · How does the UI talk to the core?
-
-Reframed now that Q1 is settled: with Tauri fixed, IPC is a legitimate default rather than a
-lock-in risk.
-
-**Proposal — split the two planes:**
-
-- _Control plane_ (open a container, run analysis, edit a pipeline, start a job) → Tauri IPC
-  commands. Typed, no port to bind, no CORS, no authentication problem.
-- _Data plane_ (tiles, glyphs, sprites) → the embedded HTTP server. MapLibre stays completely
-  standard, and static assets are served straight from their archives.
-
-Open sub-question: this makes the core hard to drive from tests without a Tauri runtime. Do we
-care enough to keep a thin command interface that both an IPC handler and a test harness can call?
-(Probably yes, and it is cheap if decided now.)
-
 ### Q4 · Where do analysis statistics live?
 
 Scanning a large container is expensive and users will re-open the same files. On-demand with an
@@ -52,6 +36,39 @@ until the committed scope is complete?
 ---
 
 ## Decided
+
+### 2026-08-16 · Q3 — Three planes: IPC for control, HTTP for data, Channels for events
+
+| Plane       | Carries                                                                          | Mechanism                |
+| ----------- | -------------------------------------------------------------------------------- | ------------------------ |
+| **Control** | open a container, read metadata, list VPL operations, start a job, manage assets | Tauri IPC commands       |
+| **Data**    | tiles, glyphs, sprites                                                           | the embedded HTTP server |
+| **Events**  | job progress, warnings, log lines                                                | Tauri Channels           |
+
+**Why the split is forced, not stylistic.** Tauri serialises command return values as JSON, and the
+Tauri v2 documentation explicitly warns this is slow for large payloads. Tile bytes therefore must
+not travel over IPC. Channels are Tauri's own recommended mechanism for streaming, which is what
+the job runner (E7) needs. Where a single binary blob is genuinely wanted — a raw tile for the MVT
+inspector (A4) — `tauri::ipc::Response` returns an array buffer without JSON, so not every such
+case needs its own HTTP route.
+
+**The core sits below the commands.** The earlier sub-question was whether to keep a thin interface
+underneath the IPC handlers so the core stays testable without a Tauri runtime. Yes. The core is a
+plain Rust library containing no Tauri types; `#[tauri::command]` functions are a thin binding over
+it. `versatiles_node` already demonstrates the shape — the same core exposed through napi instead
+of IPC, with `TileServer` (`addTileSource`, `addStaticSource`, `start`, `stop`), `TileSource`
+(`getTile`, `tileJson`, `metadata`, `convertTo`) and a `Progress` class carrying `onProgress` and
+`onMessage`. That is close to Studio's control plane and event plane already, and it is worth
+mirroring for naming and granularity rather than inventing a second vocabulary.
+
+**Type safety across the boundary.** Use [`tauri-specta`](https://github.com/specta-rs/tauri-specta)
+to generate TypeScript types for commands and events from the Rust definitions. It supports Tauri
+v2 and covers events as well as commands. It is community-maintained, so the fallback is
+hand-written types — but hand-maintaining two copies of the command surface is exactly the kind of
+drift the generated-UI principle exists to avoid.
+
+**Consequence for the embedded server.** It is now load-bearing for the data plane rather than
+merely convenient, and its lifecycle is a core service (server manager). Bind to loopback only.
 
 ### 2026-08-16 · Q10 — Release 1 ships Linux packages and a Homebrew cask; signing comes later
 
