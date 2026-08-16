@@ -16,3 +16,12 @@ updates:
     groups:
       action:
         patterns: ['*']
+
+  # Without this, GitHub still raises Rust advisories but Dependabot never opens a PR for them.
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      cargo:
+        patterns: ['*']
