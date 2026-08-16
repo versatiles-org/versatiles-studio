@@ -105,16 +105,27 @@ Derived from that dependency, not from the numbering of the commitments.
 | **2** | VPL editing, inline errors, generated parameter forms, live preview                                  | **Commitment 4**     |
 | **3** | Import wizards on top of the pipeline layer, job queue, container export                             | **Commitment 3**     |
 | **4** | Asset manager, style editing against the user's own layers, export                                   | **Commitment 2**     |
-| **5** | Project file (G1), code signing and notarisation (G3), auto-update (G4)                              | shippability         |
+| **5** | Project file (G1), Linux packaging and Homebrew cask (G3), auto-update (G4)                          | shippability         |
 
-Commitment 2 comes last because D2 wants tiles to style, and those come from commitment 3. Note
-that stage 5 is not polish — without G3 the application cannot be distributed at all, and it has a
-long lead time. It should be started in parallel, early.
+Commitment 2 comes last because D2 wants tiles to style, and those come from commitment 3.
+
+Stage 5 is not polish — without a distribution path the application does not reach anyone. Per
+[Q10](decisions.md), release 1 ships **Linux packages and a Homebrew cask**; Windows and Apple
+notarisation are deferred. That removes the long procurement lead time from the critical path, at
+the price of a one-time Gatekeeper approval that macOS users must click through. The install
+instructions have to cover that in plain language — treat it as part of stage 5, not as an
+afterthought.
+
+Ad-hoc signing on macOS still has to be configured: on Apple Silicon a binary needs at least an
+ad-hoc signature to run at all.
 
 ## Explicitly out of release 1
 
 Cluster B in full (analysis, including B2), E5 (planetiler), F3–F7 (upload, static site export,
 embed snippet, image export, offline package), G6 (undo/redo), and the stretch items listed above.
+
+Also out: **Windows builds** and **Apple Developer signing and notarisation**. Both are deferred to
+a later release by [Q10](decisions.md).
 
 B1 and B3 stay worth remembering: both are close to free by-products of `probe`, and they are the
 natural first additions once the committed scope is delivered.

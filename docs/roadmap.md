@@ -14,25 +14,32 @@ entirely. See [Q2](decisions.md) for the decision and the evidence behind it.
 
 | Stage | Contents                                                                                             | Delivers                                     |
 | ----- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for three platforms | foundation                                   |
+| **0** | Tauri shell, embedded server, IPC boundary, bundled sprites and Latin glyphs, CI for Linux and macOS | foundation                                   |
 | **1** | Cluster A plus a default render style                                                                | Open and preview all supported formats       |
 | **2** | VPL editing, inline errors, generated parameter forms, live preview                                  | Edit VPL and instantly see the result        |
 | **3** | Import wizards on the pipeline layer, job queue, container export                                    | Convert image and vector data into map tiles |
 | **4** | Asset manager, style editing against the user's own layers, export                                   | Create your own map style                    |
-| **5** | Project file, code signing and notarisation, auto-update                                             | shippability                                 |
+| **5** | Project file, Linux packaging and Homebrew cask, auto-update                                         | shippability                                 |
 
 Two things worth repeating from the scope document, because they drive the whole plan:
 
 - **Commitments 3 and 4 share one engine.** The import wizards are guided front-ends onto
   `from_geo`, `from_csv` and GDAL — the same pipeline layer the VPL editor drives. Build the
   pipeline first and the wizards become a form on top of it, with their preview already solved.
-- **G3 is not polish.** Without code signing and notarisation the application cannot be
-  distributed at all, and it has a long lead time. Start it in parallel, early.
+- **Release 1 is Linux plus a Homebrew cask** ([Q10](decisions.md)). Windows and Apple notarisation
+  are deferred, which keeps certificate procurement off the critical path. The cost is a Gatekeeper
+  approval that macOS users have to click through once, so the install instructions are part of the
+  deliverable.
 
 ## Immediately after release 1
 
 The cheapest valuable additions, in the order we would take them:
 
+- **Apple Developer signing and notarisation** — removes the Gatekeeper dialog that release 1
+  leaves in place, and opens the door to submitting to the official `homebrew-cask` repository
+  rather than only our own tap. $99/year; the lead time is account approval, not the money.
+- **Windows builds and a certificate** — OV, EV, or Azure Artifact Signing. See
+  [Q10](decisions.md); get quotes before committing.
 - **B1, B3** — tile size statistics and spec validation with a repair button. Both are close to
   free by-products of `probe`, and B3 turns a `fix:` line that already exists into a button.
 - **B2** — byte breakdown per layer and attribute. The feature catalogue's strongest

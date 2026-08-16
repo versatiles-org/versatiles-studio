@@ -53,6 +53,40 @@ until the committed scope is complete?
 
 ## Decided
 
+### 2026-08-16 · Q10 — Release 1 ships Linux packages and a Homebrew cask; signing comes later
+
+Release 1 targets **Linux** and **macOS via a Homebrew cask**. Windows and a paid Apple Developer
+identity are deferred to a later release. This buys an early release for the price of some macOS
+friction, and defers both recurring costs and the long procurement lead times.
+
+**Linux.** No signing required. Ship the Tauri outputs from GitHub releases. Note the caveat that a
+`.deb` built against one WebKitGTK version may not install across distribution releases, so an
+AppImage alongside it is the pragmatic way to actually cover "Ubuntu, Debian, …".
+
+**macOS via our own tap.** Feasible, with two things to design around:
+
+- Homebrew's cask signing audit is **skipped for third-party taps** — `audit.rb` returns early
+  unless the tap is official. So an unsigned cask in `versatiles-org/homebrew-versatiles` will not
+  be rejected. Submitting to the official `homebrew-cask` repository would be a different matter,
+  and should wait until we notarise.
+- Homebrew still **applies quarantine**, and as of Homebrew 6.0.15 there is **no `--no-quarantine`
+  flag and no environment variable to opt out** — the historical escape hatch is gone. macOS users
+  will therefore have to approve the app once under System Settings → Privacy & Security, or strip
+  the attribute by hand with `xattr -d com.apple.quarantine`.
+- Tauri's ad-hoc "pseudo-identity" signing must still be configured. On Apple Silicon a binary
+  needs at least an ad-hoc signature to execute at all — this is not optional even without a
+  Developer ID.
+
+**Consequences to accept and document.** macOS users in release 1 meet a security dialog before
+their first launch, and the install instructions have to walk them through it in plain language.
+That friction lands hardest on P1, the journalism audience the funded scope targets, who skew
+towards Macs — so this is the main cost of the decision, not the packaging work.
+
+**Revisit after release 1:** the Apple Developer account ($99/year, where the lead time is account
+approval rather than the money), and the Windows certificate route — OV, EV, or Azure Artifact
+Signing. Get real quotes before budgeting Windows; the Tauri docs give none, and certificates
+issued after 1 June 2023 need hardware-token or HSM key storage, which complicates CI.
+
 ### 2026-08-16 · Q2 — Scope of release 1 is set by the funding commitment
 
 Q2 asked whether to build for the analysis audience or the creation audience first. It is moot:
