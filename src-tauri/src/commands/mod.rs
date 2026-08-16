@@ -4,6 +4,7 @@
 //! over the embedded server's HTTP, because Tauri serialises command returns as JSON and its own
 //! docs warn that is slow for large payloads (Q3).
 
+pub mod bookmarks;
 pub mod sources;
 
 use crate::{events::channel_sink, state::AppState};

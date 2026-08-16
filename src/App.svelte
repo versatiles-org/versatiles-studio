@@ -108,7 +108,7 @@
 	{/snippet}
 	{#snippet rightPane()}
 		{#if !empty}
-			<Inspector {containers} onOpen={pick} onOpenUrl={(url) => void load(url)} />
+			<Inspector {containers} {map} onOpen={pick} onOpenUrl={(url) => void load(url)} />
 		{/if}
 	{/snippet}
 	{#snippet commandBar()}

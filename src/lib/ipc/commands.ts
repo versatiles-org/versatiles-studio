@@ -55,7 +55,7 @@ export function openContainer(source: string): Promise<OpenedContainer> {
 	return invoke<OpenedContainer>('open_container', { source });
 }
 
-/** Mirrors `studio_core::project::RecentEntry`. */
+/** Mirrors `studio_core::store::RecentEntry`. */
 export interface RecentEntry {
 	source: string;
 	/** Seconds since the Unix epoch. */
@@ -91,4 +91,29 @@ export interface TileInspection {
 /** Decodes one tile, layer by layer (A4). Null when the tile is absent. */
 export function inspectTile(source: string, z: number, x: number, y: number): Promise<TileInspection | null> {
 	return invoke<TileInspection | null>('inspect_tile', { source, z, x, y });
+}
+
+/** Mirrors `studio_core::store::Bookmark`. */
+export interface Bookmark {
+	name: string;
+	source: string | null;
+	lng: number;
+	lat: number;
+	zoom: number;
+	bearing: number;
+	pitch: number;
+	createdAt: number;
+}
+
+/** Named view bookmarks, application-wide (A7). */
+export function listBookmarks(): Promise<Bookmark[]> {
+	return invoke<Bookmark[]>('list_bookmarks');
+}
+
+export function saveBookmark(bookmark: Bookmark): Promise<void> {
+	return invoke<void>('save_bookmark', { bookmark });
+}
+
+export function deleteBookmark(name: string): Promise<boolean> {
+	return invoke<boolean>('delete_bookmark', { name });
 }

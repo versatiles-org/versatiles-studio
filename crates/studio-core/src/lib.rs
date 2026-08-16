@@ -10,4 +10,5 @@ pub mod assets;
 pub mod jobs;
 pub mod project;
 pub mod server;
+pub mod store;
 pub mod vpl;

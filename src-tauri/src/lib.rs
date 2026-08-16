@@ -10,8 +10,11 @@ mod events;
 mod state;
 mod windows;
 
-use state::AppState;
-use studio_core::{project::Recents, server::ServerManager};
+use state::{AppState, StorePaths};
+use studio_core::{
+	server::ServerManager,
+	store::{Bookmarks, Recents},
+};
 use tokio::sync::Mutex;
 
 /// One window per project; the landing screen is what an empty window shows (Q13, Q16).
@@ -26,21 +29,37 @@ pub fn run() {
 			// Sprites and Latin glyphs, mounted straight from their archives (Q9). Without them a
 			// vector map renders but is illegible, so this is part of the shell, not a feature.
 			tauri::async_runtime::block_on(assets::mount_bundled(app.handle(), &mut server))?;
-			// Recents live beside the app's configuration, not inside any project — they are
-			// application state (Q16), and they must survive a window reload.
-			let recents_path = tauri::Manager::path(app)
-				.app_config_dir()
-				.map(|dir| dir.join("recents.json"))
-				.unwrap_or_else(|_| std::path::PathBuf::from("recents.json"));
+			// App-wide state lives beside the application's *data*, not its configuration, and not
+			// inside any project (Q21). It must survive a window reload (Q16).
+			let data_dir = tauri::Manager::path(app)
+				.app_data_dir()
+				.unwrap_or_else(|_| std::path::PathBuf::from("."));
+			let paths = StorePaths {
+				recents: data_dir.join("recents.json"),
+				bookmarks: data_dir.join("bookmarks.json"),
+			};
+
+			// Recents reset silently when unreadable; bookmarks do not, because they are the user's
+			// own work. A broken bookmarks file is surfaced and left untouched rather than replaced.
+			let recents = Recents::load(&paths.recents);
+			let bookmarks = match Bookmarks::load(&paths.bookmarks) {
+				Ok(loaded) => loaded,
+				Err(error) => {
+					eprintln!("bookmarks could not be read and were left alone: {error:#}");
+					Bookmarks::default()
+				}
+			};
 
 			tauri::Manager::manage(
 				app,
 				AppState {
 					server: Mutex::new(server),
-					recents: Mutex::new(Recents::load(&recents_path)),
-					recents_path,
+					recents: Mutex::new(recents),
+					bookmarks: Mutex::new(bookmarks),
+					paths,
 				},
 			);
+
 			windows::open_extra_from_env(app.handle())?;
 			Ok(())
 		})
@@ -52,7 +71,10 @@ pub fn run() {
 			commands::sources::open_container,
 			commands::sources::recent_sources,
 			commands::sources::forget_recent,
-			commands::sources::inspect_tile
+			commands::sources::inspect_tile,
+			commands::bookmarks::list_bookmarks,
+			commands::bookmarks::save_bookmark,
+			commands::bookmarks::delete_bookmark
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running VersaTiles Studio");

@@ -1,13 +1,21 @@
 <script lang="ts">
+	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import type { ContainerInfo } from '../../ipc/commands';
 	import JsonTree from '../common/JsonTree.svelte';
+	import Bookmarks from './Bookmarks.svelte';
 
 	// A6 — the right pane shows the parameters of what you are working on, never global settings.
 	let {
 		containers,
 		onOpen,
-		onOpenUrl
-	}: { containers: ContainerInfo[]; onOpen: () => void; onOpenUrl: (url: string) => void } = $props();
+		onOpenUrl,
+		map
+	}: {
+		containers: ContainerInfo[];
+		onOpen: () => void;
+		onOpenUrl: (url: string) => void;
+		map: MaplibreMap | undefined;
+	} = $props();
 
 	let url = $state('');
 
@@ -67,6 +75,8 @@
 			</details>
 		</section>
 	{/each}
+
+	<Bookmarks {map} source={containers.at(-1)?.source ?? null} />
 </div>
 
 <style>
