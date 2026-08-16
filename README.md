@@ -28,6 +28,18 @@ procurement off the critical path ([Q10](docs/decisions.md)).
 
 See [Release 1 Scope](docs/scope-release-1.md) for the feature mapping and the work-item breakdown.
 
+## Building
+
+```sh
+npm install
+npm run assets:fetch   # bundled sprites and glyphs — gitignored, so fetch them first
+npm run tauri dev
+```
+
+`assets:fetch` is not optional: the bundled tier is generated from pinned versions rather than
+committed, and a Tauri build fails with `resource path ... doesn't exist` without it. Run it again
+after any `git clean`.
+
 ## Planning documents
 
 | Document                                   | Contents                                                   |
