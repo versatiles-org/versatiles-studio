@@ -61,9 +61,10 @@ written from scratch rather than imported from `@versatiles/svelte` ([Q18](decis
 **Studio core (Rust).** The part worth designing carefully:
 
 - _Project model_ — sources, pipeline, style, views; a directory with a `project.yaml` manifest
-  beside real `.vpl` and `style.json` files (G1, [Q6](decisions.md)). Also holds the recent-sources
-  list (A7), which is _application_ state rather than project state and persists beside the app's
-  configuration — the core owns the list, the platform layer decides where it lives
+  beside real `.vpl` and `style.json` files (G1, [Q6](decisions.md))
+- _App store_ — recent sources and view bookmarks (A7). Application state, not project state, so it
+  lives beside the app's data in two JSON files with different recovery policies
+  ([Q21](decisions.md)). The core owns the lists; the platform layer decides where they live
 - _VPL document model_ — a lossless syntax tree over the pipeline text, keeping spans, comments and
   parameter order, so the node graph (C1) and inline errors (C4) address the real file
   ([Q11](decisions.md))

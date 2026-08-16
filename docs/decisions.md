@@ -16,6 +16,44 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16.
 
+### Q21 — Recents and bookmarks are application state in two JSON files, not project state
+
+A7 said view bookmarks are "stored in the project". They are not. Both bookmarks and the
+recent-sources list live **beside the application's data**, in `app_data_dir()`:
+
+```text
+recents.json     disposable, churns on every open
+bookmarks.json   user-created, precious
+```
+
+**Why not SQLite**, even though it costs nothing — `rusqlite` is already linked via the mbtiles
+reader. Its advantages are concurrency, partial updates and queries over large sets, and none apply:
+[Q16](decisions.md) guarantees a single application instance, so there is one writer; the data is a
+dozen recents and some named views; there is nothing to query. What it would add is a schema and
+migrations, for state whose shape will change often. A JSON file the user can read, grep, back up
+and move also honours "nothing only exists inside Studio" in a way an opaque database does not.
+
+**Two files, because their recovery policies differ.** A corrupt `recents.json` resets silently —
+losing a most-recently-used list costs nothing, and refusing to start over it costs everything. A
+corrupt `bookmarks.json` is an **error**, surfaced and with the file left untouched: silently
+replacing user-created data with an empty list is data loss wearing the costume of a clean start.
+One file could not hold both policies.
+
+**Writes are atomic** — temp file, fsync, rename — which is the durability SQLite would have given
+us, in about ten lines and with no schema.
+
+**`app_data_dir()`, not `app_config_dir()`.** These are user data, not configuration. Invisible on
+macOS, where both are Application Support; on Linux it is `~/.local/share` versus `~/.config`.
+
+**What we give up.** Bookmarks no longer travel when a project folder is shared, which is the
+portability [Q6](decisions.md) and G1 argue for. Accepted: there is no project file until S5.1, and a
+bookmark is a place worth returning to whether or not a project exists. If project-scoped bookmarks
+are wanted later they can coexist — app-wide for containers opened outside any project, project-
+scoped for those inside one.
+
+**Revisit** if this store grows to hold [Q4](decisions.md)'s content-addressed analysis cache, or if
+multiple application instances ever become possible. Either would make files the wrong choice.
+
 ### Q20 — GDAL is raster-only in release 1; GeoPackage is not supported
 
 Checking `from_gdal` found only `raster` and `dem` submodules, and the operation is

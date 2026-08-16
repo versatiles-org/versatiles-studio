@@ -36,7 +36,7 @@ The foundation. Everything else renders into this surface.
 | **A4** | `1 stretch` | **Raw MVT inspector**: layers → features → properties as a tree, with byte sizes and geometry preview       | `versatiles_geometry`, `probe -ddd` |
 | **A5** | `1`         | Tile grid overlay showing z/x/y, with a jump-to-coordinate box                                              | new                                 |
 | **A6** | `1`         | View and **edit** container metadata and TileJSON                                                           | `meta_update`                       |
-| **A7** | `1`         | Recent files, and named view bookmarks stored in the project                                                | new                                 |
+| **A7** | `1`         | Recent files and named view bookmarks, stored application-wide ([Q21](decisions.md))                        | new                                 |
 | **A8** | `1`         | Feature popup showing all attributes of the feature under the cursor                                        | MapLibre                            |
 
 ---
