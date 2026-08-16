@@ -13,72 +13,61 @@ They span clusters A, D, E and C. Cluster B is out of scope ([Q2](decisions.md))
 
 ## M1 · Open and preview all supported formats
 
-|                      | Features                                                                                                                                                |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Required**         | A1 (local: `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories), A2 (remote over HTTPS and SFTP), A6 (metadata and TileJSON), A8 (feature popup) |
-| **Strongly implied** | A5 (tile grid with z/x/y), A7 (recent files)                                                                                                            |
-| **Stretch**          | A4 (raw MVT inspector)                                                                                                                                  |
+**Required** A1 (local: `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories), A2 (remote over
+HTTPS and SFTP), A6 (metadata and TileJSON), A8 (feature popup) · **strongly implied** A5, A7 ·
+**stretch** A4.
 
-"Preview" only means something if vector tiles render legibly, so this silently pulls in the bundled
-asset tier from [Q9](decisions.md) — sprites plus Latin glyphs — and a default style to render
-against. Raster preview too, not just vector.
+"Preview" only means something if vector tiles render legibly, so this pulls in the bundled asset
+tier from [Q9](decisions.md) — sprites plus Latin glyphs — and a default style to render against.
+Raster preview too, not just vector.
 
 **Settled:** "all supported formats" includes remote sources. `versatiles_container` supports HTTPS
 and SFTP with byte ranges, so excluding them would arbitrarily narrow the word "all".
 
 ## M2 · Create your own map style
 
-|              | Features                                                                                                                                                                                                              |
-| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Required** | D1 (presets and global recolouring), D2 (derive a style from the layers actually present), D3 (layer tree with filter/zoom/paint editing), D8 (export), G7 (asset manager — styling is what makes a user want a font) |
-| **Stretch**  | D5 (dark variant), D6 (accessibility checks), D9 (glyph generation from own fonts)                                                                                                                                    |
-| **Out**      | D4 sprite authoring, D7 legend generator                                                                                                                                                                              |
+**Required** D1 (presets and recolouring), D2 (derive a style from the layers actually present), D3
+(layer tree with filter/zoom/paint editing), D8 (export), G7 (asset manager — styling is what makes
+a user want a font) · **stretch** D5, D6, D9 · **out** D4, D7.
 
-D2 is load-bearing and the hardest. "Your own map style" for a tile set the user made themselves
-means the editor cannot assume Shortbread layers — it has to read what is in the container, which is
-the same introspection as A4. D1 and D8 are largely embedding `maplibre-versatiles-styler`; D3 is
-new construction.
+D2 is load-bearing and the hardest: for a tile set the user made themselves the editor cannot assume
+Shortbread layers, so it has to read what is in the container — the same introspection as A4. D1 and
+D8 are largely embedding `maplibre-versatiles-styler`; D3 is new construction.
 
 **Settled:** "create" means start from a preset, recolour, edit layers, export — not authoring from
 an empty document, which is a cartographer's tool (P5) and a far larger surface.
 
 ## M3 · Convert image and vector data into map tiles
 
-|                      | Features                                                                                                                                                                 |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Required**         | E1 (GeoJSON, NDJSON, shapefile), E2 (CSV with lon/lat), E3 (GDAL path — the "image data" half), E7 (job queue with progress and cancellation), F2 (write the result out) |
-| **Strongly implied** | C6 (cost estimate before a long run)                                                                                                                                     |
-| **Stretch**          | E4 (DEM encoding and hillshade), E6 (table join for choropleths)                                                                                                         |
-| **Out**              | E5 — dropped outright, not deferred ([Q7](decisions.md))                                                                                                                 |
+**Required** E1 (GeoJSON, NDJSON, shapefile), E2 (CSV with lon/lat), E3 (GDAL — the "image data"
+half), E7 (job queue), F2 (write the result out) · **strongly implied** C6 · **stretch** E4, E6 ·
+**out** E5, dropped outright ([Q7](decisions.md)).
 
 E7 is not optional. Conversions run for minutes to hours; without progress and cancellation the
 first long run makes the app look broken.
 
 ## M4 · Edit VPL and instantly see the result
 
-|              | Features                                                                                                                                                    |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Required** | C1 (bidirectional node graph ⟷ VPL text), C3 (live preview — the "instantly" half), C4 (inline parse and validation errors), C2 (generated parameter forms) |
-| **Stretch**  | C5 (recipe library), C8 (watch mode)                                                                                                                        |
+**Required** C1 (bidirectional node graph ⟷ VPL text), C2 (generated parameter forms), C3 (live
+preview — the "instantly" half), C4 (inline errors) · **stretch** C5, C8.
 
 **Settled ([Q11](decisions.md)):** this means node graph _plus_ text editor. C1 is a deliverable.
 
-**It is the most expensive single item in release 1**, and not for the reason the catalogue
-suggests. Parsing VPL is solved; writing it back is not — no serialiser, a `BTreeMap` that reorders
-parameters, and a parser that discards comments
-([details](ecosystem.md#3-the-vpl-parser-only-runs-one-way)). So the graph must edit text through
-span-based edits over a lossless syntax tree. C4 needs the same work, since parse errors currently
-come back as rendered strings with no positions.
+**It is the most expensive single item in release 1**, and not for the reason the catalogue suggests.
+Parsing VPL is solved; writing it back is not — no serialiser, a `BTreeMap` that reorders parameters,
+a parser that discards comments ([details](ecosystem.md#3-the-vpl-parser-only-runs-one-way)). So the
+graph must edit text through span-based edits over a lossless syntax tree, and C4 needs the same work
+since parse errors come back as strings with no positions.
 
 ---
 
 ## The dependency that saves the most work
 
-**M3 and M4 share one engine.** E1, E2 and E3 are the `from_geo`, `from_csv` and GDAL
-operations of the pipeline; the import wizard is a guided front-end onto a VPL pipeline the user
-could equally well have typed. Building the pipeline layer first means the wizard's preview _is_
-C3's preview, every wizard gets a "show me the VPL" escape hatch (G2, satisfying C7), and fixing the
-pipeline fixes the wizard. Building them separately means writing the conversion plumbing twice.
+**M3 and M4 share one engine.** E1, E2 and E3 are the `from_geo`, `from_csv` and GDAL operations of
+the pipeline, so the import wizard is a guided front-end onto a VPL pipeline the user could have
+typed. Build the pipeline layer first and the wizard's preview _is_ C3's preview, every wizard gets a
+"show me the VPL" escape hatch (G2, satisfying C7), and fixing the pipeline fixes the wizard.
+Building them separately means writing the conversion plumbing twice.
 
 ## Stage order
 
@@ -214,20 +203,11 @@ Delivers no milestone, and without it none of them reaches anyone.
 is no opt-out, so every macOS user meets a security dialog before first launch — and that lands
 hardest on P1.
 
-**Stage 2 is the long pole.** The syntax tree has to exist before the graph can edit anything, so
-start it during stage 1 — ideally as an upstream contribution, so review overlaps with cluster A
-rather than following it.
+**Undo/redo is in S2, not after release 1.** A graph invites experimentation, and this is the cheap
+moment: S2 already routes every interaction through a small set of text edits, and that edit list is
+the command stack. Retrofitting means finding every mutation path afterwards.
 
-**Undo/redo (G6) is in stage 2, not after release 1.** A node graph invites experimentation, and
-this is the cheap moment: stage 2 already routes every interaction through a small set of text
-edits, and that edit list is the command stack. Retrofitting undo means finding every mutation path
-afterwards. Since G6 covers pipeline _and_ style edits, stage 2 delivers the stack plus pipeline
-undo, and stage 4 must put style edits on the same stack rather than inventing a second one.
-
-**Stage 5 is not polish** — without a distribution path the application reaches nobody. Per
-[Q10](decisions.md) release 1 ships Linux packages and a Homebrew cask; the price is a one-time
-Gatekeeper approval on macOS, so plain-language install instructions are part of the deliverable.
-Ad-hoc signing still has to be configured — on Apple Silicon a binary needs it to run at all.
+**S5 is not polish** — without a distribution path the application reaches nobody.
 
 ## Explicitly out of release 1
 

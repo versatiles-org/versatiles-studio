@@ -18,53 +18,22 @@ All dated 2026-08-16.
 
 ### Q17 — A3, the multi-source layer stack, is dropped
 
-Studio does not stack several containers in one view with opacity, swipe and split. Dropped rather
-than deferred: it is not on a later roadmap.
+No stacking several containers in one view with opacity, swipe and split. Dropped, not deferred.
 
-**Why it stops mattering.** A3 was a stretch item, and [Q14](decisions.md) removed the sources strip
-from Explore, which left it with nowhere to live. Rather than invent a home for a stretch feature,
-drop it.
+[Q14](decisions.md) removed the sources strip from Explore, leaving A3 — a stretch item — with
+nowhere to live. [Q16](decisions.md) mostly replaces it: one window per project means comparing two
+containers is two windows side by side. Not a swipe, but free and the platform convention.
 
-**What replaces it, mostly.** [Q16](decisions.md) gives one window per project, so comparing two
-containers is two windows side by side. Not a swipe, but it is a real answer, it costs nothing to
-build, and it is the platform convention.
+**Release 1 therefore has no comparison view at all.** C3 is not one — it shows the selected node's
+output on one map. **B5 (container diff) is the first feature needing two, and it is post-1.0**, so a
+swipe/split control can be designed then. Release 1 needs exactly one live `Map` per project.
 
-**Release 1 therefore has no comparison view at all.** C3 is not one — it renders the selected node's
-output on the map so intermediate pipeline results are visible, and that is a single map showing one
-thing at a time. The first feature that genuinely needs two maps side by side is **B5 (container
-diff), which is post-1.0**. So no swipe or split control is needed for release 1, and the question of
-where such a control lives can be answered when B5 is planned.
-
-**What we give up.** Looking at two unrelated containers overlaid in one map, with opacity. P3 is the
-audience that would have wanted it. If it is genuinely missed, it returns as a map control rather
-than as a panel.
-
-**Side effect:** release 1 needs exactly **one live `Map` instance per project**.
+**Given up:** two unrelated containers overlaid with opacity. P3 would have wanted it; if genuinely
+missed it returns as a map control, not a panel.
 
 ### Q16 — One application instance, one window per project
 
-Not tabs, and not separate application instances. Three facts decide it.
-
-**Tauri already gives us process isolation.** In Tauri v2 every webview is a separate OS process, and
-the docs name fault isolation as the point — a crash in one is meant not to take the system down, and
-the core process can restart one that enters an invalid state. A window per project therefore buys
-isolation we would otherwise have to engineer, and a second _application_ instance buys nothing
-beyond it while costing a second core.
-
-**WebGL contexts are capped per process — but this argument is weaker than it first looked.** Chrome
-and WebKit allow roughly **16 simultaneous WebGL contexts**, and on exceeding the cap the browser
-**silently discards the oldest**; Tauri uses WKWebView and WebKitGTK, so that is the ceiling. MapLibre
-uses one context per `Map`. The original reasoning assumed two or three maps per project from
-comparison views, which put five projects near the cap — but [Q17](decisions.md) dropped A3 and C3
-turns out not to be a comparison view, so **release 1 needs one map per project**. Even ten projects
-sit comfortably under 16, and B5 post-1.0 only takes it to two per project.
-
-So treat this as **headroom, not a decider**. Separate processes still mean a separate budget per
-project, which is worth having for free — but the decision rests on isolation and the single core
-below, not on context exhaustion.
-
-**The server does not need duplicating.** `TileServer::add_tile_source` and `remove_tile_source`
-work on a running server, and the config mounts many named sources at once.
+Not tabs, not separate application instances.
 
 |                    | App instance           | **Window**                       | Tab              |
 | ------------------ | ---------------------- | -------------------------------- | ---------------- |
@@ -76,82 +45,73 @@ work on a running server, and the config mounts many named sources at once.
 | Job queue (E7)     | fragmented             | **unified**                      | unified          |
 | macOS conventions  | wrong                  | **⌘N, Window menu, full screen** | non-native       |
 
+**Tauri already gives us the isolation.** Every webview is a separate OS process and the docs name
+fault isolation as the point, with the core able to restart one that goes invalid. So a window per
+project buys isolation we would otherwise engineer, and a second application instance buys nothing
+beyond it while costing a second core.
+
+**WebGL is headroom, not a decider.** Chrome and WebKit allow ~16 contexts and silently discard the
+oldest past that. The original argument assumed two or three maps per project; after
+[Q17](decisions.md) it is one, so even ten projects sit under the cap. Separate budgets are worth
+having for free, but the decision rests on isolation and the single core.
+
+**The server does not need duplicating.** `add_tile_source` / `remove_tile_source` work on a running
+server, and the config mounts many named sources at once.
+
 **Consequences.**
 
-- **One embedded server for the whole application**, with mounts named per project and per preview
-  node — not one server per project or per node. This corrects [Architecture](architecture.md).
-- **Nothing may live only in the webview.** A webview crash is then recoverable by reloading that one
-  window, because the core still holds the project, pipeline, jobs and server. Map viewport, selected
-  node, active mode and scroll position must all be restorable from the core. Promoted to an
-  architectural principle.
-- **Destroy `Map` instances that are not visible**, rather than hiding them. Not pressing in
-  release 1 at one map per project, but the ceiling fails by discarding the context you looked at
-  _first_, so the habit is worth establishing before B5 adds a second map.
-- **The landing screen is what an empty window shows** ([Q13](decisions.md)). Opening a project fills
-  that window; ⌘N opens another empty one. No separate launcher window.
-- **Measure the per-webview baseline at stage 0.** Several webview processes cost real memory and we
-  have no trustworthy figure for our bundle. If it turns out prohibitive, the fallback is tabs plus
-  aggressive `Map` disposal — worse isolation, same correctness.
-
-**MapLibre's own recovery is imperfect**, which is why the reload path matters more than prevention:
-context loss before style load throws (maplibre-gl-js #7022), and events can fire after `Map#remove`
-(#726).
+- **One embedded server for the whole application**, mounts named per project and per preview node —
+  correcting [Architecture](architecture.md).
+- **Nothing may live only in the webview**, so a crash is recoverable by reloading that one window.
+  Promoted to an architectural principle. MapLibre's own recovery is imperfect — context loss before
+  style load throws (maplibre-gl-js #7022), events fire after `Map#remove` (#726) — which is why the
+  reload path matters more than prevention.
+- **Destroy `Map` instances that are not visible.** Not pressing at one map per project, but the
+  ceiling discards the context you looked at _first_, so establish the habit before B5.
+- **The landing screen is what an empty window shows** ([Q13](decisions.md)); ⌘N opens another.
+- **Measure the per-webview baseline at S0.8.** No trustworthy figure exists for our bundle. If it is
+  prohibitive the fallback is tabs plus aggressive `Map` disposal — worse isolation, same
+  correctness.
 
 ### Q13 — Studio is a workbench. New projects start from a landing screen
 
-The workbench-versus-P1 tension resolves in favour of the workbench. `vision.md` stands unamended:
-Studio makes the concepts visible rather than hiding them, and P1 is expected to cope. There is no
-separate guided mode.
+The workbench-versus-P1 tension resolves for the workbench: `vision.md` stands unamended, there is no
+simplified mode, and P1 is expected to cope. New projects open on a **landing screen** — a launcher,
+not a wizard.
 
-New projects open on a **landing screen** — a launcher, not a wizard. It offers the ways in, then
-gets out of the way.
-
-**Consequences.**
-
-- **The P1 risk is accepted, not overlooked.** `audiences.md` warns that "a rough edge a developer
-  shrugs off will stop a journalist entirely". Under this decision the mitigation is polish and good
-  defaults, not a simplified mode. If P1 adoption stalls, this is the first decision to revisit.
-- **The landing screen exists from stage 1**, not stage 3. Studio has to show something when it opens
-  with no project. It starts as "open a container" plus recent files (A7), and gains cards as the
-  clusters land: import cards in stage 3 (E1–E3), "start a style" in stage 4.
-- **It never gates anything.** It disappears once a project is open, and everything reachable from it
-  is also reachable from inside the workbench. A launcher that becomes a required first step is a
-  wizard by another name.
+- **The P1 risk is accepted, not overlooked.** `audiences.md` warns "a rough edge a developer shrugs
+  off will stop a journalist entirely". The mitigation is polish and good defaults. If P1 adoption
+  stalls, this is the first decision to revisit.
+- **The landing screen exists from stage 1**, not stage 3 — Studio must show something when it opens
+  with no project. It starts as open-a-container plus recents (A7) and gains cards as clusters land.
+- **It never gates anything.** Everything on it is also reachable from inside the workbench. A
+  launcher that becomes a required first step is a wizard by another name.
 
 ### Q14 — Explore and Pipeline stay separate modes
 
-They are different activities: Explore is consumption — open what exists, inspect it, compare it.
-Pipeline is production — build something new. Collapsing them would save a mode at the cost of
-making both muddier.
+Different activities: Explore is consumption, Pipeline is production. Collapsing them saves a mode at
+the cost of muddying both.
 
-**Consequence for the Sources panel — revised.** The first reading was that the panel is shared and
-means two things: a view stack in Explore, an input list in Pipeline. That is rejected. **The sources
-strip exists only in Pipeline.** Sources are inputs to the thing being built, and only Pipeline
-builds; Explore looks at the result, Style styles it, Publish ships it. A panel that changes meaning
-by mode is a panel that reads as a bug.
+**Consequence for the Sources panel — revised.** The first reading had the panel shared, meaning a
+view stack in Explore and an input list in Pipeline. Rejected: **the sources strip exists only in
+Pipeline**, because sources are inputs to the thing being built and only Pipeline builds. A panel
+that changes meaning by mode reads as a bug.
 
-This makes Explore the widest mode — map and inspector only, no sources strip and no editor pane —
-and its identity becomes reading rather than working. It also left the multi-source layer stack (A3)
-without a home, which is why [Q17](decisions.md) drops it.
+That makes Explore the widest mode — map and inspector only — and left A3 homeless, which is why
+[Q17](decisions.md) drops it.
 
 ### Q15 — The pipeline pane tabs between graph and text
 
-One pane, two tabs: **Graph** and **VPL**. Not side by side. This replaces the earlier side-by-side
-proposal and settles the small-screen question at the same time — the layout no longer needs ~1400 px
-to be usable, so no drawer or responsive collapse is required.
+One pane, two tabs: **Graph** and **VPL**, not side by side. This also settles the small-screen
+question — the layout no longer needs ~1400 px, so no drawer is required.
 
-**What the tabs owe us.** Side-by-side was proposed so a user could see the graph and the file agree.
-Tabs remove that reassurance, so it has to be rebuilt deliberately:
+Side-by-side existed so a user could see graph and file agree, so the tabs owe that back:
 
-- **Selection survives the switch.** Selecting a node and switching to VPL lands on that node's span,
-  and vice versa. This is the main thing that makes the two tabs feel like one document rather than
-  two tools.
-- **The Graph tab never shows a stale graph.** If the text does not parse, the graph shows the parse
-  failure, not the last good render.
-- **The VPL tab carries an error badge** when parsing or validation fails (C4), so a user working in
-  the graph can see there is something wrong in the text without switching.
-- **Switching is free.** No reparse delay, no lost cursor position or scroll — both tabs are views
-  over the same lossless syntax tree ([Q11](decisions.md)).
+- **Selection survives the switch** — select a node, switch to VPL, land on its span, and back. This
+  is what makes two tabs feel like one document.
+- **The Graph tab never shows a stale graph** — a parse failure is shown, not the last good render.
+- **The VPL tab carries an error badge** when parsing or validation fails (C4).
+- **Switching is free** — no reparse, no lost cursor or scroll; both are views over one syntax tree.
 
 ### Q11 — The node graph (C1) is in release 1, and needs a lossless VPL syntax tree
 
@@ -270,7 +230,7 @@ for having no comments. YAML's footguns are accepted since Studio mostly reads i
 a derived artefact instead (C7). _Worth raising upstream:_ an ignored `x-` namespace would let one
 file serve both purposes.
 
-**Design for:** a project is a folder, so sharing means sending a folder — offer zip/unzip, and a
+**Design for:** a project is a folder, so sharing means sending one — offer zip/unzip and a
 "Save As" that copies the whole directory.
 
 ### Q3 — Three planes: IPC for control, HTTP for data, Channels for events
@@ -292,17 +252,17 @@ without a Tauri runtime. `versatiles_node` demonstrates the shape — `TileServe
 Mirror its vocabulary rather than inventing a second one.
 
 **Types across the boundary:** [`tauri-specta`](https://github.com/specta-rs/tauri-specta) generates
-TypeScript from the Rust definitions, covering commands and events. Community-maintained, so
-hand-written types are the fallback — but two hand-kept copies of the command surface is the drift
-the generated-UI principle exists to avoid.
+TypeScript from the Rust definitions, for commands and events. Community-maintained, so hand-written
+types are the fallback — but two hand-kept copies of the command surface is exactly the drift the
+generated-UI principle exists to avoid.
 
-**Consequence:** the embedded server is load-bearing, its lifecycle is a core service, and it binds
-to loopback only.
+**Consequence:** the embedded server is load-bearing, its lifecycle is a core service, loopback
+only.
 
 ### Q10 — Release 1 ships Linux packages and a Homebrew cask; signing comes later
 
-Windows and a paid Apple Developer identity are deferred. This buys an early release for some macOS
-friction, and keeps both recurring costs and procurement lead times off the critical path.
+Windows and a paid Apple Developer identity are deferred — buying an early release for some macOS
+friction, and keeping recurring costs and procurement lead times off the critical path.
 
 **Linux.** No signing. Ship Tauri's outputs from GitHub releases — with an AppImage alongside the
 `.deb`, since a `.deb` built against one WebKitGTK version may not install across distributions.
@@ -328,11 +288,9 @@ certificates issued after 1 June 2023 need hardware-token or HSM storage, which 
 
 ### Q2 — Scope of release 1 is set by the funding milestones
 
-Q2 asked whether to build for the analysis or creation audience first. Moot: the four milestones in
-[Release 1 Scope](scope-release-1.md) are funded, spanning clusters A, D, E and C. **Cluster B is
-not in scope**, reversing the earlier roadmap.
-
-Four independent sources agree with the milestones:
+Analysis audience or creation audience first? Moot — the four milestones are funded, spanning
+clusters A, D, E and C, and **cluster B is not in scope**, reversing the earlier roadmap. Four
+independent sources agree with them:
 
 - **Who uses VersaTiles** — of 76 showcase projects, 24 are tagged `journalism`, 16
   `data-visualisation`, 7 `storytelling`; at least 21 come from news organisations, 37 from Germany.
@@ -359,11 +317,11 @@ per family. Three tiers instead ([numbers](ecosystem.md#map-assets-fonts-and-spr
 | **On demand**  | One family from `versatiles-fonts` releases     | 1–45 MB each | when a style needs it              |
 | **Everything** | `fonts.tar.gz`, all families                    | 107 MB       | explicit action, for offline/field |
 
-- **Works offline from first launch** — no 109 MB wall before the user has seen a map. The
-  empty-glyph-tile trick means non-Latin text renders blank rather than erroring.
+- **Works offline from first launch** — no 109 MB wall before the user has seen a map, and the
+  empty-glyph-tile trick renders non-Latin text blank rather than erroring.
 - **Per-family beats all-or-nothing** — picking Roboto downloads 3 MB, not 109 MB.
-- **Serve archives directly** — `serve -s` reads `.tar`, `.tar.gz`, `.tar.br`. Avoiding 47,360 loose
-  files matters most on Windows and makes each asset atomic to verify, replace and delete.
+- **Archives are served, never unpacked**, which is why each asset stays atomic to verify and
+  delete.
 
 Consequences:
 

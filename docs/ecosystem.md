@@ -2,9 +2,9 @@
 
 > Snapshot taken 2026-08-16. Verify before relying on any single detail.
 
-Most of Studio's engine already exists. This document records what is available, so feature planning
-can tell "wire up something that works" from "build something new". It is the evidence base the
-[decision log](decisions.md) refers back to.
+Most of Studio's engine already exists. This is the evidence base the [decision log](decisions.md)
+refers back to — what is available, so planning can tell "wire up something that works" from "build
+something new".
 
 ## versatiles-rs — the engine
 
@@ -45,10 +45,8 @@ struct OperationMeta { tag_name, kind /* "read" | "transform" */, doc, fields }
 struct VPLFieldMeta  { name, rust_type, is_required, is_sources, doc, enum_variants }
 ```
 
-Better still, the transformation already ships: `versatiles_node/src/codegen.rs` turns this into
-TypeScript via `generateVplTypescript()`, mapping enum fields to string-literal unions.
-
-Three practical details:
+The transformation already ships: `versatiles_node/src/codegen.rs` turns this into TypeScript via
+`generateVplTypescript()`, mapping enum fields to string-literal unions. Three caveats:
 
 - `all_operation_metadata()` sits behind `#[cfg(feature = "codegen")]`, so Studio must enable it.
 - The metadata carries `is_required` but **no default values**, so generated forms show empty
@@ -69,7 +67,7 @@ Three practical details:
 | `-ddd` | Tile contents; validates MVT 2.1, reports missing `extent`/`version`, duplicate layer names, polygon winding problems, degenerate rings | B3     |
 
 `probe -ddd` emits a `fix:` line suggesting the right `vector_repair` invocation, so B3 is close to
-free. Three further details drive [Q4](decisions.md) and [Q12](decisions.md):
+free. Three details drive [Q4](decisions.md) and [Q12](decisions.md):
 
 - **The byte breakdown (B2) already exists.** `versatiles/src/tools/tile_breakdown.rs` splits each
   layer into geometry, tag references, property keys, property values, feature ids and a framing
@@ -84,8 +82,7 @@ free. Three further details drive [Q4](decisions.md) and [Q12](decisions.md):
 
 ### 3. The VPL parser only runs one way
 
-The constraint that shapes cluster C, and mis-stated in earlier drafts. Text → structure is solved;
-structure → text does not exist:
+The constraint that shapes cluster C. Text → structure is solved; structure → text does not exist:
 
 | Needed for                       | Status                                                                     |
 | -------------------------------- | -------------------------------------------------------------------------- |
@@ -100,9 +97,8 @@ thing stage 2 has to build — ideally upstream.
 
 ## Upstream asks
 
-Five small changes to versatiles-rs that Studio is a good reason to make. Collected here because
-they are otherwise scattered across the decision log, and this is the list to take to a
-versatiles-rs planning session. None of them blocks Studio; each removes a workaround.
+Five small changes to versatiles-rs that Studio is a good reason to make — the list to take to a
+versatiles-rs planning session. None blocks Studio; each removes a workaround.
 
 | Ask                                           | Why                                                                              | Raised by                                 |
 | --------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------- |
@@ -139,13 +135,12 @@ review overlaps with cluster A rather than following it. The rest can land whene
 
 ## Map assets: fonts and sprites
 
-MapLibre needs SDF glyphs and sprite sheets that neither versatiles-rs nor the style library can
-conjure at render time. Numbers as of `versatiles-frontend` v3.14.0, `versatiles-fonts` v2.2.0 and
-`versatiles-style` v5.13.1. See [Q9](decisions.md) for what we do with them.
+MapLibre needs SDF glyphs and sprite sheets neither versatiles-rs nor the style library can conjure
+at render time. Numbers as of `versatiles-frontend` v3.14.0, `versatiles-fonts` v2.2.0,
+`versatiles-style` v5.13.1; see [Q9](decisions.md) for what we do with them.
 
-`frontend-blank` carries exactly the two asset kinds Studio needs — 109 MB compressed (85 MB
-brotli), ~190 MB unpacked, **47,360 glyph files** plus sprites. Three facts make that the wrong
-granularity:
+`frontend-blank` carries exactly the two asset kinds Studio needs — 109 MB compressed (85 MB brotli),
+~190 MB unpacked, **47,360 glyph files** plus sprites. Three facts make that the wrong granularity:
 
 **Fonts are published per family:**
 
@@ -159,15 +154,15 @@ granularity:
 
 Sprites are a separate 1.3 MB download from `versatiles-style` releases.
 
-**Archives are served directly, never unpacked** — `versatiles serve -s "[/assets]static.tar.br"`
-reads `.tar`, `.tar.gz`, `.tar.br` and directories. 47,360 tiny files are slow to extract, painful
-on Windows (per-file NTFS overhead, Defender scanning each one) and awkward to verify or delete; one
-archive is atomic and checksummable.
+**Archives are served directly, never unpacked** — `serve -s "[/assets]static.tar.br"` reads `.tar`,
+`.tar.gz`, `.tar.br` and directories. 47,360 tiny files are slow to extract, painful on Windows
+(per-file NTFS overhead, Defender scanning each) and awkward to verify or delete; one archive is
+atomic and checksummable.
 
 **The Latin-only trick** — `frontend-tiny` keeps glyphs below codepoint 1024 and replaces higher
-ranges with _valid but empty_ glyph tiles, so clients get HTTP 200 rather than 404. The whole bundle
-is 1 MB, which is what lets a small default ship inside the binary. B8 must then distinguish
-"genuinely empty glyph" from "font not downloaded yet".
+ranges with _valid but empty_ tiles, so clients get HTTP 200 rather than 404. The whole bundle is
+1 MB, which lets a small default ship inside the binary. B8 must then distinguish "genuinely empty
+glyph" from "font not downloaded yet".
 
 ## What genuinely does not exist yet
 
