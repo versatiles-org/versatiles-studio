@@ -30,17 +30,58 @@ See [Release 1 Scope](docs/scope-release-1.md) for the feature mapping and the w
 
 ## Building
 
+**Prerequisites**
+
+|       |                                                                    |
+| ----- | ------------------------------------------------------------------ |
+| Rust  | 1.88 or newer (edition 2024, plus a patched `serde_with`)          |
+| Node  | 24 or newer                                                        |
+| macOS | Xcode Command Line Tools                                           |
+| Linux | `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf` |
+
+**Run it**
+
 ```sh
 npm install
-npm run assets:fetch   # bundled sprites and glyphs — gitignored, so fetch them first
+npm run assets:fetch     # bundled sprites and glyphs — see below
 npm run tauri dev
 ```
 
-`assets:fetch` is not optional: the bundled tier is generated from pinned versions rather than
-committed, and a Tauri build fails with `resource path ... doesn't exist` without it. Run it again
-after any `git clean`.
+`assets:fetch` is **not optional.** The bundled asset tier is generated from the pinned versions in
+`assets/manifest.json` rather than committed, so without it a Tauri build fails with
+`resource path ... doesn't exist`. Run it again after any `git clean`.
 
-## Planning documents
+**Package it**
+
+```sh
+npm run tauri build      # → src-tauri/target/release/bundle/
+```
+
+**Check it**
+
+```sh
+npm run check            # svelte-check + tsc over the build scripts
+npm test                 # vitest
+npm run format:check     # prettier
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
+```
+
+Some Rust tests need sample containers, which are not vendored — `berlin.versatiles` alone is 25 MB.
+They are found automatically if a `versatiles-rs` checkout sits beside this one, or via
+`STUDIO_TESTDATA=/path/to/containers`; without either they skip rather than fail. Tests marked
+`#[ignore]` need the network — run them with `cargo test -- --ignored`.
+
+**Keeping the pinned assets current**
+
+```sh
+npm run assets:check     # fails if a pin is stale, or a digest moved under an unchanged tag
+npm run assets:update    # move the pins deliberately
+```
+
+Both are metadata-only, so neither downloads anything.
+
+## Planning documents## Planning documents
 
 | Document                                   | Contents                                                   |
 | ------------------------------------------ | ---------------------------------------------------------- |
