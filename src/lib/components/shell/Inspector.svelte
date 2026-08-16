@@ -69,10 +69,7 @@
 				<dd class="wrap">{extent(info.bbox)}</dd>
 			</dl>
 
-			<details>
-				<summary>TileJSON</summary>
-				<JsonTree value={info.tileJson} />
-			</details>
+			<JsonTree value={info.tileJson} name="TileJSON" open={false} />
 		</section>
 	{/each}
 
@@ -146,9 +143,5 @@
 	dd.wrap {
 		white-space: normal;
 		word-break: break-word;
-	}
-	summary {
-		cursor: pointer;
-		color: var(--ink-2);
 	}
 </style>
