@@ -108,13 +108,13 @@ Nothing user-visible, and a prerequisite for every milestone.
 | **S0.8**  | ~~Measure the per-webview memory baseline~~ — **done**: ~28 MB/window ([Q16](decisions.md))             | infrastructure |
 | **S0.9**  | ~~No telemetry, no account, no analytics dependency~~ — **done**, stated in the README                  | G5             |
 | **S0.10** | ~~Decide the GDAL driver list~~ — **settled**: GTiff, COG, VRT, PNG, JPEG, JP2 ([Q19](decisions.md))    | infrastructure |
-| **S0.11** | **Measure the statically bundled binary size** with that driver set; cache the CMake build in CI        | infrastructure |
+| **S0.11** | ~~Measure the statically bundled binary size~~ — **done**: 18.3 MB ([Q19](decisions.md))                | infrastructure |
 | **S0.12** | `scripts/update-assets.ts` — check and move the pinned asset versions deliberately ([Q9](decisions.md)) | infrastructure |
 
-**These are decision checkpoints, not chores.** S0.8 measured ~28 MB per window, so
-[Q16](decisions.md)'s window model holds and its fallback is not needed. S0.10 is settled by
-[Q19](decisions.md). **S0.11 is the last one open** — Q19 accepts a statically bundled GDAL without
-knowing what it weighs, and that is far cheaper to answer now than to discover at S3.
+**All three checkpoints are answered, and none changed the plan.** S0.8 measured ~28 MB per window,
+so [Q16](decisions.md)'s window model holds and its fallback is unused. S0.10 and S0.11 are settled
+by [Q19](decisions.md): the driver list is fixed, and a statically bundled GDAL costs 18.3 MB — with
+GEOS unlinked, which removes the LGPL obligation entirely.
 
 ### S1 · Open & explore → M1
 
@@ -154,17 +154,17 @@ following it.
 
 ### S3 · Import & convert → M3
 
-| Item       | Work                                                                          | Feature        |
-| ---------- | ----------------------------------------------------------------------------- | -------------- |
-| **S3.1**   | Job runner and job bar: progress, cancellation, and an expandable per-job log | E7             |
-| **S3.2**   | Import cards on the landing screen and on "+ Add source"                      | infrastructure |
-| **S3.3**   | Vector import: GeoJSON, NDJSON, shapefile                                     | E1             |
-| **S3.4**   | Tabular point import: CSV with lon/lat columns                                | E2             |
-| **S3.5**   | GDAL raster path: GTiff, COG, VRT, PNG, JPEG, JP2 — M3's "image data" half    | E3             |
-| **S3.6**   | Write the result to a container                                               | F2             |
-| **S3.7**   | Sampling-based cost estimate, shown where a run is committed                  | C6             |
-| **S3.8\*** | DEM workflow: terrarium encoding, hillshade, quantisation                     | E4             |
-| **S3.9\*** | Table join: existing tiles plus CSV → choropleth                              | E6             |
+| Item       | Work                                                                                                                            | Feature        |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **S3.1**   | Job runner and job bar: progress, cancellation, and an expandable per-job log                                                   | E7             |
+| **S3.2**   | Import cards on the landing screen and on "+ Add source"                                                                        | infrastructure |
+| **S3.3**   | Vector import: GeoJSON, NDJSON, shapefile                                                                                       | E1             |
+| **S3.4**   | Tabular point import: CSV with lon/lat columns                                                                                  | E2             |
+| **S3.5**   | GDAL raster path: GTiff/COG, VRT, PNG, JPEG, MEM. Block pkg-config in the build or it links a system GDAL ([Q19](decisions.md)) | E3             |
+| **S3.6**   | Write the result to a container                                                                                                 | F2             |
+| **S3.7**   | Sampling-based cost estimate, shown where a run is committed                                                                    | C6             |
+| **S3.8\*** | DEM workflow: terrarium encoding, hillshade, quantisation                                                                       | E4             |
+| **S3.9\*** | Table join: existing tiles plus CSV → choropleth                                                                                | E6             |
 
 **No import wizard surface.** A card opens the native file dialog, inserts a node into the pipeline
 and selects it; S2.6's generated form is the configuration UI and S2.7's preview is the preview.

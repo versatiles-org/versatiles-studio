@@ -94,15 +94,15 @@ than it looks ([Q12](decisions.md)).
 
 ## Cluster E · Create Data
 
-| ID     | Stage       | Feature                                                                                                                               | Basis                                          |
-| ------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| **E1** | `3`         | Import wizard for vector data: GeoJSON, NDJSON, shapefile → tiles, with a preview before the full build                               | `from_geo`                                     |
-| **E2** | `3`         | Import wizard for tabular point data: CSV with lon/lat columns                                                                        | `from_csv`                                     |
-| **E3** | `3`         | **GDAL raster path**: GeoTIFF, COG, PNG/JPEG/JP2. Vectors go via `from_geo`, no GDAL; GeoPackage is unsupported ([Q20](decisions.md)) | GDAL, statically bundled                       |
-| **E4** | `3 stretch` | DEM workflow: GeoTIFF → terrarium encoding, hillshade, quantisation                                                                   | `dem_*` operations                             |
-| ~~E5~~ | `dropped`   | ~~Planetiler orchestration~~ — Java 21+ plus ~1 GB of downloads ([Q7](decisions.md))                                                  | not pursued                                    |
-| **E6** | `3 stretch` | Table join: existing tiles + CSV → choropleth                                                                                         | `versatiles-choro`, `vector_update_properties` |
-| **E7** | `3`         | Job queue with progress, cancellation and a log — long runs are the normal case here                                                  | new                                            |
+| ID     | Stage       | Feature                                                                                                                            | Basis                                          |
+| ------ | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **E1** | `3`         | Import wizard for vector data: GeoJSON, NDJSON, shapefile → tiles, with a preview before the full build                            | `from_geo`                                     |
+| **E2** | `3`         | Import wizard for tabular point data: CSV with lon/lat columns                                                                     | `from_csv`                                     |
+| **E3** | `3`         | **GDAL raster path**: GeoTIFF/COG, VRT, PNG, JPEG. Vectors go via `from_geo`, no GDAL; no GeoPackage, no JP2 ([Q20](decisions.md)) | GDAL, statically bundled (18.3 MB)             |
+| **E4** | `3 stretch` | DEM workflow: GeoTIFF → terrarium encoding, hillshade, quantisation                                                                | `dem_*` operations                             |
+| ~~E5~~ | `dropped`   | ~~Planetiler orchestration~~ — Java 21+ plus ~1 GB of downloads ([Q7](decisions.md))                                               | not pursued                                    |
+| **E6** | `3 stretch` | Table join: existing tiles + CSV → choropleth                                                                                      | `versatiles-choro`, `vector_update_properties` |
+| **E7** | `3`         | Job queue with progress, cancellation and a log — long runs are the normal case here                                               | new                                            |
 
 ---
 

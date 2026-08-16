@@ -68,18 +68,41 @@ libproj. PROJ still probes the filesystem first and falls back to the embedded c
 
 **The driver list (S0.10), settled.** Raster only, per [Q20](decisions.md):
 
-| Driver           | Why                                                          |
-| ---------------- | ------------------------------------------------------------ |
-| `GTiff`, `COG`   | What P2 actually brings                                      |
-| `VRT`            | Free, and makes multi-file mosaics work                      |
-| `PNG`, `JPEG`    | Scanned maps and orthophoto deliveries                       |
-| `JP2` (OpenJPEG) | Common in orthophoto deliveries; adds an OpenJPEG dependency |
+| `gdal-src` feature | Gives                                                  |
+| ------------------ | ------------------------------------------------------ |
+| `driver_gtiff`     | GeoTIFF — **and COG**, which needs no separate feature |
+| `driver_vrt`       | Free, and makes multi-file mosaics work                |
+| `driver_png`       | Scanned maps                                           |
+| `driver_jpeg`      | Orthophoto deliveries                                  |
+| `driver_mem`       | In-memory rasters, needed by the pipeline              |
 
-Scientific formats — NetCDF, HDF5, GRIB — are **out**. They pull large native dependencies and would
-dominate the binary. Revisit only with a user asking and S0.11's number in hand.
+**JP2 is dropped.** `gdal-src` 0.3 exposes 118 driver features and none of them is OpenJPEG or
+JPEG2000, so a statically bundled JP2 is not available at any price. Scientific formats — NetCDF,
+HDF5, GRIB — are **out** by choice: they pull large native dependencies. Revisit either only with a
+user asking.
 
-**S0.11 stays open:** the binary size with that driver set is what decides whether this is
-comfortable or merely possible.
+**S0.11, measured (2026-08-16, Apple Silicon, release build, stripped, LTO).**
+
+|                        |                                                                |
+| ---------------------- | -------------------------------------------------------------- |
+| **Binary**             | **18.3 MB**, GDAL fully static — no gdal, proj or geos dylib   |
+| **Clean build**        | ~75 s with a warm cargo registry                               |
+| **Registered drivers** | GTiff, COG, VRT, PNG, JPEG, MEM, GNMFile, GNMDatabase, OGR_VRT |
+
+So GDAL costs ~18 MB. That dwarfs the 1.8 MB asset tier as predicted, but an installer in the
+20–35 MB range is unremarkable for a desktop application. **Q19 holds, comfortably.**
+
+**Three findings that change the plan.**
+
+- **GEOS is not needed.** Raster reading never calls it, so the `geos` feature stays off and GEOS is
+  never linked — which **removes the LGPL obligation entirely**. The compliance step described above
+  does not apply unless a future vector path pulls GEOS in.
+- **PROJ's embedded resources work.** A coordinate transform succeeds with `PROJ_DATA` unset and no
+  `proj.db` on disk, which is the premise this whole decision rests on. Verified, not assumed.
+- **`gdal-sys` silently prefers a system GDAL.** With Homebrew's GDAL present, pkg-config wins and
+  the build links dynamically against 3.13 — then fails for want of pre-built bindings. The build
+  must block pkg-config discovery (`PKG_CONFIG_LIBDIR=/nonexistent`) or it will differ between a
+  developer's machine and CI. Wire this into the build config at S3.5, not into someone's shell.
 
 ### Q18 — Studio's Svelte components are written from scratch
 
