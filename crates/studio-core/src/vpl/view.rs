@@ -6,7 +6,9 @@
 //! once, on the Rust side, so the editor and the graph get spans they can rely on.
 
 use super::ast::{Comment, Node, Pipeline, Property, Quote, Span, Str, Token, TokenKind, Value};
-use versatiles_pipeline::vpl::{CstFile, CstNode, CstPipeline, CstString, CstStringKind, CstToken, CstValue};
+use versatiles_pipeline::vpl::{
+	CstFile, CstNode, CstPipeline, CstProperty, CstString, CstStringKind, CstToken, CstValue,
+};
 
 /// The span of a token that has been through `reindex_spans`.
 ///
@@ -271,6 +273,41 @@ pub fn set_value_at(file: &mut CstFile, span: Span, value: &str) -> bool {
 	with_property_at(&mut file.pipeline, span, false, &mut |node, index| {
 		node.properties[index].set_value(value);
 	})
+}
+
+/// Sets a parameter on the node whose *name* occupies `span`, adding it if it is not there.
+///
+/// `values` with more than one entry becomes a VPL array. The quoting is the tree's, so a path with
+/// spaces or a value with an apostrophe is written correctly without the caller thinking about it.
+pub fn set_property_at(file: &mut CstFile, span: Span, key: &str, values: &[String]) -> bool {
+	with_node_at(&mut file.pipeline, span, &mut |node| {
+		if values.len() == 1 {
+			node.set_property(key, &values[0]);
+		} else {
+			// `set_property` only writes single values, so an array is built and swapped in.
+			node.remove_property(key);
+			let mut property = CstProperty::new(key, "");
+			property.value = CstValue::array(values);
+			node.properties.push(property);
+		}
+	})
+}
+
+fn with_node_at(pipeline: &mut CstPipeline, span: Span, apply: &mut dyn FnMut(&mut CstNode)) -> bool {
+	for item in &mut pipeline.nodes.items {
+		if span_of(&item.value.name) == span {
+			apply(&mut item.value);
+			return true;
+		}
+		if let Some(block) = &mut item.value.sources {
+			for nested in &mut block.pipelines.items {
+				if with_node_at(&mut nested.value, span, apply) {
+					return true;
+				}
+			}
+		}
+	}
+	false
 }
 
 /// Finds the property occupying `span` and removes it.

@@ -88,6 +88,14 @@ text lands on it; move the caret and the graph follows. **The graph never shows 
 while the text does not parse there is no tree to draw, and the last good one would be a picture of
 something no longer on screen.
 
+**The forms are generated, never written per operation.** Each parameter's control comes from
+`field_meta` — an enum becomes a menu of its own variants, an integer carries the range of its type
+so a zoom level cannot be set to 300, a `Vec<String>` takes a list, a `[f64;4]` takes four numbers.
+Required parameters are marked, upstream's own documentation is the help text, and every parameter
+an operation accepts but the node has not set is offered — so knowing what an operation takes does
+not mean reading its documentation elsewhere. An operation added upstream gets a working form with
+no change here.
+
 **A node is a form, not a line of VPL.** Its parameters get one labelled field each, because the
 values are routinely longer than the pane is wide — a path can easily run past 250 characters — and a
 single VPL string forces a choice between wrapping, which breaks the syntax across lines, and

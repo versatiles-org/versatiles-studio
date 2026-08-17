@@ -27,9 +27,12 @@
 		setLayout,
 		vplRemoveProperty,
 		vplSetValue,
+		vplSetProperty,
+		vplOperations,
 		type ContainerInfo,
 		type DocumentView,
 		type Layout,
+		type OperationInfo,
 		type Span,
 		type OpenedContainer,
 		type RecentEntry
@@ -49,6 +52,8 @@
 	let pipelineRevision = $state(0);
 	/** The node selected in the graph or the text. The right pane shows its parameters (Q22). */
 	let selected = $state<number[] | null>(null);
+	/** Build-time information about the binary, so it is fetched once and never refreshed. */
+	let operations = $state<OperationInfo[]>([]);
 	const selectedNode = $derived(selected && pipeline ? nodeAtPath(pipeline.pipeline, selected) : null);
 
 	/// Editing a parameter of the selected node rewrites the document through the core, which owns
@@ -77,6 +82,7 @@
 	$effect(() => {
 		void refreshRecents();
 		void getLayout().then((loaded) => (layout = loaded));
+		void vplOperations().then((loaded) => (operations = loaded));
 		void getPipeline().then((loaded) => {
 			pipeline = loaded;
 			pipelineRevision += 1;
@@ -218,8 +224,11 @@
 		{#if selectedNode}
 			<VplNodeCard
 				node={selectedNode}
+				{operations}
 				onCommit={(span: Span, value: string) => void editSelected((text) => vplSetValue(text, span, value))}
 				onRemove={(span: Span) => void editSelected((text) => vplRemoveProperty(text, span))}
+				onSet={(key: string, values: string[]) =>
+					void editSelected((text) => vplSetProperty(text, selectedNode.nameSpan, key, values))}
 			/>
 		{/if}
 		<Inspector containers={containers.map((c) => c.info)} {map} onOpen={pick} onOpenUrl={(url) => void load(url)} />

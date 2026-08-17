@@ -415,3 +415,58 @@ fn tokens_survive_multibyte_text_and_nesting() {
 		"the nested value should be tokenised"
 	);
 }
+
+// -- setting parameters ------------------------------------------------------------------------
+
+/// What the generated form does when you pick a parameter the operation accepts but the node does
+/// not set — the case that cannot be addressed by the property's own span, because there isn't one.
+#[test]
+fn a_parameter_can_be_added_to_a_node_that_does_not_have_it() {
+	let mut document = Document::parse("from_container filename=a").unwrap();
+	let span = document.pipeline().nodes[0].name_span;
+	document.set_property(span, "filename", &["b".to_string()]).unwrap();
+	assert_eq!(document.pipeline().nodes[0].property("filename"), ["b"]);
+
+	document.set_property(span, "other", &["x y".to_string()]).unwrap();
+	assert_eq!(document.pipeline().nodes[0].property("other"), ["x y"]);
+	assert!(
+		document.text().contains("'x y'"),
+		"quoting is the tree's job: {:?}",
+		document.text()
+	);
+}
+
+#[test]
+fn several_values_become_an_array() {
+	let mut document = Document::parse("vector_filter_layers filter=a").unwrap();
+	let span = document.pipeline().nodes[0].name_span;
+	document
+		.set_property(span, "filter", &["roads".to_string(), "water".to_string()])
+		.unwrap();
+
+	assert_eq!(document.pipeline().nodes[0].property("filter"), ["roads", "water"]);
+	assert!(matches!(
+		document.pipeline().nodes[0].properties[0].value,
+		super::Value::Array { .. }
+	));
+	Document::parse(document.text()).expect("the array must parse back");
+}
+
+#[test]
+fn setting_a_parameter_reaches_a_nested_node() {
+	let mut document = Document::parse("from_stacked [ from_container filename=a ]").unwrap();
+	let inner = document.pipeline().nodes[0].sources[0].nodes[0].name_span;
+	document.set_property(inner, "filename", &["b".to_string()]).unwrap();
+	assert_eq!(
+		document.pipeline().nodes[0].sources[0].nodes[0].property("filename"),
+		["b"]
+	);
+}
+
+#[test]
+fn a_span_that_names_no_operation_is_refused() {
+	let mut document = Document::parse("from_container filename=a").unwrap();
+	let before = document.clone();
+	assert!(document.set_property(Span::new(999, 1000), "x", &["1".into()]).is_err());
+	assert_eq!(document, before, "a refusal must not half-apply");
+}

@@ -77,8 +77,10 @@ pub fn run() {
 			commands::layout::set_layout,
 			commands::vpl::vpl_parse,
 			commands::vpl::vpl_set_value,
+			commands::vpl::vpl_set_property,
 			commands::vpl::vpl_remove_property,
 			commands::vpl::vpl_review,
+			commands::vpl::vpl_operations,
 			commands::vpl::pipeline,
 			commands::vpl::set_pipeline
 		])

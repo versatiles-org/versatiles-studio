@@ -20,6 +20,7 @@
 //! [Q23]: ../../../docs/decisions.md
 
 mod ast;
+mod operations;
 mod validate;
 mod view;
 
@@ -27,6 +28,7 @@ mod view;
 mod tests;
 
 pub use ast::{Comment, LineCol, Node, Pipeline, Property, Quote, Span, Str, Token, TokenKind, Value};
+pub use operations::{Control, FieldInfo, OperationInfo, operations};
 pub use validate::{Diagnostic, validate};
 
 use versatiles_pipeline::vpl::{CstFile, VPLPipeline, parse_cst};
@@ -162,6 +164,23 @@ impl Document {
 		if !view::set_value_at(&mut cst, span, value) {
 			return Err(ParseError {
 				message: "no value at that position".to_string(),
+				span,
+			});
+		}
+		*self = Self::rebuilt(cst);
+		Ok(())
+	}
+
+	/// Sets a parameter on the node whose *name* occupies `span`, adding it if it is not set.
+	///
+	/// Addressed by node rather than by property, because the parameter may not exist yet — which is
+	/// the whole point: the generated form offers every parameter an operation accepts, not only the
+	/// ones already written down.
+	pub fn set_property(&mut self, span: Span, key: &str, values: &[String]) -> Result<(), ParseError> {
+		let mut cst = self.cst.clone();
+		if !view::set_property_at(&mut cst, span, key, values) {
+			return Err(ParseError {
+				message: "no operation at that position".to_string(),
 				span,
 			});
 		}

@@ -135,6 +135,37 @@ export interface VplToken {
 	span: Span;
 }
 
+/** How a parameter should be edited. Derived from `field_meta` in the core, never here. */
+export type Control =
+	| { kind: 'text' }
+	| { kind: 'number'; integer: boolean; min: number | null; max: number | null }
+	| { kind: 'boolean' }
+	| { kind: 'choice'; options: string[] }
+	| { kind: 'list' }
+	| { kind: 'numbers'; count: number };
+
+export interface FieldInfo {
+	name: string;
+	/** Upstream's own documentation for the parameter. */
+	doc: string;
+	required: boolean;
+	/** Fed by a `[ … ]` block rather than a `key=value` pair, so it has no control. */
+	sources: boolean;
+	control: Control;
+}
+
+export interface OperationInfo {
+	name: string;
+	kind: 'read' | 'transform';
+	doc: string;
+	fields: FieldInfo[];
+}
+
+/** Every operation and its parameters. Build-time information, so it is fetched once. */
+export function vplOperations(): Promise<OperationInfo[]> {
+	return invoke<OperationInfo[]>('vpl_operations');
+}
+
 /** A problem with a position — a real operation that does not exist, a parameter that is not one. */
 export interface Diagnostic {
 	message: string;
@@ -189,6 +220,17 @@ export function vplParse(text: string): Promise<VplPipeline> {
  */
 export function vplSetValue(text: string, span: Span, value: string): Promise<string> {
 	return invoke<string>('vpl_set_value', { text, span, value });
+}
+
+/**
+ * Sets a parameter on the node whose *name* occupies `span`, adding it if it is not set.
+ *
+ * Addressed by node rather than property, because the generated form offers every parameter an
+ * operation accepts — including ones the node has no span for yet. More than one value becomes a
+ * VPL array.
+ */
+export function vplSetProperty(text: string, span: Span, key: string, values: string[]): Promise<string> {
+	return invoke<string>('vpl_set_property', { text, span, key, values });
 }
 
 /** Removes the property at `span`. This is what clearing a field means (see `VplNodeCard`). */

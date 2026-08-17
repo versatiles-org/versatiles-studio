@@ -10,10 +10,8 @@
 //! errors rather than advice, and Studio is not inventing a stricter language than the CLI runs.
 //! `metadata_matches_upstream` in the tests keeps that true.
 
+use super::operations::registry as operations;
 use super::{Document, Node, Pipeline, Span, Value};
-use std::collections::HashMap;
-use std::sync::OnceLock;
-use versatiles_pipeline::{OperationMeta, all_operation_metadata};
 
 /// A problem with a position, ready for the editor to underline.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -21,17 +19,6 @@ use versatiles_pipeline::{OperationMeta, all_operation_metadata};
 pub struct Diagnostic {
 	pub message: String,
 	pub span: Span,
-}
-
-/// Operations by name, built once. `all_operation_metadata()` walks every factory on each call.
-fn operations() -> &'static HashMap<String, OperationMeta> {
-	static OPERATIONS: OnceLock<HashMap<String, OperationMeta>> = OnceLock::new();
-	OPERATIONS.get_or_init(|| {
-		all_operation_metadata()
-			.into_iter()
-			.map(|meta| (meta.tag_name.clone(), meta))
-			.collect()
-	})
 }
 
 /// Everything wrong with the document, in source order.

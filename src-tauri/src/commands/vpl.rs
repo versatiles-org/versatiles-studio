@@ -6,7 +6,7 @@
 //! TypeScript is how the two drift apart.
 
 use crate::state::AppState;
-use studio_core::vpl::{Diagnostic, Document, ParseError, Pipeline, Span, Token, validate};
+use studio_core::vpl::{Diagnostic, Document, OperationInfo, ParseError, Pipeline, Span, Token, operations, validate};
 use tauri::State;
 
 /// A parse failure the editor can place, rather than a rendered string it would have to read.
@@ -24,6 +24,15 @@ impl From<ParseError> for VplError {
 			span: error.span,
 		}
 	}
+}
+
+/// Every operation and its parameters, for the generated forms (C2, S2.6).
+///
+/// Fetched once and cached by the caller: this is build-time information about the binary, so it
+/// cannot change while Studio is running.
+#[tauri::command]
+pub fn vpl_operations() -> Vec<OperationInfo> {
+	operations()
 }
 
 /// Parses VPL into a tree with spans, so the webview can render one field per property.
@@ -104,6 +113,17 @@ pub fn vpl_review(text: String) -> Result<Review, VplError> {
 pub fn vpl_set_value(text: String, span: Span, value: String) -> Result<String, VplError> {
 	let mut document = Document::parse(text)?;
 	document.set_value(span, &value)?;
+	Ok(document.text().to_string())
+}
+
+/// Sets a parameter on the node whose *name* occupies `span`, adding it if it is not set.
+///
+/// Takes the node rather than the property, because the generated form offers every parameter an
+/// operation accepts — including the ones the node has no span for yet.
+#[tauri::command]
+pub fn vpl_set_property(text: String, span: Span, key: String, values: Vec<String>) -> Result<String, VplError> {
+	let mut document = Document::parse(text)?;
+	document.set_property(span, &key, &values)?;
 	Ok(document.text().to_string())
 }
 

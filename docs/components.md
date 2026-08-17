@@ -35,6 +35,7 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 | `VplEditor`                   | Textarea over a highlighted `<pre>`; the tokens come from the parser ([Q25](decisions.md))                                | S2.3  |
 | `PaneResizer`                 | The draggable edge of a side pane, used on both                                                                           | S2.2  |
 | `PipelineGraph`               | The pipeline as a vertical tree; selection is shared with the text ([Q15](decisions.md))                                  | S2.5  |
+| `VplNodeCard`                 | One node as a generated form: controls, bounds and help from `field_meta` (C2)                                            | S2.6  |
 | `RightPane`                   | Parameters of the current selection                                                                                       | S1.4  |
 | `JobBar` + `JobDrawer`        | Progress and cancellation; expands to a per-job log (E7)                                                                  | S3.1  |
 | `StatusBar`                   | What the application is doing; progress, and where errors land ([Q24](decisions.md))                                      | S1.9  |
