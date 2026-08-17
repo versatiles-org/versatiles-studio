@@ -12,7 +12,7 @@
 	import TileGrid from './lib/components/map/TileGrid.svelte';
 	import CoordinateJump from './lib/components/map/CoordinateJump.svelte';
 	import { defaultStyle } from './lib/map/default-style';
-	import { addContainerToMap } from './lib/map/add-source';
+	import { addContainerToMap, removeContainerFromMap } from './lib/map/add-source';
 	import {
 		forgetRecent,
 		getLayout,
@@ -20,6 +20,7 @@
 		recentSources,
 		serverBaseUrl,
 		setLayout,
+		vplParse,
 		type ContainerInfo,
 		type Layout,
 		type OpenedContainer,
@@ -46,6 +47,15 @@
 		void refreshRecents();
 		void getLayout().then((loaded) => (layout = loaded));
 	});
+
+	// A drag repaints on every pointer move but only writes on release — otherwise a single resize
+	// would be a few hundred file writes.
+	function resizeLeft(width: number, done: boolean) {
+		if (!layout) return;
+		const next = { ...layout, leftWidth: width };
+		if (done) void changeLayout(next);
+		else layout = next;
+	}
 
 	// Applied locally first so a collapse paints without waiting on the round trip, then persisted.
 	// The core clamps, so what comes back is authoritative and replaces the optimistic copy.
@@ -97,6 +107,31 @@
 		}
 	}
 
+	/// A node edited in the left pane. For a `from_container` node the only parameter is the path,
+	/// so changing it means "open that one instead" — the node and what the map shows are the same
+	/// thing (Q22), and they must not be allowed to disagree.
+	async function applyVplChange(source: string, vpl: string) {
+		error = null;
+		const existing = containers.find((c) => c.info.source === source);
+		try {
+			const pipeline = await vplParse(vpl);
+			const filename = pipeline.nodes[0]?.properties.find((p) => p.key === 'filename');
+			const next = filename?.value.kind === 'single' ? filename.value.value : null;
+			if (!next) {
+				error = 'from_container needs a filename';
+				return;
+			}
+			if (next === source) return;
+
+			// Replace rather than accumulate: this is the same node pointed somewhere else.
+			if (map && existing) removeContainerFromMap(map, existing.name);
+			containers = containers.filter((c) => c.info.source !== source);
+			await load(next);
+		} catch (e) {
+			error = String(e);
+		}
+	}
+
 	const shellQuote = (s: string) => (/[^\w./-]/.test(s) ? `'${s.replaceAll("'", `'\\''`)}'` : s);
 </script>
 
@@ -109,6 +144,7 @@
 		{containers}
 		onLayoutChange={(next) => void changeLayout(next)}
 		onAddSource={pick}
+		onVplChange={(source, vpl) => void applyVplChange(source, vpl)}
 	/>
 {/snippet}
 
@@ -119,6 +155,7 @@
 <AppShell
 	leftPane={empty || !layout ? undefined : leftPaneContent}
 	leftWidth={layout?.leftWidth}
+	onLeftResize={resizeLeft}
 	rightPane={empty ? undefined : rightPaneContent}
 >
 	{#snippet mapPane()}

@@ -295,3 +295,76 @@ fn an_opened_container_becomes_a_read_node() {
 
 	assert_eq!(read_node_for(""), None, "an empty source has no VPL spelling");
 }
+
+// -- editing values ----------------------------------------------------------------------------
+
+/// What a parameter form does: hand over the string the user typed and let the core quote it.
+#[test]
+fn setting_a_value_quotes_it_for_the_caller() {
+	let cases = [
+		("plain", "node a=plain"),
+		("with space", "node a='with space'"),
+		("/data/My Tiles/x.versatiles", "node a='/data/My Tiles/x.versatiles'"),
+		("it's", "node a=\"it's\""),
+	];
+	for (typed, expected) in cases {
+		let mut document = Document::parse("node a=old").unwrap();
+		let span = document.pipeline().nodes[0].properties[0].value.span();
+		document.set_value(span, typed).unwrap();
+		assert_eq!(document.text(), expected);
+		assert_eq!(document.pipeline().nodes[0].property("a"), [typed.to_string()]);
+	}
+}
+
+/// The neighbours, and the comments, are not re-rendered — they are never touched.
+#[test]
+fn setting_a_value_leaves_the_rest_of_the_line_alone() {
+	let mut document = Document::parse("# note\nnode zebra=1 alpha=2 # trailing").unwrap();
+	let span = document.pipeline().nodes[0].properties[1].value.span();
+	document.set_value(span, "changed").unwrap();
+
+	assert_eq!(document.text(), "# note\nnode zebra=1 alpha=changed # trailing");
+	assert_eq!(document.comments().len(), 2);
+}
+
+/// Q23's consequence, enforced rather than documented: an empty field is not a value.
+#[test]
+fn clearing_a_value_is_refused_with_advice() {
+	let mut document = Document::parse("node a=x").unwrap();
+	let span = document.pipeline().nodes[0].properties[0].value.span();
+
+	let error = document.set_value(span, "").unwrap_err();
+	assert!(
+		error.message.contains("remove the parameter"),
+		"got {:?}",
+		error.message
+	);
+	assert_eq!(document.text(), "node a=x", "the refusal must not have half-applied");
+}
+
+#[test]
+fn removing_a_property_takes_its_separator_with_it() {
+	// middle, last and only — the three positions where a stray space could survive.
+	for (source, index, expected) in [
+		("node a=1 b=2 c=3", 1, "node a=1 c=3"),
+		("node a=1 b=2", 1, "node a=1"),
+		("node a=1", 0, "node"),
+	] {
+		let mut document = Document::parse(source).unwrap();
+		let span = document.pipeline().nodes[0].properties[index].span;
+		document.remove_property(span).unwrap();
+		assert_eq!(document.text(), expected, "removing property {index} of {source:?}");
+	}
+}
+
+/// An edit is a splice, so a span taken before it is stale afterwards. Nothing may panic on one.
+#[test]
+fn spans_from_before_an_edit_are_refused_not_obeyed() {
+	let mut document = Document::parse("node a=verylongvalue").unwrap();
+	let stale = document.pipeline().nodes[0].properties[0].value.span();
+	document.set_value(stale, "x").unwrap();
+
+	// The document is now much shorter; the old span runs past its end.
+	assert!(document.set_value(stale, "y").is_err() || document.text().len() >= stale.end);
+	assert!(document.slice(Span::new(0, 9999)).is_none());
+}

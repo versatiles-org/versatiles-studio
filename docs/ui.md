@@ -74,6 +74,17 @@ modes — every one of those steps used to be a mode switch away from the others
 | **Style**    | Layer tree (D3), presets (D1)                                                                                                                              | S4      |
 | **Export**   | Crop, format, zoom range, estimate, serve (F1, F2)                                                                                                         | S5      |
 
+**A node is a form, not a line of VPL.** Its parameters get one labelled field each, because the
+values are routinely longer than the pane is wide — a path can easily run past 250 characters — and a
+single VPL string forces a choice between wrapping, which breaks the syntax across lines, and
+scrolling, which hides the parameter names. One field per parameter keeps the key visible and lets
+the value scroll inside its own box. **Nothing in the pane may set its own width**: every level of
+the layout pins `min-width: 0`, or one long path widens the column and pushes the map off the edge.
+The pane edge is draggable, within the range `store::Layout` enforces.
+
+**Clearing a field removes the parameter**, because VPL has no empty value
+([Q23](decisions.md)) — there is no third state to fall back on.
+
 **Collapse everything and you have what used to be Explore** — map and inspector, nothing else. That
 was never an activity; it was "I am not editing right now".
 

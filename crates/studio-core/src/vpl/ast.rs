@@ -4,14 +4,17 @@
 //! the rest away. This is a *syntactic* one. The difference is three things it keeps: byte spans,
 //! comments, and the order the author wrote parameters in.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 /// A byte range in the document, `start..end`.
 ///
 /// Byte offsets rather than character indices because that is what text editors, `str` slicing and
 /// LSP-shaped protocols all speak. The parser only ever splits on character boundaries, so slicing
 /// with one cannot panic.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+///
+/// `Deserialize` too: a span makes the round trip out to a form field and back when the webview
+/// asks for the value under it to be changed.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Span {
 	pub start: usize,

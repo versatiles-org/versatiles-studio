@@ -7,6 +7,7 @@
 pub mod bookmarks;
 pub mod layout;
 pub mod sources;
+pub mod vpl;
 
 use crate::{events::channel_sink, state::AppState};
 use studio_core::jobs::{CancelToken, JobEvent, JobHandle};

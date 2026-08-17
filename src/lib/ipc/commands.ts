@@ -95,6 +95,66 @@ export function inspectTile(source: string, z: number, x: number, y: number): Pr
 	return invoke<TileInspection | null>('inspect_tile', { source, z, x, y });
 }
 
+// -- VPL -----------------------------------------------------------------------------------------
+
+/** Byte offsets into the document. Mirrors `studio_core::vpl::Span`. */
+export interface Span {
+	start: number;
+	end: number;
+}
+
+export type VplValue =
+	| { kind: 'single'; value: string; quote: 'none' | 'single' | 'double'; span: Span }
+	| { kind: 'array'; items: { value: string; quote: string; span: Span }[]; span: Span };
+
+export interface VplProperty {
+	key: string;
+	keySpan: Span;
+	value: VplValue;
+	span: Span;
+}
+
+export interface VplNode {
+	name: string;
+	nameSpan: Span;
+	/** In source order, with duplicates kept — never alphabetised (Q23). */
+	properties: VplProperty[];
+	sources: VplPipeline[];
+	sourcesSpan: Span | null;
+	span: Span;
+}
+
+export interface VplPipeline {
+	nodes: VplNode[];
+	span: Span;
+}
+
+/** A parse failure with a position, so the editor can place it (C4). */
+export interface VplError {
+	message: string;
+	span: Span;
+}
+
+/** Parses VPL into a tree with spans. Rejects with a {@link VplError}. */
+export function vplParse(text: string): Promise<VplPipeline> {
+	return invoke<VplPipeline>('vpl_parse', { text });
+}
+
+/**
+ * Sets the value at `span`, returning the whole document.
+ *
+ * The quoting is decided by the core, never here — a second implementation of VPL's quoting rules
+ * in TypeScript is exactly what would drift.
+ */
+export function vplSetValue(text: string, span: Span, value: string): Promise<string> {
+	return invoke<string>('vpl_set_value', { text, span, value });
+}
+
+/** Removes the property at `span`. This is what clearing a field means — VPL has no empty value. */
+export function vplRemoveProperty(text: string, span: Span): Promise<string> {
+	return invoke<string>('vpl_remove_property', { text, span });
+}
+
 /** Mirrors `studio_core::store::Layout`. Which left-pane sections are open (Q22). */
 export interface Layout {
 	pipelineOpen: boolean;

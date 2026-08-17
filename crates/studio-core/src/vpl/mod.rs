@@ -117,6 +117,39 @@ impl Document {
 		Ok(())
 	}
 
+	/// Sets the value of the property whose *value* occupies `span`.
+	///
+	/// The quoting is chosen here rather than by the caller, which is the whole point: a form field
+	/// hands over the string a user typed and the core works out whether it needs bare, single or
+	/// double quotes. A caller assembling VPL by hand would have to re-derive those rules, which is
+	/// what makes VPL hard to generate correctly from outside.
+	///
+	/// Fails for the empty string, because VPL cannot express one ([Q23]). Clearing a field means
+	/// [`remove_property`](Self::remove_property), and this error says so rather than writing
+	/// something that will not parse.
+	///
+	/// [Q23]: ../../../docs/decisions.md
+	pub fn set_value(&mut self, span: Span, value: &str) -> Result<(), ParseError> {
+		let quoted = quote_value(value).ok_or_else(|| ParseError {
+			message: "VPL has no way to write an empty value — remove the parameter instead".to_string(),
+			span,
+		})?;
+		self.replace(span, &quoted)
+	}
+
+	/// Removes the property occupying `span`, together with the whitespace that separated it.
+	///
+	/// Without taking the separator too, removing the middle parameter of three would leave a double
+	/// space behind, and removing the last would leave a trailing one — small, but they accumulate
+	/// over a session and show up in the diff of a file the user is versioning.
+	pub fn remove_property(&mut self, span: Span) -> Result<(), ParseError> {
+		let before = self.text.get(..span.start).ok_or_else(|| ParseError {
+			message: "the span starts outside the document".to_string(),
+			span,
+		})?;
+		self.replace(Span::new(before.trim_end().len(), span.end), "")
+	}
+
 	/// The tree upstream's pipeline runner wants.
 	///
 	/// This is where the extra information is deliberately dropped. Two things happen that are not

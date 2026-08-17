@@ -73,7 +73,10 @@ pub fn run() {
 			commands::bookmarks::save_bookmark,
 			commands::bookmarks::delete_bookmark,
 			commands::layout::layout,
-			commands::layout::set_layout
+			commands::layout::set_layout,
+			commands::vpl::vpl_parse,
+			commands::vpl::vpl_set_value,
+			commands::vpl::vpl_remove_property
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running VersaTiles Studio");
