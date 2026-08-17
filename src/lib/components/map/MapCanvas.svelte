@@ -32,7 +32,9 @@
 	//
 	// `untrack` around the map: reading it as a dependency would re-run the effect that creates it.
 	$effect(() => {
-		theme.dark;
+		// Read for the dependency, not the value — `void` says so, and satisfies the lint rule that
+		// would otherwise see a statement with no effect.
+		void theme.dark;
 		const instance = untrack(() => map);
 		if (!instance) return;
 		applyMapTheme(instance);

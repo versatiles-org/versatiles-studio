@@ -36,7 +36,6 @@
 		vplSetProperty,
 		vplOperations,
 		previewPipeline,
-		type ContainerInfo,
 		type DocumentView,
 		type Layout,
 		type OperationInfo,
@@ -311,6 +310,9 @@
 	/// apart, which is the one thing merging the modes was meant to prevent.
 	async function syncContainersToPipeline() {
 		if (!pipeline) return;
+		// A plain Set, not `SvelteSet`: this is a local working set inside one call, never held in
+		// `$state` and never read reactively, so there is nothing for a reactive wrapper to do.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const wanted = new Set<string>();
 		for (const { node } of walk(pipeline.pipeline)) {
 			if (node.name !== 'from_container') continue;

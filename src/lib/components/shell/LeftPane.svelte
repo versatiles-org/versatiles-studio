@@ -2,15 +2,13 @@
 	import PaneSection from './PaneSection.svelte';
 	import VplEditor from './VplEditor.svelte';
 	import PipelineGraph from './PipelineGraph.svelte';
-	import { nodeAt, nodeAtPath, samePath } from '../../vpl/node-at';
+	import { nodeAt, samePath } from '../../vpl/node-at';
 	import {
-		vplParse,
 		vplReview,
 		type VplToken,
 		type Diagnostic,
 		type Layout,
 		type Span,
-		type VplNode,
 		type DocumentView
 	} from '../../ipc/commands';
 
@@ -111,13 +109,6 @@
 			return error as { message: string; span: Span };
 		}
 		return { message: String(error), span: { start: 0, end: 0 } };
-	}
-
-	/** Command rejections carry `{ message, span }` (C4); anything else is stringified. */
-	function message(error: unknown): string {
-		return typeof error === 'object' && error !== null && 'message' in error
-			? String((error as { message: unknown }).message)
-			: String(error);
 	}
 </script>
 
