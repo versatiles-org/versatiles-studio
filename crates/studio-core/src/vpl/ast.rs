@@ -184,6 +184,21 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
+	/// The node at `path` — a node index, then pairs of source and node index.
+	///
+	/// The inverse of what [`node_at`](Self::node_at) returns, and the same shape
+	/// [`preview::up_to`](crate::preview::up_to) walks: a selection is a path, and anything asked
+	/// about the selection has to be able to follow one.
+	#[must_use]
+	pub fn at_path(&self, path: &[usize]) -> Option<&Node> {
+		let (&head, rest) = path.split_first()?;
+		let node = self.nodes.get(head)?;
+		let Some((&source, tail)) = rest.split_first() else {
+			return Some(node);
+		};
+		node.sources.get(source)?.at_path(tail)
+	}
+
 	/// The innermost node containing `offset`, with the path of indices that reaches it.
 	///
 	/// This is what makes a graph selection and a text caret the same thing (S2.5).

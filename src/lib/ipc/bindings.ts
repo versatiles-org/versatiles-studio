@@ -152,9 +152,19 @@ export const commands = {
 	 *  The read node a chosen file becomes — `from_geo filename='…'`, quoting included.
 	 * 
 	 *  The quoting is the core's, for the reason [`vpl_set_value`] gives: a second implementation of
-	 *  VPL's quoting rules in TypeScript is exactly what would drift.
+	 *  VPL's quoting rules in TypeScript is exactly what would drift. So is the *filling in*: a CSV
+	 *  arrives with its coordinate columns already set when its header names them unambiguously
+	 *  (S3.4), which is the difference between an import that runs and one that opens a form.
 	 */
-	vplReadNode: (operation: string, filename: string) => __TAURI_INVOKE<string>("vpl_read_node", { operation, filename }),
+	importReadNode: (kindId: string, path: string) => __TAURI_INVOKE<string>("import_read_node", { kindId, path }),
+	/**
+	 *  Values the selected node's fields could take, read from what the node points at (S3.4).
+	 * 
+	 *  Takes the node's path rather than the node, so the answer is about the document the core holds
+	 *  — asking about a node the webview describes would let the two disagree about which file is
+	 *  meant.
+	 */
+	fieldSuggestions: (path: number[]) => typedError<FieldSuggestion[], string>(__TAURI_INVOKE("field_suggestions", { path })),
 	/**  This window's pipeline, or `None` before anything has been opened. */
 	pipeline: () => typedError<{
 	text: string,
@@ -356,6 +366,12 @@ export type FieldInfo = {
 	/**  Fed by a `[ … ]` block rather than by a `key=value` pair, so it has no control. */
 	sources: boolean,
 	control: Control,
+};
+
+/**  What one field could be set to. */
+export type FieldSuggestion = {
+	field: string,
+	values: string[],
 };
 
 /**  One way of bringing data in. */

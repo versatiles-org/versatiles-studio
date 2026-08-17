@@ -50,7 +50,8 @@
 		type Span,
 		importKinds,
 		importKindFor,
-		vplReadNode,
+		importReadNode,
+		fieldSuggestions,
 		type ImportKind,
 		type OpenedContainer,
 		type RecentEntry
@@ -101,6 +102,24 @@
 	let showGrid = $state(false);
 	/** The last preview that was put on the map, so a style swap can restore it without rebuilding. */
 	let lastPreview = $state<Preview | null>(null);
+
+	/// Values the selected node's fields could take, read from what that node points at (S3.4).
+	///
+	/// Refetched whenever the selection or the document changes: the answer depends on the node's
+	/// `filename`, so a stale map would offer one file's columns for another file's node.
+	let suggestions = $state<Record<string, string[]>>({});
+	$effect(() => {
+		const path = selected;
+		// Depend on the document too — editing `filename` changes which file is being asked about.
+		void pipeline?.text;
+		if (!path) {
+			suggestions = {};
+			return;
+		}
+		void fieldSuggestions(path).then((found) => {
+			suggestions = Object.fromEntries(found.map((each) => [each.field, each.values]));
+		});
+	});
 
 	/// Property names the pipeline is producing, for the form's list fields (S3.3, E1).
 	///
@@ -392,7 +411,7 @@
 				pipeline = await setPipeline(result.vpl, 'replaced');
 				pipelineRevision += 1;
 			} else {
-				pipeline = await setPipeline(await vplReadNode(kind.operation, source), 'replaced');
+				pipeline = await setPipeline(await importReadNode(kind.id, source), 'replaced');
 				pipelineRevision += 1;
 				// Selected, so the form for it is showing. Importing *is* configuring: `from_geo`
 				// takes a zoom range, simplification and property filters, and the generated form
@@ -400,12 +419,14 @@
 				// surface of its own. Landing on an unselected node would mean the one thing an
 				// import needs next is one click away and unmarked.
 				selected = [0];
-				// The node is incomplete when the operation needs more than a filename — a CSV
-				// cannot say which column holds the longitude. The generated form is already
-				// showing those fields as required and empty (C2, C4), and a diagnostic already
-				// says so; the wizard that fills them in from the file's own header is S3.4.
-				if (kind.needs.length > 0) {
-					status = { kind: 'busy', message: `${kind.label}: set ${kind.needs.join(' and ')} to see it` };
+				// Whether the node is complete is the *document's* answer, not the kind's. A CSV
+				// whose header named its coordinate columns arrives with them already set (S3.4),
+				// so asking the kind — which needs them for every CSV — would tell someone to fill
+				// in fields that are filled in, and skip the preview that would have shown it
+				// working. The form is showing whatever is still missing, and so is the diagnostic
+				// beside it (C2, C4); this only says so where the eye already is.
+				if (pipeline.diagnostics.length > 0) {
+					status = { kind: 'error', message: pipeline.diagnostics[0].message };
 					await refreshRecents();
 					return;
 				}
@@ -482,6 +503,7 @@
 				node={selectedNode}
 				{operations}
 				properties={producedProperties}
+				{suggestions}
 				onCommit={(span: Span, value: string) => void editSelected((text) => vplSetValue(text, span, value))}
 				onRemove={(span: Span) => void editSelected((text) => vplRemoveProperty(text, span))}
 				onSet={(key: string, values: string[]) =>

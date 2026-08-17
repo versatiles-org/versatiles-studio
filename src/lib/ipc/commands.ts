@@ -143,8 +143,14 @@ export const importKinds = () => commands.importKinds();
 /** Which kind a path belongs to, or null for a file Studio has no way in for. */
 export const importKindFor = (path: string) => commands.importKindFor(path);
 
-/** The read node a chosen file becomes, quoting included — decided by the core, never here. */
-export const vplReadNode = (operation: string, filename: string) => commands.vplReadNode(operation, filename);
+/**
+ * The read node a chosen file becomes, quoting included — and, for a CSV, its coordinate columns
+ * already filled in when the header names them unambiguously (S3.4). Both are the core's decisions.
+ */
+export const importReadNode = (kindId: string, path: string) => commands.importReadNode(kindId, path);
+
+/** Values the selected node's fields could take, read from what the node points at (S3.4). */
+export const fieldSuggestions = (path: number[]) => unwrap(commands.fieldSuggestions(path));
 
 // -- the pipeline ----------------------------------------------------------------------------
 

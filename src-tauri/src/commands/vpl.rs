@@ -426,9 +426,39 @@ pub fn import_kind_for(path: String) -> Option<studio_core::import::ImportKind> 
 /// The read node a chosen file becomes — `from_geo filename='…'`, quoting included.
 ///
 /// The quoting is the core's, for the reason [`vpl_set_value`] gives: a second implementation of
-/// VPL's quoting rules in TypeScript is exactly what would drift.
+/// VPL's quoting rules in TypeScript is exactly what would drift. So is the *filling in*: a CSV
+/// arrives with its coordinate columns already set when its header names them unambiguously
+/// (S3.4), which is the difference between an import that runs and one that opens a form.
 #[tauri::command]
 #[specta::specta]
-pub fn vpl_read_node(operation: String, filename: String) -> String {
-	studio_core::vpl::read_node(&operation, &filename)
+pub fn import_read_node(kind_id: String, path: String) -> String {
+	// Looked up rather than passed whole: the catalogue is the core's, and a webview that could
+	// hand back a kind it had edited would be deciding which operation a file becomes.
+	studio_core::import::kinds()
+		.iter()
+		.find(|kind| kind.id == kind_id)
+		.map(|kind| studio_core::import::read_node(kind, &path))
+		.unwrap_or_default()
+}
+
+/// Values the selected node's fields could take, read from what the node points at (S3.4).
+///
+/// Takes the node's path rather than the node, so the answer is about the document the core holds
+/// — asking about a node the webview describes would let the two disagree about which file is
+/// meant.
+#[tauri::command]
+#[specta::specta]
+pub async fn field_suggestions(
+	state: State<'_, AppState>,
+	path: Vec<u32>,
+) -> Result<Vec<studio_core::suggest::FieldSuggestion>, String> {
+	let path: Vec<usize> = path.into_iter().map(|index| index as usize).collect();
+	let Some(document) = state.pipeline.lock().await.clone() else {
+		return Ok(Vec::new());
+	};
+	let Some(node) = document.pipeline().at_path(&path) else {
+		return Ok(Vec::new());
+	};
+	let dir = state.project_dir.lock().await.clone();
+	Ok(studio_core::suggest::for_node(node, &dir))
 }

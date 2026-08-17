@@ -150,6 +150,42 @@ pub fn kind_for(path: &str) -> Option<ImportKind> {
 		.find(|kind| kind.extensions.iter().any(|ext| lower.ends_with(&format!(".{ext}"))))
 }
 
+/// The VPL a chosen file becomes, with whatever the file itself can answer already filled in.
+///
+/// For most kinds this is [`vpl::read_node`](crate::vpl::read_node) and nothing more. For a CSV it
+/// is the difference between an import that works and a form with two required fields and no clue
+/// what goes in them: `lon_column` and `lat_column` are read from the header when the names are
+/// unambiguous, and the delimiter is recorded when it is not the default (S3.4, E2).
+///
+/// **Never fails.** A header that cannot be read — a missing file, a binary one — leaves a node
+/// with the parameters unset, which is exactly the state the import card said to expect. The
+/// failure is worth reporting when the pipeline runs, not instead of building it.
+#[must_use]
+pub fn read_node(kind: &ImportKind, path: &str) -> String {
+	let Some(operation) = &kind.operation else {
+		return String::new();
+	};
+	if operation != "from_csv" {
+		return crate::vpl::read_node(operation, path);
+	}
+
+	let Ok(columns) = crate::tabular::columns(std::path::Path::new(path)) else {
+		return crate::vpl::read_node(operation, path);
+	};
+
+	let mut extra: Vec<(&str, &str)> = Vec::new();
+	if let (Some(lon), Some(lat)) = (&columns.lon, &columns.lat) {
+		extra.push(("lon_column", lon));
+		extra.push(("lat_column", lat));
+	}
+	// Written only when it is not what `from_csv` already assumes: VPL should say what is unusual
+	// about a file, not restate the default on every one.
+	if columns.delimiter != "," {
+		extra.push(("delimiter", &columns.delimiter));
+	}
+	crate::vpl::read_node_with(operation, path, &extra)
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -287,6 +323,80 @@ mod tests {
 			);
 		}
 		Ok(())
+	}
+
+	/// E2's whole point: choosing a CSV whose columns are obviously named produces a pipeline that
+	/// runs, with nothing left to fill in.
+	#[tokio::test]
+	async fn a_csv_with_obvious_columns_imports_ready_to_run() -> anyhow::Result<()> {
+		let Some(dir) = testdata() else { return Ok(()) };
+		let kind = kinds().into_iter().find(|k| k.id == "table").unwrap();
+		let path = dir.join("quakes.csv");
+
+		let vpl = read_node(&kind, &path.to_string_lossy());
+		assert!(vpl.contains("lon_column=longitude"), "got {vpl}");
+		assert!(vpl.contains("lat_column=latitude"), "got {vpl}");
+		assert!(
+			!vpl.contains("delimiter"),
+			"a comma is the default and needs no saying: {vpl}"
+		);
+
+		// Nothing required is missing, so this validates — which is what the import card's warning
+		// was there to prepare for and no longer has to.
+		let document = crate::vpl::Document::parse(&vpl)?;
+		assert!(
+			crate::vpl::validate(&document).is_empty(),
+			"{:?}",
+			crate::vpl::validate(&document)
+		);
+
+		let runtime = versatiles::runtime::create_runtime();
+		let source = crate::preview::build(&runtime, document.to_pipeline(), &dir).await?;
+		let info = crate::analysis::describe(&source, "preview").await?;
+		assert_eq!(info.tile_format, "mvt");
+		assert!(info.max_zoom >= info.min_zoom);
+		Ok(())
+	}
+
+	/// And the other half: a table with no coordinates leaves the required fields unset rather
+	/// than guessing, so the form shows them waiting and the diagnostic says why.
+	#[test]
+	fn a_csv_without_obvious_columns_leaves_them_unset() {
+		let Some(dir) = testdata() else { return };
+		let kind = kinds().into_iter().find(|k| k.id == "table").unwrap();
+
+		let vpl = read_node(&kind, &dir.join("cities.csv").to_string_lossy());
+		assert!(!vpl.contains("lon_column"), "got {vpl}");
+
+		let document = crate::vpl::Document::parse(&vpl).unwrap();
+		let problems = crate::vpl::validate(&document);
+		assert!(
+			!problems.is_empty(),
+			"a node missing a required parameter should be flagged (C4)"
+		);
+	}
+
+	/// A delimiter the format does not assume has to be written down, or the file reads as one
+	/// column — and it has to survive the quoting, which for a tab is not obvious.
+	#[test]
+	fn an_unusual_delimiter_is_recorded_and_survives_the_round_trip() {
+		let path = std::env::temp_dir().join("versatiles-studio-import-semi.csv");
+		std::fs::write(&path, "id;lon;lat\n1;13.4;52.5\n").unwrap();
+
+		let kind = kinds().into_iter().find(|k| k.id == "table").unwrap();
+		let vpl = read_node(&kind, &path.to_string_lossy());
+
+		let document = crate::vpl::Document::parse(&vpl).unwrap();
+		assert_eq!(document.pipeline().nodes[0].property("delimiter"), [";".to_string()]);
+		assert_eq!(document.pipeline().nodes[0].property("lon_column"), ["lon".to_string()]);
+	}
+
+	fn testdata() -> Option<std::path::PathBuf> {
+		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../versatiles-rs/testdata");
+		if !dir.exists() {
+			eprintln!("skipping: set STUDIO_TESTDATA to a directory of sample containers");
+		}
+		dir.exists().then_some(dir)
 	}
 
 	/// No two kinds may claim the same extension, or which card a dropped file belongs to would

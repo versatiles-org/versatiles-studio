@@ -14,6 +14,7 @@
 		node,
 		operations = [],
 		properties = [],
+		suggestions = {},
 		onCommit,
 		onRemove,
 		onSet
@@ -25,6 +26,11 @@
 		 *  Empty for raster output, and before the first build — a list field then behaves exactly
 		 *  as it did, which is why this is suggestions rather than a closed set. */
 		properties?: string[];
+		/** Per-field values, read from what the node points at — a CSV's own columns (S3.4, E2).
+		 *  The other end of the same idea: E1 learns the domain from what the pipeline *produces*,
+		 *  E2 from what it *reads*, because a CSV will not build until its coordinate columns are
+		 *  set. The form does not care which end an answer came from. */
+		suggestions?: Record<string, string[]>;
 		/** Fired on blur, Enter or a choice — never per keystroke, which would reparse the document
 		 *  on every character and fight the caret. */
 		onCommit: (span: Span, value: string) => void;
@@ -57,6 +63,14 @@
 			.split(',')
 			.map((part) => part.trim())
 			.filter(Boolean);
+
+	/// What this field could be set to — whichever end of the pipeline could answer.
+	///
+	/// A per-field answer wins over the produced-property list, because it is about *this*
+	/// parameter rather than about everything flowing through the node.
+	function options(key: string, control: FieldInfo['control'] | undefined): string[] {
+		return suggestions[key] ?? (control?.kind === 'list' ? properties : []);
+	}
 
 	/// The values a list field currently holds.
 	const chosen = (property: VplProperty) => parts(text(property));
@@ -101,6 +115,7 @@
 			{#each node.properties as property (property.keySpan.start)}
 				{@const field = fieldOf(property.key)}
 				{@const control = field?.control}
+				{@const choices = options(property.key, control)}
 				<div class="row">
 					<dt class="truncate" title={field?.doc || property.key}>
 						{property.key}{#if field?.required}<span class="required" title="required">*</span>{/if}
@@ -131,10 +146,15 @@
 								}}
 							/>
 						{:else}
+							<!-- A `datalist` rather than a `select` for a field with known values: the
+							     column names are what a CSV's header happens to say, not the operation's
+							     domain, and a file whose header is wrong or partial has to stay typeable.
+							     Native, so it keeps the keyboard behaviour a bare input already had. -->
 							<input
 								type="text"
 								value={text(property)}
 								title={text(property)}
+								list={choices.length > 0 ? `suggest-${node.nameSpan.start}-${property.key}` : undefined}
 								placeholder={control?.kind === 'numbers' ? `${control.count} numbers` : ''}
 								spellcheck="false"
 								autocomplete="off"
@@ -147,16 +167,21 @@
 									}
 								}}
 							/>
+							{#if choices.length > 0}
+								<datalist id="suggest-{node.nameSpan.start}-{property.key}">
+									{#each choices as value (value)}<option {value}></option>{/each}
+								</datalist>
+							{/if}
 						{/if}
 						<!-- What the data actually contains, for the fields that name parts of it.
 						     Chips rather than a multi-select: the set is small, the current value stays
 						     readable in the field above, and anything not listed can still be typed —
 						     a property that appears only outside the probed tile is missing from here,
 						     not forbidden. -->
-						{#if control?.kind === 'list' && properties.length > 0}
+						{#if control?.kind === 'list' && choices.length > 0}
 							{@const picked = chosen(property)}
 							<div class="chips">
-								{#each properties as name (name)}
+								{#each choices as name (name)}
 									<button
 										type="button"
 										class="chip"

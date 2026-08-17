@@ -23,6 +23,10 @@ versatiles_geometry = "4.8"
 versatiles = { version = "4.8", default-features = false, features = ["server", "codegen", "ssh2"] }
 
 anyhow = "1"
+# Reading a delimited file's header, for E2's column pickers. `versatiles_pipeline` reads CSVs with
+# this same crate but does not re-export its reader, and a header line has quoting rules that a
+# `split(',')` gets wrong on the first address column that contains a comma.
+csv = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }

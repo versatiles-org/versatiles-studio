@@ -26,11 +26,14 @@
 		<button type="button" class="card" onclick={() => onChoose(kind)}>
 			<strong>{kind.label}</strong>
 			<span class="detail">{kind.detail}</span>
-			<!-- What picking a file will not settle. Saying so on the card is the honest version of
-			     an import that opens a dialog and then leaves two required fields empty; filling
-			     them in properly is the wizard at S3.4. -->
+			<!-- What picking a file might not settle. "May", not "will": since S3.4 a CSV whose
+			     header names its coordinate columns arrives with them already filled in, and only a
+			     file that does not gets asked. Promising the question every time would make the
+			     common case look like more work than it is. -->
 			{#if kind.needs.length > 0}
-				<span class="needs">then choose {kind.needs.map((need) => need.replace(/_/g, ' ')).join(' and ')}</span>
+				<span class="needs">
+					may ask for {kind.needs.map((need) => need.replace(/_/g, ' ')).join(' and ')}
+				</span>
 			{/if}
 		</button>
 	{/each}

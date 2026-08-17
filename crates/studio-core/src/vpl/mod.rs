@@ -225,9 +225,23 @@ impl std::fmt::Display for Document {
 /// becomes `from_container`, a GeoJSON `from_geo`, a CSV `from_csv` (S3.2).
 #[must_use]
 pub fn read_node(operation: &str, source: &str) -> String {
+	read_node_with(operation, source, &[])
+}
+
+/// [`read_node`], plus parameters the caller already knows the answers to.
+///
+/// What a CSV's coordinate columns are called is knowable from its header, and an import that fills
+/// them in is a working pipeline rather than a form with two required fields and no clue what goes
+/// in them (S3.4). The quoting is still the tree's, which matters here more than for a path: a
+/// delimiter can be a tab.
+#[must_use]
+pub fn read_node_with(operation: &str, source: &str, extra: &[(&str, &str)]) -> String {
 	use versatiles_pipeline::vpl::{CstNode, CstPipeline, CstToken, Punctuated};
 	let mut node = CstNode::new(operation);
 	node.set_property("filename", source);
+	for (key, value) in extra {
+		node.set_property(key, value);
+	}
 	CstFile::new(CstPipeline {
 		nodes: Punctuated::new([node], &CstToken::new(" | ")),
 	})

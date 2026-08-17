@@ -476,3 +476,36 @@ fn a_span_that_names_no_operation_is_refused() {
 	assert!(document.set_property(Span::new(999, 1000), "x", &["1".into()]).is_err());
 	assert_eq!(document, before, "a refusal must not half-apply");
 }
+
+/// A selection is a path, so anything asked about the selection has to be able to follow one —
+/// and it must agree with what `node_at` hands back from a caret offset (S3.4).
+#[test]
+fn a_path_reaches_the_node_that_produced_it() {
+	let vpl =
+		"from_stacked [ from_debug format=png | raster_overview level=2, from_debug format=webp ] | raster_flatten";
+	let document = Document::parse(vpl).unwrap();
+	let pipeline = document.pipeline();
+
+	assert_eq!(pipeline.at_path(&[0]).unwrap().name, "from_stacked");
+	assert_eq!(pipeline.at_path(&[1]).unwrap().name, "raster_flatten");
+	assert_eq!(pipeline.at_path(&[0, 0, 1]).unwrap().name, "raster_overview");
+	assert_eq!(
+		pipeline.at_path(&[0, 1, 0]).unwrap().property("format"),
+		["webp".to_string()]
+	);
+
+	assert!(pipeline.at_path(&[]).is_none());
+	assert!(pipeline.at_path(&[9]).is_none());
+	assert!(pipeline.at_path(&[0, 9, 0]).is_none());
+
+	// The round trip: every path `node_at` returns leads back to the node it returned.
+	for offset in 0..vpl.len() {
+		if let Some((path, found)) = pipeline.node_at(offset) {
+			assert_eq!(
+				pipeline.at_path(&path).unwrap().name_span,
+				found.name_span,
+				"offset {offset} gave path {path:?}"
+			);
+		}
+	}
+}

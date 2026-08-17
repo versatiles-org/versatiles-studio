@@ -16,6 +16,39 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q30 — A CSV import reads the header and fills in what it can
+
+**Dated 2026-08-17.** [Q29](decisions.md) taught the form its data by probing what the pipeline
+_produces_. That cannot work for a CSV, and the reason shapes the whole of E2: `from_csv` will not
+build until `lon_column` and `lat_column` are set, so there is no output to look at. This is the one
+import where the question has to be asked of the input.
+
+**So the header is read at import time, and the answer is written into the node.** A file whose
+columns are called `longitude` and `latitude` becomes a pipeline that runs, with nothing to fill in.
+That is the difference between E2 working and E2 being a form with two required fields and no clue
+what goes in them — which is exactly what S3.2's import card had to warn about, and no longer does.
+
+**Not `x` and `y`.** They are coordinates often enough to be tempting and projected metres, a grid
+index, or something unrelated often enough that guessing would sometimes produce a map of somewhere
+that does not exist. A guess here fills in a _required_ field, so a wrong one is worse than none: it
+turns "Studio is asking me something" into "Studio is wrong and I have to work out why".
+
+**The delimiter is sniffed and recorded only when it is not the default.** A spreadsheet exported in
+a locale where the comma is the decimal separator is semicolon-delimited, and read as a comma file it
+is one enormous column. VPL should say what is unusual about a file rather than restate the default
+on every one.
+
+**When the guess declines, the columns are still offered.** `suggest::for_node` reads the same header
+and hands the form the real names, as a `datalist` — not a `select`, because those names are what a
+header happens to say rather than the operation's domain, and a partial or wrong header has to stay
+typeable. Suggestions at both ends of the pipeline, and the form does not care which end an answer
+came from.
+
+**One bug this surfaced.** The post-import branch asked the _kind_ whether anything was missing.
+Every CSV needs those two fields, so a successfully-guessed one was told to fill in fields it already
+had, and skipped the preview that would have shown it working. Completeness is the document's
+answer — its diagnostics — not the kind's.
+
 ### Q29 — The import form learns the data by probing what the pipeline produces
 
 **Dated 2026-08-17.** [ui.md](ui.md) had already settled that import has no surface of its own: a

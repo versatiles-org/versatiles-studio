@@ -14,4 +14,6 @@ pub mod preview;
 pub mod project;
 pub mod server;
 pub mod store;
+pub mod suggest;
+pub mod tabular;
 pub mod vpl;
