@@ -14,7 +14,7 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 ## Decided
 
-All dated 2026-08-16.
+All dated 2026-08-16 unless an entry says otherwise.
 
 ### Q22 — One map surface, not four modes. The mode bar separates map work from non-map tools
 
@@ -24,12 +24,12 @@ map at all — the asset manager (G7) today, glyph generation (D9) and whatever 
 
 ```text
 ┌───────────────────┬──────────────────────┬────────────────┐
-│ ▸ SOURCES         │                      │ PARAMETERS     │
-│ ▾ PIPELINE        │                      │ of whatever is │
-│   from_geo        │        MAP           │ selected on    │
-│   vector_filter   │                      │ the left       │
-│   ● preview       │                      │                │
-│ ▾ STYLE           │                      │                │
+│ ▾ PIPELINE        │                      │ PARAMETERS     │
+│   from_geo        │                      │ of whatever is │
+│   vector_filter   │        MAP           │ selected, and  │
+│   ● preview       │                      │ the metadata   │
+│   + add source    │                      │ that results   │
+│ ▾ STYLE           │                      │ from it        │
 │   ▸ water · roads │                      │                │
 │ ▸ EXPORT          │                      │                │
 └───────────────────┴──────────────────────┴────────────────┘
@@ -50,6 +50,35 @@ temporary map tool for drawing the crop rectangle. A collapsible section and a m
 modes growing monotonically: each stage adds one, rebuilding nothing. Sections grow the same way —
 S1 ships with them collapsed, S2 adds Pipeline, S4 adds Style, S5 adds Export — while adding fewer
 concepts. That argument was presented as more decisive than it was.
+
+**Amended 2026-08-17, on three points this decision left loose.**
+
+_There is no Sources section._ The first draft of this decision listed the left pane as **Sources ·
+Pipeline · Style · Export**, which reintroduced exactly the duplication [Q14](decisions.md) had
+removed — a list of `from_*` read nodes beside a graph that already draws them. Q14's reasoning was
+never overturned and still holds: the read nodes at the head of the pipeline **are** the sources.
+Three sections: **Pipeline · Style · Export**, with "+ Add source" adding a read node to the graph.
+Keeping both would have meant either drawing the same nodes twice, or pulling read nodes out of the
+graph — and then the graph is no longer a view onto the whole text, which [Q11](decisions.md) needs
+it to be.
+
+_The mode bar arrives at S4, not S2._ Its second occupant is the asset manager (G7), which lands in
+S4.1. Introduced any earlier it is a one-item bar: chrome that switches between nothing and itself.
+S2 adds the collapsible left pane alone.
+
+_The first mode is called **Map**._ Not "Map mode" — the bar is already understood as modes, so the
+word is redundant in the label. It reads against its siblings: **Map · Assets**, where the map is the
+thing being made and assets are what it consumes. "Project" was rejected as colliding with the
+project directory ([Q6](decisions.md)), "Workbench" as naming the whole application
+([Q13](decisions.md)) rather than one tab, and "Tiles" as excluding the style, which is in this mode
+and is not tiles. Note the bar may well hold only these two for a long time: [Q9](decisions.md) puts
+locally generated glyphs (D9) through the same manifest and serving path as downloaded ones, so D9
+is a feature of the asset manager, not a third mode.
+
+**The right pane shows parameters _and_ resulting metadata.** For a read node that means its VPL
+fields together with what the container turned out to hold — format, real zoom range, TileJSON. This
+is where A6 lives in the merged surface; splitting "what you set" from "what you got" across two
+places would leave the thing a user opened a container to see with no home at all.
 
 **Two invariants become free rather than enforced.** "One `Map` across all modes" and "the viewport
 survives a mode switch" stop being rules when there are no mode switches to survive.

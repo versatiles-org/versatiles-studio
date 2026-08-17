@@ -12,18 +12,19 @@ of whatever is selected.
 Studio is a workbench, not a wizard ([Q13](decisions.md)) — so the P1 risk from `audiences.md` is
 accepted rather than designed around.
 
-**The mode bar stays, but it separates map work from non-map tools** — the asset manager (G7) today,
-glyph generation (D9) later. It no longer divides the map work itself.
+**The mode bar separates map work from non-map tools** — Map, and the asset manager (G7). It no
+longer divides the map work itself. It arrives at S4, when there is finally something to switch to;
+a one-item bar before then would be chrome that does nothing.
 
 **It still grows one stage at a time.** Sections are added, not rebuilt:
 
-| Stage | What appears                                                   |
-| ----- | -------------------------------------------------------------- |
-| S1    | The surface, sections collapsed: map, inspector, command strip |
-| S2    | Pipeline section — Graph / VPL tabs                            |
-| S3    | Import cards on the landing screen and "add source"            |
-| S4    | Style section — layer tree; the asset manager joins the bar    |
-| S5    | Export section — crop, format, serve                           |
+| Stage | What appears                                                     |
+| ----- | ---------------------------------------------------------------- |
+| S1    | The surface, sections collapsed: map, inspector, command strip   |
+| S2    | Left pane opens — Pipeline section, Graph / VPL tabs             |
+| S3    | Import cards on the landing screen and "add source"              |
+| S4    | Style section — layer tree; **the mode bar appears** with Assets |
+| S5    | Export section — crop, format, serve                             |
 
 The alternatives fail differently: a **node-graph-as-app** needs the graph in S1 but C1 lands in S2,
 and a layer tree is not a node; a **file-tree IDE** matches [Q6](decisions.md) but sells P1 the
@@ -53,33 +54,34 @@ True everywhere. These matter more than the arrangement.
 
 ## Panes and sections
 
-Four regions, always present: **mode bar, left pane, map, right pane**, over a job bar and command
-strip.
+Three regions, always present — **left pane, map, right pane** — over a job bar and command strip,
+with the mode bar arriving above them at S4.
 
-| Region         | Holds                                                                       |
-| -------------- | --------------------------------------------------------------------------- |
-| **Mode bar**   | Map work (default) · asset manager (G7) · glyph generation (D9, later)      |
-| **Left pane**  | The chain, as collapsible sections: **Sources · Pipeline · Style · Export** |
-| **Map**        | The subject, the preview, and an input device for the crop rectangle (F2)   |
-| **Right pane** | Parameters of the current selection                                         |
+| Region         | Holds                                                                                                                                                 |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Mode bar**   | **Map** (default) · **Assets** (G7, from S4). Locally generated glyphs (D9) are a feature of the asset manager, not a third mode ([Q9](decisions.md)) |
+| **Left pane**  | The chain, as collapsible sections: **Pipeline · Style · Export**                                                                                     |
+| **Map**        | The subject, the preview, and an input device for the crop rectangle (F2)                                                                             |
+| **Right pane** | Parameters of the current selection, and the metadata that results from it                                                                            |
 
 **The left pane is the chain from data to pixels.** Sources feed the pipeline, the pipeline produces
 tiles, the style renders them, export writes them out. Showing it whole is the point of merging the
 modes — every one of those steps used to be a mode switch away from the others.
 
-| Section      | Contains                                           | Arrives |
-| ------------ | -------------------------------------------------- | ------- |
-| **Sources**  | `from_*` read nodes — "+ Add source" adds one      | S2      |
-| **Pipeline** | Graph / VPL tabs ([Q15](decisions.md)), C1 and C4  | S2      |
-| **Style**    | Layer tree (D3), presets (D1)                      | S4      |
-| **Export**   | Crop, format, zoom range, estimate, serve (F1, F2) | S5      |
+| Section      | Contains                                                                                                                                                   | Arrives |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| **Pipeline** | Graph / VPL tabs ([Q15](decisions.md)), C1 and C4. The `from_*` read nodes at its head **are** the sources — "+ Add source" adds one ([Q14](decisions.md)) | S2      |
+| **Style**    | Layer tree (D3), presets (D1)                                                                                                                              | S4      |
+| **Export**   | Crop, format, zoom range, estimate, serve (F1, F2)                                                                                                         | S5      |
 
 **Collapse everything and you have what used to be Explore** — map and inspector, nothing else. That
 was never an activity; it was "I am not editing right now".
 
-**The right pane shows the parameters of what you are working on** — the container inspected, the
-selected node, the selected layer, the export being configured — and never global settings, or it
-becomes the junk drawer where every new feature lands. Project settings open as a dialog from the
+**The right pane shows the parameters of the current selection, and the metadata that results from
+it.** For a read node that means both its VPL fields and what the container turned out to contain —
+format, real zoom range, TileJSON (A6). The two belong together: the parameters are what you set, the
+metadata is what you got. It never shows global settings, or it becomes the junk drawer where every
+new feature lands. Project settings open as a dialog from the
 mode bar, beside the asset manager.
 
 ## Layouts
@@ -107,14 +109,13 @@ Nothing is open yet, so there is nothing to show in the chain. This is what used
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
-│ Map │ Assets                                              │
-├───┬─────────────────────────────────────┬─────────────────┤
-│ ▸ │                                     │ INSPECTOR       │
-│ S │                MAP                  │ format, zooms   │
-│ o │          grid overlay (A5)          │ TileJSON (A6)   │
-│ u │          feature popup (A8)         │ bookmarks (A7)  │
-│ r │                                     │                 │
-├───┴─────────────────────────────────────┴─────────────────┤
+│ ≡  MyProject                                              │
+├─────────────────────────────────────────┬─────────────────┤
+│                                         │ INSPECTOR       │
+│                  MAP                    │ format, zooms   │
+│            grid overlay (A5)            │ TileJSON (A6)   │
+│            feature popup (A8)           │ bookmarks (A7)  │
+├─────────────────────────────────────────┴─────────────────┤
 │ $ versatiles probe osm.versatiles -d              [copy]  │
 └───────────────────────────────────────────────────────────┘
 ```
@@ -126,18 +127,16 @@ a narrow column than spread across a wide canvas.
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
-│ Map │ Assets                                              │
+│ ≡  MyProject                                              │
 ├───────────────────┬──────────────────────┬────────────────┤
-│ ▾ SOURCES         │                      │ INSPECTOR      │
-│   places.geojson  │   MAP — selected     │ parameters of  │
-│   + add …         │        node ●        │ the selected   │
-│ ▾ PIPELINE        │                      │ node, from     │
-│  [Graph] [VPL ⚠]  │                      │ field_meta     │
-│   from_geo        │                      │ (C2)           │
-│      ↓            │                      │                │
-│   vector_filter   │                      │                │
-│      ↓            │                      │                │
+│ ▾ PIPELINE        │                      │ INSPECTOR      │
+│  [Graph] [VPL ⚠]  │   MAP — selected     │ parameters of  │
+│   from_geo        │        node ●        │ the selected   │
+│      ↓            │                      │ node (C2),     │
+│   vector_filter   │                      │ plus what it   │
+│      ↓            │                      │ produced (A6)  │
 │   ● preview       │                      │                │
+│   + add source    │                      │                │
 ├───────────────────┴──────────────────────┴────────────────┤
 │ Jobs ▸ idle          $ versatiles convert pipeline.vpl …  │
 └───────────────────────────────────────────────────────────┘
@@ -158,13 +157,13 @@ mode bar.
 ┌───────────────────────────────────────────────────────────┐
 │ Map │ Assets                                              │
 ├───────────────────┬──────────────────────┬────────────────┤
-│ ▸ SOURCES         │                      │ PAINT          │
-│ ▸ PIPELINE        │        MAP           │ colour, width, │
-│ ▾ STYLE     (D3)  │   live style         │ opacity, zoom  │
-│   ▸ background    │     feedback         │ stops,         │
-│   ▸ water         │                      │ expressions    │
-│   ▸ roads         │  ┌ ─ ─ ─ ┐           │                │
-│   ▸ labels        │  │ bbox  │      (F2) │                │
+│ ▸ PIPELINE        │        MAP           │ PAINT          │
+│ ▾ STYLE     (D3)  │   live style         │ colour, width, │
+│   ▸ background    │     feedback         │ opacity, zoom  │
+│   ▸ water         │                      │ stops,         │
+│   ▸ roads         │                      │ expressions    │
+│   ▸ labels        │  ┌ ─ ─ ─ ┐           │                │
+│                   │  │ bbox  │      (F2) │                │
 │ ▾ EXPORT          │  └ ─ ─ ─ ┘           │                │
 │   .versatiles ▾   │                      │                │
 │   zoom 0–14       │                      │                │

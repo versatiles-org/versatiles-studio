@@ -138,7 +138,7 @@ The long pole. S2.1 gates everything after it.
 | Item        | Work                                                                                             | Feature        |
 | ----------- | ------------------------------------------------------------------------------------------------ | -------------- |
 | **S2.1**    | **Lossless VPL syntax tree and serialiser** — spans, comments, parameter order. Ideally upstream | infrastructure |
-| **S2.2**    | Mode bar (map work vs non-map tools) and the collapsible left pane ([Q22](decisions.md))         | infrastructure |
+| **S2.2**    | The collapsible left pane, sections remembering their state ([Q22](decisions.md))                | infrastructure |
 | **S2.3**    | VPL text editor over the syntax tree                                                             | C1             |
 | **S2.4**    | Inline parse and validation errors at the right position                                         | C4             |
 | **S2.5**    | Node graph, tabbed with VPL: selection sync, error badge, never a stale graph                    | C1             |
@@ -171,18 +171,18 @@ and selects it; S2.6's generated form is the configuration UI and S2.7's preview
 
 ### S4 · Style → M2
 
-| Item        | Work                                                                               | Feature        |
-| ----------- | ---------------------------------------------------------------------------------- | -------------- |
-| **S4.1**    | Asset manager: download, pin, verify and remove font families and sprite sets      | G7             |
-| **S4.2**    | Style **section** in the left pane: layer tree, with paint properties on the right | infrastructure |
-| **S4.3**    | Preset styles with global recolouring                                              | D1             |
-| **S4.4**    | Derive a style from the layers actually present in the container                   | D2             |
-| **S4.5**    | Layer tree with filter/zoom/paint editing and an expression editor                 | D3             |
-| **S4.6**    | Export `style.json`, `@versatiles/style` code, or a bundle                         | D8             |
-| **S4.7**    | Put style edits on S2.8's undo stack rather than building a second one             | G6             |
-| **S4.8\***  | Derive a dark variant from a light style                                           | D5             |
-| **S4.9\***  | Accessibility: contrast checking and colour-blindness simulation                   | D6             |
-| **S4.10\*** | Generate SDF glyphs from the user's own fonts                                      | D9             |
+| Item        | Work                                                                                                                                                      | Feature        |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **S4.1**    | Asset manager: download, pin, verify and remove font families and sprite sets, plus the mode bar that reaches it — **Map · Assets** ([Q22](decisions.md)) | G7             |
+| **S4.2**    | Style **section** in the left pane: layer tree, with paint properties on the right                                                                        | infrastructure |
+| **S4.3**    | Preset styles with global recolouring                                                                                                                     | D1             |
+| **S4.4**    | Derive a style from the layers actually present in the container                                                                                          | D2             |
+| **S4.5**    | Layer tree with filter/zoom/paint editing and an expression editor                                                                                        | D3             |
+| **S4.6**    | Export `style.json`, `@versatiles/style` code, or a bundle                                                                                                | D8             |
+| **S4.7**    | Put style edits on S2.8's undo stack rather than building a second one                                                                                    | G6             |
+| **S4.8\***  | Derive a dark variant from a light style                                                                                                                  | D5             |
+| **S4.9\***  | Accessibility: contrast checking and colour-blindness simulation                                                                                          | D6             |
+| **S4.10\*** | Generate SDF glyphs from the user's own fonts                                                                                                             | D9             |
 
 **S4.4 is the hardest item in the release.** It cannot assume Shortbread layers — it has to read what
 is in the container, which is the same introspection as A4 (S1.10).
