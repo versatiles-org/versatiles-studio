@@ -72,8 +72,9 @@ thing being made and assets are what it consumes. "Project" was rejected as coll
 project directory ([Q6](decisions.md)), "Workbench" as naming the whole application
 ([Q13](decisions.md)) rather than one tab, and "Tiles" as excluding the style, which is in this mode
 and is not tiles. Note the bar may well hold only these two for a long time: [Q9](decisions.md) puts
-locally generated glyphs (D9) through the same manifest and serving path as downloaded ones, so D9
-is a feature of the asset manager, not a third mode.
+locally generated assets through the same manifest and serving path as downloaded ones, so generating
+glyphs (D9) and generating sprite sheets (D10) are both features _of_ the asset manager rather than
+modes beside it.
 
 **The right pane shows parameters _and_ resulting metadata.** For a read node that means its VPL
 fields together with what the container turned out to hold — format, real zoom range, TileJSON. This

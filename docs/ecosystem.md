@@ -157,6 +157,14 @@ at render time. Numbers as of `versatiles-frontend` v3.14.0, `versatiles-fonts` 
 
 Sprites are a separate 1.3 MB download from `versatiles-style` releases.
 
+**Sprite _generation_ exists upstream but is not reachable as a library** — the same shape of problem
+as `layer_stats()` in [Q12](decisions.md). `versatiles-style/scripts/lib/sprites.ts` takes SVG icons
+and produces a packed sheet with SDF at several ratios (`bin-pack`, `optipng`, `sharp`), and the repo
+carries an `icons/` tree to feed it. None of it ships: the npm package's `files` field is `dist/*`,
+and the built `index.d.ts` mentions sprites only as MapLibre's `SpriteSpecification` — a URL to load,
+not a sheet to build. So D10 is not free. It would need the algorithm reimplemented in Rust, since
+`sharp` is a Node native module and Studio has no Node runtime at run time.
+
 **Archives are served directly, never unpacked** — `serve -s "[/assets]static.tar.br"` reads `.tar`,
 `.tar.gz`, `.tar.br` and directories. 47,360 tiny files are slow to extract, painful on Windows
 (per-file NTFS overhead, Defender scanning each) and awkward to verify or delete; one archive is
