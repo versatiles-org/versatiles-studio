@@ -185,20 +185,41 @@ impl CancelToken {
 /// machine where some endings are announced by the job and others by the runner has two places to
 /// be wrong.
 pub struct JobHandle {
+	reporter: Reporter,
+	cancel: CancelToken,
+}
+
+/// The reporting half of a [`JobHandle`], on its own.
+///
+/// A [`JobHandle`] is the job's, held for as long as the work runs. Some work wants to report from
+/// somewhere else — `versatiles_container`'s event bus takes a `Fn(&Event) + Send + Sync + 'static`
+/// callback, which cannot borrow the handle — so this is the part that can be cloned and handed
+/// over. Cancellation deliberately stays behind: whether to stop is the job's decision, not a
+/// listener's.
+#[derive(Clone)]
+pub struct Reporter {
 	id: JobId,
 	sink: EventSink,
-	cancel: CancelToken,
 }
 
 impl JobHandle {
 	#[must_use]
 	pub fn new(id: JobId, sink: EventSink, cancel: CancelToken) -> Self {
-		Self { id, sink, cancel }
+		Self {
+			reporter: Reporter { id, sink },
+			cancel,
+		}
 	}
 
 	#[must_use]
 	pub fn id(&self) -> JobId {
-		self.id
+		self.reporter.id
+	}
+
+	/// A cloneable handle to the reporting half, for a callback that cannot borrow this one.
+	#[must_use]
+	pub fn reporter(&self) -> Reporter {
+		self.reporter.clone()
 	}
 
 	/// Whether the job has been asked to stop.
@@ -210,6 +231,22 @@ impl JobHandle {
 		self.cancel.is_cancelled()
 	}
 
+	/// Reports how far along the job is.
+	pub fn progress(&self, fraction: f64, message: impl Into<String>) {
+		self.reporter.progress(fraction, message);
+	}
+
+	/// Reports what the job is doing when it cannot say how far along it is.
+	pub fn working(&self, message: impl Into<String>) {
+		self.reporter.working(message);
+	}
+
+	pub fn log(&self, line: impl Into<String>) {
+		self.reporter.log(line);
+	}
+}
+
+impl Reporter {
 	/// Reports how far along the job is.
 	pub fn progress(&self, fraction: f64, message: impl Into<String>) {
 		self.emit(Some(fraction.clamp(0.0, 1.0)), message);
