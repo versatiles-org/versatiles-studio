@@ -173,6 +173,13 @@ adds an operation.
 
 **Nothing only exists inside Studio.** Every artefact must be exportable in a documented format.
 
+**Tile URLs carry a revision.** The embedded server sends `cache-control: public, max-age=2419200`
+— 28 days, hardcoded in `versatiles`' handler with no way to turn it off. That is right for a public
+tile server and wrong for an editing surface: mount names are stable by design, so a rebuilt preview
+or a re-opened file asks for the same URL and the webview answers from its cache with tiles that may
+be weeks old. `ServerManager::tile_url` appends a per-mount counter, so every build is a URL no cache
+has seen. The reader itself is not the problem — the runtime re-reads the file on every open.
+
 **Assets are archives, not file trees.** Fonts and sprites stay compressed and are served from
 there — atomic to verify, replace and delete. Glyph sets Studio generates itself (D9) are written as
 archives too, so downloaded and generated fonts take the same path.
