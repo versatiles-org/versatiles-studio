@@ -24,7 +24,8 @@ distinct or every operation looks half-configured.
 ## Shell
 
 The five-region grid from [UI Concept](ui.md). All Studio-specific. How they are styled — the
-tokens, the rules and what is enforced — is in [Styling](styling.md).
+tokens, the rules and what is enforced — is in [Styling](styling.md). A component that adds a map
+layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not follow the theme.
 
 | Component                     | Does                                                                                                                      | Stage |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----- |

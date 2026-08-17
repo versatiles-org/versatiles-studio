@@ -104,9 +104,46 @@ the document and starts it bouncing anyway.
 4. If a shrinking chain runs through it, put `min-width: 0` on every level.
 5. Run `npm test` — the token tests will name anything raw.
 
-## Not done yet
+## Dark theme
 
-**There is no dark theme.** The palette is light-only, so a viewer in dark mode gets a bright window.
-Because every colour is now a token defined in one block, adding one is a `prefers-color-scheme`
-block redefining that block rather than a sweep through every component — which is roughly the
-difference between shipping it and not. Deliberately left as its own change.
+**It follows the operating system**, through one `@media (prefers-color-scheme: dark)` block in
+`tokens.css` that redefines the colour tokens and nothing else. There is no in-app switch: a desktop
+application that disagrees with the system it runs on is what users complain about, and an override
+would need a preference to store and a settings surface to put it in, neither of which exists yet.
+
+**No component rule belongs in that block.** That is what makes the theme one edit instead of
+thirteen, and what stops the two themes drifting apart.
+
+**It is not an inversion.** Dark surfaces make colours read lighter and less saturated, so the accent
+and the error red are lifted rather than reused, and `--accent-ink` flips to dark because the accent
+it sits on is now the lighter of the two. Panels stay lighter than the application background, the
+same way round as in the light theme, so depth reads the same.
+
+`tokens.test.ts` checks that **every colour exists in both themes**. The failure it prevents is
+quiet: add a colour to `:root`, forget the dark block, and it keeps its light value on a dark ground
+— often still readable enough in a screenshot to pass review, and wrong.
+
+### The map is the part that does not come free
+
+Chrome colours follow the theme because they are `var()` references, re-resolved by the browser. Map
+colours are **values copied into a layer when it is added**, so a layer created under the light theme
+keeps its light colours forever.
+
+`src/lib/map/theme.ts` re-applies them. Layers declare what they are through
+`metadata['studio:role']` — `background`, `grid-line`, `grid-label`, `container-feature` — rather
+than being recognised by their id, because ids encode where a layer came from and would break this
+whenever a naming scheme changed elsewhere. **A new themed map layer must be tagged with `role()`, or
+it will not follow the theme.** `MapCanvas` triggers the repaint by reading `theme.dark` from
+`styles/theme.svelte.ts`.
+
+`index.html` carries the only styling outside `src/lib/styles`: a background colour for each theme,
+because the stylesheets arrive with the JS bundle and the window would otherwise paint white for a
+frame on every launch.
+
+## Known: `--rule` is a faint border
+
+`--rule` sits at 1.35:1 against `--surface` in both themes — below the 3:1 WCAG asks of a boundary
+that identifies a control. It is deliberate as a separator and fine there. Where it borders an input,
+the control is also distinguished by its fill, so it is not a failure — but it is worth revisiting if
+the borders ever become the only cue. Both themes are equally affected; this predates the dark
+theme.
