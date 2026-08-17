@@ -126,20 +126,21 @@ The crop rectangle is a map gesture belonging to the Export section, which arriv
 
 ## Cluster G · Platform & Cross-cutting
 
-| ID     | Stage     | Feature                                                                                                                       | Basis                                                         |
-| ------ | --------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| **G1** | `5`       | **Project as a directory**: `project.yaml` beside real `.vpl` and `style.json` files, usable by the CLI                       | serve config conventions ([Q6](decisions.md))                 |
-| **G2** | `1`       | **"Show me the command"**: every GUI action displays its CLI equivalent                                                       | the command strip exists from the first shell                 |
-| **G3** | `5`       | Cross-platform builds with signing. Release 1 is Linux + Homebrew cask; Windows and Apple ID deferred                         | Tauri; **long lead times — plan early** ([Q10](decisions.md)) |
-| **G4** | `5`       | Auto-update                                                                                                                   | Tauri updater                                                 |
-| **G5** | `0`       | No telemetry, no account, no network requirement once the chosen assets are installed                                         | design constraint ([Q9](decisions.md))                        |
-| **G6** | `2` · `4` | Undo/redo across pipeline and style edits                                                                                     | new                                                           |
-| **G7** | `4`       | **Asset manager**: download, pin, verify and remove font families and sprite sets, including locally generated ones (D9, D10) | `versatiles-fonts`/`-style` releases, `serve -s`              |
+| ID     | Stage     | Feature                                                                                                                                                                               | Basis                                                         |
+| ------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| **G1** | `5`       | **Project as a directory**: `project.yaml` beside real `.vpl` and `style.json` files, usable by the CLI                                                                               | serve config conventions ([Q6](decisions.md))                 |
+| **G2** | `dropped` | ~~**"Show me the command"**: every GUI action displays its CLI equivalent~~ — most actions have no CLI equivalent, and reproducibility is served properly by G1 ([Q24](decisions.md)) | the command strip exists from the first shell                 |
+| **G3** | `5`       | Cross-platform builds with signing. Release 1 is Linux + Homebrew cask; Windows and Apple ID deferred                                                                                 | Tauri; **long lead times — plan early** ([Q10](decisions.md)) |
+| **G4** | `5`       | Auto-update                                                                                                                                                                           | Tauri updater                                                 |
+| **G5** | `0`       | No telemetry, no account, no network requirement once the chosen assets are installed                                                                                                 | design constraint ([Q9](decisions.md))                        |
+| **G6** | `2` · `4` | Undo/redo across pipeline and style edits                                                                                                                                             | new                                                           |
+| **G7** | `4`       | **Asset manager**: download, pin, verify and remove font families and sprite sets, including locally generated ones (D9, D10)                                                         | `versatiles-fonts`/`-style` releases, `serve -s`              |
 
 **G6 lands twice** ([Q11](decisions.md)): the command stack ships in stage 2 with the node graph, and
-stage 4 puts style edits on that same stack rather than building a second one. **G2 and G5 are
-constraints rather than screens** — G2 is satisfied by the persistent command strip present from the
-first shell, G5 by not building the thing that would violate it.
+stage 4 puts style edits on that same stack rather than building a second one. **G5 is a
+constraint rather than a screen** — satisfied by not building the thing that would violate it. G2 was
+the other one, and is [dropped](decisions.md): the bottom bar it lived in is the job and status bar
+instead.
 
 ---
 
@@ -150,7 +151,7 @@ The same information read the other way. Stretch items are marked `*`.
 | Stage       | Features                                 |
 | ----------- | ---------------------------------------- |
 | **0**       | G5                                       |
-| **1**       | A1, A2, A4\*, A5, A6, A7, A8, G2         |
+| **1**       | A1, A2, A4\*, A5, A6, A7, A8             |
 | **2**       | C1, C2, C3, C4, C5\*, C8\*, G6           |
 | **3**       | C6, E1, E2, E3, E4\*, E6\*, E7, F2       |
 | **4**       | D1, D2, D3, D5\*, D6\*, D8, D9\*, G6, G7 |

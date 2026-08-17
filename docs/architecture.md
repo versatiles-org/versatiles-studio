@@ -171,9 +171,6 @@ the source-of-truth principle applied to volatile UI state rather than to files.
 ([inventory](ecosystem.md)). Hand-written UI per operation would rot the first time versatiles-rs
 adds an operation.
 
-**Every action names its command.** G2 is an architectural constraint, not a feature: if an action
-cannot be expressed as a command, it probably should not exist.
-
 **Nothing only exists inside Studio.** Every artefact must be exportable in a documented format.
 
 **Assets are archives, not file trees.** Fonts and sprites stay compressed and are served from

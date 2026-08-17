@@ -16,6 +16,36 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q24 — G2 is dropped. The bottom bar shows status and progress
+
+**Dated 2026-08-17.** "Show me the command" — a persistent strip naming the CLI equivalent of the
+last action — is removed, and the bottom bar becomes the job and status bar it was always going to
+need.
+
+**The promise could not be kept.** G2 said _every GUI action displays its CLI equivalent_. Most of
+Studio's actions have no CLI equivalent and never will: collapsing a pane, selecting a node, panning
+the map, editing a parameter, opening a bookmark. In practice one action wrote to the strip — opening
+a container, as `versatiles probe … -d` — and every later action left that line sitting there,
+describing something the user had done minutes ago. A bar that claims to say what you just did, and
+mostly says what you did a while ago, teaches the wrong thing more reliably than no bar at all.
+
+**The need behind it is real and is met better elsewhere.** What G2 was for was reproducibility —
+getting from "I did this by hand" to "this runs in CI". [G1](features.md) delivers that properly: the
+project is a **directory of real `.vpl` and `style.json` files that the CLI already consumes**. A
+whole project the CLI can run beats a copyable one-liner, and it does not have to be maintained
+action by action.
+
+**The bottom bar had a better occupant waiting.** E7's job bar — progress, cancellation, an
+expandable per-job log — was always going to live there, and conversions running for minutes to hours
+make it the more valuable use of a permanent row. Rather than two strips competing for the bottom of
+the window, there is one, and it says what the application is doing.
+
+**What this costs.** Studio no longer teaches the CLI by example. That was a genuine virtue and it is
+being given up deliberately, not by accident: the alternative was keeping a bar that was honest about
+its intent and misleading about its content. The "show me the VPL" escape hatch survives, because it
+was never G2's — it is [C7](features.md), served by [Q15](decisions.md)'s Graph/VPL tabs, and showing
+the VPL for a pipeline is something Studio can always do truthfully.
+
 ### Q23 — The VPL syntax tree is written from scratch, and pinned to upstream by a differential test
 
 [Q11](decisions.md) committed to a lossless syntax tree without saying where it would come from.

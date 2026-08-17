@@ -20,7 +20,7 @@ a one-item bar before then would be chrome that does nothing.
 
 | Stage | What appears                                                     |
 | ----- | ---------------------------------------------------------------- |
-| S1    | The surface, sections collapsed: map, inspector, command strip   |
+| S1    | The surface, sections collapsed: map, inspector, status bar      |
 | S2    | Left pane opens — Pipeline section, Graph / VPL tabs             |
 | S3    | Import cards on the landing screen and "add source"              |
 | S4    | Style section — layer tree; **the mode bar appears** with Assets |
@@ -48,14 +48,13 @@ True everywhere. These matter more than the arrangement.
   that fails at minute 40 has to say why; a failed job stays until dismissed.
 - **The cost estimate (C6) appears where a run is committed** — the parameters of a node about to
   execute, and beside the export button. An estimate you must go looking for is one you will not see.
-- **The command strip is persistent, not a dialog** (G2). A menu item nobody clicks teaches nobody.
 - **Nothing lives only in the webview** ([Q16](decisions.md)). Viewport, selection and scroll
   position are restorable from the core, so a crashed window reloads without losing work.
 
 ## Panes and sections
 
-Three regions, always present — **left pane, map, right pane** — over a job bar and command strip,
-with the mode bar arriving above them at S4.
+Three regions, always present — **left pane, map, right pane** — over the status and job bar, with
+the mode bar arriving above them at S4.
 
 | Region         | Holds                                                                                                                                                 |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |

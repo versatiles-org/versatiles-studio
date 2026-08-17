@@ -65,7 +65,7 @@ since parse errors come back as strings with no positions.
 **M3 and M4 share one engine.** E1, E2 and E3 are the `from_geo`, `from_csv` and GDAL operations of
 the pipeline, so the import wizard is a guided front-end onto a VPL pipeline the user could have
 typed. Build the pipeline layer first and the wizard's preview _is_ C3's preview, every wizard gets a
-"show me the VPL" escape hatch (G2, satisfying C7), and fixing the pipeline fixes the wizard.
+"show me the VPL" escape hatch (C7), and fixing the pipeline fixes the wizard.
 Building them separately means writing the conversion plumbing twice.
 
 ## Stage order
@@ -128,7 +128,7 @@ GEOS unlinked, which removes the LGPL obligation entirely.
 | **S1.6**    | ~~Feature popup on hover/click~~ — **done**                                                                                                                         | A8             |
 | **S1.7**    | ~~Tile grid overlay with z/x/y and a jump-to-coordinate box~~ — **done**                                                                                            | A5             |
 | **S1.8**    | ~~Named view bookmarks~~ — **done**, application-wide rather than in the project ([Q21](decisions.md))                                                              | A7             |
-| **S1.9**    | ~~Command strip — the CLI equivalent of the last action, copyable~~ — **done**                                                                                      | G2             |
+| **S1.9**    | ~~Command strip~~ — **dropped with G2**; the bottom bar is the status and job bar instead ([Q24](decisions.md))                                                     | G2             |
 | **S1.10\*** | ~~Raw MVT inspector: layers → features → properties, with byte sizes~~ — **done**                                                                                   | A4             |
 
 ### S2 · Pipeline editing → M4
@@ -154,17 +154,17 @@ following it.
 
 ### S3 · Import & convert → M3
 
-| Item       | Work                                                                                                                            | Feature        |
-| ---------- | ------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| **S3.1**   | Job runner and job bar: progress, cancellation, and an expandable per-job log                                                   | E7             |
-| **S3.2**   | Import cards on the landing screen and on "+ Add source"                                                                        | infrastructure |
-| **S3.3**   | Vector import: GeoJSON, NDJSON, shapefile                                                                                       | E1             |
-| **S3.4**   | Tabular point import: CSV with lon/lat columns                                                                                  | E2             |
-| **S3.5**   | GDAL raster path: GTiff/COG, VRT, PNG, JPEG, MEM. Block pkg-config in the build or it links a system GDAL ([Q19](decisions.md)) | E3             |
-| **S3.6**   | Write the result to a container                                                                                                 | F2             |
-| **S3.7**   | Sampling-based cost estimate, shown where a run is committed                                                                    | C6             |
-| **S3.8\*** | DEM workflow: terrarium encoding, hillshade, quantisation                                                                       | E4             |
-| **S3.9\*** | Table join: existing tiles plus CSV → choropleth                                                                                | E6             |
+| Item       | Work                                                                                                                                      | Feature        |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **S3.1**   | Job runner behind the status bar: the queue, cancellation, and an expandable per-job log. The bar itself arrived with [Q24](decisions.md) | E7             |
+| **S3.2**   | Import cards on the landing screen and on "+ Add source"                                                                                  | infrastructure |
+| **S3.3**   | Vector import: GeoJSON, NDJSON, shapefile                                                                                                 | E1             |
+| **S3.4**   | Tabular point import: CSV with lon/lat columns                                                                                            | E2             |
+| **S3.5**   | GDAL raster path: GTiff/COG, VRT, PNG, JPEG, MEM. Block pkg-config in the build or it links a system GDAL ([Q19](decisions.md))           | E3             |
+| **S3.6**   | Write the result to a container                                                                                                           | F2             |
+| **S3.7**   | Sampling-based cost estimate, shown where a run is committed                                                                              | C6             |
+| **S3.8\*** | DEM workflow: terrarium encoding, hillshade, quantisation                                                                                 | E4             |
+| **S3.9\*** | Table join: existing tiles plus CSV → choropleth                                                                                          | E6             |
 
 **No import wizard surface.** A card opens the native file dialog, inserts a node into the pipeline
 and selects it; S2.6's generated form is the configuration UI and S2.7's preview is the preview.

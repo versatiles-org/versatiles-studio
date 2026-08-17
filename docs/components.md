@@ -29,12 +29,12 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 
 | Component                     | Does                                                                                                                      | Stage |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `AppShell`                    | The grid: mode bar, left pane, map, right pane, job bar, command strip                                                    | S0.1  |
+| `AppShell`                    | The grid: mode bar, left pane, map, right pane, status and job bar                                                        | S0.1  |
 | `ModeBar`                     | **Map** vs non-map tools — assets (G7), which is where generated glyphs (D9) and sprites (D10) live ([Q22](decisions.md)) | S4.1  |
 | `LeftPane` + `PaneSection`    | The chain as collapsible sections; collapse state is core-owned                                                           | S2.2  |
 | `RightPane`                   | Parameters of the current selection                                                                                       | S1.4  |
 | `JobBar` + `JobDrawer`        | Progress and cancellation; expands to a per-job log (E7)                                                                  | S3.1  |
-| `CommandStrip`                | The CLI equivalent of the last action, copyable (G2)                                                                      | S1.9  |
+| `StatusBar`                   | What the application is doing; progress, and where errors land ([Q24](decisions.md))                                      | S1.9  |
 | `LandingScreen`, `LaunchCard` | What an empty window shows; gains import cards at S3                                                                      | S1.1  |
 
 ## Map
