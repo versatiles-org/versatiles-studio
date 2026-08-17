@@ -141,19 +141,19 @@ GEOS unlinked, which removes the LGPL obligation entirely.
 
 The long pole. S2.1 gates everything after it.
 
-| Item        | Work                                                                                                                                                | Feature        |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| **S2.1**    | ~~**Lossless VPL syntax tree and serialiser** — spans, comments, parameter order~~ — **done**, in `studio-core::vpl` ([Q23](decisions.md))          | infrastructure |
-| **S2.2**    | ~~The collapsible left pane, sections remembering their state~~ — **done**; state in `store::Layout` ([Q22](decisions.md))                          | infrastructure |
-| **S2.3**    | ~~VPL text editor over the syntax tree~~ — **done**; highlighting comes from the parser's own tokens ([Q25](decisions.md))                          | C1             |
-| **S2.4**    | ~~Inline parse and validation errors at the right position~~ — **done**; validation checks the document against `all_operation_metadata()`          | C4             |
-| **S2.5**    | ~~Node graph, tabbed with VPL: selection sync, error badge, never a stale graph~~ — **done**                                                        | C1             |
-| **S2.6**    | ~~Parameter forms generated from `field_meta`~~ — **done**; controls, bounds, help text and the list of unset parameters all come from the metadata | C2             |
-| **S2.7**    | ~~Live preview of the selected node, mounted on the embedded server~~ — **done**; the map shows the pipeline's output, not the raw container        | C3             |
-| **S2.8**    | ~~Undo/redo command stack over the document~~ — **done**; one stack for text, form and graph edits alike                                            | G6             |
-| **S2.9**    | ~~Open a `.vpl` file — dialog, drag & drop and recents, into the editor and the graph~~ — **done**; paths inside resolve against the file           | C9             |
-| **S2.10\*** | Recipe library of working starting points                                                                                                           | C5             |
-| **S2.11\*** | Watch mode: source changes on disk refresh the preview                                                                                              | C8             |
+| Item        | Work                                                                                                                                                               | Feature        |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
+| **S2.1**    | ~~**Lossless VPL syntax tree and serialiser** — spans, comments, parameter order~~ — **done**, in `studio-core::vpl` ([Q23](decisions.md))                         | infrastructure |
+| **S2.2**    | ~~The collapsible left pane, sections remembering their state~~ — **done**; state in `store::Layout` ([Q22](decisions.md))                                         | infrastructure |
+| **S2.3**    | ~~VPL text editor over the syntax tree~~ — **done**; highlighting comes from the parser's own tokens ([Q25](decisions.md))                                         | C1             |
+| **S2.4**    | ~~Inline parse and validation errors at the right position~~ — **done**; validation checks the document against `all_operation_metadata()`                         | C4             |
+| **S2.5**    | ~~Node graph, tabbed with VPL: selection sync, error badge, never a stale graph~~ — **done**                                                                       | C1             |
+| **S2.6**    | ~~Parameter forms generated from `field_meta`~~ — **done**; controls, bounds, help text and the list of unset parameters all come from the metadata                | C2             |
+| **S2.7**    | ~~Live preview of the selected node, mounted on the embedded server~~ — **done**; the map shows the pipeline's output, not the raw container                       | C3             |
+| **S2.8**    | ~~Undo/redo command stack over the document~~ — **done**; one stack for text, form and graph edits alike                                                           | G6             |
+| **S2.9**    | ~~Open a `.vpl` file — dialog, drag & drop and recents, into the editor and the graph~~ — **done**; paths inside resolve against the file, and Save writes it back | C9             |
+| **S2.10\*** | Recipe library of working starting points                                                                                                                          | C5             |
+| **S2.11\*** | Watch mode: source changes on disk refresh the preview                                                                                                             | C8             |
 
 **Start S2.1 during S1.** It does not exist upstream, it is not small, and everything in M4 sits on
 it. Offering it to `versatiles_pipeline` early means review overlaps with cluster A rather than

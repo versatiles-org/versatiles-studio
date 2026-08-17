@@ -31,7 +31,8 @@
 		selected,
 		onSelect,
 		onUndo,
-		onRedo
+		onRedo,
+		onSave
 	}: {
 		layout: Layout;
 		onLayoutChange: (layout: Layout) => void;
@@ -48,6 +49,8 @@
 		/** One stack for every view (G6); the buttons are the discoverable half of ⌘Z. */
 		onUndo: () => void;
 		onRedo: () => void;
+		/** `true` to choose a new file rather than writing to the one already open. */
+		onSave: (chooseFile: boolean) => void;
 	} = $props();
 
 	// Q15: one pane, two tabs over one document — not two panes.
@@ -194,9 +197,26 @@
 				onSelect={(path, node) => selectNode(path, node.nameSpan)}
 			/>
 		{/if}
-		{#if tab === 'graph'}
-			<button type="button" class="add" onclick={onAddSource}>+ Add source</button>
-		{/if}
+		<!-- Actions on the pipeline itself, available from either tab. Saving a *project* is a
+		     different command with a different scope (G1, S5.1); this writes the pipeline as the
+		     `.vpl` the CLI already reads. -->
+		<div class="actions">
+			{#if tab === 'graph'}
+				<button type="button" class="add" onclick={onAddSource}>+ Add source</button>
+			{/if}
+			<div class="files">
+				<button
+					type="button"
+					class="file"
+					disabled={!pipeline || (!pipeline.dirty && pipeline.path !== null)}
+					title={pipeline?.path ?? 'Choose where to save'}
+					onclick={() => onSave(false)}
+				>
+					Save{#if pipeline?.dirty && pipeline.path}<span class="dot" aria-label="unsaved changes">•</span>{/if}
+				</button>
+				<button type="button" class="file" disabled={!pipeline} onclick={() => onSave(true)}>Save as…</button>
+			</div>
+		</div>
 	</PaneSection>
 </div>
 
@@ -276,9 +296,31 @@
 		/* An error can name a long path, and it must break rather than widen the pane. */
 		overflow-wrap: anywhere;
 	}
+	.actions {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin-top: var(--space-3);
+		min-width: 0;
+	}
+	.files {
+		margin-left: auto;
+		display: flex;
+		gap: var(--space-2);
+	}
+	.file {
+		padding: var(--space-1) var(--space-3);
+		font-size: var(--text-xs);
+	}
+	.file:disabled {
+		opacity: 0.45;
+	}
+	.dot {
+		color: var(--accent);
+		margin-left: 1px;
+	}
 	.add {
 		align-self: flex-start;
-		margin-top: var(--space-1);
 		padding: var(--space-2) var(--space-3);
 		border: 1px dashed var(--rule);
 		border-radius: var(--radius);

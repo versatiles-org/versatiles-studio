@@ -78,6 +78,11 @@ drop and the recents list all take one — a pipeline the CLI wrote has to open 
 cannot hand work to each other. What opens is the Pipeline section, with the map previewing the
 pipeline's output rather than a container's tiles.
 
+**Saving a pipeline lives in the Pipeline section**, because that is its scope: it writes the
+pipeline as the `.vpl` the CLI already reads. Saving a _project_ — the manifest, the style and the
+pipeline as a directory (G1) — is a different command with a different scope, and gets its own home
+when it arrives. One writes a file, the other a folder; they are not two spellings of one thing.
+
 **Paths inside a `.vpl` file resolve against that file**, the way `versatiles convert` resolves them:
 `from_container filename="berlin.mbtiles"` means the one beside it. Opening a pipeline therefore
 moves what every later relative path means, which is why the containers it names are found at all.

@@ -57,6 +57,7 @@ pub fn run() {
 					layout: Mutex::new(layout),
 					pipeline: Mutex::new(None),
 					history: Mutex::new(History::new()),
+					pipeline_file: Mutex::new(None),
 					project_dir: Mutex::new(std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
 					data_dir,
 				},
@@ -90,7 +91,8 @@ pub fn run() {
 			commands::vpl::preview_pipeline,
 			commands::vpl::undo,
 			commands::vpl::redo,
-			commands::vpl::open_vpl
+			commands::vpl::open_vpl,
+			commands::vpl::save_vpl
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running VersaTiles Studio");

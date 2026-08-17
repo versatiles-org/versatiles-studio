@@ -31,6 +31,9 @@ pub struct AppState {
 	pub pipeline: Mutex<Option<Document>>,
 	/// One undo stack for the document, whichever view an edit came from ([Q11], G6).
 	pub history: Mutex<History>,
+	/// The `.vpl` file the pipeline came from, and its text as saved — so "is there anything to
+	/// save" is answered by comparison rather than by a flag someone has to remember to set.
+	pub pipeline_file: Mutex<Option<(PathBuf, String)>>,
 	/// What relative paths in the VPL resolve against.
 	///
 	/// A `.vpl` file's paths are relative to **that file**, the way `versatiles convert` resolves

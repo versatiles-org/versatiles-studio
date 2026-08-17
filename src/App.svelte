@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { open } from '@tauri-apps/plugin-dialog';
+	import { open, save } from '@tauri-apps/plugin-dialog';
 	import { untrack } from 'svelte';
 	import { getCurrentWebview } from '@tauri-apps/api/webview';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -25,6 +25,7 @@
 		setPipeline,
 		undo as undoPipeline,
 		openVpl,
+		saveVpl,
 		redo as redoPipeline,
 		openContainer,
 		recentSources,
@@ -105,9 +106,15 @@
 	// undo it locally would leave the two disagreeing until the next keystroke.
 	$effect(() => {
 		const onKey = (event: KeyboardEvent) => {
-			if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
+			if (!(event.metaKey || event.ctrlKey)) return;
+			const key = event.key.toLowerCase();
 			const tag = (event.target as HTMLElement | null)?.tagName;
-			if (tag === 'INPUT' || tag === 'SELECT') return;
+			if (key === 's') {
+				event.preventDefault();
+				void savePipeline(event.shiftKey);
+				return;
+			}
+			if (key !== 'z' || tag === 'INPUT' || tag === 'SELECT') return;
 			event.preventDefault();
 			void stepHistory(!event.shiftKey);
 		};
@@ -238,6 +245,31 @@
 		await refreshPreview();
 	}
 
+	/// Writes the pipeline as a `.vpl`. Asks where when there is no file yet, or when asked to.
+	///
+	/// Saving a *project* is a different command with a different scope (G1, S5.1) — this is the
+	/// pipeline as the file the CLI already reads.
+	async function savePipeline(chooseFile: boolean) {
+		if (!pipeline) return;
+		try {
+			let target = chooseFile ? null : pipeline.path;
+			if (!target) {
+				target = await save({
+					title: 'Save pipeline',
+					defaultPath: pipeline.path ?? 'pipeline.vpl',
+					filters: [{ name: 'VPL pipelines', extensions: PIPELINES }]
+				});
+				if (!target) return; // cancelled
+			}
+			pipeline = await saveVpl(target);
+			status = { kind: 'busy', message: `Saved ${filename(target)}` };
+			await refreshRecents();
+			status = { kind: 'idle' };
+		} catch (e) {
+			fail(e);
+		}
+	}
+
 	async function stepHistory(back: boolean) {
 		try {
 			const next = await (back ? undoPipeline() : redoPipeline());
@@ -320,6 +352,7 @@
 		}}
 		onUndo={() => void stepHistory(true)}
 		onRedo={() => void stepHistory(false)}
+		onSave={(chooseFile) => void savePipeline(chooseFile)}
 	/>
 {/snippet}
 

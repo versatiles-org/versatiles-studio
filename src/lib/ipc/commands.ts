@@ -198,6 +198,10 @@ export interface DocumentView {
 	/** Whether undo and redo have anywhere to go (G6). */
 	canUndo: boolean;
 	canRedo: boolean;
+	/** The `.vpl` this came from, if any — where Save writes without asking. */
+	path: string | null;
+	/** Whether the pipeline differs from what is on disk. */
+	dirty: boolean;
 }
 
 /** This window's pipeline, or null before anything is opened. One document per window (Q25). */
@@ -226,6 +230,16 @@ export function setPipeline(text: string, kind: EditKind = 'structured'): Promis
  */
 export function openVpl(path: string): Promise<DocumentView> {
 	return invoke<DocumentView>('open_vpl', { path });
+}
+
+/**
+ * Writes the pipeline to a `.vpl` file and remembers it as the file this window is editing.
+ *
+ * The narrower half of saving — the pipeline as the file the CLI already reads. Saving a *project*
+ * (G1, S5.1) is a separate command with a different scope: one writes a file, the other a folder.
+ */
+export function saveVpl(path: string): Promise<DocumentView> {
+	return invoke<DocumentView>('save_vpl', { path });
 }
 
 /** Steps the document back, or forward again. Null when there is nowhere to go. */

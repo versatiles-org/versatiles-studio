@@ -55,10 +55,18 @@ pub struct DocumentView {
 	/// Whether ⌘Z and ⇧⌘Z have anywhere to go, so the interface can say so.
 	pub can_undo: bool,
 	pub can_redo: bool,
+	/// The `.vpl` this came from, if any, so Save has somewhere to write without asking.
+	pub path: Option<String>,
+	/// Whether the pipeline differs from what is on disk.
+	pub dirty: bool,
 }
 
 impl DocumentView {
-	fn of(document: &Document, history: &studio_core::history::History) -> Self {
+	fn of(
+		document: &Document,
+		history: &studio_core::history::History,
+		file: Option<&(std::path::PathBuf, String)>,
+	) -> Self {
 		Self {
 			text: document.text().to_string(),
 			pipeline: document.pipeline().clone(),
@@ -66,6 +74,10 @@ impl DocumentView {
 			diagnostics: validate(document),
 			can_undo: history.can_undo(),
 			can_redo: history.can_redo(),
+			path: file.map(|(path, _)| path.to_string_lossy().into_owned()),
+			// A pipeline with no file behind it is dirty as soon as it has content: there is
+			// somewhere it could be saved to, and nowhere it has been.
+			dirty: file.is_none_or(|(_, saved)| saved != document.text()),
 		}
 	}
 }
@@ -74,12 +86,13 @@ impl DocumentView {
 #[tauri::command]
 pub async fn pipeline(state: State<'_, AppState>) -> Result<Option<DocumentView>, String> {
 	let history = state.history.lock().await;
+	let file = state.pipeline_file.lock().await.clone();
 	Ok(state
 		.pipeline
 		.lock()
 		.await
 		.as_ref()
-		.map(|document| DocumentView::of(document, &history)))
+		.map(|document| DocumentView::of(document, &history, file.as_ref())))
 }
 
 /// Replaces the pipeline, rejecting text that does not parse.
@@ -93,6 +106,13 @@ pub async fn set_pipeline(
 	kind: Option<String>,
 ) -> Result<DocumentView, VplError> {
 	let document = Document::parse(text)?;
+
+	// A wholesale replacement — opening a container, say — is no longer the file that was open, so
+	// Save must not silently write over it. An edit keeps the file and simply makes it dirty.
+	if kind.as_deref() == Some("replaced") {
+		*state.pipeline_file.lock().await = None;
+	}
+
 	let mut history = state.history.lock().await;
 	// The caller says where the edit came from, because only it knows: the same command carries a
 	// keystroke and a form change, and they deserve different undo granularity.
@@ -104,7 +124,7 @@ pub async fn set_pipeline(
 			_ => EditKind::Structured,
 		},
 	);
-	let view = DocumentView::of(&document, &history);
+	let view = DocumentView::of(&document, &history, state.pipeline_file.lock().await.as_ref());
 	*state.pipeline.lock().await = Some(document);
 	Ok(view)
 }
@@ -130,7 +150,7 @@ async fn step(state: State<'_, AppState>, back: bool) -> Result<Option<DocumentV
 	// Every state on the stack parsed when it was recorded, so this cannot fail — but it is parsed
 	// rather than assumed, because a panic here would take the window with it.
 	let document = Document::parse(text.to_string())?;
-	let view = DocumentView::of(&document, &history);
+	let view = DocumentView::of(&document, &history, state.pipeline_file.lock().await.as_ref());
 	*state.pipeline.lock().await = Some(document);
 	Ok(Some(view))
 }
@@ -255,9 +275,12 @@ pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 		*state.project_dir.lock().await = parent.to_path_buf();
 	}
 
+	let saved = (std::path::PathBuf::from(&path), document.text().to_string());
+	*state.pipeline_file.lock().await = Some(saved.clone());
+
 	let mut history = state.history.lock().await;
 	history.push(document.text(), EditKind::Replaced);
-	let view = DocumentView::of(&document, &history);
+	let view = DocumentView::of(&document, &history, Some(&saved));
 	*state.pipeline.lock().await = Some(document);
 
 	{
@@ -269,4 +292,36 @@ pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 	}
 
 	Ok(view)
+}
+
+/// Writes the pipeline to a `.vpl` file and remembers it as the file this window is editing.
+///
+/// The narrower half of saving: this writes the pipeline as the file the CLI already reads. Saving a
+/// *project* — the manifest, the style and the pipeline as a directory — is G1 at S5.1, and stays a
+/// separate command because it has a different scope.
+#[tauri::command]
+pub async fn save_vpl(state: State<'_, AppState>, path: String) -> Result<DocumentView, VplError> {
+	let Some(document) = state.pipeline.lock().await.clone() else {
+		return Err(VplError {
+			message: "there is no pipeline to save".to_string(),
+			span: Span::new(0, 0),
+		});
+	};
+
+	studio_core::project::save_vpl(std::path::Path::new(&path), document.text()).map_err(|error| VplError {
+		message: format!("{error:#}"),
+		span: Span::new(0, 0),
+	})?;
+
+	// Saving to a file makes that file's directory what relative paths mean, exactly as opening one
+	// does — otherwise a pipeline saved beside its inputs would stop finding them.
+	let file = std::path::PathBuf::from(&path);
+	if let Some(parent) = file.parent() {
+		*state.project_dir.lock().await = parent.to_path_buf();
+	}
+	let saved = (file, document.text().to_string());
+	*state.pipeline_file.lock().await = Some(saved.clone());
+
+	let history = state.history.lock().await;
+	Ok(DocumentView::of(&document, &history, Some(&saved)))
 }
