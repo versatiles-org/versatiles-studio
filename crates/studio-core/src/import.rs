@@ -490,8 +490,12 @@ mod gdal_drivers {
 	use gdal::Metadata;
 
 	/// Every extension GDAL says it can open, lowercase.
+	///
+	/// **No `register_all()`.** `count()` and `get_driver()` register through the crate's own
+	/// `Once`; calling `register_all()` alongside them is a *second*, unguarded `GDALAllRegister`,
+	/// and GDAL aborts the process when a driver name is registered twice from two objects —
+	/// `CPLAssert(false)` in `gdaldrivermanager.cpp`. Two tests doing it concurrently is enough.
 	fn readable() -> Vec<String> {
-		gdal::DriverManager::register_all();
 		(0..gdal::DriverManager::count())
 			.filter_map(|index| gdal::DriverManager::get_driver(index).ok())
 			.filter_map(|driver| driver.metadata_item("DMD_EXTENSIONS", ""))
@@ -518,7 +522,6 @@ mod gdal_drivers {
 	/// by accident is binary size nobody asked for.
 	#[test]
 	fn the_driver_set_is_the_one_that_was_chosen() {
-		gdal::DriverManager::register_all();
 		let mut names: Vec<String> = (0..gdal::DriverManager::count())
 			.filter_map(|index| gdal::DriverManager::get_driver(index).ok())
 			.map(|driver| driver.short_name())
