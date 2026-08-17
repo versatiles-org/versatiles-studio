@@ -228,6 +228,13 @@ mod tests {
 	fn every_extension_is_named_in_the_operations_documentation() {
 		let available = operations();
 		for kind in kinds() {
+			// `from_gdal_raster` documents itself as reading "a GDAL raster dataset" and gives one
+			// example filename; what it can actually open is decided by the drivers this build
+			// linked, not by its prose. Checked against those instead — see
+			// `gdal_reads_every_extension_the_raster_card_claims`.
+			if kind.id == "raster" {
+				continue;
+			}
 			let Some(name) = &kind.operation else { continue };
 			let operation = available.iter().find(|op| &op.name == name).unwrap();
 			// The container reader names its formats in the summary; the others list them under
@@ -411,6 +418,43 @@ mod tests {
 		dir.exists().then_some(dir)
 	}
 
+	/// E3 end to end: a GeoTIFF chosen from the raster card becomes tiles.
+	///
+	/// The bbox matters as much as the tiles do — it is Web Mercator, which means a coordinate
+	/// transform ran, which means PROJ found its `proj.db`. That database is *embedded in libproj*
+	/// rather than on disk ([Q19](../../../docs/decisions.md)), and a self-contained binary is the
+	/// whole reason GDAL is statically bundled, so this is the assertion that premise rests on.
+	#[tokio::test]
+	async fn a_geotiff_imports_into_tiles() -> anyhow::Result<()> {
+		let Some(dir) = testdata() else { return Ok(()) };
+		let Some(kind) = kinds().into_iter().find(|kind| kind.id == "raster") else {
+			eprintln!("skipping: this build has no GDAL");
+			return Ok(());
+		};
+
+		let path = dir.join("gradient.tif");
+		let vpl = read_node(&kind, &path.to_string_lossy());
+		let document = crate::vpl::Document::parse(&vpl)?;
+		assert!(
+			crate::vpl::validate(&document).is_empty(),
+			"{vpl} did not validate: {:?}",
+			crate::vpl::validate(&document)
+		);
+
+		let runtime = versatiles::runtime::create_runtime();
+		let source = crate::preview::build(&runtime, document.to_pipeline(), &dir).await?;
+		let info = crate::analysis::describe(&source, "preview").await?;
+
+		assert_eq!(info.tile_format, "png", "a raster import produces raster tiles");
+		assert!(info.max_zoom >= info.min_zoom);
+		let bbox = info.bbox.expect("a raster import should know where it is");
+		assert!(
+			(-180.0..=180.0).contains(&bbox[0]) && (-90.0..=90.0).contains(&bbox[1]),
+			"the extent is not in degrees, so PROJ did not transform it: {bbox:?}"
+		);
+		Ok(())
+	}
+
 	/// No two kinds may claim the same extension, or which card a dropped file belongs to would
 	/// depend on the order of this list.
 	///
@@ -428,5 +472,72 @@ mod tests {
 				seen.push((candidate.id, extension));
 			}
 		}
+	}
+}
+
+/// The raster card's claim, checked against the only thing that can settle it.
+///
+/// `from_gdal_raster` reads whatever GDAL's registered drivers read, and which drivers those are is
+/// a decision *this repository* makes in `Cargo.toml` ([Q19](../../../docs/decisions.md), Q20) —
+/// six `gdal-src` features, deliberately narrow. So the card and the driver list are two statements
+/// of the same choice, made in two files, and this is what keeps them one choice.
+///
+/// It bites in both directions: dropping `driver_jpeg` to save binary size while the card still
+/// offers `.jpg` fails here, and so does adding an extension nothing reads.
+#[cfg(test)]
+mod gdal_drivers {
+	use super::*;
+	use gdal::Metadata;
+
+	/// Every extension GDAL says it can open, lowercase.
+	fn readable() -> Vec<String> {
+		gdal::DriverManager::register_all();
+		(0..gdal::DriverManager::count())
+			.filter_map(|index| gdal::DriverManager::get_driver(index).ok())
+			.filter_map(|driver| driver.metadata_item("DMD_EXTENSIONS", ""))
+			.flat_map(|list| list.split_whitespace().map(str::to_lowercase).collect::<Vec<_>>())
+			.collect()
+	}
+
+	#[test]
+	fn gdal_reads_every_extension_the_raster_card_claims() {
+		let Some(kind) = kinds().into_iter().find(|kind| kind.id == "raster") else {
+			// No GDAL in this build, so no card — which is [Q28]'s promise, tested elsewhere.
+			return;
+		};
+		let readable = readable();
+		for extension in &kind.extensions {
+			assert!(
+				readable.contains(extension),
+				"the raster card offers .{extension}, which no linked driver reads: {readable:?}"
+			);
+		}
+	}
+
+	/// The drivers [Q19](../../../docs/decisions.md) settled on, and no others — a driver arriving
+	/// by accident is binary size nobody asked for.
+	#[test]
+	fn the_driver_set_is_the_one_that_was_chosen() {
+		gdal::DriverManager::register_all();
+		let mut names: Vec<String> = (0..gdal::DriverManager::count())
+			.filter_map(|index| gdal::DriverManager::get_driver(index).ok())
+			.map(|driver| driver.short_name())
+			.collect();
+		names.sort();
+		assert_eq!(
+			names,
+			[
+				"COG",
+				"GNMDatabase",
+				"GNMFile",
+				"GTiff",
+				"JPEG",
+				"MEM",
+				"OGR_VRT",
+				"PNG",
+				"VRT"
+			],
+			"the linked driver set changed"
+		);
 	}
 }

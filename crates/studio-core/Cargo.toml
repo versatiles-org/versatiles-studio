@@ -10,6 +10,10 @@ repository.workspace = true
 [dependencies]
 anyhow.workspace = true
 csv.workspace = true
+# Not called directly — present so the static GDAL and its drivers are linked into the binary that
+# `versatiles/gdal` reads rasters with (Q19, S3.5).
+gdal-src.workspace = true
+gdal-sys.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
@@ -33,6 +37,9 @@ bindings = ["dep:specta", "dep:specta-typescript"]
 all = "warn"
 
 [dev-dependencies]
+# Already in the tree via `versatiles/gdal`; used to ask GDAL itself which extensions its drivers
+# read, which is the only authority on what the raster import card may claim (S3.5).
+gdal = "0.19"
 # Already in the tree via the server feature; used to prove the data plane actually serves.
 reqwest = { version = "0.13", default-features = false }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }

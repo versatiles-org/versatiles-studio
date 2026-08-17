@@ -1,0 +1,18 @@
+# Build configuration that must not depend on whose machine it is.
+
+[env]
+# **Block pkg-config discovery of GDAL** ([Q19](../docs/decisions.md), S3.5).
+#
+# `gdal-sys` probes pkg-config unconditionally, even with its `bundled` feature on. On a machine with
+# GDAL installed — Homebrew's, say — that probe wins: the build links dynamically against the system
+# library and takes its headers, and the resulting binary needs a GDAL the user will not have. It
+# also makes the build differ between a developer's laptop and CI, which is the worse failure because
+# it is the quiet one.
+#
+# Pointing `PKG_CONFIG_LIBDIR` at a directory that does not exist makes every probe fail, which is
+# what leaves `gdal-src`'s statically compiled GDAL as the only thing to link against. `force` so it
+# applies even where the variable is already set.
+#
+# Here rather than in a shell profile or a CI step because it is a property of *this build*, and both
+# of those are places a person can forget.
+PKG_CONFIG_LIBDIR = { value = "/nonexistent", force = true }

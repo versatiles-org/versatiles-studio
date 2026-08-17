@@ -497,9 +497,9 @@ So GDAL costs ~18 MB. That dwarfs the 1.8 MB asset tier as predicted, but an ins
 20–35 MB range is unremarkable for a desktop application. ~~**Q19 holds, comfortably.**~~ — see the
 amendment below.
 
-**Amended 2026-08-17 (S3.5): it does not link into Studio, and this is not fixable here.** The
-S0.11 spike measured GDAL in a scratch project. Inside Studio's actual dependency graph the two
-halves cannot coexist:
+**Amended 2026-08-17 (S3.5): it links, but only over a dependency conflict the spike could not have
+seen.** S0.11 measured GDAL in a scratch project. Inside Studio's actual dependency graph the two
+halves do not resolve at all:
 
 | Chain                                                                                | Wants           |
 | ------------------------------------------------------------------------------------ | --------------- |
@@ -511,20 +511,40 @@ the two ranges are disjoint. The dependency is **not optional** in either chain 
 it unconditionally, and `r2d2_sqlite` is a plain dependency of `versatiles_container` with no feature
 gating it — so no combination of features resolves this. It is not a version we can pick.
 
-**The fix is upstream, in one of two places.** Either `proj-sys` widens its range to include 0.36–0.38
-— it is pinning a range that is already three releases behind, and this is the right long-term fix —
-or `versatiles_container` moves to `r2d2_sqlite` ≤ 0.31, which is the last one on `rusqlite` 0.37 and
-therefore on `libsqlite3-sys` 0.35. The second is a downgrade and the first is not ours, which is why
-both are worth asking for rather than choosing between.
+**The fix is upstream, in one of two places**, and both were asked for:
+[versatiles-rs#226](https://github.com/versatiles-org/versatiles-rs/issues/226) to loosen the
+`r2d2_sqlite` requirement, and [georust/proj#261](https://github.com/georust/proj/pull/261) to widen
+the ceiling to any 0.x. The second is a one-line change, because `proj-sys` has no API surface on the
+crate at all — an `extern crate` for linkage plus two build-script keys, emitted unchanged by
+`libsqlite3-sys` 0.35 through 0.38.
 
-**What survives the spike.** The static build, the embedded `proj.db`, the 18.3 MB, the narrow driver
-set and the pkg-config finding are all still true and still the plan. What was wrong was measuring
-them apart from the application.
+**Studio carries that patch in the meantime**, pinned to a commit rather than a branch so a rebase
+cannot silently change what it builds. `[patch.crates-io]` in the workspace manifest, with the exit
+condition written beside it: **remove it as soon as either lands and reaches a release.** It is the
+only thing in the tree depending on a repository we control rather than a published crate, which is
+why it is worth being uncomfortable about.
 
-**What S3.5 landed anyway.** The raster import card is written, and the catalogue
-([Q28](decisions.md)) already drops any kind whose operation this build lacks — so it is dead today
-and appears the moment GDAL links, with no UI change. That is the property Q28 claimed, now exercised
-for real rather than hypothetically.
+**With the patch, everything the spike promised is true of the application.** Verified rather than
+assumed: the graph resolves with `libsqlite3-sys` 0.38.2, `cargo build --workspace` takes 2m42s,
+`otool -L` shows no gdal, proj, geos or sqlite dylib, the nine expected drivers register, and
+`gradient.tif` reads through `from_gdal_raster` into PNG tiles with a degree bbox — which is the
+assertion the embedded `proj.db` premise rests on, since a Web Mercator extent means a transform ran
+with no database on disk.
+
+**The raster import card needed no UI change.** It was written while GDAL was still blocked, and the
+catalogue ([Q28](decisions.md)) drops any kind whose operation the build lacks — so linking GDAL was
+a `Cargo.toml` change and the card appeared. That is the property Q28 claimed, now exercised for real.
+
+**One thing the doc test could not check, and what replaced it.** `from_gdal_raster` documents itself
+as reading "a GDAL raster dataset" and gives one example filename, so matching the card's extensions
+against its prose rejected `.tiff` — correctly, by its own rule, and uselessly. What can settle the
+question is GDAL's own driver metadata, and the driver set is a decision _this repository_ makes. The
+card and the `gdal-src` feature list are two statements of one choice in two files; a test now asks
+GDAL to keep them one. It bites both ways — dropping `driver_jpeg` for binary size while the card
+still offers `.jpg` fails, as does claiming an extension nothing reads.
+
+**`from_gdal_dem` arrived too**, unasked. E4 (S3.8, stretch) is a driver-set decision away rather
+than a dependency away.
 
 **Three findings that change the plan.**
 
