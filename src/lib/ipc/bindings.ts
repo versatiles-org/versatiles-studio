@@ -111,6 +111,50 @@ export const commands = {
 	 *  cannot change while Studio is running.
 	 */
 	vplOperations: () => __TAURI_INVOKE<OperationInfo[]>("vpl_operations"),
+	/**
+	 *  Every way this build can bring data in (S3.2).
+	 * 
+	 *  Build-time information about the binary, like [`vpl_operations`] — the catalogue is derived from
+	 *  the operation registry, so it cannot offer something this build cannot do.
+	 */
+	importKinds: () => __TAURI_INVOKE<ImportKind[]>("import_kinds"),
+	/**
+	 *  Which kind a path belongs to, or `None` for a file Studio has no way in for.
+	 * 
+	 *  Asked here rather than matched in the webview so that one list of extensions serves the dialog,
+	 *  the drop target and the cards — three places that had already started to disagree.
+	 */
+	importKindFor: (path: string) => __TAURI_INVOKE<{
+	/**  Stable identifier, used by the caller to say which card was chosen. */
+	id: string,
+	/**  What the card says. */
+	label: string,
+	/**  The one-line explanation under it. */
+	detail: string,
+	/**  Extensions for the file dialog and the drop filter, without the dot, lowercase. */
+	extensions: string[],
+	/**
+	 *  The read operation a chosen file becomes.
+	 * 
+	 *  `None` for a `.vpl`, which is not a node — it is a whole document, and opening one replaces
+	 *  the pipeline rather than adding to it (C9).
+	 */
+	operation: string | null,
+	/**
+	 *  Required parameters a filename cannot supply, in the order the operation declares them.
+	 * 
+	 *  Empty means picking a file completes the import. Anything here has to come from somewhere
+	 *  else: the file's own header, or the person.
+	 */
+	needs: string[],
+} | null>("import_kind_for", { path }),
+	/**
+	 *  The read node a chosen file becomes — `from_geo filename='…'`, quoting included.
+	 * 
+	 *  The quoting is the core's, for the reason [`vpl_set_value`] gives: a second implementation of
+	 *  VPL's quoting rules in TypeScript is exactly what would drift.
+	 */
+	vplReadNode: (operation: string, filename: string) => __TAURI_INVOKE<string>("vpl_read_node", { operation, filename }),
 	/**  This window's pipeline, or `None` before anything has been opened. */
 	pipeline: () => typedError<{
 	text: string,
@@ -312,6 +356,32 @@ export type FieldInfo = {
 	/**  Fed by a `[ … ]` block rather than by a `key=value` pair, so it has no control. */
 	sources: boolean,
 	control: Control,
+};
+
+/**  One way of bringing data in. */
+export type ImportKind = {
+	/**  Stable identifier, used by the caller to say which card was chosen. */
+	id: string,
+	/**  What the card says. */
+	label: string,
+	/**  The one-line explanation under it. */
+	detail: string,
+	/**  Extensions for the file dialog and the drop filter, without the dot, lowercase. */
+	extensions: string[],
+	/**
+	 *  The read operation a chosen file becomes.
+	 * 
+	 *  `None` for a `.vpl`, which is not a node — it is a whole document, and opening one replaces
+	 *  the pipeline rather than adding to it (C9).
+	 */
+	operation: string | null,
+	/**
+	 *  Required parameters a filename cannot supply, in the order the operation declares them.
+	 * 
+	 *  Empty means picking a file completes the import. Anything here has to come from somewhere
+	 *  else: the file's own header, or the person.
+	 */
+	needs: string[],
 };
 
 /**

@@ -215,15 +215,18 @@ impl std::fmt::Display for Document {
 	}
 }
 
-/// The VPL that reads `source` — the read node an opened container corresponds to.
+/// The VPL that reads `source` with `operation` — the node an opened file corresponds to.
 ///
-/// Under [Q22](../../../docs/decisions.md) an opened container *is* a `from_container` node at the
-/// head of the pipeline; there is no separate list of sources. The quoting comes from the tree, so
-/// a path with spaces or apostrophes is written correctly without the caller thinking about it.
+/// Under [Q22](../../../docs/decisions.md) an opened file *is* a read node at the head of the
+/// pipeline; there is no separate list of sources. The quoting comes from the tree, so a path with
+/// spaces or apostrophes is written correctly without the caller thinking about it.
+///
+/// Which operation to pass is [`import::kind_for`](crate::import::kind_for)'s answer — a container
+/// becomes `from_container`, a GeoJSON `from_geo`, a CSV `from_csv` (S3.2).
 #[must_use]
-pub fn read_node_for(source: &str) -> String {
+pub fn read_node(operation: &str, source: &str) -> String {
 	use versatiles_pipeline::vpl::{CstNode, CstPipeline, CstToken, Punctuated};
-	let mut node = CstNode::new("from_container");
+	let mut node = CstNode::new(operation);
 	node.set_property("filename", source);
 	CstFile::new(CstPipeline {
 		nodes: Punctuated::new([node], &CstToken::new(" | ")),

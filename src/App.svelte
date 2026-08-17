@@ -47,16 +47,26 @@
 		type OperationInfo,
 		type Preview,
 		type Span,
+		importKinds,
+		importKindFor,
+		vplReadNode,
+		type ImportKind,
 		type OpenedContainer,
 		type RecentEntry
 	} from './lib/ipc/commands';
 
-	const CONTAINERS = ['versatiles', 'mbtiles', 'pmtiles', 'tar'];
-	/** A pipeline file is a way in like a container is (C9), so every route accepts one. */
-	const PIPELINES = ['vpl'];
-	const EXTENSIONS = [...CONTAINERS, ...PIPELINES];
+	/// Every way in this build has (S3.2). Build-time information about the binary, so it is fetched
+	/// once — and it is fetched rather than written here, because the dialog, the drop target and
+	/// the cards had each carried their own copy of the same list and had already fallen out of
+	/// step: none of them knew about `from_geo`, which the binary has had all along.
+	let kinds = $state<ImportKind[]>([]);
 
-	const isPipelineFile = (source: string) => PIPELINES.some((ext) => source.toLowerCase().endsWith(`.${ext}`));
+	/// Extensions the window accepts at all, for the dialog's catch-all filter and for drop.
+	const anyExtension = $derived(kinds.flatMap((kind) => kind.extensions));
+
+	/// What Save writes. Taken from the same catalogue as the open side, so the extension a
+	/// pipeline is saved with is by construction one that can be opened again.
+	const pipelineExtensions = $derived(kinds.find((kind) => kind.id === 'pipeline')?.extensions ?? ['vpl']);
 
 	let style = $state<StyleSpecification | null>(null);
 	let map = $state<MaplibreMap | undefined>();
@@ -108,6 +118,7 @@
 		void refreshRecents();
 		void getLayout().then((loaded) => (layout = loaded));
 		void vplOperations().then((loaded) => (operations = loaded));
+		void importKinds().then((loaded) => (kinds = loaded));
 		void getPipeline().then((loaded) => {
 			pipeline = loaded;
 			pipelineRevision += 1;
@@ -224,21 +235,25 @@
 		const unlisten = getCurrentWebview().onDragDropEvent((event) => {
 			if (event.payload.type !== 'drop') return;
 			for (const path of event.payload.paths) {
-				if (EXTENSIONS.some((ext) => path.toLowerCase().endsWith(`.${ext}`))) void load(path);
+				if (anyExtension.some((ext) => path.toLowerCase().endsWith(`.${ext}`))) void load(path);
 			}
 		});
 		return () => void unlisten.then((f) => f());
 	});
 
-	async function pick() {
-		const picked = await open({
-			multiple: false,
-			filters: [
-				{ name: 'Tile containers and pipelines', extensions: EXTENSIONS },
-				{ name: 'Tile containers', extensions: CONTAINERS },
-				{ name: 'VPL pipelines', extensions: PIPELINES }
-			]
-		});
+	/// Opens the file dialog, narrowed to one import kind when a card chose it.
+	///
+	/// A card's whole contribution is *saying what you are bringing in before you go looking for
+	/// it*, so the dialog it opens shows that kind's files and nothing else. With no card — the
+	/// keyboard route, or "+ Add source" before a choice — every kind is offered at once.
+	async function pick(kind?: ImportKind) {
+		const filters = kind
+			? [{ name: kind.label, extensions: kind.extensions }]
+			: [
+					{ name: 'Everything Studio can open', extensions: anyExtension },
+					...kinds.map((each) => ({ name: each.label, extensions: each.extensions }))
+				];
+		const picked = await open({ multiple: false, filters });
 		if (typeof picked === 'string') await load(picked);
 	}
 
@@ -318,7 +333,7 @@
 				target = await save({
 					title: 'Save pipeline',
 					defaultPath: pipeline.path ?? 'pipeline.vpl',
-					filters: [{ name: 'VPL pipelines', extensions: PIPELINES }]
+					filters: [{ name: 'VPL pipelines', extensions: pipelineExtensions }]
 				});
 				if (!target) return; // cancelled
 			}
@@ -340,23 +355,46 @@
 		}
 	}
 
-	/// Opening a container *is* setting the pipeline to its read node (Q22, Q25). Opening a `.vpl`
-	/// file sets the pipeline to what the file says.
+	/// Opening a file *is* setting the pipeline to its read node (Q22, Q25). Opening a `.vpl` sets
+	/// the pipeline to what the file says.
+	///
+	/// Which read node is the catalogue's answer, not a branch here: a container becomes
+	/// `from_container`, a GeoJSON `from_geo`, a CSV `from_csv` (S3.2). A container is additionally
+	/// *mounted*, because the inspector reads tiles from it directly (A4); the others have nothing
+	/// to inspect until the pipeline has built them, which the preview does.
 	async function load(source: string) {
 		// A remote container reads its index over the network, so this is not always instant.
 		status = { kind: 'busy', message: `Opening ${filename(source)}…` };
 		selected = null;
 		try {
-			if (isPipelineFile(source)) {
+			const kind = await importKindFor(source);
+			if (kind === null) {
+				status = { kind: 'error', message: `Studio has no way to open ${filename(source)}` };
+				return;
+			}
+
+			if (kind.operation === null) {
 				// The whole document arrives at once, and the containers it names are opened by the
 				// sync below — including relative ones, now resolved against the file.
 				pipeline = await openVpl(source);
 				pipelineRevision += 1;
 				await syncContainersToPipeline();
-			} else {
+			} else if (kind.id === 'container') {
 				const result = await mount(source);
 				pipeline = await setPipeline(result.vpl, 'replaced');
 				pipelineRevision += 1;
+			} else {
+				pipeline = await setPipeline(await vplReadNode(kind.operation, source), 'replaced');
+				pipelineRevision += 1;
+				// The node is incomplete when the operation needs more than a filename — a CSV
+				// cannot say which column holds the longitude. The generated form is already
+				// showing those fields as required and empty (C2, C4), and a diagnostic already
+				// says so; the wizard that fills them in from the file's own header is S3.4.
+				if (kind.needs.length > 0) {
+					status = { kind: 'busy', message: `${kind.label}: set ${kind.needs.join(' and ')} to see it` };
+					await refreshRecents();
+					return;
+				}
 			}
 			await refreshRecents();
 			await refreshPreview();
@@ -401,7 +439,8 @@
 	<LeftPane
 		layout={layout as Layout}
 		onLayoutChange={(next) => void changeLayout(next)}
-		onAddSource={pick}
+		{kinds}
+		onAddSource={(kind) => void pick(kind)}
 		{pipeline}
 		{pipelineRevision}
 		onPipelineChange={(text) =>
@@ -452,8 +491,9 @@
 		<TileGrid {map} visible={showGrid} />
 		{#if empty}
 			<LandingScreen
+				{kinds}
 				{recents}
-				onOpenFile={pick}
+				onImport={(kind) => void pick(kind)}
 				onOpenUrl={(source) => void load(source)}
 				onForget={async (source) => {
 					await forgetRecent(source);

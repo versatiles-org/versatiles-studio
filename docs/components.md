@@ -27,20 +27,21 @@ The five-region grid from [UI Concept](ui.md). All Studio-specific. How they are
 tokens, the rules and what is enforced — is in [Styling](styling.md). A component that adds a map
 layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not follow the theme.
 
-| Component                     | Does                                                                                                                      | Stage |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `AppShell`                    | The grid: mode bar, left pane, map, right pane, status and job bar                                                        | S0.1  |
-| `ModeBar`                     | **Map** vs non-map tools — assets (G7), which is where generated glyphs (D9) and sprites (D10) live ([Q22](decisions.md)) | S4.1  |
-| `LeftPane` + `PaneSection`    | The chain as collapsible sections; collapse state is core-owned                                                           | S2.2  |
-| `VplEditor`                   | Textarea over a highlighted `<pre>`; the tokens come from the parser ([Q25](decisions.md))                                | S2.3  |
-| `PaneResizer`                 | The draggable edge of a side pane, used on both                                                                           | S2.2  |
-| `PipelineGraph`               | The pipeline as a vertical tree; selection is shared with the text ([Q15](decisions.md))                                  | S2.5  |
-| `MapControls`                 | Background picker, grid toggle and Reset view, over the map                                                               | S1.6  |
-| `VplNodeCard`                 | One node as a generated form: controls, bounds and help from `field_meta` (C2)                                            | S2.6  |
-| `RightPane`                   | Parameters of the current selection                                                                                       | S1.4  |
-| `StatusBar`                   | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))                        | S1.9  |
-| `JobsPanel`                   | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                                    | S3.1  |
-| `LandingScreen`, `LaunchCard` | What an empty window shows; gains import cards at S3                                                                      | S1.1  |
+| Component                  | Does                                                                                                                      | Stage |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `AppShell`                 | The grid: mode bar, left pane, map, right pane, status and job bar                                                        | S0.1  |
+| `ModeBar`                  | **Map** vs non-map tools — assets (G7), which is where generated glyphs (D9) and sprites (D10) live ([Q22](decisions.md)) | S4.1  |
+| `LeftPane` + `PaneSection` | The chain as collapsible sections; collapse state is core-owned                                                           | S2.2  |
+| `VplEditor`                | Textarea over a highlighted `<pre>`; the tokens come from the parser ([Q25](decisions.md))                                | S2.3  |
+| `PaneResizer`              | The draggable edge of a side pane, used on both                                                                           | S2.2  |
+| `PipelineGraph`            | The pipeline as a vertical tree; selection is shared with the text ([Q15](decisions.md))                                  | S2.5  |
+| `MapControls`              | Background picker, grid toggle and Reset view, over the map                                                               | S1.6  |
+| `VplNodeCard`              | One node as a generated form: controls, bounds and help from `field_meta` (C2)                                            | S2.6  |
+| `RightPane`                | Parameters of the current selection                                                                                       | S1.4  |
+| `StatusBar`                | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))                        | S1.9  |
+| `JobsPanel`                | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                                    | S3.1  |
+| `LandingScreen`            | What an empty window shows                                                                                                | S1.1  |
+| `ImportCards`              | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)                          | S3.2  |
 
 ## Map
 

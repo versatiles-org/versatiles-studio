@@ -8,9 +8,9 @@
 use crate::state::AppState;
 use studio_core::history::EditKind;
 use studio_core::jobs::{JobHandle, Lane};
+use studio_core::preview::VPLPipeline;
 use studio_core::vpl::{Diagnostic, Document, OperationInfo, ParseError, Pipeline, Span, Token, operations, validate};
 use tauri::{AppHandle, State};
-use studio_core::preview::VPLPipeline;
 
 /// A parse failure the editor can place, rather than a rendered string it would have to read.
 #[derive(serde::Serialize)]
@@ -278,14 +278,16 @@ pub async fn preview_pipeline(
 	// The result travels back through a oneshot rather than the event stream: it is an answer to
 	// *this* call, not news for every listener, and it carries a mount URL the bar has no use for.
 	let (tx, rx) = tokio::sync::oneshot::channel();
-	state.jobs.submit("Building preview", Lane::Latest, move |handle| async move {
-		let outcome = build_preview(&app, &handle, wanted).await;
-		// Sent as a `Result`, so a failure reaches the caller's `catch` *and* is recorded as a
-		// failed job. Only supersession drops the sender, which is what makes that distinguishable
-		// from failing at the far end.
-		let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
-		outcome.map(|_| ())
-	});
+	state
+		.jobs
+		.submit("Building preview", Lane::Latest, move |handle| async move {
+			let outcome = build_preview(&app, &handle, wanted).await;
+			// Sent as a `Result`, so a failure reaches the caller's `catch` *and* is recorded as a
+			// failed job. Only supersession drops the sender, which is what makes that distinguishable
+			// from failing at the far end.
+			let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
+			outcome.map(|_| ())
+		});
 
 	match rx.await {
 		Ok(Ok(preview)) => Ok(PreviewOutcome::Ready(Box::new(preview))),
@@ -389,4 +391,34 @@ pub async fn save_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 
 	let history = state.history.lock().await;
 	Ok(DocumentView::of(&document, &history, Some(&saved)))
+}
+
+/// Every way this build can bring data in (S3.2).
+///
+/// Build-time information about the binary, like [`vpl_operations`] — the catalogue is derived from
+/// the operation registry, so it cannot offer something this build cannot do.
+#[tauri::command]
+#[specta::specta]
+pub fn import_kinds() -> Vec<studio_core::import::ImportKind> {
+	studio_core::import::kinds()
+}
+
+/// Which kind a path belongs to, or `None` for a file Studio has no way in for.
+///
+/// Asked here rather than matched in the webview so that one list of extensions serves the dialog,
+/// the drop target and the cards — three places that had already started to disagree.
+#[tauri::command]
+#[specta::specta]
+pub fn import_kind_for(path: String) -> Option<studio_core::import::ImportKind> {
+	studio_core::import::kind_for(&path)
+}
+
+/// The read node a chosen file becomes — `from_geo filename='…'`, quoting included.
+///
+/// The quoting is the core's, for the reason [`vpl_set_value`] gives: a second implementation of
+/// VPL's quoting rules in TypeScript is exactly what would drift.
+#[tauri::command]
+#[specta::specta]
+pub fn vpl_read_node(operation: String, filename: String) -> String {
+	studio_core::vpl::read_node(&operation, &filename)
 }

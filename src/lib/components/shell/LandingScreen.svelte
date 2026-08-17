@@ -1,17 +1,25 @@
 <script lang="ts">
-	import type { RecentEntry } from '../../ipc/commands';
+	import type { ImportKind, RecentEntry } from '../../ipc/commands';
+	import ImportCards from './ImportCards.svelte';
 
 	// What an empty window shows (Q13). A **launcher, not a wizard**: it disappears the moment a
-	// project is open, and everything on it is also reachable from inside the workbench. It gains
-	// import cards at S3 and "start a style" at S4 — nothing here gates anything.
+	// project is open, and everything on it is also reachable from inside the workbench. It gained
+	// its import cards at S3.2 and gains "start a style" at S4 — nothing here gates anything.
+	//
+	// The cards come from the core's catalogue rather than being written out here, which is what
+	// removed the "Open a tile container" card that named four extensions the drop handler and the
+	// file dialog each repeated in their own words.
 	let {
+		kinds,
 		recents,
-		onOpenFile,
+		onImport,
 		onOpenUrl,
 		onForget
 	}: {
+		/** Every way in this build has, in the order the core offers them. */
+		kinds: ImportKind[];
 		recents: RecentEntry[];
-		onOpenFile: () => void;
+		onImport: (kind: ImportKind) => void;
 		onOpenUrl: (url: string) => void;
 		onForget: (source: string) => void;
 	} = $props();
@@ -39,11 +47,10 @@
 	<h1>VersaTiles Studio</h1>
 
 	<div class="ways">
-		<button class="card" onclick={onOpenFile}>
-			<strong>Open a tile container</strong>
-			<span>.versatiles · .mbtiles · .pmtiles · .tar</span>
-		</button>
+		<ImportCards {kinds} onChoose={onImport} />
 
+		<!-- Not a card in the catalogue: a URL is not a *kind* of data, it is a place one comes
+		     from, and every kind that can be read over HTTP can be read from here. -->
 		<form class="card" onsubmit={submit}>
 			<strong>Open a remote URL</strong>
 			<span>HTTPS or SFTP — a planet file opens from its index</span>
@@ -94,10 +101,10 @@
 		font-weight: 600;
 	}
 	.ways {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+		display: flex;
+		flex-direction: column;
 		gap: var(--space-5);
-		width: min(38rem, 100%);
+		width: min(42rem, 100%);
 	}
 	.card {
 		display: flex;

@@ -135,6 +135,17 @@ export const vplReview = (text: string) => unwrap(commands.vplReview(text));
 /** Every operation and its parameters. Build-time information, so it is fetched once. */
 export const vplOperations = () => commands.vplOperations();
 
+// -- imports ---------------------------------------------------------------------------------
+
+/** Every way this build can bring data in (S3.2). Build-time information, so it is fetched once. */
+export const importKinds = () => commands.importKinds();
+
+/** Which kind a path belongs to, or null for a file Studio has no way in for. */
+export const importKindFor = (path: string) => commands.importKindFor(path);
+
+/** The read node a chosen file becomes, quoting included — decided by the core, never here. */
+export const vplReadNode = (operation: string, filename: string) => commands.vplReadNode(operation, filename);
+
 // -- the pipeline ----------------------------------------------------------------------------
 
 /** This window's pipeline, or null before anything is opened. One document per window (Q25). */

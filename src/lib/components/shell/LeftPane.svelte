@@ -9,8 +9,10 @@
 		type Diagnostic,
 		type Layout,
 		type Span,
-		type DocumentView
+		type DocumentView,
+		type ImportKind
 	} from '../../ipc/commands';
+	import ImportCards from './ImportCards.svelte';
 
 	// The chain from data to pixels, as collapsible sections (Q22): Pipeline · Style · Export.
 	//
@@ -22,6 +24,7 @@
 	let {
 		layout,
 		onLayoutChange,
+		kinds,
 		onAddSource,
 		pipeline,
 		pipelineRevision,
@@ -34,7 +37,9 @@
 	}: {
 		layout: Layout;
 		onLayoutChange: (layout: Layout) => void;
-		onAddSource: () => void;
+		/** Every way in this build has, offered by "+ Add source" (S3.2). */
+		kinds: ImportKind[];
+		onAddSource: (kind: ImportKind) => void;
 		/** This window's pipeline, owned by the core (Q25). */
 		pipeline: DocumentView | null;
 		/** Bumped only when the document changes from *outside* the editor. Keying the editor on the
@@ -53,6 +58,9 @@
 
 	// Q15: one pane, two tabs over one document — not two panes.
 	let tab = $state<'graph' | 'vpl'>('graph');
+	/// Whether "+ Add source" has been opened into its cards. Local: which way in someone is part
+	/// way through choosing is not worth remembering across a reload.
+	let adding = $state(false);
 
 	/** Where the caret should go when the VPL tab opens. Cleared once the editor has used it. */
 	let reveal = $state<Span | null>(null);
@@ -195,7 +203,23 @@
 		     `.vpl` the CLI already reads. -->
 		<div class="actions">
 			{#if tab === 'graph'}
-				<button type="button" class="add" onclick={onAddSource}>+ Add source</button>
+				<!-- The same cards the landing screen shows, from the same catalogue — asked here
+				     because "+ Add source" is the same question the empty window asks, and answering
+				     it with a bare file dialog would mean a GeoJSON is only importable from one of
+				     the two places (S3.2). Folded away until asked for: a pane is not a launcher. -->
+				<button type="button" class="add" aria-expanded={adding} onclick={() => (adding = !adding)}>
+					+ Add source
+				</button>
+				{#if adding}
+					<ImportCards
+						{kinds}
+						compact
+						onChoose={(kind) => {
+							adding = false;
+							onAddSource(kind);
+						}}
+					/>
+				{/if}
 			{/if}
 			<div class="files">
 				<button

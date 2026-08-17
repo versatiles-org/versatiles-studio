@@ -16,6 +16,39 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q28 — One import catalogue, in the core, derived from the operation registry
+
+**Dated 2026-08-17.** S3.2 asked for import cards in two places. The question it forced was where
+the list of what Studio can open lives.
+
+**It was already in four places, and already wrong.** The file dialog named four extensions, the
+drop handler filtered by the same four written out again, Save named `.vpl` a third time, and none of
+them knew about `from_geo` — which the binary has had all along. Studio could read a GeoJSON and had
+no way to say so.
+
+**The catalogue answers to the binary.** `import::kinds()` consults the operation registry and drops
+any kind whose read operation is absent, so a card cannot offer something that fails on the first
+click. That is not hypothetical: [E3](features.md)'s GDAL raster path is a build-time decision
+([Q19](decisions.md)), and its card should appear when GDAL is linked and not before — without a
+second flag in the webview to keep in step.
+
+**The extensions are still hand-written**, because parsing prose to build a file dialog would break
+the first time somebody rewrote a sentence. A test checks each against the operation's own
+documentation instead. It earned itself immediately: it rejected `.tsv`, which nothing upstream ever
+promised — `from_csv` splits on `,` unless told otherwise, so that card would have produced one
+column with tabs in it.
+
+**Picking a file is not always the whole import.** `from_csv` needs to be told which columns hold
+the coordinates, and no amount of looking at a filename will say. Rather than hide that, the kind
+carries what is still missing, the card says so before the dialog opens, and the generated form
+([C2](features.md)) shows those fields as required and empty. Reading them from the file's own
+header is the wizard at S3.4.
+
+**What is verified:** a file of every offered kind — three container formats, GeoJSON, line-delimited
+GeoJSON, a shapefile, a CSV — is matched to its card, turned into a read node, parsed, validated and
+run, and produces tiles. Each of those steps can be right alone and wrong together; a card claiming
+`.shp` while `from_geo` cannot open one would pass every other test.
+
 ### Q27 — The job runner has two lanes, and the preview runs in one of them
 
 **Dated 2026-08-17.** [S3.1](scope-release-1.md) asked for "the queue". There are two, because a

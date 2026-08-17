@@ -257,19 +257,25 @@ fn an_empty_string_is_a_value_like_any_other() {
 /// people really have.
 #[test]
 fn an_opened_container_becomes_a_read_node() {
-	use super::read_node_for;
+	use super::read_node;
 
 	assert_eq!(
-		read_node_for("berlin.versatiles"),
+		read_node("from_container", "berlin.versatiles"),
 		"from_container filename=berlin.versatiles"
 	);
 	assert_eq!(
-		read_node_for("/data/My Tiles/berlin.versatiles"),
+		read_node("from_container", "/data/My Tiles/berlin.versatiles"),
 		"from_container filename='/data/My Tiles/berlin.versatiles'"
 	);
 	assert_eq!(
-		read_node_for("/data/it's here.versatiles"),
+		read_node("from_container", "/data/it's here.versatiles"),
 		"from_container filename=\"/data/it's here.versatiles\""
+	);
+
+	// The operation is whichever the import catalogue chose, so a GeoJSON reads as one too (S3.2).
+	assert_eq!(
+		read_node("from_geo", "cities.geojson"),
+		"from_geo filename=cities.geojson"
 	);
 
 	for source in [
@@ -279,7 +285,7 @@ fn an_opened_container_becomes_a_read_node() {
 		"https://download.versatiles.org/osm.versatiles",
 		"/data/Grüße.versatiles",
 	] {
-		let vpl = read_node_for(source);
+		let vpl = read_node("from_container", source);
 		let document = Document::parse(&vpl).unwrap_or_else(|e| panic!("{vpl:?} did not parse: {e}"));
 		assert_eq!(
 			document.pipeline().nodes[0].property("filename"),

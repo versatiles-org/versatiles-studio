@@ -33,7 +33,7 @@ pub async fn open_container(state: State<'_, AppState>, source: String) -> Resul
 
 	// Opening a container *is* adding a read node at the head of the pipeline (Q22). The core builds
 	// the VPL so the quoting rules stay next to the parser that defines them.
-	let vpl = studio_core::vpl::read_node_for(&source);
+	let vpl = studio_core::vpl::read_node("from_container", &source);
 	let name = mount_name(&source);
 	server.mount(&name, reader).await.map_err(|e| format!("{e:#}"))?;
 

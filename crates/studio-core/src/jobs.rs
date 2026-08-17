@@ -72,7 +72,9 @@ pub enum JobState {
 	Running,
 	Finished,
 	Cancelled,
-	Failed { error: String },
+	Failed {
+		error: String,
+	},
 }
 
 impl JobState {
@@ -394,7 +396,8 @@ impl Jobs {
 	/// Every job this session has run, oldest first.
 	#[must_use]
 	pub fn list(&self) -> Vec<Job> {
-		self.inner
+		self
+			.inner
 			.registry
 			.lock()
 			.unwrap()
@@ -413,7 +416,8 @@ impl Jobs {
 	/// The job's log, oldest line first. Empty for a job that never logged, or that has aged out.
 	#[must_use]
 	pub fn log(&self, id: JobId) -> Vec<String> {
-		self.inner
+		self
+			.inner
 			.registry
 			.lock()
 			.unwrap()
@@ -424,7 +428,8 @@ impl Jobs {
 
 	/// Ids of the jobs in `lane` that could still do something.
 	fn active_in(&self, lane: Lane) -> Vec<JobId> {
-		self.inner
+		self
+			.inner
 			.registry
 			.lock()
 			.unwrap()
@@ -497,7 +502,9 @@ impl Jobs {
 			// Skip anything cancelled while it waited — `cancel` drops the work, so the id alone
 			// could still be here in a future where the two get out of step.
 			loop {
-				let Some((id, work)) = registry.pending.pop_front() else { return };
+				let Some((id, work)) = registry.pending.pop_front() else {
+					return;
+				};
 				match registry.entry(id) {
 					Some(entry) if entry.job.state.is_active() => {
 						entry.job.state = JobState::Running;
@@ -750,7 +757,10 @@ mod tests {
 		// Aborted at its await point, so it never reached the line after it.
 		let _ = tx.send(());
 		tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-		assert!(!finished_anyway.load(Ordering::SeqCst), "the superseded work was dropped");
+		assert!(
+			!finished_anyway.load(Ordering::SeqCst),
+			"the superseded work was dropped"
+		);
 	}
 
 	/// A preview must not wait behind an export — the reason there are two lanes rather than one
@@ -773,7 +783,11 @@ mod tests {
 
 		let preview = jobs.submit("preview", Lane::Latest, |_| async move { Ok(()) });
 		until(|| jobs.job(preview).unwrap().state == JobState::Finished).await;
-		assert_eq!(jobs.job(long).unwrap().state, JobState::Running, "and the export is untouched");
+		assert_eq!(
+			jobs.job(long).unwrap().state,
+			JobState::Running,
+			"and the export is untouched"
+		);
 		let _ = tx.send(());
 	}
 
