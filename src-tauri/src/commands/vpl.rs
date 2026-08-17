@@ -225,6 +225,12 @@ pub struct Preview {
 	pub name: String,
 	pub tile_url: String,
 	pub info: studio_core::analysis::ContainerInfo,
+	/// The layers this produces, with their property keys (S3.3, E1).
+	///
+	/// Carried on the preview rather than fetched separately because it is an answer about *this*
+	/// build: asking afterwards would race the next edit, and the form would offer property names
+	/// from a pipeline that no longer exists. Empty for raster output.
+	pub layers: Vec<studio_core::analysis::LayerInspection>,
 }
 
 /// What a preview request came to.
@@ -310,12 +316,16 @@ async fn build_preview(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline)
 	handle.working("reading what it produces");
 	let info = studio_core::analysis::describe(&source, "preview").await?;
 
+	handle.working("looking at what it contains");
+	let layers = studio_core::analysis::probe_layers(&source, &info).await;
+
 	const NAME: &str = "preview";
 	server.mount(NAME, source).await?;
 	Ok(Preview {
 		name: NAME.to_string(),
 		tile_url: server.tile_url(NAME),
 		info,
+		layers,
 	})
 }
 

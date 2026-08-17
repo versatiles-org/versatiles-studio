@@ -10,6 +10,7 @@
 	import { connectJobs } from './lib/state/jobs.svelte';
 	import Inspector from './lib/components/shell/Inspector.svelte';
 	import LandingScreen from './lib/components/shell/LandingScreen.svelte';
+	import PipelineOutput from './lib/components/shell/PipelineOutput.svelte';
 	import LeftPane from './lib/components/shell/LeftPane.svelte';
 	import VplNodeCard from './lib/components/shell/VplNodeCard.svelte';
 	import { nodeAtPath, walk } from './lib/vpl/node-at';
@@ -100,6 +101,13 @@
 	let showGrid = $state(false);
 	/** The last preview that was put on the map, so a style swap can restore it without rebuilding. */
 	let lastPreview = $state<Preview | null>(null);
+
+	/// Property names the pipeline is producing, for the form's list fields (S3.3, E1).
+	///
+	/// Flattened across layers and de-duplicated: a node's `properties_include` applies to the
+	/// features passing through it, not to one layer, so splitting them by layer here would be a
+	/// distinction the parameter does not make.
+	const producedProperties = $derived([...new Set((lastPreview?.layers ?? []).flatMap((layer) => layer.propertyKeys))]);
 	let serverUrl = $state<string | null>(null);
 
 	/** A value from an older build is not trusted — the catalogue decides what exists. */
@@ -386,6 +394,12 @@
 			} else {
 				pipeline = await setPipeline(await vplReadNode(kind.operation, source), 'replaced');
 				pipelineRevision += 1;
+				// Selected, so the form for it is showing. Importing *is* configuring: `from_geo`
+				// takes a zoom range, simplification and property filters, and the generated form
+				// is where those are set — [ui.md](../docs/ui.md) settled that there is no import
+				// surface of its own. Landing on an unselected node would mean the one thing an
+				// import needs next is one click away and unmarked.
+				selected = [0];
 				// The node is incomplete when the operation needs more than a filename — a CSV
 				// cannot say which column holds the longitude. The generated form is already
 				// showing those fields as required and empty (C2, C4), and a diagnostic already
@@ -467,12 +481,14 @@
 			<VplNodeCard
 				node={selectedNode}
 				{operations}
+				properties={producedProperties}
 				onCommit={(span: Span, value: string) => void editSelected((text) => vplSetValue(text, span, value))}
 				onRemove={(span: Span) => void editSelected((text) => vplRemoveProperty(text, span))}
 				onSet={(key: string, values: string[]) =>
 					void editSelected((text) => vplSetProperty(text, selectedNode.nameSpan, key, values))}
 			/>
 		{/if}
+		<PipelineOutput preview={lastPreview} />
 		<Inspector containers={containers.map((c) => c.info)} {map} onOpen={pick} onOpenUrl={(url) => void load(url)} />
 	</div>
 {/snippet}

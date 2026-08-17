@@ -332,3 +332,95 @@ pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> R
 		layers,
 	}))
 }
+
+/// The layers a source produces, probed from one representative tile (S3.3, E1).
+///
+/// This is how the parameter form learns what is actually in a file. `from_geo` accepts
+/// `properties_include` and `properties_exclude` — lists of property names — and the person filling
+/// them in has no way to know what those names are without opening the file in something else.
+///
+/// **Probed from the output rather than parsed from the input**, which is what makes one
+/// implementation serve every format: a GeoJSON, a shapefile and a CSV all arrive here as vector
+/// tiles with layers and property keys, and a format Studio has never heard of would too.
+///
+/// One tile, not a survey. The tile chosen is the one at the lowest zoom that covers the middle of
+/// the source's own bounds, which for the small-to-middling files an import produces holds every
+/// feature. A property that appears only in a corner of a planet-sized extract will be missed —
+/// this is a list of suggestions, and the field it feeds still accepts anything typed into it.
+///
+/// Empty for raster sources, and for a pyramid with no tiles in it. Never an error: a probe that
+/// fails should cost the caller its suggestions, not its import.
+pub async fn probe_layers(source: &SharedTileSource, info: &ContainerInfo) -> Vec<LayerInspection> {
+	use versatiles_core::TileCoord;
+
+	let Some([west, south, east, north]) = info.bbox else {
+		return Vec::new();
+	};
+	let Ok(coord) = TileCoord::from_geo((west + east) / 2.0, (south + north) / 2.0, info.min_zoom) else {
+		return Vec::new();
+	};
+
+	match inspect_tile(source, coord.level, coord.x, coord.y).await {
+		Ok(Some(tile)) => tile.layers,
+		// A raster tile does not decode as a vector, and that is not news — it is the answer.
+		Ok(None) | Err(_) => Vec::new(),
+	}
+}
+
+#[cfg(test)]
+mod probe_tests {
+	use super::*;
+
+	fn testdata() -> Option<std::path::PathBuf> {
+		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../versatiles-rs/testdata");
+		dir.exists().then_some(dir)
+	}
+
+	/// E1's "map columns": the form can only offer property names if something has read them, and
+	/// this is that something. Checked against a file whose properties are known, so a probe that
+	/// silently returned nothing would not pass.
+	#[tokio::test]
+	async fn a_vector_source_reports_its_layers_and_property_keys() -> Result<()> {
+		let Some(dir) = testdata() else {
+			eprintln!("skipping: set STUDIO_TESTDATA to a directory of sample containers");
+			return Ok(());
+		};
+		let runtime = versatiles::runtime::create_runtime();
+
+		for file in ["places.geojson", "borders.geojson", "admin.shp"] {
+			let vpl = crate::vpl::read_node("from_geo", &dir.join(file).to_string_lossy());
+			let document = crate::vpl::Document::parse(&vpl)?;
+			let source = crate::preview::build(&runtime, document.to_pipeline(), &dir).await?;
+			let info = describe(&source, "preview").await?;
+
+			let layers = probe_layers(&source, &info).await;
+			assert_eq!(layers.len(), 1, "{file} should produce one layer, got {layers:?}");
+			assert_eq!(
+				layers[0].name,
+				file.split('.').next().unwrap(),
+				"the layer is named after the file unless `layer_name` says otherwise"
+			);
+			assert!(
+				layers[0].property_keys.contains(&"name".to_string()),
+				"{file} lost its properties: {:?}",
+				layers[0].property_keys
+			);
+			assert!(layers[0].feature_count > 0);
+		}
+		Ok(())
+	}
+
+	/// A probe that fails costs the caller its suggestions, not its import — so a raster source is
+	/// an empty list rather than an error.
+	#[tokio::test]
+	async fn a_raster_source_has_no_layers_and_does_not_fail() -> Result<()> {
+		let runtime = versatiles::runtime::create_runtime();
+		let document = crate::vpl::Document::parse("from_debug format=png")?;
+		let source = crate::preview::build(&runtime, document.to_pipeline(), std::path::Path::new(".")).await?;
+		let info = describe(&source, "preview").await?;
+
+		assert_eq!(info.tile_format, "png");
+		assert!(probe_layers(&source, &info).await.is_empty());
+		Ok(())
+	}
+}

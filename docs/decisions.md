@@ -16,6 +16,36 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q29 — The import form learns the data by probing what the pipeline produces
+
+**Dated 2026-08-17.** [ui.md](ui.md) had already settled that import has no surface of its own: a
+card opens the dialog, inserts a node, selects it, and the generated form ([C2](features.md)) is the
+configuration UI. S3.3 is what that costs to actually keep.
+
+**One promise was not being kept.** The node was inserted and _not_ selected, so an import landed on
+a form nobody had opened — the one thing to do next, one unmarked click away. It is selected now.
+
+**The form could not offer what it does not know.** `from_geo` takes `properties_include` and
+`properties_exclude`, lists of property names; the person filling them in has no way to know those
+names without opening the file in something else first. That is E1's "map columns", and it was the
+part of an import that sent you elsewhere.
+
+**Probed from the output, not parsed from the input.** `analysis::probe_layers` decodes one tile of
+the built preview and reports its layers and property keys. One implementation therefore serves every
+format — a GeoJSON, a shapefile and a CSV all arrive as vector tiles — including a format Studio has
+never heard of. Parsing each input format would have meant a reader per card, and a new one for every
+format upstream adds.
+
+**One tile, and it says so.** The probe reads the tile at the lowest zoom covering the middle of the
+source's own bounds, which for the files an import produces holds everything. A property appearing
+only in one corner of a planet extract will be missed — so the names are offered as **chips beside a
+field that still accepts anything typed into it**, and the feature counts in the right pane are
+labelled as the sampled tile's rather than presented as totals. A closed multi-select would have
+turned a sample into a rule.
+
+**A failed probe costs suggestions, never the import.** Raster output has no layers to decode; that
+is the answer, not an error.
+
 ### Q28 — One import catalogue, in the core, derived from the operation registry
 
 **Dated 2026-08-17.** S3.2 asked for import cards in two places. The question it forced was where

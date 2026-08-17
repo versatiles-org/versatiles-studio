@@ -561,6 +561,14 @@ export type Preview = {
 	name: string,
 	tileUrl: string,
 	info: ContainerInfo,
+	/**
+	 *  The layers this produces, with their property keys (S3.3, E1).
+	 * 
+	 *  Carried on the preview rather than fetched separately because it is an answer about *this*
+	 *  build: asking afterwards would race the next edit, and the form would offer property names
+	 *  from a pipeline that no longer exists. Empty for raster output.
+	 */
+	layers: LayerInspection[],
 };
 
 /**

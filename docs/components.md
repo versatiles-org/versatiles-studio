@@ -41,6 +41,7 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 | `StatusBar`                | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))                        | S1.9  |
 | `JobsPanel`                | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                                    | S3.1  |
 | `LandingScreen`            | What an empty window shows                                                                                                | S1.1  |
+| `PipelineOutput`           | What the pipeline produces: format, zoom, layers and their property keys (Q22)                                            | S3.3  |
 | `ImportCards`              | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)                          | S3.2  |
 
 ## Map

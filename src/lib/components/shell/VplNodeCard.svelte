@@ -13,6 +13,7 @@
 	let {
 		node,
 		operations = [],
+		properties = [],
 		onCommit,
 		onRemove,
 		onSet
@@ -20,6 +21,10 @@
 		node: VplNode;
 		/** Every known operation. Empty until the one-off fetch lands; the form degrades to text. */
 		operations?: OperationInfo[];
+		/** Property names the pipeline is actually producing, probed from the preview (S3.3, E1).
+		 *  Empty for raster output, and before the first build — a list field then behaves exactly
+		 *  as it did, which is why this is suggestions rather than a closed set. */
+		properties?: string[];
 		/** Fired on blur, Enter or a choice — never per keystroke, which would reparse the document
 		 *  on every character and fight the caret. */
 		onCommit: (span: Span, value: string) => void;
@@ -52,6 +57,21 @@
 			.split(',')
 			.map((part) => part.trim())
 			.filter(Boolean);
+
+	/// The values a list field currently holds.
+	const chosen = (property: VplProperty) => parts(text(property));
+
+	/// Adds or removes one name from a list field.
+	///
+	/// This is E1's "map columns". `properties_include` takes property names that only the file can
+	/// supply, and typing them from memory into a comma-separated box was the part of an import that
+	/// meant opening the data in something else first.
+	function toggle(property: VplProperty, name: string) {
+		const current = chosen(property);
+		const next = current.includes(name) ? current.filter((each) => each !== name) : [...current, name];
+		if (next.length === 0) onRemove(property.span);
+		else onSet(property.key, next);
+	}
 
 	function commit(property: VplProperty, raw: string) {
 		if (raw === text(property)) return;
@@ -128,6 +148,27 @@
 								}}
 							/>
 						{/if}
+						<!-- What the data actually contains, for the fields that name parts of it.
+						     Chips rather than a multi-select: the set is small, the current value stays
+						     readable in the field above, and anything not listed can still be typed —
+						     a property that appears only outside the probed tile is missing from here,
+						     not forbidden. -->
+						{#if control?.kind === 'list' && properties.length > 0}
+							{@const picked = chosen(property)}
+							<div class="chips">
+								{#each properties as name (name)}
+									<button
+										type="button"
+										class="chip"
+										class:on={picked.includes(name)}
+										aria-pressed={picked.includes(name)}
+										onclick={() => toggle(property, name)}
+									>
+										{name}
+									</button>
+								{/each}
+							</div>
+						{/if}
 					</dd>
 				</div>
 			{/each}
@@ -163,6 +204,25 @@
 		border-bottom: 1px solid var(--rule);
 		background: var(--surface);
 		padding: var(--space-3) var(--space-4);
+	}
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--space-1);
+		margin-top: var(--space-2);
+	}
+	.chip {
+		padding: 0 var(--space-2);
+		font-size: var(--text-xs);
+		border: 1px solid var(--rule);
+		border-radius: var(--radius);
+		background: var(--chrome);
+		color: var(--ink-2);
+	}
+	.chip.on {
+		background: var(--accent);
+		border-color: var(--accent);
+		color: var(--accent-ink);
 	}
 	.head {
 		display: flex;
