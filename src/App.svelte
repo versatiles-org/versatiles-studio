@@ -184,8 +184,17 @@
 </AppShell>
 
 <style>
+	/* The shell is sized to the viewport, so the document has nothing to scroll — but WKWebView
+	   still rubber-bands on a trackpad flick, which reads as the whole window coming loose.
+	   `overflow: hidden` removes the scroll port and `overscroll-behavior: none` stops the bounce
+	   that WebKit does anyway. Panes that *do* scroll use `contain` so reaching their end does not
+	   chain back up to the document. */
+	:global(html),
 	:global(body) {
+		height: 100%;
 		margin: 0;
+		overflow: hidden;
+		overscroll-behavior: none;
 	}
 	.grid-toggle {
 		position: absolute;

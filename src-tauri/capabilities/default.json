@@ -1,7 +1,7 @@
 {
 	"$schema": "../gen/schemas/desktop-schema.json",
 	"identifier": "default",
-	"description": "Baseline capability for project windows. Minimal by design \u2014 permissions are added per feature, not up front. `dialog:allow-open` is what A1's file picker needs.",
+	"description": "Baseline capability for project windows. Minimal by design \u2014 permissions are added per feature, not up front. `dialog:allow-open` is what A1's file picker needs; `core:window:allow-set-title` lets the window name the container it holds.",
 	"windows": ["main"],
-	"permissions": ["core:default", "dialog:allow-open"]
+	"permissions": ["core:default", "dialog:allow-open", "core:window:allow-set-title"]
 }

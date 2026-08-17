@@ -6,6 +6,11 @@
 	// grid rebuilds around whichever are present — with nothing open, that leaves the map full
 	// width, which is what Explore used to be.
 	//
+	// There is no in-app title bar. The window has native decorations, so one would have repeated
+	// the OS title verbatim; which document a window holds is said in the window title instead, the
+	// way a document application says it. The strip at the top comes back at S4 with the mode bar,
+	// which has something to put there.
+	//
 	// The job bar arrives at S3 and the mode bar at S4 (it waits for a second entry); both slot into
 	// this grid without moving anything.
 	let {
@@ -55,7 +60,6 @@
 </script>
 
 <div class="shell" class:has-left={leftPane} class:has-right={rightPane} style:--left-width="{leftWidth}px">
-	<header class="titlebar"><span>VersaTiles Studio</span></header>
 	{#if leftPane}
 		<aside class="left">{@render leftPane()}</aside>
 		<!-- A focusable `separator` is the ARIA window-splitter pattern: with a `tabindex` and an
@@ -87,8 +91,8 @@
 	.shell {
 		display: grid;
 		grid-template-columns: 1fr;
-		grid-template-rows: auto 1fr auto;
-		grid-template-areas: 'title' 'map' 'command';
+		grid-template-rows: 1fr auto;
+		grid-template-areas: 'map' 'command';
 		height: 100vh;
 		font-family: system-ui, sans-serif;
 		font-size: 0.82rem;
@@ -97,17 +101,17 @@
 	}
 	.shell.has-right {
 		grid-template-columns: 1fr var(--right-width, 19rem);
-		grid-template-areas: 'title title' 'map right' 'command command';
+		grid-template-areas: 'map right' 'command command';
 	}
 	/* `clamp` mirrors the range the core enforces on save (`store::Layout`), which stays the
 	   authority — this only keeps a live drag from overshooting before it is stored. */
 	.shell.has-left {
 		grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr;
-		grid-template-areas: 'title title' 'left map' 'command command';
+		grid-template-areas: 'left map' 'command command';
 	}
 	.shell.has-left.has-right {
 		grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr var(--right-width, 19rem);
-		grid-template-areas: 'title title title' 'left map right' 'command command command';
+		grid-template-areas: 'left map right' 'command command command';
 	}
 	.left {
 		grid-area: left;
@@ -131,13 +135,6 @@
 		background: var(--accent);
 		outline: none;
 	}
-	.titlebar {
-		grid-area: title;
-		padding: 0.3rem 0.7rem;
-		border-bottom: 1px solid var(--rule);
-		color: var(--ink-2);
-		font-size: 0.75rem;
-	}
 	.map {
 		grid-area: map;
 		position: relative;
@@ -147,6 +144,7 @@
 		grid-area: right;
 		border-left: 1px solid var(--rule);
 		overflow-y: auto;
+		overscroll-behavior: contain;
 		background: var(--surface);
 	}
 	.command {

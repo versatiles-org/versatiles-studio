@@ -127,6 +127,7 @@
 		min-width: 0;
 		overflow-y: auto;
 		overflow-x: hidden;
+		overscroll-behavior: contain;
 		background: var(--surface);
 	}
 	.empty {
