@@ -38,8 +38,8 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 | `MapControls`                 | Background picker, grid toggle and Reset view, over the map                                                               | S1.6  |
 | `VplNodeCard`                 | One node as a generated form: controls, bounds and help from `field_meta` (C2)                                            | S2.6  |
 | `RightPane`                   | Parameters of the current selection                                                                                       | S1.4  |
-| `JobBar` + `JobDrawer`        | Progress and cancellation; expands to a per-job log (E7)                                                                  | S3.1  |
-| `StatusBar`                   | What the application is doing; progress, and where errors land ([Q24](decisions.md))                                      | S1.9  |
+| `StatusBar`                   | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))                        | S1.9  |
+| `JobsPanel`                   | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                                    | S3.1  |
 | `LandingScreen`, `LaunchCard` | What an empty window shows; gains import cards at S3                                                                      | S1.1  |
 
 ## Map
@@ -90,7 +90,6 @@ sense inside a pipeline editor.
 | --------------- | ---------------------------------------------------------------- | ----- |
 | `Dialog`        | Modal shell — for confirmations, never for jobs or progress      | S0.1  |
 | `FileDrop`      | Drag & drop target feeding the same path as the file dialog      | S1.2  |
-| `ProgressBar`   | Determinate and indeterminate                                    | S3.1  |
 | `CopyButton`    | Used by the command strip and by C7's exports                    | S1.9  |
 | `AssetPanel`    | Font families and sprite sets: install, pin, verify, remove (G7) | S4.1  |
 | `QrCode`        | LAN URL for testing on a phone (F1)                              | S5.3  |

@@ -11,6 +11,7 @@
 use std::path::PathBuf;
 use studio_core::{
 	history::History,
+	jobs::Jobs,
 	server::ServerManager,
 	store::{Bookmarks, Layout, Recents},
 	vpl::Document,
@@ -40,6 +41,11 @@ pub struct AppState {
 	/// them, so opening one moves this. Before any is opened it is wherever Studio was started; it
 	/// becomes the project directory once [Q6] has one.
 	pub project_dir: Mutex<PathBuf>,
+	/// Long operations, their queue and their logs ([Q3], E7, S3.1).
+	///
+	/// Not behind a `Mutex`: the runner is `Clone` and locks its own registry, so a command that
+	/// only wants to submit a job never waits on one that is listing them.
+	pub jobs: Jobs,
 	/// Where these files live. `app_data_dir`, not `app_config_dir`: these are user *data*, not
 	/// configuration. Invisible on macOS — both land in Application Support — but on Linux it is
 	/// `~/.local/share` versus `~/.config`, and bookmarks belong in the former. The store owns the

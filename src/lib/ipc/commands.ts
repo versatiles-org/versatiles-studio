@@ -62,6 +62,18 @@ export const serverBaseUrl = () => unwrap(commands.serverBaseUrl());
 /** Files the OS has asked Studio to open since the last call. Draining, so two windows cannot both. */
 export const takeOpened = () => commands.takeOpened();
 
+// -- jobs ------------------------------------------------------------------------------------
+
+/** Points the runner's events at this window, and returns the list as it stood at that instant. */
+export const subscribeJobs = (channel: Parameters<typeof commands.subscribeJobs>[0]) =>
+	unwrap(commands.subscribeJobs(channel));
+
+/** One job's log, oldest line first. Fetched when a row is expanded, not streamed on connect. */
+export const jobLog = (id: number) => unwrap(commands.jobLog(id));
+
+/** Asks a job to stop. Idempotent — a job that has already ended stays ended. */
+export const cancelJob = (id: number) => unwrap(commands.cancelJob(id));
+
 // -- sources ---------------------------------------------------------------------------------
 
 /** Opens a container and mounts it on the embedded server (A1). Does not touch the pipeline. */

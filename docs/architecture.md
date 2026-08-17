@@ -122,7 +122,7 @@ versatiles-studio/
 │       ├── components/         shell · map · pipeline · style · inputs · common
 │       ├── modes/              Explore · Pipeline · Style · Publish
 │       ├── ipc/                bindings.ts (generated) + typed wrappers
-│       └── state/              view state only — nothing durable         (Q16)
+│       └── state/              view state, and mirrors of core state      (Q16)
 │
 ├── scripts/bundle_worker.ts    MapLibre 6 worker fix                     (S1.4)
 ├── .github/workflows/          CI for Linux and macOS                    (S0.7)

@@ -12,7 +12,10 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::sync::Arc;
 use versatiles_container::{SharedTileSource, TilesRuntime};
-use versatiles_pipeline::{PipelineReader, VPLPipeline};
+use versatiles_pipeline::PipelineReader;
+// Re-exported so the command layer can name what `up_to` hands it without taking a dependency on
+// `versatiles_pipeline` of its own — the core is the layer that owns pipeline types.
+pub use versatiles_pipeline::VPLPipeline;
 
 /// The pipeline truncated at `path`, or `None` if the path names nothing.
 ///

@@ -7,6 +7,7 @@
 	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
 	import AppShell from './lib/components/shell/AppShell.svelte';
 	import StatusBar, { type Status } from './lib/components/shell/StatusBar.svelte';
+	import { connectJobs } from './lib/state/jobs.svelte';
 	import Inspector from './lib/components/shell/Inspector.svelte';
 	import LandingScreen from './lib/components/shell/LandingScreen.svelte';
 	import LeftPane from './lib/components/shell/LeftPane.svelte';
@@ -100,6 +101,10 @@
 	let empty = $derived(containers.length === 0);
 
 	$effect(() => {
+		// Before anything else asks for work: a job started by the previous window — a conversion
+		// still running across a reload — has to appear in the bar, not only the ones this session
+		// starts.
+		void connectJobs();
 		void refreshRecents();
 		void getLayout().then((loaded) => (layout = loaded));
 		void vplOperations().then((loaded) => (operations = loaded));
@@ -250,7 +255,6 @@
 	/// This is what "instantly see the result" means (M4): the map shows the data as it is at the
 	/// selected step, so tightening a filter changes the tiles rather than a number in a form.
 	let previewName = $state<string | null>(null);
-	let previewToken = 0;
 
 	// The map is created by an effect, so it can appear after a pipeline has already been loaded —
 	// on a reload, the document comes back from the core before there is anything to draw it on.
@@ -264,14 +268,17 @@
 
 	async function refreshPreview() {
 		if (!map || !pipeline) return;
-		const mine = ++previewToken;
-		status = { kind: 'busy', message: 'Building preview…' };
 		try {
-			const result = await previewPipeline(selected ?? []);
-			// A newer build started while this one was running; its answer is the current one.
-			if (mine !== previewToken) return;
+			// The build is a job in the runner's `latest` lane, so **editing again stops the build
+			// that is now out of date** rather than leaving it to finish. That also removes the
+			// token this used to carry: which preview is current is the runner's to know, and a
+			// second answer to that question in here could only ever disagree with it.
+			const outcome = await previewPipeline(selected ?? []);
+			if (outcome.kind === 'superseded') return;
+
 			if (previewName && map) removeContainerFromMap(map, previewName);
 			previewName = null;
+			const result = outcome.kind === 'ready' ? outcome : null;
 			lastPreview = result;
 			if (result) {
 				previewName = result.name;
@@ -284,7 +291,7 @@
 			}
 			status = { kind: 'idle' };
 		} catch (e) {
-			if (mine === previewToken) fail(e);
+			fail(e);
 		}
 	}
 

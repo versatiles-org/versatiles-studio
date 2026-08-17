@@ -7,8 +7,10 @@
 
 use crate::state::AppState;
 use studio_core::history::EditKind;
+use studio_core::jobs::{JobHandle, Lane};
 use studio_core::vpl::{Diagnostic, Document, OperationInfo, ParseError, Pipeline, Span, Token, operations, validate};
-use tauri::State;
+use tauri::{AppHandle, State};
+use studio_core::preview::VPLPipeline;
 
 /// A parse failure the editor can place, rather than a rendered string it would have to read.
 #[derive(serde::Serialize)]
@@ -215,7 +217,7 @@ pub fn vpl_remove_property(text: String, span: Span) -> Result<String, VplError>
 }
 
 /// The pipeline's output, mounted on the embedded server and ready for the map (S2.7, C3).
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[derive(specta::Type)]
 pub struct Preview {
@@ -225,18 +227,42 @@ pub struct Preview {
 	pub info: studio_core::analysis::ContainerInfo,
 }
 
-/// Runs the pipeline up to `path` and mounts the result.
+/// What a preview request came to.
 ///
-/// Building opens the inputs, so this is not instant on a large source — the caller should say it
-/// is working. It is not yet a cancellable job; that arrives with the runner at S3.1.
+/// Three outcomes rather than an `Option`, because "there is nothing at that path" and "you asked
+/// again before I finished" are different facts and the caller does different things with them.
+#[derive(serde::Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[derive(specta::Type)]
+pub enum PreviewOutcome {
+	// Boxed only to keep the variants a similar size — `Preview` carries a whole `ContainerInfo`,
+	// and the other two carry nothing. Transparent on the wire and in the generated types.
+	Ready(Box<Preview>),
+	/// The path names no node, or there is no pipeline yet.
+	Nothing,
+	/// A newer preview replaced this one before it finished. Its answer is the current one.
+	Superseded,
+}
+
+/// Runs the pipeline up to `path` and mounts the result — as a cancellable job (S2.7, S3.1).
+///
+/// Building opens the inputs, which on a large source is not instant, so this runs in the runner's
+/// [`Lane::Latest`]: **editing the pipeline again stops the build that is now out of date**, rather
+/// than leaving it to finish an answer nobody will look at. That is also why the caller no longer
+/// needs a token to discard stale replies — being superseded is something the runner knows, so it
+/// is something this can report.
 #[tauri::command]
 #[specta::specta]
-pub async fn preview_pipeline(state: State<'_, AppState>, path: Vec<u32>) -> Result<Option<Preview>, String> {
+pub async fn preview_pipeline(
+	app: AppHandle,
+	state: State<'_, AppState>,
+	path: Vec<u32>,
+) -> Result<PreviewOutcome, String> {
 	// `u32` rather than `usize` at the boundary: it arrives from JavaScript as numbers, and specta
 	// will not emit a 64-bit integer as a `number` (see `bindings.rs`).
 	let path: Vec<usize> = path.into_iter().map(|index| index as usize).collect();
 	let Some(document) = state.pipeline.lock().await.clone() else {
-		return Ok(None);
+		return Ok(PreviewOutcome::Nothing);
 	};
 	// An empty path means the whole pipeline — what the map shows when nothing is selected.
 	let full = document.to_pipeline();
@@ -245,24 +271,50 @@ pub async fn preview_pipeline(state: State<'_, AppState>, path: Vec<u32>) -> Res
 	} else {
 		studio_core::preview::up_to(full, &path)
 	};
-	let Some(wanted) = wanted else { return Ok(None) };
+	let Some(wanted) = wanted else {
+		return Ok(PreviewOutcome::Nothing);
+	};
 
+	// The result travels back through a oneshot rather than the event stream: it is an answer to
+	// *this* call, not news for every listener, and it carries a mount URL the bar has no use for.
+	let (tx, rx) = tokio::sync::oneshot::channel();
+	state.jobs.submit("Building preview", Lane::Latest, move |handle| async move {
+		let outcome = build_preview(&app, &handle, wanted).await;
+		// Sent as a `Result`, so a failure reaches the caller's `catch` *and* is recorded as a
+		// failed job. Only supersession drops the sender, which is what makes that distinguishable
+		// from failing at the far end.
+		let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
+		outcome.map(|_| ())
+	});
+
+	match rx.await {
+		Ok(Ok(preview)) => Ok(PreviewOutcome::Ready(Box::new(preview))),
+		Ok(Err(error)) => Err(error),
+		// A dropped sender is a job that was aborted, which in this lane means superseded.
+		Err(_) => Ok(PreviewOutcome::Superseded),
+	}
+}
+
+/// The build itself, split out so the job body is about reporting rather than about tiles.
+async fn build_preview(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline) -> anyhow::Result<Preview> {
+	// Fetched here rather than captured: the job outlives the command's borrow, and an `AppHandle`
+	// is the supported way to reach managed state from something that does.
+	let state = tauri::Manager::state::<AppState>(app);
+	handle.working("building the pipeline");
 	let mut server = state.server.lock().await;
 	let dir = state.project_dir.lock().await.clone();
-	let source = studio_core::preview::build(server.runtime(), wanted, &dir)
-		.await
-		.map_err(|e| format!("{e:#}"))?;
-	let info = studio_core::analysis::describe(&source, "preview")
-		.await
-		.map_err(|e| format!("{e:#}"))?;
+	let source = studio_core::preview::build(server.runtime(), wanted, &dir).await?;
+
+	handle.working("reading what it produces");
+	let info = studio_core::analysis::describe(&source, "preview").await?;
 
 	const NAME: &str = "preview";
-	server.mount(NAME, source).await.map_err(|e| format!("{e:#}"))?;
-	Ok(Some(Preview {
+	server.mount(NAME, source).await?;
+	Ok(Preview {
 		name: NAME.to_string(),
 		tile_url: server.tile_url(NAME),
 		info,
-	}))
+	})
 }
 
 /// Opens a `.vpl` file as this window's pipeline (C9, S2.9).

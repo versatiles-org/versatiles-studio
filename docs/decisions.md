@@ -16,6 +16,36 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q27 — The job runner has two lanes, and the preview runs in one of them
+
+**Dated 2026-08-17.** [S3.1](scope-release-1.md) asked for "the queue". There are two, because a
+conversion and a preview want opposite things from a runner.
+
+**`queued`** runs one job at a time in submission order. Conversions compete for the same disk and
+the same cores, so two at once finish later than the same two in sequence — and report progress that
+means nothing while they do it.
+
+**`latest`** cancels whatever the lane was already running. A preview of a pipeline that has since
+been edited is not a result anybody will look at; it is a machine still warming up over a stale
+question. One FIFO serving both would make a preview wait behind a forty-minute export, which is the
+opposite of what M4 promises.
+
+**This moved a decision out of the webview.** `refreshPreview` used to hold a token and discard
+replies that arrived out of order. The work still ran to completion — the token only decided which
+answer to ignore. Now the runner cancels it, and because _which preview is current_ is a fact the
+runner owns, the command can report `superseded` rather than the caller inferring it. A second
+answer to that question in the webview could only ever disagree.
+
+**Cancellation is two mechanisms, because neither covers everything.** The task is aborted, which
+drops async work at its next await point — real cancellation for a preview, whose time goes into
+opening files. A flag is also set, which is the only thing a `spawn_blocking` thread encoding tiles
+can see. Work that does neither runs to completion while reported as cancelled; that is a property
+of the work, and the runner cannot fix it by pretending otherwise.
+
+**The runner announces every ending, not the job.** A job aborted mid-await never gets to say
+anything, and a state machine where some endings come from the job and others from the runner has
+two places to be wrong.
+
 ### Q26 — The IPC types are generated, and the generated file is committed
 
 **Dated 2026-08-17.** [Q3](decisions.md) deferred `tauri-specta` because its line was `2.0.0-rc.x`.

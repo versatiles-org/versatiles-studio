@@ -19,13 +19,6 @@ export const commands = {
 	 */
 	serverBaseUrl: () => typedError<string, string>(__TAURI_INVOKE("server_base_url")),
 	/**
-	 *  Smoke test for the event plane: streams a few progress events over a Channel.
-	 * 
-	 *  Exists so S0.4 is verified rather than merely written. Delete it when the real job runner lands
-	 *  at S3.1 — by then this path is exercised by actual work.
-	 */
-	demoJob: (channel: Channel<JobEvent>) => typedError<null, string>(__TAURI_INVOKE("demo_job", { channel })),
-	/**
 	 *  Opens another window. One window per project ([Q16]) — this is what ⌘N does.
 	 * 
 	 *  Each window gets its own webview process, so a crash takes one project down rather than all of
@@ -34,6 +27,20 @@ export const commands = {
 	 *  [Q16]: ../../docs/decisions.md
 	 */
 	openWindow: (label: string) => typedError<null, string>(__TAURI_INVOKE("open_window", { label })),
+	/**
+	 *  Points the runner's events at this window, and returns what it has missed.
+	 * 
+	 *  **Called once, at startup, and again after every reload.** The channel belongs to a webview, and
+	 *  a reload gets a new one; jobs started before it keep running, which is the whole reason a
+	 *  conversion is not tied to the window that asked for it. Returning the list in the same call is
+	 *  what closes the gap — subscribing and then listing separately leaves a window where an event
+	 *  lands between the two and is counted twice, or lands before the list is taken and is missed.
+	 */
+	subscribeJobs: (channel: Channel<JobEvent>) => typedError<Job[], string>(__TAURI_INVOKE("subscribe_jobs", { channel })),
+	/**  One job's log, oldest line first. Fetched when a row is expanded, not streamed on connect. */
+	jobLog: (id: number) => typedError<string[], string>(__TAURI_INVOKE("job_log", { id })),
+	/**  Asks a job to stop. Idempotent — a job that has already ended stays ended. */
+	cancelJob: (id: number) => typedError<null, string>(__TAURI_INVOKE("cancel_job", { id })),
 	/**
 	 *  Opens a container, mounts it on the embedded server, and returns what is cheap to know.
 	 * 
@@ -137,17 +144,15 @@ export const commands = {
 /**  The document was replaced wholesale, e.g. by opening a file. */
 "replaced" | null) => typedError<DocumentView, VplError>(__TAURI_INVOKE("set_pipeline", { text, kind })),
 	/**
-	 *  Runs the pipeline up to `path` and mounts the result.
+	 *  Runs the pipeline up to `path` and mounts the result — as a cancellable job (S2.7, S3.1).
 	 * 
-	 *  Building opens the inputs, so this is not instant on a large source — the caller should say it
-	 *  is working. It is not yet a cancellable job; that arrives with the runner at S3.1.
+	 *  Building opens the inputs, which on a large source is not instant, so this runs in the runner's
+	 *  [`Lane::Latest`]: **editing the pipeline again stops the build that is now out of date**, rather
+	 *  than leaving it to finish an answer nobody will look at. That is also why the caller no longer
+	 *  needs a token to discard stale replies — being superseded is something the runner knows, so it
+	 *  is something this can report.
 	 */
-	previewPipeline: (path: number[]) => typedError<{
-	/**  Mount name, stable so a rebuild replaces rather than accumulates. */
-	name: string,
-	tileUrl: string,
-	info: ContainerInfo,
-} | null, string>(__TAURI_INVOKE("preview_pipeline", { path })),
+	previewPipeline: (path: number[]) => typedError<PreviewOutcome, string>(__TAURI_INVOKE("preview_pipeline", { path })),
 	/**
 	 *  Steps the document back, or forward again. `None` when there is nowhere to go.
 	 * 
@@ -310,21 +315,86 @@ export type FieldInfo = {
 };
 
 /**
+ *  A job as the status bar lists it.
+ * 
+ *  The log is deliberately **not** here: listing jobs happens on every reload, and shipping a
+ *  thousand lines per job to draw one progress bar is a cost paid for something nobody is looking
+ *  at. [`Jobs::log`] fetches it when a row is expanded.
+ */
+export type Job = {
+	id: number,
+	/**  What to call it in the bar — "Building preview", "Converting berlin.mbtiles". */
+	label: string,
+	lane: Lane,
+	state: JobState,
+	/**  `0.0..=1.0`, or `None` when the job cannot say — which is honest more often than not. */
+	fraction: number | null,
+	/**  What is happening right now. Empty until the job says something. */
+	message: string,
+	/**
+	 *  How many lines the log holds, so a row can offer to expand only when there is something in
+	 *  it.
+	 */
+	logLines: number,
+};
+
+/**
  *  Everything a running job can tell the outside world.
  * 
  *  `Serialize` so the boundary can forward it verbatim; nothing here is Tauri-specific.
+ * 
+ *  The webview builds its list from these rather than polling: a progress bar driven by a `list()`
+ *  call every 200ms is both slower to update and more work than being told.
  */
 export type JobEvent = 
-/**  Fractional progress in `0.0..=1.0`, plus what is happening right now. */
-{ kind: "progress"; id: number; fraction: number; message: string } | 
-/**  A line for the job log. Failures at minute 40 have to be able to say why. */
-{ kind: "log"; id: number; line: string } | 
+/**
+ *  A job exists. Carries the whole record, so a listener never has to ask what it just heard
+ *  about.
+ */
+{ kind: "added"; job: Job } | 
+/**  It left the queue and started running. */
+{ kind: "started"; id: number } | 
+/**  Fractional progress in `0.0..=1.0` — or `None`, plus what is happening right now. */
+{ kind: "progress"; id: number; fraction: number | null; message: string } | 
+/**  A line for the job log. Failures at minute forty have to be able to say why. */
+{ kind: "log"; id: number; line: string; 
+/**
+ *  How many lines the log holds *after* this one — filled in by the runner on the way out.
+ * 
+ *  Carried rather than counted by the listener, because the log is capped: a mirror that
+ *  incremented its own counter would keep climbing past [`LOG_LINES`] and claim a size the
+ *  log does not have.
+ */
+logLines: number } | 
 /**  The job finished on its own. */
 { kind: "finished"; id: number } | 
 /**  The job stopped because it was cancelled. */
 { kind: "cancelled"; id: number } | 
 /**  The job stopped because it failed. */
 { kind: "failed"; id: number; error: string };
+
+/**  Where a job is in its life. */
+export type JobState = 
+/**  Submitted, waiting for the lane to free up. Only [`Lane::Queued`] jobs are ever here. */
+{ kind: "queued" } | { kind: "running" } | { kind: "finished" } | { kind: "cancelled" } | { kind: "failed"; error: string };
+
+/**  How a job relates to the ones already in flight. */
+export type Lane = 
+/**
+ *  One at a time, in submission order.
+ * 
+ *  Conversions compete for the same disk and the same cores; two at once finish later than the
+ *  same two in sequence, and report progress that means nothing while they do it.
+ */
+"queued" | 
+/**
+ *  Newest wins — submitting cancels whatever this lane was already running.
+ * 
+ *  For work whose answer stops mattering the moment it is asked again: a preview of a pipeline
+ *  that has since been edited is not a result anybody will look at, it is a machine still
+ *  warming up over a stale question.
+ */
+"latest";
 
 /**  One layer of a decoded vector tile (A4). */
 export type LayerInspection = {
@@ -422,6 +492,20 @@ export type Preview = {
 	tileUrl: string,
 	info: ContainerInfo,
 };
+
+/**
+ *  What a preview request came to.
+ * 
+ *  Three outcomes rather than an `Option`, because "there is nothing at that path" and "you asked
+ *  again before I finished" are different facts and the caller does different things with them.
+ */
+export type PreviewOutcome = {
+	kind: "ready",
+} & Preview | 
+/**  The path names no node, or there is no pipeline yet. */
+{ kind: "nothing" } | 
+/**  A newer preview replaced this one before it finished. Its answer is the current one. */
+{ kind: "superseded" };
 
 /**  One `key=value` pair. */
 export type Property = {

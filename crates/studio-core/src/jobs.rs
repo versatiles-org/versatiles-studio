@@ -1,16 +1,28 @@
-//! Job runner — long operations with progress, cancellation and a log (E7).
+//! Job runner — long operations with progress, cancellation and a log (E7, S3.1).
 //!
-//! Conversions run for minutes to hours, so this exists before any export feature, not after.
+//! Conversions run for minutes to hours, so this exists before any export feature, not after. The
+//! status bar ([Q24]) is its face: what is running, how far along, and a log to expand when it
+//! fails at minute forty.
 //!
 //! The core knows nothing about Tauri Channels. It emits [`JobEvent`]s through a plain callback;
 //! `src-tauri` adapts that to a Channel at the boundary ([Q3]). That is what keeps the job runner
 //! testable with no Tauri runtime — and what would let a CLI or a test drive the same code.
 //!
+//! **Two lanes, because "the queue" is two different questions.** A conversion and a preview want
+//! opposite things from a runner: the conversion wants to be left alone until it finishes, the
+//! preview wants to be replaced the moment it is out of date. One FIFO queue serving both would
+//! make a preview wait behind a forty-minute export, which is the opposite of M4. See [`Lane`].
+//!
 //! [Q3]: ../../../docs/decisions.md
+//! [Q24]: ../../../docs/decisions.md
 
+use anyhow::Result;
 use serde::Serialize;
+use std::collections::VecDeque;
+use std::future::Future;
+use std::pin::Pin;
 use std::sync::{
-	Arc,
+	Arc, Mutex,
 	atomic::{AtomicBool, Ordering},
 };
 
@@ -19,22 +31,117 @@ use std::sync::{
 // where specta will not emit a 64-bit integer as a plain number (see `src-tauri/src/bindings.rs`).
 pub type JobId = u32;
 
+/// How many finished jobs are kept for the log panel to show.
+///
+/// The list is history, not a record — a session that converts a hundred files does not need the
+/// first one's progress messages, and an unbounded `Vec` in a process that runs for days is a leak
+/// with a nicer name.
+const HISTORY: usize = 50;
+
+/// How many log lines are kept per job.
+///
+/// A conversion logging per tile would otherwise hold a million strings. The **last** lines are the
+/// ones kept: a failure explains itself at the end, not the beginning.
+const LOG_LINES: usize = 1000;
+
+/// How a job relates to the ones already in flight.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub enum Lane {
+	/// One at a time, in submission order.
+	///
+	/// Conversions compete for the same disk and the same cores; two at once finish later than the
+	/// same two in sequence, and report progress that means nothing while they do it.
+	Queued,
+	/// Newest wins — submitting cancels whatever this lane was already running.
+	///
+	/// For work whose answer stops mattering the moment it is asked again: a preview of a pipeline
+	/// that has since been edited is not a result anybody will look at, it is a machine still
+	/// warming up over a stale question.
+	Latest,
+}
+
+/// Where a job is in its life.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub enum JobState {
+	/// Submitted, waiting for the lane to free up. Only [`Lane::Queued`] jobs are ever here.
+	Queued,
+	Running,
+	Finished,
+	Cancelled,
+	Failed { error: String },
+}
+
+impl JobState {
+	/// Whether the job may still do something. The two non-terminal states, named once.
+	#[must_use]
+	pub fn is_active(&self) -> bool {
+		matches!(self, Self::Queued | Self::Running)
+	}
+}
+
+/// A job as the status bar lists it.
+///
+/// The log is deliberately **not** here: listing jobs happens on every reload, and shipping a
+/// thousand lines per job to draw one progress bar is a cost paid for something nobody is looking
+/// at. [`Jobs::log`] fetches it when a row is expanded.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct Job {
+	pub id: JobId,
+	/// What to call it in the bar — "Building preview", "Converting berlin.mbtiles".
+	pub label: String,
+	pub lane: Lane,
+	pub state: JobState,
+	/// `0.0..=1.0`, or `None` when the job cannot say — which is honest more often than not.
+	#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+	pub fraction: Option<f64>,
+	/// What is happening right now. Empty until the job says something.
+	pub message: String,
+	/// How many lines the log holds, so a row can offer to expand only when there is something in
+	/// it.
+	#[cfg_attr(feature = "bindings", specta(type = u32))]
+	pub log_lines: usize,
+}
+
 /// Everything a running job can tell the outside world.
 ///
 /// `Serialize` so the boundary can forward it verbatim; nothing here is Tauri-specific.
+///
+/// The webview builds its list from these rather than polling: a progress bar driven by a `list()`
+/// call every 200ms is both slower to update and more work than being told.
 #[derive(Debug, Clone, Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
+#[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub enum JobEvent {
-	/// Fractional progress in `0.0..=1.0`, plus what is happening right now.
+	/// A job exists. Carries the whole record, so a listener never has to ask what it just heard
+	/// about.
+	Added { job: Job },
+	/// It left the queue and started running.
+	Started { id: JobId },
+	/// Fractional progress in `0.0..=1.0` — or `None`, plus what is happening right now.
 	Progress {
 		id: JobId,
-		#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
-		fraction: f64,
+		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+		fraction: Option<f64>,
 		message: String,
 	},
-	/// A line for the job log. Failures at minute 40 have to be able to say why.
-	Log { id: JobId, line: String },
+	/// A line for the job log. Failures at minute forty have to be able to say why.
+	Log {
+		id: JobId,
+		line: String,
+		/// How many lines the log holds *after* this one — filled in by the runner on the way out.
+		///
+		/// Carried rather than counted by the listener, because the log is capped: a mirror that
+		/// incremented its own counter would keep climbing past [`LOG_LINES`] and claim a size the
+		/// log does not have.
+		#[cfg_attr(feature = "bindings", specta(type = u32))]
+		log_lines: usize,
+	},
 	/// The job finished on its own.
 	Finished { id: JobId },
 	/// The job stopped because it was cancelled.
@@ -70,6 +177,11 @@ impl CancelToken {
 }
 
 /// The handle a running job uses to report back.
+///
+/// It reports *progress*; it does not report that it ended. The runner owns the terminal
+/// transition, because a job that is aborted mid-await never gets to say anything — and a state
+/// machine where some endings are announced by the job and others by the runner has two places to
+/// be wrong.
 pub struct JobHandle {
 	id: JobId,
 	sink: EventSink,
@@ -87,15 +199,32 @@ impl JobHandle {
 		self.id
 	}
 
+	/// Whether the job has been asked to stop.
+	///
+	/// Work that spends its time inside `spawn_blocking` has to poll this — dropping a future does
+	/// nothing to a thread that is busy encoding tiles.
 	#[must_use]
 	pub fn is_cancelled(&self) -> bool {
 		self.cancel.is_cancelled()
 	}
 
+	/// Reports how far along the job is.
 	pub fn progress(&self, fraction: f64, message: impl Into<String>) {
+		self.emit(Some(fraction.clamp(0.0, 1.0)), message);
+	}
+
+	/// Reports what the job is doing when it cannot say how far along it is.
+	///
+	/// Separate from [`progress`](Self::progress) so that not knowing is something a caller states,
+	/// rather than something it fakes with a number it made up.
+	pub fn working(&self, message: impl Into<String>) {
+		self.emit(None, message);
+	}
+
+	fn emit(&self, fraction: Option<f64>, message: impl Into<String>) {
 		(self.sink)(JobEvent::Progress {
 			id: self.id,
-			fraction: fraction.clamp(0.0, 1.0),
+			fraction,
 			message: message.into(),
 		});
 	}
@@ -104,70 +233,693 @@ impl JobHandle {
 		(self.sink)(JobEvent::Log {
 			id: self.id,
 			line: line.into(),
+			// Corrected by the runner, which is the only thing that knows the log's real size.
+			log_lines: 0,
 		});
 	}
+}
 
-	pub fn finished(&self) {
-		(self.sink)(JobEvent::Finished { id: self.id });
+/// The work a job does: given a handle to report through, produce a result.
+///
+/// Boxed because the registry holds queued work of many different shapes in one `VecDeque`.
+type Work = Box<dyn FnOnce(JobHandle) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> + Send>;
+
+struct Entry {
+	job: Job,
+	log: VecDeque<String>,
+	cancel: CancelToken,
+	/// Present while running, so cancelling can drop the work at its next await point rather than
+	/// waiting for it to notice.
+	task: Option<tokio::task::JoinHandle<()>>,
+}
+
+#[derive(Default)]
+struct Registry {
+	next_id: JobId,
+	/// Oldest first, so the newest is what the bar shows and the oldest is what pruning drops.
+	entries: Vec<Entry>,
+	/// Work submitted to [`Lane::Queued`] that has not started.
+	pending: VecDeque<(JobId, Work)>,
+	/// Which [`Lane::Queued`] job holds the lane. `None` means the next submission starts at once.
+	running_queued: Option<JobId>,
+}
+
+impl Registry {
+	fn entry(&mut self, id: JobId) -> Option<&mut Entry> {
+		self.entries.iter_mut().find(|entry| entry.job.id == id)
+	}
+}
+
+/// The runner. Cheap to clone — every clone is the same registry.
+#[derive(Clone, Default)]
+pub struct Jobs {
+	inner: Arc<Inner>,
+}
+
+#[derive(Default)]
+struct Inner {
+	registry: Mutex<Registry>,
+	/// Installed by the boundary once the webview has a channel to receive on.
+	///
+	/// `None` before that, and again after a reload kills the old channel: events for a job that
+	/// started before the window came back are dropped, and the list the webview asks for on
+	/// startup is what puts it back in the picture.
+	sink: Mutex<Option<EventSink>>,
+}
+
+impl Jobs {
+	#[must_use]
+	pub fn new() -> Self {
+		Self::default()
 	}
 
-	pub fn cancelled(&self) {
-		(self.sink)(JobEvent::Cancelled { id: self.id });
+	/// Points job events at a sink. Replaces any previous one — there is one webview.
+	pub fn set_sink(&self, sink: EventSink) {
+		*self.inner.sink.lock().unwrap() = Some(sink);
 	}
 
-	pub fn failed(&self, error: impl Into<String>) {
-		(self.sink)(JobEvent::Failed {
-			id: self.id,
-			error: error.into(),
+	/// Submits a job and returns its id immediately; the work runs in the background.
+	///
+	/// Needs a Tokio runtime, which is what actually runs the work.
+	pub fn submit<F, Fut>(&self, label: impl Into<String>, lane: Lane, work: F) -> JobId
+	where
+		F: FnOnce(JobHandle) -> Fut + Send + 'static,
+		Fut: Future<Output = Result<()>> + Send + 'static,
+	{
+		let work: Work = Box::new(move |handle| Box::pin(work(handle)));
+		let label = label.into();
+
+		// `Latest` supersedes rather than queues, so the outgoing job is cancelled before the new
+		// one is even registered — otherwise a listener briefly sees two of them running.
+		if lane == Lane::Latest {
+			for id in self.active_in(lane) {
+				self.cancel(id);
+			}
+		}
+
+		let (id, job, start_now) = {
+			let mut registry = self.inner.registry.lock().unwrap();
+			registry.next_id += 1;
+			let id = registry.next_id;
+			// A `Queued` job that has to wait is *visibly* waiting; everything else starts here.
+			let waiting = lane == Lane::Queued && registry.running_queued.is_some();
+			registry.entries.push(Entry {
+				job: Job {
+					id,
+					label,
+					lane,
+					state: if waiting { JobState::Queued } else { JobState::Running },
+					fraction: None,
+					message: String::new(),
+					log_lines: 0,
+				},
+				log: VecDeque::new(),
+				cancel: CancelToken::new(),
+				task: None,
+			});
+			let start_now = if waiting {
+				registry.pending.push_back((id, work));
+				None
+			} else {
+				if lane == Lane::Queued {
+					registry.running_queued = Some(id);
+				}
+				Some(work)
+			};
+			prune(&mut registry);
+			// Cloned out so the event goes out without the lock held — a sink that calls back in
+			// would deadlock, and the boundary's does not, but that is not a thing to rely on.
+			let job = registry.entry(id).expect("just pushed").job.clone();
+			(id, job, start_now)
+		};
+
+		self.emit(JobEvent::Added { job });
+		if let Some(work) = start_now {
+			self.spawn(id, work);
+		}
+		id
+	}
+
+	/// Asks a job to stop, and stops waiting for it.
+	///
+	/// Two mechanisms, because neither covers everything: the task is aborted, which drops async
+	/// work at its next await point, and the token is set, which is the only thing a blocking
+	/// thread can see. A job doing neither — a tight CPU loop with no polling — runs to completion
+	/// while reported as cancelled; that is a property of the work, not of this call.
+	pub fn cancel(&self, id: JobId) {
+		let mut registry = self.inner.registry.lock().unwrap();
+		let Some(entry) = registry.entry(id) else { return };
+		if !entry.job.state.is_active() {
+			return;
+		}
+		entry.job.state = JobState::Cancelled;
+		entry.cancel.cancel();
+		if let Some(task) = entry.task.take() {
+			task.abort();
+		}
+		// Aborting means the completion path never runs, so releasing the lane is this call's job.
+		registry.pending.retain(|(pending, _)| *pending != id);
+		let freed = registry.running_queued == Some(id);
+		if freed {
+			registry.running_queued = None;
+		}
+		drop(registry);
+
+		self.emit(JobEvent::Cancelled { id });
+		if freed {
+			self.pump();
+		}
+	}
+
+	/// Every job this session has run, oldest first.
+	#[must_use]
+	pub fn list(&self) -> Vec<Job> {
+		self.inner
+			.registry
+			.lock()
+			.unwrap()
+			.entries
+			.iter()
+			.map(|entry| entry.job.clone())
+			.collect()
+	}
+
+	/// One job, or `None` once it has aged out of the history.
+	#[must_use]
+	pub fn job(&self, id: JobId) -> Option<Job> {
+		self.inner.registry.lock().unwrap().entry(id).map(|e| e.job.clone())
+	}
+
+	/// The job's log, oldest line first. Empty for a job that never logged, or that has aged out.
+	#[must_use]
+	pub fn log(&self, id: JobId) -> Vec<String> {
+		self.inner
+			.registry
+			.lock()
+			.unwrap()
+			.entry(id)
+			.map(|entry| entry.log.iter().cloned().collect())
+			.unwrap_or_default()
+	}
+
+	/// Ids of the jobs in `lane` that could still do something.
+	fn active_in(&self, lane: Lane) -> Vec<JobId> {
+		self.inner
+			.registry
+			.lock()
+			.unwrap()
+			.entries
+			.iter()
+			.filter(|entry| entry.job.lane == lane && entry.job.state.is_active())
+			.map(|entry| entry.job.id)
+			.collect()
+	}
+
+	/// Runs the work, and records how it ended.
+	fn spawn(&self, id: JobId, work: Work) {
+		let cancel = {
+			let mut registry = self.inner.registry.lock().unwrap();
+			let Some(entry) = registry.entry(id) else { return };
+			entry.cancel.clone()
+		};
+		let handle = JobHandle::new(id, self.sink_for_handle(), cancel);
+		let jobs = self.clone();
+		let task = tokio::spawn(async move {
+			let outcome = work(handle).await;
+			jobs.complete(id, outcome);
 		});
+		// Between the spawn and here the job may already have been cancelled, in which case the
+		// entry is terminal and this handle is stale — abort rather than store it.
+		let mut registry = self.inner.registry.lock().unwrap();
+		match registry.entry(id) {
+			Some(entry) if entry.job.state.is_active() => entry.task = Some(task),
+			_ => task.abort(),
+		}
 	}
+
+	fn complete(&self, id: JobId, outcome: Result<()>) {
+		let mut registry = self.inner.registry.lock().unwrap();
+		let Some(entry) = registry.entry(id) else { return };
+		// Cancellation got there first. Its ending is the one that already went out.
+		if !entry.job.state.is_active() {
+			return;
+		}
+		let state = match &outcome {
+			Ok(()) => JobState::Finished,
+			Err(error) => JobState::Failed {
+				error: format!("{error:#}"),
+			},
+		};
+		entry.job.state = state.clone();
+		entry.task = None;
+		let freed = registry.running_queued == Some(id);
+		if freed {
+			registry.running_queued = None;
+		}
+		drop(registry);
+
+		self.emit(match state {
+			JobState::Failed { error } => JobEvent::Failed { id, error },
+			_ => JobEvent::Finished { id },
+		});
+		if freed {
+			self.pump();
+		}
+	}
+
+	/// Starts the next queued job, if the lane is free and there is one.
+	fn pump(&self) {
+		let next = {
+			let mut registry = self.inner.registry.lock().unwrap();
+			if registry.running_queued.is_some() {
+				return;
+			}
+			// Skip anything cancelled while it waited — `cancel` drops the work, so the id alone
+			// could still be here in a future where the two get out of step.
+			loop {
+				let Some((id, work)) = registry.pending.pop_front() else { return };
+				match registry.entry(id) {
+					Some(entry) if entry.job.state.is_active() => {
+						entry.job.state = JobState::Running;
+						registry.running_queued = Some(id);
+						break (id, work);
+					}
+					_ => continue,
+				}
+			}
+		};
+		self.emit(JobEvent::Started { id: next.0 });
+		self.spawn(next.0, next.1);
+	}
+
+	/// A sink that records into the registry on the way out.
+	///
+	/// The list and the event stream are the same facts, so they are written in one place: a
+	/// listener that missed an event and asks for the list gets the same answer either way.
+	fn sink_for_handle(&self) -> EventSink {
+		let jobs = self.clone();
+		Arc::new(move |event| {
+			jobs.emit(jobs.record(event));
+		})
+	}
+
+	/// Writes the event into the registry, and hands it back as the listener should see it.
+	fn record(&self, mut event: JobEvent) -> JobEvent {
+		let mut registry = self.inner.registry.lock().unwrap();
+		match &mut event {
+			JobEvent::Progress { id, fraction, message } => {
+				if let Some(entry) = registry.entry(*id) {
+					entry.job.fraction = *fraction;
+					entry.job.message.clone_from(message);
+				}
+			}
+			JobEvent::Log { id, line, log_lines } => {
+				if let Some(entry) = registry.entry(*id) {
+					if entry.log.len() == LOG_LINES {
+						entry.log.pop_front();
+					}
+					entry.log.push_back(line.clone());
+					entry.job.log_lines = entry.log.len();
+					*log_lines = entry.job.log_lines;
+				}
+			}
+			_ => {}
+		}
+		event
+	}
+
+	fn emit(&self, event: JobEvent) {
+		let sink = self.inner.sink.lock().unwrap().clone();
+		if let Some(sink) = sink {
+			sink(event);
+		}
+	}
+}
+
+/// Drops the oldest finished jobs once there are more than [`HISTORY`] of them.
+///
+/// Only finished ones: a queue of sixty conversions is not history, it is the work.
+fn prune(registry: &mut Registry) {
+	let finished = registry.entries.iter().filter(|e| !e.job.state.is_active()).count();
+	if finished <= HISTORY {
+		return;
+	}
+	let mut excess = finished - HISTORY;
+	registry.entries.retain(|entry| {
+		if excess > 0 && !entry.job.state.is_active() {
+			excess -= 1;
+			return false;
+		}
+		true
+	});
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::sync::Mutex;
+	use std::sync::atomic::AtomicU32;
+	use tokio::sync::oneshot;
 
-	fn collector() -> (EventSink, Arc<Mutex<Vec<JobEvent>>>) {
+	fn collector(jobs: &Jobs) -> Arc<Mutex<Vec<JobEvent>>> {
 		let events = Arc::new(Mutex::new(Vec::new()));
 		let sink_events = Arc::clone(&events);
-		let sink: EventSink = Arc::new(move |e| sink_events.lock().unwrap().push(e));
-		(sink, events)
+		jobs.set_sink(Arc::new(move |e| sink_events.lock().unwrap().push(e)));
+		events
 	}
 
-	#[test]
-	fn reports_progress_and_completion() {
-		let (sink, events) = collector();
-		let job = JobHandle::new(1, sink, CancelToken::new());
+	/// A flag a job sets when its body actually begins.
+	///
+	/// Necessary because [`JobState::Running`] is set *synchronously in `submit`*, before the task
+	/// has been polled even once — so waiting for `Running` and then cancelling would abort a job
+	/// that never ran, and prove nothing about cancelling one that did.
+	#[derive(Clone, Default)]
+	struct Started(Arc<AtomicBool>);
 
-		job.progress(0.5, "halfway");
-		job.log("wrote 1000 tiles");
-		job.finished();
+	impl Started {
+		fn mark(&self) {
+			self.0.store(true, Ordering::SeqCst);
+		}
+		fn happened(&self) -> bool {
+			self.0.load(Ordering::SeqCst)
+		}
+	}
+
+	/// Waits for a condition the background tasks are expected to reach.
+	///
+	/// Polling rather than a fixed sleep: the work happens on other tasks, and a sleep long enough
+	/// to be reliable on a loaded CI machine is long enough to make the suite tedious.
+	async fn until(mut condition: impl FnMut() -> bool) {
+		for _ in 0..2000 {
+			if condition() {
+				return;
+			}
+			tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+		}
+		panic!("the condition was never reached");
+	}
+
+	#[tokio::test]
+	async fn a_job_reports_progress_and_finishes() {
+		let jobs = Jobs::new();
+		let events = collector(&jobs);
+
+		let id = jobs.submit("counting", Lane::Queued, |handle| async move {
+			handle.progress(0.5, "halfway");
+			handle.log("wrote 1000 tiles");
+			Ok(())
+		});
+
+		until(|| matches!(jobs.job(id).unwrap().state, JobState::Finished)).await;
+		let job = jobs.job(id).unwrap();
+		assert_eq!(job.fraction, Some(0.5), "the list carries what the events said");
+		assert_eq!(job.message, "halfway");
+		assert_eq!(jobs.log(id), ["wrote 1000 tiles"]);
 
 		let events = events.lock().unwrap();
-		assert_eq!(events.len(), 3);
-		assert!(matches!(events[0], JobEvent::Progress { fraction, .. } if fraction == 0.5));
-		assert!(matches!(events[2], JobEvent::Finished { id: 1 }));
+		assert!(matches!(events[0], JobEvent::Added { .. }));
+		assert!(matches!(events.last().unwrap(), JobEvent::Finished { .. }));
 	}
 
-	#[test]
-	fn progress_is_clamped() {
-		let (sink, events) = collector();
-		let job = JobHandle::new(7, sink, CancelToken::new());
+	/// The runner announces the ending, so a failure reaches the bar without the job remembering
+	/// to say so.
+	#[tokio::test]
+	async fn a_job_that_returns_an_error_fails_with_it() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
 
-		job.progress(-1.0, "before the start");
-		job.progress(99.0, "past the end");
+		let id = jobs.submit("doomed", Lane::Queued, |_| async move {
+			anyhow::bail!("no such file");
+		});
 
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+		assert_eq!(
+			jobs.job(id).unwrap().state,
+			JobState::Failed {
+				error: "no such file".into()
+			}
+		);
+	}
+
+	/// Progress that cannot be measured is reported as unmeasured, not as a made-up number.
+	#[tokio::test]
+	async fn indeterminate_progress_stays_indeterminate() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
+
+		let id = jobs.submit("thinking", Lane::Latest, |handle| async move {
+			handle.working("building the pipeline");
+			Ok(())
+		});
+
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+		let job = jobs.job(id).unwrap();
+		assert_eq!(job.fraction, None);
+		assert_eq!(job.message, "building the pipeline");
+	}
+
+	#[tokio::test]
+	async fn progress_is_clamped() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
+
+		let id = jobs.submit("out of range", Lane::Queued, |handle| async move {
+			handle.progress(99.0, "past the end");
+			Ok(())
+		});
+
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+		assert_eq!(jobs.job(id).unwrap().fraction, Some(1.0));
+	}
+
+	/// The whole reason [`Lane::Queued`] exists: two conversions do not run at once.
+	#[tokio::test]
+	async fn queued_jobs_run_one_at_a_time_in_order() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
+		let concurrent = Arc::new(AtomicU32::new(0));
+		let peak = Arc::new(AtomicU32::new(0));
+		let order = Arc::new(Mutex::new(Vec::new()));
+
+		let ids: Vec<_> = (0..4)
+			.map(|n| {
+				let (concurrent, peak, order) = (concurrent.clone(), peak.clone(), order.clone());
+				jobs.submit(format!("job {n}"), Lane::Queued, move |_| async move {
+					let now = concurrent.fetch_add(1, Ordering::SeqCst) + 1;
+					peak.fetch_max(now, Ordering::SeqCst);
+					order.lock().unwrap().push(n);
+					tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+					concurrent.fetch_sub(1, Ordering::SeqCst);
+					Ok(())
+				})
+			})
+			.collect();
+
+		// Only the first starts; the rest are visibly waiting rather than quietly running.
+		assert_eq!(jobs.job(ids[3]).unwrap().state, JobState::Queued);
+
+		until(|| jobs.list().iter().all(|job| !job.state.is_active())).await;
+		assert_eq!(peak.load(Ordering::SeqCst), 1, "the lane holds one job");
+		assert_eq!(*order.lock().unwrap(), [0, 1, 2, 3], "and holds it in order");
+	}
+
+	/// [`Lane::Latest`] is the preview's lane: an answer to a question that has been asked again is
+	/// not worth finishing.
+	#[tokio::test]
+	async fn a_latest_job_supersedes_the_one_before_it() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
+		let (tx, rx) = oneshot::channel();
+		let finished_anyway = Arc::new(AtomicBool::new(false));
+
+		let started = Started::default();
+
+		let (flag, mark) = (finished_anyway.clone(), started.clone());
+		let first = jobs.submit("preview 1", Lane::Latest, move |_| async move {
+			mark.mark();
+			let _ = rx.await;
+			flag.store(true, Ordering::SeqCst);
+			Ok(())
+		});
+		until(|| started.happened()).await;
+
+		let second = jobs.submit("preview 2", Lane::Latest, |_| async move { Ok(()) });
+
+		assert_eq!(jobs.job(first).unwrap().state, JobState::Cancelled);
+		until(|| jobs.job(second).unwrap().state == JobState::Finished).await;
+
+		// Aborted at its await point, so it never reached the line after it.
+		let _ = tx.send(());
+		tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+		assert!(!finished_anyway.load(Ordering::SeqCst), "the superseded work was dropped");
+	}
+
+	/// A preview must not wait behind an export — the reason there are two lanes rather than one
+	/// queue.
+	#[tokio::test]
+	async fn a_latest_job_does_not_wait_for_a_queued_one() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
+		let (tx, rx) = oneshot::channel();
+
+		let started = Started::default();
+
+		let mark = started.clone();
+		let long = jobs.submit("export", Lane::Queued, move |_| async move {
+			mark.mark();
+			let _ = rx.await;
+			Ok(())
+		});
+		until(|| started.happened()).await;
+
+		let preview = jobs.submit("preview", Lane::Latest, |_| async move { Ok(()) });
+		until(|| jobs.job(preview).unwrap().state == JobState::Finished).await;
+		assert_eq!(jobs.job(long).unwrap().state, JobState::Running, "and the export is untouched");
+		let _ = tx.send(());
+	}
+
+	/// Cancelling a job that has not started drops the work and frees nothing — the lane was never
+	/// its to hold.
+	#[tokio::test]
+	async fn cancelling_a_queued_job_removes_it_without_running_it() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
+		let ran = Arc::new(AtomicBool::new(false));
+		let (tx, rx) = oneshot::channel();
+
+		let started = Started::default();
+
+		let mark = started.clone();
+		let blocker = jobs.submit("blocker", Lane::Queued, move |_| async move {
+			mark.mark();
+			let _ = rx.await;
+			Ok(())
+		});
+		until(|| started.happened()).await;
+
+		let flag = ran.clone();
+		let waiting = jobs.submit("waiting", Lane::Queued, move |_| async move {
+			flag.store(true, Ordering::SeqCst);
+			Ok(())
+		});
+		jobs.cancel(waiting);
+		let _ = tx.send(());
+
+		until(|| jobs.job(blocker).unwrap().state == JobState::Finished).await;
+		tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+		assert_eq!(jobs.job(waiting).unwrap().state, JobState::Cancelled);
+		assert!(!ran.load(Ordering::SeqCst), "cancelled before it ever started");
+	}
+
+	/// Cancellation the job can see, for work that a dropped future does not stop.
+	#[tokio::test]
+	async fn a_blocking_job_can_poll_for_cancellation() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
+		let noticed = Arc::new(AtomicBool::new(false));
+
+		let started = Started::default();
+
+		let (flag, mark) = (noticed.clone(), started.clone());
+		let id = jobs.submit("grinding", Lane::Queued, move |handle| async move {
+			tokio::task::spawn_blocking(move || {
+				mark.mark();
+				while !handle.is_cancelled() {
+					std::thread::sleep(std::time::Duration::from_millis(1));
+				}
+				flag.store(true, Ordering::SeqCst);
+			})
+			.await?;
+			Ok(())
+		});
+
+		until(|| started.happened()).await;
+		jobs.cancel(id);
+		until(|| noticed.load(Ordering::SeqCst)).await;
+	}
+
+	/// A finished job's ending is announced once, by whichever came first.
+	#[tokio::test]
+	async fn cancelling_a_finished_job_does_nothing() {
+		let jobs = Jobs::new();
+		let events = collector(&jobs);
+
+		let id = jobs.submit("quick", Lane::Queued, |_| async move { Ok(()) });
+		until(|| jobs.job(id).unwrap().state == JobState::Finished).await;
+
+		let before = events.lock().unwrap().len();
+		jobs.cancel(id);
+		assert_eq!(jobs.job(id).unwrap().state, JobState::Finished);
+		assert_eq!(events.lock().unwrap().len(), before, "no second ending");
+	}
+
+	/// The log is the last lines, because that is where a failure explains itself.
+	#[tokio::test]
+	async fn the_log_keeps_the_most_recent_lines() {
+		let jobs = Jobs::new();
+		let events = collector(&jobs);
+
+		let id = jobs.submit("chatty", Lane::Queued, |handle| async move {
+			for n in 0..LOG_LINES + 10 {
+				handle.log(format!("line {n}"));
+			}
+			Ok(())
+		});
+
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+		let log = jobs.log(id);
+		assert_eq!(log.len(), LOG_LINES);
+		assert_eq!(log[0], "line 10", "the oldest were dropped, not the newest");
+		assert_eq!(jobs.job(id).unwrap().log_lines, LOG_LINES);
+
+		// The count the listener is told never exceeds what the log actually holds — a mirror that
+		// counted for itself would be claiming a thousand and ten lines by now.
 		let events = events.lock().unwrap();
-		assert!(matches!(events[0], JobEvent::Progress { fraction, .. } if fraction == 0.0));
-		assert!(matches!(events[1], JobEvent::Progress { fraction, .. } if fraction == 1.0));
+		let counts: Vec<usize> = events
+			.iter()
+			.filter_map(|e| match e {
+				JobEvent::Log { log_lines, .. } => Some(*log_lines),
+				_ => None,
+			})
+			.collect();
+		assert_eq!(counts.len(), LOG_LINES + 10);
+		assert_eq!(*counts.last().unwrap(), LOG_LINES);
+		assert!(counts.iter().all(|&n| n <= LOG_LINES));
 	}
 
-	#[test]
-	fn cancellation_is_visible_to_the_job() {
+	/// History is bounded, but only history — a long queue is work, not backlog.
+	#[tokio::test]
+	async fn finished_jobs_age_out_but_waiting_ones_do_not() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
+
+		for _ in 0..HISTORY + 20 {
+			let id = jobs.submit("brief", Lane::Latest, |_| async move { Ok(()) });
+			until(|| !jobs.job(id).unwrap().state.is_active()).await;
+		}
+		// One more submission is what triggers pruning, so ask after it.
+		let last = jobs.submit("brief", Lane::Latest, |_| async move { Ok(()) });
+		until(|| !jobs.job(last).unwrap().state.is_active()).await;
+		assert!(jobs.list().len() <= HISTORY + 1, "got {}", jobs.list().len());
+	}
+
+	#[tokio::test]
+	async fn events_before_a_sink_is_installed_are_dropped_not_queued() {
+		let jobs = Jobs::new();
+		let id = jobs.submit("early", Lane::Queued, |handle| async move {
+			handle.log("said into the void");
+			Ok(())
+		});
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+
+		// Dropped for the listener, kept for the list — which is what makes a reload recoverable.
+		assert_eq!(jobs.log(id), ["said into the void"]);
+		assert_eq!(jobs.job(id).unwrap().state, JobState::Finished);
+	}
+
+	#[tokio::test]
+	async fn cancellation_is_visible_to_the_job() {
 		let cancel = CancelToken::new();
-		let (sink, _) = collector();
-		let job = JobHandle::new(2, sink, cancel.clone());
+		let job = JobHandle::new(2, Arc::new(|_| {}), cancel.clone());
 
 		assert!(!job.is_cancelled());
 		cancel.cancel();

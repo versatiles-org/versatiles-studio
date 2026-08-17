@@ -107,7 +107,7 @@ Nothing user-visible, and a prerequisite for every milestone.
 | **S0.1**  | ~~Tauri shell: one window per project, dialogs, drag & drop, file associations~~ — **done**; native menus are still outstanding                                         | infrastructure |
 | **S0.2**  | ~~Studio core skeleton — a plain Rust library with no Tauri types, driven by ordinary tests~~ — **done**                                                                | infrastructure |
 | **S0.3**  | ~~Control plane: `#[tauri::command]` bindings and `tauri-specta` type generation~~ — **done**; `src/lib/ipc/bindings.ts` is generated and a test fails when it is stale | infrastructure |
-| **S0.4**  | ~~Event plane: Tauri Channels for progress, warnings and log lines~~ — **done**                                                                                         | infrastructure |
+| **S0.4**  | ~~Event plane: Tauri Channels for progress, warnings and log lines~~ — **done**; its `demo_job` placeholder was replaced by the real runner at S3.1                     | infrastructure |
 | **S0.5**  | ~~Embedded server and server manager — one instance, named mounts, loopback only~~ — **done**                                                                           | infrastructure |
 | **S0.6**  | ~~Bundled asset tier: sprites (1.3 MB) and Latin-only glyphs (~1.1 MB), pinned in `assets/manifest.json`~~ — **done**                                                   | infrastructure |
 | **S0.7**  | ~~CI for Linux and macOS, including ad-hoc macOS signing~~ — **done**                                                                                                   | infrastructure |
@@ -161,17 +161,17 @@ following it.
 
 ### S3 · Import & convert → M3
 
-| Item       | Work                                                                                                                                      | Feature        |
-| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| **S3.1**   | Job runner behind the status bar: the queue, cancellation, and an expandable per-job log. The bar itself arrived with [Q24](decisions.md) | E7             |
-| **S3.2**   | Import cards on the landing screen and on "+ Add source"                                                                                  | infrastructure |
-| **S3.3**   | Vector import: GeoJSON, NDJSON, shapefile                                                                                                 | E1             |
-| **S3.4**   | Tabular point import: CSV with lon/lat columns                                                                                            | E2             |
-| **S3.5**   | GDAL raster path: GTiff/COG, VRT, PNG, JPEG, MEM. Block pkg-config in the build or it links a system GDAL ([Q19](decisions.md))           | E3             |
-| **S3.6**   | Write the result to a container                                                                                                           | F2             |
-| **S3.7**   | Sampling-based cost estimate, shown where a run is committed                                                                              | C6             |
-| **S3.8\*** | DEM workflow: terrarium encoding, hillshade, quantisation                                                                                 | E4             |
-| **S3.9\*** | Table join: existing tiles plus CSV → choropleth                                                                                          | E6             |
+| Item       | Work                                                                                                                                                                                                             | Feature        |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **S3.1**   | ~~Job runner behind the status bar: the queue, cancellation, and an expandable per-job log~~ — **done**; two lanes rather than one queue ([Q27](decisions.md)), and the preview became the first cancellable job | E7             |
+| **S3.2**   | Import cards on the landing screen and on "+ Add source"                                                                                                                                                         | infrastructure |
+| **S3.3**   | Vector import: GeoJSON, NDJSON, shapefile                                                                                                                                                                        | E1             |
+| **S3.4**   | Tabular point import: CSV with lon/lat columns                                                                                                                                                                   | E2             |
+| **S3.5**   | GDAL raster path: GTiff/COG, VRT, PNG, JPEG, MEM. Block pkg-config in the build or it links a system GDAL ([Q19](decisions.md))                                                                                  | E3             |
+| **S3.6**   | Write the result to a container                                                                                                                                                                                  | F2             |
+| **S3.7**   | Sampling-based cost estimate, shown where a run is committed                                                                                                                                                     | C6             |
+| **S3.8\*** | DEM workflow: terrarium encoding, hillshade, quantisation                                                                                                                                                        | E4             |
+| **S3.9\*** | Table join: existing tiles plus CSV → choropleth                                                                                                                                                                 | E6             |
 
 **No import wizard surface.** A card opens the native file dialog, inserts a node into the pipeline
 and selects it; S2.6's generated form is the configuration UI and S2.7's preview is the preview.
