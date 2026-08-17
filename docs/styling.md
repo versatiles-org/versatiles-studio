@@ -68,7 +68,14 @@ sizes is faster than inventing a sixth, so the constraint holds itself up withou
 drawn over a dark basemap is a different decision from a focus ring, and collapsing them would mean
 one of the two gets the wrong answer the first time either changes.
 
-## Type: two rules
+## Type: three rules
+
+**The base size goes on `body`, never on `html`.** A `rem` written on the _root_ element resolves
+against the browser's initial 16px, but every other `rem` in the document then resolves against what
+the root computed to. `html { font-size: var(--text-md) }` therefore made 1rem mean 14px, and every
+token compounded from there — 13px text rendered at 11.4px, 12px labels at 10.5px, and all spacing
+came out 12% tighter than written. It is invisible in the source and obvious on screen once you know
+to look. `tokens.test.ts` fails if a font size reappears on `html`.
 
 **Declare a size only when it differs from what you would inherit.** `--text-md` is the document
 default, so ordinary UI text declares nothing at all. Before this rule, 27 components overrode the

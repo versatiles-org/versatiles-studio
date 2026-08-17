@@ -100,6 +100,20 @@ describe('design tokens', () => {
 		expect(offenders, 'drop the fallback; the token is always defined').toEqual([]);
 	});
 
+	/**
+	 * The root element must not carry a font size.
+	 *
+	 * A `rem` on `html` resolves against the browser's initial 16px, and every other `rem` in the
+	 * document then resolves against the result — so `html { font-size: 0.875rem }` silently
+	 * rescales every token by 0.875, which is how 13px text ended up rendering at 11.4px.
+	 */
+	it('leave the root font size alone', () => {
+		const base = readFileSync(join(SRC, 'lib/styles/base.css'), 'utf8');
+		const root = withoutComments(base).match(/(^|\})[^{}]*\bhtml\b[^{}]*\{[^{}]*\}/g) ?? [];
+		const offenders = root.filter((rule) => /font-size\s*:/.test(rule));
+		expect(offenders, 'set the base size on body — a rem on html rescales every other rem').toEqual([]);
+	});
+
 	/** Focus is one decision, made once in base.css. Components may only adjust the offset. */
 	it('leave the focus ring to base.css', () => {
 		const offenders = styled
