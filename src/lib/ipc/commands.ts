@@ -166,6 +166,23 @@ export function vplOperations(): Promise<OperationInfo[]> {
 	return invoke<OperationInfo[]>('vpl_operations');
 }
 
+/** The pipeline's output, mounted and ready for the map (C3). */
+export interface Preview {
+	name: string;
+	tileUrl: string;
+	info: ContainerInfo;
+}
+
+/**
+ * Runs the pipeline up to `path` and mounts the result. An empty path means the whole pipeline.
+ *
+ * Building opens the inputs, so this is not instant on a large source. Null when there is no
+ * pipeline, or the path names nothing.
+ */
+export function previewPipeline(path: number[]): Promise<Preview | null> {
+	return invoke<Preview | null>('preview_pipeline', { path });
+}
+
 /** A problem with a position — a real operation that does not exist, a parameter that is not one. */
 export interface Diagnostic {
 	message: string;

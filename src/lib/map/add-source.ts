@@ -9,7 +9,10 @@ import type { OpenedContainer } from '../ipc/commands';
 import { token } from '../styles/tokens';
 import { role } from './theme';
 
-export function addContainerToMap(map: MaplibreMap, opened: OpenedContainer): void {
+export function addContainerToMap(
+	map: MaplibreMap,
+	opened: { name: string; tileUrl: string; info: OpenedContainer['info'] }
+): void {
 	const { name, tileUrl, info } = opened;
 	const vector = info.tileFormat === 'mvt';
 

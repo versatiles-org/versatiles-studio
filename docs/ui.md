@@ -78,6 +78,11 @@ drop and the recents list all take one — a pipeline the CLI wrote has to open 
 cannot hand work to each other. What opens is the Pipeline section, with the map previewing the
 pipeline's output rather than a container's tiles.
 
+**The map shows what the pipeline produces, not the file that feeds it** (C3). Selecting a node runs
+the pipeline **up to and including it** and mounts the result, so tightening a filter changes the
+tiles rather than a number in a form. A node inside a `[ … ]` block previews that block's own chain,
+which is the reason to select one. Containers are inputs; the map never shows one directly.
+
 **The graph is a vertical tree, not a canvas.** Every VPL node takes one input and produces one
 output; the only branching is a composite's `[ … ]` block, drawn as its sources indented above it.
 A free-floating node canvas would suggest connections the language cannot express, and would need

@@ -134,3 +134,48 @@ pub fn vpl_remove_property(text: String, span: Span) -> Result<String, VplError>
 	document.remove_property(span)?;
 	Ok(document.text().to_string())
 }
+
+/// The pipeline's output, mounted on the embedded server and ready for the map (S2.7, C3).
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Preview {
+	/// Mount name, stable so a rebuild replaces rather than accumulates.
+	pub name: String,
+	pub tile_url: String,
+	pub info: studio_core::analysis::ContainerInfo,
+}
+
+/// Runs the pipeline up to `path` and mounts the result.
+///
+/// Building opens the inputs, so this is not instant on a large source — the caller should say it
+/// is working. It is not yet a cancellable job; that arrives with the runner at S3.1.
+#[tauri::command]
+pub async fn preview_pipeline(state: State<'_, AppState>, path: Vec<usize>) -> Result<Option<Preview>, String> {
+	let Some(document) = state.pipeline.lock().await.clone() else {
+		return Ok(None);
+	};
+	// An empty path means the whole pipeline — what the map shows when nothing is selected.
+	let full = document.to_pipeline();
+	let wanted = if path.is_empty() {
+		Some(full)
+	} else {
+		studio_core::preview::up_to(full, &path)
+	};
+	let Some(wanted) = wanted else { return Ok(None) };
+
+	let mut server = state.server.lock().await;
+	let source = studio_core::preview::build(server.runtime(), wanted, &state.project_dir)
+		.await
+		.map_err(|e| format!("{e:#}"))?;
+	let info = studio_core::analysis::describe(&source, "preview")
+		.await
+		.map_err(|e| format!("{e:#}"))?;
+
+	const NAME: &str = "preview";
+	server.mount(NAME, source).await.map_err(|e| format!("{e:#}"))?;
+	Ok(Some(Preview {
+		name: NAME.to_string(),
+		tile_url: server.tile_url(NAME),
+		info,
+	}))
+}

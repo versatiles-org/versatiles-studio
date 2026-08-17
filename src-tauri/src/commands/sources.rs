@@ -43,7 +43,7 @@ pub async fn open_container(state: State<'_, AppState>, source: String) -> Resul
 	}
 
 	Ok(OpenedContainer {
-		tile_url: format!("{}/tiles/{name}/{{z}}/{{x}}/{{y}}", server.base_url()),
+		tile_url: server.tile_url(&name),
 		vpl: vpl.clone(),
 		name,
 		info,

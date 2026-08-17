@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { open } from '@tauri-apps/plugin-dialog';
+	import { untrack } from 'svelte';
 	import { getCurrentWebview } from '@tauri-apps/api/webview';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
@@ -29,6 +30,7 @@
 		vplSetValue,
 		vplSetProperty,
 		vplOperations,
+		previewPipeline,
 		type ContainerInfo,
 		type DocumentView,
 		type Layout,
@@ -65,6 +67,7 @@
 			pipeline = await setPipeline(text);
 			pipelineRevision += 1;
 			await syncContainersToPipeline();
+			await refreshPreview();
 		} catch (e) {
 			fail(typeof e === 'object' && e && 'message' in e ? (e as { message: unknown }).message : e);
 		}
@@ -147,12 +150,49 @@
 		if (typeof picked === 'string') await load(picked);
 	}
 
-	/// Opens a container and puts it on the map. Does not touch the pipeline — see {@link load}.
+	/// Opens a container and remembers it. Does not put it on the map — the map shows what the
+	/// *pipeline* produces (C3), and a container is only ever an input to that.
 	async function mount(source: string) {
 		const result = await openContainer(source);
-		if (map) addContainerToMap(map, result);
 		containers = [...containers.filter((c) => c.info.source !== result.info.source), result];
 		return result;
+	}
+
+	/// Runs the pipeline up to the selected node and points the map at the result.
+	///
+	/// This is what "instantly see the result" means (M4): the map shows the data as it is at the
+	/// selected step, so tightening a filter changes the tiles rather than a number in a form.
+	let previewName = $state<string | null>(null);
+	let previewToken = 0;
+
+	// The map is created by an effect, so it can appear after a pipeline has already been loaded —
+	// on a reload, the document comes back from the core before there is anything to draw it on.
+	// `untrack` keeps this listening for the map alone; every other trigger calls in explicitly.
+	$effect(() => {
+		if (!map) return;
+		untrack(() => {
+			if (pipeline) void refreshPreview();
+		});
+	});
+
+	async function refreshPreview() {
+		if (!map || !pipeline) return;
+		const mine = ++previewToken;
+		status = { kind: 'busy', message: 'Building preview…' };
+		try {
+			const result = await previewPipeline(selected ?? []);
+			// A newer build started while this one was running; its answer is the current one.
+			if (mine !== previewToken) return;
+			if (previewName && map) removeContainerFromMap(map, previewName);
+			previewName = null;
+			if (result) {
+				addContainerToMap(map, result);
+				previewName = result.name;
+			}
+			status = { kind: 'idle' };
+		} catch (e) {
+			if (mine === previewToken) fail(e);
+		}
 	}
 
 	/// Opening a file *is* setting the pipeline to its read node (Q22, Q25).
@@ -165,7 +205,7 @@
 			pipelineRevision += 1;
 			selected = null;
 			await refreshRecents();
-			status = { kind: 'idle' };
+			await refreshPreview();
 		} catch (e) {
 			fail(e);
 		}
@@ -185,9 +225,6 @@
 			if (property?.value.kind === 'single' && property.value.value) wanted.add(property.value.value);
 		}
 
-		for (const container of containers) {
-			if (!wanted.has(container.info.source) && map) removeContainerFromMap(map, container.name);
-		}
 		containers = containers.filter((c) => wanted.has(c.info.source));
 
 		for (const source of wanted) {
@@ -195,7 +232,6 @@
 			status = { kind: 'busy', message: `Opening ${filename(source)}…` };
 			await mount(source);
 		}
-		status = { kind: 'idle' };
 	}
 
 	const filename = (source: string) => source.split(/[/\\]/).pop() || source;
@@ -211,9 +247,16 @@
 		onAddSource={pick}
 		{pipeline}
 		{pipelineRevision}
-		onPipelineChange={(text) => void setPipeline(text).then((next) => (pipeline = next))}
+		onPipelineChange={(text) =>
+			void setPipeline(text).then((next) => {
+				pipeline = next;
+				void refreshPreview();
+			})}
 		{selected}
-		onSelect={(path) => (selected = path)}
+		onSelect={(path) => {
+			selected = path;
+			void refreshPreview();
+		}}
 	/>
 {/snippet}
 

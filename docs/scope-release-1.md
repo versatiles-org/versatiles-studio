@@ -149,7 +149,7 @@ The long pole. S2.1 gates everything after it.
 | **S2.4**    | ~~Inline parse and validation errors at the right position~~ — **done**; validation checks the document against `all_operation_metadata()`          | C4             |
 | **S2.5**    | ~~Node graph, tabbed with VPL: selection sync, error badge, never a stale graph~~ — **done**                                                        | C1             |
 | **S2.6**    | ~~Parameter forms generated from `field_meta`~~ — **done**; controls, bounds, help text and the list of unset parameters all come from the metadata | C2             |
-| **S2.7**    | Live preview of the selected node, mounted on the embedded server                                                                                   | C3             |
+| **S2.7**    | ~~Live preview of the selected node, mounted on the embedded server~~ — **done**; the map shows the pipeline's output, not the raw container        | C3             |
 | **S2.8**    | Undo/redo command stack over the syntax tree's edit list                                                                                            | G6             |
 | **S2.9**    | Open a `.vpl` file — dialog, drag & drop and recents, into the editor and the graph                                                                 | C9             |
 | **S2.10\*** | Recipe library of working starting points                                                                                                           | C5             |

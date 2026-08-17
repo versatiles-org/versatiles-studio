@@ -28,6 +28,9 @@ pub struct AppState {
 	/// ([Q25]). `None` until something is opened; a project holds exactly one `pipeline.vpl`
 	/// ([Q6]).
 	pub pipeline: Mutex<Option<Document>>,
+	/// What relative paths in the VPL resolve against — the project directory once [Q6] has one,
+	/// until then wherever Studio was started.
+	pub project_dir: PathBuf,
 	/// Where these files live. `app_data_dir`, not `app_config_dir`: these are user *data*, not
 	/// configuration. Invisible on macOS — both land in Application Support — but on Linux it is
 	/// `~/.local/share` versus `~/.config`, and bookmarks belong in the former. The store owns the

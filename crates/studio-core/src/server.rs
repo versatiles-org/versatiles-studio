@@ -12,6 +12,7 @@
 //! [Q3]: ../../../docs/decisions.md
 
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 use std::{path::Path, sync::Arc};
 use versatiles::{config::Config, server::TileServer};
 use versatiles_container::{TileSource, TilesRuntime};
@@ -20,6 +21,8 @@ use versatiles_container::{TileSource, TilesRuntime};
 pub struct ServerManager {
 	server: TileServer,
 	runtime: TilesRuntime,
+	/// How many times each name has been mounted. See [`ServerManager::tile_url`].
+	revisions: HashMap<String, u64>,
 }
 
 impl ServerManager {
@@ -43,7 +46,11 @@ impl ServerManager {
 			.context("building the embedded tile server")?;
 		server.start().await.context("starting the embedded tile server")?;
 
-		Ok(Self { server, runtime })
+		Ok(Self {
+			server,
+			runtime,
+			revisions: HashMap::new(),
+		})
 	}
 
 	/// The loopback port the server actually bound to.
@@ -59,6 +66,23 @@ impl ServerManager {
 	}
 
 	/// Mounts a tile source under `name`, replacing any mount already using it.
+	/// The tile URL template for a mount, including the revision that defeats caching.
+	///
+	/// **The embedded server sends `cache-control: public, max-age=2419200`** — 28 days, hardcoded
+	/// in `versatiles`' handler with no way to turn it off. That is right for a public tile server
+	/// and wrong for an editing surface: mount names are stable, so re-opening a file that changed
+	/// on disk, or rebuilding a preview after an edit, asks for the same URL and the webview
+	/// answers from its cache. Tiles that are weeks old then look like the current ones.
+	///
+	/// A revision that changes on every mount makes each build a different URL, which no cache can
+	/// confuse — the webview's, or MapLibre's own. Per mount rather than global, so re-opening one
+	/// source does not force every other to be refetched.
+	#[must_use]
+	pub fn tile_url(&self, name: &str) -> String {
+		let revision = self.revisions.get(name).copied().unwrap_or(0);
+		format!("{}/tiles/{name}/{{z}}/{{x}}/{{y}}?v={revision}", self.base_url())
+	}
+
 	/// Mounts a tile source, **replacing** any mount already using that name.
 	///
 	/// Replacing rather than failing, because a name is derived from the source it came from: the
@@ -68,6 +92,7 @@ impl ServerManager {
 	/// Studio's internals for something the user is entitled to do.
 	pub async fn mount(&mut self, name: &str, source: Arc<Box<dyn TileSource>>) -> Result<()> {
 		self.unmount(name)?;
+		*self.revisions.entry(name.to_string()).or_insert(0) += 1;
 		self
 			.server
 			.add_tile_source(name.to_string(), source)
@@ -189,6 +214,52 @@ mod tests {
 
 		server.stop().await;
 		Ok(())
+	}
+
+	/// The bug this guards, which is invisible until a file changes on disk.
+	///
+	/// The embedded server sends `cache-control: public, max-age=2419200` — 28 days, hardcoded
+	/// upstream. Mount names are stable by design, so without a revision the URL after an edit is
+	/// byte-for-byte the URL before it, and the webview answers from its cache: you change a
+	/// container, re-open it, and see the old tiles.
+	#[tokio::test]
+	async fn every_mount_gets_a_url_no_cache_has_seen_before() -> Result<()> {
+		let Some(path) = crate::analysis::tests::sample_container("berlin.versatiles") else {
+			eprintln!("skipping: set STUDIO_TESTDATA to a directory of sample containers");
+			return Ok(());
+		};
+
+		let mut server = ServerManager::start().await?;
+		let source = path.to_str().unwrap();
+		let mut seen = std::collections::HashSet::new();
+
+		for _ in 0..3 {
+			let (reader, _) = crate::analysis::open(server.runtime(), source).await?;
+			server.mount("berlin", reader).await?;
+			assert!(
+				seen.insert(server.tile_url("berlin")),
+				"a re-mount must not reuse a URL: {}",
+				server.tile_url("berlin")
+			);
+		}
+
+		// And the revision belongs to the mount, so re-opening one source does not force every
+		// other to be refetched.
+		let other = server.tile_url("elsewhere");
+		let (reader, _) = crate::analysis::open(server.runtime(), source).await?;
+		server.mount("berlin", reader).await?;
+		assert_eq!(server.tile_url("elsewhere"), other, "an untouched mount keeps its URL");
+
+		server.stop().await;
+		Ok(())
+	}
+
+	/// The template still has to be one MapLibre can fill in.
+	#[test]
+	fn a_tile_url_is_a_template_with_a_revision() {
+		let url = "http://127.0.0.1:1/tiles/x/{z}/{x}/{y}?v=2";
+		assert!(url.contains("{z}/{x}/{y}"), "MapLibre needs the placeholders intact");
+		assert!(url.contains("?v="), "and the revision must survive them");
 	}
 
 	/// The whole S1.2 path: open a container, mount it, fetch a tile over HTTP — no Tauri anywhere.

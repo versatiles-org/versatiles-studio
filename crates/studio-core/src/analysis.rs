@@ -55,30 +55,33 @@ pub async fn open(runtime: &TilesRuntime, source: &str) -> Result<(SharedTileSou
 		.reader_from_str(source)
 		.await
 		.with_context(|| format!("opening {source:?}"))?;
+	let info = describe(&reader, source).await?;
+	Ok((reader, info))
+}
 
+/// Everything cheap to know about a source, whatever it came from.
+///
+/// Split out because a pipeline's output needs describing exactly like a file does (S2.7): the map
+/// wants a format, a real zoom range and an extent, and none of that cares whether the tiles come
+/// off a disk or out of six chained operations.
+pub async fn describe(reader: &SharedTileSource, label: &str) -> Result<ContainerInfo> {
 	let metadata = reader.metadata();
 	let pyramid = reader.tile_pyramid().await.context("reading the tile pyramid")?;
 
 	// The *real* zoom range and extent, derived from which levels actually hold tiles — container
 	// metadata routinely overstates both, which is half of why A6 exists.
-	let min_zoom = pyramid.level_min().unwrap_or(0);
-	let max_zoom = pyramid.level_max().unwrap_or(0);
-	let bbox = pyramid.geo_bbox().map(|b| b.as_array());
-
-	let info = ContainerInfo {
-		source: source.to_string(),
+	Ok(ContainerInfo {
+		source: label.to_string(),
 		container: container_name(&reader.source_type()),
 		tile_format: metadata.tile_format().to_string(),
 		tile_compression: metadata.tile_compression().to_string(),
-		min_zoom,
-		max_zoom,
-		bbox,
+		min_zoom: pyramid.level_min().unwrap_or(0),
+		max_zoom: pyramid.level_max().unwrap_or(0),
+		bbox: pyramid.geo_bbox().map(|b| b.as_array()),
 		// versatiles has its own JSON value type; round-tripping through the wire format is the
 		// cheapest honest conversion, and this runs once per open, not per tile.
 		tile_json: serde_json::from_str(&reader.tilejson().stringify()).context("parsing TileJSON")?,
-	};
-
-	Ok((reader, info))
+	})
 }
 
 #[cfg(test)]

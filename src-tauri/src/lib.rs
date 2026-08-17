@@ -11,6 +11,7 @@ mod state;
 mod windows;
 
 use state::AppState;
+use std::path::PathBuf;
 use studio_core::{
 	server::ServerManager,
 	store::{Bookmarks, Layout, Recents},
@@ -54,6 +55,7 @@ pub fn run() {
 					bookmarks: Mutex::new(bookmarks),
 					layout: Mutex::new(layout),
 					pipeline: Mutex::new(None),
+					project_dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
 					data_dir,
 				},
 			);
@@ -82,7 +84,8 @@ pub fn run() {
 			commands::vpl::vpl_review,
 			commands::vpl::vpl_operations,
 			commands::vpl::pipeline,
-			commands::vpl::set_pipeline
+			commands::vpl::set_pipeline,
+			commands::vpl::preview_pipeline
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running VersaTiles Studio");

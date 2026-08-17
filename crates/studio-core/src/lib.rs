@@ -8,6 +8,9 @@
 pub mod analysis;
 pub mod assets;
 pub mod jobs;
+pub mod preview;
+#[cfg(test)]
+mod probe;
 pub mod project;
 pub mod server;
 pub mod store;
