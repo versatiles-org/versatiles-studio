@@ -101,10 +101,8 @@
 	input {
 		flex: 1;
 		min-width: 0;
-		font-size: var(--text-sm);
 	}
 	form button {
-		font-size: var(--text-sm);
 		padding: var(--space-2) var(--space-4);
 	}
 	ul {
@@ -121,7 +119,6 @@
 		gap: var(--space-4);
 		border: 0;
 		background: none;
-		font-size: var(--text-sm);
 		text-align: left;
 		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius);

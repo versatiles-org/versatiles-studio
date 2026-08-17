@@ -75,6 +75,9 @@
 </div>
 
 <style>
+	.name {
+		font-family: var(--font-mono);
+	}
 	.landing {
 		height: 100%;
 		display: flex;
@@ -114,7 +117,6 @@
 	}
 	.card span {
 		color: var(--ink-2);
-		font-size: var(--text-sm);
 	}
 	.row {
 		display: flex;
@@ -124,11 +126,9 @@
 	.row input {
 		flex: 1;
 		min-width: 0;
-		font-size: var(--text-sm);
 		font-family: var(--font-mono);
 	}
 	.row button {
-		font-size: var(--text-sm);
 		padding: var(--space-2) var(--space-4);
 	}
 	.recents {
@@ -148,7 +148,6 @@
 		gap: var(--space-5);
 		border: 0;
 		background: none;
-		font-size: var(--text-md);
 		text-align: left;
 		padding: var(--space-3) var(--space-3);
 		border-radius: var(--radius);
@@ -170,6 +169,5 @@
 	.drop {
 		margin: 0;
 		color: var(--ink-2);
-		font-size: var(--text-sm);
 	}
 </style>

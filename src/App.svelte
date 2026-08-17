@@ -199,8 +199,6 @@
 		right: 0.5rem;
 		bottom: 0.5rem;
 		z-index: 4;
-		font-size: var(--text-sm);
-		font-family: var(--font-ui);
 		padding: var(--space-2) var(--space-4);
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);
@@ -227,7 +225,6 @@
 		color: var(--error);
 		padding: var(--space-3) var(--space-4);
 		border-radius: var(--radius);
-		font-size: var(--text-sm);
 		max-width: 28rem;
 	}
 </style>

@@ -106,6 +106,9 @@
 {/if}
 
 <style>
+	.lname {
+		font-family: var(--font-mono);
+	}
 	.popup {
 		position: absolute;
 		transform: translate(-50%, calc(-100% - 10px));
@@ -149,7 +152,6 @@
 	}
 	h3 {
 		margin: 0 0 var(--space-2);
-		font-size: var(--text-sm);
 		font-weight: 600;
 	}
 	.id {
@@ -165,7 +167,6 @@
 		display: grid;
 		grid-template-columns: 1fr auto auto;
 		gap: var(--space-4);
-		font-size: var(--text-sm);
 		font-family: var(--font-mono);
 		line-height: 1.5;
 	}

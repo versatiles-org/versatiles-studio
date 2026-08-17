@@ -93,11 +93,9 @@
 	input {
 		flex: 1;
 		min-width: 0;
-		font-size: var(--text-sm);
 		font-family: var(--font-mono);
 	}
 	form button {
-		font-size: var(--text-sm);
 		padding: var(--space-2) var(--space-4);
 	}
 	.hint {
@@ -111,7 +109,6 @@
 	}
 	h2 {
 		margin: 0 0 var(--space-4);
-		font-size: var(--text-md);
 		font-weight: 600;
 	}
 	dl {

@@ -54,19 +54,43 @@ route around.
 Each set is small and closed **on purpose**. That is the whole mechanism: picking from five type
 sizes is faster than inventing a sixth, so the constraint holds itself up without anyone policing it.
 
-| Set      | Tokens                                                                            |
-| -------- | --------------------------------------------------------------------------------- |
-| Colour   | `--ink`, `--ink-2`, `--rule`, `--surface`, `--chrome`, `--accent`, `--accent-ink` |
-| Semantic | `--error`, `--error-bg`, `--error-rule`                                           |
-| Map      | `--map-bg`, `--map-grid`, `--map-grid-halo`, `--map-feature`, `--float-bg`        |
-| Type     | `--text-xs` `--text-sm` `--text-md` `--text-lg` `--text-xl`, `--text-mono-adjust` |
-| Fonts    | `--font-ui`, `--font-mono`                                                        |
-| Space    | `--space-1` … `--space-6`                                                         |
-| Shape    | `--radius`, `--radius-lg`, `--shadow`, `--shadow-lg`, `--focus-width`             |
+| Set      | Tokens                                                                                                                  |
+| -------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Colour   | `--ink`, `--ink-2`, `--rule`, `--surface`, `--chrome`, `--accent`, `--accent-ink`                                       |
+| Semantic | `--error`, `--error-bg`, `--error-rule`                                                                                 |
+| Map      | `--map-bg`, `--map-grid`, `--map-grid-halo`, `--map-feature`, `--float-bg`                                              |
+| Type     | `--text-xs` 12 · `--text-sm` 13 · `--text-md` 14 (default) · `--text-lg` 17 · `--text-xl` 22, plus `--text-mono-adjust` |
+| Fonts    | `--font-ui`, `--font-mono`                                                                                              |
+| Space    | `--space-1` … `--space-6`                                                                                               |
+| Shape    | `--radius`, `--radius-lg`, `--shadow`, `--shadow-lg`, `--focus-width`                                                   |
 
 **Map colours are separate from the chrome palette**, even where the value is identical today. A grid
 drawn over a dark basemap is a different decision from a focus ring, and collapsing them would mean
 one of the two gets the wrong answer the first time either changes.
+
+## Type: two rules
+
+**Declare a size only when it differs from what you would inherit.** `--text-md` is the document
+default, so ordinary UI text declares nothing at all. Before this rule, 27 components overrode the
+default to a smaller size — which meant the real body size was 12px while the token said 14px, and
+every new component had to guess which to copy. There are now 16 size declarations in the whole
+application, and none of them is `--text-md`.
+
+| Size                      | For                                           |
+| ------------------------- | --------------------------------------------- |
+| _(none)_                  | ordinary UI text — inherits `--text-md`, 14px |
+| `--text-sm`               | dense data displays: JSON, popups, metadata   |
+| `--text-xs`               | labels and counts in the left pane            |
+| `--text-lg` / `--text-xl` | panel emphasis; the landing screen            |
+
+**Machine text is monospace; prose is the UI font.** A path, a URL, a layer name, a feature id, a
+coordinate, a VPL node, a JSON key — anything a machine produced or a machine will read — gets
+`--font-mono`. Anything a person wrote or reads as prose gets the UI font, which is the default and
+so is never declared. The two places that had it wrong were a filename and a layer name, both
+rendering as prose.
+
+That is why no component declares `--font-ui`: if you find yourself reaching for it, the text is
+already in the right face and the declaration is noise.
 
 **`--text-mono-adjust` is not a step on the scale.** Monospace reads optically larger than the UI font
 at the same nominal size, so inline `code` is nudged down relative to whatever surrounds it. It is a

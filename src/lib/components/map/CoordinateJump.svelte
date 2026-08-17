@@ -59,7 +59,6 @@
 	}
 	input {
 		width: 11rem;
-		font-size: var(--text-sm);
 		font-family: var(--font-mono);
 		background: var(--float-bg);
 	}

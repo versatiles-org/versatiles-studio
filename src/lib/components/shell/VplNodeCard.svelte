@@ -87,7 +87,6 @@
 	}
 	.name {
 		font-family: var(--font-mono);
-		font-size: var(--text-sm);
 		font-weight: 600;
 	}
 	.none {

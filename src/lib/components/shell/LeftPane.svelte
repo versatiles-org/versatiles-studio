@@ -133,7 +133,6 @@
 	.empty {
 		margin: var(--space-3) 0;
 		color: var(--ink-2);
-		font-size: var(--text-sm);
 	}
 	.nodes {
 		margin: var(--space-2) 0 var(--space-4);
@@ -167,7 +166,6 @@
 		border: 1px dashed var(--rule);
 		border-radius: var(--radius);
 		background: none;
-		font-size: var(--text-sm);
 		color: var(--ink-2);
 	}
 	.add:hover {

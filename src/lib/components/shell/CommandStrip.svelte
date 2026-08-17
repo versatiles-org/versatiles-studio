@@ -32,15 +32,12 @@
 		min-width: 0;
 		overflow-x: auto;
 		white-space: nowrap;
-		font-size: var(--text-sm);
-		font-family: var(--font-mono);
 		color: var(--accent);
 	}
 	code.empty {
 		color: var(--ink-2);
 	}
 	button {
-		font-size: var(--text-sm);
 		padding: var(--space-1) var(--space-4);
 	}
 </style>

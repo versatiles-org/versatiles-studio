@@ -53,11 +53,11 @@
 	/* -- Type ---------------------------------------------------------------------------------
 	 * Five steps. This is a dense professional tool, so the base is smaller than a document UI's
 	 * and the range is narrow — the sizes below are the whole vocabulary. */
-	--text-xs: 0.68rem; /* meta, counts, section labels */
-	--text-sm: 0.75rem; /* secondary text, most controls */
-	--text-md: 0.82rem; /* base UI text */
-	--text-lg: 1rem; /* emphasis inside a panel */
-	--text-xl: 1.35rem; /* the landing screen, and nothing else so far */
+	--text-xs: 0.75rem; /* 12px — dense labels and counts in the left pane */
+	--text-sm: 0.8125rem; /* 13px — dense data displays: JSON, popups, metadata */
+	--text-md: 0.875rem; /* 14px — ordinary UI text. The default; most things inherit it */
+	--text-lg: 1.0625rem; /* 17px — emphasis inside a panel */
+	--text-xl: 1.375rem; /* 22px — the landing screen, and nothing else so far */
 	/* Not a step on the scale: monospace reads optically larger than the UI font at the same
 	   nominal size, so inline code is nudged down relative to whatever surrounds it. */
 	--text-mono-adjust: 0.9em;

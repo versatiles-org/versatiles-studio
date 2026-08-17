@@ -94,8 +94,6 @@
 		grid-template-rows: 1fr auto;
 		grid-template-areas: 'map' 'command';
 		height: 100vh;
-		font-family: var(--font-ui);
-		font-size: var(--text-md);
 		color: var(--ink);
 		background: var(--chrome);
 	}
