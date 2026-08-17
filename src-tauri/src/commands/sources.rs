@@ -9,6 +9,11 @@ use tauri::State;
 
 /// Opens a container, mounts it on the embedded server, and returns what is cheap to know.
 ///
+/// Deliberately does **not** touch the window's pipeline. Opening a file from the dialog should set
+/// it; mounting a container because the pipeline already mentions it should not, or following an
+/// edit would overwrite the edit. The caller knows which it is doing; the `vpl` field is here so it
+/// can set the pipeline itself.
+///
 /// The mount name is derived from the path so the webview can build tile URLs without a second
 /// round trip. Re-opening the same path replaces the mount rather than stacking duplicates — see
 /// [`ServerManager::mount`](studio_core::server::ServerManager::mount), which is where that is
@@ -35,12 +40,6 @@ pub async fn open_container(state: State<'_, AppState>, source: String) -> Resul
 			// Never fail an open because the MRU list could not be written.
 			eprintln!("could not save recents: {error:#}");
 		}
-	}
-
-	// Opening a container *is* setting the pipeline to its read node (Q22, Q25). One document per
-	// window, so this replaces rather than accumulates.
-	if let Ok(document) = studio_core::vpl::Document::parse(vpl.clone()) {
-		*state.pipeline.lock().await = Some(document);
 	}
 
 	Ok(OpenedContainer {

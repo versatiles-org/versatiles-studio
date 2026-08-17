@@ -78,6 +78,16 @@ drop and the recents list all take one — a pipeline the CLI wrote has to open 
 cannot hand work to each other. What opens is the Pipeline section, with the map previewing the
 pipeline's output rather than a container's tiles.
 
+**The graph is a vertical tree, not a canvas.** Every VPL node takes one input and produces one
+output; the only branching is a composite's `[ … ]` block, drawn as its sources indented above it.
+A free-floating node canvas would suggest connections the language cannot express, and would need
+more width than the pane has.
+
+**Selecting a node selects it in both views** ([Q15](decisions.md)) — click one in the graph and the
+text lands on it; move the caret and the graph follows. **The graph never shows a stale render**:
+while the text does not parse there is no tree to draw, and the last good one would be a picture of
+something no longer on screen.
+
 **A node is a form, not a line of VPL.** Its parameters get one labelled field each, because the
 values are routinely longer than the pane is wide — a path can easily run past 250 characters — and a
 single VPL string forces a choice between wrapping, which breaks the syntax across lines, and

@@ -8,6 +8,8 @@
 	import Inspector from './lib/components/shell/Inspector.svelte';
 	import LandingScreen from './lib/components/shell/LandingScreen.svelte';
 	import LeftPane from './lib/components/shell/LeftPane.svelte';
+	import VplNodeCard from './lib/components/shell/VplNodeCard.svelte';
+	import { nodeAtPath, walk } from './lib/vpl/node-at';
 	import MapCanvas from './lib/components/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/components/map/FeaturePopup.svelte';
 	import TileGrid from './lib/components/map/TileGrid.svelte';
@@ -23,10 +25,12 @@
 		recentSources,
 		serverBaseUrl,
 		setLayout,
-		vplParse,
+		vplRemoveProperty,
+		vplSetValue,
 		type ContainerInfo,
 		type DocumentView,
 		type Layout,
+		type Span,
 		type OpenedContainer,
 		type RecentEntry
 	} from './lib/ipc/commands';
@@ -43,6 +47,23 @@
 	/** Bumped when the pipeline changes from somewhere other than the editor, so the editor knows
 	 *  to reload rather than being fought over its own buffer. */
 	let pipelineRevision = $state(0);
+	/** The node selected in the graph or the text. The right pane shows its parameters (Q22). */
+	let selected = $state<number[] | null>(null);
+	const selectedNode = $derived(selected && pipeline ? nodeAtPath(pipeline.pipeline, selected) : null);
+
+	/// Editing a parameter of the selected node rewrites the document through the core, which owns
+	/// the quoting and refuses anything that would not parse.
+	async function editSelected(run: (text: string) => Promise<string>) {
+		if (!pipeline) return;
+		try {
+			const text = await run(pipeline.text);
+			pipeline = await setPipeline(text);
+			pipelineRevision += 1;
+			await syncContainersToPipeline();
+		} catch (e) {
+			fail(typeof e === 'object' && e && 'message' in e ? (e as { message: unknown }).message : e);
+		}
+	}
 	// What the application is doing, shown along the bottom (Q24). Errors live here too — an error
 	// is a state the application is in, and covering the map to say so was never a good trade.
 	let status = $state<Status>({ kind: 'idle' });
@@ -120,16 +141,23 @@
 		if (typeof picked === 'string') await load(picked);
 	}
 
+	/// Opens a container and puts it on the map. Does not touch the pipeline — see {@link load}.
+	async function mount(source: string) {
+		const result = await openContainer(source);
+		if (map) addContainerToMap(map, result);
+		containers = [...containers.filter((c) => c.info.source !== result.info.source), result];
+		return result;
+	}
+
+	/// Opening a file *is* setting the pipeline to its read node (Q22, Q25).
 	async function load(source: string) {
 		// A remote container reads its index over the network, so this is not always instant.
 		status = { kind: 'busy', message: `Opening ${filename(source)}…` };
 		try {
-			const result = await openContainer(source);
-			if (map) addContainerToMap(map, result);
-			containers = [...containers.filter((c) => c.info.source !== result.info.source), result];
-			// Opening a container sets the window's pipeline to its read node (Q25).
-			pipeline = await getPipeline();
+			const result = await mount(source);
+			pipeline = await setPipeline(result.vpl);
 			pipelineRevision += 1;
+			selected = null;
 			await refreshRecents();
 			status = { kind: 'idle' };
 		} catch (e) {
@@ -137,31 +165,34 @@
 		}
 	}
 
-	const filename = (source: string) => source.split(/[/\\]/).pop() || source;
-
-	/// A node edited in the left pane. For a `from_container` node the only parameter is the path,
-	/// so changing it means "open that one instead" — the node and what the map shows are the same
-	/// thing (Q22), and they must not be allowed to disagree.
-	async function applyVplChange(source: string, vpl: string) {
-		const existing = containers.find((c) => c.info.source === source);
-		try {
-			const pipeline = await vplParse(vpl);
-			const filename = pipeline.nodes[0]?.properties.find((p) => p.key === 'filename');
-			const next = filename?.value.kind === 'single' ? filename.value.value : null;
-			if (!next) {
-				fail('from_container needs a filename');
-				return;
-			}
-			if (next === source) return;
-
-			// Replace rather than accumulate: this is the same node pointed somewhere else.
-			if (map && existing) removeContainerFromMap(map, existing.name);
-			containers = containers.filter((c) => c.info.source !== source);
-			await load(next);
-		} catch (fault) {
-			fail(fault);
+	/// Makes the map show what the pipeline says.
+	///
+	/// The read nodes are the sources (Q22), so editing one — pointing `filename` somewhere else, or
+	/// deleting a node — has to move the map with it. Without this the document and the picture drift
+	/// apart, which is the one thing merging the modes was meant to prevent.
+	async function syncContainersToPipeline() {
+		if (!pipeline) return;
+		const wanted = new Set<string>();
+		for (const { node } of walk(pipeline.pipeline)) {
+			if (node.name !== 'from_container') continue;
+			const property = node.properties.find((p) => p.key === 'filename');
+			if (property?.value.kind === 'single' && property.value.value) wanted.add(property.value.value);
 		}
+
+		for (const container of containers) {
+			if (!wanted.has(container.info.source) && map) removeContainerFromMap(map, container.name);
+		}
+		containers = containers.filter((c) => wanted.has(c.info.source));
+
+		for (const source of wanted) {
+			if (containers.some((c) => c.info.source === source)) continue;
+			status = { kind: 'busy', message: `Opening ${filename(source)}…` };
+			await mount(source);
+		}
+		status = { kind: 'idle' };
 	}
+
+	const filename = (source: string) => source.split(/[/\\]/).pop() || source;
 </script>
 
 <!-- Declared out here and passed by reference, so an empty window can pass nothing at all. A
@@ -170,18 +201,29 @@
 {#snippet leftPaneContent()}
 	<LeftPane
 		layout={layout as Layout}
-		{containers}
 		onLayoutChange={(next) => void changeLayout(next)}
 		onAddSource={pick}
-		onVplChange={(source, vpl) => void applyVplChange(source, vpl)}
 		{pipeline}
 		{pipelineRevision}
 		onPipelineChange={(text) => void setPipeline(text).then((next) => (pipeline = next))}
+		{selected}
+		onSelect={(path) => (selected = path)}
 	/>
 {/snippet}
 
 {#snippet rightPaneContent()}
-	<Inspector containers={containers.map((c) => c.info)} {map} onOpen={pick} onOpenUrl={(url) => void load(url)} />
+	<div class="right-stack">
+		<!-- Q22: the parameters of the current selection, and the metadata that results from it. The
+		     node's fields sit above the container's own numbers, in that order. -->
+		{#if selectedNode}
+			<VplNodeCard
+				node={selectedNode}
+				onCommit={(span: Span, value: string) => void editSelected((text) => vplSetValue(text, span, value))}
+				onRemove={(span: Span) => void editSelected((text) => vplRemoveProperty(text, span))}
+			/>
+		{/if}
+		<Inspector containers={containers.map((c) => c.info)} {map} onOpen={pick} onOpenUrl={(url) => void load(url)} />
+	</div>
 {/snippet}
 
 <AppShell
@@ -234,6 +276,13 @@
 	}
 	/* The landing screen covers the map region entirely; the map keeps running behind it so that
 	   opening something does not have to build one. */
+	/* The node form above the inspector; the inspector keeps its own scroll. */
+	.right-stack {
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+		min-width: 0;
+	}
 	:global(.landing) {
 		position: absolute;
 		inset: 0;
