@@ -114,15 +114,42 @@ than either. The test names them, so if upstream changes, Studio finds out.
   `escaped_transform`, and there is no third spelling — found by the differential test, which
   rejected an assumption to the contrary in the first draft.
 
-**That second one is a UI constraint, not a curiosity.** A parameter can be absent or non-empty,
-never blank, so clearing a field in the generated forms (S2.6) has to mean _remove the parameter_ —
-there is no "set it to empty" to fall back on. `quote_value` returns `None` for the empty string
-rather than emitting a spelling that will not parse, which forces the caller to make that choice
-instead of writing a broken file.
+**That second one was a UI constraint, and 4.8.0 lifted it.** While it held, a parameter could be
+absent or non-empty but never blank, so clearing a field had to mean _remove the parameter_. Empty
+values now parse; clearing still removes, because for a filename or a layer name a blank is not a
+value anyone means — but it is a decision about the interface now, not a limit of the syntax.
 
 **Offering it upstream still stands.** The tree is useful to `versatiles_pipeline` — a serialiser
 and real error spans would benefit the CLI too — but Studio is not blocked on that conversation, and
 the differential test is what makes living downstream safe in the meantime.
+
+**Update, 2026-08-17: upstream built it.** Issues
+[#216](https://github.com/versatiles-org/versatiles-rs/issues/216),
+[#217](https://github.com/versatiles-org/versatiles-rs/issues/217) and
+[#218](https://github.com/versatiles-org/versatiles-rs/issues/218) are all closed, and `v4.8.0` adds
+a `CstFile` — a lossless concrete syntax tree with spans, leading trivia, `set_property`,
+`remove_property`, `set_value`, a `Display` serialiser and `lower()` into the semantic tree — plus a
+`VplParseError { span, message, context }` that is the struct #217 proposed. **Most of
+`studio-core::vpl` becomes redundant**, including `differential.rs`, which exists only because there
+were two parsers.
+
+**Not yet, though: `v4.8.0` is a draft release and crates.io still serves 4.7.0**, so `cargo update`
+does nothing. Studio was built against the tag to measure the cost: it compiles unchanged, 66 of 68
+tests pass, and the two failures are both the empty string — which #218 made valid, so Studio is now
+the stricter of the two. That is the whole delta.
+
+**Done, same day.** Studio is on 4.8.0 and its parser is gone: `parse.rs`, `print.rs` and
+`differential.rs` are deleted, `ast.rs` is now just the flat view the webview reads, and `Document`
+wraps `CstFile`. **Around 700 lines removed for about 250 added**, and the thing that used to need a
+differential test — a second implementation of someone else's grammar — no longer exists.
+
+What stayed is what upstream has no reason to carry: `validate.rs` (S2.4, checking against operation
+metadata), `tokens()` for highlighting, `node_at` for selection sync, and `read_node_for`.
+
+Three things got better rather than merely equal. Highlighting reads the concrete tree's own
+punctuation tokens instead of inferring them from the gaps between spans. Error positions come from
+upstream's `VplParseError`, so Studio passes a position through rather than computing one. And the
+empty string is expressible, so `quote_value` no longer has a `None` case to explain.
 
 ### Q22 — One map surface, not four modes. The mode bar separates map work from non-map tools
 

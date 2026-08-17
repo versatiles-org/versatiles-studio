@@ -107,7 +107,7 @@ pub fn vpl_set_value(text: String, span: Span, value: String) -> Result<String, 
 	Ok(document.text().to_string())
 }
 
-/// Removes the property at `span`. This is what clearing a field means — VPL has no empty value.
+/// Removes the property at `span`. This is what clearing a field means (see `VplNodeCard`).
 #[tauri::command]
 pub fn vpl_remove_property(text: String, span: Span) -> Result<String, VplError> {
 	let mut document = Document::parse(text)?;

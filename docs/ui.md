@@ -86,8 +86,9 @@ the value scroll inside its own box. **Nothing in the pane may set its own width
 the layout pins `min-width: 0`, or one long path widens the column and pushes the map off the edge.
 The pane edge is draggable, within the range `store::Layout` enforces.
 
-**Clearing a field removes the parameter**, because VPL has no empty value
-([Q23](decisions.md)) — there is no third state to fall back on.
+**Clearing a field removes the parameter.** VPL has been able to express an empty value since
+4.8.0 ([Q23](decisions.md)), so this is a decision about what a blank field means — for a filename or
+a layer name, nothing — rather than the limitation it started as.
 
 **Collapse everything and you have what used to be Explore** — map and inspector, nothing else. That
 was never an activity; it was "I am not editing right now".

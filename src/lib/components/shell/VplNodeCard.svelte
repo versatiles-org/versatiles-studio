@@ -31,8 +31,9 @@
 		const input = event.currentTarget as HTMLInputElement;
 		const next = input.value;
 		if (next === displayValue(property)) return;
-		// VPL has no empty string (Q23), so an emptied field means remove the parameter — the only
-		// other option would be writing something that does not parse.
+		// An emptied field removes the parameter. VPL can express an empty value since 4.8.0, so this
+		// is a decision about what a blank field *means* — for a filename or a layer name, nothing —
+		// rather than the limitation it used to be.
 		if (next.trim() === '') onRemove(property.span);
 		else onCommit(property.value.span, next);
 	}

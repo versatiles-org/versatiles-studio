@@ -66,8 +66,8 @@ fn quote_style_is_remembered() {
 		.collect();
 	assert_eq!(styles, [Quote::None, Quote::Single, Quote::Double]);
 
-	// Printing keeps each one, so reformatting does not rewrite the author's quoting.
-	assert_eq!(document.pipeline().to_string(), "node a=bare b='single' c=\"double\"");
+	// The document renders from the tree, so the author's quoting comes back verbatim.
+	assert_eq!(document.text(), "node a=bare b='single' c=\"double\"");
 }
 
 // -- spans -----------------------------------------------------------------------------------
@@ -144,14 +144,21 @@ fn line_and_column_are_one_based_and_counted_in_characters() {
 
 // -- errors ----------------------------------------------------------------------------------
 
-/// C4 wants the error under the right character. Upstream returns a rendered multi-line trace with
-/// no offsets at all, which an editor cannot place.
+/// C4 wants the error under the right character.
+///
+/// This used to be Studio's own work, because `parse_vpl` rendered a multi-line trace with no
+/// offsets. Since 4.8.0 the position comes from upstream — issue #217 — so what is checked here is
+/// that Studio passes it through intact rather than that Studio computed it.
 #[test]
 fn errors_carry_the_position_of_the_problem() {
 	let text = "from_container filename=a | vector_filter zoom";
 	let error = Document::parse(text).unwrap_err();
 	assert_eq!(error.span.start, text.len(), "the '=' is missing at the very end");
-	assert!(error.message.contains("zoom"), "got {:?}", error.message);
+	assert!(
+		error.message.contains('='),
+		"should say what was expected: {:?}",
+		error.message
+	);
 
 	let error = Document::parse("merge [ read").unwrap_err();
 	assert!(error.message.contains(']'), "got {:?}", error.message);
@@ -203,28 +210,9 @@ fn a_stale_span_is_refused_rather_than_panicking() {
 
 // -- printing synthesised trees ----------------------------------------------------------------
 
-/// Values built by the graph editor have no original text, so quoting has to be derived. The rule
-/// is "least punctuation that parses back", and the grammar forces two exceptions.
+/// Quoting is the tree's job now, exercised through the values Studio actually writes.
 #[test]
-fn synthesised_values_get_the_least_quoting_that_still_parses() {
-	use super::quote_value;
-
-	let quoted = |v: &str| quote_value(v).expect("expressible");
-	assert_eq!(quoted("plain"), "plain");
-	assert_eq!(quoted("13.405"), "13.405");
-	assert_eq!(quoted("a-b_c.d"), "a-b_c.d");
-	assert_eq!(quoted("with space"), "'with space'");
-	assert_eq!(quoted("/path/to/file"), "'/path/to/file'");
-
-	// Single quotes need no escaping, so they stay the cheaper option even for a value full of
-	// double quotes. Only an apostrophe forces the expensive form.
-	assert_eq!(quoted("say \"hi\""), "'say \"hi\"'");
-	assert_eq!(quoted("it's"), "\"it's\"");
-	assert_eq!(quoted("it's \"both\""), "\"it's \\\"both\\\"\"");
-	assert_eq!(quoted("line\nbreak"), "'line\nbreak'");
-
-	// Every one of them parses back to exactly what went in — which is the only property that
-	// actually matters here.
+fn values_are_quoted_by_the_tree_with_the_least_punctuation_that_parses() {
 	for value in [
 		"plain",
 		"with space",
@@ -235,26 +223,33 @@ fn synthesised_values_get_the_least_quoting_that_still_parses() {
 		"tab\there",
 		"a\\b",
 		"Grüße",
+		"",
 	] {
-		let text = format!("node a={}", quoted(value));
-		let document =
-			Document::parse(&text).unwrap_or_else(|e| panic!("{value:?} printed as {text:?} did not parse back: {e}"));
-		assert_eq!(document.pipeline().nodes[0].property("a"), [value.to_string()]);
+		let mut document = Document::parse("node a=old").unwrap();
+		let span = document.pipeline().nodes[0].properties[0].value.span();
+		document.set_value(span, value).unwrap();
+		assert_eq!(
+			document.pipeline().nodes[0].property("a"),
+			[value.to_string()],
+			"{value:?} did not survive being written as {:?}",
+			document.text()
+		);
+		Document::parse(document.text()).unwrap_or_else(|e| panic!("{:?} did not parse back: {e}", document.text()));
 	}
 }
 
-/// The one value VPL has no syntax for at all.
+/// The empty string, which VPL could not express until 4.8.0 closed
+/// [#218](https://github.com/versatiles-org/versatiles-rs/issues/218).
 ///
-/// This is a real limitation with a real consequence for the parameter forms (S2.6): clearing a
-/// field cannot mean "set it to empty", because that state does not exist. It has to mean "remove
-/// the parameter". `None` is how the printer refuses to guess.
+/// Studio reported this upstream, so the behaviour it now has to match is the one it asked for.
+/// Clearing a form field still *removes* the parameter (S2.6) — an empty filename is not a value
+/// anyone means — but that is now a decision about the interface rather than a limit of the syntax.
 #[test]
-fn the_empty_string_has_no_spelling_and_is_reported_rather_than_faked() {
-	use super::quote_value;
-
-	assert_eq!(quote_value(""), None);
-	assert!(Document::parse("node a=\"\"").is_err());
-	assert!(Document::parse("node a=''").is_err());
+fn an_empty_string_is_a_value_like_any_other() {
+	for text in ["node a=\"\"", "node a=''", r#"node a=["", x]"#] {
+		let document = Document::parse(text).unwrap_or_else(|e| panic!("{text:?} should parse now: {e}"));
+		assert!(document.pipeline().nodes[0].property("a").iter().any(String::is_empty));
+	}
 }
 
 /// Opening a container is the same thing as putting a read node at the head of the pipeline (Q22),
@@ -265,15 +260,15 @@ fn an_opened_container_becomes_a_read_node() {
 	use super::read_node_for;
 
 	assert_eq!(
-		read_node_for("berlin.versatiles").unwrap(),
+		read_node_for("berlin.versatiles"),
 		"from_container filename=berlin.versatiles"
 	);
 	assert_eq!(
-		read_node_for("/data/My Tiles/berlin.versatiles").unwrap(),
+		read_node_for("/data/My Tiles/berlin.versatiles"),
 		"from_container filename='/data/My Tiles/berlin.versatiles'"
 	);
 	assert_eq!(
-		read_node_for("/data/it's here.versatiles").unwrap(),
+		read_node_for("/data/it's here.versatiles"),
 		"from_container filename=\"/data/it's here.versatiles\""
 	);
 
@@ -284,7 +279,7 @@ fn an_opened_container_becomes_a_read_node() {
 		"https://download.versatiles.org/osm.versatiles",
 		"/data/Grüße.versatiles",
 	] {
-		let vpl = read_node_for(source).unwrap();
+		let vpl = read_node_for(source);
 		let document = Document::parse(&vpl).unwrap_or_else(|e| panic!("{vpl:?} did not parse: {e}"));
 		assert_eq!(
 			document.pipeline().nodes[0].property("filename"),
@@ -292,8 +287,6 @@ fn an_opened_container_becomes_a_read_node() {
 			"the path must survive the round trip intact"
 		);
 	}
-
-	assert_eq!(read_node_for(""), None, "an empty source has no VPL spelling");
 }
 
 // -- editing values ----------------------------------------------------------------------------
@@ -325,21 +318,6 @@ fn setting_a_value_leaves_the_rest_of_the_line_alone() {
 
 	assert_eq!(document.text(), "# note\nnode zebra=1 alpha=changed # trailing");
 	assert_eq!(document.comments().len(), 2);
-}
-
-/// Q23's consequence, enforced rather than documented: an empty field is not a value.
-#[test]
-fn clearing_a_value_is_refused_with_advice() {
-	let mut document = Document::parse("node a=x").unwrap();
-	let span = document.pipeline().nodes[0].properties[0].value.span();
-
-	let error = document.set_value(span, "").unwrap_err();
-	assert!(
-		error.message.contains("remove the parameter"),
-		"got {:?}",
-		error.message
-	);
-	assert_eq!(document.text(), "node a=x", "the refusal must not have half-applied");
 }
 
 #[test]
@@ -396,7 +374,8 @@ fn tokens_cover_the_document_and_say_what_each_part_is() {
 			(Punctuation, "|"),
 			(Operation, "vector_filter"),
 			(Key, "zoom"),
-			(Punctuation, "=["),
+			(Punctuation, "="),
+			(Punctuation, "["),
 			(Value, "1"),
 			(Punctuation, ","),
 			(Value, "2"),

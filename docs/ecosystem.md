@@ -84,6 +84,9 @@ free. Three details drive [Q4](decisions.md) and [Q12](decisions.md):
 
 ### 3. The VPL parser only runs one way
 
+> **Resolved upstream in v4.8.0** (not yet on crates.io): a lossless `CstFile` with spans, a
+> serialiser and positioned parse errors. See [Q23](decisions.md) for what that means for Studio.
+
 The constraint that shapes cluster C. Text → structure is solved; structure → text does not exist:
 
 | Needed for                       | Status                                                                     |

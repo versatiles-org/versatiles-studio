@@ -1,19 +1,17 @@
-//! The syntax tree: every part of it knows where it came from.
+//! The shape the webview sees: a flat, span-carrying view of a pipeline.
 //!
-//! Upstream's `VPLNode` is a *semantic* tree — it holds what the pipeline runner needs and throws
-//! the rest away. This is a *syntactic* one. The difference is three things it keeps: byte spans,
-//! comments, and the order the author wrote parameters in.
+//! Upstream's `CstFile` is the real tree — it keeps every byte, and Studio no longer parses VPL
+//! itself ([Q23](../../../docs/decisions.md)). What is here is the *view* the editor and the graph
+//! consume: the same information with the trivia flattened away and every span made unconditional,
+//! so the webview never has to reason about a token that has no position yet.
 
 use serde::{Deserialize, Serialize};
 
 /// A byte range in the document, `start..end`.
 ///
 /// Byte offsets rather than character indices because that is what text editors, `str` slicing and
-/// LSP-shaped protocols all speak. The parser only ever splits on character boundaries, so slicing
-/// with one cannot panic.
-///
-/// `Deserialize` too: a span makes the round trip out to a form field and back when the webview
-/// asks for the value under it to be changed.
+/// LSP-shaped protocols all speak. `Deserialize` too: a span makes the round trip out to a form
+/// field and back when the webview asks for the value under it to be changed.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Span {
@@ -47,7 +45,13 @@ impl Span {
 	}
 }
 
-/// How a string was written. Preserved so a round trip does not silently re-quote the author.
+impl From<std::ops::Range<usize>> for Span {
+	fn from(range: std::ops::Range<usize>) -> Self {
+		Self::new(range.start, range.end)
+	}
+}
+
+/// How a string was written. Mirrors upstream's `CstStringKind`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Quote {
@@ -114,10 +118,9 @@ pub struct Property {
 pub struct Node {
 	pub name: String,
 	pub name_span: Span,
-	/// **In source order, with duplicates kept.** Upstream stores a `BTreeMap`, which sorts the
-	/// keys and merges repeats; rewriting a file through that would reorder parameters the author
-	/// deliberately arranged. Semantic lookups go through [`Node::property`], which applies
-	/// upstream's merge rule without disturbing what is stored here.
+	/// **In source order, with duplicates kept.** The semantic tree stores a `BTreeMap`, which sorts
+	/// the keys and merges repeats; rewriting a file through that would reorder parameters the
+	/// author deliberately arranged.
 	pub properties: Vec<Property>,
 	/// Nested pipelines from the `[…]` block, if there is one.
 	pub sources: Vec<Pipeline>,
@@ -130,8 +133,8 @@ pub struct Node {
 impl Node {
 	/// Every value recorded for `key`, in source order.
 	///
-	/// Repeats are concatenated rather than overriding, because that is what upstream's parser does
-	/// when it folds the property list into its map — `a=1 a=2` means `[1, 2]`, not `2`.
+	/// Repeats are concatenated rather than overriding, matching what the semantic tree does when
+	/// it folds the property list into its map — `a=1 a=2` means `[1, 2]`, not `2`.
 	#[must_use]
 	pub fn property(&self, key: &str) -> Vec<String> {
 		self
@@ -143,10 +146,6 @@ impl Node {
 	}
 
 	/// The innermost node containing `offset`, and the path taken to reach it.
-	///
-	/// The path is the index at each level of nesting, so a caller can address the node again after
-	/// an edit. Nested pipelines win over their parent: a caret inside a source block belongs to the
-	/// node it is written inside, not the one it feeds.
 	#[must_use]
 	pub fn node_at(&self, offset: usize) -> Option<(Vec<usize>, &Self)> {
 		if !self.span.contains(offset) {
@@ -202,7 +201,7 @@ impl Pipeline {
 	}
 }
 
-/// A `# …` comment: discarded by upstream, kept here.
+/// A `# …` comment. Carried as leading trivia in the concrete tree; surfaced here with a position.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Comment {
@@ -221,4 +220,27 @@ pub struct LineCol {
 	/// 1-based, counted in characters rather than bytes so a line of CJK does not report column 40
 	/// for the thirteenth character.
 	pub column: usize,
+}
+
+/// What a stretch of the document is, for a syntax highlighter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TokenKind {
+	/// An operation name at the head of a node.
+	Operation,
+	/// A parameter name.
+	Key,
+	/// A parameter value, quoted or bare.
+	Value,
+	/// `|`, `=`, `[`, `]`, `,`
+	Punctuation,
+	Comment,
+}
+
+/// A highlighted span. Whitespace is simply absent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Token {
+	pub kind: TokenKind,
+	pub span: Span,
 }

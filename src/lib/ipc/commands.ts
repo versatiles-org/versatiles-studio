@@ -191,7 +191,7 @@ export function vplSetValue(text: string, span: Span, value: string): Promise<st
 	return invoke<string>('vpl_set_value', { text, span, value });
 }
 
-/** Removes the property at `span`. This is what clearing a field means — VPL has no empty value. */
+/** Removes the property at `span`. This is what clearing a field means (see `VplNodeCard`). */
 export function vplRemoveProperty(text: string, span: Span): Promise<string> {
 	return invoke<string>('vpl_remove_property', { text, span });
 }
