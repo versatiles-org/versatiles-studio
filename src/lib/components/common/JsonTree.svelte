@@ -55,7 +55,8 @@
 
 <style>
 	details {
-		font: 0.72rem var(--font-mono);
+		font-size: var(--text-sm);
+		font-family: var(--font-mono);
 	}
 	summary {
 		/* Not a <button>, so base.css's button cursor does not reach it. */
@@ -73,7 +74,8 @@
 		border-left: 1px solid var(--rule);
 	}
 	li {
-		font: 0.72rem var(--font-mono);
+		font-size: var(--text-sm);
+		font-family: var(--font-mono);
 		line-height: 1.55;
 	}
 	.key {

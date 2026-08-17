@@ -144,7 +144,8 @@
 	}
 	.meta {
 		color: var(--ink-2);
-		font: 0.72rem var(--font-mono);
+		font-size: var(--text-sm);
+		font-family: var(--font-mono);
 		flex: none;
 	}
 	.del {

@@ -14,6 +14,16 @@
  */
 
 :root {
+	/*
+	 * Declares that both themes are supported, so the browser renders the parts we cannot reach in
+	 * the matching one: scrollbars, the caret, autofill, and a form control's internal chrome. Set
+	 * once, and never overridden in the dark block — the value already names both.
+	 *
+	 * Without it, native controls stay in the UA's light palette while everything around them turns
+	 * dark, which is how three inputs ended up as white boxes in the middle of a dark pane.
+	 */
+	color-scheme: light dark;
+
 	/* -- Colour -------------------------------------------------------------------------------
 	 * Neutrals carry a slight green bias so they sit with the accent rather than against it.
 	 * Kept as tokens rather than literals so a dark theme is one redefinition of this block. */

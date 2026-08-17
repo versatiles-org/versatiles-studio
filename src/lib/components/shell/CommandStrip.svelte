@@ -32,7 +32,8 @@
 		min-width: 0;
 		overflow-x: auto;
 		white-space: nowrap;
-		font: 0.75rem var(--font-mono);
+		font-size: var(--text-sm);
+		font-family: var(--font-mono);
 		color: var(--accent);
 	}
 	code.empty {

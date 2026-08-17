@@ -199,7 +199,8 @@
 		right: 0.5rem;
 		bottom: 0.5rem;
 		z-index: 4;
-		font: 0.72rem var(--font-ui);
+		font-size: var(--text-sm);
+		font-family: var(--font-ui);
 		padding: var(--space-2) var(--space-4);
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);

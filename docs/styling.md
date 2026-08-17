@@ -25,7 +25,8 @@ defined by the time anything renders.
 
 **1. Components never write a raw value.** No hex colours, no `font-size: 0.72rem`, no
 `border-radius: 4px`, no font stacks. Use a token; if none fits, add one — deliberately, once,
-where everyone can see it.
+where everyone can see it. This includes the `font` shorthand: write `font-size` and `font-family`
+separately, or nine raw sizes hide behind `font: 0.75rem …` where the checks cannot see them.
 
 **2. Never write `var(--token, fallback)`.** The fallback is only reachable when the token is
 missing, which cannot happen. They are dead code that drifts: we carried `var(--ink-2, #667)` in one
@@ -122,6 +123,23 @@ same way round as in the light theme, so depth reads the same.
 `tokens.test.ts` checks that **every colour exists in both themes**. The failure it prevents is
 quiet: add a colour to `:root`, forget the dark block, and it keeps its light value on a dark ground
 — often still readable enough in a screenshot to pass review, and wrong.
+
+### Native controls do not follow the theme on their own
+
+`color-scheme: light dark` on `:root` is what tells the browser the page supports both, so the parts
+no stylesheet can reach — scrollbars, the caret, autofill, a control's internal chrome — render in
+the matching one. Without it those stay in the browser's light palette while everything around them
+turns dark.
+
+That is necessary but not sufficient. `base.css` also gives every form control and button a **face of
+its own**, because leaving it to the browser was how three inputs ended up as white boxes in a dark
+pane: they set a border and no background, so they inherited the theme's light text onto the UA's
+white. Any control Studio does not draw is a control the operating system draws, and it will not
+match.
+
+Ghost buttons opt out explicitly, with `background: none` and a border of their own. **Padding is not
+in the global rule** — that is layout, and it belongs with the component; a global value would
+inflate every small icon button that only wanted the appearance.
 
 ### The map is the part that does not come free
 

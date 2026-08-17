@@ -94,7 +94,8 @@
 	input {
 		flex: 1;
 		min-width: 0;
-		font: 0.75rem var(--font-mono);
+		font-size: var(--text-sm);
+		font-family: var(--font-mono);
 		padding: var(--space-3);
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);

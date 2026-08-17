@@ -125,7 +125,8 @@
 	.row input {
 		flex: 1;
 		min-width: 0;
-		font: 0.75rem var(--font-mono);
+		font-size: var(--text-sm);
+		font-family: var(--font-mono);
 		padding: var(--space-2) var(--space-3);
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);
@@ -133,6 +134,7 @@
 	.row button {
 		font: inherit;
 		font-size: var(--text-sm);
+		padding: var(--space-2) var(--space-4);
 	}
 	.recents {
 		width: min(38rem, 100%);

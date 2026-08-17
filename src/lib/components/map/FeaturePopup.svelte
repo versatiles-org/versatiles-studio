@@ -170,7 +170,8 @@
 		display: grid;
 		grid-template-columns: 1fr auto auto;
 		gap: var(--space-4);
-		font: 0.72rem var(--font-mono);
+		font-size: var(--text-sm);
+		font-family: var(--font-mono);
 		line-height: 1.5;
 	}
 	.bytes {

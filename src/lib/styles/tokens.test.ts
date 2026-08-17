@@ -59,6 +59,18 @@ describe('design tokens', () => {
 		expect(offenders, 'use --text-xs … --text-xl').toEqual([]);
 	});
 
+	/**
+	 * The `font` shorthand hid nine raw sizes from the check above, because it is neither
+	 * `font-size:` nor `font-family:`. `font: inherit` is fine — it carries no value of its own.
+	 */
+	it('are not bypassed by the font shorthand', () => {
+		const offenders = styled.flatMap((path) => {
+			const hits = withoutComments(styleBlocks(path)).match(/\bfont:\s*[^;]+/g) ?? [];
+			return hits.filter((hit) => /\d/.test(hit)).map((hit) => `${path}: ${hit.trim()}`);
+		});
+		expect(offenders, 'write font-size and font-family separately, using tokens').toEqual([]);
+	});
+
 	it('are the only place a corner radius is written', () => {
 		const offenders = styled.flatMap((path) => {
 			const hits = withoutComments(styleBlocks(path)).match(/border-radius:\s*[^;]*\d(?:px|rem|em)[^;]*/g) ?? [];
