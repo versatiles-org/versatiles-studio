@@ -58,27 +58,27 @@
 	button {
 		display: flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: var(--space-3);
 		width: 100%;
-		padding: 0.45rem 0.6rem;
+		padding: var(--space-3) var(--space-4);
 		border: 0;
 		background: none;
 		font: inherit;
 		color: var(--ink-2);
 		text-align: left;
-		cursor: pointer;
 	}
 	button:hover {
 		background: var(--chrome);
 		color: var(--ink);
 	}
+	/* Inset, because the header runs the full width of the pane and a ring outside it would be
+	   clipped. Colour and width come from base.css. */
 	button:focus-visible {
-		outline: 2px solid var(--accent);
 		outline-offset: -2px;
 	}
 	.chevron {
 		display: inline-block;
-		font-size: 0.6rem;
+		font-size: var(--text-xs);
 		transition: transform 120ms ease;
 		color: var(--ink-2);
 	}
@@ -86,19 +86,19 @@
 		transform: rotate(90deg);
 	}
 	.title {
-		font-size: 0.72rem;
+		font-size: var(--text-sm);
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
 		font-weight: 600;
 	}
 	.count {
 		margin-left: auto;
-		font-size: 0.7rem;
+		font-size: var(--text-xs);
 		color: var(--ink-2);
 		font-variant-numeric: tabular-nums;
 	}
 	.body {
-		padding: 0.1rem 0.6rem 0.6rem;
+		padding: var(--space-1) var(--space-4) var(--space-4);
 	}
 
 	@media (prefers-reduced-motion: reduce) {

@@ -6,6 +6,7 @@
 
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { OpenedContainer } from '../ipc/commands';
+import { token } from '../styles/tokens';
 
 export function addContainerToMap(map: MaplibreMap, opened: OpenedContainer): void {
 	const { name, tileUrl, info } = opened;
@@ -30,7 +31,7 @@ export function addContainerToMap(map: MaplibreMap, opened: OpenedContainer): vo
 				type: 'line',
 				source: name,
 				'source-layer': layer,
-				paint: { 'line-color': '#2b6cb0', 'line-width': 0.6, 'line-opacity': 0.8 }
+				paint: { 'line-color': token('--map-feature'), 'line-width': 0.6, 'line-opacity': 0.8 }
 			});
 		}
 	} else {

@@ -106,7 +106,7 @@
 									void edit(container.info.source, () => vplRemoveProperty(container.vpl, span))}
 							/>
 						{/if}
-						<span class="meta">{container.info.container} · {container.info.tileFormat}</span>
+						<span class="meta truncate">{container.info.container} · {container.info.tileFormat}</span>
 					</li>
 				{/each}
 			</ol>
@@ -131,58 +131,50 @@
 		background: var(--surface);
 	}
 	.empty {
-		margin: 0.3rem 0;
+		margin: var(--space-3) 0;
 		color: var(--ink-2);
-		font-size: 0.75rem;
+		font-size: var(--text-sm);
 	}
 	.nodes {
 		list-style: none;
-		margin: 0.2rem 0 0.5rem;
+		margin: var(--space-2) 0 var(--space-4);
 		padding: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.4rem;
+		gap: var(--space-3);
 		min-width: 0;
 	}
 	.nodes li {
 		display: flex;
 		flex-direction: column;
-		gap: 0.15rem;
+		gap: var(--space-1);
 		min-width: 0;
 	}
 	.meta {
-		font-size: 0.66rem;
+		font-size: var(--text-xs);
 		color: var(--ink-2);
-		padding-left: 0.4rem;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
+		padding-left: var(--space-3);
 	}
 	.error {
-		margin: 0.3rem 0;
-		font-size: 0.68rem;
-		color: #b00;
+		margin: var(--space-3) 0;
+		font-size: var(--text-xs);
+		color: var(--error);
 		/* An error can name a long path, and it must break rather than widen the pane. */
 		overflow-wrap: anywhere;
 	}
 	.add {
 		align-self: flex-start;
-		margin-top: 0.1rem;
-		padding: 0.2rem 0.45rem;
+		margin-top: var(--space-1);
+		padding: var(--space-2) var(--space-3);
 		border: 1px dashed var(--rule);
-		border-radius: 3px;
+		border-radius: var(--radius);
 		background: none;
 		font: inherit;
-		font-size: 0.72rem;
+		font-size: var(--text-sm);
 		color: var(--ink-2);
-		cursor: pointer;
 	}
 	.add:hover {
 		border-style: solid;
 		color: var(--ink);
-	}
-	.add:focus-visible {
-		outline: 2px solid var(--accent);
-		outline-offset: 1px;
 	}
 </style>

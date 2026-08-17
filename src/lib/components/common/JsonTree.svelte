@@ -55,39 +55,36 @@
 
 <style>
 	details {
-		font:
-			0.72rem ui-monospace,
-			monospace;
+		font: 0.72rem var(--font-mono);
 	}
 	summary {
+		/* Not a <button>, so base.css's button cursor does not reach it. */
 		cursor: pointer;
 		line-height: 1.55;
 		list-style-position: outside;
 	}
 	summary:hover {
-		background: var(--chrome, #f2f4f3);
+		background: var(--chrome);
 	}
 	ul {
 		list-style: none;
 		margin: 0;
-		padding-left: 0.7rem;
-		border-left: 1px solid var(--rule, #d6dcda);
+		padding-left: var(--space-5);
+		border-left: 1px solid var(--rule);
 	}
 	li {
-		font:
-			0.72rem ui-monospace,
-			monospace;
+		font: 0.72rem var(--font-mono);
 		line-height: 1.55;
 	}
 	.key {
-		color: var(--ink-2, #66716f);
+		color: var(--ink-2);
 	}
 	.key::after {
 		content: ':';
-		margin-right: 0.3rem;
+		margin-right: var(--space-3);
 	}
 	.count {
-		color: var(--accent, #0e7c7b);
+		color: var(--accent);
 	}
 	.val {
 		word-break: break-word;

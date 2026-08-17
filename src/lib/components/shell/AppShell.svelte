@@ -94,13 +94,13 @@
 		grid-template-rows: 1fr auto;
 		grid-template-areas: 'map' 'command';
 		height: 100vh;
-		font-family: system-ui, sans-serif;
-		font-size: 0.82rem;
+		font-family: var(--font-ui);
+		font-size: var(--text-md);
 		color: var(--ink);
 		background: var(--chrome);
 	}
 	.shell.has-right {
-		grid-template-columns: 1fr var(--right-width, 19rem);
+		grid-template-columns: 1fr var(--right-width);
 		grid-template-areas: 'map right' 'command command';
 	}
 	/* `clamp` mirrors the range the core enforces on save (`store::Layout`), which stays the
@@ -110,7 +110,7 @@
 		grid-template-areas: 'left map' 'command command';
 	}
 	.shell.has-left.has-right {
-		grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr var(--right-width, 19rem);
+		grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr var(--right-width);
 		grid-template-areas: 'left map right' 'command command command';
 	}
 	.left {
@@ -130,10 +130,8 @@
 		cursor: col-resize;
 		touch-action: none;
 	}
-	.resizer:hover,
-	.resizer:focus-visible {
+	.resizer:hover {
 		background: var(--accent);
-		outline: none;
 	}
 	.map {
 		grid-area: map;
@@ -154,11 +152,11 @@
 	}
 
 	:global(:root) {
-		--ink: #16201f;
-		--ink-2: #66716f;
-		--rule: #d6dcda;
-		--surface: #fbfcfb;
-		--chrome: #f2f4f3;
-		--accent: #0e7c7b;
+		--ink: var(--ink);
+		--ink-2: var(--ink-2);
+		--rule: var(--rule);
+		--surface: var(--surface);
+		--chrome: var(--chrome);
+		--accent: var(--accent);
 	}
 </style>

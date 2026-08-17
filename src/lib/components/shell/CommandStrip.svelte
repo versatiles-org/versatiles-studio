@@ -24,17 +24,15 @@
 	.strip {
 		display: flex;
 		align-items: center;
-		gap: 0.6rem;
-		padding: 0.3rem 0.7rem;
+		gap: var(--space-4);
+		padding: var(--space-3) var(--space-5);
 	}
 	code {
 		flex: 1;
 		min-width: 0;
 		overflow-x: auto;
 		white-space: nowrap;
-		font:
-			0.75rem ui-monospace,
-			monospace;
+		font: 0.75rem var(--font-mono);
 		color: var(--accent);
 	}
 	code.empty {
@@ -42,7 +40,7 @@
 	}
 	button {
 		font: inherit;
-		font-size: 0.72rem;
-		padding: 0.15rem 0.6rem;
+		font-size: var(--text-sm);
+		padding: var(--space-1) var(--space-4);
 	}
 </style>

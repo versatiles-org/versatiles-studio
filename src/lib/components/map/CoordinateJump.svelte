@@ -59,16 +59,14 @@
 	}
 	input {
 		width: 11rem;
-		font:
-			0.72rem ui-monospace,
-			monospace;
-		padding: 0.25rem 0.4rem;
-		border: 1px solid var(--rule, #d6dcda);
-		border-radius: 3px;
-		background: rgb(255 255 255 / 0.94);
+		font: 0.72rem var(--font-mono);
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--rule);
+		border-radius: var(--radius);
+		background: var(--float-bg);
 	}
 	.invalid input {
-		border-color: #c33;
-		background: #fff5f5;
+		border-color: var(--error);
+		background: var(--error-bg);
 	}
 </style>

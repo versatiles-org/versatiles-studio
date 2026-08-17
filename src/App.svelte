@@ -194,36 +194,21 @@
 </AppShell>
 
 <style>
-	/* The shell is sized to the viewport, so the document has nothing to scroll — but WKWebView
-	   still rubber-bands on a trackpad flick, which reads as the whole window coming loose.
-	   `overflow: hidden` removes the scroll port and `overscroll-behavior: none` stops the bounce
-	   that WebKit does anyway. Panes that *do* scroll use `contain` so reaching their end does not
-	   chain back up to the document. */
-	:global(html),
-	:global(body) {
-		height: 100%;
-		margin: 0;
-		overflow: hidden;
-		overscroll-behavior: none;
-	}
 	.grid-toggle {
 		position: absolute;
 		right: 0.5rem;
 		bottom: 0.5rem;
 		z-index: 4;
-		font:
-			0.72rem system-ui,
-			sans-serif;
-		padding: 0.25rem 0.6rem;
+		font: 0.72rem var(--font-ui);
+		padding: var(--space-2) var(--space-4);
 		border: 1px solid var(--rule);
-		border-radius: 3px;
-		background: rgb(255 255 255 / 0.94);
-		cursor: pointer;
+		border-radius: var(--radius);
+		background: var(--float-bg);
 	}
 	.grid-toggle.on {
 		background: var(--accent);
 		border-color: var(--accent);
-		color: #fff;
+		color: var(--accent-ink);
 	}
 	/* The landing screen covers the map region entirely; the map keeps running behind it so that
 	   opening something does not have to build one. */
@@ -236,12 +221,12 @@
 		position: absolute;
 		left: 0.75rem;
 		top: 0.75rem;
-		background: #fff3f3;
-		border: 1px solid #f0c0c0;
-		color: #b00;
-		padding: 0.4rem 0.6rem;
-		border-radius: 3px;
-		font-size: 0.78rem;
+		background: var(--error-bg);
+		border: 1px solid var(--error-rule);
+		color: var(--error);
+		padding: var(--space-3) var(--space-4);
+		border-radius: var(--radius);
+		font-size: var(--text-sm);
 		max-width: 28rem;
 	}
 </style>

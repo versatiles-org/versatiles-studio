@@ -61,7 +61,7 @@
 				{#each recents as entry (entry.source)}
 					<li>
 						<button class="recent" onclick={() => onOpenUrl(entry.source)} title={entry.source}>
-							<span class="name">{filename(entry.source)}</span>
+							<span class="name truncate">{filename(entry.source)}</span>
 							<span class="meta">{when(entry.openedAt)}</span>
 						</button>
 						<button class="forget" onclick={() => onForget(entry.source)} aria-label="Forget">×</button>
@@ -81,32 +81,31 @@
 		flex-direction: column;
 		align-items: center;
 		justify-content: center;
-		gap: 1.6rem;
-		padding: 2rem;
+		gap: var(--space-6);
+		padding: var(--space-6);
 		background: var(--chrome);
 	}
 	h1 {
 		margin: 0;
-		font-size: 1.35rem;
+		font-size: var(--text-xl);
 		font-weight: 600;
 	}
 	.ways {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-		gap: 0.8rem;
+		gap: var(--space-5);
 		width: min(38rem, 100%);
 	}
 	.card {
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-2);
 		text-align: left;
-		padding: 0.9rem;
+		padding: var(--space-5);
 		border: 1px solid var(--rule);
-		border-radius: 5px;
+		border-radius: var(--radius-lg);
 		background: var(--surface);
 		font: inherit;
-		cursor: pointer;
 	}
 	form.card {
 		cursor: default;
@@ -116,33 +115,31 @@
 	}
 	.card span {
 		color: var(--ink-2);
-		font-size: 0.75rem;
+		font-size: var(--text-sm);
 	}
 	.row {
 		display: flex;
-		gap: 0.3rem;
-		margin-top: 0.4rem;
+		gap: var(--space-3);
+		margin-top: var(--space-3);
 	}
 	.row input {
 		flex: 1;
 		min-width: 0;
-		font:
-			0.75rem ui-monospace,
-			monospace;
-		padding: 0.25rem 0.4rem;
+		font: 0.75rem var(--font-mono);
+		padding: var(--space-2) var(--space-3);
 		border: 1px solid var(--rule);
-		border-radius: 3px;
+		border-radius: var(--radius);
 	}
 	.row button {
 		font: inherit;
-		font-size: 0.75rem;
+		font-size: var(--text-sm);
 	}
 	.recents {
 		width: min(38rem, 100%);
 	}
 	h2 {
-		margin: 0 0 0.4rem;
-		font-size: 0.72rem;
+		margin: 0 0 var(--space-3);
+		font-size: var(--text-sm);
 		font-weight: 600;
 		text-transform: uppercase;
 		letter-spacing: 0.08em;
@@ -161,39 +158,32 @@
 		flex: 1;
 		display: flex;
 		justify-content: space-between;
-		gap: 1rem;
+		gap: var(--space-5);
 		border: 0;
 		background: none;
 		font: inherit;
-		font-size: 0.8rem;
+		font-size: var(--text-md);
 		text-align: left;
-		padding: 0.3rem 0.4rem;
-		border-radius: 3px;
-		cursor: pointer;
+		padding: var(--space-3) var(--space-3);
+		border-radius: var(--radius);
 	}
 	.recent:hover {
 		background: var(--surface);
 	}
-	.name {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
 	.meta {
 		color: var(--ink-2);
-		font-size: 0.72rem;
+		font-size: var(--text-sm);
 		flex: none;
 	}
 	.forget {
 		border: 0;
 		background: none;
 		color: var(--ink-2);
-		cursor: pointer;
-		padding: 0 0.3rem;
+		padding: 0 var(--space-3);
 	}
 	.drop {
 		margin: 0;
 		color: var(--ink-2);
-		font-size: 0.75rem;
+		font-size: var(--text-sm);
 	}
 </style>

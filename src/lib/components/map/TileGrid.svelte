@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Map as MaplibreMap, GeoJSONSource } from 'maplibre-gl';
 	import { gridFeatures } from '../../map/tile-grid';
+	import { token } from '../../styles/tokens';
 
 	// A5 — the grid follows the map's own integer zoom, so what it labels is what MapLibre requests.
 	let { map, visible }: { map: MaplibreMap | undefined; visible: boolean } = $props();
@@ -18,7 +19,7 @@
 				id: `${SOURCE}:lines`,
 				type: 'line',
 				source: SOURCE,
-				paint: { 'line-color': '#0e7c7b', 'line-width': 0.7, 'line-opacity': 0.45 }
+				paint: { 'line-color': token('--map-grid'), 'line-width': 0.7, 'line-opacity': 0.45 }
 			});
 			m.addLayer({
 				id: `${SOURCE}:labels`,
@@ -30,7 +31,11 @@
 					'text-size': 10,
 					'symbol-placement': 'point'
 				},
-				paint: { 'text-color': '#0e7c7b', 'text-halo-color': '#fff', 'text-halo-width': 1.2 }
+				paint: {
+					'text-color': token('--map-grid'),
+					'text-halo-color': token('--map-grid-halo'),
+					'text-halo-width': 1.2
+				}
 			});
 		}
 

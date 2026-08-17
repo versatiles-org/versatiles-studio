@@ -1,0 +1,85 @@
+/*
+ * Global base — the rules that must be the same everywhere, so no component has to remember them.
+ * Everything here is deliberately generic; anything specific to one surface belongs in that
+ * component's scoped block. See docs/styling.md.
+ */
+
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+
+/*
+ * The shell is sized to the viewport, so the document has nothing to scroll — but WKWebView still
+ * rubber-bands on a trackpad flick, which reads as the whole window coming loose. `overflow` removes
+ * the scroll port; `overscroll-behavior` stops the bounce WebKit does regardless. Panes that do
+ * scroll set `overscroll-behavior: contain` so reaching their end does not chain back up to here.
+ */
+html,
+body {
+	height: 100%;
+	margin: 0;
+	overflow: hidden;
+	overscroll-behavior: none;
+	background: var(--chrome);
+	color: var(--ink);
+	font-family: var(--font-ui);
+	font-size: var(--text-md);
+}
+
+/*
+ * One focus rule for the whole application.
+ *
+ * There were 21 focusable controls and 3 focus styles between them before this existed — most
+ * elements had no visible focus at all, and the ones that did had each decided separately. A
+ * component overrides `outline-offset` when its control sits flush against an edge; it should not
+ * be redefining the colour or width.
+ */
+:focus-visible {
+	outline: var(--focus-width) solid var(--accent);
+	outline-offset: 1px;
+}
+
+/* Controls inherit the UI font rather than the browser's default. */
+button,
+input,
+select,
+textarea {
+	font-family: inherit;
+	font-size: inherit;
+	color: inherit;
+}
+
+button {
+	cursor: pointer;
+}
+
+/* Inline code, everywhere. The size is a font-metric correction, not a scale step — see the token. */
+code,
+kbd,
+samp {
+	font-family: var(--font-mono);
+	font-size: var(--text-mono-adjust);
+}
+
+/*
+ * Utilities — kept to the handful of idioms that were genuinely repeated. This is not a utility
+ * framework, and it should not grow into one: if a rule is only true for one surface, it belongs in
+ * that component.
+ */
+
+/*
+ * One line, clipped with an ellipsis. Written out in full in seven places before this existed.
+ *
+ * This is the only utility class, and the bar for a second one is high: a utility has to be
+ * remembered in the markup, which is a second mechanism to keep in your head alongside scoped CSS.
+ * `min-width: 0` was a candidate and did not make it — it is one declaration, it belongs with the
+ * layout rules that make it necessary, and applying it through markup at every level of a nesting
+ * chain would be easier to get wrong, not harder.
+ */
+.truncate {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

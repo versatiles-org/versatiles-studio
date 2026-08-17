@@ -67,6 +67,6 @@
 	}
 	/* MapLibre paints its own background; give it a ground so the canvas never flashes white. */
 	.map :global(.maplibregl-canvas-container) {
-		background: var(--map-bg, #eee);
+		background: var(--map-bg);
 	}
 </style>

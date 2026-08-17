@@ -80,7 +80,7 @@
 				<ul class="layers">
 					{#each tile.layers as layer (layer.name)}
 						<li>
-							<span class="lname">{layer.name}</span>
+							<span class="lname truncate">{layer.name}</span>
 							<span class="bytes">{fmt(layer.encodedBytes)}</span>
 							<span class="feats">{layer.featureCount}&thinsp;f</span>
 						</li>
@@ -112,12 +112,12 @@
 		max-width: 20rem;
 		max-height: 18rem;
 		overflow-y: auto;
-		background: var(--surface, #fff);
-		border: 1px solid var(--rule, #d6dcda);
-		border-radius: 4px;
-		box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
-		padding: 0.5rem 0.6rem;
-		font-size: 0.75rem;
+		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-radius: var(--radius);
+		box-shadow: var(--shadow);
+		padding: var(--space-4) var(--space-4);
+		font-size: var(--text-sm);
 		pointer-events: auto;
 		z-index: 5;
 	}
@@ -129,7 +129,7 @@
 		bottom: -6px;
 		margin-left: -6px;
 		border: 6px solid transparent;
-		border-top-color: var(--rule, #d6dcda);
+		border-top-color: var(--rule);
 		border-bottom: 0;
 	}
 	.close {
@@ -138,29 +138,28 @@
 		right: 0.3rem;
 		border: 0;
 		background: none;
-		font-size: 1rem;
+		font-size: var(--text-lg);
 		line-height: 1;
-		cursor: pointer;
-		color: var(--ink-2, #667);
+		color: var(--ink-2);
 	}
 	article + article {
-		border-top: 1px solid var(--rule, #eee);
-		margin-top: 0.45rem;
-		padding-top: 0.45rem;
+		border-top: 1px solid var(--rule);
+		margin-top: var(--space-3);
+		padding-top: var(--space-3);
 	}
 	h3 {
-		margin: 0 0 0.2rem;
-		font-size: 0.75rem;
+		margin: 0 0 var(--space-2);
+		font-size: var(--text-sm);
 		font-weight: 600;
 	}
 	.id {
-		color: var(--ink-2, #667);
+		color: var(--ink-2);
 		font-weight: 400;
-		font-family: ui-monospace, monospace;
+		font-family: var(--font-mono);
 	}
 	.none {
 		margin: 0;
-		color: var(--ink-2, #667);
+		color: var(--ink-2);
 	}
 	.tile .layers {
 		list-style: none;
@@ -170,21 +169,14 @@
 	.tile li {
 		display: grid;
 		grid-template-columns: 1fr auto auto;
-		gap: 0.5rem;
-		font:
-			0.72rem ui-monospace,
-			monospace;
+		gap: var(--space-4);
+		font: 0.72rem var(--font-mono);
 		line-height: 1.5;
 	}
-	.lname {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
 	.bytes {
-		color: var(--accent, #0e7c7b);
+		color: var(--accent);
 	}
 	.feats {
-		color: var(--ink-2, #667);
+		color: var(--ink-2);
 	}
 </style>

@@ -39,14 +39,14 @@
 </script>
 
 <div class="node">
-	<div class="name" title={node.name}>{node.name}</div>
+	<div class="name truncate" title={node.name}>{node.name}</div>
 	{#if node.properties.length === 0}
 		<p class="none">no parameters</p>
 	{:else}
 		<dl>
 			{#each node.properties as property (property.keySpan.start)}
 				<div class="row">
-					<dt title={property.key}>{property.key}</dt>
+					<dt class="truncate" title={property.key}>{property.key}</dt>
 					<dd>
 						{#if property.value.kind === 'array'}
 							<input type="text" value={displayValue(property)} title={displayValue(property)} readonly />
@@ -81,44 +81,38 @@
 	.node {
 		min-width: 0;
 		border: 1px solid var(--rule);
-		border-radius: 3px;
+		border-radius: var(--radius);
 		background: var(--chrome);
-		padding: 0.35rem 0.4rem;
+		padding: var(--space-3);
 	}
 	.name {
-		font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-		font-size: 0.72rem;
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
 		font-weight: 600;
 		color: var(--ink);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 	.none {
-		margin: 0.2rem 0 0;
-		font-size: 0.68rem;
+		margin: var(--space-2) 0 0;
+		font-size: var(--text-xs);
 		color: var(--ink-2);
 	}
 	dl {
-		margin: 0.3rem 0 0;
+		margin: var(--space-3) 0 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.25rem;
+		gap: var(--space-2);
 		min-width: 0;
 	}
 	.row {
 		display: grid;
 		grid-template-columns: minmax(0, 5.5rem) minmax(0, 1fr);
 		align-items: center;
-		gap: 0.35rem;
+		gap: var(--space-3);
 		min-width: 0;
 	}
 	dt {
-		font-size: 0.68rem;
+		font-size: var(--text-xs);
 		color: var(--ink-2);
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 	dd {
 		margin: 0;
@@ -127,21 +121,22 @@
 	input {
 		width: 100%;
 		min-width: 0;
-		box-sizing: border-box;
-		padding: 0.15rem 0.3rem;
+		padding: var(--space-1) var(--space-3);
 		border: 1px solid var(--rule);
-		border-radius: 2px;
+		border-radius: var(--radius);
 		background: var(--surface);
-		font-family: ui-monospace, 'SF Mono', Menlo, monospace;
-		font-size: 0.68rem;
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
 		color: var(--ink);
 		/* The value scrolls inside the field rather than stretching it — the long-path case. */
 		text-overflow: ellipsis;
 	}
+	/* A focused field shows the whole value rather than an ellipsis — the long-path case again. */
 	input:focus {
-		outline: 2px solid var(--accent);
-		outline-offset: -1px;
 		text-overflow: clip;
+	}
+	input:focus-visible {
+		outline-offset: -1px;
 	}
 	input[readonly] {
 		background: var(--chrome);

@@ -56,7 +56,7 @@
 
 	{#each containers as info (info.source)}
 		<section>
-			<h2 title={info.source}>{info.source.split('/').pop()}</h2>
+			<h2 class="truncate" title={info.source}>{info.source.split('/').pop()}</h2>
 			<dl>
 				<dt>container</dt>
 				<dd>{info.container}</dd>
@@ -78,67 +78,59 @@
 
 <style>
 	.inspector {
-		padding: 0.7rem;
+		padding: var(--space-5);
 		display: flex;
 		flex-direction: column;
-		gap: 0.7rem;
+		gap: var(--space-5);
 	}
 	.open {
 		font: inherit;
-		padding: 0.35rem;
+		padding: var(--space-3);
 	}
 	form {
 		display: flex;
-		gap: 0.3rem;
+		gap: var(--space-3);
 	}
 	input {
 		flex: 1;
 		min-width: 0;
-		font:
-			0.75rem ui-monospace,
-			monospace;
-		padding: 0.3rem;
+		font: 0.75rem var(--font-mono);
+		padding: var(--space-3);
 		border: 1px solid var(--rule);
-		border-radius: 3px;
+		border-radius: var(--radius);
 	}
 	form button {
 		font: inherit;
-		font-size: 0.75rem;
-		padding: 0.2rem 0.6rem;
+		font-size: var(--text-sm);
+		padding: var(--space-2) var(--space-4);
 	}
 	.hint {
 		margin: 0;
 		color: var(--ink-2);
 		line-height: 1.5;
 	}
-	.hint code {
-		font-size: 0.9em;
-	}
 	section {
 		border-top: 1px solid var(--rule);
-		padding-top: 0.6rem;
+		padding-top: var(--space-4);
 	}
 	h2 {
-		margin: 0 0 0.5rem;
-		font-size: 0.82rem;
+		margin: 0 0 var(--space-4);
+		font-size: var(--text-md);
 		font-weight: 600;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 	dl {
 		display: grid;
 		grid-template-columns: auto 1fr;
-		gap: 0.2rem 0.7rem;
-		margin: 0 0 0.6rem;
+		gap: var(--space-2) var(--space-5);
+		margin: 0 0 var(--space-4);
 	}
 	dt {
 		color: var(--ink-2);
 	}
 	dd {
 		margin: 0;
-		font-family: ui-monospace, monospace;
-		font-size: 0.75rem;
+		font-family: var(--font-mono);
+		font-size: var(--text-sm);
 	}
 	dd.wrap {
 		white-space: normal;

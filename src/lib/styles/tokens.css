@@ -1,0 +1,86 @@
+/*
+ * Design tokens — the only file in the application allowed to contain a raw colour, font size,
+ * spacing value or radius. See docs/styling.md.
+ *
+ * Every set here is deliberately small and closed. That is the whole mechanism: choosing from four
+ * type sizes is faster than inventing a fifth, so the constraint holds itself up without anyone
+ * policing it. Before this file existed the components had drifted to nine near-identical small
+ * font sizes, four radii, and three different reddish colours for the same error state.
+ *
+ * Loaded from main.ts before the application mounts, so tokens are always defined. Nothing may
+ * write `var(--token, fallback)` — a fallback is only reachable when the token is missing, which
+ * cannot happen, and the two fallbacks this codebase used to carry had already drifted apart from
+ * each other.
+ */
+
+:root {
+	/* -- Colour -------------------------------------------------------------------------------
+	 * Neutrals carry a slight green bias so they sit with the accent rather than against it.
+	 * Kept as tokens rather than literals so a dark theme is one redefinition of this block. */
+	--ink: #16201f; /* primary text */
+	--ink-2: #66716f; /* secondary text, labels, disabled */
+	--rule: #d6dcda; /* borders and separators */
+	--surface: #fbfcfb; /* panels and cards that sit above the chrome */
+	--chrome: #f2f4f3; /* application background, inset wells */
+	--accent: #0e7c7b; /* focus, selection, the one emphatic colour */
+	--accent-ink: #ffffff; /* text on --accent */
+	/* Map colours. Read from JavaScript via styles/tokens.ts, because MapLibre paint takes strings
+	   rather than CSS. Deliberately separate from the chrome palette above — a grid over a dark
+	   basemap is a different decision from a focus ring, even where the value matches today. */
+	--map-bg: #f2f1ec; /* the map's background layer, and the element behind the canvas */
+	--map-grid: #0e7c7b; /* z/x/y grid lines and labels (A5) */
+	--map-grid-halo: #ffffff;
+	--map-feature: #2b6cb0; /* the hairline every vector layer gets until D2 */
+	/* Controls that float over the map need to stay legible against whatever is under them, so
+	   they sit on a near-opaque white rather than on --surface. */
+	--float-bg: rgb(255 255 255 / 0.94);
+
+	/* Semantic. Invented three times over before they were named once. */
+	--error: #b00020;
+	--error-bg: #fff4f4;
+	--error-rule: #f0c0c0;
+
+	/* -- Type ---------------------------------------------------------------------------------
+	 * Five steps. This is a dense professional tool, so the base is smaller than a document UI's
+	 * and the range is narrow — the sizes below are the whole vocabulary. */
+	--text-xs: 0.68rem; /* meta, counts, section labels */
+	--text-sm: 0.75rem; /* secondary text, most controls */
+	--text-md: 0.82rem; /* base UI text */
+	--text-lg: 1rem; /* emphasis inside a panel */
+	--text-xl: 1.35rem; /* the landing screen, and nothing else so far */
+	/* Not a step on the scale: monospace reads optically larger than the UI font at the same
+	   nominal size, so inline code is nudged down relative to whatever surrounds it. */
+	--text-mono-adjust: 0.9em;
+
+	--font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+	/* 12 copies of this stack existed before it was a token. */
+	--font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+	/* -- Space --------------------------------------------------------------------------------
+	 * Six steps, roughly 1.5×. Padding, margin and gap all draw from here; 17 distinct ad-hoc
+	 * values collapsed into these. */
+	--space-1: 0.15rem;
+	--space-2: 0.25rem;
+	--space-3: 0.4rem;
+	--space-4: 0.6rem;
+	--space-5: 0.9rem;
+	--space-6: 1.4rem;
+
+	/* -- Shape --------------------------------------------------------------------------------
+	 * Two radii. Small for controls and cards, large for floating surfaces. */
+	--radius: 3px;
+	--radius-lg: 5px;
+
+	/* Focus is one decision made once, applied globally in base.css. */
+	--focus-width: 2px;
+
+	/* -- Elevation ----------------------------------------------------------------------------
+	 * One step, for the things that genuinely float over the map. A second was defined here and
+	 * used nowhere; add it when something needs it, not in anticipation. */
+	--shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+
+	/* -- Layout -------------------------------------------------------------------------------
+	 * The right pane's width. The left pane's lives in `store::Layout`, because the user can drag
+	 * it and it has to survive a restart. */
+	--right-width: 19rem;
+}
