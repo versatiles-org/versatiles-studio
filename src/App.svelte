@@ -40,6 +40,8 @@
 		serverBaseUrl,
 		setLayout,
 		vplRemoveProperty,
+		vplInsertNode,
+		vplRemoveNode,
 		vplSetValue,
 		vplSetProperty,
 		vplOperations,
@@ -364,6 +366,40 @@
 		await refreshPreview();
 	}
 
+	/// Adds a transform after the selected node, or after the last one when nothing is selected.
+	///
+	/// Selects what it added, for the same reason an import selects its node ([Q29]): the next thing
+	/// to do is set its parameters, and the form for them is one unmarked click away otherwise.
+	async function addOperation(operation: string) {
+		if (!pipeline) return;
+		const target = (selected ? nodeAtPath(pipeline.pipeline, selected) : pipeline.pipeline.nodes.at(-1)) ?? null;
+		if (!target) return;
+		try {
+			const next = await setPipeline(await vplInsertNode(pipeline.text, target.nameSpan, operation), 'structured');
+			// The inserted node sits immediately after its target, at the same depth.
+			const at = selected ? [...selected] : [pipeline.pipeline.nodes.length - 1];
+			at[at.length - 1] += 1;
+			selected = at;
+			await applyDocument(next);
+		} catch (e) {
+			fail(e);
+		}
+	}
+
+	/// Removes the selected node. The selection moves to whatever took its place in the chain.
+	async function removeNode() {
+		if (!pipeline || !selected) return;
+		const target = nodeAtPath(pipeline.pipeline, selected);
+		if (!target) return;
+		try {
+			const next = await setPipeline(await vplRemoveNode(pipeline.text, target.nameSpan), 'structured');
+			selected = null;
+			await applyDocument(next);
+		} catch (e) {
+			fail(e);
+		}
+	}
+
 	/// Writes the pipeline as a `.vpl`. Asks where when there is no file yet, or when asked to.
 	///
 	/// Saving a *project* is a different command with a different scope (G1, S5.1) — this is the
@@ -494,6 +530,7 @@
 	{#if id === 'pipeline'}
 		<PipelinePane
 			{kinds}
+			{operations}
 			onAddSource={(kind) => void pick(kind)}
 			{pipeline}
 			{pipelineRevision}
@@ -509,6 +546,8 @@
 			}}
 			onUndo={() => void stepHistory(true)}
 			onRedo={() => void stepHistory(false)}
+			onAddOperation={(operation) => void addOperation(operation)}
+			onRemoveNode={() => void removeNode()}
 			onSave={(chooseFile) => void savePipeline(chooseFile)}
 		/>
 	{:else if id === 'parameters'}

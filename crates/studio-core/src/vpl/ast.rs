@@ -199,6 +199,20 @@ impl Pipeline {
 		node.sources.get(source)?.at_path(tail)
 	}
 
+	/// The pipeline that *contains* the node at `path`, and its index within it.
+	///
+	/// A node's siblings are what structural edits are about — inserting after one, removing one and
+	/// closing the gap — and for a node inside a `[ … ]` block those siblings are the nested chain,
+	/// not the outer one.
+	#[must_use]
+	pub fn parent_of(&self, path: &[usize]) -> Option<(&Pipeline, usize)> {
+		let (&head, rest) = path.split_first()?;
+		let Some((&source, tail)) = rest.split_first() else {
+			return (head < self.nodes.len()).then_some((self, head));
+		};
+		self.nodes.get(head)?.sources.get(source)?.parent_of(tail)
+	}
+
 	/// The innermost node containing `offset`, with the path of indices that reaches it.
 	///
 	/// This is what makes a graph selection and a text caret the same thing (S2.5).

@@ -201,6 +201,73 @@ impl Document {
 		Ok(())
 	}
 
+	/// Inserts `operation` into the chain immediately after the node whose name occupies `span`.
+	///
+	/// Addressed by the name span, like [`set_property`](Self::set_property), because that is what a
+	/// selection is. The new node carries no parameters: the generated form is where those are set,
+	/// and inventing defaults here would put a second opinion about them next to `field_meta`.
+	///
+	/// **Textual, not a tree edit.** Inserting ` | filter` at the end of a node's span and reparsing
+	/// keeps every comment and every scrap of the author's spacing outside that point, which a
+	/// rebuild from the tree would normalise away ([Q11](../../../docs/decisions.md)). Nesting comes
+	/// free: a node inside a `[ … ]` block has its span inside the brackets, so the insertion lands
+	/// in that chain rather than the outer one.
+	///
+	/// A read operation inserted mid-chain parses and then fails validation, which is the right
+	/// place for it to fail — C4 already marks it, and refusing here would be a second copy of a
+	/// rule `validate` owns.
+	pub fn insert_after(&mut self, span: Span, operation: &str) -> Result<(), ParseError> {
+		let at = self
+			.pipeline()
+			.node_at(span.start)
+			.map(|(_, node)| node.span.end)
+			.ok_or_else(|| ParseError {
+				message: "no operation at that position".to_string(),
+				span,
+			})?;
+		self.replace(Span { start: at, end: at }, &format!(" | {operation}"))
+	}
+
+	/// Removes the node whose name occupies `span`, and the separator that joined it to the chain.
+	///
+	/// **A comment between two nodes goes with the later one.** In a multi-line pipeline a comment
+	/// sits above the node it describes, so removing a node takes the text from the end of its
+	/// predecessor — comment included. Removing the *first* node instead takes up to the start of
+	/// its successor, which is the one case where that rule cannot hold; there is no predecessor for
+	/// the comment to stay with.
+	///
+	/// Refused when it would empty the chain: an empty pipeline does not parse, so the alternative
+	/// is an "unexpected character" error about a document the user never wrote.
+	pub fn remove_node(&mut self, span: Span) -> Result<(), ParseError> {
+		let missing = || ParseError {
+			message: "no operation at that position".to_string(),
+			span,
+		};
+		let cut = {
+			let pipeline = self.pipeline();
+			let (path, _) = pipeline.node_at(span.start).ok_or_else(missing)?;
+			let (parent, index) = pipeline.parent_of(&path).ok_or_else(missing)?;
+			if parent.nodes.len() < 2 {
+				return Err(ParseError {
+					message: "a pipeline needs at least one operation".to_string(),
+					span,
+				});
+			}
+			if index > 0 {
+				Span {
+					start: parent.nodes[index - 1].span.end,
+					end: parent.nodes[index].span.end,
+				}
+			} else {
+				Span {
+					start: parent.nodes[0].span.start,
+					end: parent.nodes[1].span.start,
+				}
+			}
+		};
+		self.replace(cut, "")
+	}
+
 	/// The tree the pipeline runner wants. Parameter order and comments are dropped here, which is
 	/// correct — the runner has no use for either.
 	#[must_use]

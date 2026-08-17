@@ -125,6 +125,14 @@ export const vplSetProperty = (
 	values: string[]
 ) => unwrap(commands.vplSetProperty(text, span, key, values));
 
+/** Adds an operation to the chain, right after the node whose name occupies `span`. */
+export const vplInsertNode = (text: string, span: Parameters<typeof commands.vplInsertNode>[1], operation: string) =>
+	unwrap(commands.vplInsertNode(text, span, operation));
+
+/** Removes a node and the separator that joined it. Refused when it would empty the pipeline. */
+export const vplRemoveNode = (text: string, span: Parameters<typeof commands.vplRemoveNode>[1]) =>
+	unwrap(commands.vplRemoveNode(text, span));
+
 /** Removes the property at `span`. This is what clearing a field means (see `VplNodeCard`). */
 export const vplRemoveProperty = (text: string, span: Parameters<typeof commands.vplRemoveProperty>[1]) =>
 	unwrap(commands.vplRemoveProperty(text, span));

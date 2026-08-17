@@ -103,6 +103,21 @@ export const commands = {
 	vplSetProperty: (text: string, span: Span, key: string, values: string[]) => typedError<string, VplError>(__TAURI_INVOKE("vpl_set_property", { text, span, key, values })),
 	/**  Removes the property at `span`. This is what clearing a field means (see `VplNodeCard`). */
 	vplRemoveProperty: (text: string, span: Span) => typedError<string, VplError>(__TAURI_INVOKE("vpl_remove_property", { text, span })),
+	/**
+	 *  Adds an operation to the chain, immediately after the node whose name occupies `span`.
+	 * 
+	 *  The pipeline could only gain a transform by typing VPL before this; the graph could add a source
+	 *  and nothing else. Which operations exist comes from [`vpl_operations`], so a new one upstream is
+	 *  offerable without a change here (C2).
+	 */
+	vplInsertNode: (text: string, span: Span, operation: string) => typedError<string, VplError>(__TAURI_INVOKE("vpl_insert_node", { text, span, operation })),
+	/**
+	 *  Removes the node whose name occupies `span`, and the separator that joined it to the chain.
+	 * 
+	 *  Refused when it would empty the pipeline — see `Document::remove_node` for why that is a message
+	 *  rather than a parse failure.
+	 */
+	vplRemoveNode: (text: string, span: Span) => typedError<string, VplError>(__TAURI_INVOKE("vpl_remove_node", { text, span })),
 	vplReview: (text: string) => typedError<Review, VplError>(__TAURI_INVOKE("vpl_review", { text })),
 	/**
 	 *  Every operation and its parameters, for the generated forms (C2, S2.6).

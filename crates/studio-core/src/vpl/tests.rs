@@ -509,3 +509,151 @@ fn a_path_reaches_the_node_that_produced_it() {
 		}
 	}
 }
+
+// -- structural edits: adding and removing operations ------------------------------------------
+
+fn name_span(document: &Document, index: usize) -> Span {
+	document.pipeline().nodes[index].name_span
+}
+
+/// The thing that was missing: a pipeline could only gain a transform by typing VPL.
+#[test]
+fn an_operation_can_be_appended_after_a_node() {
+	let mut document = Document::parse("from_container filename=a.versatiles").unwrap();
+	let span = name_span(&document, 0);
+	document.insert_after(span, "filter").unwrap();
+
+	assert_eq!(document.text(), "from_container filename=a.versatiles | filter");
+	assert_eq!(document.pipeline().nodes.len(), 2);
+	// No invented parameters — the generated form is where those are set.
+	assert!(document.pipeline().nodes[1].properties.is_empty());
+}
+
+/// Inserting in the middle puts the node *after* the one selected, not at the end.
+#[test]
+fn an_operation_lands_where_the_selection_says() {
+	let mut document = Document::parse("from_debug format=png | raster_overview level=2").unwrap();
+	let span = name_span(&document, 0);
+	document.insert_after(span, "raster_flatten").unwrap();
+
+	assert_eq!(
+		document.text(),
+		"from_debug format=png | raster_flatten | raster_overview level=2"
+	);
+}
+
+/// A node inside a `[ … ]` block belongs to that chain, so an insertion after it has to land
+/// inside the brackets rather than on the outer pipeline.
+#[test]
+fn an_operation_inserted_in_a_nested_chain_stays_in_it() {
+	let vpl = "from_stacked [ from_debug format=png, from_debug format=webp ] | raster_flatten";
+	let mut document = Document::parse(vpl).unwrap();
+	let inner = document.pipeline().nodes[0].sources[0].nodes[0].name_span;
+	document.insert_after(inner, "raster_flatten").unwrap();
+
+	assert_eq!(
+		document.text(),
+		"from_stacked [ from_debug format=png | raster_flatten, from_debug format=webp ] | raster_flatten"
+	);
+	assert_eq!(document.pipeline().nodes[0].sources[0].nodes.len(), 2);
+	assert_eq!(document.pipeline().nodes.len(), 2, "the outer chain is untouched");
+}
+
+/// Q11: the author's comments and spacing survive an edit that happens somewhere else.
+#[test]
+fn appending_keeps_the_comments_and_layout_around_it() {
+	let vpl = "# what this reads\nfrom_debug format=png\n# and then\n| raster_overview level=2";
+	let mut document = Document::parse(vpl).unwrap();
+	let span = name_span(&document, 1);
+	document.insert_after(span, "raster_flatten").unwrap();
+
+	assert!(
+		document
+			.text()
+			.starts_with("# what this reads\nfrom_debug format=png\n# and then\n")
+	);
+	assert!(document.text().ends_with("| raster_overview level=2 | raster_flatten"));
+	assert_eq!(document.comments().len(), 2, "both comments survived");
+}
+
+/// A read operation in the middle parses and is then flagged — C4's job, not this one's.
+#[test]
+fn a_read_operation_in_the_middle_is_a_diagnostic_not_a_refusal() {
+	let mut document = Document::parse("from_debug format=png").unwrap();
+	let span = name_span(&document, 0);
+	document.insert_after(span, "from_debug").unwrap();
+
+	assert_eq!(document.pipeline().nodes.len(), 2);
+	assert!(
+		!crate::vpl::validate(&document).is_empty(),
+		"a read node mid-chain should be marked"
+	);
+}
+
+#[test]
+fn removing_a_node_closes_the_gap() {
+	let vpl = "from_debug format=png | raster_overview level=2 | raster_flatten";
+	let mut document = Document::parse(vpl).unwrap();
+	let span = name_span(&document, 1);
+	document.remove_node(span).unwrap();
+
+	assert_eq!(document.text(), "from_debug format=png | raster_flatten");
+}
+
+/// Removing the head keeps the rest of the chain intact and its separator with it.
+#[test]
+fn removing_the_first_node_leaves_the_rest() {
+	let mut document = Document::parse("from_debug format=png | raster_flatten").unwrap();
+	let span = name_span(&document, 0);
+	document.remove_node(span).unwrap();
+
+	assert_eq!(document.text(), "raster_flatten");
+}
+
+/// A comment above a node describes it, so removing that node takes the comment too.
+#[test]
+fn removing_a_node_takes_the_comment_that_introduced_it() {
+	let vpl = "from_debug format=png\n# drop the high zooms\n| filter level_max=5\n| raster_flatten";
+	let mut document = Document::parse(vpl).unwrap();
+	let span = name_span(&document, 1);
+	document.remove_node(span).unwrap();
+
+	assert_eq!(document.text(), "from_debug format=png\n| raster_flatten");
+	assert!(document.comments().is_empty(), "the comment went with its node");
+}
+
+/// An empty pipeline does not parse, so this has to be refused in its own words rather than
+/// producing "unexpected character" about a document nobody wrote.
+#[test]
+fn the_last_operation_cannot_be_removed() {
+	let mut document = Document::parse("from_debug format=png").unwrap();
+	let span = name_span(&document, 0);
+
+	let error = document.remove_node(span).unwrap_err();
+	assert!(error.message.contains("at least one"), "{}", error.message);
+	assert_eq!(document.text(), "from_debug format=png", "and nothing changed");
+}
+
+/// The same rule inside a `[ … ]` block: siblings there are the nested chain.
+#[test]
+fn removing_from_a_nested_chain_uses_its_own_siblings() {
+	let vpl = "from_stacked [ from_debug format=png | raster_flatten, from_debug format=webp ]";
+	let mut document = Document::parse(vpl).unwrap();
+	let inner = document.pipeline().nodes[0].sources[0].nodes[1].name_span;
+	document.remove_node(inner).unwrap();
+
+	assert_eq!(
+		document.text(),
+		"from_stacked [ from_debug format=png, from_debug format=webp ]"
+	);
+}
+
+#[test]
+fn a_span_that_names_no_node_is_refused_by_both_structural_edits() {
+	let mut document = Document::parse("from_debug format=png").unwrap();
+	let nowhere = Span { start: 9999, end: 9999 };
+
+	assert!(document.insert_after(nowhere, "filter").is_err());
+	assert!(document.remove_node(nowhere).is_err());
+	assert_eq!(document.text(), "from_debug format=png");
+}
