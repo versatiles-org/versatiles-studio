@@ -74,6 +74,23 @@ textarea {
 }
 
 /*
+ * While a pane edge is being dragged.
+ *
+ * The whole document stops being selectable, because a pointer drag that started on the resizer
+ * otherwise sweeps a text selection across whatever it passes over — which reads as text flickering
+ * blue for a few frames. The cursor is held to `col-resize` for the same reason: the pointer is
+ * captured by the handle, so the cursor should not change just because it is over the map.
+ *
+ * Only ever set while a drag is in flight. Making the shell permanently unselectable would be a
+ * far worse trade — the VPL text and every path in the inspector are meant to be copyable.
+ */
+body.resizing,
+body.resizing * {
+	user-select: none;
+	cursor: col-resize !important;
+}
+
+/*
  * Every list in Studio is a UI list — a stack of rows, never prose. None of the five wants markers
  * or the browser's indent, and all five were resetting them individually.
  */

@@ -30,18 +30,39 @@
 		return Math.round(side === 'left' ? event.clientX - shell.left : shell.right - event.clientX);
 	}
 
+	// A drag is modal for as long as it lasts, and the flag says so document-wide. Without it the
+	// pointerdown starts a native text selection that follows the cursor across the map and the
+	// panes, so text lights up blue for a few frames on every resize. `preventDefault` alone is not
+	// enough — the selection can begin before capture takes over.
+	function setDragging(on: boolean) {
+		document.body.classList.toggle('resizing', on);
+	}
+
 	// Pointer capture rather than window listeners: the pointer keeps reporting to the handle even
 	// when it leaves it, so a fast drag across the map does not silently stop resizing.
 	function start(event: PointerEvent) {
-		(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+		const handle = event.currentTarget as HTMLElement;
+		// Suppressing the default also suppresses focus, so it is taken explicitly — otherwise the
+		// arrow keys would only work after tabbing to the handle, never after dragging it.
+		event.preventDefault();
+		handle.focus();
+		handle.setPointerCapture(event.pointerId);
+		setDragging(true);
 	}
 
 	function drag(event: PointerEvent, done: boolean) {
 		const handle = event.currentTarget as HTMLElement;
 		if (!handle.hasPointerCapture(event.pointerId)) return;
-		if (done) handle.releasePointerCapture(event.pointerId);
+		if (done) {
+			handle.releasePointerCapture(event.pointerId);
+			setDragging(false);
+		}
 		onResize(widthFrom(event, handle), done);
 	}
+
+	// A drag that ends any other way — the pointer is cancelled, or the pane is removed mid-drag —
+	// must still clear the flag, or the window stays unselectable.
+	$effect(() => () => setDragging(false));
 
 	// A pane that can only be resized by dragging cannot be resized by everyone. Arrow keys move
 	// the *edge*, so on the right pane the directions are mirrored — left widens it.
@@ -72,6 +93,8 @@
 	onpointerdown={start}
 	onpointermove={(event) => drag(event, false)}
 	onpointerup={(event) => drag(event, true)}
+	onpointercancel={(event) => drag(event, true)}
+	onlostpointercapture={() => setDragging(false)}
 	onkeydown={nudge}
 ></div>
 
