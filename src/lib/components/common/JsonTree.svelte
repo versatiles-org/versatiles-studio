@@ -68,8 +68,6 @@
 		background: var(--chrome);
 	}
 	ul {
-		list-style: none;
-		margin: 0;
 		padding-left: var(--space-5);
 		border-left: 1px solid var(--rule);
 	}

@@ -89,7 +89,6 @@
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
 		font-weight: 600;
-		color: var(--ink);
 	}
 	.none {
 		margin: var(--space-2) 0 0;
@@ -122,9 +121,6 @@
 		width: 100%;
 		min-width: 0;
 		padding: var(--space-1) var(--space-3);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		background: var(--surface);
 		font-family: var(--font-mono);
 		font-size: var(--text-xs);
 		color: var(--ink);

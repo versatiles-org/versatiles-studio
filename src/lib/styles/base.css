@@ -41,13 +41,18 @@ body {
 	outline-offset: 1px;
 }
 
-/* Controls inherit the UI font rather than the browser's default. */
+/*
+ * Controls inherit the surrounding text rather than the browser's own font.
+ *
+ * `font: inherit` rather than the three properties separately, because it also covers weight and
+ * line-height — eleven components had written `font: inherit` themselves on top of the narrower
+ * reset that used to be here.
+ */
 button,
 input,
 select,
 textarea {
-	font-family: inherit;
-	font-size: inherit;
+	font: inherit;
 	color: inherit;
 }
 
@@ -63,6 +68,20 @@ input,
 select,
 textarea {
 	background: var(--surface);
+	border: 1px solid var(--rule);
+	border-radius: var(--radius);
+	padding: var(--space-2) var(--space-3);
+}
+
+/*
+ * Every list in Studio is a UI list — a stack of rows, never prose. None of the five wants markers
+ * or the browser's indent, and all five were resetting them individually.
+ */
+ul,
+ol {
+	list-style: none;
+	margin: 0;
+	padding: 0;
 }
 
 /*
@@ -119,6 +138,22 @@ samp {
  * framework, and it should not grow into one: if a rule is only true for one surface, it belongs in
  * that component.
  */
+
+/*
+ * The small uppercase label that titles a section.
+ *
+ * Six identical declarations in two components, four of them repeated in a third. It is a class
+ * rather than an `h2` rule because it is not tied to one element: two uses are headings, one is a
+ * span inside a button, and Studio's other `h2` — the container name in the inspector — is a title
+ * rather than a label and must not pick this up.
+ */
+.section-label {
+	font-size: var(--text-sm);
+	font-weight: 600;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--ink-2);
+}
 
 /*
  * One line, clipped with an ellipsis. Written out in full in seven places before this existed.

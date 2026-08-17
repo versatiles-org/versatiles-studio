@@ -161,11 +161,6 @@
 		margin: 0;
 		color: var(--ink-2);
 	}
-	.tile .layers {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-	}
 	.tile li {
 		display: grid;
 		grid-template-columns: 1fr auto auto;

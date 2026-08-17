@@ -84,7 +84,6 @@
 		gap: var(--space-5);
 	}
 	.open {
-		font: inherit;
 		padding: var(--space-3);
 	}
 	form {
@@ -96,12 +95,8 @@
 		min-width: 0;
 		font-size: var(--text-sm);
 		font-family: var(--font-mono);
-		padding: var(--space-3);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
 	}
 	form button {
-		font: inherit;
 		font-size: var(--text-sm);
 		padding: var(--space-2) var(--space-4);
 	}

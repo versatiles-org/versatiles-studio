@@ -34,7 +34,7 @@
 	<h2>
 		<button type="button" aria-expanded={open} aria-controls={id} onclick={() => onToggle(!open)}>
 			<span class="chevron" aria-hidden="true">▸</span>
-			<span class="title">{title}</span>
+			<span class="title section-label">{title}</span>
 			{#if count !== undefined}<span class="count">{count}</span>{/if}
 		</button>
 	</h2>
@@ -63,7 +63,6 @@
 		padding: var(--space-3) var(--space-4);
 		border: 0;
 		background: none;
-		font: inherit;
 		color: var(--ink-2);
 		text-align: left;
 	}
@@ -84,12 +83,6 @@
 	}
 	.section.open .chevron {
 		transform: rotate(90deg);
-	}
-	.title {
-		font-size: var(--text-sm);
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		font-weight: 600;
 	}
 	.count {
 		margin-left: auto;

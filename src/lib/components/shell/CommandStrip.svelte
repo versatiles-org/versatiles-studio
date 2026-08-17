@@ -40,7 +40,6 @@
 		color: var(--ink-2);
 	}
 	button {
-		font: inherit;
 		font-size: var(--text-sm);
 		padding: var(--space-1) var(--space-4);
 	}

@@ -61,9 +61,6 @@
 		width: 11rem;
 		font-size: var(--text-sm);
 		font-family: var(--font-mono);
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
 		background: var(--float-bg);
 	}
 	.invalid input {

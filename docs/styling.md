@@ -72,15 +72,39 @@ one of the two gets the wrong answer the first time either changes.
 at the same nominal size, so inline `code` is nudged down relative to whatever surrounds it. It is a
 font-metric correction, applied once in `base.css`.
 
-## Utilities
+## What base.css already gives you
 
-There is exactly one: `.truncate`, for the one-line-with-an-ellipsis idiom that appeared verbatim in
-seven places.
+Do not write these again — they are done once, for everything:
 
-**The bar for a second is high.** A utility has to be remembered in the markup, which is a second
+| Element                       | You get                                                       |
+| ----------------------------- | ------------------------------------------------------------- |
+| `button`, `input`, `textarea` | `font: inherit`, `color: inherit`, and a themed face          |
+| `input`, `select`, `textarea` | background, border, radius, padding                           |
+| `button`                      | background, border, radius, cursor, hover and disabled states |
+| `ul`, `ol`                    | no markers, no margin, no padding                             |
+| `code`, `kbd`, `samp`         | the monospace stack and its optical size correction           |
+| anything focusable            | the focus ring                                                |
+
+**Padding is deliberately not in the button rule.** That is layout, and it belongs with the
+component; a global value would inflate every small icon button that only wanted the appearance.
+
+## Shared classes
+
+Two, both text treatments that apply to several different elements:
+
+- **`.truncate`** — one line, clipped with an ellipsis. Was written out verbatim in seven places.
+- **`.section-label`** — the small uppercase label that titles a section. Six identical declarations
+  in two components, four of them repeated in a third. A class rather than an `h2` rule because it
+  is not tied to one element: two uses are headings, one is a span inside a button, and Studio's
+  other `h2` — the container name in the inspector — is a title rather than a label and must not
+  pick it up.
+
+**The bar for a third is high.** A shared class has to be remembered in the markup, which is a second
 mechanism to hold in your head alongside scoped CSS. `min-width: 0` was a candidate and did not make
 it — it is one declaration, it belongs beside the layout rules that make it necessary, and applying
-it through markup at every level of a nesting chain would be easier to get wrong, not harder.
+it through markup at every level of a nesting chain would be easier to get wrong, not harder. Rules
+that merely happen to match — two forms that are both `display: flex; gap` — are coincidence, not a
+shared element, and abstracting them costs more than it saves.
 
 This is not a utility framework and should not become one. If a rule is true of one surface, it lives
 in that surface's `<style>` block.

@@ -62,7 +62,7 @@
 </script>
 
 <section class="bookmarks">
-	<h2>Bookmarks</h2>
+	<h2 class="section-label">Bookmarks</h2>
 
 	<form onsubmit={save}>
 		<input bind:value={name} type="text" placeholder="Name this view" disabled={!map} />
@@ -93,11 +93,6 @@
 	}
 	h2 {
 		margin: 0 0 var(--space-3);
-		font-size: var(--text-sm);
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: var(--ink-2);
 	}
 	form {
 		display: flex;
@@ -106,21 +101,14 @@
 	input {
 		flex: 1;
 		min-width: 0;
-		font: inherit;
 		font-size: var(--text-sm);
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
 	}
 	form button {
-		font: inherit;
 		font-size: var(--text-sm);
 		padding: var(--space-2) var(--space-4);
 	}
 	ul {
-		list-style: none;
 		margin: var(--space-3) 0 0;
-		padding: 0;
 	}
 	li {
 		display: flex;
@@ -133,7 +121,6 @@
 		gap: var(--space-4);
 		border: 0;
 		background: none;
-		font: inherit;
 		font-size: var(--text-sm);
 		text-align: left;
 		padding: var(--space-2) var(--space-3);

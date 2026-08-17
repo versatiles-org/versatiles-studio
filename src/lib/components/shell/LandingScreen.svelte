@@ -56,7 +56,7 @@
 
 	{#if recents.length}
 		<section class="recents">
-			<h2>Recent</h2>
+			<h2 class="section-label">Recent</h2>
 			<ul>
 				{#each recents as entry (entry.source)}
 					<li>
@@ -105,7 +105,6 @@
 		border: 1px solid var(--rule);
 		border-radius: var(--radius-lg);
 		background: var(--surface);
-		font: inherit;
 	}
 	form.card {
 		cursor: default;
@@ -127,12 +126,8 @@
 		min-width: 0;
 		font-size: var(--text-sm);
 		font-family: var(--font-mono);
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
 	}
 	.row button {
-		font: inherit;
 		font-size: var(--text-sm);
 		padding: var(--space-2) var(--space-4);
 	}
@@ -141,16 +136,6 @@
 	}
 	h2 {
 		margin: 0 0 var(--space-3);
-		font-size: var(--text-sm);
-		font-weight: 600;
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		color: var(--ink-2);
-	}
-	ul {
-		list-style: none;
-		margin: 0;
-		padding: 0;
 	}
 	li {
 		display: flex;
@@ -163,7 +148,6 @@
 		gap: var(--space-5);
 		border: 0;
 		background: none;
-		font: inherit;
 		font-size: var(--text-md);
 		text-align: left;
 		padding: var(--space-3) var(--space-3);

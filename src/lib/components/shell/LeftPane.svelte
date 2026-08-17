@@ -136,9 +136,7 @@
 		font-size: var(--text-sm);
 	}
 	.nodes {
-		list-style: none;
 		margin: var(--space-2) 0 var(--space-4);
-		padding: 0;
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
@@ -169,7 +167,6 @@
 		border: 1px dashed var(--rule);
 		border-radius: var(--radius);
 		background: none;
-		font: inherit;
 		font-size: var(--text-sm);
 		color: var(--ink-2);
 	}
