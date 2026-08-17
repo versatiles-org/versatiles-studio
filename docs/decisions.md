@@ -16,6 +16,48 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q23 — The VPL syntax tree is written from scratch, and pinned to upstream by a differential test
+
+[Q11](decisions.md) committed to a lossless syntax tree without saying where it would come from.
+Wrapping `versatiles_pipeline`'s parser was the hope. It is not possible: that parser is built from
+nom combinators that discard as they go — `ws0` drops comments with `value((), …)`, properties land
+in a `BTreeMap` that sorts the keys and merges repeats, and no offset is recorded anywhere. All
+three are gone before it returns, so no wrapper can recover them. `studio-core::vpl` walks the
+grammar again.
+
+**The text is the document.** The tree holds byte spans into the original rather than replacing it,
+so parse-then-print is the identity and a structured edit is a splice at a span. Comments and layout
+outside the edit survive because they are never re-rendered — a property of the data structure, not
+of a formatter behaving well. Two doors in, matching the two S2 surfaces: the text editor owns a
+buffer and reparses as the user types (S2.3, S2.4), while the graph and forms hold a valid document
+and change it through `replace`, which reparses and refuses anything that would not survive
+(S2.5, S2.6).
+
+**Reimplementing a grammar is only safe while it agrees with the original**, so `differential.rs`
+runs ~70 inputs — valid and invalid — through both parsers and requires that they accept the same
+ones, build the same tree, and that upstream can reparse whatever Studio prints. A Studio that
+rejects VPL the CLI runs sends users to the terminal to discover they were right; one that accepts
+VPL the CLI rejects lets them build a pipeline that only works inside Studio. Both are worse than
+shipping no editor.
+
+**Two upstream behaviours are reproduced rather than corrected.** Diverging quietly would be worse
+than either. The test names them, so if upstream changes, Studio finds out.
+
+- A repeated key concatenates: `a=1 a=2` means `[1, 2]`, not `2`. Nothing in the syntax suggests it.
+- **VPL cannot express an empty string.** `''` fails on `is_not` and `""` fails on
+  `escaped_transform`, and there is no third spelling — found by the differential test, which
+  rejected an assumption to the contrary in the first draft.
+
+**That second one is a UI constraint, not a curiosity.** A parameter can be absent or non-empty,
+never blank, so clearing a field in the generated forms (S2.6) has to mean _remove the parameter_ —
+there is no "set it to empty" to fall back on. `quote_value` returns `None` for the empty string
+rather than emitting a spelling that will not parse, which forces the caller to make that choice
+instead of writing a broken file.
+
+**Offering it upstream still stands.** The tree is useful to `versatiles_pipeline` — a serialiser
+and real error spans would benefit the CLI too — but Studio is not blocked on that conversation, and
+the differential test is what makes living downstream safe in the meantime.
+
 ### Q22 — One map surface, not four modes. The mode bar separates map work from non-map tools
 
 Explore, Pipeline, Style and Publish are merged into a **single surface**. The mode bar stays, but it

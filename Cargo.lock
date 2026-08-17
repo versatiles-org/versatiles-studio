@@ -4764,6 +4764,7 @@ dependencies = [
  "versatiles_container",
  "versatiles_core",
  "versatiles_geometry",
+ "versatiles_pipeline",
 ]
 
 [[package]]

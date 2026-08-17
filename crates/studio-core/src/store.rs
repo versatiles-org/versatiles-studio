@@ -39,10 +39,20 @@ const BOOKMARKS_FILE: &str = "bookmarks.json";
 fn write_atomically(path: &Path, contents: &str) -> Result<()> {
 	use std::io::Write;
 
+	anyhow::ensure!(
+		!path.is_dir(),
+		"{} is a directory — this wants the path of a file to write",
+		path.display()
+	);
 	let dir = path.parent().context("target has no parent directory")?;
 	std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
 
-	let temp = path.with_extension("tmp");
+	// Append rather than `with_extension`, which *replaces* the last extension: given a target of
+	// `org.versatiles.studio` that produced `org.versatiles.tmp` — a stray file in the shared
+	// Application Support directory, next to other applications' data rather than inside ours.
+	let mut temp = path.as_os_str().to_owned();
+	temp.push(".tmp");
+	let temp = std::path::PathBuf::from(temp);
 	{
 		let mut file = std::fs::File::create(&temp).with_context(|| format!("creating {}", temp.display()))?;
 		file
@@ -90,9 +100,9 @@ impl Recents {
 			.unwrap_or_default()
 	}
 
-	pub fn save(&self, path: &Path) -> Result<()> {
+	pub fn save(&self, dir: &Path) -> Result<()> {
 		write_atomically(
-			path,
+			&dir.join(RECENTS_FILE),
 			&serde_json::to_string_pretty(self).context("serialising recents")?,
 		)
 	}
@@ -231,6 +241,70 @@ mod tests {
 		let dir = temp_dir("corrupt-recents");
 		std::fs::write(dir.join("recents.json"), "{ not json").unwrap();
 		assert!(Recents::load(&dir).entries().is_empty());
+	}
+
+	/// The gap that let a real bug through: every existing recents test worked on an in-memory
+	/// `Recents` and never wrote one to disk, so `save` taking a *file* path while every caller
+	/// passed a *directory* type-checked and shipped. Recents silently stopped persisting — the
+	/// failure went to stderr, because an MRU list is not worth failing an open over.
+	#[test]
+	fn recents_are_saved_into_the_directory_they_are_given() -> Result<()> {
+		let dir = temp_dir("recents-roundtrip");
+		let mut recents = Recents::default();
+		recents.record("/a.versatiles");
+		recents.record("/b.versatiles");
+		recents.save(&dir)?;
+
+		assert!(
+			dir.join("recents.json").is_file(),
+			"the file belongs inside the directory"
+		);
+		let reloaded = Recents::load(&dir);
+		let sources: Vec<_> = reloaded.entries().iter().map(|e| e.source.as_str()).collect();
+		assert_eq!(sources, ["/b.versatiles", "/a.versatiles"]);
+		Ok(())
+	}
+
+	/// Both lists take a directory and name their own file, so neither can land on the other's.
+	#[test]
+	fn the_two_lists_do_not_share_a_file() -> Result<()> {
+		let dir = temp_dir("two-files");
+		Recents::default().save(&dir)?;
+		Bookmarks::default().save(&dir)?;
+		assert!(dir.join("recents.json").is_file());
+		assert!(dir.join("bookmarks.json").is_file());
+		Ok(())
+	}
+
+	/// What the caller actually did wrong: handing over the directory itself. Renaming onto a
+	/// directory fails with a bare `Is a directory (os error 21)`, which says nothing about which
+	/// call was wrong.
+	#[test]
+	fn writing_onto_a_directory_says_so() {
+		let dir = temp_dir("not-a-file");
+		let error = write_atomically(&dir, "{}").unwrap_err();
+		assert!(format!("{error:#}").contains("is a directory"), "got {error:#}");
+	}
+
+	/// The temp file must stay inside the target directory. `with_extension` did not: for a target
+	/// with a dotted name it replaced the last segment, putting the temp file in the parent.
+	#[test]
+	fn the_temporary_file_stays_beside_its_target() -> Result<()> {
+		let parent = temp_dir("temp-placement");
+		let dir = parent.join("org.versatiles.studio");
+		std::fs::create_dir_all(&dir)?;
+		Recents::default().save(&dir)?;
+
+		let strays: Vec<_> = std::fs::read_dir(&parent)?
+			.filter_map(std::result::Result::ok)
+			.map(|e| e.file_name().to_string_lossy().into_owned())
+			.filter(|name| name != "org.versatiles.studio")
+			.collect();
+		assert!(
+			strays.is_empty(),
+			"nothing should be written beside the directory: {strays:?}"
+		);
+		Ok(())
 	}
 
 	/// The opposite policy: these are user-created, so silence would be data loss.
