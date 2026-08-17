@@ -136,12 +136,16 @@ impl Recents {
 // Layout
 // ---------------------------------------------------------------------------------------------
 
-/// Narrower than this and a section header has nowhere to go; wider and the map stops being the
+/// Narrower than this and a pane header has nowhere to go; wider and the map stops being the
 /// subject. Persisted values are clamped on the way in and out, so a corrupt or hand-edited file
 /// cannot produce a pane that cannot be recovered from.
-const MIN_LEFT_WIDTH: f64 = 180.0;
-const MAX_LEFT_WIDTH: f64 = 640.0;
+///
+/// One range for both panes: they are the same kind of thing at opposite edges, and two sets of
+/// limits would be two things to keep in step for no reason anyone could see.
+const MIN_PANE_WIDTH: f64 = 180.0;
+const MAX_PANE_WIDTH: f64 = 640.0;
 const DEFAULT_LEFT_WIDTH: f64 = 264.0;
+const DEFAULT_RIGHT_WIDTH: f64 = 304.0;
 
 /// Which left-pane sections are open, and how wide the pane is ([Q22]).
 ///
@@ -161,8 +165,9 @@ pub struct Layout {
 	pub style_open: bool,
 	/// Arrives S5.
 	pub export_open: bool,
-	/// Pane width in CSS pixels.
+	/// Pane widths in CSS pixels. Both edges are draggable.
 	pub left_width: f64,
+	pub right_width: f64,
 }
 
 impl Default for Layout {
@@ -172,6 +177,7 @@ impl Default for Layout {
 			style_open: false,
 			export_open: false,
 			left_width: DEFAULT_LEFT_WIDTH,
+			right_width: DEFAULT_RIGHT_WIDTH,
 		}
 	}
 }
@@ -204,12 +210,19 @@ impl Layout {
 	/// written to disk; clamping only on save would let the two drift.
 	#[must_use]
 	pub fn clamped(mut self) -> Self {
-		self.left_width = if self.left_width.is_finite() {
-			self.left_width.clamp(MIN_LEFT_WIDTH, MAX_LEFT_WIDTH)
-		} else {
-			DEFAULT_LEFT_WIDTH
-		};
+		self.left_width = clamp_width(self.left_width, DEFAULT_LEFT_WIDTH);
+		self.right_width = clamp_width(self.right_width, DEFAULT_RIGHT_WIDTH);
 		self
+	}
+}
+
+/// Forces a width into the usable range, including when it is `NaN` — which `f64::clamp`
+/// propagates rather than resolving, and which JSON can carry in from a hand-edited file.
+fn clamp_width(width: f64, fallback: f64) -> f64 {
+	if width.is_finite() {
+		width.clamp(MIN_PANE_WIDTH, MAX_PANE_WIDTH)
+	} else {
+		fallback
 	}
 }
 
@@ -398,6 +411,7 @@ mod tests {
 			style_open: true,
 			export_open: false,
 			left_width: 320.0,
+			right_width: 360.0,
 		};
 		layout.save(&dir)?;
 		assert_eq!(Layout::load(&dir), layout);
@@ -414,6 +428,7 @@ mod tests {
 			style_open: false,
 			export_open: true,
 			left_width: DEFAULT_LEFT_WIDTH,
+			right_width: DEFAULT_RIGHT_WIDTH,
 		}
 		.save(&dir)?;
 
@@ -429,13 +444,16 @@ mod tests {
 	#[test]
 	fn an_absurd_width_is_clamped_rather_than_obeyed() -> Result<()> {
 		let dir = temp_dir("layout-clamp");
-		for (written, expected) in [(0.0, MIN_LEFT_WIDTH), (99_999.0, MAX_LEFT_WIDTH), (300.0, 300.0)] {
+		for (written, expected) in [(0.0, MIN_PANE_WIDTH), (99_999.0, MAX_PANE_WIDTH), (300.0, 300.0)] {
 			Layout {
 				left_width: written,
+				right_width: written,
 				..Layout::default()
 			}
 			.save(&dir)?;
-			assert_eq!(Layout::load(&dir).left_width, expected, "width {written}");
+			let loaded = Layout::load(&dir);
+			assert_eq!(loaded.left_width, expected, "left width {written}");
+			assert_eq!(loaded.right_width, expected, "right width {written}");
 		}
 		Ok(())
 	}

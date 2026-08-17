@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import PaneResizer from './PaneResizer.svelte';
 
 	// One surface, not four modes (Q22): the left pane holds the chain from data to pixels, the map
 	// sits in the middle, the right pane reports on the selection. Each region is optional and the
@@ -17,6 +18,8 @@
 		leftPane,
 		leftWidth = 264,
 		onLeftResize,
+		rightWidth = 304,
+		onRightResize,
 		mapPane,
 		rightPane,
 		statusBar
@@ -26,64 +29,31 @@
 		leftWidth?: number;
 		/** `done` is false while dragging and true on release, so only the last one is persisted. */
 		onLeftResize?: (width: number, done: boolean) => void;
+		/** CSS pixels. Clamped by the core, like the left one. */
+		rightWidth?: number;
+		onRightResize?: (width: number, done: boolean) => void;
 		mapPane: Snippet;
 		rightPane?: Snippet;
 		statusBar?: Snippet;
 	} = $props();
-
-	let shell = $state<HTMLDivElement>();
-
-	// Pointer capture rather than window listeners: the pointer keeps reporting to the handle even
-	// when it leaves it, so a fast drag over the map does not silently stop resizing.
-	function startResize(event: PointerEvent) {
-		const handle = event.currentTarget as HTMLElement;
-		handle.setPointerCapture(event.pointerId);
-	}
-
-	function resize(event: PointerEvent, done: boolean) {
-		const handle = event.currentTarget as HTMLElement;
-		if (!handle.hasPointerCapture(event.pointerId)) return;
-		if (done) handle.releasePointerCapture(event.pointerId);
-		const left = shell?.getBoundingClientRect().left ?? 0;
-		onLeftResize?.(Math.round(event.clientX - left), done);
-	}
-
-	// The keyboard equivalent, because a pane that can only be resized by dragging cannot be
-	// resized by everyone.
-	function nudge(event: KeyboardEvent) {
-		const step = event.shiftKey ? 48 : 12;
-		if (event.key === 'ArrowLeft') onLeftResize?.(leftWidth - step, true);
-		else if (event.key === 'ArrowRight') onLeftResize?.(leftWidth + step, true);
-		else return;
-		event.preventDefault();
-	}
 </script>
 
-<div class="shell" class:has-left={leftPane} class:has-right={rightPane} style:--left-width="{leftWidth}px">
+<div
+	class="shell"
+	class:has-left={leftPane}
+	class:has-right={rightPane}
+	style:--left-width="{leftWidth}px"
+	style:--right-width="{rightWidth}px"
+>
 	{#if leftPane}
 		<aside class="left">{@render leftPane()}</aside>
-		<!-- A focusable `separator` is the ARIA window-splitter pattern: with a `tabindex` and an
-		     `aria-valuenow` it is a widget role, not the static divider the linter assumes. The
-		     required value attributes are all here, and arrow keys move it. -->
-		<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-		<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-		<div
-			class="resizer"
-			role="separator"
-			aria-orientation="vertical"
-			aria-label="Resize the left pane"
-			aria-valuenow={leftWidth}
-			aria-valuemin={180}
-			aria-valuemax={640}
-			tabindex="0"
-			onpointerdown={startResize}
-			onpointermove={(event) => resize(event, false)}
-			onpointerup={(event) => resize(event, true)}
-			onkeydown={nudge}
-		></div>
+		<PaneResizer side="left" width={leftWidth} onResize={(w, done) => onLeftResize?.(w, done)} />
 	{/if}
 	<div class="map">{@render mapPane()}</div>
-	{#if rightPane}<aside class="right">{@render rightPane()}</aside>{/if}
+	{#if rightPane}
+		<aside class="right">{@render rightPane()}</aside>
+		<PaneResizer side="right" width={rightWidth} onResize={(w, done) => onRightResize?.(w, done)} />
+	{/if}
 	{#if statusBar}<footer class="status">{@render statusBar()}</footer>{/if}
 </div>
 
@@ -98,7 +68,7 @@
 		background: var(--chrome);
 	}
 	.shell.has-right {
-		grid-template-columns: 1fr var(--right-width);
+		grid-template-columns: 1fr clamp(180px, var(--right-width), 640px);
 		grid-template-areas: 'map right' 'status status';
 	}
 	/* `clamp` mirrors the range the core enforces on save (`store::Layout`), which stays the
@@ -108,28 +78,20 @@
 		grid-template-areas: 'left map' 'status status';
 	}
 	.shell.has-left.has-right {
-		grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr var(--right-width);
+		grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr clamp(180px, var(--right-width), 640px);
 		grid-template-areas: 'left map right' 'status status status';
+	}
+	/* Both panes clip; their content scrolls. Keeping the scroll inside the content means a pane can
+	   hold a sticky header or a footer later without the aside fighting it — and it is one rule
+	   rather than two arrangements that happen to look the same. */
+	.left,
+	.right {
+		min-width: 0;
+		overflow: hidden;
 	}
 	.left {
 		grid-area: left;
 		border-right: 1px solid var(--rule);
-		min-width: 0;
-		overflow: hidden;
-	}
-	/* Sits over the border between pane and map. Four pixels is invisible but grabbable; the
-	   border it covers stays the visible edge. */
-	.resizer {
-		grid-area: left;
-		justify-self: end;
-		width: 4px;
-		margin-right: -2px;
-		z-index: 5;
-		cursor: col-resize;
-		touch-action: none;
-	}
-	.resizer:hover {
-		background: var(--accent);
 	}
 	.map {
 		grid-area: map;
@@ -139,8 +101,6 @@
 	.right {
 		grid-area: right;
 		border-left: 1px solid var(--rule);
-		overflow-y: auto;
-		overscroll-behavior: contain;
 		background: var(--surface);
 	}
 	.status {

@@ -203,8 +203,9 @@ export interface Layout {
 	styleOpen: boolean;
 	/** Arrives S5. */
 	exportOpen: boolean;
-	/** CSS pixels, already clamped by the core. */
+	/** CSS pixels, already clamped by the core. Both pane edges are draggable. */
 	leftWidth: number;
+	rightWidth: number;
 }
 
 /** The remembered pane layout. Durable state lives in the core, never the webview (Q16). */

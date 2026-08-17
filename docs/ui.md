@@ -84,7 +84,9 @@ single VPL string forces a choice between wrapping, which breaks the syntax acro
 scrolling, which hides the parameter names. One field per parameter keeps the key visible and lets
 the value scroll inside its own box. **Nothing in the pane may set its own width**: every level of
 the layout pins `min-width: 0`, or one long path widens the column and pushes the map off the edge.
-The pane edge is draggable, within the range `store::Layout` enforces.
+**Both pane edges are draggable**, within the range `store::Layout` enforces, and both widths
+survive a restart. The panes share no structure beyond that — one holds collapsible sections, the
+other an inspector — so what is shared is the resizer, not a wrapper around both.
 
 **Clearing a field removes the parameter.** VPL has been able to express an empty value since
 4.8.0 ([Q23](decisions.md)), so this is a decision about what a blank field means — for a filename or

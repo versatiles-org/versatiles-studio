@@ -78,6 +78,11 @@
 
 <style>
 	.inspector {
+		height: 100%;
+		min-width: 0;
+		overflow-y: auto;
+		/* Reaching the end must not chain the scroll up to the window, which would rubber-band it. */
+		overscroll-behavior: contain;
 		padding: var(--space-5);
 		display: flex;
 		flex-direction: column;

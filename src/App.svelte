@@ -73,9 +73,9 @@
 
 	// A drag repaints on every pointer move but only writes on release — otherwise a single resize
 	// would be a few hundred file writes.
-	function resizeLeft(width: number, done: boolean) {
+	function resizePane(side: 'left' | 'right', width: number, done: boolean) {
 		if (!layout) return;
-		const next = { ...layout, leftWidth: width };
+		const next = side === 'left' ? { ...layout, leftWidth: width } : { ...layout, rightWidth: width };
 		if (done) void changeLayout(next);
 		else layout = next;
 	}
@@ -187,7 +187,9 @@
 <AppShell
 	leftPane={empty || !layout ? undefined : leftPaneContent}
 	leftWidth={layout?.leftWidth}
-	onLeftResize={resizeLeft}
+	onLeftResize={(width, done) => resizePane('left', width, done)}
+	rightWidth={layout?.rightWidth}
+	onRightResize={(width, done) => resizePane('right', width, done)}
 	rightPane={empty ? undefined : rightPaneContent}
 >
 	{#snippet mapPane()}

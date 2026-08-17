@@ -45,13 +45,13 @@
 	   they sit on a near-opaque white rather than on --surface. */
 	--float-bg: rgb(255 255 255 / 0.94);
 
-	/* Semantic. Invented three times over before they were named once. */
+	/* Semantic. Invented three times over before they were named once. A border colour lived here
+	   too and went with the error box that used it — an error border now takes --error directly. */
 	/* Syntax highlighting. Operation names take the accent; only values need a colour of their own. */
 	--vpl-value: #8a4b16;
 
 	--error: #b00020;
 	--error-bg: #fff4f4;
-	--error-rule: #f0c0c0;
 
 	/* -- Type ---------------------------------------------------------------------------------
 	 * Five steps. This is a dense professional tool, so the base is smaller than a document UI's
@@ -91,11 +91,6 @@
 	 * One step, for the things that genuinely float over the map. A second was defined here and
 	 * used nowhere; add it when something needs it, not in anticipation. */
 	--shadow: 0 2px 10px rgb(0 0 0 / 0.18);
-
-	/* -- Layout -------------------------------------------------------------------------------
-	 * The right pane's width. The left pane's lives in `store::Layout`, because the user can drag
-	 * it and it has to survive a restart. */
-	--right-width: 19rem;
 }
 
 /*
@@ -127,7 +122,6 @@
 
 		--error: #ff8a80;
 		--error-bg: #2a1a1c;
-		--error-rule: #5a2f33;
 
 		/* The map is the one surface where dark is a real design decision rather than a palette
 		   swap: an unstyled basemap over a dark ground needs its grid and hairlines lifted or they
