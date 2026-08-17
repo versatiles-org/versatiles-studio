@@ -47,6 +47,8 @@ export interface OpenedContainer {
 	name: string;
 	/** Ready-made MapLibre template; the server port is ephemeral, so never assume it. */
 	tileUrl: string;
+	/** The `from_container` node this corresponds to in the pipeline (Q22), built by the core. */
+	vpl: string;
 	info: ContainerInfo;
 }
 
@@ -91,6 +93,27 @@ export interface TileInspection {
 /** Decodes one tile, layer by layer (A4). Null when the tile is absent. */
 export function inspectTile(source: string, z: number, x: number, y: number): Promise<TileInspection | null> {
 	return invoke<TileInspection | null>('inspect_tile', { source, z, x, y });
+}
+
+/** Mirrors `studio_core::store::Layout`. Which left-pane sections are open (Q22). */
+export interface Layout {
+	pipelineOpen: boolean;
+	/** Arrives S4. */
+	styleOpen: boolean;
+	/** Arrives S5. */
+	exportOpen: boolean;
+	/** CSS pixels, already clamped by the core. */
+	leftWidth: number;
+}
+
+/** The remembered pane layout. Durable state lives in the core, never the webview (Q16). */
+export function getLayout(): Promise<Layout> {
+	return invoke<Layout>('layout');
+}
+
+/** Persists the layout and returns what was actually stored — the core clamps the width. */
+export function setLayout(layout: Layout): Promise<Layout> {
+	return invoke<Layout>('set_layout', { layout });
 }
 
 /** Mirrors `studio_core::store::Bookmark`. */

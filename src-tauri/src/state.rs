@@ -8,7 +8,7 @@
 use std::path::PathBuf;
 use studio_core::{
 	server::ServerManager,
-	store::{Bookmarks, Recents},
+	store::{Bookmarks, Layout, Recents},
 };
 use tokio::sync::Mutex;
 
@@ -18,7 +18,9 @@ pub struct AppState {
 	/// Recent sources and bookmarks. The core owns the lists; this layer owns where they live.
 	pub recents: Mutex<Recents>,
 	pub bookmarks: Mutex<Bookmarks>,
-	/// Where both files live. `app_data_dir`, not `app_config_dir`: these are user *data*, not
+	/// Which left-pane sections are open, and how wide the pane is (S2.2, [Q22]).
+	pub layout: Mutex<Layout>,
+	/// Where these files live. `app_data_dir`, not `app_config_dir`: these are user *data*, not
 	/// configuration. Invisible on macOS — both land in Application Support — but on Linux it is
 	/// `~/.local/share` versus `~/.config`, and bookmarks belong in the former. The store owns the
 	/// filenames inside it.

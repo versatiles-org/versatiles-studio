@@ -34,6 +34,9 @@ pub async fn open_container(state: State<'_, AppState>, source: String) -> Resul
 
 	Ok(OpenedContainer {
 		tile_url: format!("{}/tiles/{name}/{{z}}/{{x}}/{{y}}", server.base_url()),
+		// Opening a container *is* adding a read node at the head of the pipeline (Q22). The core
+		// builds the VPL so the quoting rules stay next to the parser that defines them.
+		vpl: studio_core::vpl::read_node_for(&source).unwrap_or_default(),
 		name,
 		info,
 	})
@@ -46,6 +49,8 @@ pub struct OpenedContainer {
 	pub name: String,
 	/// Ready-made template for MapLibre; the port is ephemeral, so it is never assumed.
 	pub tile_url: String,
+	/// The `from_container` node this container corresponds to in the pipeline (Q22).
+	pub vpl: String,
 	pub info: ContainerInfo,
 }
 

@@ -13,7 +13,7 @@ mod windows;
 use state::AppState;
 use studio_core::{
 	server::ServerManager,
-	store::{Bookmarks, Recents},
+	store::{Bookmarks, Layout, Recents},
 };
 use tokio::sync::Mutex;
 
@@ -37,6 +37,7 @@ pub fn run() {
 			// Recents reset silently when unreadable; bookmarks do not, because they are the user's
 			// own work. A broken bookmarks file is surfaced and left untouched rather than replaced.
 			let recents = Recents::load(&data_dir);
+			let layout = Layout::load(&data_dir);
 			let bookmarks = match Bookmarks::load(&data_dir) {
 				Ok(loaded) => loaded,
 				Err(error) => {
@@ -51,6 +52,7 @@ pub fn run() {
 					server: Mutex::new(server),
 					recents: Mutex::new(recents),
 					bookmarks: Mutex::new(bookmarks),
+					layout: Mutex::new(layout),
 					data_dir,
 				},
 			);
@@ -69,7 +71,9 @@ pub fn run() {
 			commands::sources::inspect_tile,
 			commands::bookmarks::list_bookmarks,
 			commands::bookmarks::save_bookmark,
-			commands::bookmarks::delete_bookmark
+			commands::bookmarks::delete_bookmark,
+			commands::layout::layout,
+			commands::layout::set_layout
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running VersaTiles Studio");

@@ -138,6 +138,18 @@ impl std::fmt::Display for Document {
 	}
 }
 
+/// The VPL that reads `source` — the read node an opened container corresponds to.
+///
+/// Under [Q22](../../../docs/decisions.md) an opened container *is* a `from_container` node at the
+/// head of the pipeline; there is no separate list of sources. This builds that node.
+///
+/// It lives in the core rather than the webview so the quoting rules stay in one place, next to the
+/// parser that defines them. Returns `None` for an empty source, which VPL cannot express.
+#[must_use]
+pub fn read_node_for(source: &str) -> Option<String> {
+	Some(format!("from_container filename={}", quote_value(source)?))
+}
+
 fn to_pipeline(pipeline: &Pipeline) -> VPLPipeline {
 	VPLPipeline::new(pipeline.nodes.iter().map(to_node).collect())
 }

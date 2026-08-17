@@ -6,6 +6,7 @@
 	import CommandStrip from './lib/components/shell/CommandStrip.svelte';
 	import Inspector from './lib/components/shell/Inspector.svelte';
 	import LandingScreen from './lib/components/shell/LandingScreen.svelte';
+	import LeftPane from './lib/components/shell/LeftPane.svelte';
 	import MapCanvas from './lib/components/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/components/map/FeaturePopup.svelte';
 	import TileGrid from './lib/components/map/TileGrid.svelte';
@@ -14,10 +15,14 @@
 	import { addContainerToMap } from './lib/map/add-source';
 	import {
 		forgetRecent,
+		getLayout,
 		openContainer,
 		recentSources,
 		serverBaseUrl,
+		setLayout,
 		type ContainerInfo,
+		type Layout,
+		type OpenedContainer,
 		type RecentEntry
 	} from './lib/ipc/commands';
 
@@ -25,7 +30,9 @@
 
 	let style = $state<StyleSpecification | null>(null);
 	let map = $state<MaplibreMap | undefined>();
-	let containers = $state<ContainerInfo[]>([]);
+	// The opened containers, each with the read node it corresponds to (Q22).
+	let containers = $state<OpenedContainer[]>([]);
+	let layout = $state<Layout | null>(null);
 	let command = $state<string | null>(null);
 	let error = $state<string | null>(null);
 	let showGrid = $state(false);
@@ -37,7 +44,15 @@
 
 	$effect(() => {
 		void refreshRecents();
+		void getLayout().then((loaded) => (layout = loaded));
 	});
+
+	// Applied locally first so a collapse paints without waiting on the round trip, then persisted.
+	// The core clamps, so what comes back is authoritative and replaces the optimistic copy.
+	async function changeLayout(next: Layout) {
+		layout = next;
+		layout = await setLayout(next).catch(() => next);
+	}
 
 	async function refreshRecents() {
 		recents = await recentSources().catch(() => []);
@@ -73,7 +88,7 @@
 		try {
 			const result = await openContainer(source);
 			if (map) addContainerToMap(map, result);
-			containers = [...containers.filter((c) => c.source !== result.info.source), result.info];
+			containers = [...containers.filter((c) => c.info.source !== result.info.source), result];
 			// G2: name the CLI equivalent of what just happened.
 			command = `versatiles probe ${shellQuote(source)} -d`;
 			await refreshRecents();
@@ -85,10 +100,30 @@
 	const shellQuote = (s: string) => (/[^\w./-]/.test(s) ? `'${s.replaceAll("'", `'\\''`)}'` : s);
 </script>
 
-<AppShell>
+<!-- Declared out here and passed by reference, so an empty window can pass nothing at all. A
+     snippet is always truthy once declared inline, which would leave the shell holding an empty
+     column the width of a pane that has nothing in it. -->
+{#snippet leftPaneContent()}
+	<LeftPane
+		layout={layout as Layout}
+		{containers}
+		onLayoutChange={(next) => void changeLayout(next)}
+		onAddSource={pick}
+	/>
+{/snippet}
+
+{#snippet rightPaneContent()}
+	<Inspector containers={containers.map((c) => c.info)} {map} onOpen={pick} onOpenUrl={(url) => void load(url)} />
+{/snippet}
+
+<AppShell
+	leftPane={empty || !layout ? undefined : leftPaneContent}
+	leftWidth={layout?.leftWidth}
+	rightPane={empty ? undefined : rightPaneContent}
+>
 	{#snippet mapPane()}
 		{#if style}<MapCanvas {style} bind:map />{/if}
-		<FeaturePopup {map} source={containers.at(-1)?.source ?? null} />
+		<FeaturePopup {map} source={containers.at(-1)?.info.source ?? null} />
 		<TileGrid {map} visible={showGrid} />
 		{#if empty}
 			<LandingScreen
@@ -105,11 +140,6 @@
 			<button class="grid-toggle" class:on={showGrid} onclick={() => (showGrid = !showGrid)}> z/x/y grid </button>
 		{/if}
 		{#if error}<div class="error">{error}</div>{/if}
-	{/snippet}
-	{#snippet rightPane()}
-		{#if !empty}
-			<Inspector {containers} {map} onOpen={pick} onOpenUrl={(url) => void load(url)} />
-		{/if}
 	{/snippet}
 	{#snippet commandBar()}
 		<CommandStrip {command} />

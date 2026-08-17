@@ -5,9 +5,10 @@
 //! ([Q21]). It lives in the core because nothing durable may live in the webview ([Q16]) — a
 //! reloaded or crashed window comes back with both lists intact.
 //!
-//! **Two files, not one, because their recovery policies differ.** Recents are disposable and churn
-//! on every open, so a corrupt file silently resets. Bookmarks are user-created, so a corrupt file
-//! is an error the user hears about — silently discarding them would be data loss.
+//! **Separate files, because their recovery policies differ.** Recents and pane layout are
+//! disposable and churn constantly, so a corrupt file silently resets. Bookmarks are user-created,
+//! so a corrupt file is an error the user hears about — silently discarding them would be data
+//! loss.
 //!
 //! The core takes a **directory**, not file paths: the filenames are its own business, so a caller
 //! cannot put bookmarks in the recents file or write either somewhere unintended. Deciding *which*
@@ -26,6 +27,7 @@ const RECENTS_CAPACITY: usize = 12;
 /// Filenames are internal — see the module note on why callers pass a directory.
 const RECENTS_FILE: &str = "recents.json";
 const BOOKMARKS_FILE: &str = "bookmarks.json";
+const LAYOUT_FILE: &str = "layout.json";
 
 // ---------------------------------------------------------------------------------------------
 // Atomic writes
@@ -127,6 +129,87 @@ impl Recents {
 
 	pub fn forget(&mut self, source: &str) {
 		self.0.retain(|entry| entry.source != source);
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// Layout
+// ---------------------------------------------------------------------------------------------
+
+/// Narrower than this and a section header has nowhere to go; wider and the map stops being the
+/// subject. Persisted values are clamped on the way in and out, so a corrupt or hand-edited file
+/// cannot produce a pane that cannot be recovered from.
+const MIN_LEFT_WIDTH: f64 = 180.0;
+const MAX_LEFT_WIDTH: f64 = 640.0;
+const DEFAULT_LEFT_WIDTH: f64 = 264.0;
+
+/// Which left-pane sections are open, and how wide the pane is ([Q22]).
+///
+/// This lives in the core rather than the webview for the reason everything else here does ([Q16]):
+/// a reloaded window must come back looking the way the user left it. Q22 called independent,
+/// remembered collapse "load-bearing, not polish" — on the 13-inch laptop Q15 was protecting, a
+/// pane that reopens everything on every reload makes the surface unusable.
+///
+/// The sections are named rather than a free-form map: which ones exist is a design decision
+/// recorded in Q22, not something the webview should be able to invent.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Layout {
+	/// Arrives S2. Open by default, because at S2 it is the only section with anything in it.
+	pub pipeline_open: bool,
+	/// Arrives S4.
+	pub style_open: bool,
+	/// Arrives S5.
+	pub export_open: bool,
+	/// Pane width in CSS pixels.
+	pub left_width: f64,
+}
+
+impl Default for Layout {
+	fn default() -> Self {
+		Self {
+			pipeline_open: true,
+			style_open: false,
+			export_open: false,
+			left_width: DEFAULT_LEFT_WIDTH,
+		}
+	}
+}
+
+impl Layout {
+	/// Reads the layout, treating any problem as "the default one".
+	///
+	/// Disposable like [`Recents::load`] and for the same reason: refusing to start because a pane
+	/// width would not parse is a far worse outcome than opening at the default width.
+	#[must_use]
+	pub fn load(dir: &Path) -> Self {
+		std::fs::read_to_string(dir.join(LAYOUT_FILE))
+			.ok()
+			.and_then(|text| serde_json::from_str::<Self>(&text).ok())
+			.map(Self::clamped)
+			.unwrap_or_default()
+	}
+
+	pub fn save(&self, dir: &Path) -> Result<()> {
+		write_atomically(
+			&dir.join(LAYOUT_FILE),
+			&serde_json::to_string_pretty(&self.clone().clamped()).context("serialising layout")?,
+		)
+	}
+
+	/// Forces the width back into a usable range, including when it is `NaN` — which `f64::clamp`
+	/// propagates rather than resolving, and which JSON can carry in from a hand-edited file.
+	///
+	/// Public because a caller storing a layout in memory needs the same value that would be
+	/// written to disk; clamping only on save would let the two drift.
+	#[must_use]
+	pub fn clamped(mut self) -> Self {
+		self.left_width = if self.left_width.is_finite() {
+			self.left_width.clamp(MIN_LEFT_WIDTH, MAX_LEFT_WIDTH)
+		} else {
+			DEFAULT_LEFT_WIDTH
+		};
+		self
 	}
 }
 
@@ -305,6 +388,89 @@ mod tests {
 			"nothing should be written beside the directory: {strays:?}"
 		);
 		Ok(())
+	}
+
+	#[test]
+	fn a_layout_survives_a_round_trip() -> Result<()> {
+		let dir = temp_dir("layout-roundtrip");
+		let layout = Layout {
+			pipeline_open: false,
+			style_open: true,
+			export_open: false,
+			left_width: 320.0,
+		};
+		layout.save(&dir)?;
+		assert_eq!(Layout::load(&dir), layout);
+		Ok(())
+	}
+
+	/// Q22 wants each section to collapse independently — so the three flags have to be three
+	/// flags, not one "pane is open" bit with the sections following it.
+	#[test]
+	fn sections_collapse_independently() -> Result<()> {
+		let dir = temp_dir("layout-independent");
+		Layout {
+			pipeline_open: true,
+			style_open: false,
+			export_open: true,
+			left_width: DEFAULT_LEFT_WIDTH,
+		}
+		.save(&dir)?;
+
+		let loaded = Layout::load(&dir);
+		assert!(loaded.pipeline_open);
+		assert!(!loaded.style_open);
+		assert!(loaded.export_open);
+		Ok(())
+	}
+
+	/// A width from a corrupt or hand-edited file must not be able to produce a pane that has
+	/// swallowed the map, or one too narrow to grab and drag back.
+	#[test]
+	fn an_absurd_width_is_clamped_rather_than_obeyed() -> Result<()> {
+		let dir = temp_dir("layout-clamp");
+		for (written, expected) in [(0.0, MIN_LEFT_WIDTH), (99_999.0, MAX_LEFT_WIDTH), (300.0, 300.0)] {
+			Layout {
+				left_width: written,
+				..Layout::default()
+			}
+			.save(&dir)?;
+			assert_eq!(Layout::load(&dir).left_width, expected, "width {written}");
+		}
+		Ok(())
+	}
+
+	/// `f64::clamp` propagates `NaN` instead of resolving it, and JSON can carry one in.
+	#[test]
+	fn a_non_finite_width_falls_back_to_the_default() {
+		let dir = temp_dir("layout-nan");
+		std::fs::write(dir.join("layout.json"), r#"{"leftWidth": null}"#).unwrap();
+		assert_eq!(Layout::load(&dir).left_width, DEFAULT_LEFT_WIDTH);
+
+		let recovered = Layout {
+			left_width: f64::NAN,
+			..Layout::default()
+		}
+		.clamped();
+		assert_eq!(recovered.left_width, DEFAULT_LEFT_WIDTH);
+	}
+
+	/// Same policy as recents: losing pane state costs nothing, refusing to start costs everything.
+	#[test]
+	fn a_corrupt_layout_resets_silently() {
+		let dir = temp_dir("layout-corrupt");
+		std::fs::write(dir.join("layout.json"), "{ not json").unwrap();
+		assert_eq!(Layout::load(&dir), Layout::default());
+	}
+
+	/// A field added in a later stage must not invalidate a file written by an earlier one.
+	#[test]
+	fn an_older_layout_file_still_loads() {
+		let dir = temp_dir("layout-forward");
+		std::fs::write(dir.join("layout.json"), r#"{"pipelineOpen": false}"#).unwrap();
+		let loaded = Layout::load(&dir);
+		assert!(!loaded.pipeline_open, "what the file said is honoured");
+		assert_eq!(loaded.left_width, DEFAULT_LEFT_WIDTH, "what it omits takes the default");
 	}
 
 	/// The opposite policy: these are user-created, so silence would be data loss.

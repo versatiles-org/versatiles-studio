@@ -256,3 +256,42 @@ fn the_empty_string_has_no_spelling_and_is_reported_rather_than_faked() {
 	assert!(Document::parse("node a=\"\"").is_err());
 	assert!(Document::parse("node a=''").is_err());
 }
+
+/// Opening a container is the same thing as putting a read node at the head of the pipeline (Q22),
+/// so the node Studio shows has to be VPL that actually parses — including for the awkward paths
+/// people really have.
+#[test]
+fn an_opened_container_becomes_a_read_node() {
+	use super::read_node_for;
+
+	assert_eq!(
+		read_node_for("berlin.versatiles").unwrap(),
+		"from_container filename=berlin.versatiles"
+	);
+	assert_eq!(
+		read_node_for("/data/My Tiles/berlin.versatiles").unwrap(),
+		"from_container filename='/data/My Tiles/berlin.versatiles'"
+	);
+	assert_eq!(
+		read_node_for("/data/it's here.versatiles").unwrap(),
+		"from_container filename=\"/data/it's here.versatiles\""
+	);
+
+	for source in [
+		"berlin.versatiles",
+		"/data/My Tiles/berlin.versatiles",
+		"/data/it's here.versatiles",
+		"https://download.versatiles.org/osm.versatiles",
+		"/data/Grüße.versatiles",
+	] {
+		let vpl = read_node_for(source).unwrap();
+		let document = Document::parse(&vpl).unwrap_or_else(|e| panic!("{vpl:?} did not parse: {e}"));
+		assert_eq!(
+			document.pipeline().nodes[0].property("filename"),
+			[source.to_string()],
+			"the path must survive the round trip intact"
+		);
+	}
+
+	assert_eq!(read_node_for(""), None, "an empty source has no VPL spelling");
+}

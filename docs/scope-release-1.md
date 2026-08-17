@@ -138,7 +138,7 @@ The long pole. S2.1 gates everything after it.
 | Item        | Work                                                                                                                                       | Feature        |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |
 | **S2.1**    | ~~**Lossless VPL syntax tree and serialiser** — spans, comments, parameter order~~ — **done**, in `studio-core::vpl` ([Q23](decisions.md)) | infrastructure |
-| **S2.2**    | The collapsible left pane, sections remembering their state ([Q22](decisions.md))                                                          | infrastructure |
+| **S2.2**    | ~~The collapsible left pane, sections remembering their state~~ — **done**; state in `store::Layout` ([Q22](decisions.md))                 | infrastructure |
 | **S2.3**    | VPL text editor over the syntax tree                                                                                                       | C1             |
 | **S2.4**    | Inline parse and validation errors at the right position                                                                                   | C4             |
 | **S2.5**    | Node graph, tabbed with VPL: selection sync, error badge, never a stale graph                                                              | C1             |
