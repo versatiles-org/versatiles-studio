@@ -63,16 +63,17 @@ than it looks ([Q12](decisions.md)).
 
 ## Cluster C · Pipeline Editor (VPL)
 
-| ID     | Stage       | Feature                                                                                                            | Basis                                                 |
-| ------ | ----------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| **C1** | `2`         | **Bidirectional node graph ⟷ VPL text.** The text stays the source of truth; the graph is a view onto it           | parses, but **no serialiser** ([Q11](decisions.md))   |
-| **C2** | `2`         | **Parameter forms generated from `field_meta`** — no hand-written UI, new operations appear for free               | `all_operation_metadata()`, `generateVplTypescript()` |
-| **C3** | `2`         | Live preview per node: the selected node's output renders on the map, so intermediate pipeline results are visible | embedded `serve`                                      |
-| **C4** | `2`         | Parse and validation errors marked inline at the correct position                                                  | needs spans the parser does not carry yet             |
-| **C5** | `2 stretch` | Recipe library: hillshade from DEM, overviews, land mask, choropleth join — working starting points                | `help.md` examples                                    |
-| **C6** | `3`         | Sampling-based cost estimate: "~40 min, ~2.3 GB" before you commit                                                 | new                                                   |
-| **C7** | `5`         | **Export as CLI command, serve config, Dockerfile or GitHub Action** — desktop to production                       | falls out of G1's project layout                      |
-| **C8** | `2 stretch` | Watch mode: source file changes on disk → preview updates                                                          | new                                                   |
+| ID     | Stage       | Feature                                                                                                                              | Basis                                                           |
+| ------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| **C1** | `2`         | **Bidirectional node graph ⟷ VPL text.** The text stays the source of truth; the graph is a view onto it                             | parses, but **no serialiser** ([Q11](decisions.md))             |
+| **C2** | `2`         | **Parameter forms generated from `field_meta`** — no hand-written UI, new operations appear for free                                 | `all_operation_metadata()`, `generateVplTypescript()`           |
+| **C3** | `2`         | Live preview per node: the selected node's output renders on the map, so intermediate pipeline results are visible                   | embedded `serve`                                                |
+| **C4** | `2`         | Parse and validation errors marked inline at the correct position                                                                    | needs spans the parser does not carry yet                       |
+| **C5** | `2 stretch` | Recipe library: hillshade from DEM, overviews, land mask, choropleth join — working starting points                                  | `help.md` examples                                              |
+| **C6** | `3`         | Sampling-based cost estimate: "~40 min, ~2.3 GB" before you commit                                                                   | new                                                             |
+| **C7** | `5`         | **Export as CLI command, serve config, Dockerfile or GitHub Action** — desktop to production                                         | falls out of G1's project layout                                |
+| **C8** | `2 stretch` | Watch mode: source file changes on disk → preview updates                                                                            | new                                                             |
+| **C9** | `2`         | **Open a `.vpl` file** — a pipeline written by hand or emitted by the CLI opens in the graph and the editor, and previews on the map | [Q23](decisions.md)'s parser, `PipelineFactory::build_pipeline` |
 
 ---
 
@@ -152,7 +153,7 @@ The same information read the other way. Stretch items are marked `*`.
 | ----------- | ---------------------------------------- |
 | **0**       | G5                                       |
 | **1**       | A1, A2, A4\*, A5, A6, A7, A8             |
-| **2**       | C1, C2, C3, C4, C5\*, C8\*, G6           |
+| **2**       | C1, C2, C3, C4, C9, C5\*, C8\*, G6       |
 | **3**       | C6, E1, E2, E3, E4\*, E6\*, E7, F2       |
 | **4**       | D1, D2, D3, D5\*, D6\*, D8, D9\*, G6, G7 |
 | **5**       | C7, F1, F2, G1, G3, G4                   |

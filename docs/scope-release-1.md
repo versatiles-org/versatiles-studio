@@ -48,9 +48,15 @@ first long run makes the app look broken.
 ## M4 · Edit VPL and instantly see the result
 
 **Required** C1 (bidirectional node graph ⟷ VPL text), C2 (generated parameter forms), C3 (live
-preview — the "instantly" half), C4 (inline errors) · **stretch** C5, C8.
+preview — the "instantly" half), C4 (inline errors), C9 (open a `.vpl` file) · **stretch** C5, C8.
 
 **Settled ([Q11](decisions.md)):** this means node graph _plus_ text editor. C1 is a deliverable.
+
+**C9 is what makes the milestone reachable from outside Studio.** A pipeline written by hand or
+emitted by the CLI has to be openable, or "edit VPL" only ever means "edit VPL Studio wrote", and the
+CLI and the GUI are two tools that cannot hand work to each other. It is cheap once the editor
+exists: [Q23](decisions.md)'s parser turns the file into a document, and upstream's
+`PipelineFactory::build_pipeline` takes exactly the `VPLPipeline` that document produces.
 
 **It is the most expensive single item in release 1**, and not for the reason the catalogue suggests.
 Parsing VPL is solved; writing it back is not — no serialiser, a `BTreeMap` that reorders parameters,
@@ -145,8 +151,9 @@ The long pole. S2.1 gates everything after it.
 | **S2.6**    | Parameter forms generated from `field_meta` — the one-field-per-parameter shape and span-based editing landed early with S2.2; what remains is typing the controls from `field_meta` | C2             |
 | **S2.7**    | Live preview of the selected node, mounted on the embedded server                                                                                                                    | C3             |
 | **S2.8**    | Undo/redo command stack over the syntax tree's edit list                                                                                                                             | G6             |
-| **S2.9\***  | Recipe library of working starting points                                                                                                                                            | C5             |
-| **S2.10\*** | Watch mode: source changes on disk refresh the preview                                                                                                                               | C8             |
+| **S2.9**    | Open a `.vpl` file — dialog, drag & drop and recents, into the editor and the graph                                                                                                  | C9             |
+| **S2.10\*** | Recipe library of working starting points                                                                                                                                            | C5             |
+| **S2.11\*** | Watch mode: source changes on disk refresh the preview                                                                                                                               | C8             |
 
 **Start S2.1 during S1.** It does not exist upstream, it is not small, and everything in M4 sits on
 it. Offering it to `versatiles_pipeline` early means review overlaps with cluster A rather than

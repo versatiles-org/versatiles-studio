@@ -73,6 +73,11 @@ modes — every one of those steps used to be a mode switch away from the others
 | **Style**    | Layer tree (D3), presets (D1)                                                                                                                              | S4      |
 | **Export**   | Crop, format, zoom range, estimate, serve (F1, F2)                                                                                                         | S5      |
 
+**A `.vpl` file is a way in, like a container is** (C9). The landing screen, the file dialog, drag &
+drop and the recents list all take one — a pipeline the CLI wrote has to open here, or the two tools
+cannot hand work to each other. What opens is the Pipeline section, with the map previewing the
+pipeline's output rather than a container's tiles.
+
 **A node is a form, not a line of VPL.** Its parameters get one labelled field each, because the
 values are routinely longer than the pane is wide — a path can easily run past 250 characters — and a
 single VPL string forces a choice between wrapping, which breaks the syntax across lines, and
