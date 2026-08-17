@@ -10,6 +10,7 @@
 
 use std::path::PathBuf;
 use studio_core::{
+	history::History,
 	server::ServerManager,
 	store::{Bookmarks, Layout, Recents},
 	vpl::Document,
@@ -28,6 +29,8 @@ pub struct AppState {
 	/// ([Q25]). `None` until something is opened; a project holds exactly one `pipeline.vpl`
 	/// ([Q6]).
 	pub pipeline: Mutex<Option<Document>>,
+	/// One undo stack for the document, whichever view an edit came from ([Q11], G6).
+	pub history: Mutex<History>,
 	/// What relative paths in the VPL resolve against — the project directory once [Q6] has one,
 	/// until then wherever Studio was started.
 	pub project_dir: PathBuf,

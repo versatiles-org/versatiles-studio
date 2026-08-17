@@ -6,6 +6,7 @@
 //! TypeScript is how the two drift apart.
 
 use crate::state::AppState;
+use studio_core::history::EditKind;
 use studio_core::vpl::{Diagnostic, Document, OperationInfo, ParseError, Pipeline, Span, Token, operations, validate};
 use tauri::State;
 
@@ -51,15 +52,20 @@ pub struct DocumentView {
 	pub tokens: Vec<Token>,
 	/// Checked against the operations that exist (C4). A pipeline can parse and still be wrong.
 	pub diagnostics: Vec<Diagnostic>,
+	/// Whether ⌘Z and ⇧⌘Z have anywhere to go, so the interface can say so.
+	pub can_undo: bool,
+	pub can_redo: bool,
 }
 
-impl From<&Document> for DocumentView {
-	fn from(document: &Document) -> Self {
+impl DocumentView {
+	fn of(document: &Document, history: &studio_core::history::History) -> Self {
 		Self {
 			text: document.text().to_string(),
 			pipeline: document.pipeline().clone(),
 			tokens: document.tokens(),
 			diagnostics: validate(document),
+			can_undo: history.can_undo(),
+			can_redo: history.can_redo(),
 		}
 	}
 }
@@ -67,7 +73,13 @@ impl From<&Document> for DocumentView {
 /// This window's pipeline, or `None` before anything has been opened.
 #[tauri::command]
 pub async fn pipeline(state: State<'_, AppState>) -> Result<Option<DocumentView>, String> {
-	Ok(state.pipeline.lock().await.as_ref().map(DocumentView::from))
+	let history = state.history.lock().await;
+	Ok(state
+		.pipeline
+		.lock()
+		.await
+		.as_ref()
+		.map(|document| DocumentView::of(document, &history)))
 }
 
 /// Replaces the pipeline, rejecting text that does not parse.
@@ -75,11 +87,52 @@ pub async fn pipeline(state: State<'_, AppState>) -> Result<Option<DocumentView>
 /// The editor holds the text a user is typing, which is often mid-edit and invalid; the *document*
 /// never is. A rejection carries a span so the editor can mark it (C4).
 #[tauri::command]
-pub async fn set_pipeline(state: State<'_, AppState>, text: String) -> Result<DocumentView, VplError> {
+pub async fn set_pipeline(
+	state: State<'_, AppState>,
+	text: String,
+	kind: Option<String>,
+) -> Result<DocumentView, VplError> {
 	let document = Document::parse(text)?;
-	let view = DocumentView::from(&document);
+	let mut history = state.history.lock().await;
+	// The caller says where the edit came from, because only it knows: the same command carries a
+	// keystroke and a form change, and they deserve different undo granularity.
+	history.push(
+		document.text(),
+		match kind.as_deref() {
+			Some("typing") => EditKind::Typing,
+			Some("replaced") => EditKind::Replaced,
+			_ => EditKind::Structured,
+		},
+	);
+	let view = DocumentView::of(&document, &history);
 	*state.pipeline.lock().await = Some(document);
 	Ok(view)
+}
+
+/// Steps the document back, or forward again. `None` when there is nowhere to go.
+///
+/// One stack for every view (G6): a form change undone from the text tab is the same ⌘Z.
+#[tauri::command]
+pub async fn undo(state: State<'_, AppState>) -> Result<Option<DocumentView>, VplError> {
+	step(state, true).await
+}
+
+#[tauri::command]
+pub async fn redo(state: State<'_, AppState>) -> Result<Option<DocumentView>, VplError> {
+	step(state, false).await
+}
+
+async fn step(state: State<'_, AppState>, back: bool) -> Result<Option<DocumentView>, VplError> {
+	let mut history = state.history.lock().await;
+	let Some(text) = (if back { history.undo() } else { history.redo() }) else {
+		return Ok(None);
+	};
+	// Every state on the stack parsed when it was recorded, so this cannot fail — but it is parsed
+	// rather than assumed, because a panic here would take the window with it.
+	let document = Document::parse(text.to_string())?;
+	let view = DocumentView::of(&document, &history);
+	*state.pipeline.lock().await = Some(document);
+	Ok(Some(view))
 }
 
 /// What the editor needs on every keystroke: how to paint the text, and what is wrong with it.

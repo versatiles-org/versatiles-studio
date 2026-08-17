@@ -22,6 +22,8 @@
 		getLayout,
 		getPipeline,
 		setPipeline,
+		undo as undoPipeline,
+		redo as redoPipeline,
 		openContainer,
 		recentSources,
 		serverBaseUrl,
@@ -63,11 +65,7 @@
 	async function editSelected(run: (text: string) => Promise<string>) {
 		if (!pipeline) return;
 		try {
-			const text = await run(pipeline.text);
-			pipeline = await setPipeline(text);
-			pipelineRevision += 1;
-			await syncContainersToPipeline();
-			await refreshPreview();
+			await applyDocument(await setPipeline(await run(pipeline.text), 'structured'));
 		} catch (e) {
 			fail(typeof e === 'object' && e && 'message' in e ? (e as { message: unknown }).message : e);
 		}
@@ -90,6 +88,24 @@
 			pipeline = loaded;
 			pipelineRevision += 1;
 		});
+	});
+
+	// ⌘Z / ⇧⌘Z reach the document from anywhere, because there is one stack for every view (G6).
+	//
+	// A focused `<input>` or `<select>` keeps its own undo: the user is mid-edit in a parameter
+	// field and has not committed anything yet, so the document has nothing to step back to. The VPL
+	// textarea is deliberately *not* excluded — its text is the document, and letting the browser
+	// undo it locally would leave the two disagreeing until the next keystroke.
+	$effect(() => {
+		const onKey = (event: KeyboardEvent) => {
+			if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'z') return;
+			const tag = (event.target as HTMLElement | null)?.tagName;
+			if (tag === 'INPUT' || tag === 'SELECT') return;
+			event.preventDefault();
+			void stepHistory(!event.shiftKey);
+		};
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
 	});
 
 	// The window title says which container this window holds — the native equivalent of the in-app
@@ -195,13 +211,33 @@
 		}
 	}
 
+	/// Applies a document the core has handed back — after an edit, an undo, or a reload.
+	///
+	/// Every path that changes the pipeline ends here, so the map, the editor and the selection can
+	/// never be following different versions of it.
+	async function applyDocument(next: DocumentView) {
+		pipeline = next;
+		pipelineRevision += 1;
+		await syncContainersToPipeline();
+		await refreshPreview();
+	}
+
+	async function stepHistory(back: boolean) {
+		try {
+			const next = await (back ? undoPipeline() : redoPipeline());
+			if (next) await applyDocument(next);
+		} catch (e) {
+			fail(e);
+		}
+	}
+
 	/// Opening a file *is* setting the pipeline to its read node (Q22, Q25).
 	async function load(source: string) {
 		// A remote container reads its index over the network, so this is not always instant.
 		status = { kind: 'busy', message: `Opening ${filename(source)}…` };
 		try {
 			const result = await mount(source);
-			pipeline = await setPipeline(result.vpl);
+			pipeline = await setPipeline(result.vpl, 'replaced');
 			pipelineRevision += 1;
 			selected = null;
 			await refreshRecents();
@@ -248,7 +284,7 @@
 		{pipeline}
 		{pipelineRevision}
 		onPipelineChange={(text) =>
-			void setPipeline(text).then((next) => {
+			void setPipeline(text, 'typing').then((next) => {
 				pipeline = next;
 				void refreshPreview();
 			})}
@@ -257,6 +293,8 @@
 			selected = path;
 			void refreshPreview();
 		}}
+		onUndo={() => void stepHistory(true)}
+		onRedo={() => void stepHistory(false)}
 	/>
 {/snippet}
 

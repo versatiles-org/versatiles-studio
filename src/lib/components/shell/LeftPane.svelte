@@ -29,7 +29,9 @@
 		pipelineRevision,
 		onPipelineChange,
 		selected,
-		onSelect
+		onSelect,
+		onUndo,
+		onRedo
 	}: {
 		layout: Layout;
 		onLayoutChange: (layout: Layout) => void;
@@ -43,6 +45,9 @@
 		/** Path of the selected node. Lifted out so the right pane can show its parameters (Q22). */
 		selected: number[] | null;
 		onSelect: (path: number[] | null) => void;
+		/** One stack for every view (G6); the buttons are the discoverable half of ⌘Z. */
+		onUndo: () => void;
+		onRedo: () => void;
 	} = $props();
 
 	// Q15: one pane, two tabs over one document — not two panes.
@@ -137,6 +142,24 @@
 					{/if}
 				</button>
 			{/each}
+			<div class="history">
+				<button
+					type="button"
+					class="step"
+					disabled={!pipeline?.canUndo}
+					title="Undo (⌘Z)"
+					aria-label="Undo"
+					onclick={onUndo}>↺</button
+				>
+				<button
+					type="button"
+					class="step"
+					disabled={!pipeline?.canRedo}
+					title="Redo (⇧⌘Z)"
+					aria-label="Redo"
+					onclick={onRedo}>↻</button
+				>
+			</div>
 		</div>
 
 		{#if tab === 'vpl'}
@@ -193,6 +216,7 @@
 	}
 	.tabs {
 		display: flex;
+		align-items: center;
 		gap: var(--space-1);
 		margin: 0 0 var(--space-3);
 		border-bottom: 1px solid var(--rule);
@@ -212,6 +236,25 @@
 	}
 	.tab:focus-visible {
 		outline-offset: -2px;
+	}
+	.history {
+		margin-left: auto;
+		display: flex;
+		gap: var(--space-1);
+	}
+	.step {
+		border: 0;
+		background: none;
+		border-radius: var(--radius);
+		padding: 0 var(--space-2);
+		color: var(--ink-2);
+	}
+	.step:hover:not(:disabled) {
+		background: var(--chrome);
+		color: var(--ink);
+	}
+	.step:disabled {
+		opacity: 0.35;
 	}
 	.badge {
 		display: inline-block;

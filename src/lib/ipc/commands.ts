@@ -195,6 +195,9 @@ export interface DocumentView {
 	pipeline: VplPipeline;
 	tokens: VplToken[];
 	diagnostics: Diagnostic[];
+	/** Whether undo and redo have anywhere to go (G6). */
+	canUndo: boolean;
+	canRedo: boolean;
 }
 
 /** This window's pipeline, or null before anything is opened. One document per window (Q25). */
@@ -202,9 +205,26 @@ export function getPipeline(): Promise<DocumentView | null> {
 	return invoke<DocumentView | null>('pipeline');
 }
 
-/** Replaces the pipeline. Rejects with a {@link VplError} carrying the position of the problem. */
-export function setPipeline(text: string): Promise<DocumentView> {
-	return invoke<DocumentView>('set_pipeline', { text });
+/** Where an edit came from. Only typing coalesces into a single undo step. */
+export type EditKind = 'typing' | 'structured' | 'replaced';
+
+/**
+ * Replaces the pipeline. Rejects with a {@link VplError} carrying the position of the problem.
+ *
+ * `kind` decides undo granularity: a burst of keystrokes is one step, a form or graph change is its
+ * own. Only the caller knows which this is.
+ */
+export function setPipeline(text: string, kind: EditKind = 'structured'): Promise<DocumentView> {
+	return invoke<DocumentView>('set_pipeline', { text, kind });
+}
+
+/** Steps the document back, or forward again. Null when there is nowhere to go. */
+export function undo(): Promise<DocumentView | null> {
+	return invoke<DocumentView | null>('undo');
+}
+
+export function redo(): Promise<DocumentView | null> {
+	return invoke<DocumentView | null>('redo');
 }
 
 /** How to paint the text, and what is wrong with it — one parse, so the two cannot disagree. */
