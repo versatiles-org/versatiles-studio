@@ -97,6 +97,18 @@ const CANDIDATES: &[Candidate] = &[
 		operation: Some("from_csv"),
 	},
 	Candidate {
+		id: "raster",
+		label: "Raster image",
+		detail: "GeoTIFF or COG, a VRT mosaic, a scanned PNG or JPEG",
+		// Unverified against `from_gdal_raster`'s documentation, because the extension test only
+		// checks kinds this build has — and this build does not have GDAL (S3.5 is blocked, see
+		// [Q19](../../../docs/decisions.md)). It will be checked the moment the operation appears,
+		// which is the point of writing the card now: linking GDAL is then a build change and not
+		// also a UI change.
+		extensions: &["tif", "tiff", "vrt", "png", "jpg", "jpeg"],
+		operation: Some("from_gdal_raster"),
+	},
+	Candidate {
 		id: "pipeline",
 		label: "Pipeline file",
 		detail: "A .vpl written here or by the CLI",
@@ -401,15 +413,19 @@ mod tests {
 
 	/// No two kinds may claim the same extension, or which card a dropped file belongs to would
 	/// depend on the order of this list.
+	///
+	/// Checked over [`CANDIDATES`] rather than over [`kinds`]: a kind whose operation this build
+	/// lacks is filtered out of the latter, so a collision introduced alongside it would stay
+	/// invisible until the day that operation arrived — which is the worst moment to find out.
 	#[test]
 	fn no_extension_belongs_to_two_kinds() {
-		let mut seen: Vec<(String, String)> = Vec::new();
-		for kind in kinds() {
-			for extension in kind.extensions {
-				if let Some((other, _)) = seen.iter().find(|(_, ext)| ext == &extension) {
-					panic!("both {other} and {} claim .{extension}", kind.id);
+		let mut seen: Vec<(&str, &str)> = Vec::new();
+		for candidate in CANDIDATES {
+			for extension in candidate.extensions {
+				if let Some((other, _)) = seen.iter().find(|(_, ext)| ext == extension) {
+					panic!("both {other} and {} claim .{extension}", candidate.id);
 				}
-				seen.push((kind.id.clone(), extension));
+				seen.push((candidate.id, extension));
 			}
 		}
 	}

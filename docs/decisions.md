@@ -494,7 +494,37 @@ user asking.
 | **Registered drivers** | GTiff, COG, VRT, PNG, JPEG, MEM, GNMFile, GNMDatabase, OGR_VRT |
 
 So GDAL costs ~18 MB. That dwarfs the 1.8 MB asset tier as predicted, but an installer in the
-20–35 MB range is unremarkable for a desktop application. **Q19 holds, comfortably.**
+20–35 MB range is unremarkable for a desktop application. ~~**Q19 holds, comfortably.**~~ — see the
+amendment below.
+
+**Amended 2026-08-17 (S3.5): it does not link into Studio, and this is not fixable here.** The
+S0.11 spike measured GDAL in a scratch project. Inside Studio's actual dependency graph the two
+halves cannot coexist:
+
+| Chain                                                                                | Wants           |
+| ------------------------------------------------------------------------------------ | --------------- |
+| `gdal-src` 0.3 → `proj-sys` 0.27 → `libsqlite3-sys`                                  | `>=0.28, <0.36` |
+| `versatiles_container` 4.8 → `r2d2_sqlite` 0.35 → `rusqlite` 0.40 → `libsqlite3-sys` | `^0.38`         |
+
+`libsqlite3-sys` declares `links = "sqlite3"`, so cargo permits exactly one copy in the graph, and
+the two ranges are disjoint. The dependency is **not optional** in either chain — `proj-sys` requires
+it unconditionally, and `r2d2_sqlite` is a plain dependency of `versatiles_container` with no feature
+gating it — so no combination of features resolves this. It is not a version we can pick.
+
+**The fix is upstream, in one of two places.** Either `proj-sys` widens its range to include 0.36–0.38
+— it is pinning a range that is already three releases behind, and this is the right long-term fix —
+or `versatiles_container` moves to `r2d2_sqlite` ≤ 0.31, which is the last one on `rusqlite` 0.37 and
+therefore on `libsqlite3-sys` 0.35. The second is a downgrade and the first is not ours, which is why
+both are worth asking for rather than choosing between.
+
+**What survives the spike.** The static build, the embedded `proj.db`, the 18.3 MB, the narrow driver
+set and the pkg-config finding are all still true and still the plan. What was wrong was measuring
+them apart from the application.
+
+**What S3.5 landed anyway.** The raster import card is written, and the catalogue
+([Q28](decisions.md)) already drops any kind whose operation this build lacks — so it is dead today
+and appears the moment GDAL links, with no UI change. That is the property Q28 claimed, now exercised
+for real rather than hypothetically.
 
 **Three findings that change the plan.**
 
