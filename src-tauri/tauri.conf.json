@@ -28,6 +28,52 @@
 		"active": true,
 		"targets": ["deb", "appimage", "app", "dmg"],
 		"icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.icns"],
-		"resources": ["resources/sprites.tar.gz", "resources/glyphs.tar.gz"]
+		"resources": ["resources/sprites.tar.gz", "resources/glyphs.tar.gz"],
+		"fileAssociations": [
+			{
+				"ext": ["versatiles"],
+				"name": "VersaTiles container",
+				"description": "VersaTiles tile container",
+				"role": "Editor",
+				"mimeType": "application/vnd.versatiles.container",
+				"exportedType": {
+					"identifier": "org.versatiles.versatiles",
+					"conformsTo": ["public.data"]
+				}
+			},
+			{
+				"ext": ["mbtiles"],
+				"name": "MBTiles container",
+				"description": "MBTiles tile container",
+				"role": "Editor",
+				"mimeType": "application/vnd.mapbox-vector-tile",
+				"exportedType": {
+					"identifier": "org.versatiles.mbtiles",
+					"conformsTo": ["public.database"]
+				}
+			},
+			{
+				"ext": ["pmtiles"],
+				"name": "PMTiles container",
+				"description": "PMTiles tile container",
+				"role": "Editor",
+				"mimeType": "application/vnd.pmtiles",
+				"exportedType": {
+					"identifier": "org.versatiles.pmtiles",
+					"conformsTo": ["public.data"]
+				}
+			},
+			{
+				"ext": ["vpl"],
+				"name": "VersaTiles pipeline",
+				"description": "VersaTiles Pipeline Language",
+				"role": "Editor",
+				"mimeType": "text/vnd.versatiles.vpl",
+				"exportedType": {
+					"identifier": "org.versatiles.vpl",
+					"conformsTo": ["public.plain-text"]
+				}
+			}
+		]
 	}
 }

@@ -173,6 +173,10 @@ adds an operation.
 
 **Nothing only exists inside Studio.** Every artefact must be exportable in a documented format.
 
+**The two platforms deliver an opened file differently.** macOS sends `RunEvent::Opened`, possibly
+before the window exists and possibly again later; Linux puts the path in `argv`, once. `opened.rs`
+funnels both into a queue the webview drains, rather than each caller learning the difference.
+
 **Tile URLs carry a revision.** The embedded server sends `cache-control: public, max-age=2419200`
 — 28 days, hardcoded in `versatiles`' handler with no way to turn it off. That is right for a public
 tile server and wrong for an editing surface: mount names are stable by design, so a rebuilt preview

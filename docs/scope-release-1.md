@@ -102,20 +102,20 @@ the item needs an ID of its own.
 
 Nothing user-visible, and a prerequisite for every milestone.
 
-| Item      | Work                                                                                                    | Feature        |
-| --------- | ------------------------------------------------------------------------------------------------------- | -------------- |
-| **S0.1**  | Tauri shell: one window per project, native menus, dialogs, drag & drop, file associations              | infrastructure |
-| **S0.2**  | Studio core skeleton — a plain Rust library with no Tauri types, driven by ordinary tests               | infrastructure |
-| **S0.3**  | Control plane: `#[tauri::command]` bindings and `tauri-specta` type generation                          | infrastructure |
-| **S0.4**  | Event plane: Tauri Channels for progress, warnings and log lines                                        | infrastructure |
-| **S0.5**  | Embedded server and server manager — one instance, named mounts, loopback only                          | infrastructure |
-| **S0.6**  | Bundled asset tier: sprites (1.3 MB) and Latin-only glyphs (~1.1 MB), pinned in `assets/manifest.json`  | infrastructure |
-| **S0.7**  | CI for Linux and macOS, including ad-hoc macOS signing                                                  | infrastructure |
-| **S0.8**  | ~~Measure the per-webview memory baseline~~ — **done**: ~28 MB/window ([Q16](decisions.md))             | infrastructure |
-| **S0.9**  | ~~No telemetry, no account, no analytics dependency~~ — **done**, stated in the README                  | G5             |
-| **S0.10** | ~~Decide the GDAL driver list~~ — **settled**: GTiff, COG, VRT, PNG, JPEG, JP2 ([Q19](decisions.md))    | infrastructure |
-| **S0.11** | ~~Measure the statically bundled binary size~~ — **done**: 18.3 MB ([Q19](decisions.md))                | infrastructure |
-| **S0.12** | `scripts/update-assets.ts` — check and move the pinned asset versions deliberately ([Q9](decisions.md)) | infrastructure |
+| Item      | Work                                                                                                                             | Feature        |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **S0.1**  | ~~Tauri shell: one window per project, dialogs, drag & drop, file associations~~ — **done**; native menus are still outstanding  | infrastructure |
+| **S0.2**  | ~~Studio core skeleton — a plain Rust library with no Tauri types, driven by ordinary tests~~ — **done**                         | infrastructure |
+| **S0.3**  | ~~Control plane: `#[tauri::command]` bindings~~ — **done**; `tauri-specta` deferred, types are hand-written ([Q3](decisions.md)) | infrastructure |
+| **S0.4**  | ~~Event plane: Tauri Channels for progress, warnings and log lines~~ — **done**                                                  | infrastructure |
+| **S0.5**  | ~~Embedded server and server manager — one instance, named mounts, loopback only~~ — **done**                                    | infrastructure |
+| **S0.6**  | ~~Bundled asset tier: sprites (1.3 MB) and Latin-only glyphs (~1.1 MB), pinned in `assets/manifest.json`~~ — **done**            | infrastructure |
+| **S0.7**  | ~~CI for Linux and macOS, including ad-hoc macOS signing~~ — **done**                                                            | infrastructure |
+| **S0.8**  | ~~Measure the per-webview memory baseline~~ — **done**: ~28 MB/window ([Q16](decisions.md))                                      | infrastructure |
+| **S0.9**  | ~~No telemetry, no account, no analytics dependency~~ — **done**, stated in the README                                           | G5             |
+| **S0.10** | ~~Decide the GDAL driver list~~ — **settled**: GTiff, COG, VRT, PNG, JPEG, JP2 ([Q19](decisions.md))                             | infrastructure |
+| **S0.11** | ~~Measure the statically bundled binary size~~ — **done**: 18.3 MB ([Q19](decisions.md))                                         | infrastructure |
+| **S0.12** | ~~`scripts/update-assets.ts` — check and move the pinned asset versions deliberately~~ — **done** ([Q9](decisions.md))           | infrastructure |
 
 **All three checkpoints are answered, and none changed the plan.** S0.8 measured ~28 MB per window,
 so [Q16](decisions.md)'s window model holds and its fallback is unused. S0.10 and S0.11 are settled

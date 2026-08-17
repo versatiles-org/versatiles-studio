@@ -2,6 +2,7 @@
 	import { open, save } from '@tauri-apps/plugin-dialog';
 	import { untrack } from 'svelte';
 	import { getCurrentWebview } from '@tauri-apps/api/webview';
+	import { listen } from '@tauri-apps/api/event';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
 	import AppShell from './lib/components/shell/AppShell.svelte';
@@ -22,6 +23,8 @@
 	import { whyNotRenderable } from './lib/map/tile-format';
 	import {
 		forgetRecent,
+		takeOpened,
+		OPENED_EVENT,
 		getLayout,
 		getPipeline,
 		setPipeline,
@@ -196,6 +199,19 @@
 	function resetView() {
 		const bbox = lastPreview?.info.bbox;
 		if (map && bbox) map.fitBounds(bbox, { padding: 24, duration: 400 });
+	}
+
+	// A file double-clicked in Finder or passed on the command line. It can arrive before this
+	// window exists, so the queue is drained on start as well as on the event — the event alone
+	// would miss the launch case entirely.
+	$effect(() => {
+		void drainOpened();
+		const unlisten = listen(OPENED_EVENT, () => void drainOpened());
+		return () => void unlisten.then((stop) => stop());
+	});
+
+	async function drainOpened() {
+		for (const path of await takeOpened().catch(() => [])) await load(path);
 	}
 
 	// Drag & drop is a shell affordance, so it goes through the same path as the file dialog.

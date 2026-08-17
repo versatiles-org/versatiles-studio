@@ -73,6 +73,12 @@ modes — every one of those steps used to be a mode switch away from the others
 | **Style**    | Layer tree (D3), presets (D1)                                                                                                                              | S4      |
 | **Export**   | Crop, format, zoom range, estimate, serve (F1, F2)                                                                                                         | S5      |
 
+**Double-clicking a file opens it.** Studio owns `.versatiles`, `.mbtiles`, `.pmtiles` and `.vpl`,
+declared as exported UTIs so the types belong to it rather than being borrowed. macOS delivers the
+file as an event — at launch, before any window exists, and again while running; Linux passes it as a
+command-line argument. Both land in one queue that the webview drains on start and on notification,
+so a file that arrived before there was a window is not lost.
+
 **A `.vpl` file is a way in, like a container is** (C9). The landing screen, the file dialog, drag &
 drop and the recents list all take one — a pipeline the CLI wrote has to open here, or the two tools
 cannot hand work to each other. What opens is the Pipeline section, with the map previewing the

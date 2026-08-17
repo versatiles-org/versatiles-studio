@@ -7,6 +7,7 @@
 mod assets;
 mod commands;
 mod events;
+mod opened;
 mod state;
 mod windows;
 
@@ -47,6 +48,9 @@ pub fn run() {
 					Bookmarks::default()
 				}
 			};
+
+			tauri::Manager::manage(app, opened::PendingOpen::default());
+			opened::receive(app.handle(), opened::from_command_line());
 
 			tauri::Manager::manage(
 				app,
@@ -92,8 +96,23 @@ pub fn run() {
 			commands::vpl::undo,
 			commands::vpl::redo,
 			commands::vpl::open_vpl,
-			commands::vpl::save_vpl
+			commands::vpl::save_vpl,
+			opened::take_opened
 		])
-		.run(tauri::generate_context!())
-		.expect("error while running VersaTiles Studio");
+		.build(tauri::generate_context!())
+		.expect("error while building VersaTiles Studio")
+		.run(|app, event| {
+			// macOS delivers a double-clicked file here, both at launch and while running. Linux
+			// passes it on the command line instead, handled during setup.
+			#[cfg(target_os = "macos")]
+			if let tauri::RunEvent::Opened { urls } = &event {
+				let paths: Vec<String> = urls
+					.iter()
+					.filter_map(|url| url.to_file_path().ok())
+					.map(|path| path.to_string_lossy().into_owned())
+					.collect();
+				opened::receive(app, paths);
+			}
+			let _ = (app, event);
+		});
 }

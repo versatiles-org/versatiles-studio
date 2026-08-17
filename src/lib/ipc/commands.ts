@@ -64,6 +64,19 @@ export interface RecentEntry {
 	openedAt: number;
 }
 
+/**
+ * Files the operating system has asked Studio to open since the last call (S0.1).
+ *
+ * Draining rather than reading: a file double-clicked in Finder arrives before the window exists,
+ * and two windows must not both open it.
+ */
+export function takeOpened(): Promise<string[]> {
+	return invoke<string[]>('take_opened');
+}
+
+/** The event that says something arrived while the window was already running. */
+export const OPENED_EVENT = 'studio://opened';
+
 /** Recently opened sources, newest first (A7). */
 export function recentSources(): Promise<RecentEntry[]> {
 	return invoke<RecentEntry[]>('recent_sources');
