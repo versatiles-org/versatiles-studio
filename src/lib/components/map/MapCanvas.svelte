@@ -15,16 +15,35 @@
 	let {
 		style,
 		map = $bindable(),
-		onMove
+		onMove,
+		onStyleLoad
 	}: {
 		style: StyleSpecification;
 		/** The single `Map` instance for this window (Q16) — bound out so modes can reach it. */
 		map?: maplibre.Map;
 		/** Fired after the camera settles, so the core can persist it (Q16). */
 		onMove?: (view: { lng: number; lat: number; zoom: number; bearing: number; pitch: number }) => void;
+		/** Fired once a new style is in place. Setting a style discards every layer added to the old
+		 *  one, so whatever the caller drew has to be drawn again. */
+		onStyleLoad?: () => void;
 	} = $props();
 
+	/** The style currently applied. A plain variable: reading it must not make the effect re-run. */
+	let applied: StyleSpecification | undefined;
+
 	let container: HTMLDivElement;
+
+	// Swapping the background replaces the whole style, which is MapLibre's only way to do it —
+	// and takes every layer added to the previous one with it. `onStyleLoad` is how the caller
+	// hears that it needs to put its own layers back.
+	$effect(() => {
+		const next = style;
+		const instance = untrack(() => map);
+		if (!instance || applied === next) return;
+		applied = next;
+		instance.setStyle(next);
+		instance.once('styledata', () => onStyleLoad?.());
+	});
 
 	// Paint values are copied into a layer when it is added, so the map does not follow the system
 	// theme the way the CSS does — it has to be told. Reading `theme.dark` is what subscribes this
@@ -46,9 +65,10 @@
 	$effect(() => {
 		if (!container) return;
 
+		applied = untrack(() => style);
 		const instance = new maplibre.Map({
 			container,
-			style: untrack(() => style),
+			style: applied,
 			attributionControl: { compact: true }
 		});
 		untrack(() => (map = instance));

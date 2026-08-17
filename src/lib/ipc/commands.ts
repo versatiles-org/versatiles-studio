@@ -309,6 +309,9 @@ export interface Layout {
 	/** CSS pixels, already clamped by the core. Both pane edges are draggable. */
 	leftWidth: number;
 	rightWidth: number;
+	/** Which background map the map sits on, or `none`. Validated here — the core stores a string
+	 *  because the catalogue is a webview concern. */
+	background: string;
 }
 
 /** The remembered pane layout. Durable state lives in the core, never the webview (Q16). */

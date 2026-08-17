@@ -14,6 +14,8 @@
 	import MapCanvas from './lib/components/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/components/map/FeaturePopup.svelte';
 	import TileGrid from './lib/components/map/TileGrid.svelte';
+	import MapControls from './lib/components/map/MapControls.svelte';
+	import { buildBackground, isBackgroundId, type BackgroundId } from './lib/map/background';
 	import CoordinateJump from './lib/components/map/CoordinateJump.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { addContainerToMap, removeContainerFromMap } from './lib/map/add-source';
@@ -39,6 +41,7 @@
 		type DocumentView,
 		type Layout,
 		type OperationInfo,
+		type Preview,
 		type Span,
 		type OpenedContainer,
 		type RecentEntry
@@ -81,6 +84,12 @@
 	// is a state the application is in, and covering the map to say so was never a good trade.
 	let status = $state<Status>({ kind: 'idle' });
 	let showGrid = $state(false);
+	/** The last preview that was put on the map, so a style swap can restore it without rebuilding. */
+	let lastPreview = $state<Preview | null>(null);
+	let serverUrl = $state<string | null>(null);
+
+	/** A value from an older build is not trusted — the catalogue decides what exists. */
+	const background = $derived<BackgroundId>(isBackgroundId(layout?.background) ? layout.background : 'none');
 	let recents = $state<RecentEntry[]>([]);
 
 	// The landing screen is what an *empty* window shows — it goes away for good once something is
@@ -156,9 +165,38 @@
 
 	$effect(() => {
 		serverBaseUrl()
-			.then((url) => (style = defaultStyle(url)))
+			.then((url) => {
+				serverUrl = url;
+				style = defaultStyle(url);
+			})
 			.catch(fail);
 	});
+
+	// The background is the one part of Studio that fetches from the network (G5), so it is built
+	// only when asked for. `none` returns to the empty style the map starts on.
+	$effect(() => {
+		const chosen = background;
+		const url = serverUrl;
+		if (!url) return;
+		void untrack(async () => {
+			try {
+				style = (await buildBackground(chosen, url)) ?? defaultStyle(url);
+			} catch (e) {
+				fail(e);
+			}
+		});
+	});
+
+	/// Puts the preview back after a style swap, which discards every layer added to the old style.
+	function restorePreview() {
+		if (map && lastPreview) addContainerToMap(map, lastPreview);
+	}
+
+	/// Returns the camera to what is currently open.
+	function resetView() {
+		const bbox = lastPreview?.info.bbox;
+		if (map && bbox) map.fitBounds(bbox, { padding: 24, duration: 400 });
+	}
 
 	// Drag & drop is a shell affordance, so it goes through the same path as the file dialog.
 	$effect(() => {
@@ -218,6 +256,7 @@
 			if (mine !== previewToken) return;
 			if (previewName && map) removeContainerFromMap(map, previewName);
 			previewName = null;
+			lastPreview = result;
 			if (result) {
 				previewName = result.name;
 				// A format the map cannot draw is a thing to say, not a blank map with errors in the
@@ -385,7 +424,7 @@
 	rightPane={empty ? undefined : rightPaneContent}
 >
 	{#snippet mapPane()}
-		{#if style}<MapCanvas {style} bind:map />{/if}
+		{#if style}<MapCanvas {style} bind:map onStyleLoad={restorePreview} />{/if}
 		<FeaturePopup {map} source={containers.at(-1)?.info.source ?? null} />
 		<TileGrid {map} visible={showGrid} />
 		{#if empty}
@@ -400,7 +439,14 @@
 			/>
 		{:else}
 			<CoordinateJump {map} />
-			<button class="grid-toggle" class:on={showGrid} onclick={() => (showGrid = !showGrid)}> z/x/y grid </button>
+			<MapControls
+				{background}
+				{showGrid}
+				canReset={Boolean(lastPreview?.info.bbox)}
+				onBackground={(id) => layout && void changeLayout({ ...layout, background: id })}
+				onToggleGrid={() => (showGrid = !showGrid)}
+				onReset={resetView}
+			/>
 		{/if}
 	{/snippet}
 	{#snippet statusBar()}
@@ -409,21 +455,6 @@
 </AppShell>
 
 <style>
-	.grid-toggle {
-		position: absolute;
-		right: 0.5rem;
-		bottom: 0.5rem;
-		z-index: 4;
-		padding: var(--space-2) var(--space-4);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		background: var(--float-bg);
-	}
-	.grid-toggle.on {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: var(--accent-ink);
-	}
 	/* The landing screen covers the map region entirely; the map keeps running behind it so that
 	   opening something does not have to build one. */
 	/* The node form above the inspector; the inspector keeps its own scroll. */

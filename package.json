@@ -44,6 +44,7 @@
 	"dependencies": {
 		"@tauri-apps/api": "2.11.1",
 		"@tauri-apps/plugin-dialog": "^2.7.2",
+		"@versatiles/style": "^5.13.1",
 		"maplibre-gl": "6.4.0"
 	},
 	"allowScripts": {

@@ -87,6 +87,18 @@ when it arrives. One writes a file, the other a folder; they are not two spellin
 `from_container filename="berlin.mbtiles"` means the one beside it. Opening a pipeline therefore
 moves what every later relative path means, which is why the containers it names are found at all.
 
+**The map's own controls sit together**, bottom right: the background picker, the z/x/y grid (A5)
+and Reset view, which returns the camera to the extent of what is open. What belongs there is
+anything about _looking_ at the result; what the result **is** belongs in the left pane.
+
+**The background map is off by default and generated, not fetched.** Studio draws what a pipeline
+produces, which on its own floats over nothing — a background gives it something to sit on.
+`@versatiles/style` builds the style locally so its **tiles** come from `tiles.versatiles.org` while
+its **sprites and glyphs come from Studio's own server**, which already has them ([Q9](decisions.md));
+a hosted style JSON would have brought its own asset URLs and put every font and icon on the network
+too. Choosing one is the user asking for remote data, explicitly — G5 promises Studio works with no
+network once its assets are installed, and off is the default that keeps that true.
+
 **A format the map cannot draw says so.** Only `mvt` and the image formats can be rendered;
 `bin` — which is what a container reports when its format could not be determined — along with
 `json`, `geojson`, `topojson` and `svg` cannot. Those are named in the status bar rather than left as

@@ -168,6 +168,12 @@ pub struct Layout {
 	/// Pane widths in CSS pixels. Both edges are draggable.
 	pub left_width: f64,
 	pub right_width: f64,
+	/// Which background map the map sits on, or `none`.
+	///
+	/// Held as a plain string rather than an enum: the catalogue is a webview concern, and the core
+	/// has no reason to know what `graybeard` is. The webview rejects a value it does not recognise,
+	/// so an old file cannot break the map.
+	pub background: String,
 }
 
 impl Default for Layout {
@@ -178,6 +184,9 @@ impl Default for Layout {
 			export_open: false,
 			left_width: DEFAULT_LEFT_WIDTH,
 			right_width: DEFAULT_RIGHT_WIDTH,
+			// Off, because G5 promises Studio works with no network once its assets are installed.
+			// A background is the user asking for remote data, explicitly.
+			background: "none".to_string(),
 		}
 	}
 }
@@ -412,6 +421,7 @@ mod tests {
 			export_open: false,
 			left_width: 320.0,
 			right_width: 360.0,
+			background: "eclipse".to_string(),
 		};
 		layout.save(&dir)?;
 		assert_eq!(Layout::load(&dir), layout);
@@ -429,6 +439,9 @@ mod tests {
 			export_open: true,
 			left_width: DEFAULT_LEFT_WIDTH,
 			right_width: DEFAULT_RIGHT_WIDTH,
+			// Off, because G5 promises Studio works with no network once its assets are installed.
+			// A background is the user asking for remote data, explicitly.
+			background: "none".to_string(),
 		}
 		.save(&dir)?;
 
@@ -489,6 +502,13 @@ mod tests {
 		let loaded = Layout::load(&dir);
 		assert!(!loaded.pipeline_open, "what the file said is honoured");
 		assert_eq!(loaded.left_width, DEFAULT_LEFT_WIDTH, "what it omits takes the default");
+		assert_eq!(loaded.background, "none", "and a background nobody chose is off");
+	}
+
+	/// Off by default: Studio has to work with no network once its assets are installed (G5).
+	#[test]
+	fn no_background_until_one_is_chosen() {
+		assert_eq!(Layout::default().background, "none");
 	}
 
 	/// The opposite policy: these are user-created, so silence would be data loss.
