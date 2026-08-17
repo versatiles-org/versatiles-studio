@@ -217,7 +217,8 @@ pub async fn preview_pipeline(state: State<'_, AppState>, path: Vec<usize>) -> R
 	let Some(wanted) = wanted else { return Ok(None) };
 
 	let mut server = state.server.lock().await;
-	let source = studio_core::preview::build(server.runtime(), wanted, &state.project_dir)
+	let dir = state.project_dir.lock().await.clone();
+	let source = studio_core::preview::build(server.runtime(), wanted, &dir)
 		.await
 		.map_err(|e| format!("{e:#}"))?;
 	let info = studio_core::analysis::describe(&source, "preview")
@@ -231,4 +232,41 @@ pub async fn preview_pipeline(state: State<'_, AppState>, path: Vec<usize>) -> R
 		tile_url: server.tile_url(NAME),
 		info,
 	}))
+}
+
+/// Opens a `.vpl` file as this window's pipeline (C9, S2.9).
+///
+/// A pipeline written by hand or emitted by the CLI has to be openable, or "edit VPL" only ever
+/// means "edit VPL Studio wrote" and the two tools cannot hand work to each other.
+///
+/// **Relative paths in the file resolve against the file**, the way `versatiles convert` resolves
+/// them — `from_container filename="berlin.mbtiles"` beside the `.vpl` means exactly that — so
+/// opening one moves `project_dir`.
+#[tauri::command]
+pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<DocumentView, VplError> {
+	let text = std::fs::read_to_string(&path).map_err(|error| VplError {
+		message: format!("could not read {path}: {error}"),
+		span: Span::new(0, 0),
+	})?;
+
+	let document = Document::parse(text)?;
+
+	if let Some(parent) = std::path::Path::new(&path).parent() {
+		*state.project_dir.lock().await = parent.to_path_buf();
+	}
+
+	let mut history = state.history.lock().await;
+	history.push(document.text(), EditKind::Replaced);
+	let view = DocumentView::of(&document, &history);
+	*state.pipeline.lock().await = Some(document);
+
+	{
+		let mut recents = state.recents.lock().await;
+		recents.record(&path);
+		if let Err(error) = recents.save(&state.data_dir) {
+			eprintln!("could not save recents: {error:#}");
+		}
+	}
+
+	Ok(view)
 }

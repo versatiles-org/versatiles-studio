@@ -31,9 +31,12 @@ pub struct AppState {
 	pub pipeline: Mutex<Option<Document>>,
 	/// One undo stack for the document, whichever view an edit came from ([Q11], G6).
 	pub history: Mutex<History>,
-	/// What relative paths in the VPL resolve against — the project directory once [Q6] has one,
-	/// until then wherever Studio was started.
-	pub project_dir: PathBuf,
+	/// What relative paths in the VPL resolve against.
+	///
+	/// A `.vpl` file's paths are relative to **that file**, the way `versatiles convert` resolves
+	/// them, so opening one moves this. Before any is opened it is wherever Studio was started; it
+	/// becomes the project directory once [Q6] has one.
+	pub project_dir: Mutex<PathBuf>,
 	/// Where these files live. `app_data_dir`, not `app_config_dir`: these are user *data*, not
 	/// configuration. Invisible on macOS — both land in Application Support — but on Linux it is
 	/// `~/.local/share` versus `~/.config`, and bookmarks belong in the former. The store owns the

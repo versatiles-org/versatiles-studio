@@ -24,6 +24,7 @@
 		getPipeline,
 		setPipeline,
 		undo as undoPipeline,
+		openVpl,
 		redo as redoPipeline,
 		openContainer,
 		recentSources,
@@ -43,7 +44,12 @@
 		type RecentEntry
 	} from './lib/ipc/commands';
 
-	const EXTENSIONS = ['versatiles', 'mbtiles', 'pmtiles', 'tar'];
+	const CONTAINERS = ['versatiles', 'mbtiles', 'pmtiles', 'tar'];
+	/** A pipeline file is a way in like a container is (C9), so every route accepts one. */
+	const PIPELINES = ['vpl'];
+	const EXTENSIONS = [...CONTAINERS, ...PIPELINES];
+
+	const isPipelineFile = (source: string) => PIPELINES.some((ext) => source.toLowerCase().endsWith(`.${ext}`));
 
 	let style = $state<StyleSpecification | null>(null);
 	let map = $state<MaplibreMap | undefined>();
@@ -162,7 +168,11 @@
 	async function pick() {
 		const picked = await open({
 			multiple: false,
-			filters: [{ name: 'Tile containers', extensions: EXTENSIONS }]
+			filters: [
+				{ name: 'Tile containers and pipelines', extensions: EXTENSIONS },
+				{ name: 'Tile containers', extensions: CONTAINERS },
+				{ name: 'VPL pipelines', extensions: PIPELINES }
+			]
 		});
 		if (typeof picked === 'string') await load(picked);
 	}
@@ -237,15 +247,24 @@
 		}
 	}
 
-	/// Opening a file *is* setting the pipeline to its read node (Q22, Q25).
+	/// Opening a container *is* setting the pipeline to its read node (Q22, Q25). Opening a `.vpl`
+	/// file sets the pipeline to what the file says.
 	async function load(source: string) {
 		// A remote container reads its index over the network, so this is not always instant.
 		status = { kind: 'busy', message: `Opening ${filename(source)}…` };
+		selected = null;
 		try {
-			const result = await mount(source);
-			pipeline = await setPipeline(result.vpl, 'replaced');
-			pipelineRevision += 1;
-			selected = null;
+			if (isPipelineFile(source)) {
+				// The whole document arrives at once, and the containers it names are opened by the
+				// sync below — including relative ones, now resolved against the file.
+				pipeline = await openVpl(source);
+				pipelineRevision += 1;
+				await syncContainersToPipeline();
+			} else {
+				const result = await mount(source);
+				pipeline = await setPipeline(result.vpl, 'replaced');
+				pipelineRevision += 1;
+			}
 			await refreshRecents();
 			await refreshPreview();
 		} catch (e) {

@@ -20,9 +20,13 @@ use tauri::State;
 /// actually enforced.
 #[tauri::command]
 pub async fn open_container(state: State<'_, AppState>, source: String) -> Result<OpenedContainer, String> {
+	// `from_container filename="berlin.mbtiles"` in a `.vpl` means *beside that file*, not beside
+	// wherever Studio was started. Absolute paths and URLs are left alone.
+	let resolved = resolve(&source, &state.project_dir.lock().await.clone());
+
 	let mut server = state.server.lock().await;
 
-	let (reader, info) = analysis::open(server.runtime(), &source)
+	let (reader, info) = analysis::open(server.runtime(), &resolved)
 		.await
 		.map_err(|e| format!("{e:#}"))?;
 
@@ -60,6 +64,18 @@ pub struct OpenedContainer {
 	/// The `from_container` node this container corresponds to in the pipeline (Q22).
 	pub vpl: String,
 	pub info: ContainerInfo,
+}
+
+/// Resolves a relative path against the project directory, leaving URLs and absolute paths alone.
+fn resolve(source: &str, dir: &std::path::Path) -> String {
+	if source.contains("://") {
+		return source.to_string();
+	}
+	let path = std::path::Path::new(source);
+	if path.is_absolute() {
+		return source.to_string();
+	}
+	dir.join(path).to_string_lossy().into_owned()
 }
 
 /// A URL-safe mount name derived from the source.
@@ -121,6 +137,31 @@ mod tests {
 		assert_ne!(
 			mount_name("https://a.example/osm.versatiles"),
 			mount_name("https://b.example/osm.versatiles")
+		);
+	}
+	/// A `.vpl` file's paths are relative to *that file*, so a relative source has to be resolved
+	/// against the project directory before it is opened — otherwise
+	/// `from_container filename="berlin.mbtiles"` looks wherever Studio was started.
+	#[test]
+	fn relative_sources_resolve_against_the_project_directory() {
+		use super::resolve;
+		let dir = std::path::Path::new("/data/project");
+
+		assert_eq!(resolve("berlin.mbtiles", dir), "/data/project/berlin.mbtiles");
+		assert_eq!(
+			resolve("tiles/berlin.mbtiles", dir),
+			"/data/project/tiles/berlin.mbtiles"
+		);
+
+		// Absolute paths and URLs mean what they say.
+		assert_eq!(resolve("/elsewhere/berlin.mbtiles", dir), "/elsewhere/berlin.mbtiles");
+		assert_eq!(
+			resolve("https://example.org/osm.versatiles", dir),
+			"https://example.org/osm.versatiles"
+		);
+		assert_eq!(
+			resolve("ssh://host/path/osm.versatiles", dir),
+			"ssh://host/path/osm.versatiles"
 		);
 	}
 }

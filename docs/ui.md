@@ -78,6 +78,10 @@ drop and the recents list all take one — a pipeline the CLI wrote has to open 
 cannot hand work to each other. What opens is the Pipeline section, with the map previewing the
 pipeline's output rather than a container's tiles.
 
+**Paths inside a `.vpl` file resolve against that file**, the way `versatiles convert` resolves them:
+`from_container filename="berlin.mbtiles"` means the one beside it. Opening a pipeline therefore
+moves what every later relative path means, which is why the containers it names are found at all.
+
 **A format the map cannot draw says so.** Only `mvt` and the image formats can be rendered;
 `bin` — which is what a container reports when its format could not be determined — along with
 `json`, `geojson`, `topojson` and `svg` cannot. Those are named in the status bar rather than left as

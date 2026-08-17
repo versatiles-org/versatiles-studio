@@ -218,6 +218,16 @@ export function setPipeline(text: string, kind: EditKind = 'structured'): Promis
 	return invoke<DocumentView>('set_pipeline', { text, kind });
 }
 
+/**
+ * Opens a `.vpl` file as this window's pipeline (C9).
+ *
+ * Relative paths inside the file resolve against the file, the way `versatiles convert` resolves
+ * them, so opening one also moves what later relative sources mean.
+ */
+export function openVpl(path: string): Promise<DocumentView> {
+	return invoke<DocumentView>('open_vpl', { path });
+}
+
 /** Steps the document back, or forward again. Null when there is nowhere to go. */
 export function undo(): Promise<DocumentView | null> {
 	return invoke<DocumentView | null>('undo');

@@ -93,6 +93,34 @@ mod tests {
 	}
 
 	/// What the preview builds has to be runnable, not merely well-formed.
+	/// C9 end to end: a pipeline someone wrote by hand, opened from disk.
+	///
+	/// `berlin.vpl` names `berlin.mbtiles` and `cities.csv` **relative to itself**, so this also
+	/// checks that the directory passed to `build` is the one that makes those resolve — the reason
+	/// opening a `.vpl` moves `project_dir` rather than using the working directory.
+	#[tokio::test]
+	async fn a_pipeline_file_builds_with_paths_relative_to_itself() -> Result<()> {
+		let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../versatiles-rs/testdata/berlin.vpl");
+		if !path.exists() {
+			eprintln!("skipping: set STUDIO_TESTDATA to a directory of sample containers");
+			return Ok(());
+		}
+
+		let document = Document::parse(std::fs::read_to_string(&path)?)?;
+		assert!(
+			crate::vpl::validate(&document).is_empty(),
+			"a hand-written pipeline should pass validation: {:?}",
+			crate::vpl::validate(&document)
+		);
+
+		let runtime = versatiles::runtime::create_runtime();
+		let source = build(&runtime, document.to_pipeline(), path.parent().unwrap()).await?;
+		let info = crate::analysis::describe(&source, "preview").await?;
+		assert_eq!(info.tile_format, "mvt");
+		assert!(info.max_zoom >= info.min_zoom);
+		Ok(())
+	}
+
 	#[tokio::test]
 	async fn a_truncated_pipeline_builds_and_serves() -> Result<()> {
 		let runtime = versatiles::runtime::create_runtime();
