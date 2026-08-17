@@ -2,7 +2,8 @@
 	import type { Snippet } from 'svelte';
 
 	// Explore mode: no left pane, no editor — the map runs wide and the inspector reports on it.
-	// The mode bar arrives at S2, the job bar at S3; both slot into this grid without moving anything.
+	// The job bar arrives at S3 and the mode bar at S4 (Q22 — it waits for a second entry); both slot
+	// into this grid without moving anything.
 	let {
 		mapPane,
 		rightPane,
