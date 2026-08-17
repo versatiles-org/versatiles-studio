@@ -23,7 +23,8 @@ distinct or every operation looks half-configured.
 
 ## Shell
 
-The five-region grid from [UI Concept](ui.md). All Studio-specific.
+The five-region grid from [UI Concept](ui.md). All Studio-specific. How they are styled — the
+tokens, the rules and what is enforced — is in [Styling](styling.md).
 
 | Component                     | Does                                                                                                                      | Stage |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ----- |
