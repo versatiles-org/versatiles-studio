@@ -168,7 +168,7 @@ following it.
 | **S3.3**   | ~~Vector import: GeoJSON, NDJSON, shapefile~~ — **done**; no wizard, per [ui.md](ui.md) — the imported node is selected, the form offers the property names the data actually has ([Q29](decisions.md)), and the right pane says what came out                                                                                        | E1             |
 | **S3.4**   | ~~Tabular point import: CSV with lon/lat columns~~ — **done**; the header is read, the coordinate columns are filled in when it names them, and the form offers the real columns when it does not ([Q30](decisions.md))                                                                                                               | E2             |
 | **S3.5**   | ~~GDAL raster path: GTiff/COG, VRT, PNG, JPEG, MEM~~ — **done**, on a pinned `proj-sys` fork ([georust/proj#261](https://github.com/georust/proj/pull/261)) until the `libsqlite3-sys` conflict resolves upstream ([Q19](decisions.md)). pkg-config is blocked in `.cargo/config.toml`; the driver set is checked against GDAL itself | E3             |
-| **S3.6**   | Write the result to a container                                                                                                                                                                                                                                                                                                       | F2             |
+| **S3.6**   | Write the result to a container, as a `queued` job: a tile-count guard before the traversal starts, a zoom bound, and "Export tiles…" in the Pipeline pane ([Q31](decisions.md))                                                                                                                                                      | F2             |
 | **S3.7**   | Sampling-based cost estimate, shown where a run is committed                                                                                                                                                                                                                                                                          | C6             |
 | **S3.8\*** | DEM workflow: terrarium encoding, hillshade, quantisation                                                                                                                                                                                                                                                                             | E4             |
 | **S3.9\*** | Table join: existing tiles plus CSV → choropleth                                                                                                                                                                                                                                                                                      | E6             |
@@ -198,16 +198,16 @@ is in the container, which is the same introspection as A4 (S1.10).
 
 Delivers no milestone, and without it none of them reaches anyone.
 
-| Item     | Work                                                                                     | Feature        |
-| -------- | ---------------------------------------------------------------------------------------- | -------------- |
-| **S5.1** | Project directory: `project.yaml` beside real `.vpl` and `style.json`; zip and "Save As" | G1             |
-| **S5.2** | Export **section**: crop, format, estimate; the map as a crop tool ([Q22](decisions.md)) | infrastructure |
-| **S5.3** | Local server toggle with LAN URL and QR code                                             | F1             |
-| **S5.4** | Crop by rectangle plus a zoom range                                                      | F2             |
-| **S5.5** | Export as CLI command, serve config, Dockerfile or GitHub Action                         | C7             |
-| **S5.6** | Linux packaging: `.deb` plus an AppImage, from GitHub releases                           | G3             |
-| **S5.7** | macOS Homebrew cask in our own tap, plus install instructions covering Gatekeeper        | G3             |
-| **S5.8** | Auto-update                                                                              | G4             |
+| Item     | Work                                                                                                                                      | Feature        |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **S5.1** | Project directory: `project.yaml` beside real `.vpl` and `style.json`; zip and "Save As"                                                  | G1             |
+| **S5.2** | Crop and estimate in the Pipeline pane; the map as a crop tool. No Export pane — each pane exports what it produces ([Q31](decisions.md)) | infrastructure |
+| **S5.3** | Local server toggle with LAN URL and QR code                                                                                              | F1             |
+| **S5.4** | Crop by rectangle plus a zoom range                                                                                                       | F2             |
+| **S5.5** | Export as CLI command, serve config, Dockerfile or GitHub Action                                                                          | C7             |
+| **S5.6** | Linux packaging: `.deb` plus an AppImage, from GitHub releases                                                                            | G3             |
+| **S5.7** | macOS Homebrew cask in our own tap, plus install instructions covering Gatekeeper                                                         | G3             |
+| **S5.8** | Auto-update                                                                                                                               | G4             |
 
 **S5.7's deliverable is the instructions, not the cask.** Homebrew still applies quarantine and there
 is no opt-out, so every macOS user meets a security dialog before first launch — and that lands

@@ -22,7 +22,7 @@ pub async fn layout(state: State<'_, AppState>) -> Result<Layout, String> {
 #[specta::specta]
 pub async fn set_layout(state: State<'_, AppState>, layout: Layout) -> Result<Layout, String> {
 	let mut current = state.layout.lock().await;
-	*current = layout.clamped();
+	*current = layout.normalised();
 	if let Err(error) = current.save(&state.data_dir) {
 		eprintln!("could not save layout: {error:#}");
 	}

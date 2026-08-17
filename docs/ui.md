@@ -18,13 +18,13 @@ a one-item bar before then would be chrome that does nothing.
 
 **It still grows one stage at a time.** Sections are added, not rebuilt:
 
-| Stage | What appears                                                     |
-| ----- | ---------------------------------------------------------------- |
-| S1    | The surface, sections collapsed: map, inspector, status bar      |
-| S2    | Left pane opens — Pipeline section, Graph / VPL tabs             |
-| S3    | Import cards on the landing screen and "add source"              |
-| S4    | Style section — layer tree; **the mode bar appears** with Assets |
-| S5    | Export section — crop, format, serve                             |
+| Stage | What appears                                                                     |
+| ----- | -------------------------------------------------------------------------------- |
+| S1    | The surface, sections collapsed: map, inspector, status bar                      |
+| S2    | Left pane opens — Pipeline section, Graph / VPL tabs                             |
+| S3    | Import cards on the landing screen and "add source"                              |
+| S4    | Style pane — layer tree and its own export; **the mode bar appears** with Assets |
+| S5    | Crop, estimate and serve join the panes that own them ([Q31](decisions.md))      |
 
 The alternatives fail differently: a **node-graph-as-app** needs the graph in S1 but C1 lands in S2,
 and a layer tree is not a node; a **file-tree IDE** matches [Q6](decisions.md) but sells P1 the
@@ -67,11 +67,19 @@ the mode bar arriving above them at S4.
 tiles, the style renders them, export writes them out. Showing it whole is the point of merging the
 modes — every one of those steps used to be a mode switch away from the others.
 
-| Section      | Contains                                                                                                                                                   | Arrives |
-| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| **Pipeline** | Graph / VPL tabs ([Q15](decisions.md)), C1 and C4. The `from_*` read nodes at its head **are** the sources — "+ Add source" adds one ([Q14](decisions.md)) | S2      |
-| **Style**    | Layer tree (D3), presets (D1)                                                                                                                              | S4      |
-| **Export**   | Crop, format, zoom range, estimate, serve (F1, F2)                                                                                                         | S5      |
+**Panes, not fixed sections** ([Q31](decisions.md)). Each sidebar renders a list of panes — id,
+title, foldable — so an analysis surface is a list entry rather than an argument about which section
+it belongs to. Reordering them by hand is deferred until there are enough to be worth rearranging.
+
+**Each pane owns what it emits.** There is no Export pane: tiles are exported from Pipeline, the
+style from Style. "Export" named a shared destination that turned out not to be one — which is how
+D8 came to have no home at all under [Q22](decisions.md).
+
+| Pane         | Contains                                                                                                                                                                                                                      | Arrives |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| **Pipeline** | Graph / VPL tabs ([Q15](decisions.md)), C1 and C4. The `from_*` read nodes at its head **are** the sources — "+ Add source" adds one ([Q14](decisions.md)). Exports tiles (F2), and the CLI command that reproduces them (C7) | S2      |
+| **Style**    | Layer tree (D3), presets (D1). Exports `style.json` and `@versatiles/style` code (D8)                                                                                                                                         | S4      |
+| **Serve**    | Local server, LAN URL and QR code (F1) — the one publish surface that belongs to neither document                                                                                                                             | S5      |
 
 **Double-clicking a file opens it.** Studio owns `.versatiles`, `.mbtiles`, `.pmtiles` and `.vpl`,
 declared as exported UTIs so the types belong to it rather than being borrowed. macOS delivers the
@@ -226,30 +234,27 @@ to VPL, land on its span), **the Graph tab never shows a stale graph** (a parse 
 the last good render), **the VPL tab carries an error badge**, and **switching is free** — both are
 views over one syntax tree.
 
-### S4 and S5 — Style and Export join the chain
+### S4 and S5 — Style joins the chain
 
-Nothing moves. Two more sections appear below the ones already there, and the asset manager joins the
-mode bar.
+Nothing moves. More panes appear below the ones already there, and the asset manager joins the mode
+bar. Export is not among them: it belongs to the pane whose output it writes ([Q31](decisions.md)).
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │ Map │ Assets                                              │
 ├───────────────────┬──────────────────────┬────────────────┤
-│ ▸ PIPELINE        │        MAP           │ PAINT          │
-│ ▾ STYLE     (D3)  │   live style         │ colour, width, │
+│ ▸ PIPELINE   (F2) │        MAP           │ PAINT          │
+│ ▾ STYLE      (D3) │   live style         │ colour, width, │
 │   ▸ background    │     feedback         │ opacity, zoom  │
 │   ▸ water         │                      │ stops,         │
-│   ▸ roads         │                      │ expressions    │
-│   ▸ labels        │  ┌ ─ ─ ─ ┐           │                │
-│                   │  │ bbox  │      (F2) │                │
-│ ▾ EXPORT          │  └ ─ ─ ─ ┘           │                │
-│   .versatiles ▾   │                      │                │
-│   zoom 0–14       │                      │                │
-│   ~2.3 GB         │                      │                │
-│   [ Export ]      │                      │                │
-│   serve · QR (F1) │                      │                │
+│   ▸ roads         │  ┌ ─ ─ ─ ┐           │ expressions    │
+│   ▸ labels        │  │ bbox  │      (F2) │                │
+│   [Export style]  │  └ ─ ─ ─ ┘           │                │
+│ ▾ SERVE      (F1) │                      │                │
+│   localhost:8080  │                      │                │
+│   LAN URL · QR    │                      │                │
 ├───────────────────┴──────────────────────┴────────────────┤
-│ Jobs ▸ …            $ versatiles convert --bbox … -z 14   │
+│ Jobs (1) ▸        Writing berlin.versatiles — 47%   Cancel │
 └───────────────────────────────────────────────────────────┘
 ```
 

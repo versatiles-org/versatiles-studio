@@ -1,7 +1,11 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 
-	// One collapsible section of the left pane (Q22).
+	// One pane: a titled, collapsible box in a sidebar (Q22, [Q31]).
+	//
+	// Deliberately knows nothing about what it holds or which sidebar it is in. That is what makes
+	// a pane cheap enough to be the unit the analysis cluster is built from — eight more of them
+	// are coming — and what will make reordering them a change to a list rather than to this file.
 	//
 	// A real <button> rather than a styled <div>, and a real aria-expanded, because the header is
 	// the only way to reach the content — a section that keyboard users cannot open is a section
@@ -27,7 +31,7 @@
 		children: Snippet;
 	} = $props();
 
-	const id = $derived(`section-${title.toLowerCase()}`);
+	const id = $derived(`pane-${title.toLowerCase().replace(/\s+/g, '-')}`);
 </script>
 
 <section class="section" class:open>

@@ -500,8 +500,10 @@ export type LayerInspection = {
  *  remembered collapse "load-bearing, not polish" — on the 13-inch laptop Q15 was protecting, a
  *  pane that reopens everything on every reload makes the surface unusable.
  * 
- *  The sections are named rather than a free-form map: which ones exist is a design decision
- *  recorded in Q22, not something the webview should be able to invent.
+ *  **A list of panes, not named fields** ([Q31]). Which panes exist is still a design decision
+ *  rather than something the webview can invent — the catalogue below is code — but their *order*
+ *  and *which sidebar they sit in* are data, so moving one is an edit rather than a refactor. The
+ *  analysis cluster alone adds eight more of them.
  * 
  *  **`default` is for the file, and it shows in the generated bindings.** It exists so a
  *  `layout.json` written by an earlier build still loads; the generator cannot know that, so every
@@ -509,12 +511,11 @@ export type LayerInspection = {
  *  struct serving as both a file format and an IPC type is what makes that ambiguous.
  */
 export type Layout = {
-	/**  Arrives S2. Open by default, because at S2 it is the only section with anything in it. */
-	pipelineOpen?: boolean,
-	/**  Arrives S4. */
-	styleOpen?: boolean,
-	/**  Arrives S5. */
-	exportOpen?: boolean,
+	/**
+	 *  Every pane, in the order its sidebar shows it. Reconciled against the catalogue on the way
+	 *  in, so a file from another build is never authoritative about which panes exist.
+	 */
+	panes?: PaneState[],
 	/**  Pane widths in CSS pixels. Both edges are draggable. */
 	leftWidth?: number,
 	rightWidth?: number,
@@ -563,6 +564,19 @@ export type OperationInfo = {
 	kind: string,
 	doc: string,
 	fields: FieldInfo[],
+};
+
+/**
+ *  One pane's place in the layout.
+ * 
+ *  The id is the whole contract with the webview: the core decides where a pane sits and whether it
+ *  is open, the webview decides what it contains and what it is called. A title is presentation, so
+ *  it is not stored — it would be one more thing to keep in step across a boundary for no gain.
+ */
+export type PaneState = {
+	id: string,
+	side: Side,
+	open: boolean,
 };
 
 /**  A chain of nodes, `a | b | c`. */
@@ -644,6 +658,9 @@ export type Review = {
 	 */
 	diagnostics: Diagnostic[],
 };
+
+/**  Which sidebar a pane sits in. */
+export type Side = "left" | "right";
 
 /**
  *  A byte range in the document, `start..end`.

@@ -157,8 +157,10 @@ const DEFAULT_RIGHT_WIDTH: f64 = 304.0;
 /// remembered collapse "load-bearing, not polish" — on the 13-inch laptop Q15 was protecting, a
 /// pane that reopens everything on every reload makes the surface unusable.
 ///
-/// The sections are named rather than a free-form map: which ones exist is a design decision
-/// recorded in Q22, not something the webview should be able to invent.
+/// **A list of panes, not named fields** ([Q31]). Which panes exist is still a design decision
+/// rather than something the webview can invent — the catalogue below is code — but their *order*
+/// and *which sidebar they sit in* are data, so moving one is an edit rather than a refactor. The
+/// analysis cluster alone adds eight more of them.
 ///
 /// **`default` is for the file, and it shows in the generated bindings.** It exists so a
 /// `layout.json` written by an earlier build still loads; the generator cannot know that, so every
@@ -168,12 +170,9 @@ const DEFAULT_RIGHT_WIDTH: f64 = 304.0;
 #[serde(rename_all = "camelCase", default)]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Layout {
-	/// Arrives S2. Open by default, because at S2 it is the only section with anything in it.
-	pub pipeline_open: bool,
-	/// Arrives S4.
-	pub style_open: bool,
-	/// Arrives S5.
-	pub export_open: bool,
+	/// Every pane, in the order its sidebar shows it. Reconciled against the catalogue on the way
+	/// in, so a file from another build is never authoritative about which panes exist.
+	pub panes: Vec<PaneState>,
 	/// Pane widths in CSS pixels. Both edges are draggable.
 	//
 	// Emitted as `number`, not `number | null`. Specta is right that JSON cannot hold `NaN` and that
@@ -196,9 +195,7 @@ pub struct Layout {
 impl Default for Layout {
 	fn default() -> Self {
 		Self {
-			pipeline_open: true,
-			style_open: false,
-			export_open: false,
+			panes: PANES.iter().map(PaneState::from).collect(),
 			left_width: DEFAULT_LEFT_WIDTH,
 			right_width: DEFAULT_RIGHT_WIDTH,
 			// Off, because G5 promises Studio works with no network once its assets are installed.
@@ -207,6 +204,53 @@ impl Default for Layout {
 		}
 	}
 }
+
+/// Which sidebar a pane sits in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub enum Side {
+	Left,
+	Right,
+}
+
+/// One pane's place in the layout.
+///
+/// The id is the whole contract with the webview: the core decides where a pane sits and whether it
+/// is open, the webview decides what it contains and what it is called. A title is presentation, so
+/// it is not stored — it would be one more thing to keep in step across a boundary for no gain.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct PaneState {
+	pub id: String,
+	pub side: Side,
+	pub open: bool,
+}
+
+impl From<&(&str, Side, bool)> for PaneState {
+	fn from((id, side, open): &(&str, Side, bool)) -> Self {
+		Self {
+			id: (*id).to_string(),
+			side: *side,
+			open: *open,
+		}
+	}
+}
+
+/// The panes this build has, in the order a fresh install shows them.
+///
+/// Adding one here is the whole cost of adding a pane to the application — that is the point of
+/// [Q31](../../docs/decisions.md). The webview supplies the title and the contents for each id and
+/// ignores any it does not recognise, so the two halves can also land in either order.
+const PANES: &[(&str, Side, bool)] = &[
+	// Left: the documents. Open, because at S2 it is the only pane with anything in it.
+	("pipeline", Side::Left, true),
+	// Right: the selection, and what results from it ([Q31]'s document-versus-selection axis).
+	("parameters", Side::Right, true),
+	("output", Side::Right, true),
+	("inspector", Side::Right, true),
+];
 
 impl Layout {
 	/// Reads the layout, treating any problem as "the default one".
@@ -218,28 +262,56 @@ impl Layout {
 		std::fs::read_to_string(dir.join(LAYOUT_FILE))
 			.ok()
 			.and_then(|text| serde_json::from_str::<Self>(&text).ok())
-			.map(Self::clamped)
+			.map(Self::normalised)
 			.unwrap_or_default()
 	}
 
 	pub fn save(&self, dir: &Path) -> Result<()> {
 		write_atomically(
 			&dir.join(LAYOUT_FILE),
-			&serde_json::to_string_pretty(&self.clone().clamped()).context("serialising layout")?,
+			&serde_json::to_string_pretty(&self.clone().normalised()).context("serialising layout")?,
 		)
 	}
 
-	/// Forces the width back into a usable range, including when it is `NaN` — which `f64::clamp`
-	/// propagates rather than resolving, and which JSON can carry in from a hand-edited file.
+	/// Makes any `Layout` a usable one: widths in range, panes reconciled against the catalogue.
 	///
-	/// Public because a caller storing a layout in memory needs the same value that would be
-	/// written to disk; clamping only on save would let the two drift.
+	/// The single normalisation point, called on load, on save and by `set_layout` — a caller
+	/// holding a layout in memory needs the same value that would be written to disk, and
+	/// normalising only on save would let the two drift.
 	#[must_use]
-	pub fn clamped(mut self) -> Self {
+	pub fn normalised(mut self) -> Self {
 		self.left_width = clamp_width(self.left_width, DEFAULT_LEFT_WIDTH);
 		self.right_width = clamp_width(self.right_width, DEFAULT_RIGHT_WIDTH);
+		self.panes = reconcile_panes(std::mem::take(&mut self.panes));
 		self
 	}
+}
+
+/// Brings a stored pane list back in line with the panes this build has.
+///
+/// Three things it fixes, all of which a real `layout.json` will eventually contain:
+///
+/// * **A pane this build does not have** — from a newer version, or one that was removed — is
+///   dropped. Rendering is by id, so an unknown one would be an empty box with a heading.
+/// * **A pane the file has never heard of** is appended, so upgrading gains the new pane rather
+///   than hiding it until someone deletes their layout. Appended *last in its sidebar*, because a
+///   remembered order is the user's and a new arrival has not earned a place in the middle of it.
+/// * **A duplicate** keeps its first appearance. Nothing produces one, but a hand-edited file can,
+///   and two panes with one id would render the same content twice and toggle together.
+fn reconcile_panes(stored: Vec<PaneState>) -> Vec<PaneState> {
+	let mut panes: Vec<PaneState> = Vec::with_capacity(PANES.len());
+	for pane in stored {
+		let known = PANES.iter().any(|(id, _, _)| *id == pane.id);
+		if known && !panes.iter().any(|kept| kept.id == pane.id) {
+			panes.push(pane);
+		}
+	}
+	for entry in PANES {
+		if !panes.iter().any(|pane| pane.id == entry.0) {
+			panes.push(PaneState::from(entry));
+		}
+	}
+	panes
 }
 
 /// Forces a width into the usable range, including when it is `NaN` — which `f64::clamp`
@@ -438,44 +510,129 @@ mod tests {
 		Ok(())
 	}
 
+	fn pane(id: &str, side: Side, open: bool) -> PaneState {
+		PaneState {
+			id: id.to_string(),
+			side,
+			open,
+		}
+	}
+
 	#[test]
 	fn a_layout_survives_a_round_trip() -> Result<()> {
 		let dir = temp_dir("layout-roundtrip");
-		let layout = Layout {
-			pipeline_open: false,
-			style_open: true,
-			export_open: false,
+		let mut layout = Layout {
 			left_width: 320.0,
 			right_width: 360.0,
 			background: "eclipse".to_string(),
+			..Layout::default()
 		};
+		// A moved, reordered and collapsed pane — the three things the list exists to remember.
+		layout.panes = vec![
+			pane("output", Side::Left, false),
+			pane("pipeline", Side::Left, true),
+			pane("parameters", Side::Right, true),
+			pane("inspector", Side::Right, false),
+		];
 		layout.save(&dir)?;
 		assert_eq!(Layout::load(&dir), layout);
 		Ok(())
 	}
 
-	/// Q22 wants each section to collapse independently — so the three flags have to be three
-	/// flags, not one "pane is open" bit with the sections following it.
+	/// Q22 wants each pane to collapse independently, and [Q31] makes that per-pane state rather
+	/// than a flag per section — so collapsing one has to leave the others exactly as they were.
 	#[test]
-	fn sections_collapse_independently() -> Result<()> {
+	fn panes_collapse_independently() -> Result<()> {
 		let dir = temp_dir("layout-independent");
-		Layout {
-			pipeline_open: true,
-			style_open: false,
-			export_open: true,
-			left_width: DEFAULT_LEFT_WIDTH,
-			right_width: DEFAULT_RIGHT_WIDTH,
-			// Off, because G5 promises Studio works with no network once its assets are installed.
-			// A background is the user asking for remote data, explicitly.
-			background: "none".to_string(),
+		let mut layout = Layout::default();
+		for state in &mut layout.panes {
+			state.open = state.id == "pipeline";
 		}
-		.save(&dir)?;
+		layout.save(&dir)?;
 
 		let loaded = Layout::load(&dir);
-		assert!(loaded.pipeline_open);
-		assert!(!loaded.style_open);
-		assert!(loaded.export_open);
+		assert!(loaded.panes.iter().find(|p| p.id == "pipeline").unwrap().open);
+		assert!(loaded.panes.iter().filter(|p| p.id != "pipeline").all(|p| !p.open));
 		Ok(())
+	}
+
+	/// A pane this build does not have must not reach the webview, which renders by id and would
+	/// draw an empty box with a heading.
+	#[test]
+	fn a_pane_this_build_does_not_have_is_dropped() {
+		let layout = Layout {
+			panes: vec![
+				pane("pipeline", Side::Left, true),
+				pane("from-the-future", Side::Left, true),
+			],
+			..Layout::default()
+		}
+		.normalised();
+
+		assert!(layout.panes.iter().all(|p| p.id != "from-the-future"));
+		assert!(layout.panes.iter().any(|p| p.id == "pipeline"));
+	}
+
+	/// And the other direction: upgrading has to *gain* the new pane, not hide it until somebody
+	/// deletes their layout file.
+	#[test]
+	fn a_pane_the_file_has_never_heard_of_is_added() {
+		let layout = Layout {
+			panes: vec![pane("pipeline", Side::Left, false)],
+			..Layout::default()
+		}
+		.normalised();
+
+		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
+		assert_eq!(ids, ["pipeline", "parameters", "output", "inspector"]);
+		assert!(!layout.panes[0].open, "the remembered pane kept its own state");
+	}
+
+	/// A remembered order is the user's; a pane arriving in a new version has not earned a place in
+	/// the middle of it.
+	#[test]
+	fn a_remembered_order_survives_and_new_panes_go_last() {
+		let layout = Layout {
+			panes: vec![pane("inspector", Side::Right, true), pane("pipeline", Side::Left, true)],
+			..Layout::default()
+		}
+		.normalised();
+
+		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
+		assert_eq!(ids, ["inspector", "pipeline", "parameters", "output"]);
+	}
+
+	/// Nothing produces a duplicate, but a hand-edited file can — and two panes with one id would
+	/// render the same content twice and toggle together.
+	#[test]
+	fn a_duplicated_pane_keeps_its_first_appearance() {
+		let layout = Layout {
+			panes: vec![pane("pipeline", Side::Left, false), pane("pipeline", Side::Right, true)],
+			..Layout::default()
+		}
+		.normalised();
+
+		let pipelines: Vec<&PaneState> = layout.panes.iter().filter(|p| p.id == "pipeline").collect();
+		assert_eq!(pipelines.len(), 1);
+		assert_eq!(pipelines[0].side, Side::Left);
+		assert!(!pipelines[0].open);
+	}
+
+	/// A `layout.json` from before the pane list existed has no `panes` key at all. It must open at
+	/// the defaults rather than with no panes — which would be an application with no interface.
+	#[test]
+	fn a_layout_file_from_before_the_pane_list_still_opens() {
+		let old =
+			r#"{"pipelineOpen":true,"styleOpen":false,"leftWidth":300.0,"rightWidth":340.0,"background":"eclipse"}"#;
+		let layout: Layout = serde_json::from_str::<Layout>(old).unwrap().normalised();
+
+		assert_eq!(
+			layout.panes,
+			Layout::default().panes,
+			"the panes fall back to the catalogue"
+		);
+		assert_eq!(layout.left_width, 300.0, "and everything still recognised is kept");
+		assert_eq!(layout.background, "eclipse");
 	}
 
 	/// A width from a corrupt or hand-edited file must not be able to produce a pane that has
@@ -508,7 +665,7 @@ mod tests {
 			left_width: f64::NAN,
 			..Layout::default()
 		}
-		.clamped();
+		.normalised();
 		assert_eq!(recovered.left_width, DEFAULT_LEFT_WIDTH);
 	}
 
@@ -524,11 +681,15 @@ mod tests {
 	#[test]
 	fn an_older_layout_file_still_loads() {
 		let dir = temp_dir("layout-forward");
-		std::fs::write(dir.join("layout.json"), r#"{"pipelineOpen": false}"#).unwrap();
+		std::fs::write(dir.join("layout.json"), r#"{"background": "eclipse"}"#).unwrap();
 		let loaded = Layout::load(&dir);
-		assert!(!loaded.pipeline_open, "what the file said is honoured");
+		assert_eq!(loaded.background, "eclipse", "what the file said is honoured");
 		assert_eq!(loaded.left_width, DEFAULT_LEFT_WIDTH, "what it omits takes the default");
-		assert_eq!(loaded.background, "none", "and a background nobody chose is off");
+		assert_eq!(
+			loaded.panes,
+			Layout::default().panes,
+			"and the panes fall back to the catalogue"
+		);
 	}
 
 	/// Off by default: Studio has to work with no network once its assets are installed (G5).

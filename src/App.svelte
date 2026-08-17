@@ -11,7 +11,8 @@
 	import Inspector from './lib/components/shell/Inspector.svelte';
 	import LandingScreen from './lib/components/shell/LandingScreen.svelte';
 	import PipelineOutput from './lib/components/shell/PipelineOutput.svelte';
-	import LeftPane from './lib/components/shell/LeftPane.svelte';
+	import Sidebar from './lib/components/shell/Sidebar.svelte';
+	import PipelinePane from './lib/panes/PipelinePane.svelte';
 	import VplNodeCard from './lib/components/shell/VplNodeCard.svelte';
 	import { nodeAtPath, walk } from './lib/vpl/node-at';
 	import MapCanvas from './lib/components/map/MapCanvas.svelte';
@@ -199,6 +200,21 @@
 	async function changeLayout(next: Layout) {
 		layout = next;
 		layout = await setLayout(next).catch(() => next);
+	}
+
+	/// The panes belonging to one sidebar, in the order the layout remembers (Q31).
+	///
+	/// `panes` is optional in the generated type only because `Layout` carries serde's `default` for
+	/// the file it is read from — a command always returns the reconciled list.
+	const panesOn = (side: 'left' | 'right') => (layout?.panes ?? []).filter((pane) => pane.side === side);
+
+	/// Folding a pane is durable state, so it goes to the core like the widths do (Q16).
+	function togglePane(id: string, open: boolean) {
+		if (!layout) return;
+		void changeLayout({
+			...layout,
+			panes: layout.panes?.map((pane) => (pane.id === id ? { ...pane, open } : pane))
+		});
 	}
 
 	function fail(message: unknown) {
@@ -470,34 +486,35 @@
 <!-- Declared out here and passed by reference, so an empty window can pass nothing at all. A
      snippet is always truthy once declared inline, which would leave the shell holding an empty
      column the width of a pane that has nothing in it. -->
-{#snippet leftPaneContent()}
-	<LeftPane
-		layout={layout as Layout}
-		onLayoutChange={(next) => void changeLayout(next)}
-		{kinds}
-		onAddSource={(kind) => void pick(kind)}
-		{pipeline}
-		{pipelineRevision}
-		onPipelineChange={(text) =>
-			void setPipeline(text, 'typing').then((next) => {
-				pipeline = next;
+<!-- One snippet for both sidebars, keyed by pane id (Q31). Shared rather than one per side,
+     because which side a pane is on is data — a pane that moves must not need its markup moved
+     with it. An id with no arm here renders nothing, which is how a pane can exist in the core
+     before it exists in the webview. -->
+{#snippet paneContent(id: string)}
+	{#if id === 'pipeline'}
+		<PipelinePane
+			{kinds}
+			onAddSource={(kind) => void pick(kind)}
+			{pipeline}
+			{pipelineRevision}
+			onPipelineChange={(text) =>
+				void setPipeline(text, 'typing').then((next) => {
+					pipeline = next;
+					void refreshPreview();
+				})}
+			{selected}
+			onSelect={(path) => {
+				selected = path;
 				void refreshPreview();
-			})}
-		{selected}
-		onSelect={(path) => {
-			selected = path;
-			void refreshPreview();
-		}}
-		onUndo={() => void stepHistory(true)}
-		onRedo={() => void stepHistory(false)}
-		onSave={(chooseFile) => void savePipeline(chooseFile)}
-	/>
-{/snippet}
-
-{#snippet rightPaneContent()}
-	<div class="right-stack">
-		<!-- Q22: the parameters of the current selection, and the metadata that results from it. The
-		     node's fields sit above the container's own numbers, in that order. -->
+			}}
+			onUndo={() => void stepHistory(true)}
+			onRedo={() => void stepHistory(false)}
+			onSave={(chooseFile) => void savePipeline(chooseFile)}
+		/>
+	{:else if id === 'parameters'}
+		<!-- Q22: the parameters of the current selection. Empty when nothing is selected, which the
+		     pane says for itself rather than disappearing — a pane that comes and goes moves
+		     everything below it. -->
 		{#if selectedNode}
 			<VplNodeCard
 				node={selectedNode}
@@ -509,10 +526,22 @@
 				onSet={(key: string, values: string[]) =>
 					void editSelected((text) => vplSetProperty(text, selectedNode.nameSpan, key, values))}
 			/>
+		{:else}
+			<p class="nothing">Select a node to see its parameters.</p>
 		{/if}
+	{:else if id === 'output'}
 		<PipelineOutput preview={lastPreview} />
+	{:else if id === 'inspector'}
 		<Inspector containers={containers.map((c) => c.info)} {map} onOpen={pick} onOpenUrl={(url) => void load(url)} />
-	</div>
+	{/if}
+{/snippet}
+
+{#snippet leftPaneContent()}
+	<Sidebar panes={panesOn('left')} onToggle={togglePane} content={paneContent} />
+{/snippet}
+
+{#snippet rightPaneContent()}
+	<Sidebar panes={panesOn('right')} onToggle={togglePane} content={paneContent} />
 {/snippet}
 
 <AppShell
@@ -558,12 +587,13 @@
 <style>
 	/* The landing screen covers the map region entirely; the map keeps running behind it so that
 	   opening something does not have to build one. */
-	/* The node form above the inspector; the inspector keeps its own scroll. */
-	.right-stack {
-		display: flex;
-		flex-direction: column;
-		height: 100%;
-		min-width: 0;
+	/* The empty state of the parameters pane. A pane says it has nothing rather than vanishing —
+	   one that comes and goes moves every pane below it. */
+	.nothing {
+		margin: 0;
+		padding: var(--space-3) var(--space-4);
+		font-size: var(--text-sm);
+		color: var(--ink-2);
 	}
 	:global(.landing) {
 		position: absolute;

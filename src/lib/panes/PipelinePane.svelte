@@ -1,29 +1,29 @@
 <script lang="ts">
-	import PaneSection from './PaneSection.svelte';
-	import VplEditor from './VplEditor.svelte';
-	import PipelineGraph from './PipelineGraph.svelte';
-	import { nodeAt, samePath } from '../../vpl/node-at';
+	import VplEditor from '../components/shell/VplEditor.svelte';
+	import PipelineGraph from '../components/shell/PipelineGraph.svelte';
+	import { nodeAt, samePath } from '../vpl/node-at';
 	import {
 		vplReview,
 		type VplToken,
 		type Diagnostic,
-		type Layout,
 		type Span,
 		type DocumentView,
 		type ImportKind
-	} from '../../ipc/commands';
-	import ImportCards from './ImportCards.svelte';
+	} from '../ipc/commands';
+	import ImportCards from '../components/shell/ImportCards.svelte';
 
-	// The chain from data to pixels, as collapsible sections (Q22): Pipeline · Style · Export.
+	// The Pipeline pane's contents (Q22, [Q31]).
 	//
-	// There is deliberately no Sources section — the `from_container` read nodes at the head of the
+	// The pane *wrapper* — title, fold, which sidebar — is `Sidebar`'s business; this is only what
+	// goes inside one. That separation is the whole of Q31: where a pane sits became data, so this
+	// file has no opinion about it.
+	//
+	// There is deliberately no Sources pane — the `from_container` read nodes at the head of the
 	// pipeline *are* the sources, and a separate list would show the same nodes twice (Q14).
 	//
 	// Style arrives at S4 and Export at S5. Their sections are not stubbed out here: an empty
 	// section that does nothing teaches the wrong thing about what the pane contains.
 	let {
-		layout,
-		onLayoutChange,
 		kinds,
 		onAddSource,
 		pipeline,
@@ -35,8 +35,6 @@
 		onRedo,
 		onSave
 	}: {
-		layout: Layout;
-		onLayoutChange: (layout: Layout) => void;
 		/** Every way in this build has, offered by "+ Add source" (S3.2). */
 		kinds: ImportKind[];
 		onAddSource: (kind: ImportKind) => void;
@@ -121,120 +119,111 @@
 </script>
 
 <div class="pane">
-	<!-- `pipelineOpen` is optional in the generated type because `Layout` carries serde's `default`
-	     for the file it is read from; a command always returns it. -->
-	<PaneSection
-		title="Pipeline"
-		open={layout.pipelineOpen ?? true}
-		count={pipeline?.pipeline.nodes.length ?? 0}
-		onToggle={(open) => onLayoutChange({ ...layout, pipelineOpen: open })}
-	>
-		<div class="tabs" role="tablist" aria-label="Pipeline view">
-			{#each [['graph', 'Graph'], ['vpl', 'VPL']] as const as [id, label] (id)}
-				<button
-					type="button"
-					role="tab"
-					class="tab"
-					class:selected={tab === id}
-					aria-selected={tab === id}
-					onclick={() => (tab = id)}
-				>
-					{label}
-					<!-- Q15: the VPL tab carries the badge when the text does not parse (C4). -->
-					{#if id === 'vpl' && problems.length > 0}
-						<span class="badge" aria-label="{problems.length} problems">{problems.length}</span>
-					{/if}
-				</button>
-			{/each}
-			<div class="history">
-				<button
-					type="button"
-					class="step"
-					disabled={!pipeline?.canUndo}
-					title="Undo (⌘Z)"
-					aria-label="Undo"
-					onclick={onUndo}>↺</button
-				>
-				<button
-					type="button"
-					class="step"
-					disabled={!pipeline?.canRedo}
-					title="Redo (⇧⌘Z)"
-					aria-label="Redo"
-					onclick={onRedo}>↻</button
-				>
-			</div>
+	<div class="tabs" role="tablist" aria-label="Pipeline view">
+		{#each [['graph', 'Graph'], ['vpl', 'VPL']] as const as [id, label] (id)}
+			<button
+				type="button"
+				role="tab"
+				class="tab"
+				class:selected={tab === id}
+				aria-selected={tab === id}
+				onclick={() => (tab = id)}
+			>
+				{label}
+				<!-- Q15: the VPL tab carries the badge when the text does not parse (C4). -->
+				{#if id === 'vpl' && problems.length > 0}
+					<span class="badge" aria-label="{problems.length} problems">{problems.length}</span>
+				{/if}
+			</button>
+		{/each}
+		<div class="history">
+			<button
+				type="button"
+				class="step"
+				disabled={!pipeline?.canUndo}
+				title="Undo (⌘Z)"
+				aria-label="Undo"
+				onclick={onUndo}>↺</button
+			>
+			<button
+				type="button"
+				class="step"
+				disabled={!pipeline?.canRedo}
+				title="Redo (⇧⌘Z)"
+				aria-label="Redo"
+				onclick={onRedo}>↻</button
+			>
 		</div>
+	</div>
 
-		{#if tab === 'vpl'}
-			{#each problems as problem (problem.span.start + problem.message)}
-				<p class="error" role="alert">{problem.message}</p>
-			{/each}
-			<!-- Remounted only when the document changes from outside the editor, which is what lets the
+	{#if tab === 'vpl'}
+		{#each problems as problem (problem.span.start + problem.message)}
+			<p class="error" role="alert">{problem.message}</p>
+		{/each}
+		<!-- Remounted only when the document changes from outside the editor, which is what lets the
 			     editor own its buffer without the parent fighting it (Q25). -->
-			{#key pipelineRevision}
-				<VplEditor
-					initialText={pipeline?.text ?? ''}
-					{tokens}
-					{problems}
-					selection={reveal}
-					onInput={(next) => void type(next)}
-					onCaret={caretMoved}
-				/>
-			{/key}
-		{:else if draftError}
-			<!-- Q15: the graph never shows a stale render. While the text does not parse there is no
+		{#key pipelineRevision}
+			<VplEditor
+				initialText={pipeline?.text ?? ''}
+				{tokens}
+				{problems}
+				selection={reveal}
+				onInput={(next) => void type(next)}
+				onCaret={caretMoved}
+			/>
+		{/key}
+	{:else if draftError}
+		<!-- Q15: the graph never shows a stale render. While the text does not parse there is no
 			     tree to draw, and the last good one would be a picture of something that is no longer
 			     on screen. -->
-			<p class="error" role="alert">{draftError.message}</p>
-			<p class="empty">The graph returns when the text parses.</p>
-		{:else if !pipeline || pipeline.pipeline.nodes.length === 0}
-			<p class="empty">Nothing open yet.</p>
-		{:else}
-			<PipelineGraph
-				pipeline={pipeline.pipeline}
-				diagnostics={problems}
-				{selected}
-				onSelect={(path, node) => selectNode(path, node.nameSpan)}
-			/>
-		{/if}
-		<!-- Actions on the pipeline itself, available from either tab. Saving a *project* is a
+		<p class="error" role="alert">{draftError.message}</p>
+		<p class="empty">The graph returns when the text parses.</p>
+	{:else if !pipeline || pipeline.pipeline.nodes.length === 0}
+		<p class="empty">Nothing open yet.</p>
+	{:else}
+		<PipelineGraph
+			pipeline={pipeline.pipeline}
+			diagnostics={problems}
+			{selected}
+			onSelect={(path, node) => selectNode(path, node.nameSpan)}
+		/>
+	{/if}
+	<!-- Actions on the pipeline itself, available from either tab. Saving a *project* is a
 		     different command with a different scope (G1, S5.1); this writes the pipeline as the
 		     `.vpl` the CLI already reads. -->
-		<div class="actions">
-			{#if tab === 'graph'}
-				<!-- The same cards the landing screen shows, from the same catalogue — asked here
+	<div class="actions">
+		{#if tab === 'graph'}
+			<!-- The same cards the landing screen shows, from the same catalogue — asked here
 				     because "+ Add source" is the same question the empty window asks, and answering
 				     it with a bare file dialog would mean a GeoJSON is only importable from one of
 				     the two places (S3.2). Folded away until asked for: a pane is not a launcher. -->
-				<button type="button" class="add" aria-expanded={adding} onclick={() => (adding = !adding)}>
-					+ Add source
-				</button>
-				{#if adding}
-					<ImportCards
-						{kinds}
-						compact
-						onChoose={(kind) => {
-							adding = false;
-							onAddSource(kind);
-						}}
-					/>
-				{/if}
+			<button type="button" class="add" aria-expanded={adding} onclick={() => (adding = !adding)}>
+				+ Add source
+			</button>
+			{#if adding}
+				<ImportCards
+					{kinds}
+					compact
+					onChoose={(kind) => {
+						adding = false;
+						onAddSource(kind);
+					}}
+				/>
 			{/if}
-			<div class="files">
-				<button
-					type="button"
-					class="file"
-					disabled={!pipeline || (!pipeline.dirty && pipeline.path !== null)}
-					title={pipeline?.path ?? 'Choose where to save'}
-					onclick={() => onSave(false)}
-				>
-					Save{#if pipeline?.dirty && pipeline.path}<span class="dot" aria-label="unsaved changes">•</span>{/if}
-				</button>
-				<button type="button" class="file" disabled={!pipeline} onclick={() => onSave(true)}>Save as…</button>
-			</div>
+		{/if}
+		<div class="files">
+			<button
+				type="button"
+				class="file"
+				disabled={!pipeline || (!pipeline.dirty && pipeline.path !== null)}
+				title={pipeline?.path ?? 'Choose where to save'}
+				onclick={() => onSave(false)}
+			>
+				Save{#if pipeline?.dirty && pipeline.path}<span class="dot" aria-label="unsaved changes">•</span>{/if}
+			</button>
+			<button type="button" class="file" disabled={!pipeline} onclick={() => onSave(true)}>Save as…</button>
 		</div>
-	</PaneSection>
+	</div>
 </div>
 
 <style>
