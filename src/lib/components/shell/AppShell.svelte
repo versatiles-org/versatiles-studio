@@ -11,15 +11,15 @@
 	// way a document application says it. The strip at the top comes back at S4 with the mode bar,
 	// which has something to put there.
 	//
-	// The job bar arrives at S3 and the mode bar at S4 (it waits for a second entry); both slot into
-	// this grid without moving anything.
+	// The bottom row is the status and job bar (Q24). The mode bar arrives at S4, when it has a
+	// second entry to switch to; it slots into this grid without moving anything.
 	let {
 		leftPane,
 		leftWidth = 264,
 		onLeftResize,
 		mapPane,
 		rightPane,
-		commandBar
+		statusBar
 	}: {
 		leftPane?: Snippet;
 		/** CSS pixels. The core clamps it, so this is already in range. */
@@ -28,7 +28,7 @@
 		onLeftResize?: (width: number, done: boolean) => void;
 		mapPane: Snippet;
 		rightPane?: Snippet;
-		commandBar?: Snippet;
+		statusBar?: Snippet;
 	} = $props();
 
 	let shell = $state<HTMLDivElement>();
@@ -84,7 +84,7 @@
 	{/if}
 	<div class="map">{@render mapPane()}</div>
 	{#if rightPane}<aside class="right">{@render rightPane()}</aside>{/if}
-	{#if commandBar}<footer class="command">{@render commandBar()}</footer>{/if}
+	{#if statusBar}<footer class="status">{@render statusBar()}</footer>{/if}
 </div>
 
 <style>
@@ -92,24 +92,24 @@
 		display: grid;
 		grid-template-columns: 1fr;
 		grid-template-rows: 1fr auto;
-		grid-template-areas: 'map' 'command';
+		grid-template-areas: 'map' 'status';
 		height: 100vh;
 		color: var(--ink);
 		background: var(--chrome);
 	}
 	.shell.has-right {
 		grid-template-columns: 1fr var(--right-width);
-		grid-template-areas: 'map right' 'command command';
+		grid-template-areas: 'map right' 'status status';
 	}
 	/* `clamp` mirrors the range the core enforces on save (`store::Layout`), which stays the
 	   authority — this only keeps a live drag from overshooting before it is stored. */
 	.shell.has-left {
 		grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr;
-		grid-template-areas: 'left map' 'command command';
+		grid-template-areas: 'left map' 'status status';
 	}
 	.shell.has-left.has-right {
 		grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr var(--right-width);
-		grid-template-areas: 'left map right' 'command command command';
+		grid-template-areas: 'left map right' 'status status status';
 	}
 	.left {
 		grid-area: left;
@@ -143,8 +143,8 @@
 		overscroll-behavior: contain;
 		background: var(--surface);
 	}
-	.command {
-		grid-area: command;
+	.status {
+		grid-area: status;
 		border-top: 1px solid var(--rule);
 		background: var(--surface);
 	}

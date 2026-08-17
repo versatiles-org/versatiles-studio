@@ -4,7 +4,7 @@
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
 	import AppShell from './lib/components/shell/AppShell.svelte';
-	import CommandStrip from './lib/components/shell/CommandStrip.svelte';
+	import StatusBar, { type Status } from './lib/components/shell/StatusBar.svelte';
 	import Inspector from './lib/components/shell/Inspector.svelte';
 	import LandingScreen from './lib/components/shell/LandingScreen.svelte';
 	import LeftPane from './lib/components/shell/LeftPane.svelte';
@@ -35,8 +35,9 @@
 	// The opened containers, each with the read node it corresponds to (Q22).
 	let containers = $state<OpenedContainer[]>([]);
 	let layout = $state<Layout | null>(null);
-	let command = $state<string | null>(null);
-	let error = $state<string | null>(null);
+	// What the application is doing, shown along the bottom (Q24). Errors live here too — an error
+	// is a state the application is in, and covering the map to say so was never a good trade.
+	let status = $state<Status>({ kind: 'idle' });
 	let showGrid = $state(false);
 	let recents = $state<RecentEntry[]>([]);
 
@@ -74,6 +75,10 @@
 		layout = await setLayout(next).catch(() => next);
 	}
 
+	function fail(message: unknown) {
+		status = { kind: 'error', message: String(message) };
+	}
+
 	async function refreshRecents() {
 		recents = await recentSources().catch(() => []);
 	}
@@ -81,7 +86,7 @@
 	$effect(() => {
 		serverBaseUrl()
 			.then((url) => (style = defaultStyle(url)))
-			.catch((e) => (error = String(e)));
+			.catch(fail);
 	});
 
 	// Drag & drop is a shell affordance, so it goes through the same path as the file dialog.
@@ -104,31 +109,32 @@
 	}
 
 	async function load(source: string) {
-		error = null;
+		// A remote container reads its index over the network, so this is not always instant.
+		status = { kind: 'busy', message: `Opening ${filename(source)}…` };
 		try {
 			const result = await openContainer(source);
 			if (map) addContainerToMap(map, result);
 			containers = [...containers.filter((c) => c.info.source !== result.info.source), result];
-			// G2: name the CLI equivalent of what just happened.
-			command = `versatiles probe ${shellQuote(source)} -d`;
 			await refreshRecents();
+			status = { kind: 'idle' };
 		} catch (e) {
-			error = String(e);
+			fail(e);
 		}
 	}
+
+	const filename = (source: string) => source.split(/[/\\]/).pop() || source;
 
 	/// A node edited in the left pane. For a `from_container` node the only parameter is the path,
 	/// so changing it means "open that one instead" — the node and what the map shows are the same
 	/// thing (Q22), and they must not be allowed to disagree.
 	async function applyVplChange(source: string, vpl: string) {
-		error = null;
 		const existing = containers.find((c) => c.info.source === source);
 		try {
 			const pipeline = await vplParse(vpl);
 			const filename = pipeline.nodes[0]?.properties.find((p) => p.key === 'filename');
 			const next = filename?.value.kind === 'single' ? filename.value.value : null;
 			if (!next) {
-				error = 'from_container needs a filename';
+				fail('from_container needs a filename');
 				return;
 			}
 			if (next === source) return;
@@ -137,12 +143,10 @@
 			if (map && existing) removeContainerFromMap(map, existing.name);
 			containers = containers.filter((c) => c.info.source !== source);
 			await load(next);
-		} catch (e) {
-			error = String(e);
+		} catch (fault) {
+			fail(fault);
 		}
 	}
-
-	const shellQuote = (s: string) => (/[^\w./-]/.test(s) ? `'${s.replaceAll("'", `'\\''`)}'` : s);
 </script>
 
 <!-- Declared out here and passed by reference, so an empty window can pass nothing at all. A
@@ -186,10 +190,9 @@
 			<CoordinateJump {map} />
 			<button class="grid-toggle" class:on={showGrid} onclick={() => (showGrid = !showGrid)}> z/x/y grid </button>
 		{/if}
-		{#if error}<div class="error">{error}</div>{/if}
 	{/snippet}
-	{#snippet commandBar()}
-		<CommandStrip {command} />
+	{#snippet statusBar()}
+		<StatusBar {status} onDismiss={() => (status = { kind: 'idle' })} />
 	{/snippet}
 </AppShell>
 
@@ -215,16 +218,5 @@
 		position: absolute;
 		inset: 0;
 		z-index: 6;
-	}
-	.error {
-		position: absolute;
-		left: 0.75rem;
-		top: 0.75rem;
-		background: var(--error-bg);
-		border: 1px solid var(--error-rule);
-		color: var(--error);
-		padding: var(--space-3) var(--space-4);
-		border-radius: var(--radius);
-		max-width: 28rem;
 	}
 </style>
