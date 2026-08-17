@@ -17,12 +17,15 @@
 	import {
 		forgetRecent,
 		getLayout,
+		getPipeline,
+		setPipeline,
 		openContainer,
 		recentSources,
 		serverBaseUrl,
 		setLayout,
 		vplParse,
 		type ContainerInfo,
+		type DocumentView,
 		type Layout,
 		type OpenedContainer,
 		type RecentEntry
@@ -35,6 +38,11 @@
 	// The opened containers, each with the read node it corresponds to (Q22).
 	let containers = $state<OpenedContainer[]>([]);
 	let layout = $state<Layout | null>(null);
+	/** This window's pipeline. The core owns it (Q25); this is a copy to render. */
+	let pipeline = $state<DocumentView | null>(null);
+	/** Bumped when the pipeline changes from somewhere other than the editor, so the editor knows
+	 *  to reload rather than being fought over its own buffer. */
+	let pipelineRevision = $state(0);
 	// What the application is doing, shown along the bottom (Q24). Errors live here too — an error
 	// is a state the application is in, and covering the map to say so was never a good trade.
 	let status = $state<Status>({ kind: 'idle' });
@@ -48,6 +56,10 @@
 	$effect(() => {
 		void refreshRecents();
 		void getLayout().then((loaded) => (layout = loaded));
+		void getPipeline().then((loaded) => {
+			pipeline = loaded;
+			pipelineRevision += 1;
+		});
 	});
 
 	// The window title says which container this window holds — the native equivalent of the in-app
@@ -115,6 +127,9 @@
 			const result = await openContainer(source);
 			if (map) addContainerToMap(map, result);
 			containers = [...containers.filter((c) => c.info.source !== result.info.source), result];
+			// Opening a container sets the window's pipeline to its read node (Q25).
+			pipeline = await getPipeline();
+			pipelineRevision += 1;
 			await refreshRecents();
 			status = { kind: 'idle' };
 		} catch (e) {
@@ -159,6 +174,9 @@
 		onLayoutChange={(next) => void changeLayout(next)}
 		onAddSource={pick}
 		onVplChange={(source, vpl) => void applyVplChange(source, vpl)}
+		{pipeline}
+		{pipelineRevision}
+		onPipelineChange={(text) => void setPipeline(text).then((next) => (pipeline = next))}
 	/>
 {/snippet}
 

@@ -46,6 +46,9 @@
 	--float-bg: rgb(255 255 255 / 0.94);
 
 	/* Semantic. Invented three times over before they were named once. */
+	/* Syntax highlighting. Operation names take the accent; only values need a colour of their own. */
+	--vpl-value: #8a4b16;
+
 	--error: #b00020;
 	--error-bg: #fff4f4;
 	--error-rule: #f0c0c0;
@@ -119,6 +122,8 @@
 		--chrome: #121917;
 		--accent: #35b3a4;
 		--accent-ink: #06201d;
+
+		--vpl-value: #e0a06a;
 
 		--error: #ff8a80;
 		--error-bg: #2a1a1c;

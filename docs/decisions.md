@@ -16,6 +16,42 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q25 — The VPL editor is a textarea with a highlight overlay, over one document per window
+
+**Dated 2026-08-17.** Two things S2.3 had to settle: what the editor edits, and what it is built from.
+
+**One pipeline document per window.** [Q6](decisions.md) already said a project holds a single
+`pipeline.vpl`, and the multi-source layer stack was dropped early on, so the window's pipeline is one
+VPL document and the core owns it — nothing durable in the webview ([Q16](decisions.md)). Opening a
+container sets that document to the matching `from_container` read node. Showing several containers
+at once returns when it can be _written down_: as a composite node with two read nodes under it,
+added in the graph at S2.5. Until then the map keeps rendering opened containers directly; wiring it
+to the pipeline's own output is C3, at S2.7.
+
+**Not CodeMirror.** The professional reflex is a real editor component, and it was close. Three
+things decided against it:
+
+- **The hard part is already done.** A syntax highlighter needs to know where every token is, and
+  [Q23](decisions.md)'s parser returns exactly that. Bolting a second, independent tokeniser onto the
+  editor would mean two definitions of VPL's grammar in one application — the thing the differential
+  test exists to prevent upstream, reintroduced internally.
+- **Undo belongs to the document, not the editor.** G6 wants one stack covering text edits _and_
+  structured edits from the graph and the forms ([Q11](decisions.md)). An editor with its own history
+  would have to be talked out of it.
+- **The documents are short.** A pipeline is a handful of nodes, not a source file. Nothing here
+  needs folding, minimaps, or multi-cursor editing.
+
+So: a transparent `<textarea>` over a `<pre>` that renders the same text, highlighted from the
+parser's spans. The textarea keeps native selection, caret and IME behaviour — which is most of what
+makes a hand-rolled editor go wrong — while every token colour and error underline comes from the
+tree Studio already has.
+
+**What we accept.** No autocomplete, no bracket matching, no multi-cursor. The overlay must match the
+textarea's text metrics exactly, so both take their font and spacing from the same tokens and the
+scroll positions are kept in sync; that is the one fragile part, and it is one function. If this ever
+stops paying — long generated pipelines, or a demand for completion from `field_meta` — CodeMirror
+slots in behind the same component boundary.
+
 ### Q24 — G2 is dropped. The bottom bar shows status and progress
 
 **Dated 2026-08-17.** "Show me the command" — a persistent strip naming the CLI equivalent of the

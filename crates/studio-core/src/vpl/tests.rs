@@ -368,3 +368,71 @@ fn spans_from_before_an_edit_are_refused_not_obeyed() {
 	assert!(document.set_value(stale, "y").is_err() || document.text().len() >= stale.end);
 	assert!(document.slice(Span::new(0, 9999)).is_none());
 }
+
+// -- highlighting ------------------------------------------------------------------------------
+
+/// The editor paints from the tree, not from a second tokeniser (Q25) — so every token has to line
+/// up with the text it claims, and nothing may be left unclassified but whitespace.
+#[test]
+fn tokens_cover_the_document_and_say_what_each_part_is() {
+	use super::TokenKind::{Comment, Key, Operation, Punctuation, Value};
+
+	let text = "# note\nfrom_container filename='a b' | vector_filter zoom=[1,2]";
+	let document = Document::parse(text).unwrap();
+	let tokens = document.tokens();
+
+	let seen: Vec<_> = tokens
+		.iter()
+		.map(|t| (t.kind, document.slice(t.span).unwrap()))
+		.collect();
+	assert_eq!(
+		seen,
+		[
+			(Comment, "# note"),
+			(Operation, "from_container"),
+			(Key, "filename"),
+			(Punctuation, "="),
+			(Value, "'a b'"),
+			(Punctuation, "|"),
+			(Operation, "vector_filter"),
+			(Key, "zoom"),
+			(Punctuation, "=["),
+			(Value, "1"),
+			(Punctuation, ","),
+			(Value, "2"),
+			(Punctuation, "]"),
+		]
+	);
+
+	// Everything the tokens skip must be whitespace — an unclassified character would render
+	// unstyled, which is how a highlighter quietly drifts from the parser.
+	let mut cursor = 0;
+	for token in &tokens {
+		assert!(
+			text[cursor..token.span.start].trim().is_empty(),
+			"unclassified text at byte {cursor}: {:?}",
+			&text[cursor..token.span.start]
+		);
+		cursor = token.span.end;
+	}
+	assert!(text[cursor..].trim().is_empty());
+}
+
+#[test]
+fn tokens_survive_multibyte_text_and_nesting() {
+	let text = "merge [ from_container filename=\"Grüße.versatiles\" ]";
+	let document = Document::parse(text).unwrap();
+	for token in document.tokens() {
+		assert!(
+			document.slice(token.span).is_some(),
+			"token {token:?} does not land on a character boundary"
+		);
+	}
+	assert!(
+		document
+			.tokens()
+			.iter()
+			.any(|t| document.slice(t.span) == Some("\"Grüße.versatiles\"")),
+		"the nested value should be tokenised"
+	);
+}

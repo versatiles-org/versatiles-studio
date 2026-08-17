@@ -29,6 +29,7 @@ pub use ast::{Comment, LineCol, Node, Pipeline, Property, Quote, Span, Str, Valu
 pub use parse::ParseError;
 pub use print::quote_value;
 
+use serde::Serialize;
 use std::collections::BTreeMap;
 use versatiles_pipeline::vpl::{VPLNode, VPLPipeline};
 
@@ -150,6 +151,37 @@ impl Document {
 		self.replace(Span::new(before.trim_end().len(), span.end), "")
 	}
 
+	/// Every token in the document, in order, for the editor to paint.
+	///
+	/// Punctuation is recovered from the gaps between what the tree records rather than stored:
+	/// anything between two known spans that is not whitespace or a comment is, by the grammar,
+	/// punctuation. That keeps the tree free of nodes that exist only to be coloured in.
+	#[must_use]
+	pub fn tokens(&self) -> Vec<Token> {
+		let mut tokens = Vec::new();
+		collect(&self.pipeline, &mut tokens);
+		for comment in &self.comments {
+			tokens.push(Token {
+				kind: TokenKind::Comment,
+				span: comment.span,
+			});
+		}
+		tokens.sort_by_key(|t| t.span.start);
+
+		// Fill the gaps: whatever sits between two classified spans and is not blank is punctuation.
+		let mut all = Vec::with_capacity(tokens.len() * 2);
+		let mut cursor = 0usize;
+		for token in tokens {
+			if token.span.start > cursor {
+				push_punctuation(&self.text, Span::new(cursor, token.span.start), &mut all);
+			}
+			cursor = token.span.end.max(cursor);
+			all.push(token);
+		}
+		push_punctuation(&self.text, Span::new(cursor, self.text.len()), &mut all);
+		all
+	}
+
 	/// The tree upstream's pipeline runner wants.
 	///
 	/// This is where the extra information is deliberately dropped. Two things happen that are not
@@ -171,6 +203,34 @@ impl std::fmt::Display for Document {
 	}
 }
 
+/// What a stretch of the document is, for a syntax highlighter.
+///
+/// Derived from the tree rather than from a second tokeniser, so the colours and the semantics can
+/// never disagree — the editor highlights exactly what the parser understood ([Q25]).
+///
+/// [Q25]: ../../../docs/decisions.md
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TokenKind {
+	/// An operation name at the head of a node.
+	Operation,
+	/// A parameter name.
+	Key,
+	/// A parameter value, quoted or bare.
+	Value,
+	/// `|`, `=`, `[`, `]`, `,`
+	Punctuation,
+	Comment,
+}
+
+/// A highlighted span. Regions the parser does not classify — whitespace — are simply absent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Token {
+	pub kind: TokenKind,
+	pub span: Span,
+}
+
 /// The VPL that reads `source` — the read node an opened container corresponds to.
 ///
 /// Under [Q22](../../../docs/decisions.md) an opened container *is* a `from_container` node at the
@@ -181,6 +241,60 @@ impl std::fmt::Display for Document {
 #[must_use]
 pub fn read_node_for(source: &str) -> Option<String> {
 	Some(format!("from_container filename={}", quote_value(source)?))
+}
+
+/// Adds the non-blank runs of `span` as punctuation, splitting on whitespace.
+fn push_punctuation(text: &str, span: Span, out: &mut Vec<Token>) {
+	let Some(slice) = text.get(span.start..span.end) else {
+		return;
+	};
+	let mut start = None;
+	for (offset, c) in slice.char_indices() {
+		if c.is_whitespace() {
+			if let Some(from) = start.take() {
+				out.push(Token {
+					kind: TokenKind::Punctuation,
+					span: Span::new(span.start + from, span.start + offset),
+				});
+			}
+		} else if start.is_none() {
+			start = Some(offset);
+		}
+	}
+	if let Some(from) = start {
+		out.push(Token {
+			kind: TokenKind::Punctuation,
+			span: Span::new(span.start + from, span.end),
+		});
+	}
+}
+
+fn collect(pipeline: &Pipeline, out: &mut Vec<Token>) {
+	for node in &pipeline.nodes {
+		out.push(Token {
+			kind: TokenKind::Operation,
+			span: node.name_span,
+		});
+		for property in &node.properties {
+			out.push(Token {
+				kind: TokenKind::Key,
+				span: property.key_span,
+			});
+			match &property.value {
+				Value::Single(s) => out.push(Token {
+					kind: TokenKind::Value,
+					span: s.span,
+				}),
+				Value::Array { items, .. } => out.extend(items.iter().map(|item| Token {
+					kind: TokenKind::Value,
+					span: item.span,
+				})),
+			}
+		}
+		for source in &node.sources {
+			collect(source, out);
+		}
+	}
 }
 
 fn to_pipeline(pipeline: &Pipeline) -> VPLPipeline {

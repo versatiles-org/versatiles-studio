@@ -3,12 +3,16 @@
 //! Everything durable lives in the core, not the webview ([Q16]) — this struct is what the commands
 //! reach through to get there.
 //!
+//! [Q6]: ../../docs/decisions.md
 //! [Q16]: ../../docs/decisions.md
+//! [Q22]: ../../docs/decisions.md
+//! [Q25]: ../../docs/decisions.md
 
 use std::path::PathBuf;
 use studio_core::{
 	server::ServerManager,
 	store::{Bookmarks, Layout, Recents},
+	vpl::Document,
 };
 use tokio::sync::Mutex;
 
@@ -20,6 +24,10 @@ pub struct AppState {
 	pub bookmarks: Mutex<Bookmarks>,
 	/// Which left-pane sections are open, and how wide the pane is (S2.2, [Q22]).
 	pub layout: Mutex<Layout>,
+	/// **The** pipeline for this window — one document, owned here rather than in the webview
+	/// ([Q25]). `None` until something is opened; a project holds exactly one `pipeline.vpl`
+	/// ([Q6]).
+	pub pipeline: Mutex<Option<Document>>,
 	/// Where these files live. `app_data_dir`, not `app_config_dir`: these are user *data*, not
 	/// configuration. Invisible on macOS — both land in Application Support — but on Linux it is
 	/// `~/.local/share` versus `~/.config`, and bookmarks belong in the former. The store owns the

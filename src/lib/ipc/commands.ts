@@ -129,6 +129,34 @@ export interface VplPipeline {
 	span: Span;
 }
 
+/** One highlighted run, from the parser's own tree (Q25). */
+export interface VplToken {
+	kind: 'operation' | 'key' | 'value' | 'punctuation' | 'comment';
+	span: Span;
+}
+
+/** The whole document a view needs: text, tree and tokens. */
+export interface DocumentView {
+	text: string;
+	pipeline: VplPipeline;
+	tokens: VplToken[];
+}
+
+/** This window's pipeline, or null before anything is opened. One document per window (Q25). */
+export function getPipeline(): Promise<DocumentView | null> {
+	return invoke<DocumentView | null>('pipeline');
+}
+
+/** Replaces the pipeline. Rejects with a {@link VplError} carrying the position of the problem. */
+export function setPipeline(text: string): Promise<DocumentView> {
+	return invoke<DocumentView>('set_pipeline', { text });
+}
+
+/** Tokens for text that is not yet the document — what the editor paints while typing. */
+export function vplTokens(text: string): Promise<VplToken[]> {
+	return invoke<VplToken[]>('vpl_tokens', { text });
+}
+
 /** A parse failure with a position, so the editor can place it (C4). */
 export interface VplError {
 	message: string;

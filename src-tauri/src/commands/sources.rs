@@ -21,6 +21,9 @@ pub async fn open_container(state: State<'_, AppState>, source: String) -> Resul
 		.await
 		.map_err(|e| format!("{e:#}"))?;
 
+	// Opening a container *is* adding a read node at the head of the pipeline (Q22). The core builds
+	// the VPL so the quoting rules stay next to the parser that defines them.
+	let vpl = studio_core::vpl::read_node_for(&source).unwrap_or_default();
 	let name = mount_name(&source);
 	server.mount(&name, reader).await.map_err(|e| format!("{e:#}"))?;
 
@@ -34,11 +37,15 @@ pub async fn open_container(state: State<'_, AppState>, source: String) -> Resul
 		}
 	}
 
+	// Opening a container *is* setting the pipeline to its read node (Q22, Q25). One document per
+	// window, so this replaces rather than accumulates.
+	if let Ok(document) = studio_core::vpl::Document::parse(vpl.clone()) {
+		*state.pipeline.lock().await = Some(document);
+	}
+
 	Ok(OpenedContainer {
 		tile_url: format!("{}/tiles/{name}/{{z}}/{{x}}/{{y}}", server.base_url()),
-		// Opening a container *is* adding a read node at the head of the pipeline (Q22). The core
-		// builds the VPL so the quoting rules stay next to the parser that defines them.
-		vpl: studio_core::vpl::read_node_for(&source).unwrap_or_default(),
+		vpl: vpl.clone(),
 		name,
 		info,
 	})

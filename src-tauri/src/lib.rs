@@ -53,6 +53,7 @@ pub fn run() {
 					recents: Mutex::new(recents),
 					bookmarks: Mutex::new(bookmarks),
 					layout: Mutex::new(layout),
+					pipeline: Mutex::new(None),
 					data_dir,
 				},
 			);
@@ -76,7 +77,10 @@ pub fn run() {
 			commands::layout::set_layout,
 			commands::vpl::vpl_parse,
 			commands::vpl::vpl_set_value,
-			commands::vpl::vpl_remove_property
+			commands::vpl::vpl_remove_property,
+			commands::vpl::vpl_tokens,
+			commands::vpl::pipeline,
+			commands::vpl::set_pipeline
 		])
 		.run(tauri::generate_context!())
 		.expect("error while running VersaTiles Studio");
