@@ -78,7 +78,7 @@ pub fn run() {
 			commands::vpl::vpl_parse,
 			commands::vpl::vpl_set_value,
 			commands::vpl::vpl_remove_property,
-			commands::vpl::vpl_tokens,
+			commands::vpl::vpl_review,
 			commands::vpl::pipeline,
 			commands::vpl::set_pipeline
 		])

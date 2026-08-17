@@ -19,6 +19,7 @@
 mod ast;
 mod parse;
 mod print;
+mod validate;
 
 #[cfg(test)]
 mod differential;
@@ -28,6 +29,7 @@ mod tests;
 pub use ast::{Comment, LineCol, Node, Pipeline, Property, Quote, Span, Str, Value};
 pub use parse::ParseError;
 pub use print::quote_value;
+pub use validate::{Diagnostic, validate};
 
 use serde::Serialize;
 use std::collections::BTreeMap;

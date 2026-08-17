@@ -6,8 +6,9 @@
 		vplParse,
 		vplRemoveProperty,
 		vplSetValue,
-		vplTokens,
+		vplReview,
 		type VplToken,
+		type Diagnostic,
 		type ContainerInfo,
 		type Layout,
 		type Span,
@@ -54,8 +55,13 @@
 	// editor keeps the text, so what is tracked here is only what has to be painted over it.
 	let draftError = $state<{ message: string; span: Span } | null>(null);
 	let draftTokens = $state<VplToken[] | null>(null);
+	let draftDiagnostics = $state<Diagnostic[] | null>(null);
 
 	const tokens = $derived(draftTokens ?? pipeline?.tokens ?? []);
+	/** A parse failure is one problem at one place; a parsed document can have several (C4). */
+	const problems = $derived<Diagnostic[]>(
+		draftError ? [draftError] : (draftDiagnostics ?? pipeline?.diagnostics ?? [])
+	);
 
 	// Ordering guard: keystrokes race, and an older reply must not repaint over a newer one.
 	let typed = 0;
@@ -63,15 +69,18 @@
 	async function type(next: string) {
 		const mine = ++typed;
 		try {
-			const painted = await vplTokens(next);
+			const review = await vplReview(next);
 			if (mine !== typed) return;
-			draftTokens = painted;
+			draftTokens = review.tokens;
+			draftDiagnostics = review.diagnostics;
 			draftError = null;
+			// A document that parses is worth keeping even when it does not yet make sense — the
+			// diagnostics say what is wrong, and the graph and preview can still show the shape.
 			onPipelineChange(next);
 		} catch (error) {
 			if (mine !== typed) return;
-			// Invalid text while typing is normal: mark it, keep the last good highlighting so the
-			// editor does not go blank, and leave the document as it was.
+			// Text that does not parse is normal while typing: mark it, keep the last good
+			// highlighting so the editor does not go blank, and leave the document as it was.
 			draftError = toVplError(error);
 		}
 	}
@@ -152,17 +161,21 @@
 				>
 					{label}
 					<!-- Q15: the VPL tab carries the badge when the text does not parse (C4). -->
-					{#if id === 'vpl' && draftError}<span class="badge" aria-label="has an error">!</span>{/if}
+					{#if id === 'vpl' && problems.length > 0}
+						<span class="badge" aria-label="{problems.length} problems">{problems.length}</span>
+					{/if}
 				</button>
 			{/each}
 		</div>
 
 		{#if tab === 'vpl'}
-			{#if draftError}<p class="error" role="alert">{draftError.message}</p>{/if}
+			{#each problems as problem (problem.span.start + problem.message)}
+				<p class="error" role="alert">{problem.message}</p>
+			{/each}
 			<!-- Remounted only when the document changes from outside the editor, which is what lets the
 			     editor own its buffer without the parent fighting it (Q25). -->
 			{#key pipelineRevision}
-				<VplEditor initialText={pipeline?.text ?? ''} {tokens} error={draftError} onInput={(next) => void type(next)} />
+				<VplEditor initialText={pipeline?.text ?? ''} {tokens} {problems} onInput={(next) => void type(next)} />
 			{/key}
 		{:else if containers.length === 0}
 			<p class="empty">Nothing open yet.</p>

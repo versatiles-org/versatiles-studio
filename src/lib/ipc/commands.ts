@@ -135,11 +135,18 @@ export interface VplToken {
 	span: Span;
 }
 
-/** The whole document a view needs: text, tree and tokens. */
+/** A problem with a position — a real operation that does not exist, a parameter that is not one. */
+export interface Diagnostic {
+	message: string;
+	span: Span;
+}
+
+/** The whole document a view needs: text, tree, tokens and what is wrong with it. */
 export interface DocumentView {
 	text: string;
 	pipeline: VplPipeline;
 	tokens: VplToken[];
+	diagnostics: Diagnostic[];
 }
 
 /** This window's pipeline, or null before anything is opened. One document per window (Q25). */
@@ -152,9 +159,15 @@ export function setPipeline(text: string): Promise<DocumentView> {
 	return invoke<DocumentView>('set_pipeline', { text });
 }
 
-/** Tokens for text that is not yet the document — what the editor paints while typing. */
-export function vplTokens(text: string): Promise<VplToken[]> {
-	return invoke<VplToken[]>('vpl_tokens', { text });
+/** How to paint the text, and what is wrong with it — one parse, so the two cannot disagree. */
+export interface Review {
+	tokens: VplToken[];
+	diagnostics: Diagnostic[];
+}
+
+/** Rejects with a {@link VplError} when the text does not parse; there is then no tree to check. */
+export function vplReview(text: string): Promise<Review> {
+	return invoke<Review>('vpl_review', { text });
 }
 
 /** A parse failure with a position, so the editor can place it (C4). */

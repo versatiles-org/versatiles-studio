@@ -6,7 +6,7 @@
 //! TypeScript is how the two drift apart.
 
 use crate::state::AppState;
-use studio_core::vpl::{Document, ParseError, Pipeline, Span, Token};
+use studio_core::vpl::{Diagnostic, Document, ParseError, Pipeline, Span, Token, validate};
 use tauri::State;
 
 /// A parse failure the editor can place, rather than a rendered string it would have to read.
@@ -40,6 +40,8 @@ pub struct DocumentView {
 	pub pipeline: Pipeline,
 	/// For the editor to paint, derived from the same tree ([Q25](../../../docs/decisions.md)).
 	pub tokens: Vec<Token>,
+	/// Checked against the operations that exist (C4). A pipeline can parse and still be wrong.
+	pub diagnostics: Vec<Diagnostic>,
 }
 
 impl From<&Document> for DocumentView {
@@ -48,6 +50,7 @@ impl From<&Document> for DocumentView {
 			text: document.text().to_string(),
 			pipeline: document.pipeline().clone(),
 			tokens: document.tokens(),
+			diagnostics: validate(document),
 		}
 	}
 }
@@ -70,10 +73,27 @@ pub async fn set_pipeline(state: State<'_, AppState>, text: String) -> Result<Do
 	Ok(view)
 }
 
-/// Highlights text that is not (yet) the document — what the editor paints while typing.
+/// What the editor needs on every keystroke: how to paint the text, and what is wrong with it.
+///
+/// One command rather than two, because they are answers to the same parse — asking separately
+/// would parse the same text twice and let the highlighting and the diagnostics disagree about
+/// which version they describe.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Review {
+	pub tokens: Vec<Token>,
+	/// Empty when the pipeline is sound. Parse failures come back as an `Err` instead — a document
+	/// that does not parse has no tree to validate.
+	pub diagnostics: Vec<Diagnostic>,
+}
+
 #[tauri::command]
-pub fn vpl_tokens(text: String) -> Result<Vec<Token>, VplError> {
-	Ok(Document::parse(text)?.tokens())
+pub fn vpl_review(text: String) -> Result<Review, VplError> {
+	let document = Document::parse(text)?;
+	Ok(Review {
+		tokens: document.tokens(),
+		diagnostics: validate(&document),
+	})
 }
 
 /// Sets the value at `span` and returns the whole document back.

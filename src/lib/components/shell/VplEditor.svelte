@@ -17,7 +17,7 @@
 	let {
 		initialText,
 		tokens,
-		error,
+		problems,
 		selection,
 		onInput,
 		onCaret
@@ -26,8 +26,8 @@
 		initialText: string;
 		/** From the core. Kept from the last good parse while the text does not parse. */
 		tokens: VplToken[];
-		/** Marked inline, and reported above the editor (C4, S2.4). */
-		error?: { message: string; span: Span } | null;
+		/** Marked inline, and listed above the editor (C4). Several at once is normal. */
+		problems?: { message: string; span: Span }[];
 		/** A span to reveal and select — how a graph selection lands in the text (Q15). */
 		selection?: Span | null;
 		onInput: (text: string) => void;
@@ -47,8 +47,9 @@
 
 	const pieces = $derived.by((): Piece[] => {
 		const out: Piece[] = [];
+		const marked = problems ?? [];
 		const bad = (from: number, to: number) =>
-			error !== null && error !== undefined && from < error.span.end && to > error.span.start;
+			marked.some((problem) => from < problem.span.end && to > problem.span.start);
 		let cursor = 0;
 		for (const token of tokens) {
 			if (token.span.start > cursor) {
@@ -98,7 +99,7 @@
 		autocomplete="off"
 		autocapitalize="off"
 		aria-label="VPL pipeline"
-		aria-invalid={Boolean(error)}
+		aria-invalid={(problems?.length ?? 0) > 0}
 		onscroll={sync}
 		onselect={() => onCaret?.(textarea?.selectionStart ?? 0)}
 		onkeyup={() => onCaret?.(textarea?.selectionStart ?? 0)}
