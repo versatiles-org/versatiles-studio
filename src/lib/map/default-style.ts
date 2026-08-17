@@ -9,6 +9,7 @@
  * A placeholder shape until S1.2 has a container whose layers a style can be derived from.
  */
 import { token } from '../styles/tokens';
+import { role } from './theme';
 
 import type { StyleSpecification } from 'maplibre-gl';
 
@@ -18,6 +19,13 @@ export function defaultStyle(serverBaseUrl: string): StyleSpecification {
 		glyphs: `${serverBaseUrl}/assets/glyphs/{fontstack}/{range}.pbf`,
 		sprite: `${serverBaseUrl}/assets/sprites/basics/sprites`,
 		sources: {},
-		layers: [{ id: 'background', type: 'background', paint: { 'background-color': token('--map-bg') } }]
+		layers: [
+			{
+				id: 'background',
+				type: 'background',
+				metadata: role('background'),
+				paint: { 'background-color': token('--map-bg') }
+			}
+		]
 	};
 }

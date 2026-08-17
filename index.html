@@ -4,6 +4,22 @@
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>VersaTiles Studio</title>
+		<!--
+			The only styling outside src/lib/styles. tokens.css arrives with the JS bundle, so without
+			this the window paints white for a frame before it lands — a bright flash on every launch
+			for anyone running a dark desktop. Kept to the one property that has to be right before
+			anything renders; the values mirror --chrome in tokens.css.
+		-->
+		<style>
+			html {
+				background: #f2f4f3;
+			}
+			@media (prefers-color-scheme: dark) {
+				html {
+					background: #121917;
+				}
+			}
+		</style>
 	</head>
 	<body>
 		<div id="app"></div>

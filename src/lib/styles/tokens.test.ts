@@ -99,6 +99,31 @@ describe('design tokens', () => {
 		expect(offenders, 'set outline-offset if you must, but not the ring itself').toEqual([]);
 	});
 
+	/**
+	 * Every colour must exist in both themes.
+	 *
+	 * The failure this catches is quiet and easy to ship: add a colour to `:root`, forget the dark
+	 * block, and it keeps its light value on a dark ground — often still readable enough in a
+	 * screenshot to pass review, and wrong. Non-colour tokens are deliberately exempt; a spacing
+	 * step does not change with the theme.
+	 */
+	it('define every colour in both themes', () => {
+		const css = readFileSync(join(SRC, TOKENS), 'utf8');
+		const dark = css.slice(css.indexOf('prefers-color-scheme: dark'));
+		const light = css.slice(0, css.indexOf('prefers-color-scheme: dark'));
+
+		const names = (block: string) => new Set([...block.matchAll(/^\s*(--[\w-]+):/gm)].map((m) => m[1]));
+		const isColour = (name: string, block: string) => new RegExp(`${name}:\\s*(#|rgba?\\(|hsla?\\()`).test(block);
+
+		const missing = [...names(light)]
+			.filter((name) => isColour(name, light) && !name.includes('shadow'))
+			.filter((name) => !names(dark).has(name));
+		expect(missing, 'add these to the @media (prefers-color-scheme: dark) block').toEqual([]);
+
+		const stray = [...names(dark)].filter((name) => !names(light).has(name));
+		expect(stray, 'a token defined only in the dark theme is unreachable in the light one').toEqual([]);
+	});
+
 	/** Colours reaching MapLibre go through styles/tokens.ts, or the map cannot follow a theme. */
 	it('are the only place a map colour is written', () => {
 		const offenders = sources()

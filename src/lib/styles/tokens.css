@@ -84,3 +84,46 @@
 	 * it and it has to survive a restart. */
 	--right-width: 19rem;
 }
+
+/*
+ * Dark theme.
+ *
+ * Follows the operating system. There is no in-app switch: a desktop application that disagrees
+ * with the system it runs on is the thing users complain about, and an override would need a
+ * preference to store and a settings surface to put it in, neither of which exists yet.
+ *
+ * **Only tokens are redefined here.** No component rule belongs in this block — that is what makes
+ * the theme one edit rather than thirteen, and what stops the two themes drifting apart.
+ *
+ * Not an inversion. Dark surfaces make colours read lighter and less saturated, so the accent and
+ * the error red are lifted rather than reused; --accent-ink flips to dark because the accent it
+ * sits on is now the lighter of the two. Panels stay lighter than the application background, the
+ * same way round as in the light theme, so depth reads the same.
+ */
+@media (prefers-color-scheme: dark) {
+	:root {
+		--ink: #e4eae8;
+		--ink-2: #97a5a1;
+		--rule: #2c3836;
+		--surface: #19211f;
+		--chrome: #121917;
+		--accent: #35b3a4;
+		--accent-ink: #06201d;
+
+		--error: #ff8a80;
+		--error-bg: #2a1a1c;
+		--error-rule: #5a2f33;
+
+		/* The map is the one surface where dark is a real design decision rather than a palette
+		   swap: an unstyled basemap over a dark ground needs its grid and hairlines lifted or they
+		   disappear into it. */
+		--map-bg: #1b1f22;
+		--map-grid: #45c3b3;
+		--map-grid-halo: #0d1113;
+		--map-feature: #6fa8dc;
+		--float-bg: rgb(25 33 31 / 0.94);
+
+		/* A shadow on a dark ground has to be darker to read at all. */
+		--shadow: 0 2px 10px rgb(0 0 0 / 0.5);
+	}
+}
