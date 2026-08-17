@@ -15,6 +15,7 @@ use tauri::{AppHandle, State, ipc::Channel};
 
 /// Smoke-test command proving the IPC boundary is wired.
 #[tauri::command]
+#[specta::specta]
 pub fn app_version() -> &'static str {
 	env!("CARGO_PKG_VERSION")
 }
@@ -24,6 +25,7 @@ pub fn app_version() -> &'static str {
 /// The webview learns the port this way rather than assuming one, because the server binds an
 /// ephemeral port (see `studio_core::server`).
 #[tauri::command]
+#[specta::specta]
 pub async fn server_base_url(state: State<'_, AppState>) -> Result<String, String> {
 	let server = state.server.lock().await;
 	Ok(server.base_url())
@@ -34,6 +36,7 @@ pub async fn server_base_url(state: State<'_, AppState>) -> Result<String, Strin
 /// Exists so S0.4 is verified rather than merely written. Delete it when the real job runner lands
 /// at S3.1 — by then this path is exercised by actual work.
 #[tauri::command]
+#[specta::specta]
 pub async fn demo_job(channel: Channel<JobEvent>) -> Result<(), String> {
 	let job = JobHandle::new(0, channel_sink(channel), CancelToken::new());
 
@@ -57,6 +60,7 @@ pub async fn demo_job(channel: Channel<JobEvent>) -> Result<(), String> {
 ///
 /// [Q16]: ../../docs/decisions.md
 #[tauri::command]
+#[specta::specta]
 pub fn open_window(app: AppHandle, label: String) -> Result<(), String> {
 	crate::windows::open(&app, &label).map_err(|e| e.to_string())
 }

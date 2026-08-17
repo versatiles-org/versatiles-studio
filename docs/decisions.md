@@ -16,6 +16,33 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q26 — The IPC types are generated, and the generated file is committed
+
+**Dated 2026-08-17.** [Q3](decisions.md) deferred `tauri-specta` because its line was `2.0.0-rc.x`.
+It still is — `rc.25`, from May — but the risk that deferral was avoiding turned out to be smaller
+than the one it accepted.
+
+**`svelte-check` cannot catch this drift.** It flags a _use_ of a missing field, not a missing field.
+Adding one in Rust and forgetting the TypeScript failed nothing until somebody read it, and 19
+interfaces and 26 wrappers were being kept in step by hand.
+
+**The generated file is committed, and a test fails when it is stale** — the same shape as
+`cargo fmt --check`. That is what makes a pre-1.0 generator acceptable: if `specta` breaks, the
+checked-in bindings keep working and only regeneration needs fixing. It is not on the build path.
+
+**Three pre-1.0 crates, and eleven annotations.** `specta`, `specta-typescript` and `specta-serde` —
+the serde handling is its own crate. Specta refuses to emit any 64-bit integer, `usize` included, to
+avoid precision loss; its alternative is `bigint`, which would make span arithmetic in the webview
+absurd. So every `usize` and `f64` that crosses carries an explicit representation, and the reason is
+written where the first one is.
+
+**It found things.** `JobEvent.fraction` was typed `number` by hand and is `number | null` in truth,
+because `serde_json` writes `null` for `NaN`. `set_pipeline` took an `Option<String>` and matched on
+it, so the generated type was `string | null` where the hand-written one had been a union — the Rust
+side was the loose one, and is now an `EditKind` enum. And `Layout`'s `serde(default)`, which exists
+so an older `layout.json` still loads, makes every field optional in the bindings: one struct serving
+as both a file format and an IPC type.
+
 ### Q25 — The VPL editor is a textarea with a highlight overlay, over one document per window
 
 **Dated 2026-08-17.** Two things S2.3 had to settle: what the editor edits, and what it is built from.
@@ -652,11 +679,11 @@ surface is exactly the drift the generated-UI principle exists to avoid, so gene
 risk — but the risk is larger than "community-maintained" suggests: **the Tauri v2 line is
 `2.0.0-rc.25`, with no stable 2.x.**
 
-**Deferred, deliberately.** The cost of hand-writing wrappers scales with the size of the command
-surface, and at S0 that surface is three commands. The wrappers stay hand-written for now, and the
-decision is revisited when it starts to hurt — roughly ten commands, or whenever 2.0 stabilises. If
-the RC never settles, the fallback is `ts-rs` (stable) for the _types_, which is where drift actually
-bites, with the small `invoke` calls left manual.
+**Deferred at S0, adopted before stage 3.** The cost of hand-writing wrappers scales with the size of
+the command surface, and at S0 that surface was three commands. The trigger set here — "roughly ten
+commands" — was reached at 26, with 19 hand-kept interfaces behind them. The RC never settled, so the
+adoption happened on the second condition rather than the first; [Q26](#q26--the-ipc-types-are-generated-and-the-generated-file-is-committed)
+records what made a pre-1.0 generator acceptable anyway.
 
 **Consequence:** the embedded server is load-bearing, its lifecycle is a core service, loopback
 only.

@@ -77,10 +77,13 @@ fn now() -> u64 {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct RecentEntry {
 	/// The path or URL exactly as the user gave it.
 	pub source: String,
-	/// Seconds since the Unix epoch.
+	/// Seconds since the Unix epoch, emitted as a `number` — a double holds them exactly for the
+	/// next quarter of a million years, and `u32` would overflow in 2106.
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub opened_at: u64,
 }
 
@@ -156,8 +159,14 @@ const DEFAULT_RIGHT_WIDTH: f64 = 304.0;
 ///
 /// The sections are named rather than a free-form map: which ones exist is a design decision
 /// recorded in Q22, not something the webview should be able to invent.
+///
+/// **`default` is for the file, and it shows in the generated bindings.** It exists so a
+/// `layout.json` written by an earlier build still loads; the generator cannot know that, so every
+/// field arrives in TypeScript as optional even though a command always returns all of them. One
+/// struct serving as both a file format and an IPC type is what makes that ambiguous.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase", default)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Layout {
 	/// Arrives S2. Open by default, because at S2 it is the only section with anything in it.
 	pub pipeline_open: bool,
@@ -166,7 +175,15 @@ pub struct Layout {
 	/// Arrives S5.
 	pub export_open: bool,
 	/// Pane widths in CSS pixels. Both edges are draggable.
+	//
+	// Emitted as `number`, not `number | null`. Specta is right that JSON cannot hold `NaN` and that
+	// `serde_json` writes `null` instead — but every float that crosses this boundary is a camera
+	// value, a clamped width or a computed fraction, all finite by construction. Admitting `null`
+	// would spread a check for an impossible case through every call site, which is a worse lie than
+	// the one it prevents. The same override is on every `f64` that crosses.
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub left_width: f64,
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub right_width: f64,
 	/// Which background map the map sits on, or `none`.
 	///
@@ -242,17 +259,26 @@ fn clamp_width(width: f64, fallback: f64) -> f64 {
 /// A named view: where the camera was, and what it was looking at.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Bookmark {
 	pub name: String,
 	/// The source this view belongs to, so a bookmark can offer to reopen it.
 	pub source: Option<String>,
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub lng: f64,
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub lat: f64,
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub zoom: f64,
 	#[serde(default)]
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub bearing: f64,
 	#[serde(default)]
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub pitch: f64,
+	/// Seconds since the Unix epoch, emitted as a `number` — a double holds them exactly for the
+	/// next quarter of a million years, and `u32` would overflow in 2106.
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub created_at: u64,
 }
 

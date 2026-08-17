@@ -149,8 +149,11 @@ noticing rather than a neutral fact.
 
 **`ipc/bindings.ts` is committed, not generated at build time.** `tauri-specta` can do either;
 committing it makes a change to the command surface visible in review, which is the drift
-[Q3](decisions.md) exists to prevent. The cost is staleness, caught by a CI step that regenerates and
-diffs.
+[Q3](decisions.md) exists to prevent. The cost is staleness, caught by a plain `cargo test` —
+`bindings_are_up_to_date` regenerates into a scratch file and compares, and says how to fix itself
+(`UPDATE_BINDINGS=1`). A test rather than a build step, so a broken pre-1.0 generator cannot stop the
+app from building; and it is `.prettierignore`d, because reformatting a generated file is what makes
+that test fail for no reason.
 
 ## Principles
 

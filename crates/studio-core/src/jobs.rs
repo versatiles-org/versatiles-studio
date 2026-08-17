@@ -15,16 +15,24 @@ use std::sync::{
 };
 
 /// Identifies a job for the lifetime of the process.
-pub type JobId = u64;
+// `u32` rather than `u64`: a counter of jobs in one session, and it crosses to the webview,
+// where specta will not emit a 64-bit integer as a plain number (see `src-tauri/src/bindings.rs`).
+pub type JobId = u32;
 
 /// Everything a running job can tell the outside world.
 ///
 /// `Serialize` so the boundary can forward it verbatim; nothing here is Tauri-specific.
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub enum JobEvent {
 	/// Fractional progress in `0.0..=1.0`, plus what is happening right now.
-	Progress { id: JobId, fraction: f64, message: String },
+	Progress {
+		id: JobId,
+		#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
+		fraction: f64,
+		message: String,
+	},
 	/// A line for the job log. Failures at minute 40 have to be able to say why.
 	Log { id: JobId, line: String },
 	/// The job finished on its own.

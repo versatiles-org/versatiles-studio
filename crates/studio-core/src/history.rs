@@ -25,11 +25,15 @@ const COALESCE: Duration = Duration::from_millis(600);
 const LIMIT: usize = 200;
 
 /// Where an edit came from. Only the origin matters, not the detail.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+#[serde(rename_all = "lowercase")]
 pub enum EditKind {
 	/// A keystroke in the VPL editor. Consecutive ones merge.
 	Typing,
-	/// A parameter form or the graph — a deliberate, discrete change.
+	/// A parameter form or the graph — a deliberate, discrete change. The default, because it is
+	/// the conservative one: a caller that says nothing gets its own undo step.
+	#[default]
 	Structured,
 	/// The document was replaced wholesale, e.g. by opening a file.
 	Replaced,

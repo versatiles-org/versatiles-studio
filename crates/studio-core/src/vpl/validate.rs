@@ -16,6 +16,7 @@ use super::{Document, Node, Pipeline, Span, Value};
 /// A problem with a position, ready for the editor to underline.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Diagnostic {
 	pub message: String,
 	pub span: Span,

@@ -10,12 +10,14 @@ use studio_core::store::Bookmark;
 use tauri::State;
 
 #[tauri::command]
+#[specta::specta]
 pub async fn list_bookmarks(state: State<'_, AppState>) -> Result<Vec<Bookmark>, String> {
 	Ok(state.bookmarks.lock().await.entries().to_vec())
 }
 
 /// Saves a bookmark, replacing any with the same name.
 #[tauri::command]
+#[specta::specta]
 pub async fn save_bookmark(state: State<'_, AppState>, bookmark: Bookmark) -> Result<(), String> {
 	let mut bookmarks = state.bookmarks.lock().await;
 	bookmarks.add(bookmark);
@@ -24,6 +26,7 @@ pub async fn save_bookmark(state: State<'_, AppState>, bookmark: Bookmark) -> Re
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn delete_bookmark(state: State<'_, AppState>, name: String) -> Result<bool, String> {
 	let mut bookmarks = state.bookmarks.lock().await;
 	let removed = bookmarks.remove(&name);

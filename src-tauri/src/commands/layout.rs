@@ -9,6 +9,7 @@ use tauri::State;
 
 /// The remembered pane layout, or the default one.
 #[tauri::command]
+#[specta::specta]
 pub async fn layout(state: State<'_, AppState>) -> Result<Layout, String> {
 	Ok(state.layout.lock().await.clone())
 }
@@ -18,6 +19,7 @@ pub async fn layout(state: State<'_, AppState>) -> Result<Layout, String> {
 /// A failed write is logged and swallowed, the same as recents: a pane width is not worth
 /// interrupting someone's work over, and the next change will try again anyway.
 #[tauri::command]
+#[specta::specta]
 pub async fn set_layout(state: State<'_, AppState>, layout: Layout) -> Result<Layout, String> {
 	let mut current = state.layout.lock().await;
 	*current = layout.clamped();

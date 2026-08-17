@@ -5,6 +5,7 @@
 //! in the core (see `docs/architecture.md`).
 
 mod assets;
+mod bindings;
 mod commands;
 mod events;
 mod opened;
@@ -21,8 +22,47 @@ use studio_core::{
 use tokio::sync::Mutex;
 
 /// One window per project; the landing screen is what an empty window shows (Q13, Q16).
+/// The commands the webview may call, and the source of the generated TypeScript (S0.3).
+///
+/// One list rather than two: `generate_handler!` and a separate export list would drift the moment
+/// someone added a command and forgot the other place. `bindings.rs` turns this into
+/// `src/lib/ipc/bindings.ts`, and a test fails when the checked-in file is stale.
+fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
+	tauri_specta::Builder::<tauri::Wry>::new().commands(tauri_specta::collect_commands![
+		commands::app_version,
+		commands::server_base_url,
+		commands::demo_job,
+		commands::open_window,
+		commands::sources::open_container,
+		commands::sources::recent_sources,
+		commands::sources::forget_recent,
+		commands::sources::inspect_tile,
+		commands::bookmarks::list_bookmarks,
+		commands::bookmarks::save_bookmark,
+		commands::bookmarks::delete_bookmark,
+		commands::layout::layout,
+		commands::layout::set_layout,
+		commands::vpl::vpl_parse,
+		commands::vpl::vpl_set_value,
+		commands::vpl::vpl_set_property,
+		commands::vpl::vpl_remove_property,
+		commands::vpl::vpl_review,
+		commands::vpl::vpl_operations,
+		commands::vpl::pipeline,
+		commands::vpl::set_pipeline,
+		commands::vpl::preview_pipeline,
+		commands::vpl::undo,
+		commands::vpl::redo,
+		commands::vpl::open_vpl,
+		commands::vpl::save_vpl,
+		opened::take_opened
+	])
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+	let builder = specta_builder();
+
 	tauri::Builder::default()
 		.plugin(tauri_plugin_dialog::init())
 		.setup(|app| {
@@ -70,35 +110,7 @@ pub fn run() {
 			windows::open_extra_from_env(app.handle())?;
 			Ok(())
 		})
-		.invoke_handler(tauri::generate_handler![
-			commands::app_version,
-			commands::server_base_url,
-			commands::demo_job,
-			commands::open_window,
-			commands::sources::open_container,
-			commands::sources::recent_sources,
-			commands::sources::forget_recent,
-			commands::sources::inspect_tile,
-			commands::bookmarks::list_bookmarks,
-			commands::bookmarks::save_bookmark,
-			commands::bookmarks::delete_bookmark,
-			commands::layout::layout,
-			commands::layout::set_layout,
-			commands::vpl::vpl_parse,
-			commands::vpl::vpl_set_value,
-			commands::vpl::vpl_set_property,
-			commands::vpl::vpl_remove_property,
-			commands::vpl::vpl_review,
-			commands::vpl::vpl_operations,
-			commands::vpl::pipeline,
-			commands::vpl::set_pipeline,
-			commands::vpl::preview_pipeline,
-			commands::vpl::undo,
-			commands::vpl::redo,
-			commands::vpl::open_vpl,
-			commands::vpl::save_vpl,
-			opened::take_opened
-		])
+		.invoke_handler(builder.invoke_handler())
 		.build(tauri::generate_context!())
 		.expect("error while building VersaTiles Studio")
 		.run(|app, event| {

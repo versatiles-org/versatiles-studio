@@ -64,6 +64,7 @@ pub fn receive(app: &AppHandle, paths: Vec<String>) {
 
 /// Everything the OS has asked Studio to open since the last call.
 #[tauri::command]
+#[specta::specta]
 pub fn take_opened(app: AppHandle) -> Vec<String> {
 	app.state::<PendingOpen>().take()
 }

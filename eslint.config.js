@@ -45,6 +45,15 @@ export default ts.config(
 	},
 
 	{
+		// Generated, and not ours to fix: tauri-specta emits `any` in its error-unwrapping helper and
+		// for opaque JSON. Linting a file nobody edits only produces noise a reader has to learn to
+		// ignore — the file's correctness is the generator's job, and the staleness test is what
+		// guards it.
+		files: ['src/lib/ipc/bindings.ts'],
+		rules: { '@typescript-eslint/no-explicit-any': 'off' }
+	},
+
+	{
 		// Svelte components are parsed by `svelte-eslint-parser`, which needs the same config the
 		// compiler uses or it disagrees about runes.
 		files: ['**/*.svelte', '**/*.svelte.ts'],

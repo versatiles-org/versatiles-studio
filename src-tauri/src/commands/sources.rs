@@ -19,6 +19,7 @@ use tauri::State;
 /// [`ServerManager::mount`](studio_core::server::ServerManager::mount), which is where that is
 /// actually enforced.
 #[tauri::command]
+#[specta::specta]
 pub async fn open_container(state: State<'_, AppState>, source: String) -> Result<OpenedContainer, String> {
 	// `from_container filename="berlin.mbtiles"` in a `.vpl` means *beside that file*, not beside
 	// wherever Studio was started. Absolute paths and URLs are left alone.
@@ -56,6 +57,7 @@ pub async fn open_container(state: State<'_, AppState>, source: String) -> Resul
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(specta::Type)]
 pub struct OpenedContainer {
 	/// Mount name on the embedded server.
 	pub name: String,
@@ -168,12 +170,14 @@ mod tests {
 
 /// The recently opened sources, newest first (A7).
 #[tauri::command]
+#[specta::specta]
 pub async fn recent_sources(state: State<'_, AppState>) -> Result<Vec<RecentEntry>, String> {
 	Ok(state.recents.lock().await.entries().to_vec())
 }
 
 /// Drops one entry — for a path that has gone away, or that the user wants gone.
 #[tauri::command]
+#[specta::specta]
 pub async fn forget_recent(state: State<'_, AppState>, source: String) -> Result<(), String> {
 	let mut recents = state.recents.lock().await;
 	recents.forget(&source);
@@ -184,6 +188,7 @@ pub async fn forget_recent(state: State<'_, AppState>, source: String) -> Result
 ///
 /// Takes the source string rather than the mount name so the webview never has to track both.
 #[tauri::command]
+#[specta::specta]
 pub async fn inspect_tile(
 	state: State<'_, AppState>,
 	source: String,

@@ -15,6 +15,7 @@ use versatiles_container::{SharedTileSource, SourceType, TilesRuntime};
 /// Serialisable so the control plane can hand it to the inspector (A6) verbatim.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct ContainerInfo {
 	/// How the user referred to it — a path or a URL.
 	pub source: String,
@@ -28,8 +29,13 @@ pub struct ContainerInfo {
 	pub min_zoom: u8,
 	pub max_zoom: u8,
 	/// `[west, south, east, north]`, if the pyramid is non-empty.
+	#[cfg_attr(feature = "bindings", specta(type = Option<[specta_typescript::Number; 4]>))]
 	pub bbox: Option<[f64; 4]>,
 	/// TileJSON as published by the container, for the inspector to show and edit (A6).
+	///
+	/// Arbitrary JSON, so it is declared opaque: specta refuses `serde_json::Value` because a
+	/// `Number` can hold an `i64`, and there is no shape to describe beyond "an object".
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Any))]
 	pub tile_json: serde_json::Value,
 }
 
@@ -252,10 +258,13 @@ pub(crate) mod tests {
 /// One layer of a decoded vector tile (A4).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct LayerInspection {
 	pub name: String,
+	#[cfg_attr(feature = "bindings", specta(type = u32))]
 	pub feature_count: usize,
 	/// Exact encoded size of this layer, so "which layer is eating my tile" has an answer.
+	#[cfg_attr(feature = "bindings", specta(type = u32))]
 	pub encoded_bytes: usize,
 	/// Property keys present, for a first look at what is styleable.
 	pub property_keys: Vec<String>,
@@ -264,11 +273,13 @@ pub struct LayerInspection {
 /// A decoded tile, layer by layer (A4).
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct TileInspection {
 	pub z: u8,
 	pub x: u32,
 	pub y: u32,
 	/// Bytes as stored in the container, before decompression.
+	#[cfg_attr(feature = "bindings", specta(type = u32))]
 	pub stored_bytes: usize,
 	pub layers: Vec<LayerInspection>,
 }

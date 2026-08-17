@@ -28,12 +28,15 @@ pub fn registry() -> &'static HashMap<String, OperationMeta> {
 /// The control a parameter should be edited with.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub enum Control {
 	Text,
 	/// `min`/`max` come from the integer width, so a zoom level cannot be set to 300.
 	Number {
 		integer: bool,
+		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
 		min: Option<f64>,
+		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
 		max: Option<f64>,
 	},
 	Boolean,
@@ -45,6 +48,7 @@ pub enum Control {
 	List,
 	/// A fixed-size numeric array: a bbox is four, a colour or a centre three.
 	Numbers {
+		#[cfg_attr(feature = "bindings", specta(type = u32))]
 		count: usize,
 	},
 }
@@ -117,6 +121,7 @@ fn fixed_array_len(inner: &str) -> Option<usize> {
 /// One parameter of an operation, ready to render.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct FieldInfo {
 	pub name: String,
 	/// Upstream's own documentation for the parameter.
@@ -130,6 +135,7 @@ pub struct FieldInfo {
 /// One operation, ready to render.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct OperationInfo {
 	pub name: String,
 	/// `read` or `transform` — which end of a pipeline it belongs at.

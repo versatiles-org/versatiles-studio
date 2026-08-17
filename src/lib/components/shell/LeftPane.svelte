@@ -113,9 +113,11 @@
 </script>
 
 <div class="pane">
+	<!-- `pipelineOpen` is optional in the generated type because `Layout` carries serde's `default`
+	     for the file it is read from; a command always returns it. -->
 	<PaneSection
 		title="Pipeline"
-		open={layout.pipelineOpen}
+		open={layout.pipelineOpen ?? true}
 		count={pipeline?.pipeline.nodes.length ?? 0}
 		onToggle={(open) => onLayoutChange({ ...layout, pipelineOpen: open })}
 	>

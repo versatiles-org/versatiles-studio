@@ -13,6 +13,7 @@ use tauri::State;
 /// A parse failure the editor can place, rather than a rendered string it would have to read.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(specta::Type)]
 pub struct VplError {
 	pub message: String,
 	pub span: Span,
@@ -32,12 +33,14 @@ impl From<ParseError> for VplError {
 /// Fetched once and cached by the caller: this is build-time information about the binary, so it
 /// cannot change while Studio is running.
 #[tauri::command]
+#[specta::specta]
 pub fn vpl_operations() -> Vec<OperationInfo> {
 	operations()
 }
 
 /// Parses VPL into a tree with spans, so the webview can render one field per property.
 #[tauri::command]
+#[specta::specta]
 pub fn vpl_parse(text: String) -> Result<Pipeline, VplError> {
 	Ok(Document::parse(text)?.pipeline().clone())
 }
@@ -45,6 +48,7 @@ pub fn vpl_parse(text: String) -> Result<Pipeline, VplError> {
 /// The whole document a view needs: the text, its tree, and its tokens.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(specta::Type)]
 pub struct DocumentView {
 	pub text: String,
 	pub pipeline: Pipeline,
@@ -84,6 +88,7 @@ impl DocumentView {
 
 /// This window's pipeline, or `None` before anything has been opened.
 #[tauri::command]
+#[specta::specta]
 pub async fn pipeline(state: State<'_, AppState>) -> Result<Option<DocumentView>, String> {
 	let history = state.history.lock().await;
 	let file = state.pipeline_file.lock().await.clone();
@@ -100,30 +105,24 @@ pub async fn pipeline(state: State<'_, AppState>) -> Result<Option<DocumentView>
 /// The editor holds the text a user is typing, which is often mid-edit and invalid; the *document*
 /// never is. A rejection carries a span so the editor can mark it (C4).
 #[tauri::command]
+#[specta::specta]
 pub async fn set_pipeline(
 	state: State<'_, AppState>,
 	text: String,
-	kind: Option<String>,
+	kind: Option<EditKind>,
 ) -> Result<DocumentView, VplError> {
 	let document = Document::parse(text)?;
 
 	// A wholesale replacement — opening a container, say — is no longer the file that was open, so
 	// Save must not silently write over it. An edit keeps the file and simply makes it dirty.
-	if kind.as_deref() == Some("replaced") {
+	if kind == Some(EditKind::Replaced) {
 		*state.pipeline_file.lock().await = None;
 	}
 
 	let mut history = state.history.lock().await;
 	// The caller says where the edit came from, because only it knows: the same command carries a
 	// keystroke and a form change, and they deserve different undo granularity.
-	history.push(
-		document.text(),
-		match kind.as_deref() {
-			Some("typing") => EditKind::Typing,
-			Some("replaced") => EditKind::Replaced,
-			_ => EditKind::Structured,
-		},
-	);
+	history.push(document.text(), kind.unwrap_or_default());
 	let view = DocumentView::of(&document, &history, state.pipeline_file.lock().await.as_ref());
 	*state.pipeline.lock().await = Some(document);
 	Ok(view)
@@ -133,11 +132,13 @@ pub async fn set_pipeline(
 ///
 /// One stack for every view (G6): a form change undone from the text tab is the same ⌘Z.
 #[tauri::command]
+#[specta::specta]
 pub async fn undo(state: State<'_, AppState>) -> Result<Option<DocumentView>, VplError> {
 	step(state, true).await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn redo(state: State<'_, AppState>) -> Result<Option<DocumentView>, VplError> {
 	step(state, false).await
 }
@@ -162,6 +163,7 @@ async fn step(state: State<'_, AppState>, back: bool) -> Result<Option<DocumentV
 /// which version they describe.
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(specta::Type)]
 pub struct Review {
 	pub tokens: Vec<Token>,
 	/// Empty when the pipeline is sound. Parse failures come back as an `Err` instead — a document
@@ -170,6 +172,7 @@ pub struct Review {
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn vpl_review(text: String) -> Result<Review, VplError> {
 	let document = Document::parse(text)?;
 	Ok(Review {
@@ -183,6 +186,7 @@ pub fn vpl_review(text: String) -> Result<Review, VplError> {
 /// Returning the text rather than a patch keeps the webview from having to apply spans itself; it
 /// re-parses what it gets and re-renders. The documents here are a few hundred bytes.
 #[tauri::command]
+#[specta::specta]
 pub fn vpl_set_value(text: String, span: Span, value: String) -> Result<String, VplError> {
 	let mut document = Document::parse(text)?;
 	document.set_value(span, &value)?;
@@ -194,6 +198,7 @@ pub fn vpl_set_value(text: String, span: Span, value: String) -> Result<String, 
 /// Takes the node rather than the property, because the generated form offers every parameter an
 /// operation accepts — including the ones the node has no span for yet.
 #[tauri::command]
+#[specta::specta]
 pub fn vpl_set_property(text: String, span: Span, key: String, values: Vec<String>) -> Result<String, VplError> {
 	let mut document = Document::parse(text)?;
 	document.set_property(span, &key, &values)?;
@@ -202,6 +207,7 @@ pub fn vpl_set_property(text: String, span: Span, key: String, values: Vec<Strin
 
 /// Removes the property at `span`. This is what clearing a field means (see `VplNodeCard`).
 #[tauri::command]
+#[specta::specta]
 pub fn vpl_remove_property(text: String, span: Span) -> Result<String, VplError> {
 	let mut document = Document::parse(text)?;
 	document.remove_property(span)?;
@@ -211,6 +217,7 @@ pub fn vpl_remove_property(text: String, span: Span) -> Result<String, VplError>
 /// The pipeline's output, mounted on the embedded server and ready for the map (S2.7, C3).
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+#[derive(specta::Type)]
 pub struct Preview {
 	/// Mount name, stable so a rebuild replaces rather than accumulates.
 	pub name: String,
@@ -223,7 +230,11 @@ pub struct Preview {
 /// Building opens the inputs, so this is not instant on a large source — the caller should say it
 /// is working. It is not yet a cancellable job; that arrives with the runner at S3.1.
 #[tauri::command]
-pub async fn preview_pipeline(state: State<'_, AppState>, path: Vec<usize>) -> Result<Option<Preview>, String> {
+#[specta::specta]
+pub async fn preview_pipeline(state: State<'_, AppState>, path: Vec<u32>) -> Result<Option<Preview>, String> {
+	// `u32` rather than `usize` at the boundary: it arrives from JavaScript as numbers, and specta
+	// will not emit a 64-bit integer as a `number` (see `bindings.rs`).
+	let path: Vec<usize> = path.into_iter().map(|index| index as usize).collect();
 	let Some(document) = state.pipeline.lock().await.clone() else {
 		return Ok(None);
 	};
@@ -263,6 +274,7 @@ pub async fn preview_pipeline(state: State<'_, AppState>, path: Vec<usize>) -> R
 /// them — `from_container filename="berlin.mbtiles"` beside the `.vpl` means exactly that — so
 /// opening one moves `project_dir`.
 #[tauri::command]
+#[specta::specta]
 pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<DocumentView, VplError> {
 	let text = std::fs::read_to_string(&path).map_err(|error| VplError {
 		message: format!("could not read {path}: {error}"),
@@ -300,6 +312,7 @@ pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 /// *project* — the manifest, the style and the pipeline as a directory — is G1 at S5.1, and stays a
 /// separate command because it has a different scope.
 #[tauri::command]
+#[specta::specta]
 pub async fn save_vpl(state: State<'_, AppState>, path: String) -> Result<DocumentView, VplError> {
 	let Some(document) = state.pipeline.lock().await.clone() else {
 		return Err(VplError {

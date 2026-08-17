@@ -11,11 +11,17 @@ repository.workspace = true
 name = "versatiles_studio_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
+[dev-dependencies]
+specta-typescript = "0.0.12"
+specta-serde = "0.0.12"
+
 [build-dependencies]
 tauri-build = { version = "2.6", features = [] }
 
 [dependencies]
-studio-core = { path = "../crates/studio-core" }
+specta = { version = "=2.0.0-rc.25", features = ["derive"] }
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
+studio-core = { path = "../crates/studio-core", features = ["bindings"] }
 tauri = { version = "2.11", features = [] }
 tauri-plugin-dialog = "2"
 anyhow.workspace = true

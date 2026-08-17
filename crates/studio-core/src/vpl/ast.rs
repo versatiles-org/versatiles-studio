@@ -14,8 +14,15 @@ use serde::{Deserialize, Serialize};
 /// field and back when the webview asks for the value under it to be changed.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Span {
+	// `usize` in Rust, `number` in TypeScript. Specta refuses 64-bit integers by default, to avoid
+	// silent precision loss — but a byte offset into a pipeline is nowhere near that boundary, and
+	// the alternative it offers is `bigint`, which would make every span arithmetic in the webview
+	// awkward for a risk that cannot occur. The same override appears on every `usize` that crosses.
+	#[cfg_attr(feature = "bindings", specta(type = u32))]
 	pub start: usize,
+	#[cfg_attr(feature = "bindings", specta(type = u32))]
 	pub end: usize,
 }
 
@@ -54,6 +61,7 @@ impl From<std::ops::Range<usize>> for Span {
 /// How a string was written. Mirrors upstream's `CstStringKind`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub enum Quote {
 	/// Bare, e.g. `mvt` or `13.4`.
 	None,
@@ -66,6 +74,7 @@ pub enum Quote {
 /// One string literal: what it means, how it was written, and where it sits.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Str {
 	/// The decoded value — escapes resolved, quotes removed.
 	pub value: String,
@@ -77,6 +86,7 @@ pub struct Str {
 /// A parameter value: one string, or a bracketed list of them.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub enum Value {
 	Single(Str),
 	Array { items: Vec<Str>, span: Span },
@@ -104,6 +114,7 @@ impl Value {
 /// One `key=value` pair.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Property {
 	pub key: String,
 	pub key_span: Span,
@@ -115,6 +126,7 @@ pub struct Property {
 /// One operation, its parameters, and any nested pipelines feeding it.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Node {
 	pub name: String,
 	pub name_span: Span,
@@ -165,6 +177,7 @@ impl Node {
 /// A chain of nodes, `a | b | c`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Pipeline {
 	pub nodes: Vec<Node>,
 	pub span: Span,
@@ -204,6 +217,7 @@ impl Pipeline {
 /// A `# …` comment. Carried as leading trivia in the concrete tree; surfaced here with a position.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Comment {
 	/// The text after `#`, up to but not including the newline.
 	pub text: String,
@@ -214,17 +228,21 @@ pub struct Comment {
 /// A position a human can act on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct LineCol {
 	/// 1-based, as every editor counts them.
+	#[cfg_attr(feature = "bindings", specta(type = u32))]
 	pub line: usize,
 	/// 1-based, counted in characters rather than bytes so a line of CJK does not report column 40
 	/// for the thirteenth character.
+	#[cfg_attr(feature = "bindings", specta(type = u32))]
 	pub column: usize,
 }
 
 /// What a stretch of the document is, for a syntax highlighter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub enum TokenKind {
 	/// An operation name at the head of a node.
 	Operation,
@@ -240,6 +258,7 @@ pub enum TokenKind {
 /// A highlighted span. Whitespace is simply absent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Token {
 	pub kind: TokenKind,
 	pub span: Span,
