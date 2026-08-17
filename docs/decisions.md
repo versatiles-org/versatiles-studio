@@ -16,6 +16,61 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q31 — Panes are a list, and each one owns what it emits
+
+**Dated 2026-08-18.** Two questions S3.6 could not answer without settling: where a "write tiles"
+action lives, and whether [Q22](decisions.md)'s three fixed sections are the right container for what
+is coming.
+
+**The left/right axis stays, and it is worth naming properly.** Q22 describes the left pane as "the
+chain" and the right as "parameters and resulting metadata", but the axis underneath is **document
+versus selection**: left is the structure of what you are building, right is the thing currently
+selected — both what it is and what you can set on it. That is why the generated parameter form sits
+on the right without contradicting "the right pane is where you read things".
+
+Two alternatives were considered and rejected against the full feature inventory:
+
+- **Left = tile data, right = style.** It gets one thing right, recorded below. But it leaves every
+  analysis feature homeless — A4, A6, B1–B5, B7 — and it re-creates the problem this decision merged
+  away: building a pipeline leaves the right half idle, styling leaves the left half idle. Modes
+  again, as columns rather than tabs.
+- **Left = interaction, right = information.** It has a home for everything, which is its strength,
+  but the line does not survive contact: A6 _edits_ TileJSON, B3 has a repair button, A4 is
+  navigable. And it puts graph, VPL, forms, export, layer tree and style export in one column —
+  precisely the overload Q22 already flagged as its own biggest risk.
+
+Under document-versus-selection every analysis feature has an obvious home, because each is _about
+the current selection_: B2 is about the selected node's output, A4 about the selected tile, A6 about
+the selected container.
+
+**Each pane owns what it emits.** The Export section is dissolved. "Export tiles" belongs to the
+Pipeline pane, "export style" (D8) to the Style pane, and the CLI command (C7) to whichever pane
+produced the thing it reproduces. This closes a gap the alternatives exposed: Q22 named one Export
+section, [ui.md](ui.md) defined it as tiles-only (F1, F2), and **D8 therefore had no declared home at
+all**. "Export" as a shared destination was a category that only looked like one.
+
+**No "export everything" button yet.** That is closer to [G1](features.md) — once `project.yaml` sits
+beside real `.vpl` and `style.json` files, exporting everything is mostly "save the project, and
+render the tiles". Its shape depends on a decision that lands at S5.1, so it is revisited after G1
+rather than guessed at before.
+
+**Panes become a list; dragging them does not arrive yet.** The three fixed sections become a `Pane`
+component — id, title, foldable — with each sidebar rendering a list of pane ids from persisted
+layout.
+
+The reason is arithmetic. The analysis cluster alone is eight more surfaces (A4, A6, B1, B2, B3, B4,
+B5, B7), and "which of three fixed sections does the byte breakdown belong to" has no good answer,
+while "it is a pane" does. Taking the list now makes those cheap, keeps persistence in a shape
+reordering can use, and turns "where does this belong" into a data change rather than a refactor.
+
+**The drag interaction is deliberately deferred.** It is a real feature — drop targets, drag
+affordances, empty-sidebar states, position as well as collapse state per pane, and the hardest
+surface in the application to test — and it is not in any milestone. It is also the one part that
+does not pay for itself yet: a rearrangeable interface **converts a design question into a user
+problem**, and the default arrangement still has to be right, because most people never move a panel.
+Photoshop is the example in both directions. Revisit when the analysis panes land and there is
+something worth rearranging.
+
 ### Q30 — A CSV import reads the header and fills in what it can
 
 **Dated 2026-08-17.** [Q29](decisions.md) taught the form its data by probing what the pipeline
@@ -323,6 +378,9 @@ map at all — the asset manager (G7) today, glyph generation (D9) and whatever 
 └───────────────────┴──────────────────────┴────────────────┘
 ```
 
+_The Export section shown here was later dissolved; each pane exports what it produces
+([Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits))._
+
 **Why.** The four modes asserted a separation the work does not have. Tighten a filter, look at how
 it renders, adjust a colour, notice a missing layer, go back to the filter — every one of those was a
 mode switch. The pipeline produces tiles and the style renders them; they are sequential stages of
@@ -381,6 +439,10 @@ so the sections must not imply they are the same kind of thing.
 **Supersedes [Q14](decisions.md)** entirely, and the Publish-mode reasoning in
 [Q17](decisions.md). [Q13](decisions.md)'s landing screen and [Q15](decisions.md)'s Graph/VPL tabs
 are unaffected.
+
+**Amended by [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits).** The three fixed
+sections become a list of panes, and the Export section is dissolved — each pane carries its own
+export instead. The left/right axis this decision set is unchanged.
 
 ### Q21 — Recents and bookmarks are application state in two JSON files, not project state
 

@@ -91,7 +91,7 @@ of the crates, and pressure to improve their APIs is a welcome side effect.
 versatiles-studio/
 ├── Cargo.toml                  workspace: crates/* + src-tauri
 ├── package.json                Vite · Svelte 5 · TypeScript — build-time only (Q5)
-├── index.html                  single entry; modes are state, not routes
+├── index.html                  single entry; one surface, no routes         (Q22)
 │
 ├── crates/
 │   └── studio-core/
@@ -120,7 +120,7 @@ versatiles-studio/
 │   ├── maplibre-gl-worker.js   generated, not hand-written               (Q18)
 │   └── lib/
 │       ├── components/         shell · map · pipeline · style · inputs · common
-│       ├── modes/              Explore · Pipeline · Style · Publish
+│       ├── panes/              one component per pane, listed by layout   (Q31)
 │       ├── ipc/                bindings.ts (generated) + typed wrappers
 │       └── state/              view state, and mirrors of core state      (Q16)
 │
