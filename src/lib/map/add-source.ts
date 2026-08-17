@@ -7,26 +7,31 @@
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import type { OpenedContainer } from '../ipc/commands';
 import { token } from '../styles/tokens';
+import { renderableAs } from './tile-format';
 import { role } from './theme';
 
 export function addContainerToMap(
 	map: MaplibreMap,
 	opened: { name: string; tileUrl: string; info: OpenedContainer['info'] }
-): void {
+): boolean {
 	const { name, tileUrl, info } = opened;
-	const vector = info.tileFormat === 'mvt';
+	// Only formats a map can actually draw get a layer. Treating "not mvt" as "raster" is how a
+	// container of `bin` tiles produced one decode error per tile and a blank map — see
+	// `tile-format.ts`.
+	const kind = renderableAs(info.tileFormat);
 
 	if (map.getSource(name)) removeContainerFromMap(map, name);
+	if (kind === null) return false;
 
 	map.addSource(name, {
-		type: vector ? 'vector' : 'raster',
+		type: kind,
 		tiles: [tileUrl],
 		minzoom: info.minZoom,
 		maxzoom: info.maxZoom,
 		...(info.bbox ? { bounds: info.bbox } : {})
 	});
 
-	if (vector) {
+	if (kind === 'vector') {
 		// Until S1.5 knows the container's layers, draw every vector layer as a hairline. Deriving a
 		// real style from the layers actually present is D2, and it needs A4's introspection first.
 		for (const layer of vectorLayerIds(info)) {
@@ -44,6 +49,7 @@ export function addContainerToMap(
 	}
 
 	if (info.bbox) map.fitBounds(info.bbox, { padding: 24, duration: 0 });
+	return true;
 }
 
 export function removeContainerFromMap(map: MaplibreMap, name: string): void {

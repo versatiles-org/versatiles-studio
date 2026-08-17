@@ -78,6 +78,11 @@ drop and the recents list all take one — a pipeline the CLI wrote has to open 
 cannot hand work to each other. What opens is the Pipeline section, with the map previewing the
 pipeline's output rather than a container's tiles.
 
+**A format the map cannot draw says so.** Only `mvt` and the image formats can be rendered;
+`bin` — which is what a container reports when its format could not be determined — along with
+`json`, `geojson`, `topojson` and `svg` cannot. Those are named in the status bar rather than left as
+a blank map.
+
 **The map shows what the pipeline produces, not the file that feeds it** (C3). Selecting a node runs
 the pipeline **up to and including it** and mounts the result, so tightening a filter changes the
 tiles rather than a number in a form. A node inside a `[ … ]` block previews that block's own chain,

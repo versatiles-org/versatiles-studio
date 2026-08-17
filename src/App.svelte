@@ -17,6 +17,7 @@
 	import CoordinateJump from './lib/components/map/CoordinateJump.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { addContainerToMap, removeContainerFromMap } from './lib/map/add-source';
+	import { whyNotRenderable } from './lib/map/tile-format';
 	import {
 		forgetRecent,
 		getLayout,
@@ -202,8 +203,13 @@
 			if (previewName && map) removeContainerFromMap(map, previewName);
 			previewName = null;
 			if (result) {
-				addContainerToMap(map, result);
 				previewName = result.name;
+				// A format the map cannot draw is a thing to say, not a blank map with errors in the
+				// console — which is what it used to be.
+				if (!addContainerToMap(map, result)) {
+					status = { kind: 'error', message: whyNotRenderable(result.info.tileFormat) };
+					return;
+				}
 			}
 			status = { kind: 'idle' };
 		} catch (e) {
