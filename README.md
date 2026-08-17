@@ -60,12 +60,20 @@ npm run tauri build      # → src-tauri/target/release/bundle/
 **Check it**
 
 ```sh
-npm run check            # svelte-check + tsc over the build scripts
-npm test                 # vitest
-npm run format:check     # prettier
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+npm run check            # everything below, in order — the one command before a commit
 ```
+
+Or a single half of it:
+
+```sh
+npm run check:format     # prettier
+npm run check:types      # svelte-check over src/, tsc over scripts/
+npm run check:lint       # eslint
+npm run check:test       # vitest
+npm run check:rust       # cargo fmt --check, clippy -D warnings, cargo test
+```
+
+CI runs these individually rather than through `npm run check`, so a failure names itself.
 
 Some Rust tests need sample containers, which are not vendored — `berlin.versatiles` alone is 25 MB.
 They are found automatically if a `versatiles-rs` checkout sits beside this one, or via

@@ -29,9 +29,13 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run format:check
-      - run: npm run check
-      - run: npm test
+      # Run granularly rather than through `npm run check`, so a failure names which check failed
+      # without reading the log. `npm run check` is the single command for a human before a commit,
+      # and includes the Rust half that the job below owns.
+      - run: npm run check:format
+      - run: npm run check:types
+      - run: npm run check:lint
+      - run: npm run check:test
       - run: npm run build
       # Fails when an upstream release moves past a pin, or when a pinned digest changes under an
       # unchanged tag. Metadata-only, so it costs nothing (Q9).
