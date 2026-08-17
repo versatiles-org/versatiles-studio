@@ -8,7 +8,7 @@
 
 use anyhow::{Context, Result};
 use serde::Serialize;
-use versatiles_container::{SharedTileSource, TilesRuntime};
+use versatiles_container::{SharedTileSource, SourceType, TilesRuntime};
 
 /// What Studio knows about a container without reading a single tile body.
 ///
@@ -18,7 +18,7 @@ use versatiles_container::{SharedTileSource, TilesRuntime};
 pub struct ContainerInfo {
 	/// How the user referred to it — a path or a URL.
 	pub source: String,
-	/// Container kind, e.g. `versatiles`, `mbtiles`, `pmtiles`.
+	/// Container kind — just the name: `versatiles`, `mbtiles`, `pmtiles`, `tar`, `directory`.
 	pub container: String,
 	/// Tile format, e.g. `mvt`, `png`, `webp`.
 	pub tile_format: String,
@@ -31,6 +31,19 @@ pub struct ContainerInfo {
 	pub bbox: Option<[f64; 4]>,
 	/// TileJSON as published by the container, for the inspector to show and edit (A6).
 	pub tile_json: serde_json::Value,
+}
+
+/// The container kind, without the diagnostics around it.
+///
+/// `SourceType`'s `Display` is written for error messages — a container renders as
+/// `container 'mbtiles' ('/path/to/file')`, which is useful in a log and wrong in a label. Studio
+/// showed that whole string, path and all, wherever it named a format.
+fn container_name(source_type: &SourceType) -> String {
+	match source_type {
+		SourceType::Container { name, .. } | SourceType::Processor { name, .. } | SourceType::Composite { name, .. } => {
+			name.clone()
+		}
+	}
 }
 
 /// Opens a container and reads everything cheap about it.
@@ -54,7 +67,7 @@ pub async fn open(runtime: &TilesRuntime, source: &str) -> Result<(SharedTileSou
 
 	let info = ContainerInfo {
 		source: source.to_string(),
-		container: reader.source_type().to_string(),
+		container: container_name(&reader.source_type()),
 		tile_format: metadata.tile_format().to_string(),
 		tile_compression: metadata.tile_compression().to_string(),
 		min_zoom,
@@ -110,6 +123,10 @@ pub(crate) mod tests {
 			let (_source, info) = open(&runtime, path.to_str().unwrap()).await?;
 
 			assert_eq!(info.tile_format, "mvt", "{name} should be vector tiles");
+			// The container kind alone. `SourceType`'s Display would put the whole file path in
+			// here, and this string is shown in the UI.
+			let kind = name.rsplit('.').next().unwrap();
+			assert_eq!(info.container, kind, "{name} should report its kind as {kind:?}");
 			assert!(info.max_zoom >= info.min_zoom, "{name} zoom range must be ordered");
 
 			let bbox = info.bbox.unwrap_or_else(|| panic!("{name} should report an extent"));

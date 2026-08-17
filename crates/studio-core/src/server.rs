@@ -59,7 +59,15 @@ impl ServerManager {
 	}
 
 	/// Mounts a tile source under `name`, replacing any mount already using it.
+	/// Mounts a tile source, **replacing** any mount already using that name.
+	///
+	/// Replacing rather than failing, because a name is derived from the source it came from: the
+	/// same name means the same container, so a second mount is a re-open, not a collision. The
+	/// underlying `add_tile_source` rejects a duplicate id, which surfaced as
+	/// `tile source '…' already exists` the second time a user opened the same file — an error about
+	/// Studio's internals for something the user is entitled to do.
 	pub async fn mount(&mut self, name: &str, source: Arc<Box<dyn TileSource>>) -> Result<()> {
+		self.unmount(name)?;
 		self
 			.server
 			.add_tile_source(name.to_string(), source)
@@ -148,6 +156,36 @@ mod tests {
 			!response.bytes().await?.is_empty(),
 			"0-255 is Latin, so it must not be an empty tile"
 		);
+
+		server.stop().await;
+		Ok(())
+	}
+
+	/// Opening the same container twice is something a user does — from the file dialog, then from
+	/// the recents list, or by dropping the same file again. It used to fail with
+	/// `tile source '…' already exists`, because mount names are derived from the source and so
+	/// collide by design on a re-open.
+	#[tokio::test]
+	async fn mounting_the_same_name_twice_replaces_rather_than_failing() -> Result<()> {
+		let Some(path) = crate::analysis::tests::sample_container("berlin.versatiles") else {
+			eprintln!("skipping: set STUDIO_TESTDATA to a directory of sample containers");
+			return Ok(());
+		};
+
+		let mut server = ServerManager::start().await?;
+		let source = path.to_str().unwrap();
+
+		for attempt in 1..=3 {
+			let (reader, _) = crate::analysis::open(server.runtime(), source).await?;
+			server
+				.mount("berlin", reader)
+				.await
+				.unwrap_or_else(|e| panic!("mount #{attempt} should succeed: {e:#}"));
+		}
+
+		// And the mount still works afterwards — replaced, not left in some half-removed state.
+		assert!(server.unmount("berlin")?, "one mount should remain, not three");
+		assert!(!server.unmount("berlin")?, "and only one");
 
 		server.stop().await;
 		Ok(())

@@ -10,7 +10,9 @@ use tauri::State;
 /// Opens a container, mounts it on the embedded server, and returns what is cheap to know.
 ///
 /// The mount name is derived from the path so the webview can build tile URLs without a second
-/// round trip. Re-opening the same path replaces the mount rather than stacking duplicates.
+/// round trip. Re-opening the same path replaces the mount rather than stacking duplicates — see
+/// [`ServerManager::mount`](studio_core::server::ServerManager::mount), which is where that is
+/// actually enforced.
 #[tauri::command]
 pub async fn open_container(state: State<'_, AppState>, source: String) -> Result<OpenedContainer, String> {
 	let mut server = state.server.lock().await;
