@@ -83,6 +83,11 @@ the pipeline **up to and including it** and mounts the result, so tightening a f
 tiles rather than a number in a form. A node inside a `[ … ]` block previews that block's own chain,
 which is the reason to select one. Containers are inputs; the map never shows one directly.
 
+**Undo is one stack for the whole document** (G6). The text editor, the parameter forms and the
+graph all change the same pipeline, so ⌘Z means the same thing wherever the focus is — a form change
+can be undone from the text tab. A run of typing collapses into one step; a form or graph change is
+always its own, because someone who changes a value and presses ⌘Z means _that_ value.
+
 **The graph is a vertical tree, not a canvas.** Every VPL node takes one input and produces one
 output; the only branching is a composite's `[ … ]` block, drawn as its sources indented above it.
 A free-floating node canvas would suggest connections the language cannot express, and would need
