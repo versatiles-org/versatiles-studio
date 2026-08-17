@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { open } from '@tauri-apps/plugin-dialog';
 	import { getCurrentWebview } from '@tauri-apps/api/webview';
+	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
 	import AppShell from './lib/components/shell/AppShell.svelte';
 	import CommandStrip from './lib/components/shell/CommandStrip.svelte';
@@ -46,6 +47,15 @@
 	$effect(() => {
 		void refreshRecents();
 		void getLayout().then((loaded) => (layout = loaded));
+	});
+
+	// The window title says which container this window holds — the native equivalent of the in-app
+	// strip that used to repeat the application name back at the OS title bar. One window per
+	// project (Q16), so the window is the right place to name it.
+	$effect(() => {
+		const newest = containers.at(-1)?.info.source;
+		const name = newest ? (newest.split(/[/\\]/).pop() ?? newest) : null;
+		void getCurrentWindow().setTitle(name ? `${name} — VersaTiles Studio` : 'VersaTiles Studio');
 	});
 
 	// A drag repaints on every pointer move but only writes on release — otherwise a single resize
