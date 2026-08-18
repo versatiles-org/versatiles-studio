@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  # So a bundle can be asked for on a branch, on the rare occasion that is the question.
+  workflow_dispatch:
 
 # Least privilege, applied at the workflow level so every job inherits it. Nothing here writes:
 # the jobs check out, build and test. The GITHUB_TOKEN passed to `assets:check` only lifts the
@@ -71,6 +73,15 @@ jobs:
 
   bundle:
     name: Bundle (${{ matrix.os }})
+    # **Not on pull requests.** Bundling is six minutes a platform on a warm cache and fifteen on a
+    # cold one, which is the whole critical path: `Frontend` answers in 30s and `Rust` in about two
+    # minutes, and both already prove the code compiles. What a bundle proves on top of that is that
+    # *packaging* works on both release-1 targets ([Q10](../../docs/decisions.md)) — a question worth
+    # asking of what lands on `main`, and of a release, rather than of every commit on the way there.
+    #
+    # Reachable on demand: `workflow_dispatch` runs it against any branch when packaging is the thing
+    # being changed.
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
