@@ -58,7 +58,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      # **Save the cache even when the job fails.** The action does not by default, so a run that
+      # dies at clippy or at a test throws away every dependency it just compiled — and the next
+      # push, usually the fix for that same failure, compiles them all again. A red build is exactly
+      # when the wait is most expensive, because it is the one you are iterating on.
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
       - uses: actions/setup-node@v7
         with:
           node-version: 24
@@ -102,6 +108,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           key: bundle-${{ matrix.os }}
+          # A bundle that fails part-way has still built GDAL from source, which is most of its
+          # fifteen minutes. Keeping that is worth more here than anywhere else in this workflow.
+          cache-on-failure: true
       - run: npm ci
       - run: npm run assets:fetch
       # Proves the app actually bundles on both release-1 targets (Q10). Ad-hoc signing on macOS is
