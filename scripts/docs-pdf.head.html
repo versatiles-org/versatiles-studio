@@ -1,0 +1,190 @@
+<style>
+	/*
+	 * Print styling for the planning documents (scripts/docs-pdf.sh).
+	 *
+	 * Deliberately not the application's tokens: those describe a dark-capable interface on a
+	 * screen, and every one of them would have to be overridden for ink on white. What is borrowed
+	 * is the type scale's habit — few sizes, each a deliberate step — rather than its values.
+	 */
+
+	@page {
+		size: A4;
+		margin: 18mm 16mm;
+	}
+
+	:root {
+		--ink: #16201e;
+		--ink-2: #55605d;
+		--rule: #d3dad8;
+		--accent: #0b6b5f;
+		--surface: #f4f6f6;
+	}
+
+	html {
+		font-size: 10.5pt;
+	}
+
+	body {
+		margin: 0;
+		color: var(--ink);
+		background: #fff;
+		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+		line-height: 1.5;
+		/* Long technical words — `from_stacked_raster`, hyphenated crate names — in a narrow
+		   column. Without this they push a table cell past the page rather than breaking. */
+		overflow-wrap: break-word;
+	}
+
+	/* Each document starts a page. The anchor is an empty element, so the break is asked of it
+	   rather than of the heading, which keeps a heading's own margin from collapsing oddly. */
+	.document {
+		break-before: page;
+	}
+
+	h1,
+	h2,
+	h3,
+	h4 {
+		line-height: 1.25;
+		break-after: avoid;
+		text-wrap: balance;
+	}
+
+	h1 {
+		font-size: 20pt;
+		margin: 0 0 0.6em;
+		padding-bottom: 0.2em;
+		border-bottom: 2px solid var(--accent);
+	}
+
+	h2 {
+		font-size: 14pt;
+		margin: 1.6em 0 0.4em;
+	}
+
+	h3 {
+		font-size: 11.5pt;
+		margin: 1.3em 0 0.3em;
+	}
+
+	h4 {
+		font-size: 10.5pt;
+		margin: 1.1em 0 0.3em;
+		color: var(--ink-2);
+	}
+
+	p,
+	ul,
+	ol {
+		margin: 0 0 0.7em;
+	}
+
+	a {
+		color: var(--accent);
+		text-decoration: none;
+	}
+
+	code {
+		font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+		font-size: 0.88em;
+		background: var(--surface);
+		padding: 0.1em 0.3em;
+		border-radius: 3px;
+	}
+
+	/* Wireframes and VPL samples. Kept whole where they fit — a diagram split across a page break
+	   is two half-diagrams — but allowed to break rather than overflow when they do not. */
+	pre {
+		font-size: 8pt;
+		line-height: 1.35;
+		background: var(--surface);
+		border: 1px solid var(--rule);
+		border-radius: 4px;
+		padding: 0.6em 0.8em;
+		overflow: hidden;
+		break-inside: avoid;
+
+		& code {
+			background: none;
+			padding: 0;
+			font-size: inherit;
+			white-space: pre-wrap;
+		}
+	}
+
+	pre.mermaid {
+		border: 0;
+		background: none;
+		text-align: center;
+	}
+
+	/*
+	 * Tables carry most of these documents — the feature catalogue, the work items, the decisions'
+	 * comparisons — and the widest rows run past 450 characters. Smaller than the body text on
+	 * purpose: a table that fits is worth more than one set at reading size and clipped.
+	 */
+	table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 8pt;
+		line-height: 1.4;
+		margin: 0 0 0.9em;
+	}
+
+	th,
+	td {
+		border: 1px solid var(--rule);
+		padding: 0.35em 0.5em;
+		text-align: left;
+		vertical-align: top;
+	}
+
+	th {
+		background: var(--surface);
+		font-weight: 600;
+	}
+
+	/* A row may break across pages — some are a paragraph long — but the header repeats when it
+	   does, or the columns on the second page mean nothing. */
+	thead {
+		display: table-header-group;
+	}
+
+	blockquote {
+		margin: 0 0 0.8em;
+		padding: 0.1em 0 0.1em 0.9em;
+		border-left: 3px solid var(--rule);
+		color: var(--ink-2);
+	}
+
+	hr {
+		border: 0;
+		border-top: 1px solid var(--rule);
+		margin: 1.4em 0;
+	}
+
+	/* Pandoc's table of contents. No page numbers — they need paged-media CSS no browser
+	   implements — so it earns its place by being clickable and by showing the shape of the whole
+	   set at a glance. */
+	#TOC {
+		break-after: page;
+
+		& ul {
+			list-style: none;
+			padding-left: 1em;
+		}
+
+		& > ul {
+			padding-left: 0;
+		}
+
+		& a {
+			color: var(--ink);
+		}
+	}
+
+	header#title-block-header h1 {
+		font-size: 24pt;
+		border: 0;
+	}
+</style>
