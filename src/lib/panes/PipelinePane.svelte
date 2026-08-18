@@ -33,23 +33,12 @@
 		suggestions = {},
 		graphs = [],
 		pinned = null,
-		onAddSource,
-		onSelectGraph,
-		onRenameGraph,
-		onPin,
-		onAddOperation,
-		onRemoveNode,
-		onCommit,
-		onRemoveProperty,
-		onSetProperty,
 		pipeline,
 		pipelineRevision,
-		onPipelineChange,
 		selected,
-		onSelect,
-		onUndo,
-		onRedo,
-		onSave
+		graphActions,
+		nodeActions,
+		documentActions
 	}: {
 		/** Every way in this build has, offered by "+ Add source" (S3.2). */
 		kinds: ImportKind[];
@@ -63,31 +52,44 @@
 		graphs?: GraphInfo[];
 		/** The pinned node, when the pin is in *this* graph. */
 		pinned?: number[] | null;
-		onAddSource: (kind: ImportKind) => void;
-		onSelectGraph: (id: number) => void;
-		onRenameGraph: (id: number, name: string) => void;
-		/** Moves the map to this node, or clears the pin when it is already there. */
-		onPin: (path: number[]) => void;
-		/** Inserts a transform after the node whose name occupies `span`. */
-		onAddOperation: (afterNameSpan: Span, operation: string) => void;
-		onRemoveNode: (span: Span) => void;
-		onCommit: (span: Span, value: string) => void;
-		onRemoveProperty: (span: Span) => void;
-		onSetProperty: (nameSpan: Span, key: string, values: string[]) => void;
 		/** This window's pipeline, owned by the core (Q25). */
 		pipeline: DocumentView | null;
 		/** Bumped only when the document changes from *outside* the editor. Keying the editor on the
 		 *  text itself would remount it on its own edits and throw the caret away. */
 		pipelineRevision: number;
-		onPipelineChange: (text: string) => void;
 		/** Path of the selected node. Lifted out so the right pane can show its parameters (Q22). */
 		selected: number[] | null;
-		onSelect: (path: number[] | null) => void;
-		/** One stack for every view (G6); the buttons are the discoverable half of ⌘Z. */
-		onUndo: () => void;
-		onRedo: () => void;
-		/** `true` to choose a new file rather than writing to the one already open. */
-		onSave: (chooseFile: boolean) => void;
+
+		// Grouped by what they act on rather than passed one by one. Most of these this file never
+		// calls — it receives them and hands them to `GraphList` or `Chain` — and fourteen loose
+		// callbacks made a signature where the six it *does* use were impossible to pick out.
+
+		/** Acting on the set of graphs. Adding a source creates one ([Q32]). */
+		graphActions: {
+			select: (id: number) => void;
+			rename: (id: number, name: string) => void;
+			addSource: (kind: ImportKind) => void;
+		};
+		/** Acting on a node or one of its arguments. */
+		nodeActions: {
+			select: (path: number[] | null) => void;
+			/** Moves the map to this node, or clears the pin when it is already there. */
+			pin: (path: number[]) => void;
+			/** Inserts a transform after the node whose name occupies `span`. */
+			addOperation: (afterNameSpan: Span, operation: string) => void;
+			remove: (span: Span) => void;
+			commitValue: (span: Span, value: string) => void;
+			removeProperty: (span: Span) => void;
+			setProperty: (nameSpan: Span, key: string, values: string[]) => void;
+		};
+		/** Acting on the document as a whole. One undo stack for every view (G6). */
+		documentActions: {
+			change: (text: string) => void;
+			undo: () => void;
+			redo: () => void;
+			/** `true` to choose a new file rather than writing to the one already open. */
+			save: (chooseFile: boolean) => void;
+		};
 	} = $props();
 
 	// Q15: one pane, two tabs over one document — not two panes.
@@ -106,7 +108,7 @@
 
 	/** Selecting a node in either view selects it in the other (Q15). */
 	function selectNode(path: number[], span: Span) {
-		onSelect(path);
+		nodeActions.select(path);
 		reveal = span;
 	}
 
@@ -114,7 +116,7 @@
 	 *  selection by pushing one back at it. */
 	function caretMoved(offset: number) {
 		const found = pipeline ? nodeAt(pipeline.pipeline, offset) : null;
-		if (!samePath(found?.path ?? null, selected)) onSelect(found?.path ?? null);
+		if (!samePath(found?.path ?? null, selected)) nodeActions.select(found?.path ?? null);
 	}
 
 	// Typing produces text that is often mid-edit and invalid; the *document* never is (Q25). The
@@ -142,7 +144,7 @@
 			draftError = null;
 			// A document that parses is worth keeping even when it does not yet make sense — the
 			// diagnostics say what is wrong, and the graph and preview can still show the shape.
-			onPipelineChange(next);
+			documentActions.change(next);
 		} catch (error) {
 			if (mine !== typed) return;
 			// Text that does not parse is normal while typing: mark it, keep the last good
@@ -165,8 +167,8 @@
 		{graphs}
 		current={pipeline?.graph ?? null}
 		pinnedGraph={pinned ? (pipeline?.graph ?? null) : null}
-		onSelect={onSelectGraph}
-		onRename={onRenameGraph}
+		onSelect={graphActions.select}
+		onRename={graphActions.rename}
 		onNew={() => (adding = !adding)}
 	/>
 
@@ -179,7 +181,7 @@
 			compact
 			onChoose={(kind) => {
 				adding = false;
-				onAddSource(kind);
+				graphActions.addSource(kind);
 			}}
 		/>
 	{/if}
@@ -208,7 +210,7 @@
 				disabled={!pipeline?.canUndo}
 				title="Undo (⌘Z)"
 				aria-label="Undo"
-				onclick={onUndo}>↺</button
+				onclick={documentActions.undo}>↺</button
 			>
 			<button
 				type="button"
@@ -216,7 +218,7 @@
 				disabled={!pipeline?.canRedo}
 				title="Redo (⇧⌘Z)"
 				aria-label="Redo"
-				onclick={onRedo}>↻</button
+				onclick={documentActions.redo}>↻</button
 			>
 		</div>
 	</div>
@@ -254,12 +256,12 @@
 			{properties}
 			{suggestions}
 			onSelect={selectNode}
-			{onPin}
-			{onCommit}
-			onRemove={onRemoveProperty}
-			onSet={(key, values) => selectedSpan && onSetProperty(selectedSpan, key, values)}
-			{onRemoveNode}
-			{onAddOperation}
+			onPin={nodeActions.pin}
+			onCommit={nodeActions.commitValue}
+			onRemove={nodeActions.removeProperty}
+			onSet={(key, values) => selectedSpan && nodeActions.setProperty(selectedSpan, key, values)}
+			onRemoveNode={nodeActions.remove}
+			onAddOperation={nodeActions.addOperation}
 		/>
 	{/if}
 	<!-- Actions on the pipeline itself, available from either tab. Saving a *project* is a
@@ -272,11 +274,13 @@
 				class="file"
 				disabled={!pipeline || (!pipeline.dirty && pipeline.path !== null)}
 				title={pipeline?.path ?? 'Choose where to save'}
-				onclick={() => onSave(false)}
+				onclick={() => documentActions.save(false)}
 			>
 				Save{#if pipeline?.dirty && pipeline.path}<span class="dot" aria-label="unsaved changes">•</span>{/if}
 			</button>
-			<button type="button" class="file" disabled={!pipeline} onclick={() => onSave(true)}>Save as…</button>
+			<button type="button" class="file" disabled={!pipeline} onclick={() => documentActions.save(true)}
+				>Save as…</button
+			>
 		</div>
 	</div>
 </div>

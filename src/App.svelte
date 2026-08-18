@@ -613,34 +613,41 @@
 			{kinds}
 			{operations}
 			{graphs}
+			{pipeline}
+			{pipelineRevision}
+			{selected}
 			properties={producedProperties}
 			{suggestions}
 			pinned={pinned && pinned.graph === currentGraph ? pinned.path : null}
-			onSelectGraph={(id) => void selectGraph(id)}
-			onRenameGraph={(id, name) => void rename(id, name)}
-			onPin={(path) => void pin(path)}
-			onCommit={(span: Span, value: string) => void editSelected((text) => vplSetValue(text, span, value))}
-			onRemoveProperty={(span: Span) => void editSelected((text) => vplRemoveProperty(text, span))}
-			onSetProperty={(nameSpan: Span, key: string, values: string[]) =>
-				void editSelected((text) => vplSetProperty(text, nameSpan, key, values))}
-			onAddSource={(kind) => void pick(kind)}
-			{pipeline}
-			{pipelineRevision}
-			onPipelineChange={(text) =>
-				void setPipelineText(text, 'typing').then((next) => {
-					pipeline = next;
-					void refreshPreview();
-				})}
-			{selected}
-			onSelect={(path) => {
-				selected = path;
-				void refreshPreview();
+			graphActions={{
+				select: (id) => void selectGraph(id),
+				rename: (id, name) => void rename(id, name),
+				addSource: (kind) => void pick(kind)
 			}}
-			onUndo={() => void stepHistory(true)}
-			onRedo={() => void stepHistory(false)}
-			onAddOperation={(afterNameSpan, operation) => void addOperation(afterNameSpan, operation)}
-			onRemoveNode={(span) => void removeNode(span)}
-			onSave={(chooseFile) => void savePipeline(chooseFile)}
+			nodeActions={{
+				// No preview refresh: since [Q32] the map follows the *pin*, not the selection, so
+				// rebuilding here would produce the identical tiles. It used to, when the two were
+				// the same thing.
+				select: (path) => {
+					selected = path;
+				},
+				pin: (path) => void pin(path),
+				addOperation: (afterNameSpan, operation) => void addOperation(afterNameSpan, operation),
+				remove: (span) => void removeNode(span),
+				commitValue: (span, value) => void editSelected((text) => vplSetValue(text, span, value)),
+				removeProperty: (span) => void editSelected((text) => vplRemoveProperty(text, span)),
+				setProperty: (nameSpan, key, values) => void editSelected((text) => vplSetProperty(text, nameSpan, key, values))
+			}}
+			documentActions={{
+				change: (text) =>
+					void setPipelineText(text, 'typing').then((next) => {
+						pipeline = next;
+						void refreshPreview();
+					}),
+				undo: () => void stepHistory(true),
+				redo: () => void stepHistory(false),
+				save: (chooseFile) => void savePipeline(chooseFile)
+			}}
 		/>
 	{:else if id === 'output'}
 		<PipelineOutput preview={lastPreview} />
