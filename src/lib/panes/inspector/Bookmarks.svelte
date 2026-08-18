@@ -117,8 +117,6 @@
 		display: flex;
 		justify-content: space-between;
 		gap: var(--space-4);
-		border: 0;
-		background: none;
 		text-align: left;
 		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius);
@@ -133,8 +131,6 @@
 		flex: none;
 	}
 	.del {
-		border: 0;
-		background: none;
 		color: var(--ink-2);
 		padding: 0 var(--space-2);
 	}

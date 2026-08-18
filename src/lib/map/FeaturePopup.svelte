@@ -139,8 +139,6 @@
 		position: absolute;
 		top: 0.15rem;
 		right: 0.3rem;
-		border: 0;
-		background: none;
 		font-size: var(--text-lg);
 		line-height: 1;
 		color: var(--ink-2);

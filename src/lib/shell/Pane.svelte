@@ -65,8 +65,6 @@
 		gap: var(--space-3);
 		width: 100%;
 		padding: var(--space-3) var(--space-4);
-		border: 0;
-		background: none;
 		color: var(--ink-2);
 		text-align: left;
 	}

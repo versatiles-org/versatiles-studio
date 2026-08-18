@@ -161,4 +161,28 @@ describe('design tokens', () => {
 			});
 		expect(offenders, "read it with token('--map-…') from lib/styles/tokens.ts").toEqual([]);
 	});
+
+	/// A button carries no box unless it asks for one with `.button` (see `base.css`).
+	///
+	/// The default used to run the other way, and seventeen rules began by undoing it. This is what
+	/// stops that coming back: a component re-declaring the box is either duplicating `.button` or
+	/// fighting it, and both end with two definitions of what a button looks like.
+	///
+	/// A control that is *not* a button — a card, a chip, a popover — draws its own box freely, so
+	/// this looks only at rules whose selector names `button`. It also looks only for `.button`'s own
+	/// face, `--chrome`: the map's controls float above the map on `--float-bg` with a shadow, which
+	/// is a different surface rather than a second copy of this one.
+	it('leave the button box to base.css', () => {
+		const offenders = styled.flatMap((path) => {
+			const css = withoutComments(styleBlocks(path));
+			return [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+				.filter(([, selector, body]) => {
+					if (!/\bbutton\b/.test(selector) || selector.includes('.button')) return false;
+					const flat = body.replace(/\s/g, '');
+					return /border:1px/.test(flat) && /background:var\(--chrome\)/.test(flat);
+				})
+				.map(([, selector]) => `${path}: ${selector.trim()}`);
+		});
+		expect(offenders, 'add `class="button"` rather than re-declaring the box').toEqual([]);
+	});
 });

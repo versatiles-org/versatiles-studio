@@ -114,28 +114,26 @@ ol {
 }
 
 /*
- * The default button.
+ * Buttons carry no box by default; `.button` is what asks for one.
  *
- * Four action buttons declared only a font and padding, leaving background, border and radius to
- * the operating system — so they were the one control Studio did not draw itself, and the one that
- * would not follow the theme. Every ghost button in the codebase already opts out explicitly, with
- * `background: none` and a border of its own, so this reaches only the ones that were relying on
- * the browser.
+ * It used to be the other way round, and the count said it was wrong: seventeen rules began by
+ * undoing the default — `border: 0; background: none` — before saying anything about themselves,
+ * while three genuinely wanted it. A default that is undone seventeen times is not a default.
  *
- * They all sit on --surface, so the face is --chrome: a step away from the panel behind them in
- * both themes, in the same direction.
+ * It also failed quietly in the wrong direction. A new icon button that forgot to opt out arrived
+ * wearing chrome and you only noticed by looking; now forgetting gives you a plain control, which is
+ * what the eyes, the ×s and the tab strips all wanted anyway.
+ *
+ * What stays global is what is true of every button however it looks: the cursor, the disabled
+ * colour, and the focus ring above.
  */
 button {
 	cursor: pointer;
-	background: var(--chrome);
-	border: 1px solid var(--rule);
-	border-radius: var(--radius);
-	/* No padding here: that is layout, and it belongs with the component. A global value would
-	   inflate every small icon button that only wanted the appearance. */
-}
-
-button:hover {
-	border-color: var(--ink-2);
+	background: none;
+	border: 0;
+	padding: 0;
+	color: inherit;
+	font: inherit;
 }
 
 button:disabled {
@@ -143,7 +141,24 @@ button:disabled {
 	cursor: default;
 }
 
-button:disabled:hover {
+/*
+ * A button drawn as a button.
+ *
+ * They all sit on --surface, so the face is --chrome: a step away from the panel behind them in
+ * both themes, in the same direction. No padding here — that is layout, and it belongs with the
+ * component; a global value would inflate every small icon button that only wanted the appearance.
+ */
+.button {
+	background: var(--chrome);
+	border: 1px solid var(--rule);
+	border-radius: var(--radius);
+}
+
+.button:hover {
+	border-color: var(--ink-2);
+}
+
+.button:disabled:hover {
 	border-color: var(--rule);
 }
 
@@ -196,5 +211,16 @@ samp {
 .truncate {
 	overflow: hidden;
 	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Present for a screen reader and absent for everyone else — a stock utility with nothing
+   component-specific in it, which is why three components had identical copies. */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
 	white-space: nowrap;
 }

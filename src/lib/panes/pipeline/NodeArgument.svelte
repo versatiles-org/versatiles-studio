@@ -189,8 +189,6 @@
 	}
 	.drop {
 		flex: none;
-		border: 0;
-		background: none;
 		color: var(--ink-2);
 		padding: 0 var(--space-1);
 	}

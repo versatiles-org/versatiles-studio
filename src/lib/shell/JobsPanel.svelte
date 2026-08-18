@@ -145,8 +145,6 @@
 		padding: 0 var(--space-2);
 		font-size: var(--text-sm);
 		color: var(--ink-2);
-		background: none;
-		border: none;
 	}
 	.quiet:hover {
 		color: var(--ink);

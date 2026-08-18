@@ -353,9 +353,6 @@
 		flex: none;
 		width: 14px;
 		height: 14px;
-		padding: 0;
-		border: 0;
-		background: none;
 		color: var(--ink-2);
 	}
 	.eye.on {
@@ -369,13 +366,9 @@
 	.nm {
 		flex: none;
 		max-width: 100%;
-		border: 0;
-		background: none;
-		padding: 0;
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
 		font-weight: 600;
-		color: inherit;
 		text-align: left;
 	}
 	/* Only the head node has one, and only when collapsed. */
@@ -419,13 +412,5 @@
 	}
 	.add select {
 		font-size: var(--text-xs);
-	}
-	.visually-hidden {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-		white-space: nowrap;
 	}
 </style>

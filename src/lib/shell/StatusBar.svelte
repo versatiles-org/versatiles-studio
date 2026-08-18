@@ -71,10 +71,10 @@
 	<span class="message truncate" role={line.error ? 'alert' : undefined} title={line.message}>{line.message}</span>
 
 	{#if line.cancel !== undefined}
-		<button type="button" class="action" onclick={() => cancelJob(line.cancel!)}>Cancel</button>
+		<button type="button" class="button action" onclick={() => cancelJob(line.cancel!)}>Cancel</button>
 	{/if}
 	{#if line.error && onDismiss}
-		<button type="button" class="action" onclick={onDismiss}>Dismiss</button>
+		<button type="button" class="button action" onclick={onDismiss}>Dismiss</button>
 	{/if}
 
 	<!-- The way into the history, and the only thing here that is always visible. Its count is
@@ -129,8 +129,6 @@
 		font-size: var(--text-sm);
 	}
 	.jobs {
-		background: none;
-		border: none;
 		color: var(--ink-2);
 	}
 	.jobs:hover,

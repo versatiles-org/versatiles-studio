@@ -271,14 +271,14 @@
 		<div class="files">
 			<button
 				type="button"
-				class="file"
+				class="button file"
 				disabled={!pipeline || (!pipeline.dirty && pipeline.path !== null)}
 				title={pipeline?.path ?? 'Choose where to save'}
 				onclick={() => documentActions.save(false)}
 			>
 				Save{#if pipeline?.dirty && pipeline.path}<span class="dot" aria-label="unsaved changes">•</span>{/if}
 			</button>
-			<button type="button" class="file" disabled={!pipeline} onclick={() => documentActions.save(true)}
+			<button type="button" class="button file" disabled={!pipeline} onclick={() => documentActions.save(true)}
 				>Save as…</button
 			>
 		</div>
@@ -307,8 +307,6 @@
 		border-bottom: 1px solid var(--rule);
 	}
 	.tab {
-		background: none;
-		border: 0;
 		border-bottom: 2px solid transparent;
 		border-radius: 0;
 		padding: var(--space-2) var(--space-3);
@@ -328,8 +326,6 @@
 		gap: var(--space-1);
 	}
 	.step {
-		border: 0;
-		background: none;
 		border-radius: var(--radius);
 		padding: 0 var(--space-2);
 		color: var(--ink-2);

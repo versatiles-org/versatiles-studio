@@ -141,12 +141,9 @@
 		flex: 1;
 		min-width: 0;
 		text-align: left;
-		border: 0;
-		background: none;
 		padding: var(--space-1) 0;
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
-		color: inherit;
 	}
 	.rename {
 		flex: 1;
@@ -161,8 +158,6 @@
 	}
 	.edit {
 		flex: none;
-		border: 0;
-		background: none;
 		color: var(--ink-2);
 		padding: 0 var(--space-1);
 		font-size: var(--text-xs);
@@ -171,8 +166,6 @@
 		color: var(--ink);
 	}
 	.new button {
-		border: 0;
-		background: none;
 		color: var(--ink-2);
 		font-size: var(--text-sm);
 		padding: var(--space-1) 0;

@@ -56,7 +56,7 @@
 			<span>HTTPS or SFTP — a planet file opens from its index</span>
 			<div class="row">
 				<input bind:value={url} type="text" placeholder="https://…" spellcheck="false" />
-				<button type="submit" disabled={!url.trim()}>Open</button>
+				<button type="submit" class="button" disabled={!url.trim()}>Open</button>
 			</div>
 		</form>
 	</div>
@@ -153,8 +153,6 @@
 		display: flex;
 		justify-content: space-between;
 		gap: var(--space-5);
-		border: 0;
-		background: none;
 		text-align: left;
 		padding: var(--space-3) var(--space-3);
 		border-radius: var(--radius);
@@ -168,8 +166,6 @@
 		flex: none;
 	}
 	.forget {
-		border: 0;
-		background: none;
 		color: var(--ink-2);
 		padding: 0 var(--space-3);
 	}

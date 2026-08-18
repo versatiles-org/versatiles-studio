@@ -32,7 +32,7 @@
 </script>
 
 <div class="inspector">
-	<button class="open" onclick={onOpen}>Open a tile container…</button>
+	<button class="button open" onclick={onOpen}>Open a tile container…</button>
 
 	<!-- A2: HTTPS and SFTP read through byte ranges, so a planet file opens from its index. -->
 	<form onsubmit={submitUrl}>
