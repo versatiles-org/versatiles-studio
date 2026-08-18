@@ -33,6 +33,7 @@
 		mountGraph,
 		setPin,
 		getPinned,
+		removeGraph,
 		renameGraph,
 		addGraph,
 		setGraph,
@@ -249,6 +250,41 @@
 			await refreshGraphs();
 			if (id === currentGraph) pipeline = await getGraph(id);
 			await refreshPreview();
+		} catch (e) {
+			fail(e);
+		}
+	}
+
+	/// Removes a graph for good.
+	///
+	/// **Not undoable**, which the list says before doing it: the history restores text *into* a
+	/// graph ([Q32]), so one that is gone has nothing to restore into and the core reports the step
+	/// as a no-op. Everything else about the removal is the core's — it unmounts the graph so the
+	/// style stops resolving a source that no longer exists, and clears the pin if it pointed here —
+	/// so what is left for the webview is deciding what to look at next.
+	async function removeGraphById(id: number) {
+		try {
+			await removeGraph(id);
+			await refreshGraphs();
+			// The core may have dropped the pin; ask rather than assume which way it went.
+			pinned = await getPinned();
+
+			if (id === currentGraph) {
+				// Show the first remaining graph, or nothing at all when that was the last one.
+				const next = graphs[0]?.id ?? null;
+				selected = null;
+				pipeline = next === null ? null : ((await getGraph(next)) ?? null);
+				pipelineRevision += 1;
+			}
+
+			if (pipeline) {
+				await refreshPreview();
+			} else if (previewName && map) {
+				// `refreshPreview` returns early with no pipeline, so the layer it drew would outlive
+				// the graph it came from — a map still showing tiles from a document that is gone.
+				removeContainerFromMap(map, previewName);
+				previewName = null;
+			}
 		} catch (e) {
 			fail(e);
 		}
@@ -644,6 +680,7 @@
 			graphActions={{
 				select: (id) => void selectGraph(id),
 				rename: (id, name) => void rename(id, name),
+				remove: (id) => void removeGraphById(id),
 				addSource: (kind) => void pick(kind)
 			}}
 			nodeActions={{

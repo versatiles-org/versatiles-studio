@@ -68,6 +68,8 @@
 		graphActions: {
 			select: (id: number) => void;
 			rename: (id: number, name: string) => void;
+			/** Removes it for good — the history cannot restore a graph that is gone ([Q32]). */
+			remove: (id: number) => void;
 			addSource: (kind: ImportKind) => void;
 		};
 		/** Acting on a node or one of its arguments. */
@@ -169,6 +171,7 @@
 		pinnedGraph={pinned ? (pipeline?.graph ?? null) : null}
 		onSelect={graphActions.select}
 		onRename={graphActions.rename}
+		onRemove={graphActions.remove}
 		onNew={() => (adding = !adding)}
 	/>
 

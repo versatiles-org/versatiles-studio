@@ -12,6 +12,7 @@
 		pinnedGraph,
 		onSelect,
 		onRename,
+		onRemove,
 		onNew
 	}: {
 		graphs: GraphInfo[];
@@ -22,6 +23,8 @@
 		onSelect: (id: number) => void;
 		/** Rejected by the core when another graph already has the name; the message comes back. */
 		onRename: (id: number, name: string) => void;
+		/** Removes the graph for good — see the confirmation below for why it is not one click. */
+		onRemove: (id: number) => void;
 		onNew: () => void;
 	} = $props();
 
@@ -29,6 +32,18 @@
 	/// remembering across a reload, and committing it is what makes it real.
 	let renaming = $state<number | null>(null);
 	let draft = $state('');
+
+	/// Which row is asking to be confirmed before it is removed.
+	///
+	/// **Deleting a graph is the one thing here that ⌘Z cannot take back.** The history stack
+	/// restores text *into* a graph ([Q32]), so one that no longer exists has nothing to restore
+	/// into — the core says as much and makes the step a no-op. That makes a bare `✕` next to a
+	/// rename button the wrong shape: same size, same place, one undoable and one not.
+	///
+	/// Confirmed in the row rather than in a modal, for the same reason renaming happens here: the
+	/// list is where graphs live, and a dialog for a two-word question would be the only modal in
+	/// the pane besides export.
+	let removing = $state<number | null>(null);
 
 	function start(graph: GraphInfo) {
 		renaming = graph.id;
@@ -84,6 +99,25 @@
 						}
 					}}
 				/>
+			{:else if removing === graph.id}
+				<span class="name truncate confirming" title={graph.name}>{graph.name}</span>
+				<button
+					type="button"
+					class="confirm"
+					onclick={() => {
+						removing = null;
+						onRemove(graph.id);
+					}}>Delete</button
+				>
+				<button
+					type="button"
+					class="edit"
+					aria-label="Keep {graph.name}"
+					title="Keep"
+					onclick={() => (removing = null)}
+				>
+					✕
+				</button>
 			{:else}
 				<button type="button" class="name truncate" title={graph.name} onclick={() => onSelect(graph.id)}>
 					{graph.name}
@@ -91,6 +125,15 @@
 				{#if graph.dirty}<span class="dirty" title="unsaved changes" aria-label="unsaved changes">•</span>{/if}
 				<button type="button" class="edit" title="Rename {graph.name}" aria-label="Rename" onclick={() => start(graph)}>
 					✎
+				</button>
+				<button
+					type="button"
+					class="edit"
+					title="Delete {graph.name}"
+					aria-label="Delete {graph.name}"
+					onclick={() => (removing = graph.id)}
+				>
+					🗑
 				</button>
 			{/if}
 		</li>
@@ -174,6 +217,26 @@
 
 		&:hover {
 			color: var(--ink);
+		}
+	}
+
+	/* The name stops being a target while the row is asking: the only two answers are the buttons. */
+	.confirming {
+		flex: 1;
+		min-width: 0;
+		color: var(--ink-2);
+	}
+
+	/* Named, not a glyph. A destructive action that cannot be undone should say which one it is,
+	   and it is the only place in the pane where --error carries a control rather than a message. */
+	.confirm {
+		flex: none;
+		padding: 0 var(--space-1);
+		font-size: var(--text-xs);
+		color: var(--error);
+
+		&:hover {
+			text-decoration: underline;
 		}
 	}
 
