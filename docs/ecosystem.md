@@ -56,7 +56,10 @@ The transformation already ships: `versatiles_node/src/codegen.rs` turns this in
   that `vector_filter_layers` is not fed a raster tile; it can only infer from the `raster_*` /
   `vector_*` / `dem_*` naming convention, which is a convention rather than a contract. This matters
   now that C1 is a deliverable ([Q11](decisions.md)): a graph that lets you draw an invalid
-  connection and fails at run time is a bad graph.
+  connection and fails at run time is a bad graph. Asked for as
+  [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) — and asked of the _operation_
+  rather than of the metadata, because the properties that decide it (alpha channel, tile size, which
+  layers exist) are more than a metadata vocabulary should have to carry.
 
 ### 2. `versatiles probe` is already an analysis engine
 
@@ -135,6 +138,7 @@ today, for vt#229. This table is the map, not the reminder.
 | [vt#227](https://github.com/versatiles-org/versatiles-rs/issues/227) | A sanity check before an unbounded traversal               | `export::MAX_TILES` refuses one ([S3.6](scope-release-1.md))                                                                                          |
 | [vt#228](https://github.com/versatiles-org/versatiles-rs/issues/228) | PMTiles from an overview pipeline                          | Nothing — the failure is reported and readable                                                                                                        |
 | [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) | An operation summary separate from its doc                 | `vpl::summary` splits the first paragraph                                                                                                             |
+| [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) | A transform that says whether it fits a source             | The picker offers every transform, sound or not                                                                                                       |
 | [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue** | The pinned fork above                                                                                                                                 |
 
 Resolved: [vt#216–#218](https://github.com/versatiles-org/versatiles-rs/issues/216), which became
