@@ -464,8 +464,14 @@
 			// that is now out of date** rather than leaving it to finish. That also removes the
 			// token this used to carry: which preview is current is the runner's to know, and a
 			// second answer to that question in here could only ever disagree with it.
-			// The map follows the **pin**, not the selection ([Q32]): with nothing pinned it shows
-			// every graph in full, which is what a style will draw over.
+			// The map follows the **pin**, not the selection ([Q32]): with nothing pinned it shows the
+			// graph being edited, built in full.
+			//
+			// [Q32] wants every graph mounted so a style can name them all. That arrives with the
+			// style at S4 — until something renders them, building every graph on every refresh is
+			// a job apiece for tiles nobody draws. Half of it falls out already: a mount is keyed by
+			// name and nothing unmounts on a graph switch, so each graph visited stays served until
+			// it is removed.
 			const outcome = pinned
 				? await previewPipeline(pinned.graph, pinned.path)
 				: await mountGraph(pipeline.graph).then((p) => (p ? ({ kind: 'ready', ...p } as const) : null));

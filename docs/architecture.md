@@ -81,8 +81,9 @@ written from scratch rather than imported from `@versatiles/svelte` ([Q18](decis
   generate glyph sets from the user's own fonts (D9)
 - _Server manager_ — lifecycle of the **single** embedded server. `add_tile_source` and
   `remove_tile_source` work on a running server, so **each graph is a named mount**, not a server of
-  its own ([Q16](decisions.md)). Every graph is served so the style can name it; one node may be
-  _pinned_ on top of that for preview ([Q32](decisions.md))
+  its own ([Q16](decisions.md)). Every graph is served so the style can name it — from S4, when
+  there is a style to name them; today the graph being edited is mounted and stays mounted. One
+  node may be _pinned_ on top of that for preview ([Q32](decisions.md))
 
 The core is a plain Rust library with no Tauri types, so it can be driven by ordinary Rust tests;
 `#[tauri::command]` functions are a thin binding over it. `versatiles_node` proves the shape — the

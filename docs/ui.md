@@ -89,8 +89,9 @@ D8 came to have no home at all under [Q22](decisions.md).
 There is **no Parameters pane**: the selected node carries its own arguments in the chain ([Q32](decisions.md)). A parameter's documentation opens beside the sidebar rather than inside the node, and required parameters are shown empty rather than marked with a symbol ([Q33](decisions.md)).
 
 **A graph is a named VPL document producing one named tile source** ([Q32](decisions.md#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)), and that one name is
-the server mount, the `style.json` source and the `.vpl` filename at once. Every graph is served;
-**one node, in one graph, may be pinned** to override the map — the debugging view C3 describes.
+the server mount, the `style.json` source and the `.vpl` filename at once. Every graph is served, so
+that from S4 a style can name them all; **one node, in one graph, may be pinned** to override the
+map — the debugging view C3 describes.
 
 **Double-clicking a file opens it.** Studio owns `.versatiles`, `.mbtiles`, `.pmtiles` and `.vpl`,
 declared as exported UTIs so the types belong to it rather than being borrowed. The two platforms
