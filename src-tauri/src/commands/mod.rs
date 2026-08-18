@@ -5,6 +5,7 @@
 //! docs warn that is slow for large payloads (Q3).
 
 pub mod bookmarks;
+pub mod export;
 pub mod jobs;
 pub mod layout;
 pub mod sources;

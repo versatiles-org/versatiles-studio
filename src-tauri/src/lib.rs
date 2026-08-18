@@ -32,6 +32,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::app_version,
 		commands::server_base_url,
 		commands::open_window,
+		commands::export::export_graph,
 		commands::jobs::subscribe_jobs,
 		commands::jobs::job_log,
 		commands::jobs::cancel_job,

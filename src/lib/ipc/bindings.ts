@@ -28,6 +28,23 @@ export const commands = {
 	 */
 	openWindow: (label: string) => typedError<null, string>(__TAURI_INVOKE("open_window", { label })),
 	/**
+	 *  Starts an export and returns the job running it.
+	 * 
+	 *  **Returns the job rather than the result.** A conversion is the long operation the runner exists
+	 *  for (E7) — minutes and gigabytes — so waiting for it here would hold a command open for the whole
+	 *  write and leave the webview with nothing to show meanwhile. The job's progress, log and failure
+	 *  all arrive on the event channel the bar is already listening to, which is where a user can watch
+	 *  or cancel it.
+	 * 
+	 *  **`Queued`, not `Latest`** ([Q27]): two conversions compete for the same disk and cores and
+	 *  finish later than the same two in sequence, and a second export is a second thing you asked for
+	 *  rather than a correction of the first — unlike a preview, which stops mattering the moment the
+	 *  pipeline changes.
+	 * 
+	 *  [Q27]: ../../../docs/decisions.md
+	 */
+	exportGraph: (graph: number, target: string, bounds: Bounds) => typedError<number, string>(__TAURI_INVOKE("export_graph", { graph, target, bounds })),
+	/**
 	 *  Points the runner's events at this window, and returns what it has missed.
 	 * 
 	 *  **Called once, at startup, and again after every reload.** The channel belongs to a webview, and
@@ -377,6 +394,26 @@ export type Bookmark = {
 	 *  next quarter of a million years, and `u32` would overflow in 2106.
 	 */
 	createdAt: number,
+};
+
+/**
+ *  Whether Studio will offer to write this path.
+ * 
+ *  Checked before the job starts so an unknown extension is a message rather than a job that fails
+ *  after opening every source.
+ *  What an export narrows the pipeline to before writing it.
+ * 
+ *  Every field is optional and `None` means "as far as the pipeline goes". They are applied as one
+ *  `filter` node appended to the pipeline ([S3.6](../../../docs/scope-release-1.md)) rather than by
+ *  clamping numbers we then look at: `filter` is versatiles-rs's own operation for this, so the
+ *  source really does stop there and the tile count computed afterwards is the count that will be
+ *  written.
+ */
+export type Bounds = {
+	/**  West, south, east, north, in degrees — the four number fields [Q32] asks for. */
+	bbox?: [number, number, number, number] | null,
+	minZoom?: number | null,
+	maxZoom?: number | null,
 };
 
 /**

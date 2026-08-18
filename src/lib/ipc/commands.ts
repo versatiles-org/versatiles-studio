@@ -18,6 +18,7 @@
  */
 
 import { commands } from './bindings';
+import type { Bounds } from './bindings';
 
 export * from './bindings';
 
@@ -29,7 +30,6 @@ export * from './bindings';
  * belong to.
  */
 export type {
-	Camera,
 	Node as VplNode,
 	Pipeline as VplPipeline,
 	Property as VplProperty,
@@ -74,6 +74,19 @@ export const jobLog = (id: number) => unwrap(commands.jobLog(id));
 
 /** Asks a job to stop. Idempotent — a job that has already ended stays ended. */
 export const cancelJob = (id: number) => unwrap(commands.cancelJob(id));
+
+// -- export ----------------------------------------------------------------------------------
+
+/**
+ * Writes a graph's output to a container, and returns the job doing it (S3.6, F2).
+ *
+ * Resolves when the export has *started*, not when it has finished — a conversion runs for minutes,
+ * and what happens to it afterwards arrives on the jobs channel, where the bar can show progress and
+ * offer to cancel. A rejection here means it never started: a target Studio cannot write, or a graph
+ * that has since been removed.
+ */
+export const exportGraph = (graph: number, target: string, bounds: Bounds = {}) =>
+	unwrap(commands.exportGraph(graph, target, bounds));
 
 // -- sources ---------------------------------------------------------------------------------
 
