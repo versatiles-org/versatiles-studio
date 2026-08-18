@@ -307,7 +307,7 @@ pub fn vpl_remove_node(text: String, span: Span) -> Result<String, VplError> {
 	Ok(document.text().to_string())
 }
 
-/// Removes the property at `span`. This is what clearing a field means (see `VplNodeCard`).
+/// Removes the property at `span`. This is what clearing a field means (see `NodeCard`).
 #[tauri::command]
 #[specta::specta]
 pub fn vpl_remove_property(text: String, span: Span) -> Result<String, VplError> {

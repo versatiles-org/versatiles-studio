@@ -34,7 +34,6 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 | `Sidebar` + `Pane` | A sidebar renders a **list** of panes; each is foldable and its state is core-owned ([Q31](decisions.md))                 | S2.2  |
 | `VplEditor`        | Textarea over a highlighted `<pre>`; the tokens come from the parser ([Q25](decisions.md))                                | S2.3  |
 | `PaneResizer`      | The draggable edge of a side pane, used on both                                                                           | S2.2  |
-| `PipelineGraph`    | The pipeline as a vertical tree; selection is shared with the text ([Q15](decisions.md))                                  | S2.5  |
 | `MapControls`      | Background picker, grid toggle and Reset view, over the map                                                               | S1.6  |
 | `StatusBar`        | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))                        | S1.9  |
 | `JobsPanel`        | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                                    | S3.1  |

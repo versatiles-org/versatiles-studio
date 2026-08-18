@@ -101,7 +101,7 @@ export const commands = {
 	 *  operation accepts — including the ones the node has no span for yet.
 	 */
 	vplSetProperty: (text: string, span: Span, key: string, values: string[]) => typedError<string, VplError>(__TAURI_INVOKE("vpl_set_property", { text, span, key, values })),
-	/**  Removes the property at `span`. This is what clearing a field means (see `VplNodeCard`). */
+	/**  Removes the property at `span`. This is what clearing a field means (see `NodeCard`). */
 	vplRemoveProperty: (text: string, span: Span) => typedError<string, VplError>(__TAURI_INVOKE("vpl_remove_property", { text, span })),
 	/**
 	 *  Adds an operation to the chain, immediately after the node whose name occupies `span`.

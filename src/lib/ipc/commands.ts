@@ -133,7 +133,7 @@ export const vplInsertNode = (text: string, span: Parameters<typeof commands.vpl
 export const vplRemoveNode = (text: string, span: Parameters<typeof commands.vplRemoveNode>[1]) =>
 	unwrap(commands.vplRemoveNode(text, span));
 
-/** Removes the property at `span`. This is what clearing a field means (see `VplNodeCard`). */
+/** Removes the property at `span`. This is what clearing a field means (see `NodeCard`). */
 export const vplRemoveProperty = (text: string, span: Parameters<typeof commands.vplRemoveProperty>[1]) =>
 	unwrap(commands.vplRemoveProperty(text, span));
 
