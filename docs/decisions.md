@@ -575,10 +575,12 @@ locally generated assets through the same manifest and serving path as downloade
 glyphs (D9) and generating sprite sheets (D10) are both features _of_ the asset manager rather than
 modes beside it.
 
-**The right pane shows parameters _and_ resulting metadata.** For a read node that means its VPL
+**The right pane shows parameters _and_ resulting metadata.** ~~Superseded 2026-08-18 by
+[Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form), which moved the
+parameters into the node: the pane keeps only "what you got".~~ For a read node that meant its VPL
 fields together with what the container turned out to hold — format, real zoom range, TileJSON. This
-is where A6 lives in the merged surface; splitting "what you set" from "what you got" across two
-places would leave the thing a user opened a container to see with no home at all.
+is where A6 lives in the merged surface; splitting it from the thing a user opened a container to see
+would have left A6 with no home at all, which is why that half survived the move.
 
 **Two invariants become free rather than enforced.** "One `Map` across all modes" and "the viewport
 survives a mode switch" stop being rules when there are no mode switches to survive.
@@ -678,7 +680,7 @@ libproj. PROJ still probes the filesystem first and falls back to the embedded c
   CI caching; note versatiles-rs already caches its _dynamic_ GDAL tree because installing it takes
   ~6 minutes.
 - **Size.** The embedded `proj.db` alone is several MB, before GDAL. For scale, [Q9](#q9--fonts-and-sprites-are-fetched-per-family-and-never-unpacked)
-  sized the whole bundled asset tier at ~2.5 MB — GDAL will dwarf the rest of the installer.
+  sized the whole bundled asset tier at ~2 MB — GDAL will dwarf the rest of the installer.
 - **GEOS is LGPL 2.1.** Static linking obliges us to let recipients relink against a modified GEOS.
   Studio is MIT and open-source so this is satisfiable, but it is a real compliance step — ship
   object files, or source plus build instructions — not a formality. Do it deliberately.
@@ -708,7 +710,7 @@ user asking.
 | **Clean build**        | ~75 s with a warm cargo registry                               |
 | **Registered drivers** | GTiff, COG, VRT, PNG, JPEG, MEM, GNMFile, GNMDatabase, OGR_VRT |
 
-So GDAL costs ~18 MB. That dwarfs the 1.8 MB asset tier as predicted, but an installer in the
+So GDAL costs ~18 MB. That dwarfs the 1.9 MB asset tier as predicted, but an installer in the
 20–35 MB range is unremarkable for a desktop application. ~~**Q19 holds, comfortably.**~~ — see the
 amendment below.
 
@@ -1131,11 +1133,11 @@ A 63%) are both in it. Hence the minimum reading of each milestone in the scope 
 `frontend-blank` is not used as a single bundle; `versatiles-fonts` already publishes one archive
 per family. Three tiers instead ([numbers](ecosystem.md#map-assets-fonts-and-sprites)):
 
-| Tier           | Contents                                        | Size         | When                               |
-| -------------- | ----------------------------------------------- | ------------ | ---------------------------------- |
-| **Bundled**    | Sprites (1.3 MB) + Latin-only Noto Sans (~1 MB) | ~2.5 MB      | in the installer                   |
-| **On demand**  | One family from `versatiles-fonts` releases     | 1–45 MB each | when a style needs it              |
-| **Everything** | `fonts.tar.gz`, all families                    | 107 MB       | explicit action, for offline/field |
+| Tier           | Contents                                         | Size         | When                               |
+| -------------- | ------------------------------------------------ | ------------ | ---------------------------------- |
+| **Bundled**    | Sprites (1.3 MB) + Latin-only Noto Sans (0.5 MB) | 1.9 MB       | in the installer                   |
+| **On demand**  | One family from `versatiles-fonts` releases      | 1–45 MB each | when a style needs it              |
+| **Everything** | `fonts.tar.gz`, all families                     | 107 MB       | explicit action, for offline/field |
 
 - **Works offline from first launch** — no 109 MB wall before the user has seen a map, and the
   empty-glyph-tile trick renders non-Latin text blank rather than erroring.

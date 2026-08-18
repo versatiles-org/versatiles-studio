@@ -42,9 +42,10 @@ Settled by [Q3](decisions.md). The UI reaches the core three ways, chosen by wha
 | **Data**    | tiles, glyphs, sprites                                        | the embedded HTTP server             |
 | **Events**  | job progress, warnings, log lines                             | Tauri Channels                       |
 
-The split is forced, not stylistic: Tauri serialises command returns as JSON and warns this is slow
-for large payloads, so tile bytes must not travel over IPC. For a one-off blob — a raw tile for A4 —
-`tauri::ipc::Response` returns an array buffer without JSON.
+The split is forced, not stylistic — [Q3](decisions.md#q3--three-planes-ipc-for-control-http-for-data-channels-for-events) has the reasoning. The consequence
+to remember here is that tile bytes must never travel over IPC, and that a one-off blob is the
+exception: `tauri::ipc::Response` returns an array buffer without JSON, which is how A4 reads a raw
+tile.
 
 ## Layers
 

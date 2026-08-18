@@ -110,7 +110,7 @@ Nothing user-visible, and a prerequisite for every milestone.
 | **S0.3**  | ~~Control plane: `#[tauri::command]` bindings and `tauri-specta` type generation~~ — **done**; `src/lib/ipc/bindings.ts` is generated and a test fails when it is stale | infrastructure |
 | **S0.4**  | ~~Event plane: Tauri Channels for progress, warnings and log lines~~ — **done**; its `demo_job` placeholder was replaced by the real runner at S3.1                     | infrastructure |
 | **S0.5**  | ~~Embedded server and server manager — one instance, named mounts, loopback only~~ — **done**                                                                           | infrastructure |
-| **S0.6**  | ~~Bundled asset tier: sprites (1.3 MB) and Latin-only glyphs (~1.1 MB), pinned in `assets/manifest.json`~~ — **done**                                                   | infrastructure |
+| **S0.6**  | ~~Bundled asset tier: sprites (1.3 MB) and Latin-only glyphs (0.5 MB), pinned in `assets/manifest.json`~~ — **done**                                                    | infrastructure |
 | **S0.7**  | ~~CI for Linux and macOS, including ad-hoc macOS signing~~ — **done**                                                                                                   | infrastructure |
 | **S0.8**  | ~~Measure the per-webview memory baseline~~ — **done**: ~28 MB/window ([Q16](decisions.md))                                                                             | infrastructure |
 | **S0.9**  | ~~No telemetry, no account, no analytics dependency~~ — **done**, stated in the README                                                                                  | G5             |

@@ -59,25 +59,24 @@ ownership moves. Folders carry ownership; names carry identity.
 ## The frame
 
 **The tables below group by where a component appears on screen, not by which folder it is in** —
-two different questions, and the folder listing above answers the other one. A component that has
-shipped is named as it is on disk; the rest are planned, and the stage column says when.
+the folder listing above answers the other question. They list only what exists;
+[Still to build](#still-to-build) covers the rest.
 
 The five-region grid from [UI Concept](ui.md). All Studio-specific. How they are styled — the
 tokens, the rules and what is enforced — is in [Styling](styling.md). A component that adds a map
 layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not follow the theme.
 
-| Component          | Does                                                                                                                      | Stage |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `AppShell`         | The grid: mode bar, two sidebars, map, status and job bar                                                                 | S0.1  |
-| `ModeBar`          | **Map** vs non-map tools — assets (G7), which is where generated glyphs (D9) and sprites (D10) live ([Q22](decisions.md)) | S4.1  |
-| `Sidebar` + `Pane` | A sidebar renders a **list** of panes; each is foldable and its state is core-owned ([Q31](decisions.md))                 | S2.2  |
-| `PaneResizer`      | The draggable edge of a side pane, used on both                                                                           | S2.2  |
-| `MapControls`      | Background picker, grid toggle and Reset view, over the map                                                               | S1.6  |
-| `StatusBar`        | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))                        | S1.9  |
-| `JobsPanel`        | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                                    | S3.1  |
-| `LandingScreen`    | What an empty window shows                                                                                                | S1.1  |
-| `PipelineOutput`   | What the pipeline produces: format, zoom, layers and their property keys (Q22)                                            | S3.3  |
-| `ImportCards`      | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)                          | S3.2  |
+| Component          | Does                                                                                                      | Stage |
+| ------------------ | --------------------------------------------------------------------------------------------------------- | ----- |
+| `AppShell`         | The grid: mode bar, two sidebars, map, status and job bar                                                 | S0.1  |
+| `Sidebar` + `Pane` | A sidebar renders a **list** of panes; each is foldable and its state is core-owned ([Q31](decisions.md)) | S2.2  |
+| `PaneResizer`      | The draggable edge of a side pane, used on both                                                           | S2.2  |
+| `MapControls`      | Background picker, grid toggle and Reset view, over the map                                               | S1.6  |
+| `StatusBar`        | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))        | S1.9  |
+| `JobsPanel`        | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                    | S3.1  |
+| `LandingScreen`    | What an empty window shows                                                                                | S1.1  |
+| `PipelineOutput`   | What the pipeline produces: format, zoom, layers and their property keys (Q22)                            | S3.3  |
+| `ImportCards`      | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)          | S3.2  |
 
 ## Map
 
@@ -89,7 +88,6 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `TileGrid`       | z/x/y grid (A5)                                                         | S1.7  |
 | `CoordinateJump` | Jump-to-coordinate box (A5)                                             | S1.7  |
 | `FeaturePopup`   | All attributes of the feature under the cursor (A8)                     | S1.6  |
-| `CropOverlay`    | Drag a rectangle to crop (F2) — port `BBoxDrawer`                       | S5.4  |
 
 ## Left pane — the chain
 
@@ -102,41 +100,48 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `NodeArgument` | One argument: name, `?`, the control from `field_meta`, and a `×` unless required ([Q33](decisions.md))            | S2.13 |
 | `Help`         | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md)) | S2.13 |
 | `HelpTrigger`  | The `?` that opens it — hover or focus peeks, click pins ([Q33](decisions.md))                                     | S2.13 |
-| `ExportDialog` | Format, zoom range, numeric bounds and the estimate — modal, per graph (F2, C6)                                    | S3.6  |
 | `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3  |
-| `LayerTree`    | Style layers with visibility and selection (D3)                                                                    | S4.5  |
 
 ## Right pane — what it turns out to be
 
-**The parameter form moved into the node** ([Q32](decisions.md)), so this pane is no longer where
-you set things — it is where you read what the pipeline turned out to be.
+**The parameter form moved into the node** ([Q32](decisions.md)), so this pane no longer sets
+things — it reads what the pipeline turned out to be.
 
 **The generated form carries the architecture, and it shipped as `NodeArgument`.** C2 generates
-forms from `field_meta` rather than hand-writing one per operation, so one component covers all ~30
-VPL operations, new upstream operations appear for free, and S3's import cards are just a `from_*`
-node's form. It was planned as a `ParamForm` over a kit of `Input*` components; built, the variants
-turned out to differ only in the data they are handed, so there is one component and a `control.kind`
-switch rather than seven. `is_sources` fields — which pick another node — are the one control with no
-counterpart in any existing repo.
+forms from `field_meta` rather than one per operation, so a single component covers all ~30 VPL
+operations, upstream additions appear for free, and S3's import cards are just a `from_*` node's
+form. Planned as a `ParamForm` over an `Input*` kit; built, the variants differed only in the data
+handed to them, so it is one component and a `control.kind` switch. `is_sources` fields — which pick
+another node — are the one control with no counterpart in any existing repo.
 
-| Component                         | Does                                                        | Stage |
-| --------------------------------- | ----------------------------------------------------------- | ----- |
-| `Inspector`                       | Container metadata and TileJSON, viewable and editable (A6) | S1.5  |
-| `Bookmarks`                       | Saved views of the map (A7)                                 | S1.8  |
-| `PaintPanel` + `ExpressionEditor` | Colour, width, opacity, zoom stops (D3)                     | S4.5  |
-| `ExportPanel`                     | Format, zoom range, estimate, and the serve toggle (F1, F2) | S5.2  |
+| Component   | Does                                                        | Stage |
+| ----------- | ----------------------------------------------------------- | ----- |
+| `Inspector` | Container metadata and TileJSON, viewable and editable (A6) | S1.5  |
+| `Bookmarks` | Saved views of the map (A7)                                 | S1.8  |
 
 ## Cross-cutting
 
-| Component       | Does                                                              | Stage |
-| --------------- | ----------------------------------------------------------------- | ----- |
-| `JsonTree`      | Any JSON, collapsible — used by `Inspector` and by `FeaturePopup` | S1.5  |
-| `Dialog`        | Modal shell — for confirmations, never for jobs or progress       | S0.1  |
-| `FileDrop`      | Drag & drop target feeding the same path as the file dialog       | S1.2  |
-| `CopyButton`    | Used by the command strip and by C7's exports                     | S1.9  |
-| `AssetPanel`    | Font families and sprite sets: install, pin, verify, remove (G7)  | S4.1  |
-| `QrCode`        | LAN URL for testing on a phone (F1)                               | S5.3  |
-| `EstimateBadge` | "~40 min, ~2.3 GB", shown where a run is committed (C6)           | S3.7  |
+| Component  | Does                                                              | Stage |
+| ---------- | ----------------------------------------------------------------- | ----- |
+| `JsonTree` | Any JSON, collapsible — used by `Inspector` and by `FeaturePopup` | S1.5  |
+
+## Still to build
+
+Named by what they do, not by a component name chosen in advance: `ParamForm`, `MetadataPanel` and
+`TileGridOverlay` all drifted from what shipped, and a planned `FileDrop` never happened at all
+because Tauri's `dragDropEnabled` delivers S1.2 with no component.
+
+| Surface       | What it has to do                                                   | Stage      |
+| ------------- | ------------------------------------------------------------------- | ---------- |
+| Mode bar      | **Map** vs non-map tools — assets (G7), where D9 and D10 live (Q22) | S4.1       |
+| Export modal  | Format, zoom range, numeric bounds and the estimate, per graph (F2) | S3.6       |
+| Asset manager | Font families and sprite sets: install, pin, verify, remove (G7)    | S4.1       |
+| Layer tree    | Style layers with visibility, selection, paint and expressions (D3) | S4.5       |
+| Style export  | `style.json`, `@versatiles/style` code, or a bundle (D8)            | S4.6       |
+| Crop overlay  | Drag a rectangle on the map to crop (F2) — port `BBoxDrawer`        | S5.2, S5.4 |
+| Serve panel   | Local server, LAN URL and a QR code for testing on a phone (F1)     | S5.3       |
+| Estimate      | "~40 min, ~2.3 GB", wherever a run is committed (C6)                | S3.7       |
+| Command strip | The CLI command, serve config or Action that reproduces this (C7)   | S5.5       |
 
 ## Conventions
 

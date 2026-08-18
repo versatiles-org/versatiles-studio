@@ -65,8 +65,8 @@ the mode bar arriving above them at S4.
 | **Right pane** | What things turn out to be — the pipeline's output, and an opened container's own metadata. Not parameters ([Q32](decisions.md))                       |
 
 **The left pane is the chain from data to pixels.** Sources feed the pipeline, the pipeline produces
-tiles, the style renders them, export writes them out. Showing it whole is the point of merging the
-modes — every one of those steps used to be a mode switch away from the others.
+tiles, the style renders them, export writes them out — steps that used to be a mode switch apart,
+which is the point of merging the modes.
 
 **Panes, not fixed sections** ([Q31](decisions.md)). Each sidebar renders a list of panes — id,
 title, foldable — so an analysis surface is a list entry rather than an argument about which section
@@ -86,13 +86,14 @@ D8 came to have no home at all under [Q22](decisions.md).
 
 There is **no Parameters pane**: the selected node carries its own arguments in the chain ([Q32](decisions.md)). A parameter's documentation opens beside the sidebar rather than inside the node, and required parameters are shown empty rather than marked with a symbol ([Q33](decisions.md)).
 
-**A graph is a named VPL document producing one named tile source** — the name is the server mount, the source name in `style.json` and the `.vpl` filename at once. Every graph is served; **one node, in one graph, may be pinned** to override the map, which is the debugging view C3 describes.
+**A graph is a named VPL document producing one named tile source** ([Q32](decisions.md#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)), and that one name is
+the server mount, the `style.json` source and the `.vpl` filename at once. Every graph is served;
+**one node, in one graph, may be pinned** to override the map — the debugging view C3 describes.
 
 **Double-clicking a file opens it.** Studio owns `.versatiles`, `.mbtiles`, `.pmtiles` and `.vpl`,
-declared as exported UTIs so the types belong to it rather than being borrowed. macOS delivers the
-file as an event — at launch, before any window exists, and again while running; Linux passes it as a
-command-line argument. Both land in one queue that the webview drains on start and on notification,
-so a file that arrived before there was a window is not lost.
+declared as exported UTIs so the types belong to it rather than being borrowed. The two platforms
+deliver the path differently and [Architecture](architecture.md) says how; either way a file that
+arrived before there was a window is not lost.
 
 **A `.vpl` file is a way in, like a container is** (C9). The landing screen, the file dialog, drag &
 drop and the recents list all take one — a pipeline the CLI wrote has to open here, or the two tools
@@ -148,10 +149,10 @@ something no longer on screen.
 **The forms are generated, never written per operation.** Each parameter's control comes from
 `field_meta` — an enum becomes a menu of its own variants, an integer carries the range of its type
 so a zoom level cannot be set to 300, a `Vec<String>` takes a list, a `[f64;4]` takes four numbers.
-Required parameters are marked, upstream's own documentation is the help text, and every parameter
-an operation accepts but the node has not set is offered — so knowing what an operation takes does
-not mean reading its documentation elsewhere. An operation added upstream gets a working form with
-no change here.
+Upstream's own documentation is the help text, and every parameter an operation accepts but the node
+has not set is offered, so knowing what an operation takes does not mean reading its documentation
+elsewhere. Required ones appear empty rather than starred ([Q33](decisions.md#q33--the-node-form-explains-itself-without-symbols-to-learn)).
+An operation added upstream gets a working form with no change here.
 
 **A node is a form, not a line of VPL.** Its parameters get one labelled field each, because the
 values are routinely longer than the pane is wide — a path can easily run past 250 characters — and a
@@ -167,15 +168,10 @@ other an inspector — so what is shared is the resizer, not a wrapper around bo
 4.8.0 ([Q23](decisions.md)), so this is a decision about what a blank field means — for a filename or
 a layer name, nothing — rather than the limitation it started as.
 
-**Collapse everything and you have what used to be Explore** — map and inspector, nothing else. That
-was never an activity; it was "I am not editing right now".
-
-**The right pane shows the parameters of the current selection, and the metadata that results from
-it.** For a read node that means both its VPL fields and what the container turned out to contain —
-format, real zoom range, TileJSON (A6). The two belong together: the parameters are what you set, the
-metadata is what you got. It never shows global settings, or it becomes the junk drawer where every
-new feature lands. Project settings open as a dialog from the
-mode bar, beside the asset manager.
+**The right pane shows what things turn out to be**, not what you set — since [Q32](decisions.md#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)
+the parameters live in the node. What is left is the pipeline's output and an opened container's own
+format, real zoom range and TileJSON (A6). It never shows global settings, or it becomes the junk
+drawer where every new feature lands.
 
 ## Layouts
 
@@ -198,7 +194,9 @@ from inside the workbench. Opening a project fills that window; ⌘N opens anoth
 
 ### S1 — sections collapsed
 
-Nothing is open yet, so there is nothing to show in the chain. This is what used to be Explore.
+Nothing is open yet, so there is nothing to show in the chain. Collapse every section later and you
+are back here — which is what used to be a whole Explore mode, and was never an activity so much as
+"I am not editing right now".
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
@@ -223,11 +221,11 @@ a narrow column than spread across a wide canvas.
 │ ≡  MyProject                                              │
 ├───────────────────┬──────────────────────┬────────────────┤
 │ ▾ PIPELINE        │                      │ INSPECTOR      │
-│  [Graph] [VPL ⚠]  │   MAP — selected     │ parameters of  │
-│   from_geo        │        node ●        │ the selected   │
-│      ↓            │                      │ node (C2),     │
-│   vector_filter   │                      │ plus what it   │
-│      ↓            │                      │ produced (A6)  │
+│  [Graph] [VPL ⚠]  │   MAP — selected     │ what the node  │
+│   from_geo        │        node ●        │ produced (A6): │
+│      ↓            │                      │ format, zooms, │
+│   vector_filter   │                      │ TileJSON       │
+│      ↓            │                      │                │
 │   ● preview       │                      │                │
 │   + add source    │                      │                │
 ├───────────────────┴──────────────────────┴────────────────┤
@@ -236,10 +234,8 @@ a narrow column than spread across a wide canvas.
 ```
 
 Tabs, not a split — one pane is usable on a 13-inch laptop. Side by side existed to show that graph
-and file agree, so the tabs owe that back: **selection survives the switch** (select a node, switch
-to VPL, land on its span), **the Graph tab never shows a stale graph** (a parse failure is shown, not
-the last good render), **the VPL tab carries an error badge**, and **switching is free** — both are
-views over one syntax tree.
+and file agree, so the tabs owe that back; [Q15](decisions.md#q15--the-pipeline-pane-tabs-between-graph-and-text)
+lists the four debts and this is where they are paid.
 
 ### S4 and S5 — Style joins the chain
 
