@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nodeAt, nodeAtPath, samePath, walk } from './node-at';
+import { isChainHead, nodeAt, nodeAtPath, samePath, walk } from './node-at';
 import type { VplNode, VplPipeline } from '../ipc/commands';
 
 /** A minimal node, positioned. Only the fields these functions read. */
@@ -84,5 +84,27 @@ describe('samePath', () => {
 		expect(samePath([0, 1], [0, 2])).toBe(false);
 		expect(samePath([0], [0, 1])).toBe(false);
 		expect(samePath(null, null)).toBe(false);
+	});
+});
+
+describe('isChainHead', () => {
+	it('is the first node at the top level, and only that one', () => {
+		expect(isChainHead([0])).toBe(true);
+		expect(isChainHead([1])).toBe(false);
+	});
+
+	/**
+	 * The bug this predicate replaced: `name.startsWith('from_')` marked every read node as the
+	 * head, so both sources of a `from_stacked [ a, b ]` lost their `×` and neither could be
+	 * removed outside the VPL tab.
+	 */
+	it('is not the read nodes nested inside a composite', () => {
+		const stack = pipeline([
+			node('from_stacked', 0, 40, [pipeline([node('from_container', 14, 20), node('from_container', 22, 28)])]),
+			node('filter', 43, 49)
+		]);
+
+		const heads = walk(stack).filter((row) => isChainHead(row.path));
+		expect(heads.map((row) => row.node.name)).toEqual(['from_stacked']);
 	});
 });

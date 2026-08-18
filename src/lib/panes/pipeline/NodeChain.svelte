@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { OperationInfo, Span, VplPipeline } from '../../ipc/commands';
-	import { walk, samePath } from '../../vpl/node-at';
+	import { walk, samePath, isChainHead } from '../../vpl/node-at';
 	import NodeCard from './NodeCard.svelte';
 
 	// The graph as a chain of nodes (C1, S2.13).
@@ -63,7 +63,7 @@
 				path={row.path}
 				selected={isSelected}
 				pinned={samePath(pinned, row.path)}
-				isHead={row.node.name.startsWith('from_')}
+				isHead={isChainHead(row.path)}
 				{operations}
 				{properties}
 				{suggestions}

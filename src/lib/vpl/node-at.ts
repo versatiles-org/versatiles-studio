@@ -65,3 +65,17 @@ export function walk(pipeline: VplPipeline, path: number[] = [], depth = 0): (Lo
 		return [...nested, { path: here, node, depth }];
 	});
 }
+
+/**
+ * Whether `path` is the node the whole chain starts with.
+ *
+ * The one node that cannot be removed, because a chain must begin with a `from_*` node and the
+ * rule is expressed by the missing control rather than by an error afterwards ([Q32]).
+ *
+ * **Not "is a read node".** `walk` flattens a composite's sources into rows too, so
+ * `from_stacked [ a, b ]` puts two `from_*` nodes on screen that are not the head — and testing
+ * the name instead of the position made both undeletable, which left no way to drop one source of
+ * a stack outside the VPL tab. Removing one of those is fine: the core refuses only the *last*
+ * node of any parent, which is a different and narrower rule.
+ */
+export const isChainHead = (path: number[]): boolean => path.length === 1 && path[0] === 0;

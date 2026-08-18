@@ -36,7 +36,9 @@
 		selected: boolean;
 		/** Whether the map is showing *this* node. Independent of selection ([Q32]). */
 		pinned: boolean;
-		/** A chain must start with a `from_*` node, so the first one is not deletable. */
+		/** Whether this is the node the chain starts with — the one node with no `×`, because a
+		 *  chain must begin with a `from_*` node ([Q32]). A read node nested in a composite is not
+		 *  this, and may be removed. */
 		isHead: boolean;
 		operations?: OperationInfo[];
 		/** Property names the pipeline produces, for list fields (S3.3). */
@@ -76,9 +78,13 @@
 		if (value) onSet(key, control(key)?.kind === 'list' ? parts(value) : [value]);
 	}
 
-	/// What a collapsed head node shows. The most identifying value it has, and nothing else.
+	/// What a collapsed read node shows. The most identifying value it has, and nothing else.
+	///
+	/// Keyed on the node being a `from_*`, not on it being the head: a `from_stacked [ a, b ]` puts
+	/// two read nodes on screen, and without their filenames both rows read `from_container` and
+	/// cannot be told apart. Being undeletable is a different question, and `isHead` answers it.
 	const headline = $derived.by(() => {
-		if (!isHead) return null;
+		if (!node.name.startsWith('from_')) return null;
 		const value = node.properties.find((property) => property.key === 'filename')?.value;
 		return value?.kind === 'single' ? value.value : null;
 	});
