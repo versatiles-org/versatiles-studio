@@ -18,6 +18,32 @@
 
 	let { status, onDismiss }: { status: Status; onDismiss?: () => void } = $props();
 
+	/// Rounded to what the reader can act on: nobody waits on the difference between 6,142/s and
+	/// 6,000/s, and the extra digits change every update, which reads as noise rather than detail.
+	function rate(perSecond: number): string {
+		if (perSecond >= 1_000_000) return `${(perSecond / 1_000_000).toFixed(1)}M/s`;
+		if (perSecond >= 1_000) return `${Math.round(perSecond / 1_000)}k/s`;
+		return `${Math.round(perSecond)}/s`;
+	}
+
+	/// Coarser the further away it is, because that is how much of it is real: "about 2 hours" from
+	/// an average taken over the first minute is a guess, and "1:58:03" is the same guess pretending
+	/// otherwise.
+	function left(seconds: number): string {
+		if (seconds < 10) return 'a few seconds left';
+		if (seconds < 90) return `${Math.round(seconds / 5) * 5}s left`;
+		if (seconds < 3600) return `${Math.round(seconds / 60)} min left`;
+		return `${(seconds / 3600).toFixed(1)} h left`;
+	}
+
+	/// How fast, and how much longer — shown only once the job has said enough to mean it.
+	function pace(current: NonNullable<typeof job>): string | undefined {
+		const parts: string[] = [];
+		if (current.rate !== null) parts.push(rate(current.rate));
+		if (current.etaSeconds !== null) parts.push(left(current.etaSeconds));
+		return parts.length > 0 ? parts.join(' · ') : undefined;
+	}
+
 	let open = $state(false);
 
 	/// The running job the bar reports on, if any. See `jobs.current` for why it is the newest.
@@ -29,18 +55,21 @@
 	/// answering, and burying it under a progress bar for a job that is still fine would be exactly
 	/// backwards. `fraction` is `undefined` — not zero — when nothing can say how far along it is;
 	/// pretending to know is worse than admitting it.
-	const line = $derived.by((): { message: string; fraction?: number; error?: boolean; cancel?: number } => {
-		if (status.kind === 'error') return { message: status.message, error: true };
-		if (job) {
-			return {
-				message: job.message || job.label,
-				fraction: job.fraction ?? undefined,
-				cancel: job.id
-			};
+	const line = $derived.by(
+		(): { message: string; fraction?: number; pace?: string; error?: boolean; cancel?: number } => {
+			if (status.kind === 'error') return { message: status.message, error: true };
+			if (job) {
+				return {
+					message: job.message || job.label,
+					fraction: job.fraction ?? undefined,
+					pace: pace(job),
+					cancel: job.id
+				};
+			}
+			if (status.kind === 'busy') return { message: status.message, fraction: status.fraction };
+			return { message: '' };
 		}
-		if (status.kind === 'busy') return { message: status.message, fraction: status.fraction };
-		return { message: '' };
-	});
+	);
 
 	const waiting = $derived(jobs.active.length);
 </script>
@@ -70,6 +99,10 @@
 	     a conversion it is not being asked about. -->
 	<span class="message truncate" role={line.error ? 'alert' : undefined} title={line.message}>{line.message}</span>
 
+	<!-- Beside the message rather than inside it: the message changes with every stage and this
+	     changes with every update, and one string rebuilt from both would flicker in two rhythms. -->
+	{#if line.pace}<span class="pace">{line.pace}</span>{/if}
+
 	{#if line.cancel !== undefined}
 		<button type="button" class="button action" onclick={() => cancelJob(line.cancel!)}>Cancel</button>
 	{/if}
@@ -85,6 +118,16 @@
 </div>
 
 <style>
+	/* Tabular figures, because these numbers are replaced two or three times a second: proportional
+	   digits change the width of the line as they change value, and the eye reads the movement
+	   before it reads the number. */
+	.pace {
+		flex: none;
+		color: var(--ink-2);
+		font-size: var(--text-xs);
+		font-variant-numeric: tabular-nums;
+	}
+
 	.strip {
 		display: flex;
 		align-items: center;

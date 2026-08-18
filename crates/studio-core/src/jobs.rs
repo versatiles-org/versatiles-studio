@@ -25,6 +25,7 @@ use std::sync::{
 	Arc, Mutex,
 	atomic::{AtomicBool, Ordering},
 };
+use std::time::Instant;
 
 /// Identifies a job for the lifetime of the process.
 // `u32` rather than `u64`: a counter of jobs in one session, and it crosses to the webview,
@@ -102,6 +103,26 @@ pub struct Job {
 	/// `0.0..=1.0`, or `None` when the job cannot say — which is honest more often than not.
 	#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
 	pub fraction: Option<f64>,
+	/// How many units are done and how many there are, when the job counts in units at all.
+	///
+	/// A fraction alone cannot say how *fast* anything is going: "43% per minute" is not a speed
+	/// anybody recognises. These are what make "12,400 tiles/s" possible, and the runtime already
+	/// reports them — they used to be divided into a fraction and thrown away.
+	#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+	pub done: Option<u64>,
+	#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+	pub total: Option<u64>,
+	/// Units per second, averaged since the first counted update.
+	///
+	/// Averaged rather than instantaneous, because an ETA that jumps between "2 minutes" and "40
+	/// minutes" every second is worse than no ETA. Anchored at the first update rather than at
+	/// submission, so the time spent opening sources before any tile moved is not counted as slow
+	/// tiles.
+	#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+	pub rate: Option<f64>,
+	/// Seconds remaining at that rate, or `None` until there is enough to say.
+	#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+	pub eta_seconds: Option<f64>,
 	/// What is happening right now. Empty until the job says something.
 	pub message: String,
 	/// How many lines the log holds, so a row can offer to expand only when there is something in
@@ -130,6 +151,12 @@ pub enum JobEvent {
 		id: JobId,
 		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
 		fraction: Option<f64>,
+		/// Absolute counts when the job has them. The runner turns successive values into a rate
+		/// and an ETA; a listener never has to keep its own history to know how fast this is going.
+		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+		done: Option<u64>,
+		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+		total: Option<u64>,
 		message: String,
 	},
 	/// A line for the job log. Failures at minute forty have to be able to say why.
@@ -236,6 +263,11 @@ impl JobHandle {
 		self.reporter.progress(fraction, message);
 	}
 
+	/// Reports progress the job can count — what a speed and an ETA are made of.
+	pub fn counted(&self, done: u64, total: u64, message: impl Into<String>) {
+		self.reporter.counted(done, total, message);
+	}
+
 	/// Reports what the job is doing when it cannot say how far along it is.
 	pub fn working(&self, message: impl Into<String>) {
 		self.reporter.working(message);
@@ -252,6 +284,20 @@ impl Reporter {
 		self.emit(Some(fraction.clamp(0.0, 1.0)), message);
 	}
 
+	/// Reports progress the job can count, which is what a speed and an ETA are made of.
+	///
+	/// `total` of zero is treated as "cannot say": a denominator nobody knows yet is not a job that
+	/// is 0% done, and dividing by it would be worse than admitting it.
+	pub fn counted(&self, done: u64, total: u64, message: impl Into<String>) {
+		if total == 0 {
+			self.working(message);
+			return;
+		}
+		#[allow(clippy::cast_precision_loss)]
+		let fraction = (done as f64 / total as f64).clamp(0.0, 1.0);
+		self.send(Some(fraction), Some(done), Some(total), message);
+	}
+
 	/// Reports what the job is doing when it cannot say how far along it is.
 	///
 	/// Separate from [`progress`](Self::progress) so that not knowing is something a caller states,
@@ -261,9 +307,15 @@ impl Reporter {
 	}
 
 	fn emit(&self, fraction: Option<f64>, message: impl Into<String>) {
+		self.send(fraction, None, None, message);
+	}
+
+	fn send(&self, fraction: Option<f64>, done: Option<u64>, total: Option<u64>, message: impl Into<String>) {
 		(self.sink)(JobEvent::Progress {
 			id: self.id,
 			fraction,
+			done,
+			total,
 			message: message.into(),
 		});
 	}
@@ -290,6 +342,45 @@ struct Entry {
 	/// Present while running, so cancelling can drop the work at its next await point rather than
 	/// waiting for it to notice.
 	task: Option<tokio::task::JoinHandle<()>>,
+	/// When the job was first seen counting, and at what count — the origin every rate is measured
+	/// from. Kept out of [`Job`] because it is bookkeeping rather than something to show, and an
+	/// `Instant` does not cross a serialisation boundary anyway.
+	anchor: Option<(Instant, u64)>,
+}
+
+impl Entry {
+	/// Works out how fast the job is going and how long is left, from the counts it has reported.
+	///
+	/// **Averaged from a fixed anchor**, not from the previous sample. A rate taken between two
+	/// consecutive updates swings with every slow tile and every fast one, and an ETA computed from
+	/// it alternates between two minutes and forty — which is less useful than saying nothing. The
+	/// anchor is the *first* counted update rather than the moment of submission, so time spent
+	/// opening sources before a single tile moved is not averaged in as slow work.
+	///
+	/// Silent until there is something to say: no anchor yet, no time elapsed, or nothing done
+	/// since the anchor all leave the rate `None` rather than reporting zero or infinity.
+	fn rate_and_eta(&mut self, now: Instant) {
+		let (Some(done), Some(total)) = (self.job.done, self.job.total) else {
+			self.job.rate = None;
+			self.job.eta_seconds = None;
+			return;
+		};
+
+		let (since, from) = *self.anchor.get_or_insert((now, done));
+		let elapsed = now.duration_since(since).as_secs_f64();
+		let moved = done.saturating_sub(from);
+
+		if elapsed <= 0.0 || moved == 0 {
+			return;
+		}
+
+		#[allow(clippy::cast_precision_loss)]
+		let rate = moved as f64 / elapsed;
+		self.job.rate = Some(rate);
+		#[allow(clippy::cast_precision_loss)]
+		let remaining = total.saturating_sub(done) as f64;
+		self.job.eta_seconds = Some(remaining / rate);
+	}
 }
 
 #[derive(Default)]
@@ -369,12 +460,17 @@ impl Jobs {
 					lane,
 					state: if waiting { JobState::Queued } else { JobState::Running },
 					fraction: None,
+					done: None,
+					total: None,
+					rate: None,
+					eta_seconds: None,
 					message: String::new(),
 					log_lines: 0,
 				},
 				log: VecDeque::new(),
 				cancel: CancelToken::new(),
 				task: None,
+				anchor: None,
 			});
 			let start_now = if waiting {
 				registry.pending.push_back((id, work));
@@ -571,10 +667,19 @@ impl Jobs {
 	fn record(&self, mut event: JobEvent) -> JobEvent {
 		let mut registry = self.inner.registry.lock().unwrap();
 		match &mut event {
-			JobEvent::Progress { id, fraction, message } => {
+			JobEvent::Progress {
+				id,
+				fraction,
+				done,
+				total,
+				message,
+			} => {
 				if let Some(entry) = registry.entry(*id) {
 					entry.job.fraction = *fraction;
+					entry.job.done = *done;
+					entry.job.total = *total;
 					entry.job.message.clone_from(message);
+					entry.rate_and_eta(Instant::now());
 				}
 			}
 			JobEvent::Log { id, line, log_lines } => {
@@ -622,6 +727,7 @@ fn prune(registry: &mut Registry) {
 mod tests {
 	use super::*;
 	use std::sync::atomic::AtomicU32;
+	use std::time::Duration;
 	use tokio::sync::oneshot;
 
 	fn collector(jobs: &Jobs) -> Arc<Mutex<Vec<JobEvent>>> {
@@ -733,6 +839,112 @@ mod tests {
 
 		until(|| !jobs.job(id).unwrap().state.is_active()).await;
 		assert_eq!(jobs.job(id).unwrap().fraction, Some(1.0));
+	}
+
+	/// `rate_and_eta` is driven directly here rather than through a job, so the clock is an
+	/// argument instead of something the test has to sleep through.
+	fn counting(done: u64, total: u64) -> Entry {
+		let mut entry = Entry {
+			job: Job {
+				id: 1,
+				label: "writing".into(),
+				lane: Lane::Queued,
+				state: JobState::Running,
+				fraction: None,
+				done: Some(done),
+				total: Some(total),
+				rate: None,
+				eta_seconds: None,
+				message: String::new(),
+				log_lines: 0,
+			},
+			log: VecDeque::new(),
+			cancel: CancelToken::new(),
+			task: None,
+			anchor: None,
+		};
+		entry.rate_and_eta(Instant::now());
+		entry
+	}
+
+	#[test]
+	fn a_speed_needs_two_points_and_says_nothing_before_it_has_them() {
+		let entry = counting(0, 1000);
+		assert_eq!(entry.job.rate, None, "one sample is a position, not a speed");
+		assert_eq!(entry.job.eta_seconds, None);
+	}
+
+	#[test]
+	fn the_speed_is_measured_from_the_first_count_it_saw() {
+		let mut entry = counting(100, 1100);
+		let start = entry.anchor.expect("the first update anchors the average").0;
+
+		// Two seconds later, 300 units further on: 150 per second, 800 left, so about 5.3 seconds.
+		entry.job.done = Some(400);
+		entry.rate_and_eta(start + Duration::from_secs(2));
+
+		let rate = entry.job.rate.expect("two counts two seconds apart is a speed");
+		assert!((rate - 150.0).abs() < 0.001, "{rate}");
+		let eta = entry.job.eta_seconds.expect("a speed and a remainder is an ETA");
+		assert!((eta - 700.0 / 150.0).abs() < 0.001, "{eta}");
+	}
+
+	/// The anchor is the first *count*, not the submission: a job that spent a minute opening
+	/// sources before writing a tile is not writing tiles at one a minute.
+	#[test]
+	fn time_before_the_first_count_is_not_averaged_in() {
+		let mut entry = counting(0, 100);
+		let start = entry.anchor.expect("anchored").0;
+
+		entry.job.done = Some(50);
+		entry.rate_and_eta(start + Duration::from_secs(1));
+
+		assert_eq!(entry.job.rate, Some(50.0), "50 in the second since the first count");
+	}
+
+	#[test]
+	fn a_job_that_has_not_moved_reports_no_speed_rather_than_zero() {
+		let mut entry = counting(10, 100);
+		let start = entry.anchor.expect("anchored").0;
+
+		entry.rate_and_eta(start + Duration::from_secs(5));
+
+		assert_eq!(entry.job.rate, None, "nothing moved, so nothing can be said — not 0/s");
+		assert_eq!(entry.job.eta_seconds, None, "and an infinite ETA is not an ETA");
+	}
+
+	/// A total of zero is a denominator nobody knows yet, not a job that is 0% done.
+	#[tokio::test]
+	async fn counting_towards_an_unknown_total_is_reported_as_not_knowing() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
+
+		let id = jobs.submit("unknown", Lane::Queued, |handle| async move {
+			handle.counted(0, 0, "counting what exactly");
+			Ok(())
+		});
+
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+		let job = jobs.job(id).unwrap();
+		assert_eq!(job.fraction, None);
+		assert_eq!(job.total, None);
+		assert_eq!(job.message, "counting what exactly");
+	}
+
+	#[tokio::test]
+	async fn counted_progress_reaches_the_job_as_both_a_fraction_and_counts() {
+		let jobs = Jobs::new();
+		jobs.set_sink(Arc::new(|_| {}));
+
+		let id = jobs.submit("writing", Lane::Queued, |handle| async move {
+			handle.counted(25, 100, "writing tiles");
+			Ok(())
+		});
+
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+		let job = jobs.job(id).unwrap();
+		assert_eq!(job.fraction, Some(0.25));
+		assert_eq!((job.done, job.total), (Some(25), Some(100)));
 	}
 
 	/// The whole reason [`Lane::Queued`] exists: two conversions do not run at once.

@@ -587,6 +587,26 @@ export type Job = {
 	state: JobState,
 	/**  `0.0..=1.0`, or `None` when the job cannot say — which is honest more often than not. */
 	fraction: number | null,
+	/**
+	 *  How many units are done and how many there are, when the job counts in units at all.
+	 * 
+	 *  A fraction alone cannot say how *fast* anything is going: "43% per minute" is not a speed
+	 *  anybody recognises. These are what make "12,400 tiles/s" possible, and the runtime already
+	 *  reports them — they used to be divided into a fraction and thrown away.
+	 */
+	done: number | null,
+	total: number | null,
+	/**
+	 *  Units per second, averaged since the first counted update.
+	 * 
+	 *  Averaged rather than instantaneous, because an ETA that jumps between "2 minutes" and "40
+	 *  minutes" every second is worse than no ETA. Anchored at the first update rather than at
+	 *  submission, so the time spent opening sources before any tile moved is not counted as slow
+	 *  tiles.
+	 */
+	rate: number | null,
+	/**  Seconds remaining at that rate, or `None` until there is enough to say. */
+	etaSeconds: number | null,
 	/**  What is happening right now. Empty until the job says something. */
 	message: string,
 	/**
@@ -613,7 +633,12 @@ export type JobEvent =
 /**  It left the queue and started running. */
 { kind: "started"; id: number } | 
 /**  Fractional progress in `0.0..=1.0` — or `None`, plus what is happening right now. */
-{ kind: "progress"; id: number; fraction: number | null; message: string } | 
+{ kind: "progress"; id: number; fraction: number | null; 
+/**
+ *  Absolute counts when the job has them. The runner turns successive values into a rate
+ *  and an ETA; a listener never has to keep its own history to know how fast this is going.
+ */
+done: number | null; total: number | null; message: string } | 
 /**  A line for the job log. Failures at minute forty have to be able to say why. */
 { kind: "log"; id: number; line: string; 
 /**

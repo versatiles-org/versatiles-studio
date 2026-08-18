@@ -239,14 +239,10 @@ fn forward_events(runtime: &TilesRuntime, handle: &JobHandle) {
 	// The handle's reporting half, so the listener does not need the job's cancellation state.
 	let sink = handle.reporter();
 	runtime.events().subscribe(move |event| match event {
-		Event::Progress { data } => {
-			if data.total > 0 {
-				#[allow(clippy::cast_precision_loss)]
-				sink.progress(data.position as f64 / data.total as f64, data.message.clone());
-			} else {
-				sink.working(data.message.clone());
-			}
-		}
+		// Forwarded as counts, not as a fraction: the runner turns successive counts into a speed
+		// and an ETA, and dividing here would throw away the only numbers that can say how fast
+		// this is going. `counted` handles a total of zero as "cannot say".
+		Event::Progress { data } => sink.counted(data.position, data.total, data.message.clone()),
 		Event::Step { message } => sink.working(message.clone()),
 		Event::Warning { message } => sink.log(format!("warning: {message}")),
 		Event::Error { message } => sink.log(format!("error: {message}")),
