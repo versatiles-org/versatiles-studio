@@ -162,6 +162,16 @@ pub fn kind_for(path: &str) -> Option<ImportKind> {
 		.find(|kind| kind.extensions.iter().any(|ext| lower.ends_with(&format!(".{ext}"))))
 }
 
+/// The extensions a pipeline file may have — one place, so a dialog's filter and a command's
+/// refusal cannot disagree about what a `.vpl` is.
+#[must_use]
+pub fn pipeline_extensions() -> &'static [&'static str] {
+	CANDIDATES
+		.iter()
+		.find(|candidate| candidate.id == "pipeline")
+		.map_or(&[], |candidate| candidate.extensions)
+}
+
 /// The VPL a chosen file becomes, with whatever the file itself can answer already filled in.
 ///
 /// For most kinds this is [`vpl::read_node`](crate::vpl::read_node) and nothing more. For a CSV it
@@ -201,6 +211,15 @@ pub fn read_node(kind: &ImportKind, path: &str) -> String {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	/// The command that saves a `.vpl` refuses a destination this does not name, so an empty list
+	/// would refuse *every* save — fail-closed, but silently, and only for whoever renamed the id.
+	#[test]
+	fn a_pipeline_still_knows_what_it_is_called() {
+		let extensions = pipeline_extensions();
+		assert!(!extensions.is_empty(), "the pipeline kind lost its extensions");
+		assert!(extensions.contains(&"vpl"), "{extensions:?}");
+	}
 
 	/// The point of the module: what is offered is what the binary can do.
 	#[test]

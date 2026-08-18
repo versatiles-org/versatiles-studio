@@ -7,6 +7,9 @@ updates:
     groups:
       npm:
         patterns: ['*']
+      security:
+        applies-to: security-updates
+        patterns: ['*']
     versioning-strategy: increase-if-necessary
     ignore:
       # svelte-check 4.7.6 peers on `^5.0.0 || ^6.0.0`, so a TypeScript 7 bump breaks `npm ci`
@@ -21,6 +24,9 @@ updates:
     groups:
       action:
         patterns: ['*']
+      security:
+        applies-to: security-updates
+        patterns: ['*']
 
   # Without this, GitHub still raises Rust advisories but Dependabot never opens a PR for them.
   - package-ecosystem: cargo
@@ -29,6 +35,9 @@ updates:
       interval: monthly
     groups:
       cargo:
+        patterns: ['*']
+      security:
+        applies-to: security-updates
         patterns: ['*']
     ignore:
       # glib is pinned at 0.18 by gtk 0.18, which Tauri v2 needs because it targets GTK3 via
