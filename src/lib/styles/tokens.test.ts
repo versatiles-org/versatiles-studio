@@ -71,6 +71,26 @@ describe('design tokens', () => {
 		expect(offenders, 'write font-size and font-family separately, using tokens').toEqual([]);
 	});
 
+	/**
+	 * `--text-md` is the document default, set once on `body`. A component that writes it is
+	 * declaring the size it would already have inherited.
+	 *
+	 * That sounds harmless and is not: before the rule, 27 components overrode the default to a
+	 * smaller size, so the real body size was 12px while the token said 14px and every new component
+	 * had to guess which of the two to copy. Writing the default is how the default stops being one.
+	 *
+	 * **Components only.** `base.css` is where the default legitimately comes from.
+	 */
+	it('are not restated where they would be inherited', () => {
+		const offenders = styled
+			.filter((path) => path.endsWith('.svelte'))
+			.flatMap((path) => {
+				const hits = withoutComments(styleBlocks(path)).match(/font-size:\s*var\(--text-md\)/g) ?? [];
+				return hits.map((hit) => `${path}: ${hit.trim()}`);
+			});
+		expect(offenders, 'delete it — --text-md is what body already gives you').toEqual([]);
+	});
+
 	it('are the only place a corner radius is written', () => {
 		const offenders = styled.flatMap((path) => {
 			const hits = withoutComments(styleBlocks(path)).match(/border-radius:\s*[^;]*\d(?:px|rem|em)[^;]*/g) ?? [];

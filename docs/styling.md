@@ -81,10 +81,10 @@ the compiler, but `base.css` ships as written, so nesting there would be a runti
 browser rather than a source convention.
 
 These are enforced by `src/lib/styles/tokens.test.ts`, which runs with `npm test`. It fails with the
-file and the offending value named. It checks colour, type size, the root font size, radius, font
-stacks, fallbacks, the focus ring, map colours, both themes defining the same colours, the button
-box and nesting — and nothing else, because a rule nobody can justify is a rule people route
-around.
+file and the offending value named. It checks colour, type size, the default size never being
+restated, the root font size, radius, font stacks, fallbacks, the focus ring, map colours, both
+themes defining the same colours, the button box and nesting — and nothing else, because a rule
+nobody can justify is a rule people route around.
 
 ## The tokens
 
@@ -120,7 +120,8 @@ default, so ordinary UI text declares nothing at all. Before this rule, 27 compo
 default to a smaller size — which meant the real body size was 12px while the token said 14px, and
 every new component had to guess which to copy. The lasting test is not how many declarations there
 are but which: **no component declares `--text-md`**, because writing the default is how the default
-stops being one. Everything else on the scale is a deliberate step away from it.
+stops being one. Everything else on the scale is a deliberate step away from it. `tokens.test.ts`
+fails if one comes back.
 
 | Size                      | For                                           |
 | ------------------------- | --------------------------------------------- |
