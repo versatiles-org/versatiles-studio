@@ -58,6 +58,23 @@
 		(meta?.fields ?? []).filter((f) => !f.sources && !node.properties.some((p) => p.key === f.name))
 	);
 
+	/// Required parameters with no value yet — **always shown**, empty.
+	///
+	/// Hiding them in `＋ parameter…` made a form that conceals its own required fields and sends you
+	/// hunting for them. Shown and empty, "required" needs no symbol: the field is simply there, and
+	/// waiting. Most operations add no rows this way — 18 of 29 have no required parameter at all,
+	/// and only three have more than one.
+	const missing = $derived(unset.filter((field) => field.required));
+	/// What `＋ parameter…` offers: the optional ones, since the required are already on screen.
+	const addable = $derived(unset.filter((field) => !field.required));
+
+	/// Writes a required parameter once it has a value. Empty stays empty — writing `lon_column=''`
+	/// produces VPL that parses and then fails when the pipeline builds.
+	function commitRequired(key: string, raw: string) {
+		const value = raw.trim();
+		if (value) onSet(key, control(key)?.kind === 'list' ? parts(value) : [value]);
+	}
+
 	/// What a collapsed head node shows. The most identifying value it has, and nothing else.
 	const headline = $derived.by(() => {
 		if (!isHead) return null;
@@ -239,7 +256,6 @@
 				<div class="arg">
 					<dt>
 						<span class="k truncate">{property.key}</span>
-						{#if field?.required}<span class="req" title="required">*</span>{/if}
 						{#if field}
 							<!-- Hover or focus to peek, click to pin ([Q33]). The trigger is the `?` rather
 							     than the whole row: sweeping down a form would otherwise flash a popover
@@ -312,15 +328,19 @@
 							{/if}
 						{/if}
 					</dd>
-					<button
-						type="button"
-						class="drop"
-						title="Remove {property.key}"
-						aria-label="Remove {property.key}"
-						onclick={() => onRemove(property.span)}
-					>
-						×
-					</button>
+					<!-- No × on a required parameter: you cannot remove what must exist, and the missing
+					     control is how that rule is said ([Q33]) — the same way the head node has no ×. -->
+					{#if !field?.required}
+						<button
+							type="button"
+							class="drop"
+							title="Remove {property.key}"
+							aria-label="Remove {property.key}"
+							onclick={() => onRemove(property.span)}
+						>
+							×
+						</button>
+					{/if}
 					{#if control?.kind === 'list' && choices.length > 0}
 						{@const picked = chosen(property)}
 						<div class="chips">
@@ -340,12 +360,58 @@
 				</div>
 			{/each}
 
+			<!-- Required and not yet set. No × — you cannot remove what must exist, which is the same
+			     rule the head node's missing × already teaches. -->
+			{#each missing as field (field.name)}
+				<div class="arg">
+					<dt>
+						<span class="k truncate">{field.name}</span>
+						<button
+							type="button"
+							class="help"
+							aria-label="What is {field.name}?"
+							onmouseenter={(event) => peek(contentFor(field.name, field), event.currentTarget)}
+							onmouseleave={unpeek}
+							onfocus={(event) => peek(contentFor(field.name, field), event.currentTarget)}
+							onblur={unpeek}
+							onclick={(event) => pin(contentFor(field.name, field), event.currentTarget)}
+							onkeydown={(event) => {
+								if (event.key === 'Escape') unpeek();
+							}}
+						>
+							?
+						</button>
+					</dt>
+					<dd>
+						<input
+							type="text"
+							class:path={isPath(field.name)}
+							placeholder="needs a value"
+							spellcheck="false"
+							autocomplete="off"
+							list={options(field.name, field.control).length > 0
+								? `s-${node.nameSpan.start}-${field.name}`
+								: undefined}
+							aria-label="Value for {field.name}"
+							onblur={(event) => commitRequired(field.name, event.currentTarget.value)}
+							onkeydown={(event) => {
+								if (event.key === 'Enter') event.currentTarget.blur();
+							}}
+						/>
+						{#if options(field.name, field.control).length > 0}
+							<datalist id="s-{node.nameSpan.start}-{field.name}">
+								{#each options(field.name, field.control) as value (value)}<option {value}></option>{/each}
+							</datalist>
+						{/if}
+					</dd>
+				</div>
+			{/each}
+
 			{#if pending}
 				{@const field = fieldOf(pending)}
 				<div class="arg pending">
 					<dt>
 						<span class="k truncate">{pending}</span>
-						{#if field?.required}<span class="req" title="required">*</span>{/if}
 					</dt>
 					<dd>
 						<!-- svelte-ignore a11y_autofocus -->
@@ -369,7 +435,7 @@
 				</div>
 			{/if}
 
-			{#if unset.length > 0}
+			{#if addable.length > 0}
 				<label class="add">
 					<span class="visually-hidden">Add a parameter</span>
 					<select
@@ -381,8 +447,8 @@
 						}}
 					>
 						<option value="">＋ parameter…</option>
-						{#each unset as field (field.name)}
-							<option value={field.name} title={field.doc}>{field.name}{field.required ? ' *' : ''}</option>
+						{#each addable as field (field.name)}
+							<option value={field.name} title={field.doc}>{field.name}</option>
 						{/each}
 					</select>
 				</label>
@@ -520,10 +586,6 @@
 	   reads left-to-right, because its characters are strong LTR. */
 	dd input.path {
 		text-align: right;
-	}
-	.req {
-		color: var(--error);
-		font-weight: 700;
 	}
 	/* Sized from the type scale rather than to a pixel: a `?` small enough to look right at 9px is
 	   also small enough to miss with a trackpad. */
