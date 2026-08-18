@@ -157,7 +157,14 @@
 
 	// The landing screen is what an *empty* window shows — it goes away for good once something is
 	// open, and never gates anything (Q13).
-	let empty = $derived(containers.length === 0);
+	//
+	// **A graph is what "something is open" means** ([Q32]). This asked `containers.length === 0`
+	// until now, which was right at S1.1 when a container was the only thing you could open — and
+	// silently wrong afterwards. A CSV or GeoJSON import produces a `from_csv` / `from_geo` node and
+	// no container at all, and a reloaded window has its graphs back from the core before it has
+	// opened anything, so both left the landing screen covering a loaded project with both panes
+	// hidden.
+	let empty = $derived(graphs.length === 0);
 
 	$effect(() => {
 		// Before anything else asks for work: a job started by the previous window — a conversion
@@ -171,6 +178,11 @@
 		void refreshGraphs().then(async () => {
 			if (graphs.length > 0) pipeline = await getGraph(graphs[0].id);
 			pipelineRevision += 1;
+			// The graph came back from the core; the containers it reads did not. Every other path
+			// that sets a pipeline syncs them — `applyDocument` and `load` — and this one was
+			// missing it, so after a reload the inspector had nothing to show about a container the
+			// pipeline was plainly using (A6, A4).
+			await syncContainersToPipeline();
 		});
 		void getPinned().then((found) => (pinned = found));
 	});
