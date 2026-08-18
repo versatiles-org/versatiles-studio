@@ -137,7 +137,10 @@ const retired = new Set(['A3', 'E5']);
 describe('documentation identifiers', () => {
 	for (const { name, definedIn, define, refer } of schemes) {
 		it(`name a ${name} that exists`, () => {
-			const defined = new Set([...read(definedIn).matchAll(define)].map((match) => match[1].replace('\\', '')));
+			// No unescaping: every capture group above is letters, digits and dots, so a backslash
+			// cannot reach one. There used to be a `.replace('\\', '')` here, defending against the
+			// `\*` that marks a stretch item — which the pattern already excludes from the group.
+			const defined = new Set([...read(definedIn).matchAll(define)].map((match) => match[1]));
 			expect(defined.size, `no ${name} definitions matched in ${definedIn}`).toBeGreaterThan(20);
 
 			const unknown = new Set<string>();
