@@ -36,9 +36,14 @@ either completes or does not.
 
 **The name is chosen when the graph is created, from whatever was opened.** That is the other half of
 the same decision: if a filename cannot rename a graph later, the name has to be right at the start.
-Today every graph is created as the literal `graph`, so a third file opened becomes `graph-3` — wrong
-in all three of the places above, and wrong in a way no later action corrects. `berlin.mbtiles` should
-make a graph called `berlin`. **Decided, not yet built.**
+Every graph used to be created as the literal `graph`, so a third file opened became `graph-3` —
+wrong in all three of the places above, and wrong in a way no later action corrects.
+`berlin.mbtiles` now makes a graph called `berlin`.
+
+The rule lives in the core, as `graphs::name_for_source`, because there are two ways in and they must
+not disagree: opening `berlin.vpl` and opening `berlin.mbtiles` name the same graph. `add_graph`
+therefore takes the **source** rather than a name — a caller that passed a whole path would have
+produced `users-me-data-berlin-mbtiles`, and the type no longer lets it.
 
 **The core remembers work, not cursors.** The **selected node is deliberately webview state**, and
 [ui.md](ui.md)'s list of what the core must own drops it.

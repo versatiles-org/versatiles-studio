@@ -190,6 +190,24 @@ impl Graphs {
 /// name has to survive a mount URL, a `.vpl` filename on three filesystems and a JSON key in
 /// `style.json`, and the intersection is small enough that guessing at it per platform is not worth
 /// the bugs.
+/// The name a source suggests: its filename, without directories or extension.
+///
+/// One rule for both ways a graph is created — opening a `.vpl`, and importing anything else — so
+/// that `berlin.mbtiles` and `berlin.vpl` cannot disagree about what the graph is called. [Q35]
+/// makes this the only moment the name is derived: saving to a different filename later does not
+/// rename anything, so getting it right here is the whole of getting it right.
+///
+/// Falls back to `graph` when there is no usable stem — a bare directory, or a name that sanitises
+/// away to nothing — which is what [`Graphs::add`] would have produced regardless.
+#[must_use]
+pub fn name_for_source(source: &str) -> String {
+	std::path::Path::new(source)
+		.file_stem()
+		.map(|stem| stem.to_string_lossy().into_owned())
+		.filter(|stem| !sanitise(stem).is_empty())
+		.unwrap_or_else(|| "graph".to_string())
+}
+
 #[must_use]
 pub fn sanitise(name: &str) -> String {
 	let mut out = String::with_capacity(name.len());
@@ -301,6 +319,49 @@ mod tests {
 		let second = graphs.add("b", doc("from_debug format=png"), None);
 		assert_ne!(first, second);
 		assert!(graphs.get(first).is_none());
+	}
+
+	#[test]
+	fn a_source_names_its_graph_after_the_file() {
+		assert_eq!(name_for_source("berlin.mbtiles"), "berlin");
+		assert_eq!(name_for_source("/data/tiles/berlin.mbtiles"), "berlin");
+		assert_eq!(name_for_source("places.geojson"), "places");
+		// A URL is a path as far as the stem is concerned.
+		assert_eq!(name_for_source("https://example.org/tiles/osm.versatiles"), "osm");
+	}
+
+	/// The two ways a graph is created must not disagree: `open_vpl` derives the same name.
+	#[test]
+	fn a_vpl_and_the_container_it_reads_agree_on_the_stem() {
+		assert_eq!(name_for_source("berlin.vpl"), name_for_source("berlin.mbtiles"));
+	}
+
+	#[test]
+	fn a_source_with_no_usable_stem_falls_back() {
+		assert_eq!(name_for_source("/data/tiles/"), "tiles");
+		assert_eq!(name_for_source(""), "graph");
+		// Sanitises away to nothing, so it is no better than the fallback.
+		assert_eq!(name_for_source("///"), "graph");
+	}
+
+	/// The stem is a *suggestion*: `add` still makes it unique, which is the whole reason two
+	/// `places.geojson` in different folders can both be opened.
+	#[test]
+	fn two_files_with_one_name_do_not_collide() {
+		let mut graphs = graphs();
+		let first = graphs.add(
+			&name_for_source("/a/places.geojson"),
+			doc("from_debug format=png"),
+			None,
+		);
+		let second = graphs.add(
+			&name_for_source("/b/places.geojson"),
+			doc("from_debug format=png"),
+			None,
+		);
+
+		assert_eq!(graphs.get(first).unwrap().name, "places");
+		assert_eq!(graphs.get(second).unwrap().name, "places-2");
 	}
 
 	/// A freed name becomes available again — otherwise a project would accumulate `-2`s forever.

@@ -107,12 +107,23 @@ pub async fn graph(state: State<'_, AppState>, id: GraphId) -> Result<Option<Doc
 
 /// Creates a graph from VPL text, and returns it.
 ///
-/// `name` is a suggestion: two `places.geojson` files in different folders both want to be
-/// `places`, and the second becoming `places-2` beats a refusal or a silent overwrite.
+/// Takes the **source** rather than a name, so the one rule that turns a file into a graph name
+/// lives here and not in each caller ([Q35]) — a webview that passed a whole path would have named
+/// a graph `users-me-data-berlin-mbtiles`. Two `places.geojson` files in different folders both want
+/// to be `places`, and the second becoming `places-2` beats a refusal or a silent overwrite.
+///
+/// `None` is for a graph with no file behind it, which nothing creates today.
 #[tauri::command]
 #[specta::specta]
-pub async fn add_graph(state: State<'_, AppState>, name: String, text: String) -> Result<DocumentView, VplError> {
+pub async fn add_graph(
+	state: State<'_, AppState>,
+	source: Option<String>,
+	text: String,
+) -> Result<DocumentView, VplError> {
 	let document = Document::parse(text)?;
+	let name = source
+		.as_deref()
+		.map_or_else(|| "graph".to_string(), studio_core::graphs::name_for_source);
 	let mut graphs = state.graphs.lock().await;
 	let id = graphs.add(&name, document, None);
 
@@ -458,10 +469,8 @@ pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 
 	let file = std::path::PathBuf::from(&path);
 	// The graph is named after the file it came from — which is also what it will be saved back as,
-	// and what the style will reference ([Q32]).
-	let stem = file
-		.file_stem()
-		.map_or_else(|| "graph".to_string(), |s| s.to_string_lossy().into_owned());
+	// and what the style will reference ([Q32]). Same rule as every other way in ([Q35]).
+	let stem = studio_core::graphs::name_for_source(&path);
 	let saved = (file, document.text().to_string());
 
 	let mut graphs = state.graphs.lock().await;

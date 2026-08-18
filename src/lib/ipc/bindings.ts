@@ -207,10 +207,14 @@ export const commands = {
 	/**
 	 *  Creates a graph from VPL text, and returns it.
 	 * 
-	 *  `name` is a suggestion: two `places.geojson` files in different folders both want to be
-	 *  `places`, and the second becoming `places-2` beats a refusal or a silent overwrite.
+	 *  Takes the **source** rather than a name, so the one rule that turns a file into a graph name
+	 *  lives here and not in each caller ([Q35]) — a webview that passed a whole path would have named
+	 *  a graph `users-me-data-berlin-mbtiles`. Two `places.geojson` files in different folders both want
+	 *  to be `places`, and the second becoming `places-2` beats a refusal or a silent overwrite.
+	 * 
+	 *  `None` is for a graph with no file behind it, which nothing creates today.
 	 */
-	addGraph: (name: string, text: string) => typedError<DocumentView, VplError>(__TAURI_INVOKE("add_graph", { name, text })),
+	addGraph: (source: string | null, text: string) => typedError<DocumentView, VplError>(__TAURI_INVOKE("add_graph", { source, text })),
 	/**  Removes a graph, and reports whether there was one. */
 	removeGraph: (id: number) => typedError<boolean, string>(__TAURI_INVOKE("remove_graph", { id })),
 	/**

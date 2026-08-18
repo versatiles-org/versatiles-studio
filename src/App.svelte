@@ -241,9 +241,9 @@
 	/// name is the server mount, the `style.json` source and the `.vpl` filename at once, so it is
 	/// the wrong name in three places rather than one. The callers know what they opened; this
 	/// signature does not carry it yet.
-	async function setPipelineText(text: string, kind: EditKind = 'structured') {
+	async function setPipelineText(text: string, kind: EditKind = 'structured', source: string | null = null) {
 		if (currentGraph === null) {
-			const created = await addGraph('graph', text);
+			const created = await addGraph(source, text);
 			await refreshGraphs();
 			return created;
 		}
@@ -639,10 +639,10 @@
 				await syncContainersToPipeline();
 			} else if (kind.id === 'container') {
 				const result = await mount(source);
-				pipeline = await setPipelineText(result.vpl, 'replaced');
+				pipeline = await setPipelineText(result.vpl, 'replaced', source);
 				pipelineRevision += 1;
 			} else {
-				pipeline = await setPipelineText(await importReadNode(kind.id, source), 'replaced');
+				pipeline = await setPipelineText(await importReadNode(kind.id, source), 'replaced', source);
 				pipelineRevision += 1;
 				// Selected, so the form for it is showing. Importing *is* configuring: `from_geo`
 				// takes a zoom range, simplification and property filters, and the generated form
