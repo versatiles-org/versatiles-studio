@@ -527,14 +527,11 @@
 		await refreshPreview();
 	}
 
-	/// Adds a transform after the selected node, or after the last one when nothing is selected.
-	///
-	/// Selects what it added, for the same reason an import selects its node ([Q29]): the next thing
-	/// to do is set its parameters, and the form for them is one unmarked click away otherwise.
 	/// Adds a transform after the node whose name occupies `span`, and selects what it added.
 	///
-	/// Selecting it is the point: the next thing to do is set its parameters, and after [Q32] the
-	/// node *is* the form — an unselected one shows only its name.
+	/// Selecting it is the point, for the same reason an import selects its node ([Q29]): the next
+	/// thing to do is set its parameters, and after [Q32] the node *is* the form — an unselected one
+	/// shows only its name, so the form would be one unmarked click away.
 	async function addOperation(afterNameSpan: Span, operation: string) {
 		if (!pipeline) return;
 		const at = nodeAt(pipeline.pipeline, afterNameSpan.start)?.path;
@@ -552,8 +549,11 @@
 		}
 	}
 
-	/// Removes the selected node. The selection moves to whatever took its place in the chain.
 	/// Removes a node. The selection is dropped: what was selected is gone.
+	///
+	/// Dropped here rather than left to `applyDocument`, which keeps a selection whose path still
+	/// resolves: removing the middle of a three-node chain leaves `[1]` naming whatever moved up
+	/// into it, so the form would quietly re-open on a node nobody chose.
 	async function removeNode(span: Span) {
 		if (!pipeline) return;
 		try {
