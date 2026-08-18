@@ -519,6 +519,8 @@
 			}
 			pipeline = await saveVpl(pipeline.graph, target);
 			status = { kind: 'busy', message: `Saved ${filename(target)}` };
+			// The other half of the dot: saving is what clears it, and the list has to be told.
+			await refreshGraphs();
 			await refreshRecents();
 			status = { kind: 'idle' };
 		} catch (e) {
@@ -661,7 +663,16 @@
 			documentActions={{
 				change: (text) =>
 					void setPipelineText(text, 'typing').then((next) => {
+						// The graph list's unsaved dot reads `graphs`, not `pipeline`, so it only moves when
+						// that list is refetched — and typing deliberately does not go through
+						// `applyDocument`, which is what refetches it. Without this the Save button lit up
+						// on the first keystroke while the dot beside the graph's name stayed clean.
+						//
+						// On the transition rather than on every keystroke: `dirty` flips once per save
+						// cycle, so a round trip per character to be told nothing changed is a poor trade.
+						const flipped = pipeline?.dirty !== next.dirty;
 						pipeline = next;
+						if (flipped) void refreshGraphs();
 						void refreshPreview();
 					}),
 				undo: () => void stepHistory(true),
