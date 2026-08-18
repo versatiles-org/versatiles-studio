@@ -300,8 +300,10 @@
 				filters: [{ name: 'Tile containers', extensions: formats }]
 			});
 			if (!target) return; // cancelled
+			// No `status` message: the job *is* the status. The bar prefers a running job over a
+			// `status` line, so a message set here was invisible while the export ran and surfaced
+			// only once it had stopped — the one moment it was no longer true.
 			await exportGraph(pipeline.graph, target, bounds);
-			status = { kind: 'busy', message: `Writing ${filename(target)}…` };
 		} catch (e) {
 			fail(e);
 		}
@@ -390,6 +392,14 @@
 			...layout,
 			panes: layout.panes?.map((pane) => (pane.id === id ? { ...pane, open } : pane))
 		});
+	}
+
+	/// Returns the bar to quiet, without swallowing anything it still has to say.
+	///
+	/// Only a `busy` message is cleared: an error is a state someone has to answer, and dropping it
+	/// because unrelated work finished would hide the thing that needs answering.
+	function settle() {
+		if (status.kind === 'busy') status = { kind: 'idle' };
 	}
 
 	function fail(message: unknown) {
@@ -517,7 +527,12 @@
 		//
 		// The map keeps what it last drew, which is what already happens while the text does not
 		// parse. What the user is meant to look at is the empty field in the node they just added.
-		if (pipeline.diagnostics.length > 0) return;
+		if (pipeline.diagnostics.length > 0) {
+			// Nothing will be built, so nothing later will clear an "Opening …" the caller set. The
+			// pane already says what is wrong; the bar should stop claiming to be working on it.
+			settle();
+			return;
+		}
 		try {
 			// The build is a job in the runner's `latest` lane, so **editing again stops the build
 			// that is now out of date** rather than leaving it to finish. That also removes the
@@ -534,7 +549,10 @@
 			const outcome = pinned
 				? await previewPipeline(pinned.graph, pinned.path)
 				: await mountGraph(pipeline.graph).then((p) => (p ? ({ kind: 'ready', ...p } as const) : null));
-			if (!outcome) return;
+			if (!outcome) {
+				settle();
+				return;
+			}
 			if (outcome.kind === 'superseded') return;
 
 			if (previewName && map) removeContainerFromMap(map, previewName);
