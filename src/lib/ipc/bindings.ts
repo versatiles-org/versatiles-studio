@@ -45,6 +45,14 @@ export const commands = {
 	 */
 	exportGraph: (graph: number, target: string, bounds: Bounds) => typedError<number, string>(__TAURI_INVOKE("export_graph", { graph, target, bounds })),
 	/**
+	 *  The container formats Studio can write.
+	 * 
+	 *  Asked for rather than repeated in the webview: the list decides the file dialog's filters, the
+	 *  modal's wording *and* whether a chosen path is refused, and three copies of it would disagree
+	 *  the first time a format was added.
+	 */
+	writableFormats: () => __TAURI_INVOKE<string[]>("writable_formats"),
+	/**
 	 *  Points the runner's events at this window, and returns what it has missed.
 	 * 
 	 *  **Called once, at startup, and again after every reload.** The channel belongs to a webview, and

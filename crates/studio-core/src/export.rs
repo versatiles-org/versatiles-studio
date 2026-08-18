@@ -71,6 +71,15 @@ pub struct Bounds {
 }
 
 impl Bounds {
+	/// Refuses bounds that cannot be written, without starting a job for them.
+	///
+	/// The same reasoning as [`is_writable`]: a form that can be told "the west edge must be left of
+	/// the east edge" the moment it is submitted should not learn it from a failed job three seconds
+	/// later, next to a progress bar that never moved.
+	pub fn check(&self) -> Result<()> {
+		self.clause().map(|_| ())
+	}
+
 	/// The `filter` parameters these bounds mean, or `None` when they narrow nothing.
 	///
 	/// Checked before it is written rather than after it is parsed: a `NaN` reaching the text would

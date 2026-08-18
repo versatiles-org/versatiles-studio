@@ -101,6 +101,7 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `Help`         | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md)) | S2.13 |
 | `HelpTrigger`  | The `?` that opens it — hover or focus peeks, click pins ([Q33](decisions.md))                                     | S2.13 |
 | `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3  |
+| `ExportDialog` | Format, zoom range and numeric bounds — modal, per graph ([Q32](decisions.md))                                     | S3.6  |
 
 ## Right pane — what it turns out to be
 
@@ -134,7 +135,6 @@ because Tauri's `dragDropEnabled` delivers S1.2 with no component.
 | Surface       | What it has to do                                                   | Stage      |
 | ------------- | ------------------------------------------------------------------- | ---------- |
 | Mode bar      | **Map** vs non-map tools — assets (G7), where D9 and D10 live (Q22) | S4.1       |
-| Export modal  | Format, zoom range, numeric bounds and the estimate, per graph (F2) | S3.6       |
 | Asset manager | Font families and sprite sets: install, pin, verify, remove (G7)    | S4.1       |
 | Layer tree    | Style layers with visibility, selection, paint and expressions (D3) | S4.5       |
 | Style export  | `style.json`, `@versatiles/style` code, or a bundle (D8)            | S4.6       |

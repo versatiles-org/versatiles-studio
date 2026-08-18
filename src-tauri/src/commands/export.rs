@@ -7,6 +7,20 @@ use studio_core::graphs::GraphId;
 use studio_core::jobs::{JobId, Lane};
 use tauri::State;
 
+/// The container formats Studio can write.
+///
+/// Asked for rather than repeated in the webview: the list decides the file dialog's filters, the
+/// modal's wording *and* whether a chosen path is refused, and three copies of it would disagree
+/// the first time a format was added.
+#[tauri::command]
+#[specta::specta]
+pub fn writable_formats() -> Vec<String> {
+	studio_core::export::WRITABLE
+		.iter()
+		.map(|format| (*format).to_string())
+		.collect()
+}
+
 /// Starts an export and returns the job running it.
 ///
 /// **Returns the job rather than the result.** A conversion is the long operation the runner exists
@@ -53,6 +67,10 @@ pub async fn export_graph(
 			studio_core::export::WRITABLE.join(", ")
 		));
 	}
+
+	// Same reasoning as the extension check: the form can be told what is wrong with the numbers it
+	// just submitted, rather than a job appearing only to fail.
+	bounds.check().map_err(|error| format!("{error:#}"))?;
 
 	// Relative paths in the VPL resolve against the project directory, exactly as they do for a
 	// preview — an export must not mean something different by `filename='berlin.mbtiles'`.

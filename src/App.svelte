@@ -14,6 +14,7 @@
 	import PipelineOutput from './lib/panes/output/PipelineOutput.svelte';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
+	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import { nodeAt, samePath, selectionSurvives, walk } from './lib/vpl/node-at';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
@@ -34,6 +35,8 @@
 		setPin,
 		getPinned,
 		removeGraph,
+		exportGraph,
+		writableFormats,
 		renameGraph,
 		addGraph,
 		setGraph,
@@ -54,6 +57,7 @@
 		getGraph,
 		previewPipeline,
 		type DocumentView,
+		type Bounds,
 		type Camera,
 		type Layout,
 		type OperationInfo,
@@ -185,6 +189,7 @@
 			await syncContainersToPipeline();
 		});
 		void getPinned().then((found) => (pinned = found));
+		void writableFormats().then((loaded) => (formats = loaded));
 	});
 
 	// ⌘Z / ⇧⌘Z reach the document from anywhere, because there is one stack for every view (G6).
@@ -267,6 +272,36 @@
 			await refreshGraphs();
 			if (id === currentGraph) pipeline = await getGraph(id);
 			await refreshPreview();
+		} catch (e) {
+			fail(e);
+		}
+	}
+
+	/// Whether the export modal is up. For the graph being edited — exporting is per graph ([Q32]).
+	let exporting = $state(false);
+	/// What Studio can write, for the modal's wording and the dialog's filters. Fetched once.
+	let formats = $state<string[]>([]);
+
+	/// Writes this graph to a container, as a job.
+	///
+	/// The modal collects the *narrowing* and the native dialog collects the *destination*, in that
+	/// order, because the extension chosen is what decides the format — asking for a format in the
+	/// form and then letting the filename contradict it would be two answers to one question.
+	///
+	/// Returns once the job is submitted rather than once it is done: an export runs for minutes,
+	/// and the bar is where it is watched and cancelled (E7).
+	async function startExport(bounds: Bounds) {
+		if (!pipeline) return;
+		exporting = false;
+		try {
+			const target = await save({
+				title: `Export ${pipeline.name}`,
+				defaultPath: `${pipeline.name}.${formats[0] ?? 'versatiles'}`,
+				filters: [{ name: 'Tile containers', extensions: formats }]
+			});
+			if (!target) return; // cancelled
+			await exportGraph(pipeline.graph, target, bounds);
+			status = { kind: 'busy', message: `Writing ${filename(target)}…` };
 		} catch (e) {
 			fail(e);
 		}
@@ -761,7 +796,8 @@
 					}),
 				undo: () => void stepHistory(true),
 				redo: () => void stepHistory(false),
-				save: (chooseFile) => void savePipeline(chooseFile)
+				save: (chooseFile) => void savePipeline(chooseFile),
+				export: () => (exporting = true)
 			}}
 		/>
 	{:else if id === 'output'}
@@ -829,6 +865,15 @@
 
 <!-- Outside the shell on purpose: the sidebars scroll and clip, and this has to sit over the
      map beside them ([Q33]). -->
+{#if exporting && pipeline}
+	<ExportDialog
+		name={pipeline.name}
+		{formats}
+		onCancel={() => (exporting = false)}
+		onExport={(bounds) => void startExport(bounds)}
+	/>
+{/if}
+
 <Help />
 
 <style>

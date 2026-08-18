@@ -93,6 +93,8 @@
 			redo: () => void;
 			/** `true` to choose a new file rather than writing to the one already open. */
 			save: (chooseFile: boolean) => void;
+			/** Opens the export modal for this graph — a run, not an edit ([Q32]). */
+			export: () => void;
 		};
 	} = $props();
 
@@ -286,6 +288,9 @@
 			<button type="button" class="button file" disabled={!pipeline} onclick={() => documentActions.save(true)}
 				>Save as…</button
 			>
+			<!-- Exporting is per graph ([Q32]): this writes what *this* chain produces, and the
+			     modal is where the run is committed. -->
+			<button type="button" class="button file" disabled={!pipeline} onclick={documentActions.export}>Export…</button>
 		</div>
 	</div>
 </div>

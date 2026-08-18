@@ -85,6 +85,9 @@ export const cancelJob = (id: number) => unwrap(commands.cancelJob(id));
  * offer to cancel. A rejection here means it never started: a target Studio cannot write, or a graph
  * that has since been removed.
  */
+/** What Studio can write — the file dialog's filters and the modal's wording come from here. */
+export const writableFormats = () => commands.writableFormats();
+
 export const exportGraph = (graph: number, target: string, bounds: Bounds = {}) =>
 	unwrap(commands.exportGraph(graph, target, bounds));
 

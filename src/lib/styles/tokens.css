@@ -44,6 +44,9 @@
 	/* Controls that float over the map need to stay legible against whatever is under them, so
 	   they sit on a near-opaque white rather than on --surface. */
 	--float-bg: rgb(255 255 255 / 0.94);
+	/* Behind a modal. Darker in the light theme than the dark one, because the job is to push the
+	   surface behind it *away* — and a dark theme's surface is already most of the way there. */
+	--scrim: rgb(0 0 0 / 0.4);
 
 	/* Semantic. Invented three times over before they were named once. A border colour lived here
 	   too and went with the error box that used it — an error border now takes --error directly. */
@@ -131,6 +134,7 @@
 		--map-grid-halo: #0d1113;
 		--map-feature: #6fa8dc;
 		--float-bg: rgb(25 33 31 / 0.94);
+		--scrim: rgb(0 0 0 / 0.6);
 
 		/* A shadow on a dark ground has to be darker to read at all. */
 		--shadow: 0 2px 10px rgb(0 0 0 / 0.5);
