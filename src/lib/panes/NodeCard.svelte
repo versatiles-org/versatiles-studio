@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../ipc/commands';
 	import HelpTrigger from '../components/common/HelpTrigger.svelte';
-	import ArgumentField from './ArgumentField.svelte';
+	import Argument from './Argument.svelte';
 
 	// One node in the chain (S2.13, [Q32]).
 	//
@@ -253,67 +253,33 @@
 
 	{#if selected}
 		<dl class="args">
-			<!-- Set parameters. -->
+			<!-- Set parameters. A required one has no ×: you cannot remove what must exist, which is
+			     how that rule is said ([Q33]) — the same way the head node has no ×. -->
 			{#each node.properties as property (property.keySpan.start)}
 				{@const field = fieldOf(property.key)}
-				<div class="arg">
-					<dt>
-						<span class="k truncate">{property.key}</span>
-						{#if field}<HelpTrigger content={contentFor(property.key, field)} />{/if}
-					</dt>
-					<dd>
-						{#if field}
-							<ArgumentField
-								{field}
-								value={text(property)}
-								suggestions={options(property.key, field.control)}
-								onCommit={(raw) => commit(property, raw)}
-							/>
-						{:else}
-							<!-- A parameter this operation does not declare. It still has to be editable —
-							     the diagnostic says it is wrong, and the fix is usually to correct the value
-							     rather than to delete the row. -->
-							<input
-								type="text"
-								value={text(property)}
-								onblur={(event) => commit(property, event.currentTarget.value)}
-							/>
-						{/if}
-					</dd>
-					<!-- No × on a required parameter: you cannot remove what must exist, and the missing
-					     control is how that rule is said ([Q33]) — the same way the head node has no ×. -->
-					{#if !field?.required}
-						<button
-							type="button"
-							class="drop"
-							title="Remove {property.key}"
-							aria-label="Remove {property.key}"
-							onclick={() => onRemove(property.span)}
-						>
-							×
-						</button>
-					{/if}
-				</div>
+				<Argument
+					name={property.key}
+					{field}
+					value={text(property)}
+					help={field ? contentFor(property.key, field) : undefined}
+					suggestions={options(property.key, field?.control)}
+					onCommit={(raw) => commit(property, raw)}
+					onRemove={field?.required ? undefined : () => onRemove(property.span)}
+				/>
 			{/each}
 
 			<!-- Required and not yet set. Always shown, so "required" needs no symbol: the field is
-			     simply there, and empty ([Q33]). No × — you cannot remove what must exist. -->
+			     simply there, and empty ([Q33]). -->
 			{#each missing as field (field.name)}
-				<div class="arg">
-					<dt>
-						<span class="k truncate">{field.name}</span>
-						<HelpTrigger content={contentFor(field.name, field)} />
-					</dt>
-					<dd>
-						<ArgumentField
-							{field}
-							value=""
-							suggestions={options(field.name, field.control)}
-							placeholder="needs a value"
-							onCommit={(raw) => commitRequired(field.name, raw)}
-						/>
-					</dd>
-				</div>
+				<Argument
+					name={field.name}
+					{field}
+					value=""
+					help={contentFor(field.name, field)}
+					suggestions={options(field.name, field.control)}
+					placeholder="needs a value"
+					onCommit={(raw) => commitRequired(field.name, raw)}
+				/>
 			{/each}
 
 			<!-- Chosen from ＋ parameter… and not yet given a value. Real in the pane and unknown to
@@ -321,21 +287,18 @@
 			     when the pipeline is built. -->
 			{#if pending}
 				{@const field = fieldOf(pending)}
-				<div class="arg pending">
-					<dt><span class="k truncate">{pending}</span></dt>
-					<dd>
-						{#if field}
-							<ArgumentField
-								{field}
-								value=""
-								suggestions={options(pending, field.control)}
-								placeholder="a value"
-								onCommit={commitPending}
-							/>
-						{/if}
-					</dd>
-					<button type="button" class="drop" aria-label="Cancel" onclick={() => (pending = null)}>×</button>
-				</div>
+				<Argument
+					name={pending}
+					{field}
+					value=""
+					help={field ? contentFor(pending, field) : undefined}
+					suggestions={options(pending, field?.control)}
+					placeholder="a value"
+					tentative
+					onCommit={commitPending}
+					onRemove={() => (pending = null)}
+					removeLabel="Cancel"
+				/>
 			{/if}
 
 			{#if addable.length > 0}
@@ -425,47 +388,17 @@
 		font-size: var(--text-xs);
 		color: var(--vpl-value);
 	}
-	.drop {
-		flex: none;
-		margin-left: auto;
-		border: 0;
-		background: none;
-		color: var(--ink-2);
-		padding: 0 var(--space-1);
-	}
-	.drop:hover {
-		color: var(--error);
-	}
 
+	/* The rule between two arguments belongs to neither of them: it is the relationship. Svelte
+	   scopes `.arg` per component, so reaching the child's class is the only way to say it. */
+	.args :global(.arg + .arg) {
+		border-top: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
+	}
 	.args {
 		margin: 0;
 		display: flex;
 		flex-direction: column;
 		position: relative;
-	}
-	.arg {
-		display: grid;
-		grid-template-columns: 6.5rem minmax(0, 1fr) auto;
-		align-items: center;
-		gap: var(--space-1) var(--space-2);
-		min-width: 0;
-		padding: var(--space-1) var(--space-3);
-	}
-	.arg + .arg {
-		border-top: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
-	}
-	dt {
-		display: flex;
-		align-items: center;
-		gap: var(--space-1);
-		min-width: 0;
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		color: var(--ink-2);
-	}
-	dd {
-		margin: 0;
-		min-width: 0;
 	}
 	/* Right-aligned so the digits line up down the column, and tabular so they do not shuffle as
 	   the value changes. */
@@ -481,9 +414,6 @@
 	/* Overlays the rows below rather than displacing them: help that reflows what you were reading
 	   moves the target while you aim at it, and worst on the long chains this design is for. */
 	/* Marked as not-yet-real: it is in the pane and not in the document until it has a value. */
-	.arg.pending {
-		background: color-mix(in srgb, var(--accent) 7%, transparent);
-	}
 	.add {
 		padding: var(--space-1) var(--space-3) var(--space-2);
 	}
