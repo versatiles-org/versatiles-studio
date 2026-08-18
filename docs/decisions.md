@@ -637,7 +637,7 @@ are unaffected.
 sections become a list of panes, and the Export section is dissolved — each pane carries its own
 export instead. The left/right axis this decision set is unchanged.
 
-### Q21 — Recents and bookmarks are application state in two JSON files, not project state
+### Q21 — Recents and bookmarks are application state in JSON files, not project state
 
 A7 said view bookmarks are "stored in the project". They are not. Both bookmarks and the
 recent-sources list live **beside the application's data**, in `app_data_dir()`:
@@ -645,6 +645,7 @@ recent-sources list live **beside the application's data**, in `app_data_dir()`:
 ```text
 recents.json     disposable, churns on every open
 bookmarks.json   user-created, precious
+layout.json      disposable — added later, by Q31's panes
 ```
 
 **Why not SQLite**, even though it costs nothing — `rusqlite` is already linked via the mbtiles
@@ -654,11 +655,16 @@ dozen recents and some named views; there is nothing to query. What it would add
 migrations, for state whose shape will change often. A JSON file the user can read, grep, back up
 and move also honours "nothing only exists inside Studio" in a way an opaque database does not.
 
-**Two files, because their recovery policies differ.** A corrupt `recents.json` resets silently —
-losing a most-recently-used list costs nothing, and refusing to start over it costs everything. A
-corrupt `bookmarks.json` is an **error**, surfaced and with the file left untouched: silently
-replacing user-created data with an empty list is data loss wearing the costume of a clean start.
-One file could not hold both policies.
+**Separate files, because their recovery policies differ.** A corrupt `recents.json` resets
+silently — losing a most-recently-used list costs nothing, and refusing to start over it costs
+everything. A corrupt `bookmarks.json` is an **error**, surfaced and with the file left untouched:
+silently replacing user-created data with an empty list is data loss wearing the costume of a clean
+start. One file could not hold both policies.
+
+That the split is by _policy_ and not by subject is what let a third file join without reopening
+this: [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits)'s pane layout — later also the
+map camera — is disposable, so `layout.json` follows `recents.json` and resets silently. A fourth
+would only need arguing about if it wanted a policy neither of these has.
 
 **Writes are atomic** — temp file, fsync, rename — which is the durability SQLite would have given
 us, in about ten lines and with no schema.

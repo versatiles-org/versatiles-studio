@@ -68,7 +68,7 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 
 | Component          | Does                                                                                                      | Stage |
 | ------------------ | --------------------------------------------------------------------------------------------------------- | ----- |
-| `AppShell`         | The grid: mode bar, two sidebars, map, status and job bar                                                 | S0.1  |
+| `AppShell`         | The grid: two sidebars, map, and the status bar under them                                                | S0.1  |
 | `Sidebar` + `Pane` | A sidebar renders a **list** of panes; each is foldable and its state is core-owned ([Q31](decisions.md)) | S2.2  |
 | `PaneResizer`      | The draggable edge of a side pane, used on both                                                           | S2.2  |
 | `MapControls`      | Background picker, grid toggle and Reset view, over the map                                               | S1.6  |

@@ -190,6 +190,58 @@ pub struct Layout {
 	/// has no reason to know what `graybeard` is. The webview rejects a value it does not recognise,
 	/// so an old file cannot break the map.
 	pub background: String,
+	/// Where the camera was, or `None` if it has never been moved.
+	///
+	/// Here rather than in a file of its own because it is window state with exactly this recovery
+	/// policy — a camera that will not parse costs nothing to forget — and because `background`,
+	/// also a map setting rather than a pane one, already lives here.
+	///
+	/// `None` is not the same as a default camera: it means *nothing to restore*, so a first run
+	/// still fits the view to whatever is opened instead of jumping to null island.
+	pub view: Option<Camera>,
+}
+
+/// Where the map camera is.
+///
+/// [Q16](../../docs/decisions.md) is the reason this crosses the boundary at all: a reloaded
+/// webview must come back looking the way the user left it, and the map is the largest thing in
+/// the window to come back wrong.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct Camera {
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
+	pub lng: f64,
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
+	pub lat: f64,
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
+	pub zoom: f64,
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
+	pub bearing: f64,
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
+	pub pitch: f64,
+}
+
+impl Camera {
+	/// Drops a camera that cannot be flown to, and pulls a survivable one into range.
+	///
+	/// Non-finite is *dropped rather than clamped*: `NaN` here means the file is not describing a
+	/// camera at all, and inventing one from its fragments would restore a view the user never had.
+	/// Out-of-range but finite is a different thing — a hand-edited pitch of 90 is a real intent
+	/// expressed past the limit, so it is clamped to what MapLibre accepts.
+	#[must_use]
+	fn sanitised(self) -> Option<Self> {
+		let finite = [self.lng, self.lat, self.zoom, self.bearing, self.pitch]
+			.iter()
+			.all(|value| value.is_finite());
+		finite.then(|| Self {
+			lng: self.lng,
+			lat: self.lat.clamp(-90.0, 90.0),
+			zoom: self.zoom.clamp(0.0, 24.0),
+			bearing: self.bearing.rem_euclid(360.0),
+			pitch: self.pitch.clamp(0.0, 85.0),
+		})
+	}
 }
 
 impl Default for Layout {
@@ -201,6 +253,7 @@ impl Default for Layout {
 			// Off, because G5 promises Studio works with no network once its assets are installed.
 			// A background is the user asking for remote data, explicitly.
 			background: "none".to_string(),
+			view: None,
 		}
 	}
 }
@@ -274,7 +327,8 @@ impl Layout {
 		)
 	}
 
-	/// Makes any `Layout` a usable one: widths in range, panes reconciled against the catalogue.
+	/// Makes any `Layout` a usable one: widths in range, camera in range, panes reconciled against
+	/// the catalogue.
 	///
 	/// The single normalisation point, called on load, on save and by `set_layout` — a caller
 	/// holding a layout in memory needs the same value that would be written to disk, and
@@ -284,6 +338,7 @@ impl Layout {
 		self.left_width = clamp_width(self.left_width, DEFAULT_LEFT_WIDTH);
 		self.right_width = clamp_width(self.right_width, DEFAULT_RIGHT_WIDTH);
 		self.panes = reconcile_panes(std::mem::take(&mut self.panes));
+		self.view = self.view.and_then(Camera::sanitised);
 		self
 	}
 }
@@ -667,6 +722,76 @@ mod tests {
 		}
 		.normalised();
 		assert_eq!(recovered.left_width, DEFAULT_LEFT_WIDTH);
+	}
+
+	/// The camera is the largest thing in the window, so a reload that forgets it is the most
+	/// visible way [Q16]'s invariant can be broken — and it was, until `view` existed.
+	#[test]
+	fn the_camera_survives_a_round_trip() -> Result<()> {
+		let dir = temp_dir("layout-camera");
+		let camera = Camera {
+			lng: 13.4,
+			lat: 52.5,
+			zoom: 11.25,
+			bearing: 30.0,
+			pitch: 45.0,
+		};
+		Layout {
+			view: Some(camera),
+			..Layout::default()
+		}
+		.save(&dir)?;
+
+		assert_eq!(Layout::load(&dir).view, Some(camera));
+		Ok(())
+	}
+
+	/// Never moved is not the same as moved to 0/0: one has nothing to restore and must leave the
+	/// map free to fit whatever is opened, the other is a view the user chose.
+	#[test]
+	fn a_camera_that_was_never_moved_stays_absent() -> Result<()> {
+		let dir = temp_dir("layout-no-camera");
+		Layout::default().save(&dir)?;
+		assert_eq!(Layout::load(&dir).view, None);
+		Ok(())
+	}
+
+	#[test]
+	fn a_non_finite_camera_is_dropped_rather_than_repaired() {
+		let recovered = Layout {
+			view: Some(Camera {
+				lng: f64::NAN,
+				lat: 52.5,
+				zoom: 11.0,
+				bearing: 0.0,
+				pitch: 0.0,
+			}),
+			..Layout::default()
+		}
+		.normalised();
+
+		assert_eq!(recovered.view, None, "half a camera is not a view the user ever had");
+	}
+
+	#[test]
+	fn a_finite_camera_out_of_range_is_pulled_back_in() {
+		let recovered = Layout {
+			view: Some(Camera {
+				lng: 13.4,
+				lat: 120.0,
+				zoom: 99.0,
+				bearing: 400.0,
+				pitch: 90.0,
+			}),
+			..Layout::default()
+		}
+		.normalised();
+
+		let view = recovered.view.expect("finite values are clamped, not dropped");
+		assert_eq!(view.lat, 90.0);
+		assert_eq!(view.zoom, 24.0);
+		assert_eq!(view.bearing, 40.0);
+		assert_eq!(view.pitch, 85.0);
 	}
 
 	/// Same policy as recents: losing pane state costs nothing, refusing to start costs everything.

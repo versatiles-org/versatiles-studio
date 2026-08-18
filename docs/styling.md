@@ -11,12 +11,12 @@ a way to see the others.
 
 ## Where things live
 
-| File                        | Holds                                                              |
-| --------------------------- | ------------------------------------------------------------------ |
-| `src/lib/styles/tokens.css` | Every colour, type size, spacing step, radius and font stack       |
-| `src/lib/styles/base.css`   | The reset, the focus ring, element defaults, and one utility class |
-| `src/lib/styles/tokens.ts`  | Reading tokens from JavaScript, for MapLibre paint properties      |
-| A component's `<style>`     | Everything true of that component only                             |
+| File                        | Holds                                                                    |
+| --------------------------- | ------------------------------------------------------------------------ |
+| `src/lib/styles/tokens.css` | Every colour, type size, spacing step, radius and font stack             |
+| `src/lib/styles/base.css`   | The reset, the focus ring, element defaults, and the four shared classes |
+| `src/lib/styles/tokens.ts`  | Reading tokens from JavaScript, for MapLibre paint properties            |
+| A component's `<style>`     | Everything true of that component only                                   |
 
 Both stylesheets are imported in `main.ts` before the application mounts, so tokens are always
 defined by the time anything renders.
@@ -118,8 +118,9 @@ to look. `tokens.test.ts` fails if a font size reappears on `html`.
 **Declare a size only when it differs from what you would inherit.** `--text-md` is the document
 default, so ordinary UI text declares nothing at all. Before this rule, 27 components overrode the
 default to a smaller size — which meant the real body size was 12px while the token said 14px, and
-every new component had to guess which to copy. There are now 16 size declarations in the whole
-application, and none of them is `--text-md`.
+every new component had to guess which to copy. The lasting test is not how many declarations there
+are but which: **no component declares `--text-md`**, because writing the default is how the default
+stops being one. Everything else on the scale is a deliberate step away from it.
 
 | Size                      | For                                           |
 | ------------------------- | --------------------------------------------- |
@@ -145,30 +146,37 @@ font-metric correction, applied once in `base.css`.
 
 Do not write these again — they are done once, for everything:
 
-| Element                       | You get                                                       |
-| ----------------------------- | ------------------------------------------------------------- |
-| `button`, `input`, `textarea` | `font: inherit`, `color: inherit`, and a themed face          |
-| `input`, `select`, `textarea` | background, border, radius, padding                           |
-| `button`                      | background, border, radius, cursor, hover and disabled states |
-| `ul`, `ol`                    | no markers, no margin, no padding                             |
-| `code`, `kbd`, `samp`         | the monospace stack and its optical size correction           |
-| anything focusable            | the focus ring                                                |
+| Element                                 | You get                                             |
+| --------------------------------------- | --------------------------------------------------- |
+| `button`, `input`, `select`, `textarea` | `font: inherit`, `color: inherit`                   |
+| `input`, `select`, `textarea`           | background, border, radius, padding — a themed face |
+| `button`                                | cursor, the disabled colour, and **no box at all**  |
+| `.button`                               | background, border and radius — the box, on request |
+| `ul`, `ol`                              | no markers, no margin, no padding                   |
+| `code`, `kbd`, `samp`                   | the monospace stack and its optical size correction |
+| anything focusable                      | the focus ring                                      |
 
 **Padding is deliberately not in the button rule.** That is layout, and it belongs with the
 component; a global value would inflate every small icon button that only wanted the appearance.
 
 ## Shared classes
 
-Two, both text treatments that apply to several different elements:
+Four, each applying to elements that have nothing else in common:
 
+- **`.button`** — the box a button gets only when it asks: background, border, radius. A bare
+  `button` is the useful default here, so the box is opt-in rather than something six components
+  cancel; [Native controls](#native-controls-do-not-follow-the-theme-on-their-own) has the reasoning.
 - **`.truncate`** — one line, clipped with an ellipsis. Was written out verbatim in seven places.
 - **`.section-label`** — the small uppercase label that titles a section. Six identical declarations
   in two components, four of them repeated in a third. A class rather than an `h2` rule because it
   is not tied to one element: two uses are headings, one is a span inside a button, and Studio's
   other `h2` — the container name in the inspector — is a title rather than a label and must not
   pick it up.
+- **`.visually-hidden`** — present for a screen reader, absent for everyone else. Names the three
+  icon-only buttons whose meaning is otherwise carried by a glyph. Stock, with nothing
+  component-specific in it, which is why three components had identical copies of it.
 
-**The bar for a third is high.** A shared class has to be remembered in the markup, which is a second
+**The bar for a fifth is high.** A shared class has to be remembered in the markup, which is a second
 mechanism to hold in your head alongside scoped CSS. `min-width: 0` was a candidate and did not make
 it — it is one declaration, it belongs beside the layout rules that make it necessary, and applying
 it through markup at every level of a nesting chain would be easier to get wrong, not harder. Rules
@@ -224,15 +232,16 @@ no stylesheet can reach — scrollbars, the caret, autofill, a control's interna
 the matching one. Without it those stay in the browser's light palette while everything around them
 turns dark.
 
-That is necessary but not sufficient. `base.css` also gives every form control and button a **face of
-its own**, because leaving it to the browser was how three inputs ended up as white boxes in a dark
-pane: they set a border and no background, so they inherited the theme's light text onto the UA's
-white. Any control Studio does not draw is a control the operating system draws, and it will not
-match.
+That is necessary but not sufficient. `base.css` also gives every **form control** a face of its
+own, because leaving it to the browser was how three inputs ended up as white boxes in a dark pane:
+they set a border and no background, so they inherited the theme's light text onto the UA's white.
+Any control Studio does not draw is a control the operating system draws, and it will not match.
 
-Ghost buttons opt out explicitly, with `background: none` and a border of their own. **Padding is not
-in the global rule** — that is layout, and it belongs with the component; a global value would
-inflate every small icon button that only wanted the appearance.
+**A button is the exception, and it goes the other way.** It gets the cursor and the disabled
+colour, and no box — because most buttons here are not boxes: the preview eyes, the `×`s, the tab
+strips and the `?` triggers all wanted a bare, inheriting element, and each was undoing a box it had
+been given. Six places want the box, and they ask for it with `class="button"`. Adding a class is
+visible in the markup; six components quietly cancelling a global rule was not.
 
 ### The map is the part that does not come free
 

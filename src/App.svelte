@@ -53,6 +53,7 @@
 		getGraph,
 		previewPipeline,
 		type DocumentView,
+		type Camera,
 		type Layout,
 		type OperationInfo,
 		type Preview,
@@ -271,6 +272,21 @@
 	async function changeLayout(next: Layout) {
 		layout = next;
 		layout = await setLayout(next).catch(() => next);
+	}
+
+	/**
+	 * Remembers where the camera came to rest, so a reloaded window is looking where it was (Q16).
+	 *
+	 * Coalesced for the same reason a pane drag only writes on release: one scroll-zoom settles
+	 * several times, and each would otherwise be its own atomic write. `layout` is read when the
+	 * timer fires rather than when it is set, so a collapse in between is not undone.
+	 */
+	let viewTimer: ReturnType<typeof setTimeout> | undefined;
+	function rememberView(view: Camera) {
+		clearTimeout(viewTimer);
+		viewTimer = setTimeout(() => {
+			if (layout) void changeLayout({ ...layout, view });
+		}, 400);
 	}
 
 	/// The panes belonging to one sidebar, in the order the layout remembers (Q31).
@@ -673,7 +689,15 @@
 	rightPane={empty ? undefined : rightPaneContent}
 >
 	{#snippet mapPane()}
-		{#if style}<MapCanvas {style} bind:map onStyleLoad={restorePreview} />{/if}
+		{#if style}
+			<MapCanvas
+				{style}
+				bind:map
+				initialView={layout?.view ?? null}
+				onMove={rememberView}
+				onStyleLoad={restorePreview}
+			/>
+		{/if}
 		<FeaturePopup {map} source={containers.at(-1)?.info.source ?? null} />
 		<TileGrid {map} visible={showGrid} />
 		{#if empty}

@@ -376,6 +376,21 @@ export type Bookmark = {
 };
 
 /**
+ *  Where the map camera is.
+ * 
+ *  [Q16](../../docs/decisions.md) is the reason this crosses the boundary at all: a reloaded
+ *  webview must come back looking the way the user left it, and the map is the largest thing in
+ *  the window to come back wrong.
+ */
+export type Camera = {
+	lng: number,
+	lat: number,
+	zoom: number,
+	bearing: number,
+	pitch: number,
+};
+
+/**
  *  What Studio knows about a container without reading a single tile body.
  * 
  *  Serialisable so the control plane can hand it to the inspector (A6) verbatim.
@@ -635,6 +650,17 @@ export type Layout = {
 	 *  so an old file cannot break the map.
 	 */
 	background?: string,
+	/**
+	 *  Where the camera was, or `None` if it has never been moved.
+	 * 
+	 *  Here rather than in a file of its own because it is window state with exactly this recovery
+	 *  policy — a camera that will not parse costs nothing to forget — and because `background`,
+	 *  also a map setting rather than a pane one, already lives here.
+	 * 
+	 *  `None` is not the same as a default camera: it means *nothing to restore*, so a first run
+	 *  still fits the view to whatever is opened instead of jumping to null island.
+	 */
+	view?: Camera | null,
 };
 
 /**  One operation, its parameters, and any nested pipelines feeding it. */

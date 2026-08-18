@@ -49,8 +49,10 @@ True everywhere. These matter more than the arrangement.
   that fails at minute 40 has to say why; a failed job stays until dismissed.
 - **The cost estimate (C6) appears where a run is committed** — the parameters of a node about to
   execute, and beside the export button. An estimate you must go looking for is one you will not see.
-- **Nothing lives only in the webview** ([Q16](decisions.md)). Viewport, selection and scroll
-  position are restorable from the core, so a crashed window reloads without losing work.
+- **Nothing durable lives only in the webview** ([Q16](decisions.md)). The map camera, the
+  selection, the open graphs and the pane layout all come back from the core, so a reloaded window
+  is looking where it was. Scroll position is the one thing on that list still held in the webview
+  alone — it is cheap to lose and nothing has needed it back.
 
 ## Panes and sections
 

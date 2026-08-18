@@ -5,6 +5,7 @@
 	import type { StyleSpecification } from 'maplibre-gl';
 	import { applyMapTheme } from './theme';
 	import { theme } from '../styles/theme.svelte';
+	import type { Camera } from '../ipc/commands';
 
 	// Since v6 MapLibre loads its worker from a separate file, which bundlers cannot resolve via
 	// `import.meta.url` once they have inlined `maplibre-gl.mjs` into a chunk. We ship a
@@ -15,14 +16,18 @@
 	let {
 		style,
 		map = $bindable(),
+		initialView = null,
 		onMove,
 		onStyleLoad
 	}: {
 		style: StyleSpecification;
 		/** The single `Map` instance for this window (Q16) — bound out so modes can reach it. */
 		map?: maplibre.Map;
+		/** Where the camera was when this window was last open; `null` on a first run, which leaves
+		 *  the map free to fit whatever is opened rather than starting at null island. */
+		initialView?: Camera | null;
 		/** Fired after the camera settles, so the core can persist it (Q16). */
-		onMove?: (view: { lng: number; lat: number; zoom: number; bearing: number; pitch: number }) => void;
+		onMove?: (view: Camera) => void;
 		/** Fired once a new style is in place. Setting a style discards every layer added to the old
 		 *  one, so whatever the caller drew has to be drawn again. */
 		onStyleLoad?: () => void;
@@ -31,7 +36,31 @@
 	/** The style currently applied. A plain variable: reading it must not make the effect re-run. */
 	let applied: StyleSpecification | undefined;
 
+	/**
+	 * Whether the stored camera has been honoured.
+	 *
+	 * The layout is fetched over IPC, so it can arrive either side of the map being built. Applied
+	 * *once* either way: every later change to `initialView` is this component's own `onMove` coming
+	 * back around, and flying to it would fight the pointer that caused it.
+	 */
+	let restored = false;
+
 	let container: HTMLDivElement;
+
+	// The layout lost the race with the map. Jump rather than rebuild — one frame at the default
+	// view is cheaper than discarding a live map and every layer drawn on it.
+	$effect(() => {
+		const view = initialView;
+		const instance = map;
+		if (!instance || !view || restored) return;
+		restored = true;
+		instance.jumpTo({
+			center: [view.lng, view.lat],
+			zoom: view.zoom,
+			bearing: view.bearing,
+			pitch: view.pitch
+		});
+	});
 
 	// Swapping the background replaces the whole style, which is MapLibre's only way to do it —
 	// and takes every layer added to the previous one with it. `onStyleLoad` is how the caller
@@ -66,10 +95,24 @@
 		if (!container) return;
 
 		applied = untrack(() => style);
+
+		// Read untracked: this effect must depend on `container` alone, and a camera arriving later
+		// is handled below rather than by rebuilding the map underneath the user.
+		const stored = untrack(() => initialView);
+		if (stored) restored = true;
+
 		const instance = new maplibre.Map({
 			container,
 			style: applied,
-			attributionControl: { compact: true }
+			attributionControl: { compact: true },
+			...(stored
+				? {
+						center: [stored.lng, stored.lat] as [number, number],
+						zoom: stored.zoom,
+						bearing: stored.bearing,
+						pitch: stored.pitch
+					}
+				: {})
 		});
 		untrack(() => (map = instance));
 

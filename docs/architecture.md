@@ -63,9 +63,11 @@ written from scratch rather than imported from `@versatiles/svelte` ([Q18](decis
 
 - _Project model_ — sources, pipeline, style, views; a directory with a `project.yaml` manifest
   beside real `.vpl` and `style.json` files (G1, [Q6](decisions.md))
-- _App store_ — recent sources and view bookmarks (A7). Application state, not project state, so it
-  lives beside the app's data in two JSON files with different recovery policies
-  ([Q21](decisions.md)). The core owns the lists; the platform layer decides where they live
+- _App store_ — recent sources, view bookmarks (A7), and the window's own layout: pane widths, which
+  panes are open, the background choice and the map camera. Application state, not project state, so
+  it lives beside the app's data, split across JSON files **by recovery policy** rather than by
+  subject ([Q21](decisions.md)) — precious data is never silently replaced with an empty one. The
+  core owns them; the platform layer decides where they live
 - _VPL document model_ — a lossless syntax tree over the pipeline text, keeping spans, comments and
   parameter order, so the node graph (C1) and inline errors (C4) address the real file
   ([Q11](decisions.md)). A project holds **several named graphs**, each one document producing one
@@ -193,10 +195,13 @@ Taken seriously it has teeth: a view that edits the text must edit it **surgical
 reformatting, reordering parameters or dropping comments as a side effect. That is why the node
 graph needs a lossless syntax tree rather than a parse-and-print round trip ([Q11](decisions.md)).
 
-**Nothing lives only in the webview.** The core holds the project, pipeline, jobs and server; the
-webview renders them. Map viewport, selected node, active mode and scroll position must all be
-restorable from the core, so a crashed or reloaded window loses nothing ([Q16](decisions.md)). This is
-the source-of-truth principle applied to volatile UI state rather than to files.
+**Nothing durable lives only in the webview.** The core holds the project, pipeline, jobs and
+server; the webview renders them. The map camera, the selected node, the open graphs and the pane
+layout are all restorable from the core, so a reloaded window loses nothing ([Q16](decisions.md));
+the active mode joins them when the mode bar arrives at S4.1. Scroll position deliberately does not
+— it is cheap to lose, and carrying it would mean the core modelling scroll containers it has no
+other reason to know about. This is the source-of-truth principle applied to volatile UI state
+rather than to files.
 
 **Generate UI from metadata where possible.** Parameter forms come from `field_meta`
 ([inventory](ecosystem.md)). Hand-written UI per operation would rot the first time versatiles-rs

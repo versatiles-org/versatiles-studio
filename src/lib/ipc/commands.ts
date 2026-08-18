@@ -29,6 +29,7 @@ export * from './bindings';
  * belong to.
  */
 export type {
+	Camera,
 	Node as VplNode,
 	Pipeline as VplPipeline,
 	Property as VplProperty,
