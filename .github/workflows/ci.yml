@@ -24,6 +24,10 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
+    # GitHub's default is six hours. These jobs take 30 seconds, two minutes and six to sixteen
+    # minutes; anything near these caps is stuck rather than slow, and should say so while someone
+    # is still watching.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -48,6 +52,7 @@ jobs:
   rust:
     name: Rust
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
       # Tauri needs WebKitGTK to build on Linux, even for `cargo test` of the shell crate.
@@ -59,9 +64,15 @@ jobs:
       # The same two lines appear in `bundle`. Kept in step with each other by being short enough to
       # read side by side; a composite action for two packages would cost more than it saves.
       - name: Install Tauri system dependencies
+        # **A bounded wait, and a bounded step.** `unattended-upgrades` runs at boot on these images
+        # and holds the dpkg lock; apt's default is to wait for it forever, which is how this step
+        # went from 35 seconds in one job to an hour in another *in the same run*. `DPkg::Lock::Timeout`
+        # makes it wait a bounded time and then say so, and `timeout-minutes` is the backstop for
+        # everything else that can stall — a hung mirror does not respect the lock timeout.
+        timeout-minutes: 5
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          sudo apt-get -o DPkg::Lock::Timeout=120 update
+          sudo apt-get -o DPkg::Lock::Timeout=120 install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev librsvg2-dev patchelf
       - uses: dtolnay/rust-toolchain@stable
         with:
@@ -101,6 +112,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    # Six minutes warm, about sixteen when the cache misses and GDAL is rebuilt from source.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -109,9 +122,15 @@ jobs:
           cache: npm
       - name: Install Tauri system dependencies
         if: runner.os == 'Linux'
+        # **A bounded wait, and a bounded step.** `unattended-upgrades` runs at boot on these images
+        # and holds the dpkg lock; apt's default is to wait for it forever, which is how this step
+        # went from 35 seconds in one job to an hour in another *in the same run*. `DPkg::Lock::Timeout`
+        # makes it wait a bounded time and then say so, and `timeout-minutes` is the backstop for
+        # everything else that can stall — a hung mirror does not respect the lock timeout.
+        timeout-minutes: 5
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
+          sudo apt-get -o DPkg::Lock::Timeout=120 update
+          sudo apt-get -o DPkg::Lock::Timeout=120 install -y --no-install-recommends \
             libwebkit2gtk-4.1-dev librsvg2-dev patchelf
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
