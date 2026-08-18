@@ -21,6 +21,41 @@ The last matters most here: `VPLFieldMeta` carries `is_required` but **no defaul
 ([inventory](ecosystem.md)), so Studio's forms have to make "unset" and "set to the default" visually
 distinct or every operation looks half-configured.
 
+## Where a component lives, and what it is called
+
+Two rules. The first decides the folder, the second decides the name, and neither does the other's
+job — which is what keeps a rename from being a move.
+
+**A component lives with what owns it**, meaning whatever imports it. Not with things of the same
+_kind_: `shell/` started as "chrome" and ended up holding the application frame, three panes'
+contents, the landing screen, the job bar and the VPL editor — fourteen components with nothing in
+common but the absence of a better home. Ownership is a fact you can check by grepping for the
+import; kind is a judgement, and judgements drift.
+
+```text
+lib/shell/            the frame: AppShell · Sidebar · Pane · PaneResizer · StatusBar · JobsPanel
+lib/panes/pipeline/   PipelinePane and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor
+lib/panes/inspector/  Inspector · Bookmarks
+lib/panes/output/     PipelineOutput
+lib/map/              MapCanvas · MapControls · TileGrid · CoordinateJump · FeaturePopup
+lib/common/           used by more than one owner: Help · HelpTrigger · JsonTree · ImportCards · LandingScreen
+```
+
+A pane's folder is named for the pane, so "what uses `NodeArgument`?" is answered by its path before
+anyone opens a file. `ImportCards` and `LandingScreen` sit in `common/` because they genuinely have
+two owners — the landing screen and the Pipeline pane show the same cards from the same catalogue,
+which is the whole point of [S3.2](scope-release-1.md).
+
+**A name is unique across the application**, even though the folder already scopes it. The folder
+helps when you are reading a path; it does not help when you are fuzzy-finding by filename or reading
+the tables below, which is how components are actually looked up. So `Argument` became
+`NodeArgument` and `Chain` became `NodeChain` — both were words that could mean anything — while
+`Pane`, `Help` and `GraphList` were already unambiguous and stayed.
+
+_Not_ a prefix scheme. `PipelineNodeArgument` says in the name what the path already says, pushes the
+distinguishing part of the name to the end where it is hardest to read, and has to be renamed when
+ownership moves. Folders carry ownership; names carry identity.
+
 ## Shell
 
 The five-region grid from [UI Concept](ui.md). All Studio-specific. How they are styled — the
@@ -104,6 +139,9 @@ sense inside a pipeline editor.
 
 - **Svelte 5 runes** — `$props`, `$bindable`, `$state`, `$derived`, `$effect`. Matches every current
   repository in the org.
+- **A component lives with what owns it, and its name is unique across the application** — see
+  [above](#where-a-component-lives-and-what-it-is-called). The second rule is enforced rather than
+  remembered: a test fails when two components share a filename.
 - **No component owns durable state.** Viewport, selection, mode and unsaved edits live in the core
   ([Q16](decisions.md)), so a reloaded window loses nothing. Components hold view state only.
 - **Presentational components take data, not services.** Anything touching IPC goes through a thin
