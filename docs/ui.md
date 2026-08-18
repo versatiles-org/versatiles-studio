@@ -83,7 +83,7 @@ D8 came to have no home at all under [Q22](decisions.md).
 | **Produces**  | What the pinned graph turns out to be: format, zoom, layers, property keys                                                                                                       | S3      |
 | **Inspector** | An opened container's own metadata and TileJSON (A6), and bookmarks (A7)                                                                                                         | S1      |
 
-There is **no Parameters pane**: the selected node carries its own arguments in the chain ([Q32](decisions.md)).
+There is **no Parameters pane**: the selected node carries its own arguments in the chain ([Q32](decisions.md)). A parameter's documentation opens beside the sidebar rather than inside the node, and required parameters are shown empty rather than marked with a symbol ([Q33](decisions.md)).
 
 **A graph is a named VPL document producing one named tile source** — the name is the server mount, the source name in `style.json` and the `.vpl` filename at once. Every graph is served; **one node, in one graph, may be pinned** to override the map, which is the debugging view C3 describes.
 

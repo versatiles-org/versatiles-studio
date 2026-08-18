@@ -56,14 +56,15 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 
 ## Left pane — the chain
 
-| Component      | Does                                                                                                            | Stage |
-| -------------- | --------------------------------------------------------------------------------------------------------------- | ----- |
-| `PipelinePane` | Graph list, then the selected graph's chain, tabs and its own save/rename/export ([Q32](decisions.md))          | S2.2  |
-| `GraphList`    | The project's graphs: pin, name, unsaved dot, inline rename                                                     | S2.2  |
-| `NodeCard`     | One node in the chain. Name only unless selected; then arguments, `?` docs, `×`, and the rail's `＋ operation…` | S2.6  |
-| `ExportDialog` | Format, zoom range, numeric bounds and the estimate — modal, per graph (F2, C6)                                 | S3.6  |
-| `VplEditor`    | Text over the syntax tree, with a marker gutter (C4)                                                            | S2.3  |
-| `LayerTree`    | Style layers with visibility and selection (D3)                                                                 | S4.5  |
+| Component      | Does                                                                                                               | Stage |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ | ----- |
+| `PipelinePane` | Graph list, then the selected graph's chain, tabs and its own save/rename/export ([Q32](decisions.md))             | S2.2  |
+| `GraphList`    | The project's graphs: pin, name, unsaved dot, inline rename                                                        | S2.2  |
+| `NodeCard`     | One node in the chain. Name only unless selected; then arguments, `?` docs, `×`, and the rail's `＋ operation…`    | S2.6  |
+| `Help`         | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md)) | S2.13 |
+| `ExportDialog` | Format, zoom range, numeric bounds and the estimate — modal, per graph (F2, C6)                                    | S3.6  |
+| `VplEditor`    | Text over the syntax tree, with a marker gutter (C4)                                                               | S2.3  |
+| `LayerTree`    | Style layers with visibility and selection (D3)                                                                    | S4.5  |
 
 ## Right pane — what it turns out to be
 

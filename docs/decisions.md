@@ -16,6 +16,58 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q33 — The node form explains itself without symbols to learn
+
+**Dated 2026-08-18.** Two things [Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)
+left for the form to answer once the selected node became it: where a parameter's documentation
+goes, and how a required parameter says so.
+
+**Parameter help sits beside the sidebar, over the map.** Measured before deciding: 127 parameters
+across the operations, **median 95 characters, p90 262, max 481**. In a 280px sidebar that is three
+lines typically and seven at the p90 — overlaying the form being filled in. Beside it at 26rem it is
+one and a half, and four. The p90 case is what makes this necessary rather than nice.
+
+The sidebar also scrolls and clips, so a box inside a node cannot escape it. **One fixed-position
+element at application level**, positioned from the trigger's measured rect, sidesteps that without
+portals or per-node listeners. It flips to the other side when the pane is on the right — sides are
+data since [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits), so that is real — clamps
+vertically, and closes on scroll rather than chasing a measurement that is a snapshot.
+
+**Hover to peek, click to pin**, because reading and copying are different needs and one gesture
+cannot serve both. Scanning a form wondering what `level_base` is wants no clicks and nothing to
+dismiss; reading carefully, or copying an example out of the text, wants it to stay put and stay
+selectable. Only the pinned state has a close control — a peek that needs dismissing is not a peek.
+Focus does what hover does, so the keyboard gets the same thing free.
+
+**The trigger is the `?`, not the row.** Hovering the row would flash a popover per argument while
+sweeping down a form.
+
+**The summary line comes from `field_meta`, not the prose** — `whole number 0–30 · required`,
+`one of gzip, brotli, zstd, none · optional`. That is frequently the whole answer, and it is the part
+the prose buries. Assembled where VPL is understood rather than in the popover, which stays generic:
+the style editor will want the same component for entirely different content.
+
+**Rejected:** the **Popover API**, which would give the top layer and light dismiss for free but needs
+Safari 17+ and a recent WebKitGTK, and Linux versions vary; and **CSS anchor positioning**, which
+would delete the arithmetic and is too new to depend on — worth revisiting later as a drop-in
+simplification.
+
+**Required parameters are shown, not starred.** A red asterisk marked a condition that already speaks
+for itself: when one is missing, validation says `'from_csv' needs a 'lon_column' parameter` and the
+node is marked faulted (C4). The asterisk was also red on _satisfied_ required fields, where nothing
+is wrong.
+
+So the star is gone and nothing replaced it. **Required parameters always appear in the form, empty,
+with a `needs a value` placeholder** — hiding them in `＋ parameter…` made a form that concealed its
+own required fields and sent people hunting. It costs almost nothing: of 29 operations, 18 have no
+required parameter, 9 have one, and only 3 have more. And **no `×` on a required row**, set or unset,
+because "you cannot remove this" is better said by not offering the control — the rule the head node's
+missing `×` already teaches.
+
+An empty required row lives in the pane and **not** in the document, the same rule as a pending
+parameter, so it never writes `lon_column=''` — VPL that parses and then fails when the pipeline is
+built.
+
 ### Q32 — A project holds several named graphs, and the selected node is the form
 
 **Dated 2026-08-18.** Drawn before it was written:
