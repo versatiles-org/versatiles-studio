@@ -286,9 +286,12 @@ mod tests {
 /// the same data this call already returns, structured, in `fields`. So this takes the tenth that is
 /// not a duplicate.
 ///
-/// Asked for upstream; when `doc` carries a summary of its own this becomes a field access. Until
-/// then the split is conservative: a blank line or the `###` heading, whichever comes first, and the
-/// whole string when neither appears.
+/// Asked for upstream as [versatiles-rs#229](https://github.com/versatiles-org/versatiles-rs/issues/229);
+/// when `doc` carries a summary of its own this becomes a field access. Until then the split is
+/// conservative: a blank line or the `###` heading, whichever comes first, and the whole string when
+/// neither appears.
+///
+/// `the_workaround_is_still_needed` below fails the day that lands, so nobody has to remember.
 #[must_use]
 pub fn summary(doc: &str) -> &str {
 	let end = doc
@@ -319,6 +322,26 @@ mod summary_tests {
 		// Nothing to split on: the whole string is the summary.
 		assert_eq!(summary("Just one line."), "Just one line.");
 		assert_eq!(summary(""), "");
+	}
+
+	/// **Deliberately fails when upstream fixes this.**
+	///
+	/// [versatiles-rs#229](https://github.com/versatiles-org/versatiles-rs/issues/229) asks for the
+	/// generated `### Parameters` section to be split out of `doc`, or dropped — everything in it is
+	/// already in `fields`. The day that ships, this test goes red and says what to delete, which is
+	/// a more reliable form of remembering than a note somebody has to re-read.
+	#[test]
+	fn the_workaround_is_still_needed() {
+		let bloated = operations()
+			.iter()
+			.filter(|operation| operation.doc.contains("### Parameters"))
+			.count();
+		assert!(
+			bloated > 0,
+			"no operation doc carries a `### Parameters` section any more — upstream #229 has \
+			 landed. Delete `summary()` and its tests, read the summary from the metadata instead, \
+			 and drop the note in docs/ecosystem.md."
+		);
 	}
 
 	/// The claim the workaround rests on: every operation in this build has a usable first
