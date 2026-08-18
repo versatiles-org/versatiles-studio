@@ -222,7 +222,11 @@
 	/// working against the plural API, and is the one place that will need to know about the
 	/// selected graph when there is more than one.
 	async function setPipelineText(text: string, kind: EditKind = 'structured') {
-		if (currentGraph === null) return await addGraph('graph', text);
+		if (currentGraph === null) {
+			const created = await addGraph('graph', text);
+			await refreshGraphs();
+			return created;
+		}
 		return await setGraph(currentGraph, text, kind);
 	}
 
@@ -431,6 +435,9 @@
 	async function applyDocument(next: DocumentView) {
 		pipeline = next;
 		pipelineRevision += 1;
+		// The list shows the name, the pin and the unsaved dot — the last of which changes on every
+		// edit, so refreshing here rather than only when a graph is added or removed.
+		await refreshGraphs();
 		await syncContainersToPipeline();
 		await refreshPreview();
 	}
@@ -608,7 +615,6 @@
 			properties={producedProperties}
 			{suggestions}
 			pinned={pinned && pinned.graph === currentGraph ? pinned.path : null}
-			onNewGraph={() => void pick()}
 			onSelectGraph={(id) => void selectGraph(id)}
 			onRenameGraph={(id, name) => void rename(id, name)}
 			onPin={(path) => void pin(path)}

@@ -81,6 +81,12 @@
 	const options = (key: string, control: FieldInfo['control'] | undefined): string[] =>
 		suggestions[key] ?? (control?.kind === 'list' ? properties : []);
 
+	/// Whether a value is a path, and so should be read from its end.
+	///
+	/// By key rather than by looking at the value: an empty `filename` is still a path, and a
+	/// `layer_name` that happens to contain a slash is not.
+	const isPath = (key: string) => key === 'filename' || key.endsWith('_file') || key.endsWith('_path');
+
 	const chosen = (property: VplProperty) => parts(text(property));
 
 	function toggle(property: VplProperty, name: string) {
@@ -103,6 +109,36 @@
 	/// reading about a parameter never moves the chain under the cursor.
 	let helping = $state<string | null>(null);
 	let adding = $state('');
+
+	/// A parameter chosen from `＋ parameter…` that has no value yet.
+	///
+	/// **Not written to the document until it has one.** Writing `filename=''` produces VPL that
+	/// parses and then fails when the pipeline is built — a job error for something the user is
+	/// halfway through typing. So the row exists here and the document does not know about it until
+	/// there is something to know.
+	let pending = $state<string | null>(null);
+
+	/// Adds a parameter, immediately when its value is not in doubt and as a pending row otherwise.
+	///
+	/// A boolean has two values and a choice has a list, so picking one of those *is* the value.
+	/// Everything else needs typing, and until it is typed there is nothing worth recording.
+	function addParameter(key: string) {
+		const control = fieldOf(key)?.control;
+		if (control?.kind === 'boolean') onSet(key, ['true']);
+		else if (control?.kind === 'choice' && control.options.length > 0) onSet(key, [control.options[0]]);
+		else pending = key;
+	}
+
+	/// Commits the pending parameter, or drops it when nothing was typed.
+	function commitPending(raw: string) {
+		const key = pending;
+		pending = null;
+		if (!key) return;
+		const value = raw.trim();
+		if (value) onSet(key, control(key)?.kind === 'list' ? parts(value) : [value]);
+	}
+
+	const control = (key: string) => fieldOf(key)?.control;
 </script>
 
 <div class="node" class:selected>
@@ -207,6 +243,7 @@
 						{:else}
 							<input
 								type="text"
+								class:path={isPath(property.key)}
 								value={text(property)}
 								title={text(property)}
 								list={choices.length > 0 ? `s-${node.nameSpan.start}-${property.key}` : undefined}
@@ -260,6 +297,35 @@
 				{/if}
 			{/each}
 
+			{#if pending}
+				{@const field = fieldOf(pending)}
+				<div class="arg pending">
+					<dt>
+						<span class="k truncate">{pending}</span>
+						{#if field?.required}<span class="req" title="required">*</span>{/if}
+					</dt>
+					<dd>
+						<!-- svelte-ignore a11y_autofocus -->
+						<input
+							type="text"
+							autofocus
+							placeholder={field?.control.kind === 'number' ? 'a number' : 'a value'}
+							spellcheck="false"
+							autocomplete="off"
+							aria-label="Value for {pending}"
+							onblur={(event) => commitPending(event.currentTarget.value)}
+							onkeydown={(event) => {
+								if (event.key === 'Enter') event.currentTarget.blur();
+								if (event.key === 'Escape') {
+									pending = null;
+								}
+							}}
+						/>
+					</dd>
+					<button type="button" class="drop" aria-label="Cancel" onclick={() => (pending = null)}>×</button>
+				</div>
+			{/if}
+
 			{#if unset.length > 0}
 				<label class="add">
 					<span class="visually-hidden">Add a parameter</span>
@@ -267,7 +333,7 @@
 						bind:value={adding}
 						onchange={() => {
 							if (!adding) return;
-							onSet(adding, [fieldOf(adding)?.control.kind === 'boolean' ? 'true' : '']);
+							addParameter(adding);
 							adding = '';
 						}}
 					>
@@ -283,12 +349,14 @@
 </div>
 
 <style>
+	/* No `overflow: hidden` here, deliberately: the `?` documentation is positioned and would be
+	   clipped by it. The title rounds its own top corners instead, which is the only thing the
+	   clipping was for. */
 	.node {
 		min-width: 0;
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);
 		background: var(--surface);
-		overflow: hidden;
 	}
 	.node.selected {
 		border-color: var(--accent);
@@ -304,6 +372,7 @@
 	.node.selected .title {
 		background: var(--chrome);
 		border-bottom: 1px solid var(--rule);
+		border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
 	}
 	.eye {
 		flex: none;
@@ -391,6 +460,19 @@
 		min-width: 0;
 		font-size: var(--text-xs);
 	}
+	/* Right-aligned so the digits line up down the column, and tabular so they do not shuffle as
+	   the value changes. */
+	dd input[type='number'] {
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
+	/* A path is identified by its end — the filename — and truncated from the left the value would
+	   show `/Users/someone/projects/…` for every file in a folder. Right-aligning shows the part
+	   that differs. */
+	dd input.path,
+	.headline {
+		text-align: right;
+	}
 	.req {
 		color: var(--error);
 		font-weight: 700;
@@ -457,6 +539,10 @@
 		background: var(--accent);
 		border-color: var(--accent);
 		color: var(--accent-ink);
+	}
+	/* Marked as not-yet-real: it is in the pane and not in the document until it has a value. */
+	.arg.pending {
+		background: color-mix(in srgb, var(--accent) 7%, transparent);
 	}
 	.add {
 		padding: var(--space-1) var(--space-3) var(--space-2);

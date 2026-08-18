@@ -34,7 +34,6 @@
 		graphs = [],
 		pinned = null,
 		onAddSource,
-		onNewGraph,
 		onSelectGraph,
 		onRenameGraph,
 		onPin,
@@ -65,7 +64,6 @@
 		/** The pinned node, when the pin is in *this* graph. */
 		pinned?: number[] | null;
 		onAddSource: (kind: ImportKind) => void;
-		onNewGraph: () => void;
 		onSelectGraph: (id: number) => void;
 		onRenameGraph: (id: number, name: string) => void;
 		/** Moves the map to this node, or clears the pin when it is already there. */
@@ -169,8 +167,22 @@
 		pinnedGraph={pinned ? (pipeline?.graph ?? null) : null}
 		onSelect={onSelectGraph}
 		onRename={onRenameGraph}
-		onNew={onNewGraph}
+		onNew={() => (adding = !adding)}
 	/>
+
+	<!-- The same cards the landing screen shows, from one catalogue (S3.2). A graph *is* a source
+	     under [Q32], so "+ Add source" and "new graph" were two doors to the same room; this is the
+	     one door, next to where graphs live. Folded away until asked for: a pane is not a launcher. -->
+	{#if adding}
+		<ImportCards
+			{kinds}
+			compact
+			onChoose={(kind) => {
+				adding = false;
+				onAddSource(kind);
+			}}
+		/>
+	{/if}
 
 	<div class="tabs" role="tablist" aria-label="Pipeline view">
 		{#each [['graph', 'Graph'], ['vpl', 'VPL']] as const as [id, label] (id)}
@@ -254,25 +266,6 @@
 		     different command with a different scope (G1, S5.1); this writes the pipeline as the
 		     `.vpl` the CLI already reads. -->
 	<div class="actions">
-		{#if tab === 'graph'}
-			<!-- The same cards the landing screen shows, from the same catalogue — asked here
-				     because "+ Add source" is the same question the empty window asks, and answering
-				     it with a bare file dialog would mean a GeoJSON is only importable from one of
-				     the two places (S3.2). Folded away until asked for: a pane is not a launcher. -->
-			<button type="button" class="add" aria-expanded={adding} onclick={() => (adding = !adding)}>
-				+ Add source
-			</button>
-			{#if adding}
-				<ImportCards
-					{kinds}
-					compact
-					onChoose={(kind) => {
-						adding = false;
-						onAddSource(kind);
-					}}
-				/>
-			{/if}
-		{/if}
 		<div class="files">
 			<button
 				type="button"
@@ -386,17 +379,5 @@
 	.dot {
 		color: var(--accent);
 		margin-left: 1px;
-	}
-	.add {
-		align-self: flex-start;
-		padding: var(--space-2) var(--space-3);
-		border: 1px dashed var(--rule);
-		border-radius: var(--radius);
-		background: none;
-		color: var(--ink-2);
-	}
-	.add:hover {
-		border-style: solid;
-		color: var(--ink);
 	}
 </style>
