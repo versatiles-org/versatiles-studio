@@ -1,7 +1,7 @@
 # Build configuration that must not depend on whose machine it is.
 
 [env]
-# **Block pkg-config discovery of GDAL** ([Q19](../docs/decisions.md), S3.5).
+# **Block pkg-config discovery of GDAL, and only of GDAL** ([Q19](../docs/decisions.md), S3.5).
 #
 # `gdal-sys` probes pkg-config unconditionally, even with its `bundled` feature on. On a machine with
 # GDAL installed — Homebrew's, say — that probe wins: the build links dynamically against the system
@@ -9,10 +9,14 @@
 # also makes the build differ between a developer's laptop and CI, which is the worse failure because
 # it is the quiet one.
 #
-# Pointing `PKG_CONFIG_LIBDIR` at a directory that does not exist makes every probe fail, which is
-# what leaves `gdal-src`'s statically compiled GDAL as the only thing to link against. `force` so it
-# applies even where the variable is already set.
+# The `pkg-config` crate aborts a probe when `{NAME}_NO_PKG_CONFIG` is set, so this refuses exactly
+# the one lookup and leaves `gdal-src`'s statically compiled GDAL as the only thing to link against.
+#
+# **It used to point `PKG_CONFIG_LIBDIR` at a directory that does not exist**, which failed *every*
+# probe rather than gdal's. That is invisible on macOS, where the webview is WKWebView and nothing
+# asks pkg-config anything — and fatal on Linux, where Tauri finds glib, gtk and webkit through it.
+# CI found it; a laptop never would.
 #
 # Here rather than in a shell profile or a CI step because it is a property of *this build*, and both
 # of those are places a person can forget.
-PKG_CONFIG_LIBDIR = { value = "/nonexistent", force = true }
+GDAL_NO_PKG_CONFIG = { value = "1", force = true }

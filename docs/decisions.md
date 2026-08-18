@@ -848,8 +848,16 @@ than a dependency away.
   `proj.db` on disk, which is the premise this whole decision rests on. Verified, not assumed.
 - **`gdal-sys` silently prefers a system GDAL.** With Homebrew's GDAL present, pkg-config wins and
   the build links dynamically against 3.13 — then fails for want of pre-built bindings. The build
-  must block pkg-config discovery (`PKG_CONFIG_LIBDIR=/nonexistent`) or it will differ between a
-  developer's machine and CI. Wire this into the build config at S3.5, not into someone's shell.
+  must block pkg-config discovery or it will differ between a developer's machine and CI. Wire this
+  into the build config at S3.5, not into someone's shell.
+
+  **Block it for GDAL alone.** The first version set `PKG_CONFIG_LIBDIR=/nonexistent`, which fails
+  _every_ probe rather than gdal's. Nothing on macOS notices — the webview is WKWebView and no crate
+  asks pkg-config anything — while on Linux Tauri finds glib, gtk and webkit through it, so both CI
+  jobs died compiling `glib-sys`. `GDAL_NO_PKG_CONFIG=1` refuses exactly the one lookup, using the
+  `pkg-config` crate's own per-package escape. The irony is the point: the mechanism written to stop
+  the build differing between a laptop and CI was itself the thing that differed, and only CI could
+  say so.
 
 ### Q18 — Studio's Svelte components are written from scratch
 
