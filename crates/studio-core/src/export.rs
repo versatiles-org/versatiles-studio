@@ -52,6 +52,66 @@ pub const MAX_TILES: u64 = 100_000_000;
 /// Checked before the job starts so an unknown extension is a message rather than a job that fails
 /// after opening every source.
 #[must_use]
+/// What an export narrows the pipeline to before writing it.
+///
+/// Every field is optional and `None` means "as far as the pipeline goes". They are applied as one
+/// `filter` node appended to the pipeline ([S3.6](../../../docs/scope-release-1.md)) rather than by
+/// clamping numbers we then look at: `filter` is versatiles-rs's own operation for this, so the
+/// source really does stop there and the tile count computed afterwards is the count that will be
+/// written.
+#[derive(Debug, Clone, Copy, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct Bounds {
+	/// West, south, east, north, in degrees — the four number fields [Q32] asks for.
+	#[cfg_attr(feature = "bindings", specta(type = Option<[specta_typescript::Number; 4]>))]
+	pub bbox: Option<[f64; 4]>,
+	pub min_zoom: Option<u8>,
+	pub max_zoom: Option<u8>,
+}
+
+impl Bounds {
+	/// The `filter` parameters these bounds mean, or `None` when they narrow nothing.
+	///
+	/// Checked before it is written rather than after it is parsed: a `NaN` reaching the text would
+	/// spell `bbox=[NaN,…]`, which fails as a *parse* error about VPL syntax — an answer about the
+	/// wrong thing entirely for someone who typed a number in a form.
+	fn clause(&self) -> Result<Option<String>> {
+		let mut parts: Vec<String> = Vec::new();
+
+		if let Some([west, south, east, north]) = self.bbox {
+			anyhow::ensure!(
+				[west, south, east, north].iter().all(|value| value.is_finite()),
+				"a bounding box needs four numbers"
+			);
+			anyhow::ensure!(
+				west < east,
+				"the west edge ({west}) must be left of the east edge ({east})"
+			);
+			anyhow::ensure!(
+				south < north,
+				"the south edge ({south}) must be below the north edge ({north})"
+			);
+			parts.push(format!("bbox=[{west},{south},{east},{north}]"));
+		}
+
+		if let (Some(min), Some(max)) = (self.min_zoom, self.max_zoom) {
+			anyhow::ensure!(
+				min <= max,
+				"zoom {min} to {max} is empty — the minimum is above the maximum"
+			);
+		}
+		if let Some(min) = self.min_zoom {
+			parts.push(format!("level_min={min}"));
+		}
+		if let Some(max) = self.max_zoom {
+			parts.push(format!("level_max={max}"));
+		}
+
+		Ok((!parts.is_empty()).then(|| parts.join(" ")))
+	}
+}
+
 pub fn is_writable(path: &Path) -> bool {
 	path
 		.extension()
@@ -66,13 +126,7 @@ pub fn is_writable(path: &Path) -> bool {
 /// **Its own runtime**, not the server's. The events on a shared bus would arrive mixed with every
 /// preview the window builds while this runs, and a job's log has to be that job's. The cost is
 /// re-opening the sources, which a full write does anyway.
-pub async fn write(
-	handle: &JobHandle,
-	pipeline: VPLPipeline,
-	dir: &Path,
-	target: &Path,
-	max_zoom: Option<u8>,
-) -> Result<()> {
+pub async fn write(handle: &JobHandle, pipeline: VPLPipeline, dir: &Path, target: &Path, bounds: Bounds) -> Result<()> {
 	anyhow::ensure!(
 		is_writable(target),
 		"cannot write {}: Studio writes {}",
@@ -89,13 +143,12 @@ pub async fn write(
 		.build();
 	forward_events(&runtime, handle);
 
-	// The bound is applied to the *pipeline*, not to a copy of its pyramid — clamping a number we
-	// only look at would refuse an unbounded export and then write one anyway. `filter` is
-	// versatiles-rs's own operation for this, so the source really does stop there.
-	let pipeline = match max_zoom {
+	// The bounds are applied to the *pipeline*, not to a copy of its pyramid — clamping a number we
+	// only look at would refuse an unbounded export and then write one anyway.
+	let pipeline = match bounds.clause()? {
 		None => pipeline,
-		Some(level) => crate::vpl::Document::parse(format!("{pipeline} | filter level_max={level}"))
-			.context("bounding the pipeline by zoom")?
+		Some(clause) => crate::vpl::Document::parse(format!("{pipeline} | filter {clause}"))
+			.context("bounding the pipeline")?
 			.to_pipeline(),
 	};
 
@@ -227,7 +280,13 @@ mod tests {
 	/// `from_debug` declares a *complete* pyramid to level 30 — 10^18 tiles — so an unbounded write
 	/// of it does not finish, it exhausts the machine's memory. This is not caution; it is the bug
 	/// that made this constant exist, found by running the tests without it.
-	const TEST_ZOOM: Option<u8> = Some(3);
+	/// Every write in these tests is bounded, because an unbounded one is a complete pyramid: the
+	/// first version of this file wrote `from_debug` to disk and took the machine with it.
+	const TEST_BOUNDS: Bounds = Bounds {
+		bbox: None,
+		min_zoom: None,
+		max_zoom: Some(3),
+	};
 
 	fn temp(name: &str) -> PathBuf {
 		let path = std::env::temp_dir().join(format!("versatiles-studio-export-{name}"));
@@ -267,7 +326,7 @@ mod tests {
 
 		for extension in WRITABLE {
 			let target = temp(&format!("offered.{extension}"));
-			write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_ZOOM).await?;
+			write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await?;
 			assert!(target.exists(), "{extension} was not written");
 			assert!(std::fs::metadata(&target)?.len() > 0, "{extension} is empty");
 			let _ = std::fs::remove_file(&target);
@@ -283,7 +342,7 @@ mod tests {
 		let document = Document::parse("from_debug format=png | raster_overview level=2")?;
 		let target = temp("roundtrip.versatiles");
 
-		write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_ZOOM).await?;
+		write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await?;
 
 		let runtime = versatiles::runtime::create_runtime();
 		let written = runtime.reader_from_str(&target.to_string_lossy()).await?;
@@ -304,7 +363,7 @@ mod tests {
 		let document = Document::parse("from_debug format=png").unwrap();
 		let target = temp("nope.geojson");
 
-		let error = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_ZOOM)
+		let error = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS)
 			.await
 			.unwrap_err();
 		assert!(
@@ -327,7 +386,7 @@ mod tests {
 		// VPL — quoting is the core's job everywhere else and it is the core's job here too.
 		let vpl = crate::vpl::read_node("from_container", "/nowhere/absent.versatiles");
 		let document = Document::parse(&vpl)?;
-		let result = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_ZOOM).await;
+		let result = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await;
 
 		assert!(result.is_err(), "this pipeline should not have written anything");
 		assert_eq!(
@@ -365,7 +424,7 @@ mod tests {
 		let document = Document::parse("from_debug format=pbf").unwrap();
 		let target = temp("mismatch.mbtiles");
 
-		let error = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_ZOOM)
+		let error = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS)
 			.await
 			.unwrap_err();
 		let message = format!("{error:#}");
@@ -382,14 +441,126 @@ mod tests {
 		let document = Document::parse("from_debug format=png").unwrap();
 		let target = temp("unbounded.versatiles");
 
-		let error = write(&handle, document.to_pipeline(), Path::new("."), &target, None)
-			.await
-			.unwrap_err();
+		let error = write(
+			&handle,
+			document.to_pipeline(),
+			Path::new("."),
+			&target,
+			Bounds::default(),
+		)
+		.await
+		.unwrap_err();
 		let message = format!("{error:#}");
 		assert!(message.contains("cannot be written"), "{message}");
 		assert!(message.contains("Set a maximum zoom"), "{message}");
 		assert!(!target.exists(), "nothing should have been written");
 		assert!(!scratch_path(&target).exists());
+	}
+
+	#[test]
+	fn bounds_that_narrow_nothing_produce_no_filter() {
+		assert_eq!(Bounds::default().clause().unwrap(), None);
+	}
+
+	#[test]
+	fn each_bound_becomes_one_filter_parameter() {
+		let clause = Bounds {
+			bbox: Some([13.0, 52.3, 13.8, 52.7]),
+			min_zoom: Some(2),
+			max_zoom: Some(14),
+		}
+		.clause()
+		.unwrap();
+
+		assert_eq!(
+			clause.as_deref(),
+			Some("bbox=[13,52.3,13.8,52.7] level_min=2 level_max=14")
+		);
+	}
+
+	/// The clause is appended to VPL text, so a value that cannot be written as a number would
+	/// surface as a parse error about syntax — an answer about the wrong thing for someone who
+	/// typed into a form.
+	#[test]
+	fn a_bounding_box_that_is_not_one_is_refused_with_its_own_words() {
+		let nan = Bounds {
+			bbox: Some([f64::NAN, 0.0, 1.0, 1.0]),
+			..Bounds::default()
+		};
+		assert!(format!("{:#}", nan.clause().unwrap_err()).contains("four numbers"));
+
+		let inside_out = Bounds {
+			bbox: Some([10.0, 0.0, 5.0, 1.0]),
+			..Bounds::default()
+		};
+		let message = format!("{:#}", inside_out.clause().unwrap_err());
+		assert!(message.contains("west edge"), "{message}");
+
+		let upside_down = Bounds {
+			bbox: Some([0.0, 10.0, 1.0, 5.0]),
+			..Bounds::default()
+		};
+		assert!(format!("{:#}", upside_down.clause().unwrap_err()).contains("south edge"));
+	}
+
+	#[test]
+	fn an_empty_zoom_range_is_refused_rather_than_written_as_nothing() {
+		let backwards = Bounds {
+			min_zoom: Some(9),
+			max_zoom: Some(3),
+			..Bounds::default()
+		};
+		let message = format!("{:#}", backwards.clause().unwrap_err());
+		assert!(message.contains("minimum is above the maximum"), "{message}");
+	}
+
+	/// The box has to reach the *file*, for the same reason the zoom bound does.
+	///
+	/// Asserted as "contains the request, and is far smaller than the world" rather than as exact
+	/// numbers: a container's extent covers whole *tiles*, so the grid rounds the request outward —
+	/// 13.0..13.8 comes back as 11.25..16.875 at zoom 6. Pinning the snapped figures would be
+	/// pinning the tile grid, and would break on any change of zoom.
+	#[tokio::test]
+	async fn a_bounding_box_reaches_what_is_written() -> Result<()> {
+		let (handle, _) = job();
+		let document = Document::parse("from_debug format=png")?;
+		let target = temp("boxed.versatiles");
+
+		write(
+			&handle,
+			document.to_pipeline(),
+			Path::new("."),
+			&target,
+			Bounds {
+				bbox: Some([13.0, 52.3, 13.8, 52.7]),
+				min_zoom: None,
+				max_zoom: Some(6),
+			},
+		)
+		.await?;
+
+		let runtime = versatiles::runtime::create_runtime();
+		let written = runtime.reader_from_str(&target.to_string_lossy()).await?;
+		let info = crate::analysis::describe(&written, "written").await?;
+		let [west, south, east, north] = info.bbox.expect("a written container knows its extent");
+
+		assert!(
+			west <= 13.0 && east >= 13.8,
+			"the written extent must contain what was asked for: {west}..{east}"
+		);
+		assert!(
+			south <= 52.3 && north >= 52.7,
+			"the written extent must contain what was asked for: {south}..{north}"
+		);
+		assert!(
+			east - west < 30.0,
+			"longitude was not narrowed at all: {west}..{east} of a 360-degree world"
+		);
+		assert!(
+			north - south < 30.0,
+			"latitude was not narrowed at all: {south}..{north}"
+		);
+		Ok(())
 	}
 
 	/// And the way out works: the same pipeline, bounded, writes.
@@ -399,7 +570,17 @@ mod tests {
 		let document = Document::parse("from_debug format=png")?;
 		let target = temp("bounded.versatiles");
 
-		write(&handle, document.to_pipeline(), Path::new("."), &target, Some(2)).await?;
+		write(
+			&handle,
+			document.to_pipeline(),
+			Path::new("."),
+			&target,
+			Bounds {
+				max_zoom: Some(2),
+				..Bounds::default()
+			},
+		)
+		.await?;
 
 		// The bound has to reach the *file*, not just the check — a pyramid clamped only for
 		// counting would refuse an unbounded export and then write one anyway.
@@ -420,7 +601,7 @@ mod tests {
 		let document = Document::parse("from_debug format=png | raster_overview level=2")?;
 		let target = temp("progress.versatiles");
 
-		write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_ZOOM).await?;
+		write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await?;
 
 		let events = events.lock().unwrap();
 		let measured = events
