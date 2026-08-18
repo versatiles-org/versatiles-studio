@@ -79,3 +79,22 @@ export function walk(pipeline: VplPipeline, path: number[] = [], depth = 0): (Lo
  * node of any parent, which is a different and narrower rule.
  */
 export const isChainHead = (path: number[]): boolean => path.length === 1 && path[0] === 0;
+
+/**
+ * Whether a selection made in `fromGraph` still names the same node in the document `next`.
+ *
+ * Two ways it stops doing so, and both are ordinary rather than exotic:
+ *
+ * * **The document belongs to another graph.** Undo and redo run on one stack across every graph
+ *   ([Q32]), so a step can hand back a graph other than the one on screen. A path means nothing
+ *   outside the graph it was taken from — `[2]` is just "the third node" — and since the selected
+ *   node *is* the form, carrying it over opens a form for a node nobody picked.
+ * * **The path no longer resolves.** Undoing the insertion that created the selected node is the
+ *   common case. A selection pointing at nothing is worth dropping rather than leaving to match
+ *   whatever later grows into that position.
+ */
+export const selectionSurvives = (
+	selected: number[] | null,
+	fromGraph: number | null,
+	next: { graph: number; pipeline: VplPipeline }
+): boolean => selected !== null && next.graph === fromGraph && nodeAtPath(next.pipeline, selected) !== null;

@@ -14,7 +14,7 @@
 	import PipelineOutput from './lib/panes/output/PipelineOutput.svelte';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
-	import { nodeAt, samePath, walk } from './lib/vpl/node-at';
+	import { nodeAt, samePath, selectionSurvives, walk } from './lib/vpl/node-at';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
 	import TileGrid from './lib/map/TileGrid.svelte';
@@ -450,6 +450,10 @@
 	/// Every path that changes the pipeline ends here, so the map, the editor and the selection can
 	/// never be following different versions of it.
 	async function applyDocument(next: DocumentView) {
+		// A path taken from one graph does not name anything in another, and undo may hand back a
+		// graph other than the one on screen ([Q32]). The selection goes with it, exactly as it does
+		// when a graph is chosen from the list.
+		if (!selectionSurvives(selected, currentGraph, next)) selected = null;
 		pipeline = next;
 		pipelineRevision += 1;
 		// The list shows the name, the pin and the unsaved dot — the last of which changes on every
