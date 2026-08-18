@@ -588,7 +588,10 @@
 			if (!target) {
 				target = await save({
 					title: 'Save pipeline',
-					defaultPath: pipeline.path ?? 'pipeline.vpl',
+					// The graph's name supplies the filename ([Q35]) — the direction the binding runs.
+					// `pipeline.vpl` was a leftover from when a window held exactly one document, and
+					// it offered the same name for every graph in a project that now holds several.
+					defaultPath: pipeline.path ?? `${pipeline.name}.${pipelineExtensions[0]}`,
 					filters: [{ name: 'VPL pipelines', extensions: pipelineExtensions }]
 				});
 				if (!target) return; // cancelled
