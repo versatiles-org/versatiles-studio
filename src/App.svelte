@@ -449,6 +449,16 @@
 
 	async function refreshPreview() {
 		if (!map || !pipeline) return;
+		// **A document that does not validate is not built.** `＋ operation…` inserts a node with its
+		// required parameters unset by design — [Q33] decided that "required" is said by the field
+		// being present and empty — so an invalid document is the ordinary state one second after
+		// adding an operation, not an exceptional one. Building it anyway replaced a diagnostic that
+		// names the node and the missing parameter with whatever the builder happened to say on its
+		// way out, in the status bar, where it is furthest from the field that needs filling in.
+		//
+		// The map keeps what it last drew, which is what already happens while the text does not
+		// parse. What the user is meant to look at is the empty field in the node they just added.
+		if (pipeline.diagnostics.length > 0) return;
 		try {
 			// The build is a job in the runner's `latest` lane, so **editing again stops the build
 			// that is now out of date** rather than leaving it to finish. That also removes the

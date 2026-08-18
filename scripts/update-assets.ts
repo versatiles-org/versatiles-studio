@@ -12,7 +12,7 @@
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const MANIFEST = fileURLToPath(new URL('../assets/manifest.json', import.meta.url));
 
@@ -104,40 +104,56 @@ function digestOf(assets: GhAsset[], file: string, repo: string): { digest: stri
 	return { digest: asset.digest, bytes: asset.size };
 }
 
-const manifest = JSON.parse(await readFile(MANIFEST, 'utf8')) as Manifest;
-const update = process.argv.includes('--update');
-const problems: string[] = [];
+/**
+ * Everything this script does. **Not run on import.**
+ *
+ * `guards.test.ts` imports the two pure helpers above, and a module that works at import time makes
+ * that import do the work: the suite started reaching GitHub for every pinned source, and stopped
+ * being able to load at all the first time the API answered 403. A unit test that needs the network
+ * is not one — so the side effects live behind the entry-point check below.
+ */
+async function main(): Promise<void> {
+	const manifest = JSON.parse(await readFile(MANIFEST, 'utf8')) as Manifest;
+	const update = process.argv.includes('--update');
+	const problems: string[] = [];
 
-for (const [name, source] of Object.entries(manifest.sources)) {
-	const { tag, assets } = await latestRelease(source.repo);
+	for (const [name, source] of Object.entries(manifest.sources)) {
+		const { tag, assets } = await latestRelease(source.repo);
 
-	if (tag !== source.version) {
-		problems.push(`${name}: pinned ${source.version}, upstream is ${tag}`);
-		if (update) source.version = tag;
-	}
+		if (tag !== source.version) {
+			problems.push(`${name}: pinned ${source.version}, upstream is ${tag}`);
+			if (update) source.version = tag;
+		}
 
-	// Re-resolve every asset. A digest that moved under an unchanged tag means the release was
-	// re-uploaded, which is worth failing loudly over rather than silently trusting.
-	for (const [key, pinned] of Object.entries(source.assets)) {
-		if (tag !== source.version && !update) continue;
-		const fresh = digestOf(assets, pinned.file, source.repo);
-		if (fresh.digest !== pinned.digest) {
-			if (update) {
-				pinned.digest = fresh.digest;
-				pinned.bytes = fresh.bytes;
-			} else if (tag === source.version) {
-				problems.push(`${name}.${key}: digest changed under the same tag ${tag} — release was re-uploaded`);
+		// Re-resolve every asset. A digest that moved under an unchanged tag means the release was
+		// re-uploaded, which is worth failing loudly over rather than silently trusting.
+		for (const [key, pinned] of Object.entries(source.assets)) {
+			if (tag !== source.version && !update) continue;
+			const fresh = digestOf(assets, pinned.file, source.repo);
+			if (fresh.digest !== pinned.digest) {
+				if (update) {
+					pinned.digest = fresh.digest;
+					pinned.bytes = fresh.bytes;
+				} else if (tag === source.version) {
+					problems.push(`${name}.${key}: digest changed under the same tag ${tag} — release was re-uploaded`);
+				}
 			}
 		}
 	}
+
+	if (update) {
+		await writeFile(MANIFEST, `${JSON.stringify(manifest, null, '\t')}\n`);
+		console.log(problems.length ? `Updated:\n  ${problems.join('\n  ')}` : 'Already current — nothing changed.');
+	} else if (problems.length) {
+		console.error(`Pins are out of date:\n  ${problems.join('\n  ')}\n\nRun \`npm run assets:update\` to move them.`);
+		process.exit(1);
+	} else {
+		console.log('All pins current.');
+	}
 }
 
-if (update) {
-	await writeFile(MANIFEST, `${JSON.stringify(manifest, null, '\t')}\n`);
-	console.log(problems.length ? `Updated:\n  ${problems.join('\n  ')}` : 'Already current — nothing changed.');
-} else if (problems.length) {
-	console.error(`Pins are out of date:\n  ${problems.join('\n  ')}\n\nRun \`npm run assets:update\` to move them.`);
-	process.exit(1);
-} else {
-	console.log('All pins current.');
+// Run only when invoked as a script, never when imported. `process.argv[1]` is the entry module;
+// comparing it as a URL is what makes this correct on Windows paths too.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+	await main();
 }
