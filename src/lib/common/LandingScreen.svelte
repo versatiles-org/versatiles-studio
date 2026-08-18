@@ -44,41 +44,43 @@
 </script>
 
 <div class="landing">
-	<h1>VersaTiles Studio</h1>
+	<div class="sheet">
+		<h1>VersaTiles Studio</h1>
 
-	<div class="ways">
-		<ImportCards {kinds} onChoose={onImport} />
+		<div class="ways">
+			<ImportCards {kinds} onChoose={onImport} />
 
-		<!-- Not a card in the catalogue: a URL is not a *kind* of data, it is a place one comes
-		     from, and every kind that can be read over HTTP can be read from here. -->
-		<form class="card" onsubmit={submit}>
-			<strong>Open a remote URL</strong>
-			<span>HTTPS or SFTP — a planet file opens from its index</span>
-			<div class="row">
-				<input bind:value={url} type="text" placeholder="https://…" spellcheck="false" />
-				<button type="submit" class="button" disabled={!url.trim()}>Open</button>
-			</div>
-		</form>
+			<!-- Not a card in the catalogue: a URL is not a *kind* of data, it is a place one comes
+			     from, and every kind that can be read over HTTP can be read from here. -->
+			<form class="card" onsubmit={submit}>
+				<strong>Open a remote URL</strong>
+				<span>HTTPS or SFTP — a planet file opens from its index</span>
+				<div class="row">
+					<input bind:value={url} type="text" placeholder="https://…" spellcheck="false" />
+					<button type="submit" class="button" disabled={!url.trim()}>Open</button>
+				</div>
+			</form>
+		</div>
+
+		{#if recents.length}
+			<section class="recents">
+				<h2 class="section-label">Recent</h2>
+				<ul>
+					{#each recents as entry (entry.source)}
+						<li>
+							<button class="recent" onclick={() => onOpenUrl(entry.source)} title={entry.source}>
+								<span class="name truncate">{filename(entry.source)}</span>
+								<span class="meta">{when(entry.openedAt)}</span>
+							</button>
+							<button class="forget" onclick={() => onForget(entry.source)} aria-label="Forget">×</button>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/if}
+
+		<p class="drop">…or drop a file anywhere in this window.</p>
 	</div>
-
-	{#if recents.length}
-		<section class="recents">
-			<h2 class="section-label">Recent</h2>
-			<ul>
-				{#each recents as entry (entry.source)}
-					<li>
-						<button class="recent" onclick={() => onOpenUrl(entry.source)} title={entry.source}>
-							<span class="name truncate">{filename(entry.source)}</span>
-							<span class="meta">{when(entry.openedAt)}</span>
-						</button>
-						<button class="forget" onclick={() => onForget(entry.source)} aria-label="Forget">×</button>
-					</li>
-				{/each}
-			</ul>
-		</section>
-	{/if}
-
-	<p class="drop">…or drop a file anywhere in this window.</p>
 </div>
 
 <style>
@@ -86,15 +88,27 @@
 		font-family: var(--font-mono);
 	}
 
+	/* The scroller. `justify-content: center` used to do the centring here, which reads well until
+	   the content is taller than the window: centred overflow spills past *both* edges, so the
+	   heading goes off the top where no scrollbar can reach it. Centring moved to the sheet's auto
+	   margins, which collapse to zero the moment there is nothing to spare. */
 	.landing {
 		height: 100%;
 		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: var(--space-6);
+		overflow-y: auto;
+		/* The map is behind this, and scrolling past the end of a list should not start panning it. */
+		overscroll-behavior: contain;
 		padding: var(--space-6);
 		background: var(--chrome);
+	}
+
+	.sheet {
+		margin: auto;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: var(--space-6);
+		width: min(42rem, 100%);
 	}
 
 	h1 {

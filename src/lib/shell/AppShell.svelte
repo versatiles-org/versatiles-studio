@@ -112,8 +112,16 @@
 		background: var(--surface);
 	}
 
+	/* **Above everything.** The grid already reserves the row, so nothing can push the bar off
+	   screen — but a positioned child of the map can paint over it, and one did: the landing screen
+	   sits at `z-index: 6` and used to spill its overflow across the bar. The bar carries what the
+	   application is doing, including the error a spilling element is often the cause of, so it wins
+	   against every other layer here: 4 map controls, 5 popups and resizers, 6 the landing screen,
+	   40 the parameter help. A modal dialog, when one arrives, goes above this. */
 	.status {
 		grid-area: status;
+		position: relative;
+		z-index: 50;
 		border-top: 1px solid var(--rule);
 		background: var(--surface);
 	}
