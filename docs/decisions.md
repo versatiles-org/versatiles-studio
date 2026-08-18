@@ -54,9 +54,11 @@ is why that decision needed no revisiting, only this one adding.
 
 ### Q33 — The node form explains itself without symbols to learn
 
-**Dated 2026-08-18.** Two things [Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)
-left for the form to answer once the selected node became it: where a parameter's documentation
-goes, and how a required parameter says so.
+**Dated 2026-08-18.** Two questions the form raised once the selected node became it
+([Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)). One it left
+open: Q32 put documentation behind a `?` without saying where the `?` opens _to_. The other it had
+answered, and this reverses — Q32 said a required argument is **marked**, and the mark turned out to
+be a symbol nobody could read.
 
 **Parameter help sits beside the sidebar, over the map.** Measured before deciding: 127 parameters
 across the operations, **median 95 characters, p90 262, max 481**. In a 280px sidebar that is three
@@ -148,9 +150,11 @@ pane catalogue dynamic and turns four graphs into four folded boxes; tabs per gr
 keeps one pane, keeps Q15 intact, and gives per-graph state — the dirty dot, the pin, the name — a
 natural home. Renaming happens in that list, because the list is where graphs live.
 
-**The selected node is the form.** It shows one row per argument — value editable, required marked,
-`×` removing it, `＋ parameter…` offering what the operation accepts but has not set. Every other node
-is only its name.
+**The selected node is the form.** It shows one row per argument — value editable, ~~required
+marked~~, `×` removing it, `＋ parameter…` offering what the operation accepts but has not set. Every
+other node is only its name. **Amended by [Q33](#q33--the-node-form-explains-itself-without-symbols-to-learn):**
+a required argument is shown empty rather than marked, and is the one row with no `×` — being
+unremovable is how it says it is required.
 
 - **The head node is the exception** and keeps its filename. A graph named `basemap` reading
   `osm.versatiles` is a different thing from one reading `berlin.mbtiles`, and that is worth a line.
