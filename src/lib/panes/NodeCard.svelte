@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../ipc/commands';
-	import { peek, unpeek, pin, help } from '../state/help.svelte';
+	import HelpTrigger from '../components/common/HelpTrigger.svelte';
+	import ArgumentField from './ArgumentField.svelte';
 
 	// One node in the chain (S2.13, [Q32]).
 	//
@@ -98,21 +99,6 @@
 	/// What this field could be set to — whichever end of the pipeline could answer.
 	const options = (key: string, control: FieldInfo['control'] | undefined): string[] =>
 		suggestions[key] ?? (control?.kind === 'list' ? properties : []);
-
-	/// Whether a value is a path, and so should be read from its end.
-	///
-	/// By key rather than by looking at the value: an empty `filename` is still a path, and a
-	/// `layer_name` that happens to contain a slash is not.
-	const isPath = (key: string) => key === 'filename' || key.endsWith('_file') || key.endsWith('_path');
-
-	const chosen = (property: VplProperty) => parts(text(property));
-
-	function toggle(property: VplProperty, name: string) {
-		const current = chosen(property);
-		const next = current.includes(name) ? current.filter((each) => each !== name) : [...current, name];
-		if (next.length === 0) onRemove(property.span);
-		else onSet(property.key, next);
-	}
 
 	function commit(property: VplProperty, raw: string) {
 		if (raw === text(property)) return;
@@ -245,21 +231,7 @@
 			<!-- The operation's own help. A `?` rather than the name, because the name's click is
 			     already selection — and hovering names would flash a popover per node while scanning a
 			     chain ([Q33]). -->
-			<button
-				type="button"
-				class="help"
-				aria-label="What is {node.name}?"
-				onmouseenter={(event) => peek(operationHelp(meta), event.currentTarget)}
-				onmouseleave={unpeek}
-				onfocus={(event) => peek(operationHelp(meta), event.currentTarget)}
-				onblur={unpeek}
-				onclick={(event) => pin(operationHelp(meta), event.currentTarget)}
-				onkeydown={(event) => {
-					if (event.key === 'Escape') unpeek();
-				}}
-			>
-				?
-			</button>
+			<HelpTrigger content={operationHelp(meta)} />
 		{/if}
 
 		{#if !selected && headline}
@@ -281,83 +253,31 @@
 
 	{#if selected}
 		<dl class="args">
+			<!-- Set parameters. -->
 			{#each node.properties as property (property.keySpan.start)}
 				{@const field = fieldOf(property.key)}
-				{@const control = field?.control}
-				{@const choices = options(property.key, control)}
 				<div class="arg">
 					<dt>
 						<span class="k truncate">{property.key}</span>
-						{#if field}
-							<!-- Hover or focus to peek, click to pin ([Q33]). The trigger is the `?` rather
-							     than the whole row: sweeping down a form would otherwise flash a popover
-							     per argument. -->
-							<button
-								type="button"
-								class="help"
-								class:open={help.current?.pinned && help.current.content.title === property.key}
-								aria-label="What is {property.key}?"
-								onmouseenter={(event) => peek(contentFor(property.key, field), event.currentTarget)}
-								onmouseleave={unpeek}
-								onfocus={(event) => peek(contentFor(property.key, field), event.currentTarget)}
-								onblur={unpeek}
-								onclick={(event) => pin(contentFor(property.key, field), event.currentTarget)}
-								onkeydown={(event) => {
-									// Focus stays here after the popover opens, so Escape is the way back out.
-									if (event.key === 'Escape') unpeek();
-								}}
-							>
-								?
-							</button>
-						{/if}
+						{#if field}<HelpTrigger content={contentFor(property.key, field)} />{/if}
 					</dt>
 					<dd>
-						{#if control?.kind === 'choice'}
-							<select value={text(property)} onchange={(event) => commit(property, event.currentTarget.value)}>
-								{#each control.options as option (option)}<option value={option}>{option}</option>{/each}
-							</select>
-						{:else if control?.kind === 'boolean'}
-							<input
-								type="checkbox"
-								checked={text(property) === 'true'}
-								onchange={(event) => commit(property, String(event.currentTarget.checked))}
-							/>
-						{:else if control?.kind === 'number'}
-							<input
-								type="number"
+						{#if field}
+							<ArgumentField
+								{field}
 								value={text(property)}
-								step={control.integer ? 1 : 'any'}
-								min={control.min ?? undefined}
-								max={control.max ?? undefined}
-								onblur={(event) => commit(property, event.currentTarget.value)}
-								onkeydown={(event) => {
-									if (event.key === 'Enter') event.currentTarget.blur();
-								}}
+								suggestions={options(property.key, field.control)}
+								onCommit={(raw) => commit(property, raw)}
 							/>
 						{:else}
+							<!-- A parameter this operation does not declare. It still has to be editable —
+							     the diagnostic says it is wrong, and the fix is usually to correct the value
+							     rather than to delete the row. -->
 							<input
 								type="text"
-								class:path={isPath(property.key)}
 								value={text(property)}
-								title={text(property)}
-								list={choices.length > 0 ? `s-${node.nameSpan.start}-${property.key}` : undefined}
-								placeholder={control?.kind === 'numbers' ? `${control.count} numbers` : ''}
-								spellcheck="false"
-								autocomplete="off"
 								onblur={(event) => commit(property, event.currentTarget.value)}
-								onkeydown={(event) => {
-									if (event.key === 'Enter') event.currentTarget.blur();
-									if (event.key === 'Escape') {
-										event.currentTarget.value = text(property);
-										event.currentTarget.blur();
-									}
-								}}
 							/>
-							{#if choices.length > 0}
-								<datalist id="s-{node.nameSpan.start}-{property.key}">
-									{#each choices as value (value)}<option {value}></option>{/each}
-								</datalist>
-							{/if}
 						{/if}
 					</dd>
 					<!-- No × on a required parameter: you cannot remove what must exist, and the missing
@@ -373,95 +293,46 @@
 							×
 						</button>
 					{/if}
-					{#if control?.kind === 'list' && choices.length > 0}
-						{@const picked = chosen(property)}
-						<div class="chips">
-							{#each choices as name (name)}
-								<button
-									type="button"
-									class="chip"
-									class:on={picked.includes(name)}
-									aria-pressed={picked.includes(name)}
-									onclick={() => toggle(property, name)}
-								>
-									{name}
-								</button>
-							{/each}
-						</div>
-					{/if}
 				</div>
 			{/each}
 
-			<!-- Required and not yet set. No × — you cannot remove what must exist, which is the same
-			     rule the head node's missing × already teaches. -->
+			<!-- Required and not yet set. Always shown, so "required" needs no symbol: the field is
+			     simply there, and empty ([Q33]). No × — you cannot remove what must exist. -->
 			{#each missing as field (field.name)}
 				<div class="arg">
 					<dt>
 						<span class="k truncate">{field.name}</span>
-						<button
-							type="button"
-							class="help"
-							aria-label="What is {field.name}?"
-							onmouseenter={(event) => peek(contentFor(field.name, field), event.currentTarget)}
-							onmouseleave={unpeek}
-							onfocus={(event) => peek(contentFor(field.name, field), event.currentTarget)}
-							onblur={unpeek}
-							onclick={(event) => pin(contentFor(field.name, field), event.currentTarget)}
-							onkeydown={(event) => {
-								if (event.key === 'Escape') unpeek();
-							}}
-						>
-							?
-						</button>
+						<HelpTrigger content={contentFor(field.name, field)} />
 					</dt>
 					<dd>
-						<input
-							type="text"
-							class:path={isPath(field.name)}
+						<ArgumentField
+							{field}
+							value=""
+							suggestions={options(field.name, field.control)}
 							placeholder="needs a value"
-							spellcheck="false"
-							autocomplete="off"
-							list={options(field.name, field.control).length > 0
-								? `s-${node.nameSpan.start}-${field.name}`
-								: undefined}
-							aria-label="Value for {field.name}"
-							onblur={(event) => commitRequired(field.name, event.currentTarget.value)}
-							onkeydown={(event) => {
-								if (event.key === 'Enter') event.currentTarget.blur();
-							}}
+							onCommit={(raw) => commitRequired(field.name, raw)}
 						/>
-						{#if options(field.name, field.control).length > 0}
-							<datalist id="s-{node.nameSpan.start}-{field.name}">
-								{#each options(field.name, field.control) as value (value)}<option {value}></option>{/each}
-							</datalist>
-						{/if}
 					</dd>
 				</div>
 			{/each}
 
+			<!-- Chosen from ＋ parameter… and not yet given a value. Real in the pane and unknown to
+			     the document until there is something to record: `filename=''` parses and then fails
+			     when the pipeline is built. -->
 			{#if pending}
 				{@const field = fieldOf(pending)}
 				<div class="arg pending">
-					<dt>
-						<span class="k truncate">{pending}</span>
-					</dt>
+					<dt><span class="k truncate">{pending}</span></dt>
 					<dd>
-						<!-- svelte-ignore a11y_autofocus -->
-						<input
-							type="text"
-							autofocus
-							placeholder={field?.control.kind === 'number' ? 'a number' : 'a value'}
-							spellcheck="false"
-							autocomplete="off"
-							aria-label="Value for {pending}"
-							onblur={(event) => commitPending(event.currentTarget.value)}
-							onkeydown={(event) => {
-								if (event.key === 'Enter') event.currentTarget.blur();
-								if (event.key === 'Escape') {
-									pending = null;
-								}
-							}}
-						/>
+						{#if field}
+							<ArgumentField
+								{field}
+								value=""
+								suggestions={options(pending, field.control)}
+								placeholder="a value"
+								onCommit={commitPending}
+							/>
+						{/if}
 					</dd>
 					<button type="button" class="drop" aria-label="Cancel" onclick={() => (pending = null)}>×</button>
 				</div>
@@ -596,19 +467,8 @@
 		margin: 0;
 		min-width: 0;
 	}
-	dd input[type='text'],
-	dd input[type='number'],
-	dd select {
-		width: 100%;
-		min-width: 0;
-		font-size: var(--text-xs);
-	}
 	/* Right-aligned so the digits line up down the column, and tabular so they do not shuffle as
 	   the value changes. */
-	dd input[type='number'] {
-		text-align: right;
-		font-variant-numeric: tabular-nums;
-	}
 	/* A path is identified by its end. Truncated from the right, every file in a folder shows the
 	   same `/Users/someone/projects/…` and nothing that tells them apart.
 	   
@@ -616,54 +476,10 @@
 	   so `text-align: right` reveals the end; a span's ellipsis sits at the end of the line whatever
 	   the alignment, so it needs `direction: rtl` to clip from the other side. The path itself still
 	   reads left-to-right, because its characters are strong LTR. */
-	dd input.path {
-		text-align: right;
-	}
 	/* Sized from the type scale rather than to a pixel: a `?` small enough to look right at 9px is
 	   also small enough to miss with a trackpad. */
-	.help {
-		flex: none;
-		display: grid;
-		place-items: center;
-		width: 1.15em;
-		height: 1.15em;
-		padding: 0;
-		border: 1px solid var(--ink-2);
-		border-radius: 50%;
-		background: none;
-		color: var(--ink-2);
-		font-size: var(--text-xs);
-		line-height: 1;
-		opacity: 0.7;
-	}
-	.help.open,
-	.help:hover {
-		opacity: 1;
-		border-color: var(--accent);
-		background: var(--accent);
-		color: var(--accent-ink);
-	}
 	/* Overlays the rows below rather than displacing them: help that reflows what you were reading
 	   moves the target while you aim at it, and worst on the long chains this design is for. */
-	.chips {
-		grid-column: 1 / -1;
-		display: flex;
-		flex-wrap: wrap;
-		gap: var(--space-1);
-	}
-	.chip {
-		padding: 0 var(--space-2);
-		font-size: var(--text-xs);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		background: var(--chrome);
-		color: var(--ink-2);
-	}
-	.chip.on {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: var(--accent-ink);
-	}
 	/* Marked as not-yet-real: it is in the pane and not in the document until it has a value. */
 	.arg.pending {
 		background: color-mix(in srgb, var(--accent) 7%, transparent);
