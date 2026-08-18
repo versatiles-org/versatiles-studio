@@ -67,7 +67,9 @@ written from scratch rather than imported from `@versatiles/svelte` ([Q18](decis
   ([Q21](decisions.md)). The core owns the lists; the platform layer decides where they live
 - _VPL document model_ — a lossless syntax tree over the pipeline text, keeping spans, comments and
   parameter order, so the node graph (C1) and inline errors (C4) address the real file
-  ([Q11](decisions.md))
+  ([Q11](decisions.md)). A project holds **several named graphs**, each one document producing one
+  named tile source ([Q32](decisions.md)); undo spans all of them, because ⌘Z should undo the last
+  edit rather than the last edit _here_ (G6)
 - _Job runner_ — long operations with progress, cancellation and logging (E7); must exist before any
   export feature, not after
 - _Analysis services_ — probe-derived statistics, cached in memory per container
@@ -75,8 +77,9 @@ written from scratch rather than imported from `@versatiles/svelte` ([Q18](decis
 - _Asset manager_ — download, pin, verify and remove font families and sprite sets (G7), and
   generate glyph sets from the user's own fonts (D9)
 - _Server manager_ — lifecycle of the **single** embedded server. `add_tile_source` and
-  `remove_tile_source` work on a running server, so each project and each previewed pipeline node
-  is a named **mount**, not a server of its own ([Q16](decisions.md))
+  `remove_tile_source` work on a running server, so **each graph is a named mount**, not a server of
+  its own ([Q16](decisions.md)). Every graph is served so the style can name it; one node may be
+  _pinned_ on top of that for preview ([Q32](decisions.md))
 
 The core is a plain Rust library with no Tauri types, so it can be driven by ordinary Rust tests;
 `#[tauri::command]` functions are a thin binding over it. `versatiles_node` proves the shape — the
@@ -97,7 +100,7 @@ versatiles-studio/
 │   └── studio-core/
 │       └── src/
 │           ├── project/        project.yaml, load/save, Save As, zip     (G1, Q6)
-│           ├── vpl/            document model over the syntax tree       (Q11)
+│           ├── vpl/            document model; several named graphs      (Q11, Q32)
 │           ├── jobs/           runner, progress, cancellation, log       (E7)
 │           ├── analysis/       probe stats, in-memory per container      (Q4)
 │           ├── assets/         install, pin, verify; glyph generation    (G7, D9)

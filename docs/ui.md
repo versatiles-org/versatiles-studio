@@ -75,11 +75,17 @@ it belongs to. Reordering them by hand is deferred until there are enough to be 
 style from Style. "Export" named a shared destination that turned out not to be one — which is how
 D8 came to have no home at all under [Q22](decisions.md).
 
-| Pane         | Contains                                                                                                                                                                                                                      | Arrives |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| **Pipeline** | Graph / VPL tabs ([Q15](decisions.md)), C1 and C4. The `from_*` read nodes at its head **are** the sources — "+ Add source" adds one ([Q14](decisions.md)). Exports tiles (F2), and the CLI command that reproduces them (C7) | S2      |
-| **Style**    | Layer tree (D3), presets (D1). Exports `style.json` and `@versatiles/style` code (D8)                                                                                                                                         | S4      |
-| **Serve**    | Local server, LAN URL and QR code (F1) — the one publish surface that belongs to neither document                                                                                                                             | S5      |
+| Pane          | Contains                                                                                                                                                                         | Arrives |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| **Pipeline**  | A list of graphs, then the selected graph's chain with Graph / VPL tabs ([Q15](decisions.md)), C1 and C4. Each graph saves, renames and exports on its own ([Q32](decisions.md)) | S2      |
+| **Style**     | Layer tree (D3), presets (D1), over every mounted graph as a named source. Exports `style.json` and `@versatiles/style` code (D8)                                                | S4      |
+| **Serve**     | Local server, LAN URL and QR code (F1) — the one publish surface belonging to neither document                                                                                   | S5      |
+| **Produces**  | What the pinned graph turns out to be: format, zoom, layers, property keys                                                                                                       | S3      |
+| **Inspector** | An opened container's own metadata and TileJSON (A6), and bookmarks (A7)                                                                                                         | S1      |
+
+There is **no Parameters pane**: the selected node carries its own arguments in the chain ([Q32](decisions.md)).
+
+**A graph is a named VPL document producing one named tile source** — the name is the server mount, the source name in `style.json` and the `.vpl` filename at once. Every graph is served; **one node, in one graph, may be pinned** to override the map, which is the debugging view C3 describes.
 
 **Double-clicking a file opens it.** Studio owns `.versatiles`, `.mbtiles`, `.pmtiles` and `.vpl`,
 declared as exported UTIs so the types belong to it rather than being borrowed. macOS delivers the
@@ -237,35 +243,47 @@ views over one syntax tree.
 ### S4 and S5 — Style joins the chain
 
 Nothing moves. More panes appear below the ones already there, and the asset manager joins the mode
-bar. Export is not among them: it belongs to the pane whose output it writes ([Q31](decisions.md)).
+bar. Export is not among them: it belongs to the pane whose output it writes ([Q31](decisions.md)),
+and to the graph that produced it ([Q32](decisions.md)).
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │ Map │ Assets                                              │
 ├───────────────────┬──────────────────────┬────────────────┤
-│ ▸ PIPELINE   (F2) │        MAP           │ PAINT          │
-│ ▾ STYLE      (D3) │   live style         │ colour, width, │
-│   ▸ background    │     feedback         │ opacity, zoom  │
-│   ▸ water         │                      │ stops,         │
-│   ▸ roads         │  ┌ ─ ─ ─ ┐           │ expressions    │
-│   ▸ labels        │  │ bbox  │      (F2) │                │
-│   [Export style]  │  └ ─ ─ ─ ┘           │                │
+│ ▾ PIPELINE        │        MAP           │ PRODUCES       │
+│   ◉ basemap    •  │   live style over    │ mvt · z0–14    │
+│   ◌ hillshade     │   every mounted      │ 2 layers       │
+│   ◌ places        │   graph              │                │
+│   ＋ new graph…    │                      │ ▸ INSPECTOR    │
+│  ─────────────    │  ┌ ─ ─ ─ ┐           │                │
+│   Graph │ VPL     │  │ pinned│      (C3) │                │
+│   from_geo  ⌄.geo │  └ ─ ─ ─ ┘           │                │
+│   ◉ vector_filter │                      │                │
+│     filter  ? …   │                      │                │
+│     ＋ parameter…  │                      │                │
+│   ╰ ＋ operation…  │                      │                │
+│   [Save][Export]  │                      │                │
+│ ▾ STYLE      (D3) │                      │                │
+│   ▸ water · roads │                      │                │
+│   [Export style]  │                      │                │
 │ ▾ SERVE      (F1) │                      │                │
-│   localhost:8080  │                      │                │
-│   LAN URL · QR    │                      │                │
 ├───────────────────┴──────────────────────┴────────────────┤
-│ Jobs (1) ▸        Writing berlin.versatiles — 47%   Cancel │
+│ Jobs (1) ▸        Writing basemap.versatiles — 47%  Cancel │
 └───────────────────────────────────────────────────────────┘
 ```
+
+The full drawing, including the export modal, is the
+[wireframe](https://claude.ai/code/artifact/69159dd5-bfb3-4619-bbee-eb5a5c15497a).
 
 Export keeps the map as an **input device**: F2's crop is a rectangle dragged on it, not a coordinate
 form. That is a map tool, not a mode — the same way a selection tool would be.
 
 ## Import has no surface of its own
 
-A card opens the native file dialog, inserts a node into the pipeline and selects it. The generated
-form (C2) is the configuration UI, the live preview (C3) is the preview, inline errors (C4) are the
-validation. E1's "map columns, layer name, zoom range, simplification, with a preview" is a filled-in
+A card opens the native file dialog, **creates a graph** and selects it. The generated form is the
+node itself (C2), the live preview (C3) is the preview, inline errors (C4) are the validation. Under
+[Q32](decisions.md) "+ Add source" finally means what it says: before, it replaced the whole
+pipeline. E1's "map columns, layer name, zoom range, simplification, with a preview" is a filled-in
 form beside a live map, not a dialog sequence — a bespoke flow would be a second place where
 pipelines are authored.
 

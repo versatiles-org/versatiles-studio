@@ -27,22 +27,20 @@ The five-region grid from [UI Concept](ui.md). All Studio-specific. How they are
 tokens, the rules and what is enforced — is in [Styling](styling.md). A component that adds a map
 layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not follow the theme.
 
-| Component          | Does                                                                                                                               | Stage |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `AppShell`         | The grid: mode bar, two sidebars, map, status and job bar                                                                          | S0.1  |
-| `ModeBar`          | **Map** vs non-map tools — assets (G7), which is where generated glyphs (D9) and sprites (D10) live ([Q22](decisions.md))          | S4.1  |
-| `Sidebar` + `Pane` | A sidebar renders a **list** of panes; each is foldable and its state is core-owned ([Q31](decisions.md))                          | S2.2  |
-| `VplEditor`        | Textarea over a highlighted `<pre>`; the tokens come from the parser ([Q25](decisions.md))                                         | S2.3  |
-| `PaneResizer`      | The draggable edge of a side pane, used on both                                                                                    | S2.2  |
-| `PipelineGraph`    | The pipeline as a vertical tree; selection is shared with the text ([Q15](decisions.md))                                           | S2.5  |
-| `MapControls`      | Background picker, grid toggle and Reset view, over the map                                                                        | S1.6  |
-| `VplNodeCard`      | One node as a generated form: controls, bounds and help from `field_meta` (C2)                                                     | S2.6  |
-| `PipelinePane`     | The Pipeline pane's contents: Graph / VPL tabs, add-source, save. Knows nothing about which sidebar it is in ([Q31](decisions.md)) | S2.2  |
-| `StatusBar`        | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))                                 | S1.9  |
-| `JobsPanel`        | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                                             | S3.1  |
-| `LandingScreen`    | What an empty window shows                                                                                                         | S1.1  |
-| `PipelineOutput`   | What the pipeline produces: format, zoom, layers and their property keys (Q22)                                                     | S3.3  |
-| `ImportCards`      | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)                                   | S3.2  |
+| Component          | Does                                                                                                                      | Stage |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `AppShell`         | The grid: mode bar, two sidebars, map, status and job bar                                                                 | S0.1  |
+| `ModeBar`          | **Map** vs non-map tools — assets (G7), which is where generated glyphs (D9) and sprites (D10) live ([Q22](decisions.md)) | S4.1  |
+| `Sidebar` + `Pane` | A sidebar renders a **list** of panes; each is foldable and its state is core-owned ([Q31](decisions.md))                 | S2.2  |
+| `VplEditor`        | Textarea over a highlighted `<pre>`; the tokens come from the parser ([Q25](decisions.md))                                | S2.3  |
+| `PaneResizer`      | The draggable edge of a side pane, used on both                                                                           | S2.2  |
+| `PipelineGraph`    | The pipeline as a vertical tree; selection is shared with the text ([Q15](decisions.md))                                  | S2.5  |
+| `MapControls`      | Background picker, grid toggle and Reset view, over the map                                                               | S1.6  |
+| `StatusBar`        | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))                        | S1.9  |
+| `JobsPanel`        | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                                    | S3.1  |
+| `LandingScreen`    | What an empty window shows                                                                                                | S1.1  |
+| `PipelineOutput`   | What the pipeline produces: format, zoom, layers and their property keys (Q22)                                            | S3.3  |
+| `ImportCards`      | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)                          | S3.2  |
 
 ## Map
 
@@ -58,15 +56,20 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 
 ## Left pane — the chain
 
-| Component      | Does                                                               | Stage |
-| -------------- | ------------------------------------------------------------------ | ----- |
-| `PipelinePane` | Graph / VPL tabs, selection synced between them, error badge (Q15) | S2.5  |
-| `NodeGraph`    | The chain of nodes; vertical, because pipelines are mostly linear  | S2.5  |
-| `NodeCard`     | One operation: name, ports, selected and error states              | S2.5  |
-| `VplEditor`    | Text over the syntax tree, with a marker gutter (C4)               | S2.3  |
-| `LayerTree`    | Style layers with visibility and selection (D3)                    | S4.5  |
+| Component      | Does                                                                                                            | Stage |
+| -------------- | --------------------------------------------------------------------------------------------------------------- | ----- |
+| `PipelinePane` | Graph list, then the selected graph's chain, tabs and its own save/rename/export ([Q32](decisions.md))          | S2.2  |
+| `GraphList`    | The project's graphs: pin, name, unsaved dot, inline rename                                                     | S2.2  |
+| `NodeCard`     | One node in the chain. Name only unless selected; then arguments, `?` docs, `×`, and the rail's `＋ operation…` | S2.6  |
+| `ExportDialog` | Format, zoom range, numeric bounds and the estimate — modal, per graph (F2, C6)                                 | S3.6  |
+| `VplEditor`    | Text over the syntax tree, with a marker gutter (C4)                                                            | S2.3  |
+| `LayerTree`    | Style layers with visibility and selection (D3)                                                                 | S4.5  |
 
-## Right pane — parameters
+## Right pane — what it turns out to be
+
+**The parameter form moved into the node** ([Q32](decisions.md)), so this pane is no longer where
+you set things — it is where you read what the pipeline turned out to be. The generated-form
+components below now live inside `NodeCard`; they did not change, only where they are rendered.
 
 **`ParamForm` is the component that carries the architecture.** C2 generates forms from
 `field_meta` rather than hand-writing one per operation, so this single component covers all ~30 VPL

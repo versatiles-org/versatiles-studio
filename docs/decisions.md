@@ -16,6 +16,87 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q32 — A project holds several named graphs, and the selected node is the form
+
+**Dated 2026-08-18.** Drawn before it was written:
+[wireframe](https://claude.ai/code/artifact/69159dd5-bfb3-4619-bbee-eb5a5c15497a). Supersedes
+[Q25](decisions.md)'s "one pipeline document per window" and amends
+[Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits).
+
+**Q25 answered a different question than the one that matters.** It did consider several sources and
+said they return "as a composite node with two read nodes under it" — `from_stacked [ a, b ]`. But
+that merges inputs into **one** tile source. A map style needs the opposite: MapLibre's `sources` is a
+map of _independently addressable_ sources, and a real style is vector tiles **plus** hillshade
+**plus** terrain, each with its own layers. That cannot be expressed as one merged source, because the
+style has to name them separately. So [D3](features.md) and the whole of S4 need something S2 has no
+way to produce. `from_stacked` stays — merging is a real operation — it just answers a different
+question.
+
+It also fixes something quietly wrong: **"+ Add source" replaces the entire pipeline.** The label has
+never matched the behaviour. With graphs it means what it says.
+
+**A graph is a named VPL document producing one named tile source.** The name is the identity in
+three places at once — the server mount, the source name in `style.json`, and the `.vpl` filename —
+which is what makes [Q6](decisions.md)'s project directory read properly: `project.yaml` beside
+_several_ `.vpl` files and one `style.json`, rather than a single `pipeline.vpl`.
+
+**Renaming rewrites style references.** The alternative is forbidding a rename once the style points
+at a graph, which is worse: the moment you most want to rename something is after you have used it.
+It must be one operation that either completes or does not — a half-applied rename leaves a style
+pointing at a source that no longer exists.
+
+**Serving and previewing come apart.** They were the same thing only because there was one document:
+
+- **Serving** — every graph is mounted, always. That is what the style draws.
+- **Previewing** — one node, in one graph, _pinned_ to override the map. A debugging view.
+
+Exactly one pin exists across the project; clicking another moves it, clicking the pinned one clears
+it. The infrastructure was already there — [Q16](decisions.md) built named mounts precisely so that
+"each project and each previewed pipeline node is a named mount, not a server of its own".
+
+**Layout: a list of graphs above the selected graph's chain, in one pane.** A pane per graph makes the
+pane catalogue dynamic and turns four graphs into four folded boxes; tabs per graph collide with
+[Q15](decisions.md)'s Graph/VPL tabs, and two tab rows stacked is a bad row to be in. Master–detail
+keeps one pane, keeps Q15 intact, and gives per-graph state — the dirty dot, the pin, the name — a
+natural home. Renaming happens in that list, because the list is where graphs live.
+
+**The selected node is the form.** It shows one row per argument — value editable, required marked,
+`×` removing it, `＋ parameter…` offering what the operation accepts but has not set. Every other node
+is only its name.
+
+- **The head node is the exception** and keeps its filename. A graph named `basemap` reading
+  `osm.versatiles` is a different thing from one reading `berlin.mbtiles`, and that is worth a line.
+  No other node earns one.
+- **The head node has no `×`.** A chain must start with a `from_*` node, so the rule is expressed by
+  the missing control rather than by an error afterwards.
+- **`＋ operation…` sits on the rail, outside the node's border**, while `＋ parameter…` sits inside
+  it. Inside acts on the node, outside acts on the chain — the difference is structural, so the two
+  never have to be told apart by weight or colour, and the insertion point is drawn where an insertion
+  goes. Only the selected node's rail carries it.
+- **Documentation is behind a `?`** on each argument, and on hover for a mouse. It overlays the rows
+  below rather than displacing them: help that reflows what you were reading moves the target while
+  you aim at it, and it would be worst on the long chains the collapse exists to make workable.
+
+**Export is a modal, per graph, and its bounding box is four number fields.** A form and a job rather
+than a button, so it does not compete with the chain for height — and numeric bounds are what make a
+modal legitimate, since nothing in it needs the map underneath. The estimate sits where the run is
+committed ([C6](features.md)) and states the refusal threshold in the same breath, so
+[S3.6](scope-release-1.md)'s guard is visible before it fires rather than after.
+
+**No "export everything" yet.** That is closer to [G1](features.md): once `project.yaml` sits beside
+real files, exporting everything is mostly "save the project, and render the tiles". Its shape depends
+on a decision that lands at S5.1.
+
+**What this costs, stated plainly.** The core's single `pipeline: Mutex<Option<Document>>` becomes a
+set; the preview mount becomes one mount per graph plus a pin; `set_pipeline` and `pipeline` grow a
+graph argument; and the history stack stays **global** rather than per graph, because
+[G6](features.md) wants ⌘Z to undo the last thing you did, not the last thing you did _here_. It is
+stage-sized work, not a step.
+
+**Deferred deliberately:** reordering nodes within a chain, and adding a source _into_ a
+`from_stacked` block — the graph still cannot build a composite pipeline, which is now the largest
+remaining gap in the pane.
+
 ### Q31 — Panes are a list, and each one owns what it emits
 
 **Dated 2026-08-18.** Two questions S3.6 could not answer without settling: where a "write tiles"
@@ -70,6 +151,23 @@ does not pay for itself yet: a rearrangeable interface **converts a design quest
 problem**, and the default arrangement still has to be right, because most people never move a panel.
 Photoshop is the example in both directions. Revisit when the analysis panes land and there is
 something worth rearranging.
+
+**Amended 2026-08-18 by [Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form),
+on the axis and on one pane.**
+
+_The Parameters pane is removed._ Once the selected node carries its own arguments, a right-hand
+Parameters pane shows what the graph already shows.
+
+_And the axis moves with it._ This decision called it **document versus selection** — left is what you
+are building, right is the selected thing, both what it is and what you can set on it. Moving the
+parameters into the graph moves the "what you can set" half leftward, so the axis is now closer to
+**what you are building** versus **what it turns out to be**.
+
+That is nearly the interaction/information split rejected above, and the honest record is that the
+instinct behind it was closer than the rebuttal. What kept it from being right then is weaker now but
+not gone: [A6](features.md) still _edits_ TileJSON on the right and B3 still has a repair button. Both
+are edits to a _result_ rather than to the document, so the axis holds — but it holds as a refinement,
+not as something this decision meant all along.
 
 ### Q30 — A CSV import reads the header and fills in what it can
 
@@ -228,8 +326,11 @@ as both a file format and an IPC type.
 
 **Dated 2026-08-17.** Two things S2.3 had to settle: what the editor edits, and what it is built from.
 
-**One pipeline document per window.** [Q6](decisions.md) already said a project holds a single
-`pipeline.vpl`, and the multi-source layer stack was dropped early on, so the window's pipeline is one
+**One pipeline document per window.** ~~Superseded 2026-08-18 by
+[Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form): a project holds
+several named graphs, each its own source with its own save and export. The composite-node answer
+below solves _merging inputs into one source_, which is a different question from _a style with
+several sources_.~~ [Q6](decisions.md) already said a project holds a single `pipeline.vpl`, and the multi-source layer stack was dropped early on, so the window's pipeline is one
 VPL document and the core owns it — nothing durable in the webview ([Q16](decisions.md)). Opening a
 container sets that document to the matching `from_container` read node. Showing several containers
 at once returns when it can be _written down_: as a composite node with two read nodes under it,
