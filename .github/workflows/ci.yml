@@ -51,10 +51,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       # Tauri needs WebKitGTK to build on Linux, even for `cargo test` of the shell crate.
+      #
+      # `libappindicator3-dev` used to be here and is not needed: it is the Tauri *v1* package — v2
+      # calls it `libayatana-appindicator3-dev` — and it is only wanted for a tray icon, which this
+      # application does not have and does not compile in (`tauri` is taken with no features).
+      #
+      # The same two lines appear in `bundle`. Kept in step with each other by being short enough to
+      # read side by side; a composite action for two packages would cost more than it saves.
       - name: Install Tauri system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev librsvg2-dev patchelf
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -103,7 +111,8 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+          sudo apt-get install -y --no-install-recommends \
+            libwebkit2gtk-4.1-dev librsvg2-dev patchelf
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
