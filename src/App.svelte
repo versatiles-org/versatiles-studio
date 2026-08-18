@@ -221,9 +221,14 @@
 	// The core clamps, so what comes back is authoritative and replaces the optimistic copy.
 	/// Writes text into the current graph, creating one if this is the first thing opened.
 	///
-	/// A shim while the graph list is still to come (S2.13): it keeps every existing call site
-	/// working against the plural API, and is the one place that will need to know about the
-	/// selected graph when there is more than one.
+	/// The single place that decides *which* graph an edit lands in, which is what lets every call
+	/// site stay unaware that there is more than one ([Q32]).
+	///
+	/// **The name it creates with is a placeholder.** `add` sanitises and makes it unique, so
+	/// opening three files in a row yields `graph`, `graph-2`, `graph-3` — and under [Q32] that
+	/// name is the server mount, the `style.json` source and the `.vpl` filename at once, so it is
+	/// the wrong name in three places rather than one. The callers know what they opened; this
+	/// signature does not carry it yet.
 	async function setPipelineText(text: string, kind: EditKind = 'structured') {
 		if (currentGraph === null) {
 			const created = await addGraph('graph', text);
