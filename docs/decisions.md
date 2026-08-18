@@ -16,6 +16,42 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q34 — Studio carries a pinned `proj-sys` fork until the `libsqlite3-sys` conflict resolves upstream
+
+**Dated 2026-08-17.** Split out of [Q19](#q19--gdal-is-statically-bundled-with-a-deliberately-narrow-driver-set)
+on 2026-08-18: bundling GDAL and carrying a patched dependency are two decisions with two different
+exit conditions, and only one of them ever ends.
+
+S0.11 measured GDAL in a scratch project, where it linked cleanly. Inside Studio's real dependency
+graph the two halves do not resolve at all:
+
+| Chain                                                                                | Wants           |
+| ------------------------------------------------------------------------------------ | --------------- |
+| `gdal-src` 0.3 → `proj-sys` 0.27 → `libsqlite3-sys`                                  | `>=0.28, <0.36` |
+| `versatiles_container` 4.8 → `r2d2_sqlite` 0.35 → `rusqlite` 0.40 → `libsqlite3-sys` | `^0.38`         |
+
+`libsqlite3-sys` declares `links = "sqlite3"`, so cargo permits exactly one copy in the graph, and
+the two ranges are disjoint. The dependency is **not optional** in either chain — `proj-sys` requires
+it unconditionally, and `r2d2_sqlite` is a plain dependency of `versatiles_container` with no feature
+gating it — so no combination of features resolves this. It is not a version we can pick.
+
+**The fix is upstream, in one of two places**, and both were asked for:
+[versatiles-rs#226](https://github.com/versatiles-org/versatiles-rs/issues/226) to loosen the
+`r2d2_sqlite` requirement, and [georust/proj#261](https://github.com/georust/proj/pull/261) to widen
+the ceiling to any 0.x. The second is a one-line change, because `proj-sys` has no API surface on the
+crate at all — an `extern crate` for linkage plus two build-script keys, emitted unchanged by
+`libsqlite3-sys` 0.35 through 0.38.
+
+**Studio carries that patch in the meantime**, pinned to a commit rather than a branch so a rebase
+cannot silently change what it builds. `[patch.crates-io]` in the workspace manifest, with the exit
+condition written beside it: **remove it as soon as either lands and reaches a release.** It is the
+only thing in the tree depending on a repository we control rather than a published crate, which is
+why it is worth being uncomfortable about.
+
+**What it buys:** with the patch the graph resolves on `libsqlite3-sys` 0.38.2 and everything
+[Q19](#q19--gdal-is-statically-bundled-with-a-deliberately-narrow-driver-set) promised holds — which
+is why that decision needed no revisiting, only this one adding.
+
 ### Q33 — The node form explains itself without symbols to learn
 
 **Dated 2026-08-18.** Two things [Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)
@@ -317,6 +353,9 @@ GeoJSON, a shapefile, a CSV — is matched to its card, turned into a read node,
 run, and produces tiles. Each of those steps can be right alone and wrong together; a card claiming
 `.shp` while `from_geo` cannot open one would pass every other test.
 
+_Exercised at S3.5: the raster card had been written while GDAL would not link, and appeared with no
+UI change the moment it did ([Q19](#q19--gdal-is-statically-bundled-with-a-deliberately-narrow-driver-set))._
+
 ### Q27 — The job runner has two lanes, and the preview runs in one of them
 
 **Dated 2026-08-17.** [S3.1](scope-release-1.md) asked for "the queue". There are two, because a
@@ -531,8 +570,9 @@ map at all — the asset manager (G7) today, glyph generation (D9) and whatever 
 └───────────────────┴──────────────────────┴────────────────┘
 ```
 
-_The Export section shown here was later dissolved; each pane exports what it produces
-([Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits))._
+_Drawn as decided. Two things moved since: the Export section dissolved into the panes that produce
+its output ([Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits)), and the parameters moved
+out of the right pane into the node ([Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form))._
 
 **Why.** The four modes asserted a separation the work does not have. Tighten a filter, look at how
 it renders, adjust a colour, notice a missing layer, go back to the filter — every one of those was a
@@ -576,11 +616,9 @@ glyphs (D9) and generating sprite sheets (D10) are both features _of_ the asset 
 modes beside it.
 
 **The right pane shows parameters _and_ resulting metadata.** ~~Superseded 2026-08-18 by
-[Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form), which moved the
-parameters into the node: the pane keeps only "what you got".~~ For a read node that meant its VPL
-fields together with what the container turned out to hold — format, real zoom range, TileJSON. This
-is where A6 lives in the merged surface; splitting it from the thing a user opened a container to see
-would have left A6 with no home at all, which is why that half survived the move.
+[Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)~~, which moved
+the parameters into the node. The half that survived is A6: the merged surface has to put a
+container's own metadata somewhere, and this is where.
 
 **Two invariants become free rather than enforced.** "One `Map` across all modes" and "the viewport
 survives a mode switch" stop being rules when there are no mode switches to survive.
@@ -681,9 +719,10 @@ libproj. PROJ still probes the filesystem first and falls back to the embedded c
   ~6 minutes.
 - **Size.** The embedded `proj.db` alone is several MB, before GDAL. For scale, [Q9](#q9--fonts-and-sprites-are-fetched-per-family-and-never-unpacked)
   sized the whole bundled asset tier at ~2 MB — GDAL will dwarf the rest of the installer.
-- **GEOS is LGPL 2.1.** Static linking obliges us to let recipients relink against a modified GEOS.
-  Studio is MIT and open-source so this is satisfiable, but it is a real compliance step — ship
-  object files, or source plus build instructions — not a formality. Do it deliberately.
+- **GEOS is LGPL 2.1**, and static linking would oblige us to let recipients relink against a
+  modified GEOS — satisfiable for an MIT project, but a real compliance step rather than a
+  formality. ~~Accepted.~~ It never applied: raster reading never calls GEOS, so the feature stays
+  off and GEOS is never linked (see the findings below).
 - **The fork.** versatiles-rs pins a git fork of georust/gdal for GDAL 3.13 pending PR #714. Studio
   carries the same pin until it lands.
 
@@ -715,31 +754,10 @@ So GDAL costs ~18 MB. That dwarfs the 1.9 MB asset tier as predicted, but an ins
 amendment below.
 
 **Amended 2026-08-17 (S3.5): it links, but only over a dependency conflict the spike could not have
-seen.** S0.11 measured GDAL in a scratch project. Inside Studio's actual dependency graph the two
-halves do not resolve at all:
-
-| Chain                                                                                | Wants           |
-| ------------------------------------------------------------------------------------ | --------------- |
-| `gdal-src` 0.3 → `proj-sys` 0.27 → `libsqlite3-sys`                                  | `>=0.28, <0.36` |
-| `versatiles_container` 4.8 → `r2d2_sqlite` 0.35 → `rusqlite` 0.40 → `libsqlite3-sys` | `^0.38`         |
-
-`libsqlite3-sys` declares `links = "sqlite3"`, so cargo permits exactly one copy in the graph, and
-the two ranges are disjoint. The dependency is **not optional** in either chain — `proj-sys` requires
-it unconditionally, and `r2d2_sqlite` is a plain dependency of `versatiles_container` with no feature
-gating it — so no combination of features resolves this. It is not a version we can pick.
-
-**The fix is upstream, in one of two places**, and both were asked for:
-[versatiles-rs#226](https://github.com/versatiles-org/versatiles-rs/issues/226) to loosen the
-`r2d2_sqlite` requirement, and [georust/proj#261](https://github.com/georust/proj/pull/261) to widen
-the ceiling to any 0.x. The second is a one-line change, because `proj-sys` has no API surface on the
-crate at all — an `extern crate` for linkage plus two build-script keys, emitted unchanged by
-`libsqlite3-sys` 0.35 through 0.38.
-
-**Studio carries that patch in the meantime**, pinned to a commit rather than a branch so a rebase
-cannot silently change what it builds. `[patch.crates-io]` in the workspace manifest, with the exit
-condition written beside it: **remove it as soon as either lands and reaches a release.** It is the
-only thing in the tree depending on a repository we control rather than a published crate, which is
-why it is worth being uncomfortable about.
+seen** — S0.11 measured GDAL in a scratch project, and inside Studio's real dependency graph the two
+halves do not resolve at all. That is its own decision, with its own exit condition:
+[Q34](#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream).
+What follows here is what linking GDAL proved about **this** decision.
 
 **With the patch, everything the spike promised is true of the application.** Verified rather than
 assumed: the graph resolves with `libsqlite3-sys` 0.38.2, `cargo build --workspace` takes 2m42s,
@@ -748,26 +766,23 @@ assumed: the graph resolves with `libsqlite3-sys` 0.38.2, `cargo build --workspa
 assertion the embedded `proj.db` premise rests on, since a Web Mercator extent means a transform ran
 with no database on disk.
 
-**The raster import card needed no UI change.** It was written while GDAL was still blocked, and the
-catalogue ([Q28](#q28--one-import-catalogue-in-the-core-derived-from-the-operation-registry)) drops any kind whose operation the build lacks — so linking GDAL was
-a `Cargo.toml` change and the card appeared. That is the property Q28 claimed, now exercised for real.
+**The raster import card needed no UI change** — written while GDAL was still blocked, it appeared
+the moment a `Cargo.toml` change made `from_gdal_raster` exist, because the catalogue drops any kind
+whose operation the build lacks ([Q28](#q28--one-import-catalogue-in-the-core-derived-from-the-operation-registry)).
 
-**One thing the doc test could not check, and what replaced it.** `from_gdal_raster` documents itself
-as reading "a GDAL raster dataset" and gives one example filename, so matching the card's extensions
-against its prose rejected `.tiff` — correctly, by its own rule, and uselessly. What can settle the
-question is GDAL's own driver metadata, and the driver set is a decision _this repository_ makes. The
-card and the `gdal-src` feature list are two statements of one choice in two files; a test now asks
-GDAL to keep them one. It bites both ways — dropping `driver_jpeg` for binary size while the card
-still offers `.jpg` fails, as does claiming an extension nothing reads.
+**The card's extensions are checked against GDAL itself, not against prose.** Matching them to
+`from_gdal_raster`'s documentation rejected `.tiff` — correctly by its own rule, and uselessly. The
+card and the `gdal-src` feature list are two statements of one choice, so a test now asks GDAL's
+driver metadata to keep them one. It bites both ways: dropping `driver_jpeg` for binary size while
+the card still offers `.jpg` fails, as does claiming an extension nothing reads.
 
 **`from_gdal_dem` arrived too**, unasked. E4 (S3.8, stretch) is a driver-set decision away rather
 than a dependency away.
 
 **Three findings that change the plan.**
 
-- **GEOS is not needed.** Raster reading never calls it, so the `geos` feature stays off and GEOS is
-  never linked — which **removes the LGPL obligation entirely**. The compliance step described above
-  does not apply unless a future vector path pulls GEOS in.
+- **GEOS is not needed**, which removes the LGPL obligation entirely — unless a future vector path
+  pulls GEOS in.
 - **PROJ's embedded resources work.** A coordinate transform succeeds with `PROJ_DATA` unset and no
   `proj.db` on disk, which is the premise this whole decision rests on. Verified, not assumed.
 - **`gdal-sys` silently prefers a system GDAL.** With Homebrew's GDAL present, pkg-config wins and
@@ -890,22 +905,21 @@ not a wizard.
 
 ### Q14 — Explore and Pipeline stay separate modes — **superseded by [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)**
 
-> Kept for the record. The modes were merged: the separation it defends turned out not to match how
-> the work flows, and the sources-panel reasoning below survives in a different form.
+> Kept for the record, trimmed to what outlived it. The modes were merged — the separation this
+> defended did not match how the work flows — but one argument made here was never overturned and is
+> still load-bearing.
 
 Different activities: Explore is consumption, Pipeline is production. Collapsing them saves a mode at
 the cost of muddying both.
 
-**Consequence for the Sources panel — settled after two revisions.** First reading: shared, meaning a
-view stack in Explore and an input list in Pipeline — rejected, because a panel that changes meaning
-by mode reads as a bug. Second: Pipeline only. Final: **there is no sources pane at all.** Sources
-are the `from_*` read nodes at the head of the pipeline, so the graph already shows them and a
-separate list duplicated them. "+ Add source" adds a read node.
+**What survives: there is no sources pane at all.** Settled here after two revisions — shared across
+modes, then Pipeline-only, then neither — because the `from_*` read nodes at the head of the pipeline
+**are** the sources, so the graph already shows them and a separate list duplicated them. "+ Add
+source" adds a read node. [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)
+had to re-establish this when a first draft reintroduced a Sources section.
 
-Two things follow. Explore keeps no left pane, which is what left A3 homeless and led
-[Q17](#q17--a3-the-multi-source-layer-stack-is-dropped) to drop it. And the layout settles into **left is structure, right is
-parameters** — Pipeline's graph and Style's layer tree occupy the same pane, and Explore and Publish
-have no structure to navigate, so the map runs wide.
+Also from here: Explore keeps no left pane, which left A3 homeless and led
+[Q17](#q17--a3-the-multi-source-layer-stack-is-dropped) to drop it.
 
 ### Q15 — The pipeline pane tabs between graph and text
 

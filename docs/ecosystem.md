@@ -125,17 +125,17 @@ so they need no reminder to remove. **Where a workaround exists only until the f
 fails on that day**: `vpl::operations::the_workaround_is_still_needed` is the one such tripwire
 today, for vt#229. This table is the map, not the reminder.
 
-| Issue                                                                | Asks for                                                   | What Studio does meanwhile                                   |
-| -------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
-| [vt#222](https://github.com/versatiles-org/versatiles-rs/issues/222) | Configurable `cache-control` on `serve`                    | A per-mount revision in the tile URL                         |
-| [vt#223](https://github.com/versatiles-org/versatiles-rs/issues/223) | `tools` in the library, not binary-only                    | B2's byte breakdown is deferred ([Q12](decisions.md))        |
-| [vt#224](https://github.com/versatiles-org/versatiles-rs/issues/224) | Check a pipeline without building it                       | `validate` re-implements the checks it can                   |
-| [vt#225](https://github.com/versatiles-org/versatiles-rs/issues/225) | A name accessor on `SourceType`                            | `analysis::container_name` parses `Display` output           |
-| [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link              | Carries a pinned `proj-sys` fork ([Q19](decisions.md))       |
-| [vt#227](https://github.com/versatiles-org/versatiles-rs/issues/227) | A sanity check before an unbounded traversal               | `export::MAX_TILES` refuses one ([S3.6](scope-release-1.md)) |
-| [vt#228](https://github.com/versatiles-org/versatiles-rs/issues/228) | PMTiles from an overview pipeline                          | Nothing — the failure is reported and readable               |
-| [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) | An operation summary separate from its doc                 | `vpl::summary` splits the first paragraph                    |
-| [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue** | The pinned fork above                                        |
+| Issue                                                                | Asks for                                                   | What Studio does meanwhile                                                                                                                            |
+| -------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [vt#222](https://github.com/versatiles-org/versatiles-rs/issues/222) | Configurable `cache-control` on `serve`                    | A per-mount revision in the tile URL                                                                                                                  |
+| [vt#223](https://github.com/versatiles-org/versatiles-rs/issues/223) | `tools` in the library, not binary-only                    | B2's byte breakdown is deferred ([Q12](decisions.md))                                                                                                 |
+| [vt#224](https://github.com/versatiles-org/versatiles-rs/issues/224) | Check a pipeline without building it                       | `validate` re-implements the checks it can                                                                                                            |
+| [vt#225](https://github.com/versatiles-org/versatiles-rs/issues/225) | A name accessor on `SourceType`                            | `analysis::container_name` parses `Display` output                                                                                                    |
+| [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link              | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
+| [vt#227](https://github.com/versatiles-org/versatiles-rs/issues/227) | A sanity check before an unbounded traversal               | `export::MAX_TILES` refuses one ([S3.6](scope-release-1.md))                                                                                          |
+| [vt#228](https://github.com/versatiles-org/versatiles-rs/issues/228) | PMTiles from an overview pipeline                          | Nothing — the failure is reported and readable                                                                                                        |
+| [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) | An operation summary separate from its doc                 | `vpl::summary` splits the first paragraph                                                                                                             |
+| [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue** | The pinned fork above                                                                                                                                 |
 
 Resolved: [vt#216–#218](https://github.com/versatiles-org/versatiles-rs/issues/216), which became
 the lossless CST in 4.8.0 and let Studio delete 1 021 lines of its own parser.
