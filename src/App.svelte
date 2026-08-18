@@ -431,10 +431,11 @@
 		return result;
 	}
 
-	/// Runs the pipeline up to the selected node and points the map at the result.
+	/// The mount currently drawn on the map, or `null` when nothing is.
 	///
-	/// This is what "instantly see the result" means (M4): the map shows the data as it is at the
-	/// selected step, so tightening a filter changes the tiles rather than a number in a form.
+	/// Kept rather than derived, because taking a layer off again needs the name it went on under
+	/// and the two cases do not share one: a pinned node is built into the fixed `preview` mount,
+	/// while an unpinned graph is mounted under the graph's own name ([Q32]).
 	let previewName = $state<string | null>(null);
 
 	// The map is created by an effect, so it can appear after a pipeline has already been loaded —
@@ -447,6 +448,12 @@
 		});
 	});
 
+	/// Builds what the map should show, and puts it there.
+	///
+	/// This is what "instantly see the result" means (M4): changing the pipeline changes the tiles
+	/// rather than a number in a form. **Which** pipeline is the pin's to say ([Q32]) — a pinned
+	/// node shows the data as it is at that step, and with nothing pinned the map shows the graph's
+	/// output in full.
 	async function refreshPreview() {
 		if (!map || !pipeline) return;
 		// **A document that does not validate is not built.** `＋ operation…` inserts a node with its
