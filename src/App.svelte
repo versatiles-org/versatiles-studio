@@ -7,6 +7,7 @@
 	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
 	import AppShell from './lib/components/shell/AppShell.svelte';
 	import StatusBar, { type Status } from './lib/components/shell/StatusBar.svelte';
+	import Help from './lib/components/common/Help.svelte';
 	import { connectJobs } from './lib/state/jobs.svelte';
 	import Inspector from './lib/components/shell/Inspector.svelte';
 	import LandingScreen from './lib/components/shell/LandingScreen.svelte';
@@ -695,6 +696,10 @@
 		<StatusBar {status} onDismiss={() => (status = { kind: 'idle' })} />
 	{/snippet}
 </AppShell>
+
+<!-- Outside the shell on purpose: the sidebars scroll and clip, and this has to sit over the
+     map beside them ([Q33]). -->
+<Help />
 
 <style>
 	/* The landing screen covers the map region entirely; the map keeps running behind it so that

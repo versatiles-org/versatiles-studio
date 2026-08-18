@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../ipc/commands';
+	import { peek, unpeek, pin, help } from '../state/help.svelte';
 
 	// One node in the chain (S2.13, [Q32]).
 	//
@@ -105,10 +106,46 @@
 		} else onCommit(property.value.span, raw);
 	}
 
-	/// Which argument's documentation is open. One at a time; it overlays rather than pushes, so
-	/// reading about a parameter never moves the chain under the cursor.
-	let helping = $state<string | null>(null);
 	let adding = $state('');
+
+	/// What a parameter *is*, from `field_meta` — type, bounds, whether it is required.
+	///
+	/// Assembled here rather than in the popover, which stays ignorant of VPL: this is the one
+	/// place that knows a `Control` from a `FieldInfo`, and the style editor will want the same
+	/// popover for entirely different content.
+	function summarise(field: FieldInfo): string {
+		const control = field.control;
+		let type: string;
+		switch (control.kind) {
+			case 'number':
+				type = control.integer ? 'whole number' : 'number';
+				if (control.min !== null && control.max !== null) type += ` ${control.min}–${control.max}`;
+				else if (control.min !== null) type += ` from ${control.min}`;
+				else if (control.max !== null) type += ` up to ${control.max}`;
+				break;
+			case 'boolean':
+				type = 'true or false';
+				break;
+			case 'choice':
+				type = `one of ${control.options.join(', ')}`;
+				break;
+			case 'list':
+				type = 'a list, comma separated';
+				break;
+			case 'numbers':
+				type = `${control.count} numbers`;
+				break;
+			default:
+				type = 'text';
+		}
+		return `${type} · ${field.required ? 'required' : 'optional'}`;
+	}
+
+	const contentFor = (key: string, field: FieldInfo) => ({
+		title: key,
+		summary: summarise(field),
+		body: field.doc
+	});
 
 	/// A parameter chosen from `＋ parameter…` that has no value yet.
 	///
@@ -203,15 +240,24 @@
 					<dt>
 						<span class="k truncate">{property.key}</span>
 						{#if field?.required}<span class="req" title="required">*</span>{/if}
-						{#if field?.doc}
+						{#if field}
+							<!-- Hover or focus to peek, click to pin ([Q33]). The trigger is the `?` rather
+							     than the whole row: sweeping down a form would otherwise flash a popover
+							     per argument. -->
 							<button
 								type="button"
 								class="help"
-								class:open={helping === property.key}
-								title={field.doc}
-								aria-expanded={helping === property.key}
+								class:open={help.current?.pinned && help.current.content.title === property.key}
 								aria-label="What is {property.key}?"
-								onclick={() => (helping = helping === property.key ? null : property.key)}
+								onmouseenter={(event) => peek(contentFor(property.key, field), event.currentTarget)}
+								onmouseleave={unpeek}
+								onfocus={(event) => peek(contentFor(property.key, field), event.currentTarget)}
+								onblur={unpeek}
+								onclick={(event) => pin(contentFor(property.key, field), event.currentTarget)}
+								onkeydown={(event) => {
+									// Focus stays here after the popover opens, so Escape is the way back out.
+									if (event.key === 'Escape') unpeek();
+								}}
 							>
 								?
 							</button>
@@ -292,9 +338,6 @@
 						</div>
 					{/if}
 				</div>
-				{#if helping === property.key && field?.doc}
-					<p class="doc"><b>{property.key}</b> — {field.doc}</p>
-				{/if}
 			{/each}
 
 			{#if pending}
@@ -508,24 +551,6 @@
 	}
 	/* Overlays the rows below rather than displacing them: help that reflows what you were reading
 	   moves the target while you aim at it, and worst on the long chains this design is for. */
-	.doc {
-		position: absolute;
-		left: var(--space-3);
-		right: var(--space-3);
-		z-index: 3;
-		margin: 0;
-		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--accent);
-		border-radius: var(--radius);
-		background: var(--surface);
-		box-shadow: var(--shadow);
-		font-size: var(--text-xs);
-		color: var(--ink-2);
-	}
-	.doc b {
-		font-family: var(--font-mono);
-		color: var(--ink);
-	}
 	.chips {
 		grid-column: 1 / -1;
 		display: flex;
