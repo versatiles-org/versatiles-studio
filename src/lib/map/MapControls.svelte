@@ -73,6 +73,7 @@
 		justify-content: flex-end;
 		max-width: calc(100% - var(--space-5));
 	}
+
 	button,
 	select {
 		font-size: var(--text-sm);
@@ -82,14 +83,17 @@
 		border-radius: var(--radius);
 		box-shadow: var(--shadow);
 	}
+
 	button.on {
 		background: var(--accent);
 		border-color: var(--accent);
 		color: var(--accent-ink);
 	}
+
 	button:disabled {
 		opacity: 0.5;
 	}
+
 	.picker {
 		display: block;
 	}

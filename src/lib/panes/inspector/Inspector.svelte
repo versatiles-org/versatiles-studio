@@ -88,50 +88,61 @@
 		flex-direction: column;
 		gap: var(--space-5);
 	}
+
 	.open {
 		padding: var(--space-3);
 	}
+
 	form {
 		display: flex;
 		gap: var(--space-3);
+
+		button {
+			padding: var(--space-2) var(--space-4);
+		}
 	}
+
 	input {
 		flex: 1;
 		min-width: 0;
 		font-family: var(--font-mono);
 	}
-	form button {
-		padding: var(--space-2) var(--space-4);
-	}
+
 	.hint {
 		margin: 0;
 		color: var(--ink-2);
 		line-height: 1.5;
 	}
+
 	section {
 		border-top: 1px solid var(--rule);
 		padding-top: var(--space-4);
 	}
+
 	h2 {
 		margin: 0 0 var(--space-4);
 		font-weight: 600;
 	}
+
 	dl {
 		display: grid;
 		grid-template-columns: auto 1fr;
 		gap: var(--space-2) var(--space-5);
 		margin: 0 0 var(--space-4);
 	}
+
 	dt {
 		color: var(--ink-2);
 	}
+
 	dd {
 		margin: 0;
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
-	}
-	dd.wrap {
-		white-space: normal;
-		word-break: break-word;
+
+		&.wrap {
+			white-space: normal;
+			word-break: break-word;
+		}
 	}
 </style>

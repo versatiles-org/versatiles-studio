@@ -66,21 +66,26 @@
 		height: 100vh;
 		color: var(--ink);
 		background: var(--chrome);
+
+		&.has-right {
+			grid-template-columns: 1fr clamp(180px, var(--right-width), 640px);
+			grid-template-areas: 'map right' 'status status';
+		}
+
+		&.has-left.has-right {
+			grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr clamp(180px, var(--right-width), 640px);
+			grid-template-areas: 'left map right' 'status status status';
+		}
+
+		&.has-left {
+			grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr;
+			grid-template-areas: 'left map' 'status status';
+		}
 	}
-	.shell.has-right {
-		grid-template-columns: 1fr clamp(180px, var(--right-width), 640px);
-		grid-template-areas: 'map right' 'status status';
-	}
+
 	/* `clamp` mirrors the range the core enforces on save (`store::Layout`), which stays the
 	   authority — this only keeps a live drag from overshooting before it is stored. */
-	.shell.has-left {
-		grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr;
-		grid-template-areas: 'left map' 'status status';
-	}
-	.shell.has-left.has-right {
-		grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr clamp(180px, var(--right-width), 640px);
-		grid-template-areas: 'left map right' 'status status status';
-	}
+
 	/* Both panes clip; their content scrolls. Keeping the scroll inside the content means a pane can
 	   hold a sticky header or a footer later without the aside fighting it — and it is one rule
 	   rather than two arrangements that happen to look the same. */
@@ -89,20 +94,24 @@
 		min-width: 0;
 		overflow: hidden;
 	}
+
 	.left {
 		grid-area: left;
 		border-right: 1px solid var(--rule);
 	}
+
 	.map {
 		grid-area: map;
 		position: relative;
 		min-width: 0;
 	}
+
 	.right {
 		grid-area: right;
 		border-left: 1px solid var(--rule);
 		background: var(--surface);
 	}
+
 	.status {
 		grid-area: status;
 		border-top: 1px solid var(--rule);

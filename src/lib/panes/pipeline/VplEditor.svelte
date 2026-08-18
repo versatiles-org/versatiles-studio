@@ -139,6 +139,33 @@
 		overflow: auto;
 		/* The <pre> sizes the box; the textarea is laid over it. */
 		color: var(--ink);
+
+		:global(.operation) {
+			color: var(--accent);
+			font-weight: 600;
+		}
+
+		:global(.key) {
+			color: var(--ink);
+		}
+
+		:global(.value) {
+			color: var(--vpl-value);
+		}
+
+		:global(.punctuation) {
+			color: var(--ink-2);
+		}
+
+		:global(.comment) {
+			color: var(--ink-2);
+			font-style: italic;
+		}
+
+		:global(.bad) {
+			text-decoration: var(--error) wavy underline;
+			text-underline-offset: 0.2em;
+		}
 	}
 
 	textarea {
@@ -150,35 +177,16 @@
 		/* Transparent text, visible caret — the <pre> underneath is what you read. */
 		color: transparent;
 		caret-color: var(--ink);
-	}
-	textarea::selection {
-		/* Selecting invisible text still has to look like a selection. */
-		background: color-mix(in srgb, var(--accent) 28%, transparent);
-	}
-	textarea:focus-visible {
-		outline-offset: -2px;
+
+		&::selection {
+			/* Selecting invisible text still has to look like a selection. */
+			background: color-mix(in srgb, var(--accent) 28%, transparent);
+		}
+
+		&:focus-visible {
+			outline-offset: -2px;
+		}
 	}
 
-	pre :global(.operation) {
-		color: var(--accent);
-		font-weight: 600;
-	}
-	pre :global(.key) {
-		color: var(--ink);
-	}
-	pre :global(.value) {
-		color: var(--vpl-value);
-	}
-	pre :global(.punctuation) {
-		color: var(--ink-2);
-	}
-	pre :global(.comment) {
-		color: var(--ink-2);
-		font-style: italic;
-	}
 	/* Marked where it happened, rather than only described above the editor (C4). */
-	pre :global(.bad) {
-		text-decoration: var(--error) wavy underline;
-		text-underline-offset: 0.2em;
-	}
 </style>

@@ -102,23 +102,28 @@
 	 * white pill in the corner. Scoped `:global` because these elements are MapLibre's, not ours.
 	 * The colours are tokens, so this follows the theme like everything else.
 	 */
-	.map :global(.maplibregl-ctrl-attrib) {
-		background: var(--float-bg);
-		color: var(--ink-2);
-	}
-	.map :global(.maplibregl-ctrl-attrib a) {
-		color: var(--ink-2);
-	}
-	.map :global(.maplibregl-ctrl-attrib-button) {
-		background-color: var(--float-bg);
-	}
 
 	.map {
 		width: 100%;
 		height: 100%;
+
+		:global(.maplibregl-ctrl-attrib) {
+			background: var(--float-bg);
+			color: var(--ink-2);
+		}
+
+		:global(.maplibregl-ctrl-attrib a) {
+			color: var(--ink-2);
+		}
+
+		:global(.maplibregl-ctrl-attrib-button) {
+			background-color: var(--float-bg);
+		}
+
+		:global(.maplibregl-canvas-container) {
+			background: var(--map-bg);
+		}
 	}
+
 	/* MapLibre paints its own background; give it a ground so the canvas never flashes white. */
-	.map :global(.maplibregl-canvas-container) {
-		background: var(--map-bg);
-	}
 </style>

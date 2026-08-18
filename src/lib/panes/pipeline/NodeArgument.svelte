@@ -169,11 +169,13 @@
 		gap: var(--space-1) var(--space-2);
 		min-width: 0;
 		padding: var(--space-1) var(--space-3);
+
+		/* Marked as not-yet-real: in the pane and not in the document until it has a value. */
+		&.tentative {
+			background: color-mix(in srgb, var(--accent) 7%, transparent);
+		}
 	}
-	/* Marked as not-yet-real: in the pane and not in the document until it has a value. */
-	.arg.tentative {
-		background: color-mix(in srgb, var(--accent) 7%, transparent);
-	}
+
 	dt {
 		display: flex;
 		align-items: center;
@@ -183,18 +185,22 @@
 		font-size: var(--text-xs);
 		color: var(--ink-2);
 	}
+
 	dd {
 		margin: 0;
 		min-width: 0;
 	}
+
 	.drop {
 		flex: none;
 		color: var(--ink-2);
 		padding: 0 var(--space-1);
+
+		&:hover {
+			color: var(--error);
+		}
 	}
-	.drop:hover {
-		color: var(--error);
-	}
+
 	input[type='text'],
 	input[type='number'],
 	select {
@@ -202,23 +208,27 @@
 		min-width: 0;
 		font-size: var(--text-xs);
 	}
+
 	/* Right-aligned so the digits line up down the column, and tabular so they do not shuffle as the
 	   value changes. */
 	input[type='number'] {
 		text-align: right;
 		font-variant-numeric: tabular-nums;
 	}
+
 	/* A path is identified by its end. Truncated from the right, every file in a folder shows the
 	   same prefix and nothing that tells them apart. */
 	input.path {
 		text-align: right;
 	}
+
 	.chips {
 		grid-column: 1 / -1;
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--space-1);
 	}
+
 	.chip {
 		padding: 0 var(--space-2);
 		font-size: var(--text-xs);
@@ -226,10 +236,11 @@
 		border-radius: var(--radius);
 		background: var(--chrome);
 		color: var(--ink-2);
-	}
-	.chip.on {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: var(--accent-ink);
+
+		&.on {
+			background: var(--accent);
+			border-color: var(--accent);
+			color: var(--accent-ink);
+		}
 	}
 </style>

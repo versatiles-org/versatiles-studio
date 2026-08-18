@@ -91,27 +91,34 @@
 		border-top: 1px solid var(--rule);
 		padding-top: var(--space-4);
 	}
+
 	h2 {
 		margin: 0 0 var(--space-3);
 	}
+
 	form {
 		display: flex;
 		gap: var(--space-3);
+
+		button {
+			padding: var(--space-2) var(--space-4);
+		}
 	}
+
 	input {
 		flex: 1;
 		min-width: 0;
 	}
-	form button {
-		padding: var(--space-2) var(--space-4);
-	}
+
 	ul {
 		margin: var(--space-3) 0 0;
 	}
+
 	li {
 		display: flex;
 		align-items: center;
 	}
+
 	.go {
 		flex: 1;
 		display: flex;
@@ -120,20 +127,24 @@
 		text-align: left;
 		padding: var(--space-2) var(--space-3);
 		border-radius: var(--radius);
+
+		&:hover {
+			background: var(--chrome);
+		}
 	}
-	.go:hover {
-		background: var(--chrome);
-	}
+
 	.meta {
 		color: var(--ink-2);
 		font-size: var(--text-sm);
 		font-family: var(--font-mono);
 		flex: none;
 	}
+
 	.del {
 		color: var(--ink-2);
 		padding: 0 var(--space-2);
 	}
+
 	.err {
 		color: var(--error);
 		margin: var(--space-3) 0 0;

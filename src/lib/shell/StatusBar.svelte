@@ -93,19 +93,23 @@
 		/* Holds its height when empty, so nothing shifts when a message arrives. */
 		min-height: 1.9rem;
 		padding: 0 var(--space-5);
+
+		&.error {
+			background: var(--error-bg);
+
+			.message {
+				color: var(--error);
+			}
+		}
 	}
-	.strip.error {
-		background: var(--error-bg);
-	}
+
 	.message {
 		flex: 1;
 		min-width: 0;
 		font-size: var(--text-sm);
 		color: var(--ink-2);
 	}
-	.strip.error .message {
-		color: var(--error);
-	}
+
 	.progress {
 		flex: none;
 		width: 7rem;
@@ -113,27 +117,32 @@
 		border-radius: var(--radius);
 		background: var(--chrome);
 		overflow: hidden;
+
+		&.indeterminate .bar {
+			width: 40%;
+			animation: sweep 1.1s ease-in-out infinite;
+		}
 	}
+
 	.bar {
 		height: 100%;
 		background: var(--accent);
 		transition: width 120ms linear;
 	}
-	.progress.indeterminate .bar {
-		width: 40%;
-		animation: sweep 1.1s ease-in-out infinite;
-	}
+
 	.action {
 		flex: none;
 		padding: 0 var(--space-3);
 		font-size: var(--text-sm);
 	}
+
 	.jobs {
 		color: var(--ink-2);
-	}
-	.jobs:hover,
-	.jobs[aria-expanded='true'] {
-		color: var(--ink);
+
+		&:hover,
+		&[aria-expanded='true'] {
+			color: var(--ink);
+		}
 	}
 
 	@keyframes sweep {

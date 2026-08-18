@@ -106,18 +106,21 @@
 		z-index: 5;
 		cursor: col-resize;
 		touch-action: none;
-	}
-	.resizer.left {
-		grid-area: left;
-		justify-self: end;
-		margin-right: -2px;
-	}
-	.resizer.right {
-		grid-area: right;
-		justify-self: start;
-		margin-left: -2px;
-	}
-	.resizer:hover {
-		background: var(--accent);
+
+		&.left {
+			grid-area: left;
+			justify-self: end;
+			margin-right: -2px;
+		}
+
+		&.right {
+			grid-area: right;
+			justify-self: start;
+			margin-left: -2px;
+		}
+
+		&:hover {
+			background: var(--accent);
+		}
 	}
 </style>

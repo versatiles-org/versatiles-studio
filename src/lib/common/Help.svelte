@@ -74,17 +74,20 @@
 		font-size: var(--text-sm);
 		line-height: 1.5;
 	}
+
 	.head {
 		display: flex;
 		align-items: baseline;
 		gap: var(--space-3);
 		min-width: 0;
 	}
+
 	.name {
 		font-family: var(--font-mono);
 		font-weight: 600;
 		color: var(--ink);
 	}
+
 	/* The type, the bounds and whether it is required — often the whole answer, and the part the
 	   prose tends to bury. */
 	.summary {
@@ -92,15 +95,18 @@
 		min-width: 0;
 		font-size: var(--text-xs);
 	}
+
 	.close {
 		flex: none;
 		color: var(--ink-2);
 		padding: 0 var(--space-1);
 		line-height: 1;
+
+		&:hover {
+			color: var(--ink);
+		}
 	}
-	.close:hover {
-		color: var(--ink);
-	}
+
 	.body {
 		margin: var(--space-2) 0 0;
 	}

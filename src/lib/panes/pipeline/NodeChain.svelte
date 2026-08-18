@@ -109,26 +109,31 @@
 		flex-direction: column;
 		min-width: 0;
 	}
+
 	.row {
 		min-width: 0;
 		padding-left: calc(var(--depth) * var(--space-4));
 	}
+
 	.rail {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
 		min-height: 0.7rem;
 		padding-left: calc(var(--depth) * var(--space-4) + var(--space-4));
+
+		&.offering {
+			min-height: 1.5rem;
+		}
 	}
-	.rail.offering {
-		min-height: 1.5rem;
-	}
+
 	.stem {
 		width: 1px;
 		align-self: stretch;
 		background: var(--rule);
 		flex: none;
 	}
+
 	/* The elbow is what says "this hangs off the chain" rather than "this is part of the node". */
 	.elbow {
 		width: var(--space-4);
@@ -140,6 +145,7 @@
 		margin-left: -1px;
 		flex: none;
 	}
+
 	.insert select {
 		font-size: var(--text-xs);
 		color: var(--ink-2);

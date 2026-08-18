@@ -85,6 +85,7 @@
 	.name {
 		font-family: var(--font-mono);
 	}
+
 	.landing {
 		height: 100%;
 		display: flex;
@@ -95,17 +96,20 @@
 		padding: var(--space-6);
 		background: var(--chrome);
 	}
+
 	h1 {
 		margin: 0;
 		font-size: var(--text-xl);
 		font-weight: 600;
 	}
+
 	.ways {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-5);
 		width: min(42rem, 100%);
 	}
+
 	.card {
 		display: flex;
 		flex-direction: column;
@@ -115,39 +119,49 @@
 		border: 1px solid var(--rule);
 		border-radius: var(--radius-lg);
 		background: var(--surface);
+
+		strong {
+			font-weight: 600;
+		}
+
+		span {
+			color: var(--ink-2);
+		}
 	}
+
 	form.card {
 		cursor: default;
 	}
-	.card strong {
-		font-weight: 600;
-	}
-	.card span {
-		color: var(--ink-2);
-	}
+
 	.row {
 		display: flex;
 		gap: var(--space-3);
 		margin-top: var(--space-3);
+
+		input {
+			flex: 1;
+			min-width: 0;
+			font-family: var(--font-mono);
+		}
+
+		button {
+			padding: var(--space-2) var(--space-4);
+		}
 	}
-	.row input {
-		flex: 1;
-		min-width: 0;
-		font-family: var(--font-mono);
-	}
-	.row button {
-		padding: var(--space-2) var(--space-4);
-	}
+
 	.recents {
 		width: min(38rem, 100%);
 	}
+
 	h2 {
 		margin: 0 0 var(--space-3);
 	}
+
 	li {
 		display: flex;
 		align-items: center;
 	}
+
 	.recent {
 		flex: 1;
 		display: flex;
@@ -156,19 +170,23 @@
 		text-align: left;
 		padding: var(--space-3) var(--space-3);
 		border-radius: var(--radius);
+
+		&:hover {
+			background: var(--surface);
+		}
 	}
-	.recent:hover {
-		background: var(--surface);
-	}
+
 	.meta {
 		color: var(--ink-2);
 		font-size: var(--text-sm);
 		flex: none;
 	}
+
 	.forget {
 		color: var(--ink-2);
 		padding: 0 var(--space-3);
 	}
+
 	.drop {
 		margin: 0;
 		color: var(--ink-2);

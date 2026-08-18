@@ -299,6 +299,7 @@
 		overscroll-behavior: contain;
 		background: var(--surface);
 	}
+
 	.tabs {
 		display: flex;
 		align-items: center;
@@ -306,37 +307,45 @@
 		margin: 0 0 var(--space-3);
 		border-bottom: 1px solid var(--rule);
 	}
+
 	.tab {
 		border-bottom: 2px solid transparent;
 		border-radius: 0;
 		padding: var(--space-2) var(--space-3);
 		font-size: var(--text-xs);
 		color: var(--ink-2);
+
+		&.selected {
+			color: var(--ink);
+			border-bottom-color: var(--accent);
+		}
+
+		&:focus-visible {
+			outline-offset: -2px;
+		}
 	}
-	.tab.selected {
-		color: var(--ink);
-		border-bottom-color: var(--accent);
-	}
-	.tab:focus-visible {
-		outline-offset: -2px;
-	}
+
 	.history {
 		margin-left: auto;
 		display: flex;
 		gap: var(--space-1);
 	}
+
 	.step {
 		border-radius: var(--radius);
 		padding: 0 var(--space-2);
 		color: var(--ink-2);
+
+		&:hover:not(:disabled) {
+			background: var(--chrome);
+			color: var(--ink);
+		}
+
+		&:disabled {
+			opacity: 0.35;
+		}
 	}
-	.step:hover:not(:disabled) {
-		background: var(--chrome);
-		color: var(--ink);
-	}
-	.step:disabled {
-		opacity: 0.35;
-	}
+
 	.badge {
 		display: inline-block;
 		margin-left: var(--space-1);
@@ -346,10 +355,12 @@
 		color: var(--accent-ink);
 		font-size: var(--text-xs);
 	}
+
 	.empty {
 		margin: var(--space-3) 0;
 		color: var(--ink-2);
 	}
+
 	.error {
 		margin: var(--space-3) 0;
 		font-size: var(--text-xs);
@@ -357,6 +368,7 @@
 		/* An error can name a long path, and it must break rather than widen the pane. */
 		overflow-wrap: anywhere;
 	}
+
 	.actions {
 		display: flex;
 		align-items: center;
@@ -364,18 +376,22 @@
 		margin-top: var(--space-3);
 		min-width: 0;
 	}
+
 	.files {
 		margin-left: auto;
 		display: flex;
 		gap: var(--space-2);
 	}
+
 	.file {
 		padding: var(--space-1) var(--space-3);
 		font-size: var(--text-xs);
+
+		&:disabled {
+			opacity: 0.45;
+		}
 	}
-	.file:disabled {
-		opacity: 0.45;
-	}
+
 	.dot {
 		color: var(--accent);
 		margin-left: 1px;

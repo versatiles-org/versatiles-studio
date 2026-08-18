@@ -57,11 +57,13 @@
 		bottom: 0.5rem;
 		z-index: 4;
 	}
+
 	input {
 		width: 11rem;
 		font-family: var(--font-mono);
 		background: var(--float-bg);
 	}
+
 	.invalid input {
 		border-color: var(--error);
 		background: var(--error-bg);

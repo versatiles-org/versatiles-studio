@@ -58,34 +58,42 @@
 		font-size: var(--text-sm);
 		font-family: var(--font-mono);
 	}
+
 	summary {
 		/* Not a <button>, so base.css's button cursor does not reach it. */
 		cursor: pointer;
 		line-height: 1.55;
 		list-style-position: outside;
+
+		&:hover {
+			background: var(--chrome);
+		}
 	}
-	summary:hover {
-		background: var(--chrome);
-	}
+
 	ul {
 		padding-left: var(--space-5);
 		border-left: 1px solid var(--rule);
 	}
+
 	li {
 		font-size: var(--text-sm);
 		font-family: var(--font-mono);
 		line-height: 1.55;
 	}
+
 	.key {
 		color: var(--ink-2);
+
+		&::after {
+			content: ':';
+			margin-right: var(--space-3);
+		}
 	}
-	.key::after {
-		content: ':';
-		margin-right: var(--space-3);
-	}
+
 	.count {
 		color: var(--accent);
 	}
+
 	.val {
 		word-break: break-word;
 	}

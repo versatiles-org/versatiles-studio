@@ -109,6 +109,7 @@
 	.lname {
 		font-family: var(--font-mono);
 	}
+
 	.popup {
 		position: absolute;
 		transform: translate(-50%, calc(-100% - 10px));
@@ -123,18 +124,20 @@
 		font-size: var(--text-sm);
 		pointer-events: auto;
 		z-index: 5;
+
+		/* The tail, so it reads as attached to the point rather than floating near it. */
+		&::after {
+			content: '';
+			position: absolute;
+			left: 50%;
+			bottom: -6px;
+			margin-left: -6px;
+			border: 6px solid transparent;
+			border-top-color: var(--rule);
+			border-bottom: 0;
+		}
 	}
-	/* The tail, so it reads as attached to the point rather than floating near it. */
-	.popup::after {
-		content: '';
-		position: absolute;
-		left: 50%;
-		bottom: -6px;
-		margin-left: -6px;
-		border: 6px solid transparent;
-		border-top-color: var(--rule);
-		border-bottom: 0;
-	}
+
 	.close {
 		position: absolute;
 		top: 0.15rem;
@@ -143,24 +146,29 @@
 		line-height: 1;
 		color: var(--ink-2);
 	}
+
 	article + article {
 		border-top: 1px solid var(--rule);
 		margin-top: var(--space-3);
 		padding-top: var(--space-3);
 	}
+
 	h3 {
 		margin: 0 0 var(--space-2);
 		font-weight: 600;
 	}
+
 	.id {
 		color: var(--ink-2);
 		font-weight: 400;
 		font-family: var(--font-mono);
 	}
+
 	.none {
 		margin: 0;
 		color: var(--ink-2);
 	}
+
 	.tile li {
 		display: grid;
 		grid-template-columns: 1fr auto auto;
@@ -168,9 +176,11 @@
 		font-family: var(--font-mono);
 		line-height: 1.5;
 	}
+
 	.bytes {
 		color: var(--accent);
 	}
+
 	.feats {
 		color: var(--ink-2);
 	}

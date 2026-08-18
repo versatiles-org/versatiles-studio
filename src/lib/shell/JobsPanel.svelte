@@ -83,23 +83,32 @@
 		overflow-y: auto;
 		border-bottom: 1px solid var(--rule);
 	}
+
 	.empty {
 		margin: 0;
 		padding: var(--space-3) var(--space-5);
 		font-size: var(--text-sm);
 		color: var(--ink-2);
 	}
+
 	ul {
 		margin: 0;
 		padding: 0;
 		list-style: none;
 	}
+
 	li + li {
 		border-top: 1px solid var(--rule);
 	}
+
 	li.failed {
 		background: var(--error-bg);
+
+		.detail {
+			color: var(--error);
+		}
 	}
+
 	.row {
 		display: flex;
 		align-items: center;
@@ -108,48 +117,55 @@
 		padding: var(--space-2) var(--space-5);
 		font-size: var(--text-sm);
 	}
+
 	.dot {
 		flex: none;
 		width: 0.5rem;
 		height: 0.5rem;
 		border-radius: 50%;
 		background: var(--ink-2);
+
+		&[data-state='running'] {
+			background: var(--accent);
+		}
+
+		&[data-state='failed'] {
+			background: var(--error);
+		}
+
+		&[data-state='queued'] {
+			background: none;
+			box-shadow: inset 0 0 0 1px var(--ink-2);
+		}
 	}
+
 	/* State is carried by shape as much as colour, so it survives a monochrome or colour-blind
 	   reading: running is filled, queued is hollow, an ending is one of three. */
-	.dot[data-state='queued'] {
-		background: none;
-		box-shadow: inset 0 0 0 1px var(--ink-2);
-	}
-	.dot[data-state='running'] {
-		background: var(--accent);
-	}
-	.dot[data-state='failed'] {
-		background: var(--error);
-	}
+
 	.label {
 		flex: none;
 		max-width: 40%;
 		font-weight: 500;
 	}
+
 	.detail {
 		flex: 1;
 		min-width: 0;
 		color: var(--ink-2);
 	}
-	li.failed .detail {
-		color: var(--error);
-	}
+
 	.quiet {
 		flex: none;
 		padding: 0 var(--space-2);
 		font-size: var(--text-sm);
 		color: var(--ink-2);
+
+		&:hover {
+			color: var(--ink);
+			text-decoration: underline;
+		}
 	}
-	.quiet:hover {
-		color: var(--ink);
-		text-decoration: underline;
-	}
+
 	.log {
 		margin: 0;
 		padding: var(--space-3) var(--space-5);

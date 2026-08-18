@@ -185,4 +185,53 @@ describe('design tokens', () => {
 		});
 		expect(offenders, 'add `class="button"` rather than re-declaring the box').toEqual([]);
 	});
+
+	/// Rule 6: a rule that extends another is nested inside it.
+	///
+	/// Flat, everything about one element is spread over rules that can drift apart or be edited in
+	/// isolation. This catches the flat form returning — a top-level selector that another top-level
+	/// selector is a prefix of, which is exactly what `&` exists for.
+	///
+	/// Top level only: a nested rule's `&` prefix means the parser below never sees the compound
+	/// form, and `@media` and multi-selector rules are left alone deliberately.
+	///
+	/// **Components only.** Svelte flattens nesting at build time, so a component's shipped CSS is
+	/// `.chip.svelte-hash.on` and there is no browser-support question. `base.css` ships as written,
+	/// where nesting would be a runtime dependency rather than a source convention — so it stays
+	/// flat, deliberately.
+	it('nest a rule that extends another', () => {
+		const flat: string[] = [];
+		for (const path of styled.filter((p) => p.endsWith('.svelte'))) {
+			const css = withoutComments(styleBlocks(path)).replace(/@[^{]+\{(?:[^{}]|\{[^{}]*\})*\}/g, '');
+			const selectors = [...css.matchAll(/(^|\})\s*([^{}@]+)\{/g)]
+				.map((m) => m[2].trim())
+				.filter((s) => s && !s.startsWith('&') && !s.includes(',') && !s.includes(':global'));
+			for (const sel of selectors) {
+				for (const other of selectors) {
+					if (other === sel || other.includes(' ') || !sel.startsWith(other)) continue;
+					const rest = sel.slice(other.length);
+					if (rest && ':.[ '.includes(rest[0])) flat.push(`${path}: \`${sel}\` extends \`${other}\``);
+				}
+			}
+		}
+		expect([...new Set(flat)], 'nest it with `&` instead — see docs/styling.md rule 6').toEqual([]);
+	});
+
+	/// Rule 6, the other half: `&` means *this same element*.
+	///
+	/// A descendant is a different element, so it is written bare — `.message`, not `& .message`.
+	/// With the redundant `&` gone, the character itself says which of the two a rule is, so this
+	/// catches the form that would blur the distinction again.
+	///
+	/// A combinator keeps its `&` (`& + li`), because it is not a descendant and `+ li` reads as a
+	/// typo — so only a space followed by a plain selector is an offence.
+	it('drop `&` for a descendant', () => {
+		const offenders: string[] = [];
+		for (const path of styled.filter((p) => p.endsWith('.svelte'))) {
+			for (const [, sel] of withoutComments(styleBlocks(path)).matchAll(/^[ \t]*(& [^{}]*)\{/gm)) {
+				if (!/^& [>+~]/.test(sel)) offenders.push(`${path}: \`${sel.trim()}\``);
+			}
+		}
+		expect(offenders, 'write it bare — see docs/styling.md rule 6').toEqual([]);
+	});
 });

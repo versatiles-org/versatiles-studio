@@ -49,12 +49,13 @@
 		font-size: var(--text-xs);
 		line-height: 1;
 		opacity: 0.7;
-	}
-	.help.open,
-	.help:hover {
-		opacity: 1;
-		border-color: var(--accent);
-		background: var(--accent);
-		color: var(--accent-ink);
+
+		&.open,
+		&:hover {
+			opacity: 1;
+			border-color: var(--accent);
+			background: var(--accent);
+			color: var(--accent-ink);
+		}
 	}
 </style>

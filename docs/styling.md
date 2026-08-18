@@ -44,10 +44,46 @@ behind it ended up two different greys.
 **5. Layout stays in the component.** Grid areas, flex direction, `min-width: 0` — these describe one
 surface and belong with it. Only genuinely universal rules go in `base.css`.
 
+**6. A rule that extends another is nested inside it.** `&:hover`, `&.selected`,
+`&[data-state='failed']`, `.child` — never a second top-level rule repeating the parent's selector.
+
+```css
+/* not this */                          /* this */
+.chip { … }                             .chip {
+.chip.on { … }                            …
+.chip:hover { … }                         &.on { … }
+                                          &:hover { … }
+                                        }
+```
+
+Nesting is what keeps everything about one element in one place. Flat, the state of `.chip` was
+spread over three rules that could drift apart or be edited in isolation; a modifier can no longer be
+added to the wrong element without it being visible. **Svelte flattens this at build time** — the
+shipped CSS is `.chip.svelte-hash.on`, so there is no browser-support question, and converting the
+whole codebase left the compiled output byte-identical across all 408 rules.
+
+`&` means _this same element_, so write it only when the rule extends the parent — `&:hover`,
+`&.on`. A descendant is a different element and drops it: `.message`, not `& .message`. That way the
+`&` itself tells you which of the two a rule is, instead of the reader having to spot a space.
+
+A combinator keeps its `&`, because it is not a descendant and the bare form reads as a typo:
+
+```css
+.entry {
+  .detail { … }    /* a descendant of .entry */
+  & + li { … }     /* the li after .entry */
+}
+```
+
+**Not** for multi-selector rules or anything inside `@media` — those are the cases where nesting
+changes meaning rather than shape. And **not in `base.css`**: a component's nesting is resolved by
+the compiler, but `base.css` ships as written, so nesting there would be a runtime dependency on the
+browser rather than a source convention.
+
 These are enforced by `src/lib/styles/tokens.test.ts`, which runs with `npm test`. It fails with the
 file and the offending value named. It checks colour, type size, radius, font stacks, fallbacks, the
-focus ring and map colours — and nothing else, because a rule nobody can justify is a rule people
-route around.
+focus ring, map colours, the button box and nesting — and nothing else, because a rule nobody can
+justify is a rule people route around.
 
 ## The tokens
 

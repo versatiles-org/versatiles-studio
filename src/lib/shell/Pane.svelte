@@ -53,12 +53,18 @@
 <style>
 	.section {
 		border-bottom: 1px solid var(--rule);
+
+		&.open .chevron {
+			transform: rotate(90deg);
+		}
 	}
+
 	h2 {
 		margin: 0;
 		font-size: inherit;
 		font-weight: inherit;
 	}
+
 	button {
 		display: flex;
 		align-items: center;
@@ -67,31 +73,34 @@
 		padding: var(--space-3) var(--space-4);
 		color: var(--ink-2);
 		text-align: left;
+
+		&:hover {
+			background: var(--chrome);
+			color: var(--ink);
+		}
+
+		&:focus-visible {
+			outline-offset: -2px;
+		}
 	}
-	button:hover {
-		background: var(--chrome);
-		color: var(--ink);
-	}
+
 	/* Inset, because the header runs the full width of the pane and a ring outside it would be
 	   clipped. Colour and width come from base.css. */
-	button:focus-visible {
-		outline-offset: -2px;
-	}
+
 	.chevron {
 		display: inline-block;
 		font-size: var(--text-xs);
 		transition: transform 120ms ease;
 		color: var(--ink-2);
 	}
-	.section.open .chevron {
-		transform: rotate(90deg);
-	}
+
 	.count {
 		margin-left: auto;
 		font-size: var(--text-xs);
 		color: var(--ink-2);
 		font-variant-numeric: tabular-nums;
 	}
+
 	.body {
 		padding: var(--space-1) var(--space-4) var(--space-4);
 	}

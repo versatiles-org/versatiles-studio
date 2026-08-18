@@ -109,34 +109,41 @@
 		border-radius: var(--radius);
 		overflow: hidden;
 	}
+
 	li {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
 		min-width: 0;
 		padding: var(--space-1) var(--space-2);
+
+		& + li {
+			border-top: 1px solid var(--rule);
+		}
+
+		&.current {
+			background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+			box-shadow: inset 2px 0 0 var(--accent);
+		}
 	}
-	li + li {
-		border-top: 1px solid var(--rule);
-	}
-	li.current {
-		background: color-mix(in srgb, var(--accent) 12%, var(--surface));
-		box-shadow: inset 2px 0 0 var(--accent);
-	}
+
 	.eye {
 		flex: none;
 		width: 13px;
 		height: 13px;
 		color: var(--ink-2);
+
+		&.on {
+			color: var(--accent);
+		}
+
+		svg {
+			width: 100%;
+			height: 100%;
+			display: block;
+		}
 	}
-	.eye.on {
-		color: var(--accent);
-	}
-	.eye svg {
-		width: 100%;
-		height: 100%;
-		display: block;
-	}
+
 	.name {
 		flex: 1;
 		min-width: 0;
@@ -145,31 +152,37 @@
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
 	}
+
 	.rename {
 		flex: 1;
 		min-width: 0;
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
 	}
+
 	.dirty {
 		flex: none;
 		color: var(--accent);
 		line-height: 1;
 	}
+
 	.edit {
 		flex: none;
 		color: var(--ink-2);
 		padding: 0 var(--space-1);
 		font-size: var(--text-xs);
+
+		&:hover {
+			color: var(--ink);
+		}
 	}
-	.edit:hover {
-		color: var(--ink);
-	}
+
 	.new button {
 		color: var(--ink-2);
 		font-size: var(--text-sm);
 		padding: var(--space-1) 0;
 	}
+
 	.new button:hover {
 		color: var(--ink);
 	}

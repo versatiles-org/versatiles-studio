@@ -64,9 +64,11 @@
 		border-bottom: 1px solid var(--rule);
 		background: var(--surface);
 	}
+
 	h3 {
 		margin: var(--space-4) 0 var(--space-2);
 	}
+
 	.facts {
 		display: grid;
 		/* The label column sizes to its widest label and stops there; the value column takes the
@@ -76,36 +78,44 @@
 		margin: 0;
 		font-size: var(--text-sm);
 	}
+
 	dt {
 		color: var(--ink-2);
 	}
+
 	dd {
 		margin: 0;
 		min-width: 0;
 	}
+
 	.mono {
 		font-family: var(--font-mono);
 		font-size: var(--text-mono-adjust);
 	}
+
 	ul {
 		margin: 0;
 		padding: 0;
 		list-style: none;
 		font-size: var(--text-sm);
 	}
+
 	li {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) auto;
 		gap: 0 var(--space-3);
 		padding: var(--space-1) 0;
 	}
+
 	.name {
 		font-weight: 500;
 	}
+
 	.count {
 		color: var(--ink-2);
 		font-variant-numeric: tabular-nums;
 	}
+
 	.keys {
 		grid-column: 1 / -1;
 		min-width: 0;

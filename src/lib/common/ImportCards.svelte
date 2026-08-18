@@ -44,11 +44,13 @@
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
 		gap: var(--space-5);
+
+		&.compact {
+			grid-template-columns: 1fr;
+			gap: var(--space-2);
+		}
 	}
-	.cards.compact {
-		grid-template-columns: 1fr;
-		gap: var(--space-2);
-	}
+
 	.card {
 		display: flex;
 		flex-direction: column;
@@ -59,27 +61,33 @@
 		border: 1px solid var(--rule);
 		border-radius: var(--radius-lg);
 		background: var(--surface);
+
+		&:hover {
+			border-color: var(--accent);
+		}
+
+		strong {
+			font-weight: 600;
+		}
 	}
+
 	.compact .card {
 		gap: var(--space-1);
 		padding: var(--space-3);
 		border-radius: var(--radius);
 		font-size: var(--text-sm);
 	}
-	.card:hover {
-		border-color: var(--accent);
-	}
-	.card strong {
-		font-weight: 600;
-	}
+
 	.detail {
 		color: var(--ink-2);
 	}
+
 	.needs {
 		color: var(--ink-2);
 		font-size: var(--text-sm);
 		font-style: italic;
 	}
+
 	.compact .needs,
 	.compact .detail {
 		font-size: var(--text-xs);

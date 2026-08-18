@@ -332,11 +332,19 @@
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);
 		background: var(--surface);
+
+		&.selected {
+			border-color: var(--accent);
+			box-shadow: 0 0 0 1px var(--accent);
+
+			.title {
+				background: var(--chrome);
+				border-bottom: 1px solid var(--rule);
+				border-radius: var(--radius) var(--radius) 0 0;
+			}
+		}
 	}
-	.node.selected {
-		border-color: var(--accent);
-		box-shadow: 0 0 0 1px var(--accent);
-	}
+
 	.title {
 		display: flex;
 		align-items: center;
@@ -344,25 +352,24 @@
 		min-width: 0;
 		padding: var(--space-2) var(--space-3);
 	}
-	.node.selected .title {
-		background: var(--chrome);
-		border-bottom: 1px solid var(--rule);
-		border-radius: var(--radius) var(--radius) 0 0;
-	}
+
 	.eye {
 		flex: none;
 		width: 14px;
 		height: 14px;
 		color: var(--ink-2);
+
+		&.on {
+			color: var(--accent);
+		}
+
+		svg {
+			width: 100%;
+			height: 100%;
+			display: block;
+		}
 	}
-	.eye.on {
-		color: var(--accent);
-	}
-	.eye svg {
-		width: 100%;
-		height: 100%;
-		display: block;
-	}
+
 	.nm {
 		flex: none;
 		max-width: 100%;
@@ -371,6 +378,7 @@
 		font-weight: 600;
 		text-align: left;
 	}
+
 	/* Only the head node has one, and only when collapsed. */
 	.headline {
 		flex: 1;
@@ -384,15 +392,18 @@
 
 	/* The rule between two arguments belongs to neither of them: it is the relationship. Svelte
 	   scopes `.arg` per component, so reaching the child's class is the only way to say it. */
-	.args :global(.arg + .arg) {
-		border-top: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
-	}
+
 	.args {
 		margin: 0;
 		display: flex;
 		flex-direction: column;
 		position: relative;
+
+		:global(.arg + .arg) {
+			border-top: 1px solid color-mix(in srgb, var(--rule) 60%, transparent);
+		}
 	}
+
 	/* Right-aligned so the digits line up down the column, and tabular so they do not shuffle as
 	   the value changes. */
 	/* A path is identified by its end. Truncated from the right, every file in a folder shows the
@@ -409,8 +420,9 @@
 	/* Marked as not-yet-real: it is in the pane and not in the document until it has a value. */
 	.add {
 		padding: var(--space-1) var(--space-3) var(--space-2);
-	}
-	.add select {
-		font-size: var(--text-xs);
+
+		select {
+			font-size: var(--text-xs);
+		}
 	}
 </style>
