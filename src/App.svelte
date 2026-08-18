@@ -635,11 +635,15 @@
 			}
 
 			if (kind.operation === null) {
-				// The whole document arrives at once, and the containers it names are opened by the
-				// sync below — including relative ones, now resolved against the file.
-				pipeline = await openVpl(source);
-				pipelineRevision += 1;
-				await syncContainersToPipeline();
+				// The whole document arrives at once, and the containers it names are opened by
+				// `applyDocument`'s sync — including relative ones, now resolved against the file.
+				//
+				// Through the funnel rather than assigning `pipeline` here: `open_vpl` creates the
+				// graph in the core, and a webview that only took the document back was left with a
+				// graph list that did not know about it. Everything downstream of "there is now a
+				// graph" then behaved as though there were none — including the landing screen,
+				// which stayed up over the pipeline it had just opened.
+				await applyDocument(await openVpl(source));
 			} else if (kind.id === 'container') {
 				const result = await mount(source);
 				pipeline = await setPipelineText(result.vpl, 'replaced', source);
