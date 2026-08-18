@@ -158,26 +158,45 @@ export const importKindFor = (path: string) => commands.importKindFor(path);
 export const importReadNode = (kindId: string, path: string) => commands.importReadNode(kindId, path);
 
 /** Values the selected node's fields could take, read from what the node points at (S3.4). */
-export const fieldSuggestions = (path: number[]) => unwrap(commands.fieldSuggestions(path));
+export const fieldSuggestions = (graph: number, path: number[]) => unwrap(commands.fieldSuggestions(graph, path));
 
 // -- the pipeline ----------------------------------------------------------------------------
 
-/** This window's pipeline, or null before anything is opened. One document per window (Q25). */
-export const getPipeline = () => unwrap(commands.pipeline());
+/** Every graph in the project, in the order the pane shows them (Q32). */
+export const listGraphs = () => unwrap(commands.graphs());
 
-/** Replaces the pipeline. `kind` decides undo granularity — only the caller knows which this is. */
-export const setPipeline = (text: string, kind: Parameters<typeof commands.setPipeline>[1] = 'structured') =>
-	unwrap(commands.setPipeline(text, kind));
+/** One graph in full, or null once it has been removed. */
+export const getGraph = (id: number) => unwrap(commands.graph(id));
+
+/** Creates a graph. `name` is a suggestion — the core makes it unique and URL-safe. */
+export const addGraph = (name: string, text: string) => unwrap(commands.addGraph(name, text));
+
+export const removeGraph = (id: number) => unwrap(commands.removeGraph(id));
+
+/** Renames a graph and returns the name it took. Refused when another graph has it. */
+export const renameGraph = (id: number, name: string) => unwrap(commands.renameGraph(id, name));
+
+/** Replaces a graph's text. `kind` decides undo granularity — only the caller knows which this is. */
+export const setGraph = (id: number, text: string, kind: Parameters<typeof commands.setGraph>[2] = 'structured') =>
+	unwrap(commands.setGraph(id, text, kind));
 
 /** Opens a `.vpl` file as this window's pipeline (C9). Paths inside resolve against the file. */
 export const openVpl = (path: string) => unwrap(commands.openVpl(path));
 
-/** Writes the pipeline to a `.vpl` file and remembers it as the file this window is editing. */
-export const saveVpl = (path: string) => unwrap(commands.saveVpl(path));
+/** Writes a graph to a `.vpl` file and remembers it as that graph's file. */
+export const saveVpl = (graph: number, path: string) => unwrap(commands.saveVpl(graph, path));
 
-/** Runs the pipeline up to `path` and mounts the result. An empty path means the whole pipeline. */
-export const previewPipeline = (path: number[]) => unwrap(commands.previewPipeline(path));
+/**
+ * Runs a graph up to `path`, mounts the result, and pins the map to it. An empty path means the
+ * whole graph.
+ */
+export const previewPipeline = (graph: number, path: number[]) => unwrap(commands.previewPipeline(graph, path));
 
-/** Steps the document back, or forward again. Null when there is nowhere to go. */
+/**
+ * Steps back, or forward again. Null when there is nowhere to go.
+ *
+ * One stack across every graph (Q32), so what comes back may belong to a graph other than the one
+ * being edited — which is why it returns the whole document rather than just its text.
+ */
 export const undo = () => unwrap(commands.undo());
 export const redo = () => unwrap(commands.redo());

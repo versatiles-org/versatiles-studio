@@ -6,6 +6,7 @@
 //! TypeScript is how the two drift apart.
 
 use crate::state::AppState;
+use studio_core::graphs::GraphId;
 use studio_core::history::EditKind;
 use studio_core::jobs::{JobHandle, Lane};
 use studio_core::preview::VPLPipeline;
@@ -52,6 +53,10 @@ pub fn vpl_parse(text: String) -> Result<Pipeline, VplError> {
 #[serde(rename_all = "camelCase")]
 #[derive(specta::Type)]
 pub struct DocumentView {
+	/// Which graph this is ([Q32](../../../docs/decisions.md)). The webview addresses everything by
+	/// id rather than by name, so a rename cannot invalidate a reference held mid-edit.
+	pub graph: studio_core::graphs::GraphId,
+	pub name: String,
 	pub text: String,
 	pub pipeline: Pipeline,
 	/// For the editor to paint, derived from the same tree ([Q25](../../../docs/decisions.md)).
@@ -68,71 +73,137 @@ pub struct DocumentView {
 }
 
 impl DocumentView {
-	fn of(
-		document: &Document,
-		history: &studio_core::history::History,
-		file: Option<&(std::path::PathBuf, String)>,
-	) -> Self {
+	fn of(graph: &studio_core::graphs::Graph, history: &studio_core::history::History) -> Self {
+		let info = graph.info();
 		Self {
-			text: document.text().to_string(),
-			pipeline: document.pipeline().clone(),
-			tokens: document.tokens(),
-			diagnostics: validate(document),
+			graph: info.id,
+			name: info.name,
+			text: graph.document.text().to_string(),
+			pipeline: graph.document.pipeline().clone(),
+			tokens: graph.document.tokens(),
+			diagnostics: validate(&graph.document),
 			can_undo: history.can_undo(),
 			can_redo: history.can_redo(),
-			path: file.map(|(path, _)| path.to_string_lossy().into_owned()),
-			// A pipeline with no file behind it is dirty as soon as it has content: there is
-			// somewhere it could be saved to, and nowhere it has been.
-			dirty: file.is_none_or(|(_, saved)| saved != document.text()),
+			path: info.path,
+			dirty: info.dirty,
 		}
 	}
 }
 
-/// This window's pipeline, or `None` before anything has been opened.
+/// Every graph in this project, in the order the pane shows them ([Q32]).
 #[tauri::command]
 #[specta::specta]
-pub async fn pipeline(state: State<'_, AppState>) -> Result<Option<DocumentView>, String> {
-	let history = state.history.lock().await;
-	let file = state.pipeline_file.lock().await.clone();
-	Ok(state
-		.pipeline
-		.lock()
-		.await
-		.as_ref()
-		.map(|document| DocumentView::of(document, &history, file.as_ref())))
+pub async fn graphs(state: State<'_, AppState>) -> Result<Vec<studio_core::graphs::GraphInfo>, String> {
+	Ok(state.graphs.lock().await.list())
 }
 
-/// Replaces the pipeline, rejecting text that does not parse.
+/// One graph in full, or `None` if it has been removed.
+#[tauri::command]
+#[specta::specta]
+pub async fn graph(state: State<'_, AppState>, id: GraphId) -> Result<Option<DocumentView>, String> {
+	let history = state.history.lock().await;
+	Ok(state.graphs.lock().await.get(id).map(|g| DocumentView::of(g, &history)))
+}
+
+/// Creates a graph from VPL text, and returns it.
+///
+/// `name` is a suggestion: two `places.geojson` files in different folders both want to be
+/// `places`, and the second becoming `places-2` beats a refusal or a silent overwrite.
+#[tauri::command]
+#[specta::specta]
+pub async fn add_graph(state: State<'_, AppState>, name: String, text: String) -> Result<DocumentView, VplError> {
+	let document = Document::parse(text)?;
+	let mut graphs = state.graphs.lock().await;
+	let id = graphs.add(&name, document, None);
+
+	let mut history = state.history.lock().await;
+	// The baseline every graph needs, so undo has somewhere to step back to rather than stopping
+	// at this graph's first edit (see `History`).
+	let graph = graphs.get(id).expect("just added");
+	history.push(id, graph.document.text(), EditKind::Replaced);
+	Ok(DocumentView::of(graph, &history))
+}
+
+/// Removes a graph, and reports whether there was one.
+#[tauri::command]
+#[specta::specta]
+pub async fn remove_graph(state: State<'_, AppState>, id: GraphId) -> Result<bool, String> {
+	// The mount goes with it, or the style would keep resolving a source that no longer exists.
+	let name = state.graphs.lock().await.get(id).map(|graph| graph.name.clone());
+	if let Some(name) = name {
+		let mut server = state.server.lock().await;
+		if let Err(error) = server.unmount(&name) {
+			eprintln!("could not unmount {name}: {error:#}");
+		}
+	}
+	// A pin into a graph that is gone would leave the map showing something unreachable.
+	let mut pinned = state.pinned.lock().await;
+	if pinned.as_ref().is_some_and(|p| p.graph == id) {
+		*pinned = None;
+	}
+	Ok(state.graphs.lock().await.remove(id))
+}
+
+/// Renames a graph, and reports the name it actually took.
+///
+/// The name is the mount, the source name in `style.json` and the `.vpl` filename at once ([Q32]),
+/// so this remounts under the new name. **Rewriting the style's references is the other half**, and
+/// lands with the style itself at S4 — there is nothing referencing a graph yet.
+#[tauri::command]
+#[specta::specta]
+pub async fn rename_graph(state: State<'_, AppState>, id: GraphId, name: String) -> Result<String, String> {
+	let mut graphs = state.graphs.lock().await;
+	let old = graphs.get(id).map(|graph| graph.name.clone());
+	let renamed = graphs.rename(id, &name).map_err(|error| format!("{error:#}"))?;
+
+	if let Some(old) = old.filter(|old| old != &renamed) {
+		let mut server = state.server.lock().await;
+		if let Err(error) = server.unmount(&old) {
+			eprintln!("could not unmount {old}: {error:#}");
+		}
+	}
+	Ok(renamed)
+}
+
+/// Replaces a graph's text, rejecting what does not parse.
 ///
 /// The editor holds the text a user is typing, which is often mid-edit and invalid; the *document*
 /// never is. A rejection carries a span so the editor can mark it (C4).
 #[tauri::command]
 #[specta::specta]
-pub async fn set_pipeline(
+pub async fn set_graph(
 	state: State<'_, AppState>,
+	id: GraphId,
 	text: String,
 	kind: Option<EditKind>,
 ) -> Result<DocumentView, VplError> {
 	let document = Document::parse(text)?;
+	let mut graphs = state.graphs.lock().await;
+	let Some(graph) = graphs.get_mut(id) else {
+		return Err(VplError {
+			message: "no such graph".to_string(),
+			span: Span::new(0, 0),
+		});
+	};
 
-	// A wholesale replacement — opening a container, say — is no longer the file that was open, so
-	// Save must not silently write over it. An edit keeps the file and simply makes it dirty.
+	// A wholesale replacement is no longer the file that was open, so Save must not silently write
+	// over it. An edit keeps the file and simply makes it dirty.
 	if kind == Some(EditKind::Replaced) {
-		*state.pipeline_file.lock().await = None;
+		graph.file = None;
 	}
+	graph.document = document;
 
 	let mut history = state.history.lock().await;
 	// The caller says where the edit came from, because only it knows: the same command carries a
 	// keystroke and a form change, and they deserve different undo granularity.
-	history.push(document.text(), kind.unwrap_or_default());
-	let view = DocumentView::of(&document, &history, state.pipeline_file.lock().await.as_ref());
-	*state.pipeline.lock().await = Some(document);
-	Ok(view)
+	history.push(id, graph.document.text(), kind.unwrap_or_default());
+	Ok(DocumentView::of(graph, &history))
 }
 
-/// Steps the document back, or forward again. `None` when there is nowhere to go.
+/// Steps back, or forward again. `None` when there is nowhere to go.
 ///
-/// One stack for every view (G6): a form change undone from the text tab is the same ⌘Z.
+/// **One stack across every graph** ([Q32], G6), so this may hand back a graph other than the one
+/// being edited — which is why it returns the whole document rather than just its text.
 #[tauri::command]
 #[specta::specta]
 pub async fn undo(state: State<'_, AppState>) -> Result<Option<DocumentView>, VplError> {
@@ -147,15 +218,19 @@ pub async fn redo(state: State<'_, AppState>) -> Result<Option<DocumentView>, Vp
 
 async fn step(state: State<'_, AppState>, back: bool) -> Result<Option<DocumentView>, VplError> {
 	let mut history = state.history.lock().await;
-	let Some(text) = (if back { history.undo() } else { history.redo() }) else {
+	let Some(step) = (if back { history.undo() } else { history.redo() }) else {
 		return Ok(None);
 	};
 	// Every state on the stack parsed when it was recorded, so this cannot fail — but it is parsed
 	// rather than assumed, because a panic here would take the window with it.
-	let document = Document::parse(text.to_string())?;
-	let view = DocumentView::of(&document, &history, state.pipeline_file.lock().await.as_ref());
-	*state.pipeline.lock().await = Some(document);
-	Ok(Some(view))
+	let document = Document::parse(step.text)?;
+	let mut graphs = state.graphs.lock().await;
+	let Some(graph) = graphs.get_mut(step.graph) else {
+		// The graph was removed after the edit was recorded; there is nothing to restore into.
+		return Ok(None);
+	};
+	graph.document = document;
+	Ok(Some(DocumentView::of(graph, &history)))
 }
 
 /// What the editor needs on every keystroke: how to paint the text, and what is wrong with it.
@@ -287,14 +362,20 @@ pub enum PreviewOutcome {
 pub async fn preview_pipeline(
 	app: AppHandle,
 	state: State<'_, AppState>,
+	graph: GraphId,
 	path: Vec<u32>,
 ) -> Result<PreviewOutcome, String> {
 	// `u32` rather than `usize` at the boundary: it arrives from JavaScript as numbers, and specta
 	// will not emit a 64-bit integer as a `number` (see `bindings.rs`).
 	let path: Vec<usize> = path.into_iter().map(|index| index as usize).collect();
-	let Some(document) = state.pipeline.lock().await.clone() else {
+	let Some(document) = state.graphs.lock().await.get(graph).map(|g| g.document.clone()) else {
 		return Ok(PreviewOutcome::Nothing);
 	};
+	// Which node the map is showing, so the pane can mark it and the map can say so ([Q32]).
+	*state.pinned.lock().await = Some(crate::state::Pinned {
+		graph,
+		path: path.clone(),
+	});
 	// An empty path means the whole pipeline — what the map shows when nothing is selected.
 	let full = document.to_pipeline();
 	let wanted = if path.is_empty() {
@@ -376,13 +457,22 @@ pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 		*state.project_dir.lock().await = parent.to_path_buf();
 	}
 
-	let saved = (std::path::PathBuf::from(&path), document.text().to_string());
-	*state.pipeline_file.lock().await = Some(saved.clone());
+	let file = std::path::PathBuf::from(&path);
+	// The graph is named after the file it came from — which is also what it will be saved back as,
+	// and what the style will reference ([Q32]).
+	let stem = file
+		.file_stem()
+		.map_or_else(|| "graph".to_string(), |s| s.to_string_lossy().into_owned());
+	let saved = (file, document.text().to_string());
+
+	let mut graphs = state.graphs.lock().await;
+	let id = graphs.add(&stem, document, Some(saved));
 
 	let mut history = state.history.lock().await;
-	history.push(document.text(), EditKind::Replaced);
-	let view = DocumentView::of(&document, &history, Some(&saved));
-	*state.pipeline.lock().await = Some(document);
+	let graph = graphs.get(id).expect("just added");
+	history.push(id, graph.document.text(), EditKind::Replaced);
+	let view = DocumentView::of(graph, &history);
+	drop(graphs);
 
 	{
 		let mut recents = state.recents.lock().await;
@@ -402,10 +492,10 @@ pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 /// separate command because it has a different scope.
 #[tauri::command]
 #[specta::specta]
-pub async fn save_vpl(state: State<'_, AppState>, path: String) -> Result<DocumentView, VplError> {
-	let Some(document) = state.pipeline.lock().await.clone() else {
+pub async fn save_vpl(state: State<'_, AppState>, graph: GraphId, path: String) -> Result<DocumentView, VplError> {
+	let Some(document) = state.graphs.lock().await.get(graph).map(|g| g.document.clone()) else {
 		return Err(VplError {
-			message: "there is no pipeline to save".to_string(),
+			message: "no such graph".to_string(),
 			span: Span::new(0, 0),
 		});
 	};
@@ -421,11 +511,17 @@ pub async fn save_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 	if let Some(parent) = file.parent() {
 		*state.project_dir.lock().await = parent.to_path_buf();
 	}
-	let saved = (file, document.text().to_string());
-	*state.pipeline_file.lock().await = Some(saved.clone());
+	let mut graphs = state.graphs.lock().await;
+	let Some(entry) = graphs.get_mut(graph) else {
+		return Err(VplError {
+			message: "no such graph".to_string(),
+			span: Span::new(0, 0),
+		});
+	};
+	entry.file = Some((file, document.text().to_string()));
 
 	let history = state.history.lock().await;
-	Ok(DocumentView::of(&document, &history, Some(&saved)))
+	Ok(DocumentView::of(entry, &history))
 }
 
 /// Every way this build can bring data in (S3.2).
@@ -475,10 +571,11 @@ pub fn import_read_node(kind_id: String, path: String) -> String {
 #[specta::specta]
 pub async fn field_suggestions(
 	state: State<'_, AppState>,
+	graph: GraphId,
 	path: Vec<u32>,
 ) -> Result<Vec<studio_core::suggest::FieldSuggestion>, String> {
 	let path: Vec<usize> = path.into_iter().map(|index| index as usize).collect();
-	let Some(document) = state.pipeline.lock().await.clone() else {
+	let Some(document) = state.graphs.lock().await.get(graph).map(|g| g.document.clone()) else {
 		return Ok(Vec::new());
 	};
 	let Some(node) = document.pipeline().at_path(&path) else {

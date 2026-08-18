@@ -7,15 +7,24 @@
 //! [Q16]: ../../docs/decisions.md
 //! [Q22]: ../../docs/decisions.md
 //! [Q25]: ../../docs/decisions.md
+//! [Q32]: ../../docs/decisions.md
 
 use std::path::PathBuf;
 use studio_core::{
+	graphs::{GraphId, Graphs},
 	history::History,
 	jobs::Jobs,
 	server::ServerManager,
 	store::{Bookmarks, Layout, Recents},
-	vpl::Document,
 };
+
+/// Which node, in which graph, the map is pinned to ([Q32]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Pinned {
+	pub graph: GraphId,
+	/// The path `Pipeline::at_path` walks — a node index, then pairs of source and node index.
+	pub path: Vec<usize>,
+}
 use tokio::sync::Mutex;
 
 pub struct AppState {
@@ -26,15 +35,15 @@ pub struct AppState {
 	pub bookmarks: Mutex<Bookmarks>,
 	/// Which left-pane sections are open, and how wide the pane is (S2.2, [Q22]).
 	pub layout: Mutex<Layout>,
-	/// **The** pipeline for this window — one document, owned here rather than in the webview
-	/// ([Q25]). `None` until something is opened; a project holds exactly one `pipeline.vpl`
-	/// ([Q6]).
-	pub pipeline: Mutex<Option<Document>>,
-	/// One undo stack for the document, whichever view an edit came from ([Q11], G6).
+	/// **The project's graphs** — several named VPL documents, each producing one named tile
+	/// source ([Q32]). Owned here rather than in the webview ([Q16]); each carries its own file and
+	/// dirty state, which is why `pipeline_file` no longer exists beside this.
+	pub graphs: Mutex<Graphs>,
+	/// One undo stack across every graph, whichever view an edit came from ([Q11], [Q32], G6).
 	pub history: Mutex<History>,
-	/// The `.vpl` file the pipeline came from, and its text as saved — so "is there anything to
-	/// save" is answered by comparison rather than by a flag someone has to remember to set.
-	pub pipeline_file: Mutex<Option<(PathBuf, String)>>,
+	/// The node whose output the map is showing, overriding the style ([Q32]). `None` is the
+	/// ordinary state: the map draws every mounted graph.
+	pub pinned: Mutex<Option<Pinned>>,
 	/// What relative paths in the VPL resolve against.
 	///
 	/// A `.vpl` file's paths are relative to **that file**, the way `versatiles convert` resolves

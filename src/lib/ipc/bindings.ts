@@ -179,9 +179,17 @@ export const commands = {
 	 *  — asking about a node the webview describes would let the two disagree about which file is
 	 *  meant.
 	 */
-	fieldSuggestions: (path: number[]) => typedError<FieldSuggestion[], string>(__TAURI_INVOKE("field_suggestions", { path })),
-	/**  This window's pipeline, or `None` before anything has been opened. */
-	pipeline: () => typedError<{
+	fieldSuggestions: (graph: number, path: number[]) => typedError<FieldSuggestion[], string>(__TAURI_INVOKE("field_suggestions", { graph, path })),
+	/**  Every graph in this project, in the order the pane shows them ([Q32]). */
+	graphs: () => typedError<GraphInfo[], string>(__TAURI_INVOKE("graphs")),
+	/**  One graph in full, or `None` if it has been removed. */
+	graph: (id: number) => typedError<{
+	/**
+	 *  Which graph this is ([Q32](../../../docs/decisions.md)). The webview addresses everything by
+	 *  id rather than by name, so a rename cannot invalidate a reference held mid-edit.
+	 */
+	graph: number,
+	name: string,
 	text: string,
 	pipeline: Pipeline,
 	/**  For the editor to paint, derived from the same tree ([Q25](../../../docs/decisions.md)). */
@@ -195,14 +203,31 @@ export const commands = {
 	path: string | null,
 	/**  Whether the pipeline differs from what is on disk. */
 	dirty: boolean,
-} | null, string>(__TAURI_INVOKE("pipeline")),
+} | null, string>(__TAURI_INVOKE("graph", { id })),
 	/**
-	 *  Replaces the pipeline, rejecting text that does not parse.
+	 *  Creates a graph from VPL text, and returns it.
+	 * 
+	 *  `name` is a suggestion: two `places.geojson` files in different folders both want to be
+	 *  `places`, and the second becoming `places-2` beats a refusal or a silent overwrite.
+	 */
+	addGraph: (name: string, text: string) => typedError<DocumentView, VplError>(__TAURI_INVOKE("add_graph", { name, text })),
+	/**  Removes a graph, and reports whether there was one. */
+	removeGraph: (id: number) => typedError<boolean, string>(__TAURI_INVOKE("remove_graph", { id })),
+	/**
+	 *  Renames a graph, and reports the name it actually took.
+	 * 
+	 *  The name is the mount, the source name in `style.json` and the `.vpl` filename at once ([Q32]),
+	 *  so this remounts under the new name. **Rewriting the style's references is the other half**, and
+	 *  lands with the style itself at S4 — there is nothing referencing a graph yet.
+	 */
+	renameGraph: (id: number, name: string) => typedError<string, string>(__TAURI_INVOKE("rename_graph", { id, name })),
+	/**
+	 *  Replaces a graph's text, rejecting what does not parse.
 	 * 
 	 *  The editor holds the text a user is typing, which is often mid-edit and invalid; the *document*
 	 *  never is. A rejection carries a span so the editor can mark it (C4).
 	 */
-	setPipeline: (text: string, kind: 
+	setGraph: (id: number, text: string, kind: 
 /**  A keystroke in the VPL editor. Consecutive ones merge. */
 "typing" | 
 /**
@@ -211,7 +236,7 @@ export const commands = {
  */
 "structured" | 
 /**  The document was replaced wholesale, e.g. by opening a file. */
-"replaced" | null) => typedError<DocumentView, VplError>(__TAURI_INVOKE("set_pipeline", { text, kind })),
+"replaced" | null) => typedError<DocumentView, VplError>(__TAURI_INVOKE("set_graph", { id, text, kind })),
 	/**
 	 *  Runs the pipeline up to `path` and mounts the result — as a cancellable job (S2.7, S3.1).
 	 * 
@@ -221,13 +246,20 @@ export const commands = {
 	 *  needs a token to discard stale replies — being superseded is something the runner knows, so it
 	 *  is something this can report.
 	 */
-	previewPipeline: (path: number[]) => typedError<PreviewOutcome, string>(__TAURI_INVOKE("preview_pipeline", { path })),
+	previewPipeline: (graph: number, path: number[]) => typedError<PreviewOutcome, string>(__TAURI_INVOKE("preview_pipeline", { graph, path })),
 	/**
-	 *  Steps the document back, or forward again. `None` when there is nowhere to go.
+	 *  Steps back, or forward again. `None` when there is nowhere to go.
 	 * 
-	 *  One stack for every view (G6): a form change undone from the text tab is the same ⌘Z.
+	 *  **One stack across every graph** ([Q32], G6), so this may hand back a graph other than the one
+	 *  being edited — which is why it returns the whole document rather than just its text.
 	 */
 	undo: () => typedError<{
+	/**
+	 *  Which graph this is ([Q32](../../../docs/decisions.md)). The webview addresses everything by
+	 *  id rather than by name, so a rename cannot invalidate a reference held mid-edit.
+	 */
+	graph: number,
+	name: string,
 	text: string,
 	pipeline: Pipeline,
 	/**  For the editor to paint, derived from the same tree ([Q25](../../../docs/decisions.md)). */
@@ -243,6 +275,12 @@ export const commands = {
 	dirty: boolean,
 } | null, VplError>(__TAURI_INVOKE("undo")),
 	redo: () => typedError<{
+	/**
+	 *  Which graph this is ([Q32](../../../docs/decisions.md)). The webview addresses everything by
+	 *  id rather than by name, so a rename cannot invalidate a reference held mid-edit.
+	 */
+	graph: number,
+	name: string,
 	text: string,
 	pipeline: Pipeline,
 	/**  For the editor to paint, derived from the same tree ([Q25](../../../docs/decisions.md)). */
@@ -275,7 +313,7 @@ export const commands = {
 	 *  *project* — the manifest, the style and the pipeline as a directory — is G1 at S5.1, and stays a
 	 *  separate command because it has a different scope.
 	 */
-	saveVpl: (path: string) => typedError<DocumentView, VplError>(__TAURI_INVOKE("save_vpl", { path })),
+	saveVpl: (graph: number, path: string) => typedError<DocumentView, VplError>(__TAURI_INVOKE("save_vpl", { graph, path })),
 	/**  Everything the OS has asked Studio to open since the last call. */
 	takeOpened: () => __TAURI_INVOKE<string[]>("take_opened"),
 };
@@ -345,6 +383,12 @@ export type Diagnostic = {
 
 /**  The whole document a view needs: the text, its tree, and its tokens. */
 export type DocumentView = {
+	/**
+	 *  Which graph this is ([Q32](../../../docs/decisions.md)). The webview addresses everything by
+	 *  id rather than by name, so a rename cannot invalidate a reference held mid-edit.
+	 */
+	graph: number,
+	name: string,
 	text: string,
 	pipeline: Pipeline,
 	/**  For the editor to paint, derived from the same tree ([Q25](../../../docs/decisions.md)). */
@@ -387,6 +431,16 @@ export type FieldInfo = {
 export type FieldSuggestion = {
 	field: string,
 	values: string[],
+};
+
+/**  One graph: a VPL document, what it is called, and where it came from. */
+export type GraphInfo = {
+	id: number,
+	name: string,
+	/**  The `.vpl` this came from, if any, so Save has somewhere to write without asking. */
+	path: string | null,
+	/**  Whether the document differs from what is on disk. */
+	dirty: boolean,
 };
 
 /**  One way of bringing data in. */

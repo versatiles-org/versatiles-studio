@@ -29,8 +29,9 @@
 		takeOpened,
 		OPENED_EVENT,
 		getLayout,
-		getPipeline,
-		setPipeline,
+		listGraphs,
+		addGraph,
+		setGraph,
 		undo as undoPipeline,
 		openVpl,
 		saveVpl,
@@ -45,6 +46,7 @@
 		vplSetValue,
 		vplSetProperty,
 		vplOperations,
+		getGraph,
 		previewPipeline,
 		type DocumentView,
 		type Layout,
@@ -55,6 +57,7 @@
 		importKindFor,
 		importReadNode,
 		fieldSuggestions,
+		type EditKind,
 		type ImportKind,
 		type OpenedContainer,
 		type RecentEntry
@@ -79,7 +82,11 @@
 	let containers = $state<OpenedContainer[]>([]);
 	let layout = $state<Layout | null>(null);
 	/** This window's pipeline. The core owns it (Q25); this is a copy to render. */
+	/// The graph being edited. One document at a time on screen; the project holds several (Q32),
+	/// and the graph list that lets you switch between them is S2.13.
 	let pipeline = $state<DocumentView | null>(null);
+	/// Which graph `pipeline` is. Every command that touches a document takes it.
+	const currentGraph = $derived(pipeline?.graph ?? null);
 	/** Bumped when the pipeline changes from somewhere other than the editor, so the editor knows
 	 *  to reload rather than being fought over its own buffer. */
 	let pipelineRevision = $state(0);
@@ -94,7 +101,7 @@
 	async function editSelected(run: (text: string) => Promise<string>) {
 		if (!pipeline) return;
 		try {
-			await applyDocument(await setPipeline(await run(pipeline.text), 'structured'));
+			await applyDocument(await setPipelineText(await run(pipeline.text), 'structured'));
 		} catch (e) {
 			fail(typeof e === 'object' && e && 'message' in e ? (e as { message: unknown }).message : e);
 		}
@@ -115,11 +122,12 @@
 		const path = selected;
 		// Depend on the document too — editing `filename` changes which file is being asked about.
 		void pipeline?.text;
-		if (!path) {
+		const graph = pipeline?.graph;
+		if (!path || graph === undefined) {
 			suggestions = {};
 			return;
 		}
-		void fieldSuggestions(path).then((found) => {
+		void fieldSuggestions(graph, path).then((found) => {
 			suggestions = Object.fromEntries(found.map((each) => [each.field, each.values]));
 		});
 	});
@@ -149,8 +157,9 @@
 		void getLayout().then((loaded) => (layout = loaded));
 		void vplOperations().then((loaded) => (operations = loaded));
 		void importKinds().then((loaded) => (kinds = loaded));
-		void getPipeline().then((loaded) => {
-			pipeline = loaded;
+		void listGraphs().then(async (list) => {
+			// One graph on screen until S2.13 brings the list; the first is the one to show.
+			if (list.length > 0) pipeline = await getGraph(list[0].id);
 			pipelineRevision += 1;
 		});
 	});
@@ -199,6 +208,16 @@
 
 	// Applied locally first so a collapse paints without waiting on the round trip, then persisted.
 	// The core clamps, so what comes back is authoritative and replaces the optimistic copy.
+	/// Writes text into the current graph, creating one if this is the first thing opened.
+	///
+	/// A shim while the graph list is still to come (S2.13): it keeps every existing call site
+	/// working against the plural API, and is the one place that will need to know about the
+	/// selected graph when there is more than one.
+	async function setPipelineText(text: string, kind: EditKind = 'structured') {
+		if (currentGraph === null) return await addGraph('graph', text);
+		return await setGraph(currentGraph, text, kind);
+	}
+
 	async function changeLayout(next: Layout) {
 		layout = next;
 		layout = await setLayout(next).catch(() => next);
@@ -333,7 +352,7 @@
 			// that is now out of date** rather than leaving it to finish. That also removes the
 			// token this used to carry: which preview is current is the runner's to know, and a
 			// second answer to that question in here could only ever disagree with it.
-			const outcome = await previewPipeline(selected ?? []);
+			const outcome = await previewPipeline(pipeline.graph, selected ?? []);
 			if (outcome.kind === 'superseded') return;
 
 			if (previewName && map) removeContainerFromMap(map, previewName);
@@ -375,7 +394,7 @@
 		const target = (selected ? nodeAtPath(pipeline.pipeline, selected) : pipeline.pipeline.nodes.at(-1)) ?? null;
 		if (!target) return;
 		try {
-			const next = await setPipeline(await vplInsertNode(pipeline.text, target.nameSpan, operation), 'structured');
+			const next = await setPipelineText(await vplInsertNode(pipeline.text, target.nameSpan, operation), 'structured');
 			// The inserted node sits immediately after its target, at the same depth.
 			const at = selected ? [...selected] : [pipeline.pipeline.nodes.length - 1];
 			at[at.length - 1] += 1;
@@ -392,7 +411,7 @@
 		const target = nodeAtPath(pipeline.pipeline, selected);
 		if (!target) return;
 		try {
-			const next = await setPipeline(await vplRemoveNode(pipeline.text, target.nameSpan), 'structured');
+			const next = await setPipelineText(await vplRemoveNode(pipeline.text, target.nameSpan), 'structured');
 			selected = null;
 			await applyDocument(next);
 		} catch (e) {
@@ -416,7 +435,7 @@
 				});
 				if (!target) return; // cancelled
 			}
-			pipeline = await saveVpl(target);
+			pipeline = await saveVpl(pipeline.graph, target);
 			status = { kind: 'busy', message: `Saved ${filename(target)}` };
 			await refreshRecents();
 			status = { kind: 'idle' };
@@ -460,10 +479,10 @@
 				await syncContainersToPipeline();
 			} else if (kind.id === 'container') {
 				const result = await mount(source);
-				pipeline = await setPipeline(result.vpl, 'replaced');
+				pipeline = await setPipelineText(result.vpl, 'replaced');
 				pipelineRevision += 1;
 			} else {
-				pipeline = await setPipeline(await importReadNode(kind.id, source), 'replaced');
+				pipeline = await setPipelineText(await importReadNode(kind.id, source), 'replaced');
 				pipelineRevision += 1;
 				// Selected, so the form for it is showing. Importing *is* configuring: `from_geo`
 				// takes a zoom range, simplification and property filters, and the generated form
@@ -535,7 +554,7 @@
 			{pipeline}
 			{pipelineRevision}
 			onPipelineChange={(text) =>
-				void setPipeline(text, 'typing').then((next) => {
+				void setPipelineText(text, 'typing').then((next) => {
 					pipeline = next;
 					void refreshPreview();
 				})}
