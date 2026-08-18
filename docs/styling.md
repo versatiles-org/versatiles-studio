@@ -81,9 +81,10 @@ the compiler, but `base.css` ships as written, so nesting there would be a runti
 browser rather than a source convention.
 
 These are enforced by `src/lib/styles/tokens.test.ts`, which runs with `npm test`. It fails with the
-file and the offending value named. It checks colour, type size, radius, font stacks, fallbacks, the
-focus ring, map colours, the button box and nesting — and nothing else, because a rule nobody can
-justify is a rule people route around.
+file and the offending value named. It checks colour, type size, the root font size, radius, font
+stacks, fallbacks, the focus ring, map colours, both themes defining the same colours, the button
+box and nesting — and nothing else, because a rule nobody can justify is a rule people route
+around.
 
 ## The tokens
 
@@ -93,12 +94,13 @@ sizes is faster than inventing a sixth, so the constraint holds itself up withou
 | Set      | Tokens                                                                                                                  |
 | -------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Colour   | `--ink`, `--ink-2`, `--rule`, `--surface`, `--chrome`, `--accent`, `--accent-ink`                                       |
-| Semantic | `--error`, `--error-bg`, `--error-rule`                                                                                 |
+| Semantic | `--error`, `--error-bg`                                                                                                 |
 | Map      | `--map-bg`, `--map-grid`, `--map-grid-halo`, `--map-feature`, `--float-bg`                                              |
 | Type     | `--text-xs` 12 · `--text-sm` 13 · `--text-md` 14 (default) · `--text-lg` 17 · `--text-xl` 22, plus `--text-mono-adjust` |
+| Syntax   | `--vpl-value` — operation names take the accent; only values need a colour of their own                                 |
 | Fonts    | `--font-ui`, `--font-mono`                                                                                              |
 | Space    | `--space-1` … `--space-6`                                                                                               |
-| Shape    | `--radius`, `--radius-lg`, `--shadow`, `--shadow-lg`, `--focus-width`                                                   |
+| Shape    | `--radius`, `--radius-lg`, `--shadow`, `--focus-width`                                                                  |
 
 **Map colours are separate from the chrome palette**, even where the value is identical today. A grid
 drawn over a dark basemap is a different decision from a focus ring, and collapsing them would mean

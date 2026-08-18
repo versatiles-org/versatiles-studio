@@ -6,8 +6,9 @@
 ## The shape
 
 **One map surface, not four modes** ([Q22](decisions.md)). The left pane shows the chain from data to
-pixels as collapsible sections, the map sits in the middle, and the right pane shows the parameters
-of whatever is selected.
+pixels as collapsible sections, the map sits in the middle, and the right pane shows what the
+pipeline and the opened container turn out to be. Parameters are not there: since
+[Q32](decisions.md) the selected node carries its own arguments in the chain.
 
 Studio is a workbench, not a wizard ([Q13](decisions.md)) — so the P1 risk from `audiences.md` is
 accepted rather than designed around.
@@ -56,12 +57,12 @@ True everywhere. These matter more than the arrangement.
 Three regions, always present — **left pane, map, right pane** — over the status and job bar, with
 the mode bar arriving above them at S4.
 
-| Region         | Holds                                                                                                                                                 |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Mode bar**   | **Map** (default) · **Assets** (G7, from S4). Locally generated glyphs (D9) are a feature of the asset manager, not a third mode ([Q9](decisions.md)) |
-| **Left pane**  | The chain, as collapsible sections: **Pipeline · Style · Export**                                                                                     |
-| **Map**        | The subject, the preview, and an input device for the crop rectangle (F2)                                                                             |
-| **Right pane** | Parameters of the current selection, and the metadata that results from it                                                                            |
+| Region         | Holds                                                                                                                                                  |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Mode bar**   | **Map** (default) · **Assets** (G7, from S4). Locally generated glyphs (D9) are a feature of the asset manager, not a third mode ([Q22](decisions.md)) |
+| **Left pane**  | The chain, as collapsible sections: **Pipeline · Style · Export**                                                                                      |
+| **Map**        | The subject, the preview, and an input device for the crop rectangle (F2)                                                                              |
+| **Right pane** | What things turn out to be — the pipeline's output, and an opened container's own metadata. Not parameters ([Q32](decisions.md))                       |
 
 **The left pane is the chain from data to pixels.** Sources feed the pipeline, the pipeline produces
 tiles, the style renders them, export writes them out. Showing it whole is the point of merging the

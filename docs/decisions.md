@@ -72,7 +72,7 @@ built.
 
 **Dated 2026-08-18.** Drawn before it was written:
 [wireframe](https://claude.ai/code/artifact/69159dd5-bfb3-4619-bbee-eb5a5c15497a). Supersedes
-[Q25](decisions.md)'s "one pipeline document per window" and amends
+[Q25](#q25--the-vpl-editor-is-a-textarea-with-a-highlight-overlay-over-one-document-per-window)'s "one pipeline document per window" and amends
 [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits).
 
 **Q25 answered a different question than the one that matters.** It did consider several sources and
@@ -89,7 +89,7 @@ never matched the behaviour. With graphs it means what it says.
 
 **A graph is a named VPL document producing one named tile source.** The name is the identity in
 three places at once — the server mount, the source name in `style.json`, and the `.vpl` filename —
-which is what makes [Q6](decisions.md)'s project directory read properly: `project.yaml` beside
+which is what makes [Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest)'s project directory read properly: `project.yaml` beside
 _several_ `.vpl` files and one `style.json`, rather than a single `pipeline.vpl`.
 
 **Renaming rewrites style references.** The alternative is forbidding a rename once the style points
@@ -103,12 +103,12 @@ pointing at a source that no longer exists.
 - **Previewing** — one node, in one graph, _pinned_ to override the map. A debugging view.
 
 Exactly one pin exists across the project; clicking another moves it, clicking the pinned one clears
-it. The infrastructure was already there — [Q16](decisions.md) built named mounts precisely so that
+it. The infrastructure was already there — [Q16](#q16--one-application-instance-one-window-per-project) built named mounts precisely so that
 "each project and each previewed pipeline node is a named mount, not a server of its own".
 
 **Layout: a list of graphs above the selected graph's chain, in one pane.** A pane per graph makes the
 pane catalogue dynamic and turns four graphs into four folded boxes; tabs per graph collide with
-[Q15](decisions.md)'s Graph/VPL tabs, and two tab rows stacked is a bad row to be in. Master–detail
+[Q15](#q15--the-pipeline-pane-tabs-between-graph-and-text)'s Graph/VPL tabs, and two tab rows stacked is a bad row to be in. Master–detail
 keeps one pane, keeps Q15 intact, and gives per-graph state — the dirty dot, the pin, the name — a
 natural home. Renaming happens in that list, because the list is where graphs live.
 
@@ -152,7 +152,7 @@ remaining gap in the pane.
 ### Q31 — Panes are a list, and each one owns what it emits
 
 **Dated 2026-08-18.** Two questions S3.6 could not answer without settling: where a "write tiles"
-action lives, and whether [Q22](decisions.md)'s three fixed sections are the right container for what
+action lives, and whether [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)'s three fixed sections are the right container for what
 is coming.
 
 **The left/right axis stays, and it is worth naming properly.** Q22 describes the left pane as "the
@@ -223,7 +223,7 @@ not as something this decision meant all along.
 
 ### Q30 — A CSV import reads the header and fills in what it can
 
-**Dated 2026-08-17.** [Q29](decisions.md) taught the form its data by probing what the pipeline
+**Dated 2026-08-17.** [Q29](#q29--the-import-form-learns-the-data-by-probing-what-the-pipeline-produces) taught the form its data by probing what the pipeline
 _produces_. That cannot work for a CSV, and the reason shapes the whole of E2: `from_csv` will not
 build until `lon_column` and `lat_column` are set, so there is no output to look at. This is the one
 import where the question has to be asked of the input.
@@ -297,7 +297,7 @@ no way to say so.
 **The catalogue answers to the binary.** `import::kinds()` consults the operation registry and drops
 any kind whose read operation is absent, so a card cannot offer something that fails on the first
 click. That is not hypothetical: [E3](features.md)'s GDAL raster path is a build-time decision
-([Q19](decisions.md)), and its card should appear when GDAL is linked and not before — without a
+([Q19](#q19--gdal-is-statically-bundled-with-a-deliberately-narrow-driver-set)), and its card should appear when GDAL is linked and not before — without a
 second flag in the webview to keep in step.
 
 **The extensions are still hand-written**, because parsing prose to build a file dialog would break
@@ -349,7 +349,7 @@ two places to be wrong.
 
 ### Q26 — The IPC types are generated, and the generated file is committed
 
-**Dated 2026-08-17.** [Q3](decisions.md) deferred `tauri-specta` because its line was `2.0.0-rc.x`.
+**Dated 2026-08-17.** [Q3](#q3--three-planes-ipc-for-control-http-for-data-channels-for-events) deferred `tauri-specta` because its line was `2.0.0-rc.x`.
 It still is — `rc.25`, from May — but the risk that deferral was avoiding turned out to be smaller
 than the one it accepted.
 
@@ -382,8 +382,8 @@ as both a file format and an IPC type.
 [Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form): a project holds
 several named graphs, each its own source with its own save and export. The composite-node answer
 below solves _merging inputs into one source_, which is a different question from _a style with
-several sources_.~~ [Q6](decisions.md) already said a project holds a single `pipeline.vpl`, and the multi-source layer stack was dropped early on, so the window's pipeline is one
-VPL document and the core owns it — nothing durable in the webview ([Q16](decisions.md)). Opening a
+several sources_.~~ [Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest) already said a project holds a single `pipeline.vpl`, and the multi-source layer stack was dropped early on, so the window's pipeline is one
+VPL document and the core owns it — nothing durable in the webview ([Q16](#q16--one-application-instance-one-window-per-project)). Opening a
 container sets that document to the matching `from_container` read node. Showing several containers
 at once returns when it can be _written down_: as a composite node with two read nodes under it,
 added in the graph at S2.5. Until then the map keeps rendering opened containers directly; wiring it
@@ -393,11 +393,11 @@ to the pipeline's own output is C3, at S2.7.
 things decided against it:
 
 - **The hard part is already done.** A syntax highlighter needs to know where every token is, and
-  [Q23](decisions.md)'s parser returns exactly that. Bolting a second, independent tokeniser onto the
+  [Q23](#q23--the-vpl-syntax-tree-is-written-from-scratch-and-pinned-to-upstream-by-a-differential-test)'s parser returns exactly that. Bolting a second, independent tokeniser onto the
   editor would mean two definitions of VPL's grammar in one application — the thing the differential
   test exists to prevent upstream, reintroduced internally.
 - **Undo belongs to the document, not the editor.** G6 wants one stack covering text edits _and_
-  structured edits from the graph and the forms ([Q11](decisions.md)). An editor with its own history
+  structured edits from the graph and the forms ([Q11](#q11--the-node-graph-c1-is-in-release-1-and-needs-a-lossless-vpl-syntax-tree)). An editor with its own history
   would have to be talked out of it.
 - **The documents are short.** A pipeline is a handful of nodes, not a source file. Nothing here
   needs folding, minimaps, or multi-cursor editing.
@@ -440,12 +440,12 @@ the window, there is one, and it says what the application is doing.
 **What this costs.** Studio no longer teaches the CLI by example. That was a genuine virtue and it is
 being given up deliberately, not by accident: the alternative was keeping a bar that was honest about
 its intent and misleading about its content. The "show me the VPL" escape hatch survives, because it
-was never G2's — it is [C7](features.md), served by [Q15](decisions.md)'s Graph/VPL tabs, and showing
+was never G2's — it is [C7](features.md), served by [Q15](#q15--the-pipeline-pane-tabs-between-graph-and-text)'s Graph/VPL tabs, and showing
 the VPL for a pipeline is something Studio can always do truthfully.
 
 ### Q23 — The VPL syntax tree is written from scratch, and pinned to upstream by a differential test
 
-[Q11](decisions.md) committed to a lossless syntax tree without saying where it would come from.
+[Q11](#q11--the-node-graph-c1-is-in-release-1-and-needs-a-lossless-vpl-syntax-tree) committed to a lossless syntax tree without saying where it would come from.
 Wrapping `versatiles_pipeline`'s parser was the hope. It is not possible: that parser is built from
 nom combinators that discard as they go — `ws0` drops comments with `value((), …)`, properties land
 in a `BTreeMap` that sorts the keys and merges repeats, and no offset is recorded anywhere. All
@@ -545,7 +545,7 @@ with the sections collapsed. "I am not editing right now" is a pane state, not a
 **Publish was not one either.** It is an action surface — export options and a serve toggle — plus a
 temporary map tool for drawing the crop rectangle. A collapsible section and a map tool cover it.
 
-**The build-order argument did not favour modes after all.** [Q14](decisions.md) rested partly on
+**The build-order argument did not favour modes after all.** [Q14](#q14--explore-and-pipeline-stay-separate-modes--superseded-by-q22) rested partly on
 modes growing monotonically: each stage adds one, rebuilding nothing. Sections grow the same way —
 S1 ships with them collapsed, S2 adds Pipeline, S4 adds Style, S5 adds Export — while adding fewer
 concepts. That argument was presented as more decisive than it was.
@@ -553,12 +553,12 @@ concepts. That argument was presented as more decisive than it was.
 **Amended 2026-08-17, on three points this decision left loose.**
 
 _There is no Sources section._ The first draft of this decision listed the left pane as **Sources ·
-Pipeline · Style · Export**, which reintroduced exactly the duplication [Q14](decisions.md) had
+Pipeline · Style · Export**, which reintroduced exactly the duplication [Q14](#q14--explore-and-pipeline-stay-separate-modes--superseded-by-q22) had
 removed — a list of `from_*` read nodes beside a graph that already draws them. Q14's reasoning was
 never overturned and still holds: the read nodes at the head of the pipeline **are** the sources.
 Three sections: **Pipeline · Style · Export**, with "+ Add source" adding a read node to the graph.
 Keeping both would have meant either drawing the same nodes twice, or pulling read nodes out of the
-graph — and then the graph is no longer a view onto the whole text, which [Q11](decisions.md) needs
+graph — and then the graph is no longer a view onto the whole text, which [Q11](#q11--the-node-graph-c1-is-in-release-1-and-needs-a-lossless-vpl-syntax-tree) needs
 it to be.
 
 _The mode bar arrives at S4, not S2._ Its second occupant is the asset manager (G7), which lands in
@@ -568,9 +568,9 @@ S2 adds the collapsible left pane alone.
 _The first mode is called **Map**._ Not "Map mode" — the bar is already understood as modes, so the
 word is redundant in the label. It reads against its siblings: **Map · Assets**, where the map is the
 thing being made and assets are what it consumes. "Project" was rejected as colliding with the
-project directory ([Q6](decisions.md)), "Workbench" as naming the whole application
-([Q13](decisions.md)) rather than one tab, and "Tiles" as excluding the style, which is in this mode
-and is not tiles. Note the bar may well hold only these two for a long time: [Q9](decisions.md) puts
+project directory ([Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest)), "Workbench" as naming the whole application
+([Q13](#q13--studio-is-a-workbench-new-projects-start-from-a-landing-screen)) rather than one tab, and "Tiles" as excluding the style, which is in this mode
+and is not tiles. Note the bar may well hold only these two for a long time: [Q9](#q9--fonts-and-sprites-are-fetched-per-family-and-never-unpacked) puts
 locally generated assets through the same manifest and serving path as downloaded ones, so generating
 glyphs (D9) and generating sprite sheets (D10) are both features _of_ the asset manager rather than
 modes beside it.
@@ -584,13 +584,13 @@ places would leave the thing a user opened a container to see with no home at al
 survives a mode switch" stop being rules when there are no mode switches to survive.
 
 **What we accept.** The left pane carries more: a pipeline chain, a layer tree, export options, and
-[Q15](decisions.md)'s Graph/VPL tabs inside the pipeline section. On the 13-inch laptop Q15 was
+[Q15](#q15--the-pipeline-pane-tabs-between-graph-and-text)'s Graph/VPL tabs inside the pipeline section. On the 13-inch laptop Q15 was
 protecting, that is the real risk. **Sections must collapse independently and remember their state**
 — that is load-bearing here, not polish. Node editing and layer reordering also behave differently,
 so the sections must not imply they are the same kind of thing.
 
-**Supersedes [Q14](decisions.md)** entirely, and the Publish-mode reasoning in
-[Q17](decisions.md). [Q13](decisions.md)'s landing screen and [Q15](decisions.md)'s Graph/VPL tabs
+**Supersedes [Q14](#q14--explore-and-pipeline-stay-separate-modes--superseded-by-q22)** entirely, and the Publish-mode reasoning in
+[Q17](#q17--a3-the-multi-source-layer-stack-is-dropped). [Q13](#q13--studio-is-a-workbench-new-projects-start-from-a-landing-screen)'s landing screen and [Q15](#q15--the-pipeline-pane-tabs-between-graph-and-text)'s Graph/VPL tabs
 are unaffected.
 
 **Amended by [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits).** The three fixed
@@ -609,7 +609,7 @@ bookmarks.json   user-created, precious
 
 **Why not SQLite**, even though it costs nothing — `rusqlite` is already linked via the mbtiles
 reader. Its advantages are concurrency, partial updates and queries over large sets, and none apply:
-[Q16](decisions.md) guarantees a single application instance, so there is one writer; the data is a
+[Q16](#q16--one-application-instance-one-window-per-project) guarantees a single application instance, so there is one writer; the data is a
 dozen recents and some named views; there is nothing to query. What it would add is a schema and
 migrations, for state whose shape will change often. A JSON file the user can read, grep, back up
 and move also honours "nothing only exists inside Studio" in a way an opaque database does not.
@@ -627,12 +627,12 @@ us, in about ten lines and with no schema.
 macOS, where both are Application Support; on Linux it is `~/.local/share` versus `~/.config`.
 
 **What we give up.** Bookmarks no longer travel when a project folder is shared, which is the
-portability [Q6](decisions.md) and G1 argue for. Accepted: there is no project file until S5.1, and a
+portability [Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest) and G1 argue for. Accepted: there is no project file until S5.1, and a
 bookmark is a place worth returning to whether or not a project exists. If project-scoped bookmarks
 are wanted later they can coexist — app-wide for containers opened outside any project, project-
 scoped for those inside one.
 
-**Revisit** if this store grows to hold [Q4](decisions.md)'s content-addressed analysis cache, or if
+**Revisit** if this store grows to hold [Q4](#q4--analysis-statistics-live-in-memory-keyed-by-container-identity)'s content-addressed analysis cache, or if
 multiple application instances ever become possible. Either would make files the wrong choice.
 
 ### Q20 — GDAL is raster-only in release 1; GeoPackage is not supported
@@ -677,7 +677,7 @@ libproj. PROJ still probes the filesystem first and falls back to the embedded c
 - **Build time.** CMake compiling GDAL, PROJ, GEOS and SQLite on every clean build. Needs aggressive
   CI caching; note versatiles-rs already caches its _dynamic_ GDAL tree because installing it takes
   ~6 minutes.
-- **Size.** The embedded `proj.db` alone is several MB, before GDAL. For scale, [Q9](decisions.md)
+- **Size.** The embedded `proj.db` alone is several MB, before GDAL. For scale, [Q9](#q9--fonts-and-sprites-are-fetched-per-family-and-never-unpacked)
   sized the whole bundled asset tier at ~2.5 MB — GDAL will dwarf the rest of the installer.
 - **GEOS is LGPL 2.1.** Static linking obliges us to let recipients relink against a modified GEOS.
   Studio is MIT and open-source so this is satisfiable, but it is a real compliance step — ship
@@ -685,7 +685,7 @@ libproj. PROJ still probes the filesystem first and falls back to the embedded c
 - **The fork.** versatiles-rs pins a git fork of georust/gdal for GDAL 3.13 pending PR #714. Studio
   carries the same pin until it lands.
 
-**The driver list (S0.10), settled.** Raster only, per [Q20](decisions.md):
+**The driver list (S0.10), settled.** Raster only, per [Q20](#q20--gdal-is-raster-only-in-release-1-geopackage-is-not-supported):
 
 | `gdal-src` feature | Gives                                                  |
 | ------------------ | ------------------------------------------------------ |
@@ -747,7 +747,7 @@ assertion the embedded `proj.db` premise rests on, since a Web Mercator extent m
 with no database on disk.
 
 **The raster import card needed no UI change.** It was written while GDAL was still blocked, and the
-catalogue ([Q28](decisions.md)) drops any kind whose operation the build lacks — so linking GDAL was
+catalogue ([Q28](#q28--one-import-catalogue-in-the-core-derived-from-the-operation-registry)) drops any kind whose operation the build lacks — so linking GDAL was
 a `Cargo.toml` change and the card appeared. That is the property Q28 claimed, now exercised for real.
 
 **One thing the doc test could not check, and what replaced it.** `from_gdal_raster` documents itself
@@ -779,7 +779,7 @@ Studio does not depend on `@versatiles/svelte`. Its code is a **reference to rea
 import**.
 
 **Why.** Studio's shell has requirements no other consumer has: one `Map` instance owned by the Rust
-core and restored from it ([Q16](decisions.md)), panes that reconfigure per mode, a graph pane that
+core and restored from it ([Q16](#q16--one-application-instance-one-window-per-project)), panes that reconfigure per mode, a graph pane that
 edits text through a syntax tree. Adapting a library built for embedding single maps in pages would
 constrain all of that, and the coupling would run both ways — Studio's needs would start distorting a
 library other projects depend on.
@@ -805,8 +805,8 @@ and expensive to hit blind:
 
 No stacking several containers in one view with opacity, swipe and split. Dropped, not deferred.
 
-[Q14](decisions.md) removed the sources strip from Explore, leaving A3 — a stretch item — with
-nowhere to live. [Q16](decisions.md) mostly replaces it: one window per project means comparing two
+[Q14](#q14--explore-and-pipeline-stay-separate-modes--superseded-by-q22) removed the sources strip from Explore, leaving A3 — a stretch item — with
+nowhere to live. [Q16](#q16--one-application-instance-one-window-per-project) mostly replaces it: one window per project means comparing two
 containers is two windows side by side. Not a swipe, but free and the platform convention.
 
 **Release 1 therefore has no comparison view at all.** C3 is not one — it shows the selected node's
@@ -837,7 +837,7 @@ beyond it while costing a second core.
 
 **WebGL is headroom, not a decider.** Chrome and WebKit allow ~16 contexts and silently discard the
 oldest past that. The original argument assumed two or three maps per project; after
-[Q17](decisions.md) it is one, so even ten projects sit under the cap. Separate budgets are worth
+[Q17](#q17--a3-the-multi-source-layer-stack-is-dropped) it is one, so even ten projects sit under the cap. Separate budgets are worth
 having for free, but the decision rests on isolation and the single core.
 
 **The server does not need duplicating.** `add_tile_source` / `remove_tile_source` work on a running
@@ -853,7 +853,7 @@ server, and the config mounts many named sources at once.
   reload path matters more than prevention.
 - **Destroy `Map` instances that are not visible.** Not pressing at one map per project, but the
   ceiling discards the context you looked at _first_, so establish the habit before B5.
-- **The landing screen is what an empty window shows** ([Q13](decisions.md)); ⌘N opens another.
+- **The landing screen is what an empty window shows** ([Q13](#q13--studio-is-a-workbench-new-projects-start-from-a-landing-screen)); ⌘N opens another.
 - **Measured at S0.8 (2026-08-16, macOS, debug build, empty page).** The window model holds
   comfortably:
 
@@ -886,7 +886,7 @@ not a wizard.
 - **It never gates anything.** Everything on it is also reachable from inside the workbench. A
   launcher that becomes a required first step is a wizard by another name.
 
-### Q14 — Explore and Pipeline stay separate modes — **superseded by [Q22](decisions.md)**
+### Q14 — Explore and Pipeline stay separate modes — **superseded by [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)**
 
 > Kept for the record. The modes were merged: the separation it defends turned out not to match how
 > the work flows, and the sources-panel reasoning below survives in a different form.
@@ -901,7 +901,7 @@ are the `from_*` read nodes at the head of the pipeline, so the graph already sh
 separate list duplicated them. "+ Add source" adds a read node.
 
 Two things follow. Explore keeps no left pane, which is what left A3 homeless and led
-[Q17](decisions.md) to drop it. And the layout settles into **left is structure, right is
+[Q17](#q17--a3-the-multi-source-layer-stack-is-dropped) to drop it. And the layout settles into **left is structure, right is
 parameters** — Pipeline's graph and Style's layer tree occupy the same pane, and Explore and Publish
 have no structure to navigate, so the map runs wide.
 
@@ -1164,7 +1164,7 @@ Not a subcommand serving a browser UI. Native file dialogs, drag & drop, file ty
 being findable as an application outweigh the alternative.
 
 **Tauri v2**, not v1. The removed template was v1, and everything since assumes v2 — the multi-window
-model of [Q16](decisions.md), the Channels of [Q3](decisions.md), and `tauri-specta`'s v2 support all
+model of [Q16](#q16--one-application-instance-one-window-per-project), the Channels of [Q3](#q3--three-planes-ipc-for-control-http-for-data-channels-for-events), and `tauri-specta`'s v2 support all
 depend on it. Stated here so nobody scaffolds v1 from the old template.
 
 **In exchange:** signing and notarisation costs (G3), building auto-update ourselves (G4), no path

@@ -39,15 +39,22 @@ The cheapest valuable additions, in order:
 
 ## Later
 
+Two different things end up here, and the difference matters when planning: a **stretch** item is
+already scoped into release 1 and is cut first if time runs out, so it arrives with its stage rather
+than after it. Everything else was never in release 1 at all. The stretch items are A4, C5, C8, D5,
+D6, D9, E4 and E6 ([Release 1 Scope](scope-release-1.md) marks them `*`).
+
 - **B4, B5** — coverage gaps and container diff, valuable once people rebuild data sets regularly.
-- **D5, D6, D7, D9** — dark variants, accessibility checks, legends, glyph generation from own fonts.
-- **E4, E6** — DEM and hillshade, table joins for choropleths.
+- **D7** — legends. Explicitly **out** of release 1, unlike the D-cluster stretch items.
 - **F3, F6, F7** — upload targets, print-quality image export, offline packages.
+
+Cut a stretch item and it lands at the top of this list: D5, D6 and D9 (dark variants, accessibility
+checks, glyph generation from own fonts), E4 and E6 (DEM and hillshade, table joins for choropleths),
+C5 and C8 (recipe library, watch mode), A4 (layer and attribute introspection).
 
 ## Deliberately open-ended
 
-B6, B7, B8, B9, C5, C8, D4. All valuable, none blocking. Revisit once real users tell us which they
-miss.
+B6, B7, B8, B9, D4. All valuable, none blocking. Revisit once real users tell us which they miss.
 
 E5 (planetiler orchestration) is **not** on this list — [Q7](decisions.md) drops it outright rather
 than deferring it.

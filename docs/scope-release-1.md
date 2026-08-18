@@ -69,10 +69,11 @@ since parse errors come back as strings with no positions.
 ## The dependency that saves the most work
 
 **M3 and M4 share one engine.** E1, E2 and E3 are the `from_geo`, `from_csv` and GDAL operations of
-the pipeline, so the import wizard is a guided front-end onto a VPL pipeline the user could have
-typed. Build the pipeline layer first and the wizard's preview _is_ C3's preview, every wizard gets a
-"show me the VPL" escape hatch (C7), and fixing the pipeline fixes the wizard.
-Building them separately means writing the conversion plumbing twice.
+the pipeline, so importing is a front-end onto a VPL pipeline the user could have typed. Build the
+pipeline layer first and import's preview _is_ C3's preview, its "show me the VPL" escape hatch (C7)
+comes for free, and fixing the pipeline fixes import. Building them separately means writing the
+conversion plumbing twice. Taken to its conclusion this is why there is no import surface at all —
+see [S3](#s3--import--convert--m3) below.
 
 ## Stage order
 

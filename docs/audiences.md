@@ -15,7 +15,7 @@ of JavaScript. No GIS training, no patience for a toolchain.
 **Brings.** A CSV, a GeoJSON, a shapefile from a statistics office. Strong opinions about how the
 result should look.
 
-**Needs.** Import wizard (E1, E2), table join for a choropleth (E6), colour and typography control
+**Needs.** Import without a toolchain (E1, E2), table join for a choropleth (E6), colour and typography control
 (D1, D3), the newsroom's own house typeface (D9), accessibility checking (D6), embed snippet (F5),
 static image export for print (F6).
 

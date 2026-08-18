@@ -1,5 +1,5 @@
 /**
- * Bundles MapLibre's worker into `src/maplibre-gl-worker.js` (S1.4).
+ * Bundles MapLibre's worker into `public/maplibre-gl-worker.js` (S1.4).
  *
  * Since v6 MapLibre loads its worker from a separate file, resolved at runtime via
  * `new URL('./maplibre-gl-worker.mjs', import.meta.url)`. Bundlers inline `maplibre-gl.mjs` into a

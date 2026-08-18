@@ -7,9 +7,13 @@ full GIS.
 Built on [Tauri](https://tauri.app) and [versatiles-rs](https://github.com/versatiles-org/versatiles-rs).
 
 > **Status: early implementation.** Planning is complete — see the
-> [decision log](docs/decisions.md) — and stage S0, the foundation, is under way. There is nothing
-> usable yet: the shell opens a window, the embedded server runs, and that is all. Everything in
-> [`docs/`](docs/) remains a draft and up for discussion.
+> [decision log](docs/decisions.md). Stages S0 (foundation), S1 (open & explore) and S2 (pipeline
+> editing) are done apart from two stretch items; S3 (import & convert) is under way, with export the
+> item in progress. Studio
+> opens containers, previews a pipeline live, edits VPL as a node chain or as text, and imports
+> vector, tabular and raster data. Milestones M2 (style) and the rest of M3 are still ahead, so it
+> is not yet useful end to end. [Release 1 Scope](docs/scope-release-1.md) tracks this per item;
+> everything in [`docs/`](docs/) remains a draft and up for discussion.
 
 ## Release 1
 
@@ -89,7 +93,7 @@ npm run assets:update    # move the pins deliberately
 
 Both are metadata-only, so neither downloads anything.
 
-## Planning documents## Planning documents
+## Planning documents
 
 | Document                                   | Contents                                                   |
 | ------------------------------------------ | ---------------------------------------------------------- |

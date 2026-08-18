@@ -119,8 +119,11 @@ review overlaps with cluster A rather than following it. The rest can land whene
 
 ### Filed and open
 
-What has actually been asked for, and what each one buys back here. **Where a workaround exists, a
-test fails when the fix lands** — that is the reminder, rather than this table, which is the map.
+What has actually been asked for, and what each one buys back here. Most workarounds are things
+Studio would keep anyway — a tile URL that defeats a cache, a guard against an unbounded traversal —
+so they need no reminder to remove. **Where a workaround exists only until the fix lands, a test
+fails on that day**: `vpl::operations::the_workaround_is_still_needed` is the one such tripwire
+today, for vt#229. This table is the map, not the reminder.
 
 | Issue                                                                | Asks for                                                   | What Studio does meanwhile                                   |
 | -------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------ |
@@ -206,7 +209,7 @@ The actual construction work:
 - A lossless VPL syntax tree — spans, comments, parameter order — and a serialiser on top of it
 - The node graph and its synchronisation with VPL text (C1)
 - Deep style editing beyond what the styler control does (D2, D3, D6, D7)
-- Import wizards with preview (E1–E3)
+- Import with preview (E1–E3)
 - Job queue and progress model (E7)
 - The project file format (G1)
 - Build, signing and update infrastructure (G3, G4)

@@ -27,7 +27,7 @@ Studio runs `versatiles serve` on loopback against the _current_ pipeline state 
 fetch over HTTP as it normally would. That makes live preview (C3) nearly free — change a parameter,
 invalidate the source, MapLibre re-fetches, with no separate build step — keeps MapLibre completely
 standard, lets `@versatiles/svelte` and `maplibre-versatiles-styler` drop in unmodified, and serves
-glyphs and sprites straight out of their `.tar.br` archives via `serve -s` ([Q9](decisions.md)).
+glyphs and sprites straight out of their `.tar.gz` archives via `serve -s` ([Q9](decisions.md)).
 
 Costs to watch: cache invalidation on every pipeline edit, and binding a free loopback port without
 tripping firewall prompts.
@@ -99,48 +99,70 @@ versatiles-studio/
 ├── crates/
 │   └── studio-core/
 │       └── src/
-│           ├── project/        project.yaml, load/save, Save As, zip     (G1, Q6)
 │           ├── vpl/            document model; several named graphs      (Q11, Q32)
-│           ├── jobs/           runner, progress, cancellation, log       (E7)
-│           ├── analysis/       probe stats, in-memory per container      (Q4)
-│           ├── assets/         install, pin, verify; glyph generation    (G7, D9)
-│           └── server/         embedded server lifecycle, named mounts   (Q16)
+│           ├── project.rs      project.yaml, load/save, Save As, zip     (G1, Q6)
+│           ├── graphs.rs       the set of graphs a project holds         (Q32)
+│           ├── history.rs      one undo stack across all of them         (G6)
+│           ├── jobs.rs         runner, progress, cancellation, log       (E7)
+│           ├── preview.rs      running a graph so the map can show it    (C3)
+│           ├── export.rs       writing the result to a container         (F2)
+│           ├── import.rs       the catalogue of ways in                  (E1–E3)
+│           ├── tabular.rs      a delimited file's header                 (E2)
+│           ├── suggest.rs      values a field could take                 (E2)
+│           ├── analysis.rs     probe stats, in-memory per container      (Q4)
+│           ├── assets.rs       install, pin, verify; glyph generation    (G7, D9)
+│           ├── store.rs        recents and bookmarks, outliving a window (A7, Q21)
+│           └── server.rs       embedded server lifecycle, named mounts   (Q16)
 │
 ├── src-tauri/                  deliberately thin
 │   ├── tauri.conf.json
 │   ├── capabilities/
 │   ├── icons/                  generated from app-icon.png
 │   ├── resources/              bundled tier, shipped as archives         (Q9)
-│   │   ├── sprites.tar.br
-│   │   └── noto_sans_latin.tar.br
+│   │   ├── sprites.tar.gz
+│   │   └── glyphs.tar.gz
 │   └── src/
-│       ├── main.rs             one window per project                    (Q16)
+│       ├── main.rs             the entry point
 │       ├── commands/           #[tauri::command] bindings — control plane
-│       └── events/             Channels — event plane                    (Q3)
+│       ├── events/             Channels — event plane                    (Q3)
+│       ├── windows.rs          one window per project                    (Q16)
+│       ├── opened.rs           files the OS asks Studio to open          (S0.1)
+│       ├── assets.rs           locating the bundled tier                 (S0.6)
+│       ├── bindings.rs         generating bindings.ts from the commands  (S0.3)
+│       └── state.rs            state owned by the Tauri process
+│
+├── public/
+│   └── maplibre-gl-worker.js   generated, not hand-written               (Q18)
 │
 ├── src/                        the webview
+│   ├── main.ts                 mounts the app; imports both stylesheets
 │   ├── App.svelte
-│   ├── maplibre-gl-worker.js   generated, not hand-written               (Q18)
 │   └── lib/
 │       ├── shell/              the frame: AppShell · Sidebar · Pane · bars
 │       ├── panes/<pane>/       each pane and its own parts               (Q31)
 │       ├── map/                the map's components and its helpers
 │       ├── common/             used by more than one owner
 │       ├── ipc/                bindings.ts (generated) + typed wrappers
-│       └── state/              view state, and mirrors of core state     (Q16)
+│       ├── state/              view state, and mirrors of core state     (Q16)
+│       ├── styles/             tokens, base, and reading tokens from JS
+│       └── vpl/                parsing and highlighting, for the editor
 │
-├── scripts/bundle_worker.ts    MapLibre 6 worker fix                     (S1.4)
+├── scripts/                    build-time tooling, not shipped
+│   ├── bundle_worker.ts        MapLibre 6 worker fix                     (S1.4)
+│   └── fetch-assets.ts         · update-assets.ts — the pinned tier      (S0.6, S0.12)
 ├── .github/workflows/          CI for Linux and macOS                    (S0.7)
 └── docs/
 ```
 
-The component tree under `src/lib/components/` is enumerated in
+Which component lives in which of those folders, and why, is
 [Svelte Components](components.md).
 
 **`studio-core` is a separate crate because [Q3](decisions.md) requires it.** Inside `src-tauri` the
 "no Tauri types" rule would be a convention nobody enforces; as a workspace member it is a compile
-error. `src-tauri/src` therefore holds only the two planes that cross the boundary — the third is
-HTTP and needs no code there, since the server lives in the core.
+error. `src-tauri/src` therefore holds two of the three planes and nothing that could live below
+them — the third plane is HTTP and needs no code there, since the server lives in the core. What is
+left beside `commands/` and `events/` is what genuinely belongs to the platform: windows, the files
+the OS hands over, where the bundled assets are, and the generator that writes `bindings.ts`.
 
 **`resources/` holds archives, not directories.** [Q9](decisions.md) is emphatic that assets are
 never unpacked, and a `resources/sprites/` tree would quietly undo that at build time.

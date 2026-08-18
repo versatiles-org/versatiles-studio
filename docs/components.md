@@ -28,7 +28,7 @@ job — which is what keeps a rename from being a move.
 
 **A component lives with what owns it**, meaning whatever imports it. Not with things of the same
 _kind_: `shell/` started as "chrome" and ended up holding the application frame, three panes'
-contents, the landing screen, the job bar and the VPL editor — fourteen components with nothing in
+contents, the landing screen, the job bar and the VPL editor — twelve components with nothing in
 common but the absence of a better home. Ownership is a fact you can check by grepping for the
 import; kind is a judgement, and judgements drift.
 
@@ -56,7 +56,11 @@ _Not_ a prefix scheme. `PipelineNodeArgument` says in the name what the path alr
 distinguishing part of the name to the end where it is hardest to read, and has to be renamed when
 ownership moves. Folders carry ownership; names carry identity.
 
-## Shell
+## The frame
+
+**The tables below group by where a component appears on screen, not by which folder it is in** —
+two different questions, and the folder listing above answers the other one. A component that has
+shipped is named as it is on disk; the rest are planned, and the stage column says when.
 
 The five-region grid from [UI Concept](ui.md). All Studio-specific. How they are styled — the
 tokens, the rules and what is enforced — is in [Styling](styling.md). A component that adds a map
@@ -67,7 +71,6 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 | `AppShell`         | The grid: mode bar, two sidebars, map, status and job bar                                                                 | S0.1  |
 | `ModeBar`          | **Map** vs non-map tools — assets (G7), which is where generated glyphs (D9) and sprites (D10) live ([Q22](decisions.md)) | S4.1  |
 | `Sidebar` + `Pane` | A sidebar renders a **list** of panes; each is foldable and its state is core-owned ([Q31](decisions.md))                 | S2.2  |
-| `VplEditor`        | Textarea over a highlighted `<pre>`; the tokens come from the parser ([Q25](decisions.md))                                | S2.3  |
 | `PaneResizer`      | The draggable edge of a side pane, used on both                                                                           | S2.2  |
 | `MapControls`      | Background picker, grid toggle and Reset view, over the map                                                               | S1.6  |
 | `StatusBar`        | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))                        | S1.9  |
@@ -80,13 +83,13 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 
 One `Map` instance for the whole window, owned by the core ([Q16](decisions.md)).
 
-| Component         | Does                                                                    | Stage |
-| ----------------- | ----------------------------------------------------------------------- | ----- |
-| `MapCanvas`       | Wraps MapLibre; viewport restored from the core, never from local state | S1.4  |
-| `TileGridOverlay` | z/x/y grid (A5)                                                         | S1.7  |
-| `CoordinateJump`  | Jump-to-coordinate box (A5)                                             | S1.7  |
-| `FeaturePopup`    | All attributes of the feature under the cursor (A8)                     | S1.6  |
-| `CropOverlay`     | Drag a rectangle to crop (F2) — port `BBoxDrawer`                       | S5.4  |
+| Component        | Does                                                                    | Stage |
+| ---------------- | ----------------------------------------------------------------------- | ----- |
+| `MapCanvas`      | Wraps MapLibre; viewport restored from the core, never from local state | S1.4  |
+| `TileGrid`       | z/x/y grid (A5)                                                         | S1.7  |
+| `CoordinateJump` | Jump-to-coordinate box (A5)                                             | S1.7  |
+| `FeaturePopup`   | All attributes of the feature under the cursor (A8)                     | S1.6  |
+| `CropOverlay`    | Drag a rectangle to crop (F2) — port `BBoxDrawer`                       | S5.4  |
 
 ## Left pane — the chain
 
@@ -100,43 +103,40 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `Help`         | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md)) | S2.13 |
 | `HelpTrigger`  | The `?` that opens it — hover or focus peeks, click pins ([Q33](decisions.md))                                     | S2.13 |
 | `ExportDialog` | Format, zoom range, numeric bounds and the estimate — modal, per graph (F2, C6)                                    | S3.6  |
-| `VplEditor`    | Text over the syntax tree, with a marker gutter (C4)                                                               | S2.3  |
+| `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3  |
 | `LayerTree`    | Style layers with visibility and selection (D3)                                                                    | S4.5  |
 
 ## Right pane — what it turns out to be
 
 **The parameter form moved into the node** ([Q32](decisions.md)), so this pane is no longer where
-you set things — it is where you read what the pipeline turned out to be. The generated-form
-components below now live inside `NodeCard`; they did not change, only where they are rendered.
+you set things — it is where you read what the pipeline turned out to be.
 
-**`ParamForm` is the component that carries the architecture.** C2 generates forms from
-`field_meta` rather than hand-writing one per operation, so this single component covers all ~30 VPL
-operations, new upstream operations appear for free, and S3's import cards are just a `from_*` node's
-form. Getting it right delivers a large slice of S2 and S3 at once.
+**The generated form carries the architecture, and it shipped as `NodeArgument`.** C2 generates
+forms from `field_meta` rather than hand-writing one per operation, so one component covers all ~30
+VPL operations, new upstream operations appear for free, and S3's import cards are just a `from_*`
+node's form. It was planned as a `ParamForm` over a kit of `Input*` components; built, the variants
+turned out to differ only in the data they are handed, so there is one component and a `control.kind`
+switch rather than seven. `is_sources` fields — which pick another node — are the one control with no
+counterpart in any existing repo.
 
-| Component                                                                    | Does                                                        | Stage |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------- | ----- |
-| `ParamForm`                                                                  | Renders `VPLFieldMeta[]` into controls                      | S2.6  |
-| `InputText` · `InputNumber` · `InputCheckbox` · `InputSelect` · `InputColor` | The control kit, each with a default-aware state            | S2.6  |
-| `InputStringList`                                                            | Array-typed fields                                          | S2.6  |
-| `InputSourceRef`                                                             | Fields where `is_sources` is set — picks another node       | S2.6  |
-| `MetadataPanel`                                                              | Container metadata and TileJSON, viewable and editable (A6) | S1.5  |
-| `PaintPanel` + `ExpressionEditor`                                            | Colour, width, opacity, zoom stops (D3)                     | S4.5  |
-| `ExportPanel`                                                                | Format, zoom range, estimate, and the serve toggle (F1, F2) | S5.2  |
-
-`InputSourceRef` has no counterpart in any existing repo — it is the one control that only makes
-sense inside a pipeline editor.
+| Component                         | Does                                                        | Stage |
+| --------------------------------- | ----------------------------------------------------------- | ----- |
+| `Inspector`                       | Container metadata and TileJSON, viewable and editable (A6) | S1.5  |
+| `Bookmarks`                       | Saved views of the map (A7)                                 | S1.8  |
+| `PaintPanel` + `ExpressionEditor` | Colour, width, opacity, zoom stops (D3)                     | S4.5  |
+| `ExportPanel`                     | Format, zoom range, estimate, and the serve toggle (F1, F2) | S5.2  |
 
 ## Cross-cutting
 
-| Component       | Does                                                             | Stage |
-| --------------- | ---------------------------------------------------------------- | ----- |
-| `Dialog`        | Modal shell — for confirmations, never for jobs or progress      | S0.1  |
-| `FileDrop`      | Drag & drop target feeding the same path as the file dialog      | S1.2  |
-| `CopyButton`    | Used by the command strip and by C7's exports                    | S1.9  |
-| `AssetPanel`    | Font families and sprite sets: install, pin, verify, remove (G7) | S4.1  |
-| `QrCode`        | LAN URL for testing on a phone (F1)                              | S5.3  |
-| `EstimateBadge` | "~40 min, ~2.3 GB", shown where a run is committed (C6)          | S3.7  |
+| Component       | Does                                                              | Stage |
+| --------------- | ----------------------------------------------------------------- | ----- |
+| `JsonTree`      | Any JSON, collapsible — used by `Inspector` and by `FeaturePopup` | S1.5  |
+| `Dialog`        | Modal shell — for confirmations, never for jobs or progress       | S0.1  |
+| `FileDrop`      | Drag & drop target feeding the same path as the file dialog       | S1.2  |
+| `CopyButton`    | Used by the command strip and by C7's exports                     | S1.9  |
+| `AssetPanel`    | Font families and sprite sets: install, pin, verify, remove (G7)  | S4.1  |
+| `QrCode`        | LAN URL for testing on a phone (F1)                               | S5.3  |
+| `EstimateBadge` | "~40 min, ~2.3 GB", shown where a run is committed (C6)           | S3.7  |
 
 ## Conventions
 
