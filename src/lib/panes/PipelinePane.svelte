@@ -1,6 +1,7 @@
 <script lang="ts">
 	import VplEditor from '../components/shell/VplEditor.svelte';
-	import PipelineGraph from '../components/shell/PipelineGraph.svelte';
+	import Chain from './Chain.svelte';
+	import GraphList from './GraphList.svelte';
 	import { nodeAt, nodeAtPath, samePath } from '../vpl/node-at';
 	import {
 		vplReview,
@@ -9,7 +10,8 @@
 		type Span,
 		type DocumentView,
 		type ImportKind,
-		type OperationInfo
+		type OperationInfo,
+		type GraphInfo
 	} from '../ipc/commands';
 	import ImportCards from '../components/shell/ImportCards.svelte';
 
@@ -27,9 +29,20 @@
 	let {
 		kinds,
 		operations = [],
+		properties = [],
+		suggestions = {},
+		graphs = [],
+		pinned = null,
 		onAddSource,
+		onNewGraph,
+		onSelectGraph,
+		onRenameGraph,
+		onPin,
 		onAddOperation,
 		onRemoveNode,
+		onCommit,
+		onRemoveProperty,
+		onSetProperty,
 		pipeline,
 		pipelineRevision,
 		onPipelineChange,
@@ -43,10 +56,26 @@
 		kinds: ImportKind[];
 		/** Every known operation, for the transform picker. Empty until the one-off fetch lands. */
 		operations?: OperationInfo[];
+		/** Property names the pipeline produces, for list fields (S3.3). */
+		properties?: string[];
+		/** Per-field values read from what a node points at (S3.4). */
+		suggestions?: Record<string, string[]>;
+		/** Every graph in the project ([Q32]). */
+		graphs?: GraphInfo[];
+		/** The pinned node, when the pin is in *this* graph. */
+		pinned?: number[] | null;
 		onAddSource: (kind: ImportKind) => void;
-		/** Adds a transform after the selected node, or at the end when nothing is selected. */
-		onAddOperation: (operation: string) => void;
-		onRemoveNode: () => void;
+		onNewGraph: () => void;
+		onSelectGraph: (id: number) => void;
+		onRenameGraph: (id: number, name: string) => void;
+		/** Moves the map to this node, or clears the pin when it is already there. */
+		onPin: (path: number[]) => void;
+		/** Inserts a transform after the node whose name occupies `span`. */
+		onAddOperation: (afterNameSpan: Span, operation: string) => void;
+		onRemoveNode: (span: Span) => void;
+		onCommit: (span: Span, value: string) => void;
+		onRemoveProperty: (span: Span) => void;
+		onSetProperty: (nameSpan: Span, key: string, values: string[]) => void;
 		/** This window's pipeline, owned by the core (Q25). */
 		pipeline: DocumentView | null;
 		/** Bumped only when the document changes from *outside* the editor. Keying the editor on the
@@ -68,28 +97,11 @@
 	/// Whether "+ Add source" has been opened into its cards. Local: which way in someone is part
 	/// way through choosing is not worth remembering across a reload.
 	let adding = $state(false);
-	/// The transform picker's current value — reset after each choice so the same operation can be
-	/// added twice in a row, which a `<select>` otherwise refuses to fire for.
-	let addingOperation = $state('');
 
-	/// Operations that can be *added to* a chain.
-	///
-	/// Reads are excluded because a read node belongs at the head and gets there through
-	/// "+ Add source" (Q14) — offering one here would produce a document that parses and is then
-	/// immediately marked wrong, which is a worse way to learn the rule than not being offered it.
-	const transforms = $derived(
-		operations.filter((operation) => operation.kind === 'transform').sort((a, b) => a.name.localeCompare(b.name))
+	/// The selected node's name span, which is how a property edit addresses its node.
+	const selectedSpan = $derived(
+		selected && pipeline ? (nodeAtPath(pipeline.pipeline, selected)?.nameSpan ?? null) : null
 	);
-
-	/// The node a new operation would attach to: the selection, or the end of the chain.
-	///
-	/// Named on the control rather than left implicit — "after the selection" and "at the end" put
-	/// the node in different places, and working out afterwards which one happened is a real cost.
-	const attachesTo = $derived.by(() => {
-		if (!pipeline) return null;
-		const node = selected ? nodeAtPath(pipeline.pipeline, selected) : null;
-		return node ?? pipeline.pipeline.nodes.at(-1) ?? null;
-	});
 
 	/** Where the caret should go when the VPL tab opens. Cleared once the editor has used it. */
 	let reveal = $state<Span | null>(null);
@@ -150,6 +162,16 @@
 </script>
 
 <div class="pane">
+	<!-- The project's graphs, above the one being edited ([Q32]). -->
+	<GraphList
+		{graphs}
+		current={pipeline?.graph ?? null}
+		pinnedGraph={pinned ? (pipeline?.graph ?? null) : null}
+		onSelect={onSelectGraph}
+		onRename={onRenameGraph}
+		onNew={onNewGraph}
+	/>
+
 	<div class="tabs" role="tablist" aria-label="Pipeline view">
 		{#each [['graph', 'Graph'], ['vpl', 'VPL']] as const as [id, label] (id)}
 			<button
@@ -212,11 +234,20 @@
 	{:else if !pipeline || pipeline.pipeline.nodes.length === 0}
 		<p class="empty">Nothing open yet.</p>
 	{:else}
-		<PipelineGraph
+		<Chain
 			pipeline={pipeline.pipeline}
-			diagnostics={problems}
 			{selected}
-			onSelect={(path, node) => selectNode(path, node.nameSpan)}
+			{pinned}
+			{operations}
+			{properties}
+			{suggestions}
+			onSelect={selectNode}
+			{onPin}
+			{onCommit}
+			onRemove={onRemoveProperty}
+			onSet={(key, values) => selectedSpan && onSetProperty(selectedSpan, key, values)}
+			{onRemoveNode}
+			{onAddOperation}
 		/>
 	{/if}
 	<!-- Actions on the pipeline itself, available from either tab. Saving a *project* is a
@@ -241,41 +272,6 @@
 					}}
 				/>
 			{/if}
-
-			<!-- Adding a transform. A `<select>` rather than cards: there are thirty of them, they
-			     are named rather than described, and the list comes from `field_meta` by way of the
-			     core, so an operation added upstream is offerable with no change here (C2). -->
-			<div class="operation">
-				<label class="picker">
-					<span class="visually-hidden">Add an operation</span>
-					<select
-						bind:value={addingOperation}
-						disabled={!pipeline || transforms.length === 0}
-						onchange={() => {
-							if (!addingOperation) return;
-							onAddOperation(addingOperation);
-							addingOperation = '';
-						}}
-					>
-						<option value="">+ operation…</option>
-						{#each transforms as operation (operation.name)}
-							<option value={operation.name} title={operation.doc}>{operation.name}</option>
-						{/each}
-					</select>
-				</label>
-				{#if attachesTo}
-					<span class="after truncate" title="A new operation is inserted after this one">after {attachesTo.name}</span>
-				{/if}
-				<button
-					type="button"
-					class="remove"
-					disabled={!selected || (pipeline?.pipeline.nodes.length ?? 0) < 2}
-					title={selected ? 'Remove the selected operation' : 'Select an operation to remove it'}
-					onclick={onRemoveNode}
-				>
-					Remove
-				</button>
-			</div>
 		{/if}
 		<div class="files">
 			<button
@@ -390,34 +386,6 @@
 	.dot {
 		color: var(--accent);
 		margin-left: 1px;
-	}
-	.operation {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		min-width: 0;
-		margin-top: var(--space-2);
-	}
-	.operation select {
-		font-size: var(--text-sm);
-	}
-	.after {
-		flex: 1;
-		min-width: 0;
-		font-size: var(--text-xs);
-		color: var(--ink-2);
-	}
-	.remove {
-		flex: none;
-		font-size: var(--text-sm);
-	}
-	.visually-hidden {
-		position: absolute;
-		width: 1px;
-		height: 1px;
-		overflow: hidden;
-		clip-path: inset(50%);
-		white-space: nowrap;
 	}
 	.add {
 		align-self: flex-start;

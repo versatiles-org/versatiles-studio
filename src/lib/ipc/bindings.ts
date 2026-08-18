@@ -248,6 +248,45 @@ export const commands = {
 	 */
 	previewPipeline: (graph: number, path: number[]) => typedError<PreviewOutcome, string>(__TAURI_INVOKE("preview_pipeline", { graph, path })),
 	/**
+	 *  Builds a graph in full and mounts it under its own name ([Q32]).
+	 * 
+	 *  Every graph is served, because that is what a style names — this is the ordinary view, and the
+	 *  pin is the exception layered on top. Mounting by name rather than under one shared `preview`
+	 *  mount is what lets a style reference `basemap` and `hillshade` separately.
+	 */
+	mountGraph: (graph: number) => typedError<{
+	/**  Mount name, stable so a rebuild replaces rather than accumulates. */
+	name: string,
+	tileUrl: string,
+	info: ContainerInfo,
+	/**
+	 *  The layers this produces, with their property keys (S3.3, E1).
+	 * 
+	 *  Carried on the preview rather than fetched separately because it is an answer about *this*
+	 *  build: asking afterwards would race the next edit, and the form would offer property names
+	 *  from a pipeline that no longer exists. Empty for raster output.
+	 */
+	layers: LayerInspection[],
+} | null, string>(__TAURI_INVOKE("mount_graph", { graph })),
+	/**  Where the map is looking: the pinned node, or `None` for the ordinary state ([Q32]). */
+	pinned: () => typedError<{
+	graph: number,
+	path: number[],
+} | null, string>(__TAURI_INVOKE("pinned")),
+	/**
+	 *  Pins the map to one node, or clears the pin.
+	 * 
+	 *  **Exactly one across the project.** Pinning elsewhere moves it; pinning the pinned node clears
+	 *  it, which is the gesture that gets you back to seeing everything.
+	 */
+	setPin: (pin: {
+	graph: number,
+	path: number[],
+} | null) => typedError<{
+	graph: number,
+	path: number[],
+} | null, string>(__TAURI_INVOKE("set_pin", { pin })),
+	/**
 	 *  Steps back, or forward again. `None` when there is nowhere to go.
 	 * 
 	 *  **One stack across every graph** ([Q32], G6), so this may hand back a graph other than the one
@@ -646,6 +685,12 @@ export type PaneState = {
 	id: string,
 	side: Side,
 	open: boolean,
+};
+
+/**  Which node the map shows, overriding every mounted graph. */
+export type Pin = {
+	graph: number,
+	path: number[],
 };
 
 /**  A chain of nodes, `a | b | c`. */

@@ -12,7 +12,6 @@
  */
 export const PANE_TITLES: Record<string, string> = {
 	pipeline: 'Pipeline',
-	parameters: 'Parameters',
 	output: 'Produces',
 	inspector: 'Inspector'
 };

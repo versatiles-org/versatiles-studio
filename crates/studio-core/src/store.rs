@@ -246,8 +246,9 @@ impl From<&(&str, Side, bool)> for PaneState {
 const PANES: &[(&str, Side, bool)] = &[
 	// Left: the documents. Open, because at S2 it is the only pane with anything in it.
 	("pipeline", Side::Left, true),
-	// Right: the selection, and what results from it ([Q31]'s document-versus-selection axis).
-	("parameters", Side::Right, true),
+	// Right: what the pipeline turns out to be. **No `parameters` pane** — the selected node carries
+	// its own arguments in the chain ([Q32]), which is what moved [Q31]'s axis from
+	// document-versus-selection to what-you-are-building versus what-it-turns-out-to-be.
 	("output", Side::Right, true),
 	("inspector", Side::Right, true),
 ];
@@ -531,7 +532,6 @@ mod tests {
 		layout.panes = vec![
 			pane("output", Side::Left, false),
 			pane("pipeline", Side::Left, true),
-			pane("parameters", Side::Right, true),
 			pane("inspector", Side::Right, false),
 		];
 		layout.save(&dir)?;
@@ -584,7 +584,7 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		assert_eq!(ids, ["pipeline", "parameters", "output", "inspector"]);
+		assert_eq!(ids, ["pipeline", "output", "inspector"]);
 		assert!(!layout.panes[0].open, "the remembered pane kept its own state");
 	}
 
@@ -599,7 +599,7 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		assert_eq!(ids, ["inspector", "pipeline", "parameters", "output"]);
+		assert_eq!(ids, ["inspector", "pipeline", "output"]);
 	}
 
 	/// Nothing produces a duplicate, but a hand-edited file can — and two panes with one id would

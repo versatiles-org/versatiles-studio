@@ -13,8 +13,7 @@
 	import PipelineOutput from './lib/components/shell/PipelineOutput.svelte';
 	import Sidebar from './lib/components/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/PipelinePane.svelte';
-	import VplNodeCard from './lib/components/shell/VplNodeCard.svelte';
-	import { nodeAtPath, walk } from './lib/vpl/node-at';
+	import { nodeAt, samePath, walk } from './lib/vpl/node-at';
 	import MapCanvas from './lib/components/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/components/map/FeaturePopup.svelte';
 	import TileGrid from './lib/components/map/TileGrid.svelte';
@@ -30,6 +29,10 @@
 		OPENED_EVENT,
 		getLayout,
 		listGraphs,
+		mountGraph,
+		setPin,
+		getPinned,
+		renameGraph,
 		addGraph,
 		setGraph,
 		undo as undoPipeline,
@@ -58,6 +61,7 @@
 		importReadNode,
 		fieldSuggestions,
 		type EditKind,
+		type GraphInfo,
 		type ImportKind,
 		type OpenedContainer,
 		type RecentEntry
@@ -87,6 +91,11 @@
 	let pipeline = $state<DocumentView | null>(null);
 	/// Which graph `pipeline` is. Every command that touches a document takes it.
 	const currentGraph = $derived(pipeline?.graph ?? null);
+	/// Every graph in the project, for the list at the top of the Pipeline pane ([Q32]).
+	let graphs = $state<GraphInfo[]>([]);
+	/// Where the map is looking. **Not the selection** — you can edit one node while watching
+	/// another, in another graph ([Q32]). `null` is the ordinary state: the map shows every graph.
+	let pinned = $state<{ graph: number; path: number[] } | null>(null);
 	/** Bumped when the pipeline changes from somewhere other than the editor, so the editor knows
 	 *  to reload rather than being fought over its own buffer. */
 	let pipelineRevision = $state(0);
@@ -94,7 +103,6 @@
 	let selected = $state<number[] | null>(null);
 	/** Build-time information about the binary, so it is fetched once and never refreshed. */
 	let operations = $state<OperationInfo[]>([]);
-	const selectedNode = $derived(selected && pipeline ? nodeAtPath(pipeline.pipeline, selected) : null);
 
 	/// Editing a parameter of the selected node rewrites the document through the core, which owns
 	/// the quoting and refuses anything that would not parse.
@@ -157,11 +165,11 @@
 		void getLayout().then((loaded) => (layout = loaded));
 		void vplOperations().then((loaded) => (operations = loaded));
 		void importKinds().then((loaded) => (kinds = loaded));
-		void listGraphs().then(async (list) => {
-			// One graph on screen until S2.13 brings the list; the first is the one to show.
-			if (list.length > 0) pipeline = await getGraph(list[0].id);
+		void refreshGraphs().then(async () => {
+			if (graphs.length > 0) pipeline = await getGraph(graphs[0].id);
 			pipelineRevision += 1;
 		});
+		void getPinned().then((found) => (pinned = found));
 	});
 
 	// ⌘Z / ⇧⌘Z reach the document from anywhere, because there is one stack for every view (G6).
@@ -216,6 +224,43 @@
 	async function setPipelineText(text: string, kind: EditKind = 'structured') {
 		if (currentGraph === null) return await addGraph('graph', text);
 		return await setGraph(currentGraph, text, kind);
+	}
+
+	/// Shows another graph's chain. The pin does not move: the map is a separate question ([Q32]).
+	async function selectGraph(id: number) {
+		selected = null;
+		const found = await getGraph(id);
+		if (!found) return;
+		pipeline = found;
+		pipelineRevision += 1;
+	}
+
+	/// Renames a graph. Refused by the core when the name is taken, and the reason is worth seeing —
+	/// the name is the mount, the style's source name and the `.vpl` filename at once.
+	async function rename(id: number, name: string) {
+		try {
+			await renameGraph(id, name);
+			await refreshGraphs();
+			if (id === currentGraph) pipeline = await getGraph(id);
+			await refreshPreview();
+		} catch (e) {
+			fail(e);
+		}
+	}
+
+	async function refreshGraphs() {
+		graphs = await listGraphs().catch(() => []);
+	}
+
+	/// Moves the map to a node, or clears the pin when it is already there.
+	///
+	/// Clicking the pinned node again is what gets you back to seeing every graph — the same
+	/// gesture off as on, because a separate "clear" would be a control that only exists sometimes.
+	async function pin(path: number[]) {
+		if (currentGraph === null) return;
+		const same = pinned && pinned.graph === currentGraph && samePath(pinned.path, path);
+		pinned = await setPin(same ? null : { graph: currentGraph, path });
+		await refreshPreview();
 	}
 
 	async function changeLayout(next: Layout) {
@@ -352,7 +397,12 @@
 			// that is now out of date** rather than leaving it to finish. That also removes the
 			// token this used to carry: which preview is current is the runner's to know, and a
 			// second answer to that question in here could only ever disagree with it.
-			const outcome = await previewPipeline(pipeline.graph, selected ?? []);
+			// The map follows the **pin**, not the selection ([Q32]): with nothing pinned it shows
+			// every graph in full, which is what a style will draw over.
+			const outcome = pinned
+				? await previewPipeline(pinned.graph, pinned.path)
+				: await mountGraph(pipeline.graph).then((p) => (p ? ({ kind: 'ready', ...p } as const) : null));
+			if (!outcome) return;
 			if (outcome.kind === 'superseded') return;
 
 			if (previewName && map) removeContainerFromMap(map, previewName);
@@ -389,29 +439,33 @@
 	///
 	/// Selects what it added, for the same reason an import selects its node ([Q29]): the next thing
 	/// to do is set its parameters, and the form for them is one unmarked click away otherwise.
-	async function addOperation(operation: string) {
+	/// Adds a transform after the node whose name occupies `span`, and selects what it added.
+	///
+	/// Selecting it is the point: the next thing to do is set its parameters, and after [Q32] the
+	/// node *is* the form — an unselected one shows only its name.
+	async function addOperation(afterNameSpan: Span, operation: string) {
 		if (!pipeline) return;
-		const target = (selected ? nodeAtPath(pipeline.pipeline, selected) : pipeline.pipeline.nodes.at(-1)) ?? null;
-		if (!target) return;
+		const at = nodeAt(pipeline.pipeline, afterNameSpan.start)?.path;
 		try {
-			const next = await setPipelineText(await vplInsertNode(pipeline.text, target.nameSpan, operation), 'structured');
-			// The inserted node sits immediately after its target, at the same depth.
-			const at = selected ? [...selected] : [pipeline.pipeline.nodes.length - 1];
-			at[at.length - 1] += 1;
-			selected = at;
-			await applyDocument(next);
+			await applyDocument(
+				await setPipelineText(await vplInsertNode(pipeline.text, afterNameSpan, operation), 'structured')
+			);
+			if (at) {
+				const next = [...at];
+				next[next.length - 1] += 1;
+				selected = next;
+			}
 		} catch (e) {
 			fail(e);
 		}
 	}
 
 	/// Removes the selected node. The selection moves to whatever took its place in the chain.
-	async function removeNode() {
-		if (!pipeline || !selected) return;
-		const target = nodeAtPath(pipeline.pipeline, selected);
-		if (!target) return;
+	/// Removes a node. The selection is dropped: what was selected is gone.
+	async function removeNode(span: Span) {
+		if (!pipeline) return;
 		try {
-			const next = await setPipelineText(await vplRemoveNode(pipeline.text, target.nameSpan), 'structured');
+			const next = await setPipelineText(await vplRemoveNode(pipeline.text, span), 'structured');
 			selected = null;
 			await applyDocument(next);
 		} catch (e) {
@@ -550,6 +604,18 @@
 		<PipelinePane
 			{kinds}
 			{operations}
+			{graphs}
+			properties={producedProperties}
+			{suggestions}
+			pinned={pinned && pinned.graph === currentGraph ? pinned.path : null}
+			onNewGraph={() => void pick()}
+			onSelectGraph={(id) => void selectGraph(id)}
+			onRenameGraph={(id, name) => void rename(id, name)}
+			onPin={(path) => void pin(path)}
+			onCommit={(span: Span, value: string) => void editSelected((text) => vplSetValue(text, span, value))}
+			onRemoveProperty={(span: Span) => void editSelected((text) => vplRemoveProperty(text, span))}
+			onSetProperty={(nameSpan: Span, key: string, values: string[]) =>
+				void editSelected((text) => vplSetProperty(text, nameSpan, key, values))}
 			onAddSource={(kind) => void pick(kind)}
 			{pipeline}
 			{pipelineRevision}
@@ -565,28 +631,10 @@
 			}}
 			onUndo={() => void stepHistory(true)}
 			onRedo={() => void stepHistory(false)}
-			onAddOperation={(operation) => void addOperation(operation)}
-			onRemoveNode={() => void removeNode()}
+			onAddOperation={(afterNameSpan, operation) => void addOperation(afterNameSpan, operation)}
+			onRemoveNode={(span) => void removeNode(span)}
 			onSave={(chooseFile) => void savePipeline(chooseFile)}
 		/>
-	{:else if id === 'parameters'}
-		<!-- Q22: the parameters of the current selection. Empty when nothing is selected, which the
-		     pane says for itself rather than disappearing — a pane that comes and goes moves
-		     everything below it. -->
-		{#if selectedNode}
-			<VplNodeCard
-				node={selectedNode}
-				{operations}
-				properties={producedProperties}
-				{suggestions}
-				onCommit={(span: Span, value: string) => void editSelected((text) => vplSetValue(text, span, value))}
-				onRemove={(span: Span) => void editSelected((text) => vplRemoveProperty(text, span))}
-				onSet={(key: string, values: string[]) =>
-					void editSelected((text) => vplSetProperty(text, selectedNode.nameSpan, key, values))}
-			/>
-		{:else}
-			<p class="nothing">Select a node to see its parameters.</p>
-		{/if}
 	{:else if id === 'output'}
 		<PipelineOutput preview={lastPreview} />
 	{:else if id === 'inspector'}
@@ -645,14 +693,6 @@
 <style>
 	/* The landing screen covers the map region entirely; the map keeps running behind it so that
 	   opening something does not have to build one. */
-	/* The empty state of the parameters pane. A pane says it has nothing rather than vanishing —
-	   one that comes and goes moves every pane below it. */
-	.nothing {
-		margin: 0;
-		padding: var(--space-3) var(--space-4);
-		font-size: var(--text-sm);
-		color: var(--ink-2);
-	}
 	:global(.landing) {
 		position: absolute;
 		inset: 0;

@@ -192,6 +192,15 @@ export const saveVpl = (graph: number, path: string) => unwrap(commands.saveVpl(
  */
 export const previewPipeline = (graph: number, path: number[]) => unwrap(commands.previewPipeline(graph, path));
 
+/** Builds a graph in full and mounts it under its own name — the ordinary view (Q32). */
+export const mountGraph = (graph: number) => unwrap(commands.mountGraph(graph));
+
+/** Where the map is looking, or null for the ordinary state. */
+export const getPinned = () => unwrap(commands.pinned());
+
+/** Pins the map to one node, or clears the pin. Exactly one across the project. */
+export const setPin = (pin: { graph: number; path: number[] } | null) => unwrap(commands.setPin(pin));
+
 /**
  * Steps back, or forward again. Null when there is nowhere to go.
  *

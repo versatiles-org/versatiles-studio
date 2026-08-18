@@ -371,11 +371,6 @@ pub async fn preview_pipeline(
 	let Some(document) = state.graphs.lock().await.get(graph).map(|g| g.document.clone()) else {
 		return Ok(PreviewOutcome::Nothing);
 	};
-	// Which node the map is showing, so the pane can mark it and the map can say so ([Q32]).
-	*state.pinned.lock().await = Some(crate::state::Pinned {
-		graph,
-		path: path.clone(),
-	});
 	// An empty path means the whole pipeline — what the map shows when nothing is selected.
 	let full = document.to_pipeline();
 	let wanted = if path.is_empty() {
@@ -411,6 +406,11 @@ pub async fn preview_pipeline(
 
 /// The build itself, split out so the job body is about reporting rather than about tiles.
 async fn build_preview(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline) -> anyhow::Result<Preview> {
+	build_into(app, handle, wanted, "preview").await
+}
+
+/// Builds a pipeline and mounts it under `name`, replacing whatever was there.
+async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, name: &str) -> anyhow::Result<Preview> {
 	// Fetched here rather than captured: the job outlives the command's borrow, and an `AppHandle`
 	// is the supported way to reach managed state from something that does.
 	let state = tauri::Manager::state::<AppState>(app);
@@ -425,11 +425,10 @@ async fn build_preview(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline)
 	handle.working("looking at what it contains");
 	let layers = studio_core::analysis::probe_layers(&source, &info).await;
 
-	const NAME: &str = "preview";
-	server.mount(NAME, source).await?;
+	server.mount(name, source).await?;
 	Ok(Preview {
-		name: NAME.to_string(),
-		tile_url: server.tile_url(NAME),
+		name: name.to_string(),
+		tile_url: server.tile_url(name),
 		info,
 		layers,
 	})
@@ -522,6 +521,83 @@ pub async fn save_vpl(state: State<'_, AppState>, graph: GraphId, path: String) 
 
 	let history = state.history.lock().await;
 	Ok(DocumentView::of(entry, &history))
+}
+
+/// Where the map is looking: the pinned node, or `None` for the ordinary state ([Q32]).
+#[tauri::command]
+#[specta::specta]
+pub async fn pinned(state: State<'_, AppState>) -> Result<Option<Pin>, String> {
+	Ok(state.pinned.lock().await.as_ref().map(|pin| Pin {
+		graph: pin.graph,
+		path: pin.path.iter().map(|index| *index as u32).collect(),
+	}))
+}
+
+/// Which node the map shows, overriding every mounted graph.
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[derive(specta::Type)]
+pub struct Pin {
+	pub graph: GraphId,
+	pub path: Vec<u32>,
+}
+
+/// Pins the map to one node, or clears the pin.
+///
+/// **Exactly one across the project.** Pinning elsewhere moves it; pinning the pinned node clears
+/// it, which is the gesture that gets you back to seeing everything.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_pin(state: State<'_, AppState>, pin: Option<Pin>) -> Result<Option<Pin>, String> {
+	let mut current = state.pinned.lock().await;
+	*current = pin.map(|pin| crate::state::Pinned {
+		graph: pin.graph,
+		path: pin.path.iter().map(|index| *index as usize).collect(),
+	});
+	Ok(current.as_ref().map(|pin| Pin {
+		graph: pin.graph,
+		path: pin.path.iter().map(|index| *index as u32).collect(),
+	}))
+}
+
+/// Builds a graph in full and mounts it under its own name ([Q32]).
+///
+/// Every graph is served, because that is what a style names — this is the ordinary view, and the
+/// pin is the exception layered on top. Mounting by name rather than under one shared `preview`
+/// mount is what lets a style reference `basemap` and `hillshade` separately.
+#[tauri::command]
+#[specta::specta]
+pub async fn mount_graph(
+	app: AppHandle,
+	state: State<'_, AppState>,
+	graph: GraphId,
+) -> Result<Option<Preview>, String> {
+	let Some((name, document)) = state
+		.graphs
+		.lock()
+		.await
+		.get(graph)
+		.map(|g| (g.name.clone(), g.document.clone()))
+	else {
+		return Ok(None);
+	};
+
+	let (tx, rx) = tokio::sync::oneshot::channel();
+	let pipeline = document.to_pipeline();
+	state
+		.jobs
+		.submit(format!("Building {name}"), Lane::Latest, move |handle| async move {
+			let outcome = build_into(&app, &handle, pipeline, &name).await;
+			let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
+			outcome.map(|_| ())
+		});
+
+	match rx.await {
+		Ok(Ok(preview)) => Ok(Some(preview)),
+		Ok(Err(error)) => Err(error),
+		// Superseded by a newer build of the same graph; its answer is the current one.
+		Err(_) => Ok(None),
+	}
 }
 
 /// Every way this build can bring data in (S3.2).
