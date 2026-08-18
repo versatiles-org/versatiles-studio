@@ -51,9 +51,9 @@ True everywhere. These matter more than the arrangement.
   execute, and beside the export button. An estimate you must go looking for is one you will not see.
 - **Nothing durable lives only in the webview** ([Q16](decisions.md)). The map camera, the graphs
   and their text, and the pane layout all come back from the core, so a reloaded window is looking
-  where it was. Two things do not yet: the **selected node**, which the list below still says the
-  core should own, and **scroll position**, which it deliberately does not — one is an unfinished
-  item, the other a decision.
+  where it was. The **selected node** and **scroll position** deliberately stay in the webview
+  ([Q35](decisions.md#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)):
+  both cost a gesture to restore, not work.
 
 ## Panes and sections
 
@@ -298,8 +298,14 @@ nothing the generated form does not handle. VPL makes no such split either.
 Not because of mode switches — there are none — but because a window can crash or reload
 ([Q16](decisions.md)):
 
-Map viewport · the selected source · the pipeline's selected node · which sections are collapsed ·
+Map camera · the graphs and their text · the sources they read · which panes are open and how wide ·
 the global undo stack · running jobs and their logs · unsaved edits.
+
+**What it deliberately does not own: cursors.** The selected node and scroll position stay in the
+webview ([Q35](decisions.md#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)).
+The test is not durable versus volatile but _what you would have to redo by hand_ — recovering a
+camera means panning until it looks right again, while a selection is one click on a node that is on
+screen. A committed parameter value is already in the core, so the gap costs a gesture, not work.
 
 ## Settled elsewhere
 

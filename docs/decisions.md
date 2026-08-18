@@ -16,6 +16,49 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q35 — A graph's name is chosen once, and the core remembers work rather than cursors
+
+**Dated 2026-08-18.** Two things the pipeline-pane audit left open, and they turn out to share an
+answer: what a name binds, and what a reload owes you.
+
+**Saving to a new filename does not rename the graph.**
+[Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form) said the name is
+the identity in three places at once — the server mount, the `style.json` source and the `.vpl`
+filename. Read as an invariant that runs in both directions, saving `basemap` to `hillshade.vpl`
+would have to rename the graph, and would therefore move the server mount and rewrite the style's
+source name as a side effect of picking a filename in a file dialog. The strength of Q32's claim is
+exactly what makes that unacceptable: the more the name binds, the worse it is to change it by
+accident.
+
+So the binding runs one way. **The name supplies the default filename; the filename never supplies
+the name.** Renaming stays what Q32 made it — an explicit act in the graph list, one operation that
+either completes or does not.
+
+**The name is chosen when the graph is created, from whatever was opened.** That is the other half of
+the same decision: if a filename cannot rename a graph later, the name has to be right at the start.
+Today every graph is created as the literal `graph`, so a third file opened becomes `graph-3` — wrong
+in all three of the places above, and wrong in a way no later action corrects. `berlin.mbtiles` should
+make a graph called `berlin`. **Decided, not yet built.**
+
+**The core remembers work, not cursors.** The **selected node is deliberately webview state**, and
+[ui.md](ui.md)'s list of what the core must own drops it.
+
+The line is not "durable versus volatile" — it is _what you would have to redo by hand_. The map
+camera is owned because getting back to where you were looking means panning and zooming until it
+looks right again, and you cannot tell when you have got it exactly. A selection is one click on a
+node that is on screen. Scroll position is one flick. Neither is work; both are gestures, and a
+reload that costs a gesture has not lost anything.
+
+Nothing is at risk in the gap: a parameter's value reaches the core when it is committed, not when
+the form closes, so a reload cannot lose a typed value — only which node was open. What it costs is
+that after a reload the form is shut and the node has to be picked again, which is the price of not
+sending a message on every click.
+
+**The invariant this narrows** is [Q16](#q16--one-application-instance-one-window-per-project)'s
+"nothing lives only in the webview". That was always about a crashed window not losing work. Read as
+"the core mirrors every piece of UI state" it would oblige us to round-trip a hover, and the useful
+version is the one it was written to say.
+
 ### Q34 — Studio carries a pinned `proj-sys` fork until the `libsqlite3-sys` conflict resolves upstream
 
 **Dated 2026-08-17.** Split out of [Q19](#q19--gdal-is-statically-bundled-with-a-deliberately-narrow-driver-set)
@@ -129,6 +172,9 @@ never matched the behaviour. With graphs it means what it says.
 three places at once — the server mount, the source name in `style.json`, and the `.vpl` filename —
 which is what makes [Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest)'s project directory read properly: `project.yaml` beside
 _several_ `.vpl` files and one `style.json`, rather than a single `pipeline.vpl`.
+**Clarified by [Q35](#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors):**
+the name supplies the filename, never the other way round — saving to a different file does not
+rename anything.
 
 **Renaming rewrites style references.** The alternative is forbidding a rename once the style points
 at a graph, which is worse: the moment you most want to rename something is after you have used it.
