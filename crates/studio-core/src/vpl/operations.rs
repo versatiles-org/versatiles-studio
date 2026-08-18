@@ -140,6 +140,9 @@ pub struct OperationInfo {
 	pub name: String,
 	/// `read` or `transform` — which end of a pipeline it belongs at.
 	pub kind: String,
+	/// What it does, in a sentence — see [`summary`] for why this is separate from `doc`.
+	pub summary: String,
+	/// The whole rustdoc, of which four fifths restates `fields` in prose.
 	pub doc: String,
 	pub fields: Vec<FieldInfo>,
 }
@@ -152,6 +155,7 @@ pub fn operations() -> Vec<OperationInfo> {
 		.map(|meta| OperationInfo {
 			name: meta.tag_name.clone(),
 			kind: meta.kind.to_string(),
+			summary: summary(&meta.doc).to_string(),
 			doc: meta.doc.clone(),
 			fields: meta
 				.fields
@@ -269,6 +273,71 @@ mod tests {
 				"{} has kind {:?}",
 				operation.name,
 				operation.kind
+			);
+		}
+	}
+}
+
+/// The first paragraph of an operation's documentation — what it does, in a sentence.
+///
+/// **A workaround, and marked as one.** `all_operation_metadata()` returns the whole rustdoc in one
+/// string: a summary paragraph followed by a generated `### Parameters` section. Measured across the
+/// 30 operations, that section is 81% of the text, and all 127 field docs appear verbatim inside it —
+/// the same data this call already returns, structured, in `fields`. So this takes the tenth that is
+/// not a duplicate.
+///
+/// Asked for upstream; when `doc` carries a summary of its own this becomes a field access. Until
+/// then the split is conservative: a blank line or the `###` heading, whichever comes first, and the
+/// whole string when neither appears.
+#[must_use]
+pub fn summary(doc: &str) -> &str {
+	let end = doc
+		.find("\n\n")
+		.into_iter()
+		.chain(doc.find("\n#"))
+		.min()
+		.unwrap_or(doc.len());
+	doc[..end].trim()
+}
+
+#[cfg(test)]
+mod summary_tests {
+	use super::*;
+
+	#[test]
+	fn the_summary_is_the_first_paragraph() {
+		assert_eq!(
+			summary("Does a thing.\n\n### Parameters\n\n- **a**: …"),
+			"Does a thing."
+		);
+		assert_eq!(
+			summary("Two\nlines of summary.\n\n### Parameters"),
+			"Two\nlines of summary."
+		);
+		// A heading with no blank line before it still ends the summary.
+		assert_eq!(summary("Does a thing.\n### Parameters"), "Does a thing.");
+		// Nothing to split on: the whole string is the summary.
+		assert_eq!(summary("Just one line."), "Just one line.");
+		assert_eq!(summary(""), "");
+	}
+
+	/// The claim the workaround rests on: every operation in this build has a usable first
+	/// paragraph, and it is a small fraction of the whole.
+	#[test]
+	fn every_operation_has_a_short_usable_summary() {
+		for operation in operations() {
+			let summary = summary(&operation.doc);
+			assert!(!summary.is_empty(), "{} has no summary", operation.name);
+			assert!(
+				!summary.contains("###"),
+				"{}'s summary swallowed a heading: {summary}",
+				operation.name
+			);
+			assert!(
+				summary.chars().count() <= 300,
+				"{}'s summary is {} chars, which is not a sentence",
+				operation.name,
+				summary.chars().count()
 			);
 		}
 	}

@@ -158,6 +158,17 @@
 		return `${type} · ${field.required ? 'required' : 'optional'}`;
 	}
 
+	/// Help for the operation itself.
+	///
+	/// The summary, not the whole doc: four fifths of that is a prose copy of the parameter list,
+	/// which the rows below already are — and editable. The `kind` is worth saying because nothing
+	/// else in the form does.
+	const operationHelp = (operation: OperationInfo) => ({
+		title: operation.name,
+		summary: operation.kind === 'read' ? 'reads a source' : 'transforms tiles',
+		body: operation.summary
+	});
+
 	const contentFor = (key: string, field: FieldInfo) => ({
 		title: key,
 		summary: summarise(field),
@@ -224,11 +235,32 @@
 		<button
 			type="button"
 			class="nm truncate"
-			title={meta?.doc || node.name}
+			title={meta?.summary || node.name}
 			onclick={() => onSelect(path, node.nameSpan)}
 		>
 			{node.name}
 		</button>
+
+		{#if selected && meta}
+			<!-- The operation's own help. A `?` rather than the name, because the name's click is
+			     already selection — and hovering names would flash a popover per node while scanning a
+			     chain ([Q33]). -->
+			<button
+				type="button"
+				class="help"
+				aria-label="What is {node.name}?"
+				onmouseenter={(event) => peek(operationHelp(meta), event.currentTarget)}
+				onmouseleave={unpeek}
+				onfocus={(event) => peek(operationHelp(meta), event.currentTarget)}
+				onblur={unpeek}
+				onclick={(event) => pin(operationHelp(meta), event.currentTarget)}
+				onkeydown={(event) => {
+					if (event.key === 'Escape') unpeek();
+				}}
+			>
+				?
+			</button>
+		{/if}
 
 		{#if !selected && headline}
 			<span class="headline truncate" title={headline}>{headline}</span>

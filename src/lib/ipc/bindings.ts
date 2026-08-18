@@ -670,6 +670,9 @@ export type OperationInfo = {
 	name: string,
 	/**  `read` or `transform` — which end of a pipeline it belongs at. */
 	kind: string,
+	/**  What it does, in a sentence — see [`summary`] for why this is separate from `doc`. */
+	summary: string,
+	/**  The whole rustdoc, of which four fifths restates `fields` in prose. */
 	doc: string,
 	fields: FieldInfo[],
 };

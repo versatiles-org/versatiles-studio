@@ -93,7 +93,7 @@
 						>
 							<option value="">＋ operation…</option>
 							{#each transforms as operation (operation.name)}
-								<option value={operation.name} title={operation.doc}>{operation.name}</option>
+								<option value={operation.name} title={operation.summary}>{operation.name}</option>
 							{/each}
 						</select>
 					</label>
