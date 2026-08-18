@@ -197,11 +197,14 @@ reformatting, reordering parameters or dropping comments as a side effect. That 
 graph needs a lossless syntax tree rather than a parse-and-print round trip ([Q11](decisions.md)).
 
 **Nothing durable lives only in the webview.** The core holds the project, pipeline, jobs and
-server; the webview renders them. The map camera, the selected node, the open graphs and the pane
-layout are all restorable from the core, so a reloaded window loses nothing ([Q16](decisions.md));
-the active mode joins them when the mode bar arrives at S4.1. Scroll position deliberately does not
-— it is cheap to lose, and carrying it would mean the core modelling scroll containers it has no
-other reason to know about. This is the source-of-truth principle applied to volatile UI state
+server; the webview renders them. The map camera, the graphs and their text, and the pane
+layout are all restorable from the core, so a reloaded window comes back where it was
+([Q16](decisions.md)); the active mode joins them when the mode bar arrives at S4.1. Two are still
+webview-only, for different reasons. The **selected node** should be core-owned and is not — an
+unfinished item rather than a decision, and the one that costs something, since
+[Q32](decisions.md) it is what the form is showing. **Scroll position** deliberately is not: it is
+cheap to lose, and carrying it would mean the core modelling scroll containers it has no other
+reason to know about. This is the source-of-truth principle applied to volatile UI state
 rather than to files.
 
 **Generate UI from metadata where possible.** Parameter forms come from `field_meta`

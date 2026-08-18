@@ -57,7 +57,9 @@
 		/** Bumped only when the document changes from *outside* the editor. Keying the editor on the
 		 *  text itself would remount it on its own edits and throw the caret away. */
 		pipelineRevision: number;
-		/** Path of the selected node. Lifted out so the right pane can show its parameters (Q22). */
+		/** Path of the selected node. Lifted into the application because one selection drives two
+		 *  views — the chain and the text caret ([Q15]) — and because inserting or removing a node
+		 *  has to move it. Since [Q32] the node itself is the form, so nothing downstream reads it. */
 		selected: number[] | null;
 
 		// Grouped by what they act on rather than passed one by one. Most of these this file never
