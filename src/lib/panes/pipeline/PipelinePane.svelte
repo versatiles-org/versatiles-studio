@@ -1,8 +1,8 @@
 <script lang="ts">
-	import VplEditor from '../components/shell/VplEditor.svelte';
-	import Chain from './Chain.svelte';
+	import VplEditor from './VplEditor.svelte';
+	import NodeChain from './NodeChain.svelte';
 	import GraphList from './GraphList.svelte';
-	import { nodeAt, nodeAtPath, samePath } from '../vpl/node-at';
+	import { nodeAt, nodeAtPath, samePath } from '../../vpl/node-at';
 	import {
 		vplReview,
 		type VplToken,
@@ -12,8 +12,8 @@
 		type ImportKind,
 		type OperationInfo,
 		type GraphInfo
-	} from '../ipc/commands';
-	import ImportCards from '../components/shell/ImportCards.svelte';
+	} from '../../ipc/commands';
+	import ImportCards from '../../common/ImportCards.svelte';
 
 	// The Pipeline pane's contents (Q22, [Q31]).
 	//
@@ -248,7 +248,7 @@
 	{:else if !pipeline || pipeline.pipeline.nodes.length === 0}
 		<p class="empty">Nothing open yet.</p>
 	{:else}
-		<Chain
+		<NodeChain
 			pipeline={pipeline.pipeline}
 			{selected}
 			{pinned}

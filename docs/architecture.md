@@ -122,10 +122,12 @@ versatiles-studio/
 │   ├── App.svelte
 │   ├── maplibre-gl-worker.js   generated, not hand-written               (Q18)
 │   └── lib/
-│       ├── components/         shell · map · pipeline · style · inputs · common
-│       ├── panes/              one component per pane, listed by layout   (Q31)
+│       ├── shell/              the frame: AppShell · Sidebar · Pane · bars
+│       ├── panes/<pane>/       each pane and its own parts               (Q31)
+│       ├── map/                the map's components and its helpers
+│       ├── common/             used by more than one owner
 │       ├── ipc/                bindings.ts (generated) + typed wrappers
-│       └── state/              view state, and mirrors of core state      (Q16)
+│       └── state/              view state, and mirrors of core state     (Q16)
 │
 ├── scripts/bundle_worker.ts    MapLibre 6 worker fix                     (S1.4)
 ├── .github/workflows/          CI for Linux and macOS                    (S0.7)

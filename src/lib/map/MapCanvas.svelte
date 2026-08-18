@@ -3,8 +3,8 @@
 	import { untrack } from 'svelte';
 	import * as maplibre from 'maplibre-gl';
 	import type { StyleSpecification } from 'maplibre-gl';
-	import { applyMapTheme } from '../../map/theme';
-	import { theme } from '../../styles/theme.svelte';
+	import { applyMapTheme } from './theme';
+	import { theme } from '../styles/theme.svelte';
 
 	// Since v6 MapLibre loads its worker from a separate file, which bundlers cannot resolve via
 	// `import.meta.url` once they have inlined `maplibre-gl.mjs` into a chunk. We ship a

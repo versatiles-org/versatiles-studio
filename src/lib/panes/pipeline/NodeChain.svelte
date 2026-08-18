@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { OperationInfo, Span, VplPipeline } from '../ipc/commands';
-	import { walk, samePath } from '../vpl/node-at';
+	import type { OperationInfo, Span, VplPipeline } from '../../ipc/commands';
+	import { walk, samePath } from '../../vpl/node-at';
 	import NodeCard from './NodeCard.svelte';
 
 	// The graph as a chain of nodes (C1, S2.13).

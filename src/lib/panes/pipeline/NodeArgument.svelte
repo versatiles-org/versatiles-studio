@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { FieldInfo } from '../ipc/commands';
-	import HelpTrigger from '../components/common/HelpTrigger.svelte';
-	import type { HelpContent } from '../state/help.svelte';
+	import type { FieldInfo } from '../../ipc/commands';
+	import HelpTrigger from '../../common/HelpTrigger.svelte';
+	import type { HelpContent } from '../../state/help.svelte';
 
 	// One argument of a node: its name, its help, its control, and whether it can be removed (C2).
 	//

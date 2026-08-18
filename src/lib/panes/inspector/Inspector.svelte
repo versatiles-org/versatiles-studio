@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import type { ContainerInfo } from '../../ipc/commands';
-	import JsonTree from '../common/JsonTree.svelte';
+	import JsonTree from '../../common/JsonTree.svelte';
 	import Bookmarks from './Bookmarks.svelte';
 
 	// A6 — the right pane shows the parameters of what you are working on, never global settings.

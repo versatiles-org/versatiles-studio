@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import type { PaneState } from '../../ipc/commands';
-	import { paneTitle } from '../../panes/catalogue';
+	import type { PaneState } from '../ipc/commands';
+	import { paneTitle } from '../panes/catalogue';
 	import Pane from './Pane.svelte';
 
 	// One sidebar: a list of panes, in the order the layout says (Q31).

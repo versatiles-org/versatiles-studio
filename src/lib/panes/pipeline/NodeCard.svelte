@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../ipc/commands';
-	import HelpTrigger from '../components/common/HelpTrigger.svelte';
-	import Argument from './Argument.svelte';
+	import type { FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../../ipc/commands';
+	import HelpTrigger from '../../common/HelpTrigger.svelte';
+	import NodeArgument from './NodeArgument.svelte';
 
 	// One node in the chain (S2.13, [Q32]).
 	//
@@ -257,7 +257,7 @@
 			     how that rule is said ([Q33]) — the same way the head node has no ×. -->
 			{#each node.properties as property (property.keySpan.start)}
 				{@const field = fieldOf(property.key)}
-				<Argument
+				<NodeArgument
 					name={property.key}
 					{field}
 					value={text(property)}
@@ -271,7 +271,7 @@
 			<!-- Required and not yet set. Always shown, so "required" needs no symbol: the field is
 			     simply there, and empty ([Q33]). -->
 			{#each missing as field (field.name)}
-				<Argument
+				<NodeArgument
 					name={field.name}
 					{field}
 					value=""
@@ -287,7 +287,7 @@
 			     when the pipeline is built. -->
 			{#if pending}
 				{@const field = fieldOf(pending)}
-				<Argument
+				<NodeArgument
 					name={pending}
 					{field}
 					value=""

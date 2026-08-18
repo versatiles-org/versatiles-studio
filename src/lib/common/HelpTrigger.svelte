@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { peek, unpeek, pin, help, type HelpContent } from '../../state/help.svelte';
+	import { peek, unpeek, pin, help, type HelpContent } from '../state/help.svelte';
 
 	// The `?` that opens the help popover ([Q33]).
 	//

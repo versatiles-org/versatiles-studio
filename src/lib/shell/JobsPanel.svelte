@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { Job } from '../../ipc/commands';
-	import { cancelJob, jobLog } from '../../state/jobs.svelte';
+	import type { Job } from '../ipc/commands';
+	import { cancelJob, jobLog } from '../state/jobs.svelte';
 
 	// The expandable half of the status bar (S3.1): every job this session has run, and the log of
 	// whichever one is opened.

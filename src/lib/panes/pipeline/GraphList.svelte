@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { GraphInfo } from '../ipc/commands';
+	import type { GraphInfo } from '../../ipc/commands';
 
 	// The project's graphs, one row each (S2.13, [Q32]).
 	//

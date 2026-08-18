@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { Map as MaplibreMap, MapGeoJSONFeature, LngLat, MapMouseEvent } from 'maplibre-gl';
 	import JsonTree from '../common/JsonTree.svelte';
-	import { inspectTile, type TileInspection } from '../../ipc/commands';
-	import { tileForLngLat } from '../../map/tile-grid';
+	import { inspectTile, type TileInspection } from '../ipc/commands';
+	import { tileForLngLat } from './tile-grid';
 
 	// A8 — every attribute of the feature under the cursor. Deliberately shows all of them: the point
 	// is answering "what is actually in this tile", which a curated subset would defeat.

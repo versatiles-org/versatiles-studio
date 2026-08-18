@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ImportKind } from '../../ipc/commands';
+	import type { ImportKind } from '../ipc/commands';
 
 	// The ways into the application, as cards (S3.2).
 	//

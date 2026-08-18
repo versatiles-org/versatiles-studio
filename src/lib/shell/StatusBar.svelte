@@ -13,7 +13,7 @@
 </script>
 
 <script lang="ts">
-	import { jobs, cancelJob } from '../../state/jobs.svelte';
+	import { jobs, cancelJob } from '../state/jobs.svelte';
 	import JobsPanel from './JobsPanel.svelte';
 
 	let { status, onDismiss }: { status: Status; onDismiss?: () => void } = $props();

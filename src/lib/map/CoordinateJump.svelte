@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Map as MaplibreMap } from 'maplibre-gl';
-	import { tileToLngLat } from '../../map/tile-grid';
+	import { tileToLngLat } from './tile-grid';
 
 	// A5's jump box. Accepts what a tile person actually has in hand: `z/x/y`, or `lat, lng[, zoom]`.
 	let { map }: { map: MaplibreMap | undefined } = $props();

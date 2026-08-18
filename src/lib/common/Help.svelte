@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { help, dismiss } from '../../state/help.svelte';
+	import { help, dismiss } from '../state/help.svelte';
 
 	// The help popover, drawn beside the sidebar and over the map.
 	//

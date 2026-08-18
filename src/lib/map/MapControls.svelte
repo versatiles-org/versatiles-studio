@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { BACKGROUNDS, type BackgroundId } from '../../map/background';
+	import { BACKGROUNDS, type BackgroundId } from './background';
 
 	// The controls that act on the map rather than on the pipeline.
 	//

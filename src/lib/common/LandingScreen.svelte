@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ImportKind, RecentEntry } from '../../ipc/commands';
+	import type { ImportKind, RecentEntry } from '../ipc/commands';
 	import ImportCards from './ImportCards.svelte';
 
 	// What an empty window shows (Q13). A **launcher, not a wizard**: it disappears the moment a
