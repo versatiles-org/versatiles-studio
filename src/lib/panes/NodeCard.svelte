@@ -372,7 +372,7 @@
 	.node.selected .title {
 		background: var(--chrome);
 		border-bottom: 1px solid var(--rule);
-		border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
+		border-radius: var(--radius) var(--radius) 0 0;
 	}
 	.eye {
 		flex: none;
@@ -407,6 +407,8 @@
 	.headline {
 		flex: 1;
 		min-width: 0;
+		text-align: left;
+		direction: rtl;
 		font-family: var(--font-mono);
 		font-size: var(--text-xs);
 		color: var(--vpl-value);
@@ -466,11 +468,14 @@
 		text-align: right;
 		font-variant-numeric: tabular-nums;
 	}
-	/* A path is identified by its end — the filename — and truncated from the left the value would
-	   show `/Users/someone/projects/…` for every file in a folder. Right-aligning shows the part
-	   that differs. */
-	dd input.path,
-	.headline {
+	/* A path is identified by its end. Truncated from the right, every file in a folder shows the
+	   same `/Users/someone/projects/…` and nothing that tells them apart.
+	   
+	   Two mechanisms, because an input and a span truncate differently: an input scrolls its value,
+	   so `text-align: right` reveals the end; a span's ellipsis sits at the end of the line whatever
+	   the alignment, so it needs `direction: rtl` to clip from the other side. The path itself still
+	   reads left-to-right, because its characters are strong LTR. */
+	dd input.path {
 		text-align: right;
 	}
 	.req {
