@@ -293,12 +293,6 @@ mod tests {
 		max_zoom: Some(3),
 	};
 
-	fn temp(name: &str) -> PathBuf {
-		let path = std::env::temp_dir().join(format!("versatiles-studio-export-{name}"));
-		let _ = std::fs::remove_file(&path);
-		path
-	}
-
 	#[test]
 	fn only_the_formats_studio_offers_are_writable() {
 		assert!(is_writable(Path::new("out.versatiles")));
@@ -330,11 +324,10 @@ mod tests {
 		let document = Document::parse("from_debug format=png")?;
 
 		for extension in WRITABLE {
-			let target = temp(&format!("offered.{extension}"));
+			let target = crate::testing::path(&format!("offered.{extension}"));
 			write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await?;
 			assert!(target.exists(), "{extension} was not written");
 			assert!(std::fs::metadata(&target)?.len() > 0, "{extension} is empty");
-			let _ = std::fs::remove_file(&target);
 		}
 		Ok(())
 	}
@@ -345,7 +338,7 @@ mod tests {
 	async fn what_is_written_reads_back_as_the_same_tiles() -> Result<()> {
 		let (handle, _) = job();
 		let document = Document::parse("from_debug format=png | raster_overview level=2")?;
-		let target = temp("roundtrip.versatiles");
+		let target = crate::testing::path("roundtrip.versatiles");
 
 		write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await?;
 
@@ -356,7 +349,6 @@ mod tests {
 		assert_eq!(info.container, "versatiles");
 		assert!(info.max_zoom >= info.min_zoom);
 
-		let _ = std::fs::remove_file(&target);
 		Ok(())
 	}
 
@@ -366,7 +358,7 @@ mod tests {
 	async fn an_unwritable_extension_is_refused_immediately() {
 		let (handle, _) = job();
 		let document = Document::parse("from_debug format=png").unwrap();
-		let target = temp("nope.geojson");
+		let target = crate::testing::path("nope.geojson");
 
 		let error = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS)
 			.await
@@ -383,7 +375,7 @@ mod tests {
 	#[tokio::test]
 	async fn a_failed_write_leaves_the_previous_file_untouched() -> Result<()> {
 		let (handle, _) = job();
-		let target = temp("previous.versatiles");
+		let target = crate::testing::path("previous.versatiles");
 		std::fs::write(&target, b"the file that was already there")?;
 
 		// A pipeline that fails on open: `from_container` pointed at nothing. Built through
@@ -401,7 +393,6 @@ mod tests {
 		);
 		assert!(!scratch_path(&target).exists(), "the half-written file was left behind");
 
-		let _ = std::fs::remove_file(&target);
 		Ok(())
 	}
 
@@ -427,7 +418,7 @@ mod tests {
 		let (handle, _) = job();
 		// Vector tiles, uncompressed: MBTiles wants them gzipped and says so.
 		let document = Document::parse("from_debug format=pbf").unwrap();
-		let target = temp("mismatch.mbtiles");
+		let target = crate::testing::path("mismatch.mbtiles");
 
 		let error = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS)
 			.await
@@ -444,7 +435,7 @@ mod tests {
 	async fn an_unbounded_pyramid_is_refused_before_anything_is_written() {
 		let (handle, _) = job();
 		let document = Document::parse("from_debug format=png").unwrap();
-		let target = temp("unbounded.versatiles");
+		let target = crate::testing::path("unbounded.versatiles");
 
 		let error = write(
 			&handle,
@@ -529,7 +520,7 @@ mod tests {
 	async fn a_bounding_box_reaches_what_is_written() -> Result<()> {
 		let (handle, _) = job();
 		let document = Document::parse("from_debug format=png")?;
-		let target = temp("boxed.versatiles");
+		let target = crate::testing::path("boxed.versatiles");
 
 		write(
 			&handle,
@@ -573,7 +564,7 @@ mod tests {
 	async fn a_zoom_bound_makes_the_same_pipeline_writable() -> Result<()> {
 		let (handle, _) = job();
 		let document = Document::parse("from_debug format=png")?;
-		let target = temp("bounded.versatiles");
+		let target = crate::testing::path("bounded.versatiles");
 
 		write(
 			&handle,
@@ -594,7 +585,6 @@ mod tests {
 		let info = crate::analysis::describe(&written, "written").await?;
 		assert_eq!(info.max_zoom, 2, "the written container ignored the zoom bound");
 
-		let _ = std::fs::remove_file(&target);
 		Ok(())
 	}
 
@@ -604,7 +594,7 @@ mod tests {
 	async fn the_writers_progress_reaches_the_job() -> Result<()> {
 		let (handle, events) = job();
 		let document = Document::parse("from_debug format=png | raster_overview level=2")?;
-		let target = temp("progress.versatiles");
+		let target = crate::testing::path("progress.versatiles");
 
 		write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await?;
 
@@ -618,7 +608,6 @@ mod tests {
 			"no measured progress arrived from the writer: {:?}",
 			events.iter().take(8).collect::<Vec<_>>()
 		);
-		let _ = std::fs::remove_file(&target);
 		Ok(())
 	}
 }

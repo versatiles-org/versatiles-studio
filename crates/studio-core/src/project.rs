@@ -40,18 +40,11 @@ mod tests {
 	use super::*;
 	use crate::vpl::Document;
 
-	fn temp_dir(label: &str) -> std::path::PathBuf {
-		let dir = std::env::temp_dir().join("studio-project-tests").join(label);
-		let _ = std::fs::remove_dir_all(&dir);
-		std::fs::create_dir_all(&dir).unwrap();
-		dir
-	}
-
 	/// What is written has to be what opens again — including the comments and layout that make a
 	/// hand-written pipeline worth keeping.
 	#[test]
 	fn a_saved_pipeline_reopens_unchanged() -> Result<()> {
-		let dir = temp_dir("roundtrip");
+		let dir = crate::testing::dir("roundtrip");
 		let path = dir.join("pipeline.vpl");
 		let source = "# Berlin\nfrom_container filename='berlin.mbtiles' # the input\n  | vector_repair\n";
 
@@ -66,7 +59,7 @@ mod tests {
 
 	#[test]
 	fn an_interrupted_write_leaves_no_temporary_file() -> Result<()> {
-		let dir = temp_dir("atomic");
+		let dir = crate::testing::dir("atomic");
 		let path = dir.join("pipeline.vpl");
 		save_vpl(&path, "from_debug format=png")?;
 		assert!(path.exists());
@@ -79,7 +72,7 @@ mod tests {
 
 	#[test]
 	fn overwriting_replaces_rather_than_appends() -> Result<()> {
-		let dir = temp_dir("overwrite");
+		let dir = crate::testing::dir("overwrite");
 		let path = dir.join("pipeline.vpl");
 		save_vpl(&path, "from_debug format=png | raster_overview level=2")?;
 		save_vpl(&path, "from_debug format=webp")?;

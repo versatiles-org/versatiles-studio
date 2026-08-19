@@ -18,4 +18,6 @@ pub mod server;
 pub mod store;
 pub mod suggest;
 pub mod tabular;
+#[cfg(test)]
+mod testing;
 pub mod vpl;

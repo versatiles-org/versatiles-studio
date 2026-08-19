@@ -467,13 +467,6 @@ mod tests {
 	use super::*;
 
 	/// A clean directory per test, so they cannot tread on each other.
-	fn temp_dir(label: &str) -> std::path::PathBuf {
-		let dir = std::env::temp_dir().join("studio-store-tests").join(label);
-		let _ = std::fs::remove_dir_all(&dir);
-		std::fs::create_dir_all(&dir).unwrap();
-		dir
-	}
-
 	#[test]
 	fn most_recent_comes_first_without_duplicating() {
 		let mut recents = Recents::default();
@@ -497,7 +490,7 @@ mod tests {
 	/// Losing an MRU list costs nothing; refusing to start costs everything.
 	#[test]
 	fn corrupt_recents_reset_silently() {
-		let dir = temp_dir("corrupt-recents");
+		let dir = crate::testing::dir("corrupt-recents");
 		std::fs::write(dir.join("recents.json"), "{ not json").unwrap();
 		assert!(Recents::load(&dir).entries().is_empty());
 	}
@@ -508,7 +501,7 @@ mod tests {
 	/// failure went to stderr, because an MRU list is not worth failing an open over.
 	#[test]
 	fn recents_are_saved_into_the_directory_they_are_given() -> Result<()> {
-		let dir = temp_dir("recents-roundtrip");
+		let dir = crate::testing::dir("recents-roundtrip");
 		let mut recents = Recents::default();
 		recents.record("/a.versatiles");
 		recents.record("/b.versatiles");
@@ -527,7 +520,7 @@ mod tests {
 	/// Both lists take a directory and name their own file, so neither can land on the other's.
 	#[test]
 	fn the_two_lists_do_not_share_a_file() -> Result<()> {
-		let dir = temp_dir("two-files");
+		let dir = crate::testing::dir("two-files");
 		Recents::default().save(&dir)?;
 		Bookmarks::default().save(&dir)?;
 		assert!(dir.join("recents.json").is_file());
@@ -540,7 +533,7 @@ mod tests {
 	/// call was wrong.
 	#[test]
 	fn writing_onto_a_directory_says_so() {
-		let dir = temp_dir("not-a-file");
+		let dir = crate::testing::dir("not-a-file");
 		let error = write_atomically(&dir, "{}").unwrap_err();
 		assert!(format!("{error:#}").contains("is a directory"), "got {error:#}");
 	}
@@ -549,7 +542,7 @@ mod tests {
 	/// with a dotted name it replaced the last segment, putting the temp file in the parent.
 	#[test]
 	fn the_temporary_file_stays_beside_its_target() -> Result<()> {
-		let parent = temp_dir("temp-placement");
+		let parent = crate::testing::dir("temp-placement");
 		let dir = parent.join("org.versatiles.studio");
 		std::fs::create_dir_all(&dir)?;
 		Recents::default().save(&dir)?;
@@ -576,7 +569,7 @@ mod tests {
 
 	#[test]
 	fn a_layout_survives_a_round_trip() -> Result<()> {
-		let dir = temp_dir("layout-roundtrip");
+		let dir = crate::testing::dir("layout-roundtrip");
 		let mut layout = Layout {
 			left_width: 320.0,
 			right_width: 360.0,
@@ -598,7 +591,7 @@ mod tests {
 	/// than a flag per section — so collapsing one has to leave the others exactly as they were.
 	#[test]
 	fn panes_collapse_independently() -> Result<()> {
-		let dir = temp_dir("layout-independent");
+		let dir = crate::testing::dir("layout-independent");
 		let mut layout = Layout::default();
 		for state in &mut layout.panes {
 			state.open = state.id == "pipeline";
@@ -694,7 +687,7 @@ mod tests {
 	/// swallowed the map, or one too narrow to grab and drag back.
 	#[test]
 	fn an_absurd_width_is_clamped_rather_than_obeyed() -> Result<()> {
-		let dir = temp_dir("layout-clamp");
+		let dir = crate::testing::dir("layout-clamp");
 		for (written, expected) in [(0.0, MIN_PANE_WIDTH), (99_999.0, MAX_PANE_WIDTH), (300.0, 300.0)] {
 			Layout {
 				left_width: written,
@@ -712,7 +705,7 @@ mod tests {
 	/// `f64::clamp` propagates `NaN` instead of resolving it, and JSON can carry one in.
 	#[test]
 	fn a_non_finite_width_falls_back_to_the_default() {
-		let dir = temp_dir("layout-nan");
+		let dir = crate::testing::dir("layout-nan");
 		std::fs::write(dir.join("layout.json"), r#"{"leftWidth": null}"#).unwrap();
 		assert_eq!(Layout::load(&dir).left_width, DEFAULT_LEFT_WIDTH);
 
@@ -728,7 +721,7 @@ mod tests {
 	/// visible way [Q16]'s invariant can be broken — and it was, until `view` existed.
 	#[test]
 	fn the_camera_survives_a_round_trip() -> Result<()> {
-		let dir = temp_dir("layout-camera");
+		let dir = crate::testing::dir("layout-camera");
 		let camera = Camera {
 			lng: 13.4,
 			lat: 52.5,
@@ -750,7 +743,7 @@ mod tests {
 	/// map free to fit whatever is opened, the other is a view the user chose.
 	#[test]
 	fn a_camera_that_was_never_moved_stays_absent() -> Result<()> {
-		let dir = temp_dir("layout-no-camera");
+		let dir = crate::testing::dir("layout-no-camera");
 		Layout::default().save(&dir)?;
 		assert_eq!(Layout::load(&dir).view, None);
 		Ok(())
@@ -797,7 +790,7 @@ mod tests {
 	/// Same policy as recents: losing pane state costs nothing, refusing to start costs everything.
 	#[test]
 	fn a_corrupt_layout_resets_silently() {
-		let dir = temp_dir("layout-corrupt");
+		let dir = crate::testing::dir("layout-corrupt");
 		std::fs::write(dir.join("layout.json"), "{ not json").unwrap();
 		assert_eq!(Layout::load(&dir), Layout::default());
 	}
@@ -805,7 +798,7 @@ mod tests {
 	/// A field added in a later stage must not invalidate a file written by an earlier one.
 	#[test]
 	fn an_older_layout_file_still_loads() {
-		let dir = temp_dir("layout-forward");
+		let dir = crate::testing::dir("layout-forward");
 		std::fs::write(dir.join("layout.json"), r#"{"background": "eclipse"}"#).unwrap();
 		let loaded = Layout::load(&dir);
 		assert_eq!(loaded.background, "eclipse", "what the file said is honoured");
@@ -826,7 +819,7 @@ mod tests {
 	/// The opposite policy: these are user-created, so silence would be data loss.
 	#[test]
 	fn corrupt_bookmarks_are_an_error_and_the_file_is_left_alone() {
-		let dir = temp_dir("corrupt-bookmarks");
+		let dir = crate::testing::dir("corrupt-bookmarks");
 		let path = dir.join("bookmarks.json");
 		std::fs::write(&path, "{ not json").unwrap();
 
@@ -841,7 +834,7 @@ mod tests {
 
 	#[test]
 	fn a_missing_bookmarks_file_is_a_first_run_not_an_error() -> Result<()> {
-		let dir = temp_dir("first-run");
+		let dir = crate::testing::dir("first-run");
 		assert!(Bookmarks::load(&dir)?.entries().is_empty());
 		Ok(())
 	}
@@ -879,7 +872,7 @@ mod tests {
 
 	#[test]
 	fn bookmarks_survive_a_round_trip() -> Result<()> {
-		let dir = temp_dir("roundtrip");
+		let dir = crate::testing::dir("roundtrip");
 		let mut marks = Bookmarks::default();
 		marks.add(Bookmark {
 			name: "Berlin".into(),
@@ -902,7 +895,7 @@ mod tests {
 	/// The point of write-then-rename: an interrupted write must not destroy what was there.
 	#[test]
 	fn an_atomic_write_leaves_no_temporary_file_behind() -> Result<()> {
-		let dir = temp_dir("atomic");
+		let dir = crate::testing::dir("atomic");
 		Bookmarks::default().save(&dir)?;
 		let path = dir.join("bookmarks.json");
 		assert!(path.exists());

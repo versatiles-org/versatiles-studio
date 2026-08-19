@@ -176,18 +176,10 @@ fn guess(names: &[String], candidates: &[&str]) -> Option<String> {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use std::io::Write;
-
-	fn write(name: &str, content: &str) -> std::path::PathBuf {
-		let path = std::env::temp_dir().join(format!("versatiles-studio-{name}"));
-		let mut file = std::fs::File::create(&path).unwrap();
-		file.write_all(content.as_bytes()).unwrap();
-		path
-	}
 
 	#[test]
 	fn a_comma_separated_header_becomes_its_columns() {
-		let path = write("plain.csv", "id,longitude,latitude,name\n1,13.4,52.5,Berlin\n");
+		let path = crate::testing::file("plain.csv", "id,longitude,latitude,name\n1,13.4,52.5,Berlin\n");
 		let columns = columns(&path).unwrap();
 		assert_eq!(columns.names, ["id", "longitude", "latitude", "name"]);
 		assert_eq!(columns.delimiter, ",");
@@ -199,7 +191,7 @@ mod tests {
 	/// separator. Split on `,` this is one column, and `from_csv` would read it as such.
 	#[test]
 	fn a_semicolon_file_is_not_read_as_one_column() {
-		let path = write("euro.csv", "id;lon;lat\n1;13,4;52,5\n");
+		let path = crate::testing::file("euro.csv", "id;lon;lat\n1;13,4;52,5\n");
 		let columns = columns(&path).unwrap();
 		assert_eq!(columns.names, ["id", "lon", "lat"]);
 		assert_eq!(columns.delimiter, ";");
@@ -207,7 +199,7 @@ mod tests {
 
 	#[test]
 	fn a_tab_separated_file_is_recognised() {
-		let path = write("tabs.csv", "id\tlon\tlat\n1\t13.4\t52.5\n");
+		let path = crate::testing::file("tabs.csv", "id\tlon\tlat\n1\t13.4\t52.5\n");
 		assert_eq!(columns(&path).unwrap().delimiter, "\t");
 	}
 
@@ -224,7 +216,7 @@ mod tests {
 	/// A quoted field may hold a newline, so the first *line* is not always the first record.
 	#[test]
 	fn a_newline_inside_quotes_does_not_end_the_record() {
-		let path = write("multiline.csv", "\"name\nformal\",lon,lat\nBerlin,13.4,52.5\n");
+		let path = crate::testing::file("multiline.csv", "\"name\nformal\",lon,lat\nBerlin,13.4,52.5\n");
 		let columns = columns(&path).unwrap();
 		assert_eq!(columns.names, ["name\nformal", "lon", "lat"]);
 	}
@@ -232,20 +224,20 @@ mod tests {
 	/// Why a real CSV reader rather than `split(',')`: the first address column with a comma in it.
 	#[test]
 	fn a_quoted_header_field_stays_one_column() {
-		let path = write("quoted.csv", "\"name, formal\",lon,lat\nBerlin,13.4,52.5\n");
+		let path = crate::testing::file("quoted.csv", "\"name, formal\",lon,lat\nBerlin,13.4,52.5\n");
 		let columns = columns(&path).unwrap();
 		assert_eq!(columns.names, ["name, formal", "lon", "lat"]);
 	}
 
 	#[test]
 	fn candidate_order_beats_column_order() {
-		let path = write("both.csv", "long,longitude,lat\n1,2,3\n");
+		let path = crate::testing::file("both.csv", "long,longitude,lat\n1,2,3\n");
 		assert_eq!(columns(&path).unwrap().lon.as_deref(), Some("longitude"));
 	}
 
 	#[test]
 	fn matching_ignores_case_and_surrounding_space() {
-		let path = write("shouty.csv", "ID, LON , LAT \n1,13.4,52.5\n");
+		let path = crate::testing::file("shouty.csv", "ID, LON , LAT \n1,13.4,52.5\n");
 		let columns = columns(&path).unwrap();
 		assert_eq!(columns.names, ["ID", "LON", "LAT"]);
 		assert_eq!(columns.lon.as_deref(), Some("LON"));
@@ -256,7 +248,7 @@ mod tests {
 	/// the case where being wrong is plausible and invisible.
 	#[test]
 	fn nothing_is_guessed_from_ambiguous_names() {
-		let path = write("xy.csv", "id,x,y\n1,392000,5820000\n");
+		let path = crate::testing::file("xy.csv", "id,x,y\n1,392000,5820000\n");
 		let columns = columns(&path).unwrap();
 		assert_eq!(columns.names, ["id", "x", "y"]);
 		assert_eq!(columns.lon, None, "x is as often projected metres as a longitude");
