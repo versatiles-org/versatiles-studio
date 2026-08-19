@@ -512,14 +512,12 @@ pub async fn save_vpl(state: State<'_, AppState>, graph: GraphId, path: String) 
 	// is on the webview's side of the boundary — so it shapes what a person is offered and decides
 	// nothing. `export_graph` refuses a target it cannot write for the same reason; this is the other
 	// command that takes a path, and it was the one not doing it.
-	let extensions = studio_core::import::pipeline_extensions();
-	let named = std::path::Path::new(&path)
-		.extension()
-		.and_then(|ext| ext.to_str())
-		.is_some_and(|ext| extensions.iter().any(|allowed| ext.eq_ignore_ascii_case(allowed)));
-	if !named {
+	if !studio_core::import::is_pipeline(std::path::Path::new(&path)) {
 		return Err(VplError {
-			message: format!("a pipeline is saved as .{}", extensions.join(" or .")),
+			message: format!(
+				"a pipeline is saved as .{}",
+				studio_core::import::pipeline_extensions().join(" or .")
+			),
 			span: Span::new(0, 0),
 		});
 	}

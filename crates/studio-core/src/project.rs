@@ -20,6 +20,16 @@ use std::path::Path;
 /// Temp-then-rename, for the same reason the store does it: an interrupted write must not leave a
 /// truncated pipeline where a working one was.
 pub fn save_vpl(path: &Path, text: &str) -> Result<()> {
+	// Guarded here as well as at the command, for the reason `export::write` gives about itself: a
+	// library function has to be safe on its own. S5.1's project save will be the second caller, and
+	// it should not have to remember this.
+	anyhow::ensure!(
+		crate::import::is_pipeline(path),
+		"cannot write {}: a pipeline is saved as .{}",
+		path.display(),
+		crate::import::pipeline_extensions().join(" or .")
+	);
+
 	let dir = path.parent().context("target has no parent directory")?;
 	let mut temp = path.as_os_str().to_owned();
 	temp.push(".tmp");
@@ -39,6 +49,18 @@ pub fn save_vpl(path: &Path, text: &str) -> Result<()> {
 mod tests {
 	use super::*;
 	use crate::vpl::Document;
+
+	/// The guard belongs to the writer, not only to the command above it: S5.1 adds a second caller
+	/// that saves a project's `.vpl` files, and it should not have to remember this.
+	#[test]
+	fn a_destination_that_is_not_a_pipeline_is_refused() {
+		let dir = crate::testing::dir("not-a-pipeline");
+		let error = save_vpl(&dir.join("berlin.mbtiles"), "from_debug format=png").unwrap_err();
+
+		let message = format!("{error:#}");
+		assert!(message.contains("saved as .vpl"), "{message}");
+		assert!(!dir.join("berlin.mbtiles").exists(), "nothing should have been written");
+	}
 
 	/// What is written has to be what opens again — including the comments and layout that make a
 	/// hand-written pipeline worth keeping.

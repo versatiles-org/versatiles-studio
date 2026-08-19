@@ -172,6 +172,23 @@ pub fn pipeline_extensions() -> &'static [&'static str] {
 		.map_or(&[], |candidate| candidate.extensions)
 }
 
+/// Whether `path` names a pipeline file.
+///
+/// The counterpart to [`export::is_writable`](crate::export::is_writable), and the one place that
+/// decides: a dialog's filter, a command's refusal, and the writer's own guard all ask this rather
+/// than each spelling out what a `.vpl` is.
+#[must_use]
+pub fn is_pipeline(path: &std::path::Path) -> bool {
+	path
+		.extension()
+		.and_then(|extension| extension.to_str())
+		.is_some_and(|extension| {
+			pipeline_extensions()
+				.iter()
+				.any(|allowed| extension.eq_ignore_ascii_case(allowed))
+		})
+}
+
 /// The VPL a chosen file becomes, with whatever the file itself can answer already filled in.
 ///
 /// For most kinds this is [`vpl::read_node`](crate::vpl::read_node) and nothing more. For a CSV it
