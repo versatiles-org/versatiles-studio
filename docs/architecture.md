@@ -212,6 +212,21 @@ adds an operation.
 
 **Nothing only exists inside Studio.** Every artefact must be exportable in a documented format.
 
+**Ask whether a capability belongs upstream, every time.** Before building something that is a fact
+about _tiles_ rather than about Studio's interface, check whether `versatiles-rs` should carry it.
+The test is who else would want it: reading a raster tile's colour model and size is something the
+CLI and `versatiles_node` want too, while grouping a picker by what fits is Studio's alone. The
+reverse test matters more — **when the knowledge lives upstream, so does the question**, which is why
+[vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) asks an operation whether it
+fits a source instead of reimplementing every operation's requirements here.
+
+This is not a rule to wait. Studio builds what it needs now _and_ files the ask alongside;
+[Ecosystem Inventory](ecosystem.md) records each one with what Studio does meanwhile, and where a
+workaround can have a tripwire it has one. What the rule forbids is building quietly: a capability
+that should have been upstream and was never offered there costs the ecosystem an improvement and
+costs us the maintenance of a private copy. `crates/studio-vpl` not existing is this working — the
+syntax tree was offered upstream first, and its appearance here would mean upstream declined.
+
 **The two platforms deliver an opened file differently.** macOS sends `RunEvent::Opened`, possibly
 before the window exists and possibly again later; Linux puts the path in `argv`, once. `opened.rs`
 funnels both into a queue the webview drains, rather than each caller learning the difference.
