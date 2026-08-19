@@ -1,0 +1,69 @@
+name: Tauri system dependencies
+description: Installs the Linux packages Tauri needs, from a cache of the downloads when there is one.
+
+# Two jobs need these packages, and the recipe stopped being two lines the moment it had to be
+# cached. One copy here rather than two that must be kept in step.
+#
+# **What actually costs time.** The three packages named below pull 167 in total — 58.9 MB to
+# download and 258 MB installed — and the runners fetch that from `azure.archive.ubuntu.com` at a
+# speed that varies wildly: 93 seconds in one job and over 300 in another, in the same run, for
+# byte-identical work. Unpacking is fast and predictable; only the download is not.
+#
+# So the `.deb` files are cached and the network is taken out of the step. The cache is an
+# accelerator and never a source of truth: `apt-get install` still resolves against the real package
+# list, so a stale or missing cache costs a download rather than installing the wrong thing. That is
+# what makes the hand-maintained key below safe to forget to bump.
+
+inputs:
+  packages:
+    description: Packages to install.
+    required: false
+    default: libwebkit2gtk-4.1-dev librsvg2-dev patchelf
+
+runs:
+  using: composite
+  steps:
+    - name: Restore downloaded packages
+      uses: actions/cache@v4
+      with:
+        path: ~/apt-cache
+        # Bump the suffix when `packages` changes, to start a fresh cache rather than carrying
+        # archives nothing installs any more. Forgetting only costs one download.
+        key: apt-${{ runner.os }}-tauri-v1
+        restore-keys: apt-${{ runner.os }}-tauri-
+
+    - name: Install
+      shell: bash
+      run: |
+        set -euo pipefail
+        cache="$HOME/apt-cache"
+
+        # `partial/` is apt's staging directory and must exist inside any archive directory it is
+        # pointed at. `_apt` is the unprivileged user apt drops to for downloads; without the chown
+        # it warns and falls back to fetching as root.
+        mkdir -p "$cache/partial"
+        sudo chown -R _apt:root "$cache"
+
+        # **Bounded here rather than by `timeout-minutes` on the caller.** A step that `uses:` a
+        # composite action does not reliably get its timeout enforced, and a bound that might not
+        # apply is worse than none — this is the failure mode that hung a job for an hour. `timeout`
+        # runs under `sudo` so it can signal apt directly.
+        #
+        # `DPkg::Lock::Timeout` is the narrower guard inside that: it bounds the wait for the dpkg
+        # lock, which `unattended-upgrades` holds at boot on these images, and apt's default is to
+        # wait for it forever.
+        sudo timeout 120 apt-get -o DPkg::Lock::Timeout=60 update
+
+        # `Keep-Downloaded-Packages` is what leaves anything to cache: apt deletes the archives
+        # after a successful install otherwise.
+        #
+        # Nine minutes is generous for 59 MB and meant to be: it is the download that varies, and
+        # failing a run that would have finished in six helps nobody. A cache hit takes seconds.
+        sudo timeout 540 apt-get -o DPkg::Lock::Timeout=120 \
+          -o Dir::Cache::archives="$cache" \
+          -o Binary::apt::APT::Keep-Downloaded-Packages=true \
+          install -y --no-install-recommends ${{ inputs.packages }}
+
+        # Handed back to the runner, or the cache's own post-step cannot read what it is saving.
+        sudo chown -R "$(id -u):$(id -g)" "$cache"
+        du -sh "$cache" | sed 's/^/cached: /'
