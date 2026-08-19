@@ -224,8 +224,17 @@ This is not a rule to wait. Studio builds what it needs now _and_ files the ask 
 [Ecosystem Inventory](ecosystem.md) records each one with what Studio does meanwhile, and where a
 workaround can have a tripwire it has one. What the rule forbids is building quietly: a capability
 that should have been upstream and was never offered there costs the ecosystem an improvement and
-costs us the maintenance of a private copy. `crates/studio-vpl` not existing is this working — the
-syntax tree was offered upstream first, and its appearance here would mean upstream declined.
+costs us the maintenance of a private copy.
+
+**It has already paid out once, and largely.** Studio needed a lossless VPL syntax tree for C1 and
+upstream's parser could not give one ([Q23](decisions.md)); rather than keep the second grammar it
+had written, Studio filed
+[#216](https://github.com/versatiles-org/versatiles-rs/issues/216),
+[#217](https://github.com/versatiles-org/versatiles-rs/issues/217) and
+[#218](https://github.com/versatiles-org/versatiles-rs/issues/218). All three landed in 4.8.0 as
+`CstFile`, and Studio's parser, printer and the differential test that kept the two honest were
+deleted — **about 700 lines removed for 250 added**, and one grammar in the ecosystem instead of two.
+`crates/studio-vpl` not existing is the visible result: it would only be here if upstream had said no.
 
 **The two platforms deliver an opened file differently.** macOS sends `RunEvent::Opened`, possibly
 before the window exists and possibly again later; Linux puts the path in `argv`, once. `opened.rs`

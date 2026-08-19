@@ -1,7 +1,11 @@
 //! What the syntax tree keeps that the semantic one throws away.
 //!
-//! `differential.rs` proves Studio agrees with upstream. These prove Studio keeps more — which is
-//! the entire reason the parser was written twice.
+//! There is no longer anything to agree *with*: 4.8.0's `CstFile` is the parser, and Studio's own —
+//! along with the differential test that kept the two honest — is deleted ([Q23]). These prove that
+//! what the lossless tree keeps survives a round trip through Studio's editing operations, which is
+//! the property the graph and the text editor both rest on.
+//!
+//! [Q23]: ../../../docs/decisions.md
 
 use super::{Document, Quote, Span, Value};
 

@@ -303,8 +303,12 @@ mod tests {
 	/// The rule that keeps this honest: Studio must reject exactly what the CLI rejects, no more.
 	///
 	/// Accepting something upstream refuses sends a user to a run-time failure; refusing something
-	/// upstream accepts makes Studio a stricter language than the tool it drives. Both are the drift
-	/// [Q23](../../../docs/decisions.md)'s differential test exists to prevent, one level up.
+	/// upstream accepts makes Studio a stricter language than the tool it drives.
+	///
+	/// This is the last place that drift can happen. The *grammar* can no longer disagree — Studio
+	/// parses with upstream's `CstFile` since 4.8.0, and the differential test that used to guard two
+	/// parsers went with the second one ([Q23](../../../docs/decisions.md)). What is still Studio's
+	/// own, and so still worth pinning, is which pipelines it calls valid.
 	#[tokio::test]
 	async fn what_studio_rejects_upstream_rejects_too() {
 		let factory = PipelineFactory::new_dummy();
