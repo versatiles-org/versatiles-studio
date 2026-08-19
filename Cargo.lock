@@ -5061,7 +5061,6 @@ name = "studio-core"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "csv",
  "gdal",
  "gdal-src",
  "gdal-sys",

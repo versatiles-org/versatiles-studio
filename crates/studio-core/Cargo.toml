@@ -9,7 +9,6 @@ repository.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-csv.workspace = true
 # Not called directly — present so the static GDAL and its drivers are linked into the binary that
 # `versatiles/gdal` reads rasters with (Q19, S3.5).
 gdal-src.workspace = true

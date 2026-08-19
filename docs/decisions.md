@@ -1051,7 +1051,9 @@ explicit, cancellable job (E7).
 Studio cannot reuse it. `validate_tile()` is reachable — it lives in `versatiles_geometry`, which is
 a library. **`layer_stats()` is not**: `tools` is declared in `versatiles/src/main.rs`, not
 `lib.rs`, so the byte breakdown is binary-only. A compute/render split upstream would give the CLI a
-`--json` probe for free _and_ make both reachable.
+`--json` probe for free _and_ make both reachable — asked for as
+[vt#236](https://github.com/versatiles-org/versatiles-rs/issues/236), two months after this noticed
+it. `analysis::describe` is what Studio pays in the meantime.
 
 ### Q7 — No `planetiler` orchestration. E5 is dropped
 

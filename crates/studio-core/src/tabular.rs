@@ -12,7 +12,9 @@
 
 use anyhow::{Context, Result};
 use serde::Serialize;
+use std::io::BufReader;
 use std::path::Path;
+use versatiles_core::utils::read_csv_iter;
 
 /// Delimiters worth trying, in the order they are preferred on a tie.
 ///
@@ -69,10 +71,18 @@ pub fn columns(path: &Path) -> Result<Columns> {
 /// A file's real delimiter always yields more columns than a character that does not appear in it,
 /// which yields exactly one. Ties go to the earlier entry in [`DELIMITERS`], so a file with no
 /// delimiter at all is reported as a one-column CSV rather than as a pipe-separated anything.
+///
+/// **Counted rather than parsed.** Asking the parser to read the header once per candidate is the
+/// obvious way and cannot be done: a quoted field followed by anything but the candidate separator
+/// panics inside `read_csv_iter` rather than failing
+/// ([vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238)) — and trying separators a
+/// file does not use is precisely what sniffing is. Counting is also the cheaper answer, since the
+/// file is read once instead of once per candidate.
 fn sniff(path: &Path) -> Result<char> {
+	let record = first_record(path)?;
 	let mut best = (DELIMITERS[0], 0);
 	for delimiter in DELIMITERS {
-		let count = header(path, delimiter).map(|names| names.len()).unwrap_or(0);
+		let count = separators(&record, delimiter);
 		if count > best.1 {
 			best = (delimiter, count);
 		}
@@ -80,22 +90,73 @@ fn sniff(path: &Path) -> Result<char> {
 	Ok(best.0)
 }
 
-fn header(path: &Path, delimiter: char) -> Result<Vec<String>> {
-	let mut reader = csv::ReaderBuilder::new()
-		.delimiter(delimiter as u8)
-		.has_headers(true)
-		// A ragged file is still worth reading a header from; the error belongs to whoever reads
-		// the rows.
-		.flexible(true)
-		.from_path(path)
-		.with_context(|| format!("opening {}", path.display()))?;
+/// How often `delimiter` separates fields — occurrences inside a quoted field do not count.
+///
+/// `""` inside a quoted field is an escaped quote, and toggling twice leaves the state it found,
+/// so it needs no case of its own.
+fn separators(record: &str, delimiter: char) -> usize {
+	let mut quoted = false;
+	record
+		.chars()
+		.filter(|&c| {
+			if c == '"' {
+				quoted = !quoted;
+			}
+			c == delimiter && !quoted
+		})
+		.count()
+}
 
-	Ok(reader
-		.headers()
-		.with_context(|| format!("reading the header of {}", path.display()))?
-		.iter()
-		.map(|name| name.trim().to_string())
-		.collect())
+/// The first record's raw text: up to the first newline that is not inside a quoted field.
+///
+/// Bounded, because this only ever needs a header: a file whose first record does not arrive in
+/// 64 KiB is not one whose columns anybody is about to pick from a list.
+fn first_record(path: &Path) -> Result<String> {
+	use std::io::Read;
+
+	let mut head = vec![0; 64 * 1024];
+	let mut file = std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
+	let read = file
+		.read(&mut head)
+		.with_context(|| format!("reading {}", path.display()))?;
+	head.truncate(read);
+
+	let text = String::from_utf8_lossy(&head);
+	let mut quoted = false;
+	let end = text
+		.char_indices()
+		.find(|&(_, c)| {
+			if c == '"' {
+				quoted = !quoted;
+			}
+			c == '\n' && !quoted
+		})
+		.map_or(text.len(), |(index, _)| index);
+
+	Ok(text[..end].trim_end_matches('\r').to_string())
+}
+
+/// Reads the first row, with **the same reader the pipeline will use**.
+///
+/// `from_csv` reads the file through `versatiles_core`'s CSV utilities, so anything else parsing it
+/// here would be a second reading of one file: a form could offer a column the pipeline then cannot
+/// find, over nothing worse than a disagreement about quoting. Asked upstream as
+/// [vt#237](https://github.com/versatiles-org/versatiles-rs/issues/237) to expose the header
+/// question itself, which is the half that is still ours.
+///
+/// A ragged file is still worth a header. `read_csv_iter` refuses a row whose field count differs
+/// from the first — but that is a row this never asks for, because it stops after one.
+fn header(path: &Path, delimiter: char) -> Result<Vec<String>> {
+	let file = std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
+	let mut rows = read_csv_iter(BufReader::new(file), delimiter as u8)
+		.with_context(|| format!("reading the header of {}", path.display()))?;
+
+	let Some(first) = rows.next() else {
+		return Ok(Vec::new());
+	};
+	let (names, _, _) = first.with_context(|| format!("reading the header of {}", path.display()))?;
+
+	Ok(names.into_iter().map(|name| name.trim().to_string()).collect())
 }
 
 /// The first column whose name is one of `candidates`, preferring earlier candidates.
@@ -149,7 +210,25 @@ mod tests {
 		assert_eq!(columns(&path).unwrap().delimiter, "\t");
 	}
 
-	/// Why the `csv` crate rather than `split(',')`: the first address column with a comma in it.
+	/// The case that made counting necessary: with `;` as a candidate, a quoted field followed by a
+	/// comma used to reach `read_csv_iter`, which panics rather than failing on it (vt#238).
+	#[test]
+	fn a_delimiter_inside_quotes_does_not_count_as_one() {
+		assert_eq!(separators("\"name, formal\",lon,lat", ','), 2);
+		assert_eq!(separators("\"name, formal\",lon,lat", ';'), 0);
+		// `""` is an escaped quote: toggling twice leaves the state it found.
+		assert_eq!(separators("\"a\"\"b,c\",d", ','), 1);
+	}
+
+	/// A quoted field may hold a newline, so the first *line* is not always the first record.
+	#[test]
+	fn a_newline_inside_quotes_does_not_end_the_record() {
+		let path = write("multiline.csv", "\"name\nformal\",lon,lat\nBerlin,13.4,52.5\n");
+		let columns = columns(&path).unwrap();
+		assert_eq!(columns.names, ["name\nformal", "lon", "lat"]);
+	}
+
+	/// Why a real CSV reader rather than `split(',')`: the first address column with a comma in it.
 	#[test]
 	fn a_quoted_header_field_stays_one_column() {
 		let path = write("quoted.csv", "\"name, formal\",lon,lat\nBerlin,13.4,52.5\n");
