@@ -12,7 +12,7 @@
 
 use anyhow::{Context, Result};
 use serde::Serialize;
-use std::io::BufReader;
+use std::io::Cursor;
 use std::path::Path;
 use versatiles_core::utils::read_csv_iter;
 
@@ -54,8 +54,12 @@ const LAT_NAMES: [&str; 5] = ["latitude", "lat", "lat_deg", "y_wgs84", "lattitud
 ///
 /// Only the first record is read, so this costs the same on a 4 GB file as on a small one.
 pub fn columns(path: &Path) -> Result<Columns> {
-	let delimiter = sniff(path)?;
-	let names = header(path, delimiter)?;
+	// Read once, then answer both questions from the same bytes. Opening the file a second time to
+	// parse what was just measured would let the two disagree if it changed in between, and there is
+	// nothing in the second read that the first did not already have.
+	let record = first_record(path)?;
+	let delimiter = sniff(&record);
+	let names = header(&record, delimiter)?;
 	anyhow::ensure!(!names.is_empty(), "{} has no header row", path.display());
 
 	Ok(Columns {
@@ -78,16 +82,15 @@ pub fn columns(path: &Path) -> Result<Columns> {
 /// ([vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238)) — and trying separators a
 /// file does not use is precisely what sniffing is. Counting is also the cheaper answer, since the
 /// file is read once instead of once per candidate.
-fn sniff(path: &Path) -> Result<char> {
-	let record = first_record(path)?;
+fn sniff(record: &str) -> char {
 	let mut best = (DELIMITERS[0], 0);
 	for delimiter in DELIMITERS {
-		let count = separators(&record, delimiter);
+		let count = separators(record, delimiter);
 		if count > best.1 {
 			best = (delimiter, count);
 		}
 	}
-	Ok(best.0)
+	best.0
 }
 
 /// How often `delimiter` separates fields — occurrences inside a quoted field do not count.
@@ -146,15 +149,13 @@ fn first_record(path: &Path) -> Result<String> {
 ///
 /// A ragged file is still worth a header. `read_csv_iter` refuses a row whose field count differs
 /// from the first — but that is a row this never asks for, because it stops after one.
-fn header(path: &Path, delimiter: char) -> Result<Vec<String>> {
-	let file = std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
-	let mut rows = read_csv_iter(BufReader::new(file), delimiter as u8)
-		.with_context(|| format!("reading the header of {}", path.display()))?;
+fn header(record: &str, delimiter: char) -> Result<Vec<String>> {
+	let mut rows = read_csv_iter(Cursor::new(record.as_bytes()), delimiter as u8).context("parsing the header row")?;
 
 	let Some(first) = rows.next() else {
 		return Ok(Vec::new());
 	};
-	let (names, _, _) = first.with_context(|| format!("reading the header of {}", path.display()))?;
+	let (names, _, _) = first.context("parsing the header row")?;
 
 	Ok(names.into_iter().map(|name| name.trim().to_string()).collect())
 }
