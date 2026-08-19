@@ -47,6 +47,38 @@ to remember here is that tile bytes must never travel over IPC, and that a one-o
 exception: `tauri::ipc::Response` returns an array buffer without JSON, which is how A4 reads a raw
 tile.
 
+### Paths across the control plane
+
+Tauri treats the webview as the less-trusted side, so a filesystem path arriving over IPC is
+tainted by construction — and static analysis says so, repeatedly and correctly. Every such path in
+Studio is one of four things, and knowing which is what decides whether anything needs doing:
+
+| Kind                             | Where it comes from                        | What constrains it                                        |
+| -------------------------------- | ------------------------------------------ | --------------------------------------------------------- |
+| **Test fixture**                 | `crate::testing`, inside the crate         | Never crosses the boundary at all                         |
+| **Application data**             | `app_data_dir()` plus a module constant    | The webview cannot name it ([Q21](decisions.md))          |
+| **Chosen destination**           | a native save dialog, passed back over IPC | The command checks the extension, not the dialog's filter |
+| **Source named by the document** | a `filename` in the VPL being edited       | Nothing — and deliberately so                             |
+
+The third and fourth are the ones worth being precise about.
+
+**A chosen destination is checked in the core, not in the dialog.** The filter that shapes a save
+dialog runs in the webview and therefore decides nothing: `export_graph` refuses a target whose
+extension is not one `export::WRITABLE` names, and `save_vpl` refuses one the import catalogue does
+not call a pipeline file. Those are the only two commands that take somewhere to _write_, and a
+third that took one and checked nothing would be the bug to look for — the commands that take a path
+to _read_ are row four, and check nothing by design.
+
+**A source named by the document is unconstrained on purpose.** A `.vpl` says
+`from_csv filename='…'`, and reading that file is what the document is _for_ — the preview of that
+same node decodes it in full and draws it on the map, so inspecting its header reads strictly less.
+Restricting it to the project directory would also make Studio **stricter than the CLI it drives**,
+which is the drift `vpl::validate` exists to prevent.
+
+So the recurring `rust/path-injection` alert is a false positive in every case seen so far, and this
+is the table to cite rather than re-derive. What would _not_ be one: a path reaching the filesystem
+without falling into one of these four rows.
+
 ## Layers
 
 **Tauri shell.** Native windows, menus, file dialogs, drag & drop, file type associations,
