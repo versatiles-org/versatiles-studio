@@ -33,14 +33,15 @@
 		operations?: OperationInfo[];
 		properties?: string[];
 		/**
-		 * What can be appended to the selected node's output, and why the rest cannot (S2.14).
+		 * What can be appended to what the map is showing, and why the rest cannot (S2.14).
 		 *
 		 * From the preview, because it is an answer about the tiles that node actually produces.
 		 * Empty before the first build, which is why the picker degrades to an ungrouped list
 		 * rather than to an empty one.
 		 */
 		fits?: Fit[];
-		suggestions?: Record<string, string[]>;
+		/** By node path, then by field. Each node is handed only its own. */
+		suggestions?: Record<string, Record<string, string[]>>;
 		onPin: (path: number[]) => void;
 		onCommit: (span: Span, value: string) => void;
 		onRemove: (span: Span) => void;
@@ -98,9 +99,6 @@
 
 <div class="chain">
 	{#each rows as row, index (row.path.join('.'))}
-		<!-- `suggestions` reach only the node they were worked out for: they are fetched for one path
-		     (S3.4), and handing them to every node would offer one file's columns for another file's
-		     node — the exact thing that data is documented as avoiding. -->
 		<div class="row" class:inactive={!active[index]} style:--depth={row.depth}>
 			<NodeCard
 				node={row.node}
@@ -109,7 +107,7 @@
 				isHead={isChainHead(row.path)}
 				{operations}
 				{properties}
-				suggestions={samePath(selected, row.path) ? suggestions : {}}
+				suggestions={suggestions[row.path.join('.')] ?? {}}
 				{onPin}
 				{onCommit}
 				{onRemove}

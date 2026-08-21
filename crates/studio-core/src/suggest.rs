@@ -17,12 +17,12 @@
 //!
 //! [Q29]: ../../docs/decisions.md
 
-use crate::vpl::Node;
+use crate::vpl::{Node, Pipeline};
 use serde::Serialize;
 use std::path::Path;
 
 /// What one field could be set to.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct FieldSuggestion {
@@ -73,6 +73,55 @@ pub fn for_node(node: &Node, dir: &Path) -> Vec<FieldSuggestion> {
 			values: columns.names.clone(),
 		})
 		.collect()
+}
+
+/// Suggestions for every node in a pipeline, by the path that names it.
+///
+/// **One answer for the whole graph, rather than one per selection.** Every node in the chain shows
+/// its own form, so every node needs its own suggestions — and a `filename` on one node has nothing
+/// to say about the field of another. Asking per node would be a round trip each; asking once is
+/// cheap because [`for_node`] refuses everything that is not a `from_csv` before it touches a disk,
+/// so a chain costs one header read per CSV node and a string comparison for the rest.
+///
+/// The path is the one [`Pipeline::at_path`](crate::vpl::Pipeline::at_path) follows, rendered as
+/// `0.1.2` so it can key a map on either side of the boundary.
+#[must_use]
+pub fn for_pipeline(pipeline: &Pipeline, dir: &Path) -> Vec<NodeSuggestions> {
+	let mut out = Vec::new();
+	collect(pipeline, dir, &mut Vec::new(), &mut out);
+	out
+}
+
+/// What one node's fields could take.
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct NodeSuggestions {
+	/// The node's path, as `0.1.2`.
+	pub path: String,
+	pub fields: Vec<FieldSuggestion>,
+}
+
+fn collect(pipeline: &Pipeline, dir: &Path, path: &mut Vec<usize>, out: &mut Vec<NodeSuggestions>) {
+	for (index, node) in pipeline.nodes.iter().enumerate() {
+		path.push(index);
+
+		let fields = for_node(node, dir);
+		if !fields.is_empty() {
+			out.push(NodeSuggestions {
+				path: path.iter().map(usize::to_string).collect::<Vec<_>>().join("."),
+				fields,
+			});
+		}
+
+		for (source, nested) in node.sources.iter().enumerate() {
+			path.push(source);
+			collect(nested, dir, path, out);
+			path.pop();
+		}
+
+		path.pop();
+	}
 }
 
 #[cfg(test)]
@@ -140,5 +189,63 @@ mod tests {
 			for_node(&node_of("from_csv filename=absent.csv"), Path::new("/nowhere")).is_empty(),
 			"an unreadable file costs suggestions, not the form"
 		);
+	}
+}
+
+#[cfg(test)]
+mod pipeline_tests {
+	use super::*;
+	use crate::vpl::Document;
+
+	fn csv(dir: &Path, name: &str) -> String {
+		std::fs::write(dir.join(name), "lon,lat,name\n1,2,here\n").expect("writing a test csv");
+		name.to_string()
+	}
+
+	/// **The reason this exists.** Every node shows its own form, so two `from_csv` nodes reading
+	/// different files must offer different columns — which is exactly what asking once per
+	/// selection could not do.
+	#[test]
+	fn each_node_gets_its_own_file_s_columns() {
+		let dir = crate::testing::dir("suggest-pipeline");
+		std::fs::write(dir.join("a.csv"), "lon,lat,alpha\n1,2,3\n").unwrap();
+		std::fs::write(dir.join("b.csv"), "x,y,beta\n1,2,3\n").unwrap();
+
+		let document = Document::parse("from_stacked [ from_csv filename='a.csv', from_csv filename='b.csv' ]").unwrap();
+		let found = for_pipeline(document.pipeline(), &dir);
+
+		assert_eq!(found.len(), 2, "both CSV nodes should be described: {found:?}");
+		let columns = |path: &str| {
+			found
+				.iter()
+				.find(|entry| entry.path == path)
+				.map(|entry| entry.fields[0].values.clone())
+				.unwrap_or_default()
+		};
+		assert!(columns("0.0.0").contains(&"alpha".to_string()), "{found:?}");
+		assert!(columns("0.1.0").contains(&"beta".to_string()), "{found:?}");
+	}
+
+	/// A path here has to be the path `at_path` follows, or the webview keys its map on one thing
+	/// and looks it up with another.
+	#[test]
+	fn the_path_is_the_one_that_finds_the_node() {
+		let dir = crate::testing::dir("suggest-paths");
+		let name = csv(&dir, "points.csv");
+		let document = Document::parse(format!("from_csv filename='{name}' | filter level_max=3")).unwrap();
+
+		let found = for_pipeline(document.pipeline(), &dir);
+		assert_eq!(found.len(), 1);
+		let path: Vec<usize> = found[0].path.split('.').map(|p| p.parse().unwrap()).collect();
+		assert_eq!(document.pipeline().at_path(&path).unwrap().name, "from_csv");
+	}
+
+	/// Most nodes have nothing to suggest, and saying so with an empty entry per node would make
+	/// the answer mostly padding.
+	#[test]
+	fn nodes_with_nothing_to_say_are_left_out() {
+		let dir = crate::testing::dir("suggest-quiet");
+		let document = Document::parse("from_debug format=png | filter level_max=3").unwrap();
+		assert!(for_pipeline(document.pipeline(), &dir).is_empty());
 	}
 }

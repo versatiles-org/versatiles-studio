@@ -699,25 +699,25 @@ pub fn import_read_node(kind_id: String, path: String) -> String {
 		.unwrap_or_default()
 }
 
-/// Values the selected node's fields could take, read from what the node points at (S3.4).
+/// What every node's fields could be set to, read from what each node points at (S3.4).
 ///
-/// Takes the node's path rather than the node, so the answer is about the document the core holds
-/// — asking about a node the webview describes would let the two disagree about which file is
-/// meant.
+/// **The whole graph, not the selected node.** Every node in the chain carries its own form, so
+/// every node needs its own answer — one `from_csv` reading `a.csv` has nothing to say about
+/// another reading `b.csv`. It used to take a path, which was correct only while a single node had
+/// a form to fill in.
+///
+/// One call rather than one per node: `for_node` refuses anything that is not a `from_csv` before
+/// it touches a disk, so the sweep costs a header read per CSV node and a string comparison for the
+/// rest.
 #[tauri::command]
 #[specta::specta]
 pub async fn field_suggestions(
 	state: State<'_, AppState>,
 	graph: GraphId,
-	path: Vec<u32>,
-) -> Result<Vec<studio_core::suggest::FieldSuggestion>, String> {
-	let path: Vec<usize> = path.into_iter().map(|index| index as usize).collect();
+) -> Result<Vec<studio_core::suggest::NodeSuggestions>, String> {
 	let Some(document) = state.graphs.lock().await.get(graph).map(|g| g.document.clone()) else {
 		return Ok(Vec::new());
 	};
-	let Some(node) = document.pipeline().at_path(&path) else {
-		return Ok(Vec::new());
-	};
 	let dir = state.project_dir.lock().await.clone();
-	Ok(studio_core::suggest::for_node(node, &dir))
+	Ok(studio_core::suggest::for_pipeline(document.pipeline(), &dir))
 }

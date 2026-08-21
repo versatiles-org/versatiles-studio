@@ -231,13 +231,18 @@ export const commands = {
 	 */
 	importReadNode: (kindId: string, path: string) => __TAURI_INVOKE<string>("import_read_node", { kindId, path }),
 	/**
-	 *  Values the selected node's fields could take, read from what the node points at (S3.4).
+	 *  What every node's fields could be set to, read from what each node points at (S3.4).
 	 * 
-	 *  Takes the node's path rather than the node, so the answer is about the document the core holds
-	 *  — asking about a node the webview describes would let the two disagree about which file is
-	 *  meant.
+	 *  **The whole graph, not the selected node.** Every node in the chain carries its own form, so
+	 *  every node needs its own answer — one `from_csv` reading `a.csv` has nothing to say about
+	 *  another reading `b.csv`. It used to take a path, which was correct only while a single node had
+	 *  a form to fill in.
+	 * 
+	 *  One call rather than one per node: `for_node` refuses anything that is not a `from_csv` before
+	 *  it touches a disk, so the sweep costs a header read per CSV node and a string comparison for the
+	 *  rest.
 	 */
-	fieldSuggestions: (graph: number, path: number[]) => typedError<FieldSuggestion[], string>(__TAURI_INVOKE("field_suggestions", { graph, path })),
+	fieldSuggestions: (graph: number) => typedError<NodeSuggestions[], string>(__TAURI_INVOKE("field_suggestions", { graph })),
 	/**  Every graph in this project, in the order the pane shows them ([Q32]). */
 	graphs: () => typedError<GraphInfo[], string>(__TAURI_INVOKE("graphs")),
 	/**  One graph in full, or `None` if it has been removed. */
@@ -850,6 +855,13 @@ export type Node = {
 	sourcesSpan: Span | null,
 	/**  Name through the end of the sources block. */
 	span: Span,
+};
+
+/**  What one node's fields could take. */
+export type NodeSuggestions = {
+	/**  The node's path, as `0.1.2`. */
+	path: string,
+	fields: FieldSuggestion[],
 };
 
 export type OpenedContainer = {

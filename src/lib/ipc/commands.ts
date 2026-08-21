@@ -226,8 +226,8 @@ export const importKindFor = (path: string) => commands.importKindFor(path);
  */
 export const importReadNode = (kindId: string, path: string) => commands.importReadNode(kindId, path);
 
-/** Values the selected node's fields could take, read from what the node points at (S3.4). */
-export const fieldSuggestions = (graph: number, path: number[]) => unwrap(commands.fieldSuggestions(graph, path));
+/** What every node's fields could be set to, keyed by the node's path (S3.4). */
+export const fieldSuggestions = (graph: number) => unwrap(commands.fieldSuggestions(graph));
 
 // -- the pipeline ----------------------------------------------------------------------------
 

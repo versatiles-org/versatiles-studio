@@ -19,7 +19,7 @@
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
 	import StylePane from './lib/panes/style/StylePane.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
-	import { nodeAt, samePath, selectionSurvives, walk } from './lib/vpl/node-at';
+	import { samePath, walk } from './lib/vpl/node-at';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
 	import TileGrid from './lib/map/TileGrid.svelte';
@@ -112,12 +112,10 @@
 	/** Bumped when the pipeline changes from somewhere other than the editor, so the editor knows
 	 *  to reload rather than being fought over its own buffer. */
 	let pipelineRevision = $state(0);
-	/** The node selected in the graph or the text. The right pane shows its parameters (Q22). */
-	let selected = $state<number[] | null>(null);
 	/** Build-time information about the binary, so it is fetched once and never refreshed. */
 	let operations = $state<OperationInfo[]>([]);
 
-	/// Editing a parameter of the selected node rewrites the document through the core, which owns
+	/// Editing a parameter rewrites the document through the core, which owns
 	/// the quoting and refuses anything that would not parse.
 	async function editSelected(run: (text: string) => Promise<string>) {
 		if (!pipeline) return;
@@ -134,22 +132,26 @@
 	/** The last preview that was put on the map, so a style swap can restore it without rebuilding. */
 	let lastPreview = $state<Preview | null>(null);
 
-	/// Values the selected node's fields could take, read from what that node points at (S3.4).
+	/// What each node's fields could be set to, by the node's path (S3.4).
 	///
-	/// Refetched whenever the selection or the document changes: the answer depends on the node's
-	/// `filename`, so a stale map would offer one file's columns for another file's node.
-	let suggestions = $state<Record<string, string[]>>({});
+	/// **Per node, because every node is a form.** This used to be one node's answer, fetched for
+	/// whichever was selected — which was right while only the selected node had fields to fill in,
+	/// and became "one file's columns offered for another file's node" the moment they all did.
+	///
+	/// Refetched whenever the document changes: the answer depends on each node's `filename`.
+	let suggestions = $state<Record<string, Record<string, string[]>>>({});
 	$effect(() => {
-		const path = selected;
-		// Depend on the document too — editing `filename` changes which file is being asked about.
+		// Depend on the text too — editing `filename` changes which file is being asked about.
 		void pipeline?.text;
 		const graph = pipeline?.graph;
-		if (!path || graph === undefined) {
+		if (graph === undefined) {
 			suggestions = {};
 			return;
 		}
-		void fieldSuggestions(graph, path).then((found) => {
-			suggestions = Object.fromEntries(found.map((each) => [each.field, each.values]));
+		void fieldSuggestions(graph).then((found) => {
+			suggestions = Object.fromEntries(
+				found.map((node) => [node.path, Object.fromEntries(node.fields.map((f) => [f.field, f.values]))])
+			);
 		});
 	});
 

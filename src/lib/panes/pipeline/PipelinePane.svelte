@@ -2,7 +2,6 @@
 	import VplEditor from './VplEditor.svelte';
 	import NodeChain from './NodeChain.svelte';
 	import GraphList from './GraphList.svelte';
-	import { nodeAt, samePath } from '../../vpl/node-at';
 	import {
 		vplReview,
 		type VplToken,
@@ -50,7 +49,8 @@
 		/** What can be appended to what the map is showing (S2.14). */
 		fits?: Fit[];
 		/** Per-field values read from what a node points at (S3.4). */
-		suggestions?: Record<string, string[]>;
+		/** By node path, then by field. */
+		suggestions?: Record<string, Record<string, string[]>>;
 		/** Every graph in the project ([Q32]). */
 		graphs?: GraphInfo[];
 		/** The pinned node, when the pin is in *this* graph. */
@@ -102,16 +102,10 @@
 	/// way through choosing is not worth remembering across a reload.
 	let adding = $state(false);
 
-	// **The graph no longer moves the caret.** [Q15](../../../docs/decisions.md) had selection
-	// running both ways between the tabs; a node is not clickable any more, so only the text side is
-	// left — the caret still follows into the graph, and `caretMoved` is what does it.
-
-	/** The caret moved in the text; follow it in the graph, but do not fight the editor's own
-	 *  selection by pushing one back at it. */
-	function caretMoved(offset: number) {
-		const found = pipeline ? nodeAt(pipeline.pipeline, offset) : null;
-		if (!samePath(found?.path ?? null, selected)) nodeActions.select(found?.path ?? null);
-	}
+	// **Neither tab moves a selection any more.** [Q15](../../../docs/decisions.md) had one running
+	// both ways between them, so that switching landed you on the node you were looking at. It was
+	// worth that when the graph showed one node's form; now every node shows its own, and there is
+	// nothing for a selection to reveal on either side.
 
 	// Typing produces text that is often mid-edit and invalid; the *document* never is (Q25). The
 	// editor keeps the text, so what is tracked here is only what has to be painted over it.
@@ -225,13 +219,7 @@
 		<!-- Remounted only when the document changes from outside the editor, which is what lets the
 			     editor own its buffer without the parent fighting it (Q25). -->
 		{#key pipelineRevision}
-			<VplEditor
-				initialText={pipeline?.text ?? ''}
-				{tokens}
-				{problems}
-				onInput={(next) => void type(next)}
-				onCaret={caretMoved}
-			/>
+			<VplEditor initialText={pipeline?.text ?? ''} {tokens} {problems} onInput={(next) => void type(next)} />
 		{/key}
 	{:else if draftError}
 		<!-- Q15: the graph never shows a stale render. While the text does not parse there is no
