@@ -2,6 +2,7 @@
 
 use crate::state::AppState;
 use std::path::PathBuf;
+use studio_core::estimate::Estimate;
 use studio_core::export::Bounds;
 use studio_core::graphs::GraphId;
 use studio_core::jobs::{JobId, Lane};
@@ -86,4 +87,37 @@ pub async fn export_graph(
 		.submit(format!("Writing {name}"), Lane::Queued, move |handle| async move {
 			studio_core::export::write(&handle, pipeline, &dir, &target, bounds).await
 		}))
+}
+
+/// What an export would cost, before one is started (S3.7, C6).
+///
+/// **Awaited rather than run as a job**, unlike [`export_graph`]. A job is the right shape for
+/// something you start and walk away from; this is something a dialog is waiting on, and it is
+/// bounded by [`studio_core::estimate::BUDGET`] precisely so that waiting is reasonable. Putting a
+/// two-second measurement in the status bar would also announce it to a window that is not asking —
+/// the bar is for work the user started.
+///
+/// **The refusals are the same as the export's**, and arrive here first: an absurd pyramid and a
+/// bounding box that is inside out are both things the dialog can say next to the field that causes
+/// them, rather than after a filename has been chosen.
+#[tauri::command]
+#[specta::specta]
+pub async fn estimate_export(state: State<'_, AppState>, graph: GraphId, bounds: Bounds) -> Result<Estimate, String> {
+	let Some(pipeline) = state
+		.graphs
+		.lock()
+		.await
+		.get(graph)
+		.map(|graph| graph.document.to_pipeline())
+	else {
+		return Err("that graph is no longer open".to_string());
+	};
+
+	bounds.check().map_err(|error| format!("{error:#}"))?;
+
+	let dir = state.project_dir.lock().await.clone();
+
+	studio_core::estimate::estimate(pipeline, &dir, bounds)
+		.await
+		.map_err(|error| format!("{error:#}"))
 }

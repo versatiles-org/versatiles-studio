@@ -36,6 +36,7 @@
 		getPinned,
 		removeGraph,
 		exportGraph,
+		estimateExport,
 		writableFormats,
 		renameGraph,
 		addGraph,
@@ -884,11 +885,15 @@
 <!-- Outside the shell on purpose: the sidebars scroll and clip, and this has to sit over the
      map beside them ([Q33]). -->
 {#if exporting && pipeline}
+	<!-- Captured here because the callbacks below outlive the block's narrowing: inside the arrow
+	     function `pipeline` is nullable again, however the `{#if}` reads. -->
+	{@const graph = pipeline.graph}
 	<ExportDialog
 		name={pipeline.name}
 		{formats}
 		onCancel={() => (exporting = false)}
 		onExport={(bounds) => void startExport(bounds)}
+		onEstimate={(bounds) => estimateExport(graph, bounds)}
 	/>
 {/if}
 

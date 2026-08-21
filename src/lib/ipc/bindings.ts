@@ -45,6 +45,20 @@ export const commands = {
 	 */
 	exportGraph: (graph: number, target: string, bounds: Bounds) => typedError<number, string>(__TAURI_INVOKE("export_graph", { graph, target, bounds })),
 	/**
+	 *  What an export would cost, before one is started (S3.7, C6).
+	 * 
+	 *  **Awaited rather than run as a job**, unlike [`export_graph`]. A job is the right shape for
+	 *  something you start and walk away from; this is something a dialog is waiting on, and it is
+	 *  bounded by [`studio_core::estimate::BUDGET`] precisely so that waiting is reasonable. Putting a
+	 *  two-second measurement in the status bar would also announce it to a window that is not asking —
+	 *  the bar is for work the user started.
+	 * 
+	 *  **The refusals are the same as the export's**, and arrive here first: an absurd pyramid and a
+	 *  bounding box that is inside out are both things the dialog can say next to the field that causes
+	 *  them, rather than after a filename has been chosen.
+	 */
+	estimateExport: (graph: number, bounds: Bounds) => typedError<Estimate, string>(__TAURI_INVOKE("estimate_export", { graph, bounds })),
+	/**
 	 *  The container formats Studio can write.
 	 * 
 	 *  Asked for rather than repeated in the webview: the list decides the file dialog's filters, the
@@ -518,6 +532,24 @@ export type EditKind =
 "structured" | 
 /**  The document was replaced wholesale, e.g. by opening a file. */
 "replaced";
+
+/**  What an export is expected to cost. */
+export type Estimate = {
+	/**  Tiles the export will write — a count, not an estimate. */
+	tiles: number,
+	/**  Bytes those tiles are expected to come to. */
+	bytes: number,
+	/**  Seconds the write is expected to take. */
+	seconds: number,
+	/**
+	 *  How many tiles were actually produced to arrive at the two numbers above.
+	 * 
+	 *  Reported because it is the honest measure of how much the estimate is worth, and the only
+	 *  one the webview could not work out for itself. Four samples of a slow pipeline and sixty of
+	 *  a fast one deserve different wording.
+	 */
+	sampled: number,
+};
 
 /**  One parameter of an operation, ready to render. */
 export type FieldInfo = {

@@ -15,6 +15,7 @@
 <script lang="ts">
 	import { jobs, cancelJob } from '../state/jobs.svelte';
 	import JobsPanel from './JobsPanel.svelte';
+	import { duration } from '../common/format';
 
 	let { status, onDismiss }: { status: Status; onDismiss?: () => void } = $props();
 
@@ -26,15 +27,9 @@
 		return `${Math.round(perSecond)}/s`;
 	}
 
-	/// Coarser the further away it is, because that is how much of it is real: "about 2 hours" from
-	/// an average taken over the first minute is a guess, and "1:58:03" is the same guess pretending
-	/// otherwise.
-	function left(seconds: number): string {
-		if (seconds < 10) return 'a few seconds left';
-		if (seconds < 90) return `${Math.round(seconds / 5) * 5}s left`;
-		if (seconds < 3600) return `${Math.round(seconds / 60)} min left`;
-		return `${(seconds / 3600).toFixed(1)} h left`;
-	}
+	/// The shared phrasing plus what it is about — see `common/format.ts` for why it rounds this
+	/// hard. The export dialog reads the same numbers and says "about" instead.
+	const left = (seconds: number) => `${duration(seconds)} left`;
 
 	/// How fast, and how much longer — shown only once the job has said enough to mean it.
 	function pace(current: NonNullable<typeof job>): string | undefined {

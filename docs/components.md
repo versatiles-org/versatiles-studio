@@ -91,17 +91,17 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 
 ## Left pane — the chain
 
-| Component      | Does                                                                                                               | Stage |
-| -------------- | ------------------------------------------------------------------------------------------------------------------ | ----- |
-| `PipelinePane` | Graph list, then the selected graph's chain, tabs and its own save/rename/export ([Q32](decisions.md))             | S2.2  |
-| `GraphList`    | The project's graphs: pin, name, unsaved dot, inline rename                                                        | S2.2  |
-| `NodeChain`    | The chain of nodes; vertical, with `＋ operation…` on the rail outside them ([Q32](decisions.md))                  | S2.13 |
-| `NodeCard`     | One node in the chain. Name only unless selected; then arguments, `?` docs, `×`, and the rail's `＋ operation…`    | S2.6  |
-| `NodeArgument` | One argument: name, `?`, the control from `field_meta`, and a `×` unless required ([Q33](decisions.md))            | S2.13 |
-| `Help`         | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md)) | S2.13 |
-| `HelpTrigger`  | The `?` that opens it — hover or focus peeks, click pins ([Q33](decisions.md))                                     | S2.13 |
-| `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3  |
-| `ExportDialog` | Format, zoom range and numeric bounds — modal, per graph ([Q32](decisions.md))                                     | S3.6  |
+| Component      | Does                                                                                                               | Stage      |
+| -------------- | ------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `PipelinePane` | Graph list, then the selected graph's chain, tabs and its own save/rename/export ([Q32](decisions.md))             | S2.2       |
+| `GraphList`    | The project's graphs: pin, name, unsaved dot, inline rename                                                        | S2.2       |
+| `NodeChain`    | The chain of nodes; vertical, with `＋ operation…` on the rail outside them ([Q32](decisions.md))                  | S2.13      |
+| `NodeCard`     | One node in the chain. Name only unless selected; then arguments, `?` docs, `×`, and the rail's `＋ operation…`    | S2.6       |
+| `NodeArgument` | One argument: name, `?`, the control from `field_meta`, and a `×` unless required ([Q33](decisions.md))            | S2.13      |
+| `Help`         | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md)) | S2.13      |
+| `HelpTrigger`  | The `?` that opens it — hover or focus peeks, click pins ([Q33](decisions.md))                                     | S2.13      |
+| `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3       |
+| `ExportDialog` | Format, zoom range and numeric bounds — modal, per graph ([Q32](decisions.md)); carries the cost estimate (C6)     | S3.6, S3.7 |
 
 ## Right pane — what it turns out to be
 
@@ -140,7 +140,6 @@ because Tauri's `dragDropEnabled` delivers S1.2 with no component.
 | Style export  | `style.json`, `@versatiles/style` code, or a bundle (D8)            | S4.6       |
 | Crop overlay  | Drag a rectangle on the map to crop (F2) — port `BBoxDrawer`        | S5.2, S5.4 |
 | Serve panel   | Local server, LAN URL and a QR code for testing on a phone (F1)     | S5.3       |
-| Estimate      | "~40 min, ~2.3 GB", wherever a run is committed (C6)                | S3.7       |
 | Command strip | The CLI command, serve config or Action that reproduces this (C7)   | S5.5       |
 
 ## Conventions

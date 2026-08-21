@@ -30,6 +30,8 @@ export * from './bindings';
  * belong to.
  */
 export type {
+	Bounds,
+	Estimate,
 	Node as VplNode,
 	Pipeline as VplPipeline,
 	Property as VplProperty,
@@ -77,6 +79,9 @@ export const cancelJob = (id: number) => unwrap(commands.cancelJob(id));
 
 // -- export ----------------------------------------------------------------------------------
 
+/** What Studio can write — the file dialog's filters and the modal's wording come from here. */
+export const writableFormats = () => commands.writableFormats();
+
 /**
  * Writes a graph's output to a container, and returns the job doing it (S3.6, F2).
  *
@@ -85,11 +90,17 @@ export const cancelJob = (id: number) => unwrap(commands.cancelJob(id));
  * offer to cancel. A rejection here means it never started: a target Studio cannot write, or a graph
  * that has since been removed.
  */
-/** What Studio can write — the file dialog's filters and the modal's wording come from here. */
-export const writableFormats = () => commands.writableFormats();
-
 export const exportGraph = (graph: number, target: string, bounds: Bounds = {}) =>
 	unwrap(commands.exportGraph(graph, target, bounds));
+
+/**
+ * What that export would cost, before it is started (S3.7, C6).
+ *
+ * Unlike `exportGraph` this resolves with the answer, because there is an answer within a couple of
+ * seconds by construction — the core samples under a fixed time budget. Rejects with the same words
+ * the export would have failed with, which is the point of asking first.
+ */
+export const estimateExport = (graph: number, bounds: Bounds = {}) => unwrap(commands.estimateExport(graph, bounds));
 
 // -- sources ---------------------------------------------------------------------------------
 

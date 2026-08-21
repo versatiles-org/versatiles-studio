@@ -7,6 +7,7 @@
 
 pub mod analysis;
 pub mod assets;
+pub mod estimate;
 pub mod export;
 pub mod graphs;
 pub mod history;

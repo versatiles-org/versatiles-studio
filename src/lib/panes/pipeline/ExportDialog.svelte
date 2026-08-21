@@ -1,5 +1,6 @@
 <script lang="ts">
-	import type { Bounds } from '../../ipc/commands';
+	import type { Bounds, Estimate } from '../../ipc/commands';
+	import { bytes, count, duration } from '../../common/format';
 
 	// Writing one graph to a container (S3.6, F2, [Q32]).
 	//
@@ -15,7 +16,8 @@
 		name,
 		formats,
 		onCancel,
-		onExport
+		onExport,
+		onEstimate
 	}: {
 		/** The graph being written. Named, because a project has several ([Q32]). */
 		name: string;
@@ -24,6 +26,11 @@
 		onCancel: () => void;
 		/** Runs when the numbers are usable; choosing the file is the caller's next step. */
 		onExport: (bounds: Bounds) => void;
+		/**
+		 * What this export would cost (S3.7, C6) — asked for rather than worked out, because only
+		 * the core can run the pipeline. Rejects with the reason the export itself would refuse.
+		 */
+		onEstimate: (bounds: Bounds) => Promise<Estimate>;
 	} = $props();
 
 	let dialog = $state<HTMLDialogElement>();
@@ -57,15 +64,71 @@
 
 	const number = (raw: string) => (raw.trim() === '' ? null : Number(raw));
 
+	/// What the form currently means. Derived rather than built at submit time so that the estimate
+	/// below and the export are demonstrably about the same numbers.
+	const bounds = $derived<Bounds>({
+		bbox: filled === 4 ? [Number(west), Number(south), Number(east), Number(north)] : null,
+		minZoom: number(minZoom),
+		maxZoom: number(maxZoom)
+	});
+
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
 		if (problem) return;
-		onExport({
-			bbox: filled === 4 ? [Number(west), Number(south), Number(east), Number(north)] : null,
-			minZoom: number(minZoom),
-			maxZoom: number(maxZoom)
-		});
+		onExport(bounds);
 	}
+
+	// -- what it will cost -------------------------------------------------------------------
+
+	let estimate = $state<Estimate | null>(null);
+	let estimating = $state(false);
+	/// The core's refusal — an absurd pyramid, a pipeline that cannot be built. Shown here because
+	/// this is where the zoom field that fixes it is.
+	let refusal = $state<string | null>(null);
+
+	/// **Asked for after the typing stops, not during it.** Every keystroke in a zoom field changes
+	/// the bounds, and each estimate runs the real pipeline for up to two seconds; without the
+	/// delay, typing "12" would start an estimate for zoom 1 that is already meaningless when it
+	/// answers. The delay is a little longer than a fast typist's gap between keys.
+	$effect(() => {
+		const asked = bounds;
+		if (problem) {
+			estimate = null;
+			refusal = null;
+			return;
+		}
+
+		// Whatever is on screen belongs to the bounds that produced it, so it stays until the new
+		// answer arrives rather than blanking on every keystroke.
+		let current = true;
+		const timer = setTimeout(async () => {
+			estimating = true;
+			try {
+				const result = await onEstimate(asked);
+				if (current) {
+					estimate = result;
+					refusal = null;
+				}
+			} catch (error) {
+				if (current) {
+					estimate = null;
+					refusal = error instanceof Error ? error.message : String(error);
+				}
+			} finally {
+				if (current) estimating = false;
+			}
+		}, 500);
+
+		// Runs when the bounds change again or the dialog closes: the answer in flight is about
+		// numbers that are no longer on screen, so it is dropped rather than shown.
+		return () => {
+			current = false;
+			clearTimeout(timer);
+		};
+	});
+
+	/// "~2.3 GB · about 40 min", or nothing to say yet.
+	const cost = $derived(estimate === null ? null : `${bytes(estimate.bytes)} · about ${duration(estimate.seconds)}`);
 </script>
 
 <dialog bind:this={dialog} oncancel={onCancel} onclose={onCancel} aria-label="Export {name}">
@@ -94,6 +157,23 @@
 		</fieldset>
 
 		<p class="note">Degrees. Studio writes {formats.join(', ')} — the file you choose decides which.</p>
+
+		<!-- Directly above the button that commits the run, which is the only place it can change a
+		     decision. `aria-live` because it arrives on its own, half a second after the typing. -->
+		<p class="cost" aria-live="polite" class:waiting={estimating}>
+			{#if refusal}
+				<span class="problem">{refusal}</span>
+			{:else if estimate === null}
+				{estimating ? 'Estimating…' : 'Estimating the size and time…'}
+			{:else if estimate.tiles === 0}
+				Nothing to write — these bounds select no tiles.
+			{:else}
+				<strong>{cost}</strong>
+				<span class="basis">
+					{count(estimate.tiles)} tiles, from {estimate.sampled} sampled
+				</span>
+			{/if}
+		</p>
 
 		{#if problem}<p class="problem" role="alert">{problem}</p>{/if}
 
@@ -186,6 +266,34 @@
 		margin: 0;
 		color: var(--error);
 		font-size: var(--text-sm);
+	}
+
+	/* Set apart from the fields above it: this is the consequence of them, not another one. */
+	.cost {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		margin: 0;
+		padding-top: var(--space-3);
+		border-top: 1px solid var(--rule);
+		color: var(--ink-2);
+		font-size: var(--text-sm);
+		/* The line changes from "Estimating…" to a figure and back; a fixed floor keeps the button
+		   below it still while that happens. */
+		min-height: 2.5em;
+
+		strong {
+			color: var(--ink);
+			font-variant-numeric: tabular-nums;
+		}
+	}
+
+	.waiting {
+		opacity: 0.7;
+	}
+
+	.basis {
+		font-size: var(--text-xs);
 	}
 
 	.actions {

@@ -20,9 +20,12 @@
 //! machine dies. So the tile count is computed from the pyramid first and an absurd one is refused
 //! with a number and a way forward, rather than started and left to be discovered.
 //!
-//! **What is not here yet.** The crop rectangle is [S5.4](../../docs/scope-release-1.md) and the
-//! cost estimate is S3.7. `max_zoom` is here early because it is the way out of the refusal above —
-//! a bound is a safety valve, not a convenience.
+//! **What is not here yet.** The crop rectangle is [S5.4](../../docs/scope-release-1.md).
+//! `max_zoom` is here early because it is the way out of the refusal above — a bound is a safety
+//! valve, not a convenience.
+//!
+//! **What it will cost is [`crate::estimate`]** (S3.7), which narrows the pipeline through this
+//! module's own [`bounded`] so that the tiles it measures are the tiles this one writes.
 
 use crate::jobs::JobHandle;
 use anyhow::{Context, Result};
@@ -128,6 +131,40 @@ pub fn is_writable(path: &Path) -> bool {
 		.is_some_and(|extension| WRITABLE.contains(&extension.as_str()))
 }
 
+/// The pipeline an export actually runs: `pipeline` narrowed to `bounds`.
+///
+/// **Shared with [`crate::estimate`], which is the point.** An estimate that measured a different
+/// pipeline from the one the write walks would be a number about nothing — and the two would drift
+/// apart silently, because both would keep working. There is one way to apply bounds and this is it.
+///
+/// The bounds go into the *pipeline*, not into a copy of its pyramid: clamping a number we only
+/// look at afterwards would refuse an unbounded export and then write one anyway.
+pub fn bounded(pipeline: VPLPipeline, bounds: Bounds) -> Result<VPLPipeline> {
+	match bounds.clause()? {
+		None => Ok(pipeline),
+		Some(clause) => Ok(crate::vpl::Document::parse(format!("{pipeline} | filter {clause}"))
+			.context("bounding the pipeline")?
+			.to_pipeline()),
+	}
+}
+
+/// How many tiles this pyramid holds, or the refusal explaining why it cannot be written.
+///
+/// Also shared with [`crate::estimate`]: the dialog asks for an estimate before it starts anything,
+/// so this refusal should arrive there — beside the zoom field that fixes it — rather than in a job
+/// log after the user has chosen a filename.
+pub fn writable_count(pyramid: &versatiles_core::TilePyramid) -> Result<u64> {
+	let tiles = pyramid.count_tiles();
+	anyhow::ensure!(
+		tiles <= MAX_TILES,
+		"this pipeline covers {tiles} tiles up to zoom {}, which cannot be written. \
+		 Set a maximum zoom — {} tiles is the limit.",
+		pyramid.level_max().unwrap_or(0),
+		MAX_TILES
+	);
+	Ok(tiles)
+}
+
 /// Builds `pipeline` and writes everything it produces to `target`.
 ///
 /// `dir` is what relative paths in the VPL resolve against, as everywhere else.
@@ -152,14 +189,7 @@ pub async fn write(handle: &JobHandle, pipeline: VPLPipeline, dir: &Path, target
 		.build();
 	forward_events(&runtime, handle);
 
-	// The bounds are applied to the *pipeline*, not to a copy of its pyramid — clamping a number we
-	// only look at would refuse an unbounded export and then write one anyway.
-	let pipeline = match bounds.clause()? {
-		None => pipeline,
-		Some(clause) => crate::vpl::Document::parse(format!("{pipeline} | filter {clause}"))
-			.context("bounding the pipeline")?
-			.to_pipeline(),
-	};
+	let pipeline = bounded(pipeline, bounds)?;
 
 	handle.working("building the pipeline");
 	let source = crate::preview::build(&runtime, pipeline, dir)
@@ -169,14 +199,7 @@ pub async fn write(handle: &JobHandle, pipeline: VPLPipeline, dir: &Path, target
 	// Reading the pyramid is bounds arithmetic, not a traversal, so this costs nothing — and it
 	// happens before anything is opened for writing, which is the whole point.
 	let pyramid = source.tile_pyramid().await.context("reading the tile pyramid")?;
-	let tiles = pyramid.count_tiles();
-	anyhow::ensure!(
-		tiles <= MAX_TILES,
-		"this pipeline covers {tiles} tiles up to zoom {}, which cannot be written. \
-		 Set a maximum zoom — {} tiles is the limit.",
-		pyramid.level_max().unwrap_or(0),
-		MAX_TILES
-	);
+	let tiles = writable_count(&pyramid)?;
 	handle.log(format!(
 		"{tiles} tiles, zoom {}–{}",
 		pyramid.level_min().unwrap_or(0),
