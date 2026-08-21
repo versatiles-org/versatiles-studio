@@ -29,12 +29,23 @@
 		placeholder?: string;
 	} = $props();
 
+	/// Breathing room between the list, the tip and the window's edges.
+	const GAP = 8;
+
 	let open = $state(false);
 	let query = $state('');
 	let active = $state(0);
 	let trigger = $state<HTMLButtonElement>();
 	let list = $state<HTMLElement>();
 	let rect = $state<DOMRect | null>(null);
+	/// The row being examined — pointed at, or walked to with the arrows. `null` when neither.
+	///
+	/// Not the same as `active`, which is the row Enter would pick and therefore always a pickable
+	/// one. A refused operation can be examined and cannot be picked, and the reason it is refused
+	/// is exactly what examining it should show.
+	let examined = $state<PickerItem | null>(null);
+	/// Top of the row the tip points at, in viewport coordinates.
+	let anchor = $state<number | null>(null);
 
 	const id = $props.id();
 
@@ -48,6 +59,7 @@
 		open = true;
 		query = '';
 		active = 0;
+		examined = null;
 	}
 
 	function hide() {
@@ -74,6 +86,8 @@
 			if (walkable.length === 0) return;
 			const step = event.key === 'ArrowDown' ? 1 : -1;
 			active = (active + step + walkable.length) % walkable.length;
+			// Walking to a row is examining it, so the tip follows the arrows as well as the pointer.
+			examined = walkable[active] ?? null;
 			return;
 		}
 		if (event.key === 'Enter') {
@@ -86,10 +100,25 @@
 	/// Keeps the highlighted row in view when the arrows walk past the edge of the box.
 	$effect(() => {
 		if (!open) return;
-		const current = walkable[active];
-		if (!current) return;
-		list?.querySelector(`[data-value="${CSS.escape(current.value)}"]`)?.scrollIntoView({ block: 'nearest' });
+		const row = walkable[active];
+		if (!row) return;
+		list?.querySelector(`[data-value="${CSS.escape(row.value)}"]`)?.scrollIntoView({ block: 'nearest' });
 	});
+
+	/// Where the row the tip belongs to currently sits.
+	///
+	/// Measured from the DOM rather than computed: rows differ in height, the list scrolls inside
+	/// the box, and arithmetic over both would be a second, wronger idea of where a row is.
+	function measure() {
+		if (!open || !current) {
+			anchor = null;
+			return;
+		}
+		const element = list?.querySelector(`[data-value="${CSS.escape(current.value)}"]`);
+		anchor = element ? element.getBoundingClientRect().top : null;
+	}
+
+	$effect(measure);
 
 	/// Where the list goes: under the trigger, pulled inside the window, and above it instead when
 	/// there is more room there — a node near the bottom of a long chain is the ordinary case, not
@@ -109,6 +138,35 @@
 	});
 
 	const isActive = (item: PickerItem) => walkable[active]?.value === item.value;
+
+	/// What the tip says, or nothing when no row is being examined.
+	///
+	/// **Nothing is the ordinary state.** The tip belongs to a row, so between rows, over a heading,
+	/// or once the pointer has left the list there is no row for it to belong to and it goes. It
+	/// does not fall back to the keyboard's row: a box left floating beside a list nobody is
+	/// pointing at reads as stuck rather than as informative.
+	const current = $derived(examined);
+	const detail = $derived(current?.unavailable ?? current?.description ?? '');
+
+	/// Where the full text goes: beside the row it belongs to.
+	///
+	/// **Beside, not below.** Measured across the operations, a field's documentation runs to a
+	/// median of 110 characters and as far as 604, so each row keeps one line and the rest is read
+	/// here. Putting it inside the box — under the list, or by growing the row — would move the
+	/// rows while the pointer was travelling down them, which is the reflow `Help` already refuses
+	/// for the same reason. Out here it overlays the map and disturbs nothing.
+	///
+	/// Flips to the left of the list when there is no room on the right: panes have sides
+	/// ([Q31](../../../docs/decisions.md)), so a picker near the right edge is a real case.
+	const tip = $derived.by(() => {
+		if (!position || anchor === null || !detail) return null;
+		const width = Math.min(22 * 16, window.innerWidth * 0.3);
+		const right = position.left + position.width + GAP;
+		const left = right + width <= window.innerWidth - GAP ? right : Math.max(GAP, position.left - GAP - width);
+		// Level with its row, then pulled back inside the window.
+		const top = Math.max(GAP, Math.min(anchor, window.innerHeight - GAP - 120));
+		return { left, top, width };
+	});
 </script>
 
 <!-- Same answer as `Help`: a measured rectangle is wrong the moment anything moves. -->
@@ -147,12 +205,27 @@
 			{placeholder}
 			autofocus
 			bind:value={query}
+			oninput={() => {
+				// Filtering moves the rows out from under both the highlight and the pointer: the
+				// highlight goes back to the top, where it can be seen, and the tip goes, because
+				// whatever it was describing is no longer where it was.
+				active = 0;
+				examined = null;
+			}}
 			onkeydown={onKey}
 			aria-label={label}
 			aria-controls={id}
 		/>
 
-		<div class="list" bind:this={list} role="listbox" aria-label={label} tabindex="-1">
+		<div
+			class="list"
+			bind:this={list}
+			role="listbox"
+			aria-label={label}
+			tabindex="-1"
+			onmouseleave={() => (examined = null)}
+			onscroll={measure}
+		>
 			{#each groups as group (group.name ?? '')}
 				{#if group.name}
 					<p class="group section-label">{group.name}</p>
@@ -170,16 +243,14 @@
 						tabindex="-1"
 						onclick={() => choose(item)}
 						onmousemove={() => {
+							examined = item;
+							// The highlight stays on a row that can be chosen: moving it onto a refused
+							// one would promise an Enter that does nothing.
 							const index = walkable.findIndex((candidate) => candidate.value === item.value);
 							if (index >= 0) active = index;
 						}}
 					>
-						<span class="name">{item.label ?? item.value}</span>
-						{#if item.unavailable}
-							<span class="why">{item.unavailable}</span>
-						{:else if item.description}
-							<span class="why">{item.description}</span>
-						{/if}
+						{item.label ?? item.value}
 					</button>
 				{/each}
 			{/each}
@@ -189,6 +260,22 @@
 			{/if}
 		</div>
 	</div>
+
+	{#if tip}
+		<!-- A sibling of the list, not a child: it has to escape the box's own bounds. `role="tooltip"`
+		     and no pointer events, because it describes the row rather than being something to use —
+		     and a box that swallowed the pointer would sit between it and the rows on the way past. -->
+		<p
+			class="tip"
+			role="tooltip"
+			aria-live="polite"
+			style:left="{tip.left}px"
+			style:top="{tip.top}px"
+			style:width="{tip.width}px"
+		>
+			{detail}
+		</p>
+	{/if}
 {/if}
 
 <style>
@@ -234,17 +321,21 @@
 		padding: 0 var(--space-2);
 	}
 
+	/* One line each. What a row *means* is in the tip beside it — repeating a clipped half of it
+	   here bought a hint at the cost of halving how many rows fit, and the clipped half is the part
+	   that reads as noise. */
 	.row {
-		display: flex;
+		display: block;
 		width: 100%;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 1px;
+		overflow: hidden;
 		padding: var(--space-1) var(--space-2);
 		border-radius: var(--radius);
 		color: var(--ink);
+		font-family: var(--font-mono);
 		font-size: var(--text-sm);
 		text-align: left;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 
 		/* The highlight follows the keyboard *and* the pointer, so there is only ever one — a hover
 		   style of its own would let the mouse show one row while Enter picked another. */
@@ -256,16 +347,27 @@
 			color: var(--ink-2);
 			cursor: default;
 		}
+	}
 
-		.name {
-			font-family: var(--font-mono);
-		}
-
-		.why {
-			color: var(--ink-2);
-			font-size: var(--text-xs);
-			line-height: 1.35;
-		}
+	/* The same face as `Help`, which is the other thing on screen that explains something beside the
+	   pane rather than inside it. Two floating explanations that looked different would read as two
+	   kinds of thing. */
+	.tip {
+		position: fixed;
+		z-index: 41;
+		max-height: 60vh;
+		margin: 0;
+		padding: var(--space-2) var(--space-3);
+		border: 1px solid var(--rule);
+		border-radius: var(--radius);
+		background: var(--float-bg);
+		backdrop-filter: blur(6px);
+		box-shadow: var(--shadow);
+		color: var(--ink-2);
+		font-size: var(--text-xs);
+		line-height: 1.45;
+		overflow: hidden;
+		pointer-events: none;
 	}
 
 	.empty {
