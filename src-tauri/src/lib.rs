@@ -52,6 +52,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::style::set_style_recolor,
 		commands::style::set_layer_override,
 		commands::style::export_style,
+		commands::style::export_style_bundle,
 		commands::style::style_formats,
 		commands::project::save_project,
 		commands::project::open_project,

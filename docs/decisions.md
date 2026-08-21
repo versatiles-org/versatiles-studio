@@ -326,7 +326,7 @@ the selected container.
 **Each pane owns what it emits.** The Export section is dissolved. "Export tiles" belongs to the
 Pipeline pane, "export style" (D8) to the Style pane, and the CLI command (C7) to whichever pane
 produced the thing it reproduces. This closes a gap the alternatives exposed: Q22 named one Export
-section, [ui.md](ui.md) defined it as tiles-only (F1, F2), and **D8 therefore had no declared home at
+section, [ui.md](ui.md) defined it as tiles-only (F2), and **D8 therefore had no declared home at
 all**. "Export" as a shared destination was a category that only looked like one.
 
 **No "export everything" button yet.** That is closer to [G1](features.md) — once `project.yaml` sits

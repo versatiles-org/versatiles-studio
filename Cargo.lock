@@ -5144,6 +5144,7 @@ name = "studio-core"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "flate2",
  "gdal",
  "gdal-src",
  "gdal-sys",
@@ -5154,6 +5155,7 @@ dependencies = [
  "sha2",
  "specta",
  "specta-typescript",
+ "tar",
  "tokio",
  "url",
  "versatiles",

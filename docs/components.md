@@ -145,9 +145,6 @@ because Tauri's `dragDropEnabled` delivers S1.2 with no component.
 | Surface | What it has to do | Stage |
 | ------- | ----------------- | ----- |
 
-| Style export | `style.json`, `@versatiles/style` code, or a bundle (D8) | S4.6 |
-| Serve panel | Local server, LAN URL and a QR code for testing on a phone (F1) | S5.3 |
-
 ## Conventions
 
 - **Svelte 5 runes** — `$props`, `$bindable`, `$state`, `$derived`, `$effect`. Matches every current

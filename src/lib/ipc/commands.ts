@@ -218,6 +218,15 @@ export const styleFormats = () => commands.styleFormats();
  */
 export const exportStyle = (path: string, contents: string) => unwrap(commands.exportStyle(path, contents));
 
+/**
+ * Writes the style with the glyphs and sprites it names beside it (D8, S4.6).
+ *
+ * `contents` must already carry the bundle's relative asset URLs — `forExport(style, 'bundled')`.
+ * Resolves to the font stacks nothing had, which is a thing to say rather than a failure.
+ */
+export const exportStyleBundle = (target: string, zip: boolean, contents: string, fonts: string[]) =>
+	unwrap(commands.exportStyleBundle(target, zip, contents, fonts));
+
 /** Changes one layer, or resets it by passing an empty patch (D3). */
 export const setLayerOverride = (layer: string, patch: LayerOverride) =>
 	unwrap(commands.setLayerOverride(layer, patch));

@@ -158,6 +158,23 @@ export const commands = {
 	 *  [architecture.md](../../../docs/architecture.md)'s note on paths across the control plane.
 	 */
 	exportStyle: (path: string, contents: string) => typedError<null, string>(__TAURI_INVOKE("export_style", { path, contents })),
+	/**
+	 *  Writes a style bundle: the style, the glyphs it names and the sprite sheet (D8, S4.6).
+	 * 
+	 *  **The webview supplies the style text and the font list**, for the same reason `export_style`
+	 *  above takes its contents: `@versatiles/style` renders in JavaScript, and the fonts a style uses
+	 *  are read out of what it rendered to.
+	 * 
+	 *  The archives come from here, because only the app knows where a bundled resource lives — beside
+	 *  the binary when packaged, in the source tree in dev — and where installed families were put.
+	 *  Installed families are searched *after* the bundled tier, mirroring the mount order: the Latin
+	 *  subset answers first, and anything else is found in whichever family archive has it.
+	 * 
+	 *  Returns the fonts nothing had, which the pane says out loud rather than swallowing.
+	 * 
+	 *  **On a blocking thread**: this reads two tar archives and writes a few hundred files.
+	 */
+	exportStyleBundle: (target: string, zip: boolean, contents: string, fonts: string[]) => typedError<string[], string>(__TAURI_INVOKE("export_style_bundle", { target, zip, contents, fonts })),
 	/**  What Studio can write a style as — the file dialog's filters come from here. */
 	styleFormats: () => __TAURI_INVOKE<string[]>("style_formats"),
 	/**
@@ -883,7 +900,7 @@ export type LayerInspection = {
 /**
  *  What was changed about one layer by hand (D3).
  * 
- *  **Sparse, and only these three.** [D3](../../docs/features.md) asks for filter, zoom range and
+ *  **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
  *  paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
  *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
  *  accepted rather than overlooked.
@@ -898,7 +915,7 @@ export type LayerOverride = LayerOverride_Serialize | LayerOverride_Deserialize;
 /**
  *  What was changed about one layer by hand (D3).
  * 
- *  **Sparse, and only these three.** [D3](../../docs/features.md) asks for filter, zoom range and
+ *  **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
  *  paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
  *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
  *  accepted rather than overlooked.
@@ -922,7 +939,7 @@ export type LayerOverride_Deserialize = {
 /**
  *  What was changed about one layer by hand (D3).
  * 
- *  **Sparse, and only these three.** [D3](../../docs/features.md) asks for filter, zoom range and
+ *  **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
  *  paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
  *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
  *  accepted rather than overlooked.

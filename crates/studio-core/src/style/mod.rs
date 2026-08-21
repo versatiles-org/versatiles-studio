@@ -14,8 +14,10 @@
 //! code" possible at all: the code *is* the recipe, and a design that kept only the rendered output
 //! could not have got it back.
 //!
-//! [Q32]: ../../docs/decisions.md
-//! [Q36]: ../../docs/decisions.md
+//! [Q32]: ../../../docs/decisions.md
+//! [Q36]: ../../../docs/decisions.md
+
+pub mod bundle;
 
 use anyhow::{Context, Result};
 use std::collections::BTreeMap;
@@ -117,7 +119,7 @@ impl Recolor {
 
 /// What was changed about one layer by hand (D3).
 ///
-/// **Sparse, and only these three.** [D3](../../docs/features.md) asks for filter, zoom range and
+/// **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
 /// paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
 /// which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
 /// accepted rather than overlooked.

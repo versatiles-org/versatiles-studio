@@ -38,6 +38,8 @@ specta = { version = "=2.0.0-rc.25", optional = true, features = ["derive", "ser
 # opaque type. Gated with the rest of the generation tooling.
 specta-typescript = { version = "0.0.12", optional = true }
 zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib"] }
+tar = "0.4.46"
+flate2 = "1.1.9"
 
 [features]
 bindings = ["dep:specta", "dep:specta-typescript"]

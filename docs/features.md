@@ -110,18 +110,23 @@ than it looks ([Q12](decisions.md)).
 
 ## Cluster F · Publish
 
-| ID     | Stage     | Feature                                                                                  | Basis                                       |
-| ------ | --------- | ---------------------------------------------------------------------------------------- | ------------------------------------------- |
-| **F1** | `5`       | Local server at the press of a button, plus a LAN URL and QR code for testing on a phone | `versatiles serve`                          |
-| **F2** | `3` · `5` | Export to any supported container, optionally cropped by a rectangle and a zoom range    | `convert --bbox/--min-zoom/--max-zoom`      |
-| **F3** | `later`   | Upload to SFTP, S3/R2, Google Cloud, GitHub Pages                                        | SFTP exists; `node-versatiles-google-cloud` |
-| **F4** | `next`    | Export a complete static site with `versatiles-frontend` bundled                         | `versatiles-frontend`                       |
-| **F5** | `next`    | Copy-paste embed snippet (HTML + JS)                                                     | new                                         |
-| **F6** | `later`   | Still-image export as PNG/SVG for print and editorial use                                | `versatiles-svg-renderer` (in the webview)  |
-| **F7** | `later`   | Offline package: tiles + style + fonts in one folder for field work                      | `versatiles-frontend`                       |
+| ID     | Stage     | Feature                                                                                      | Basis                                       |
+| ------ | --------- | -------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| ~~F1~~ | `dropped` | ~~Local server at the press of a button, plus a LAN URL and QR code for testing on a phone~~ | not pursued                                 |
+| **F2** | `3` · `5` | Export to any supported container, optionally cropped by a rectangle and a zoom range        | `convert --bbox/--min-zoom/--max-zoom`      |
+| **F3** | `later`   | Upload to SFTP, S3/R2, Google Cloud, GitHub Pages                                            | SFTP exists; `node-versatiles-google-cloud` |
+| **F4** | `next`    | Export a complete static site with `versatiles-frontend` bundled                             | `versatiles-frontend`                       |
+| **F5** | `next`    | Copy-paste embed snippet (HTML + JS)                                                         | new                                         |
+| **F6** | `later`   | Still-image export as PNG/SVG for print and editorial use                                    | `versatiles-svg-renderer` (in the webview)  |
+| **F7** | `later`   | Offline package: tiles + style + fonts in one folder for field work                          | `versatiles-frontend`                       |
 
 **F2 lands twice.** Writing a container is required for M3, so the export itself is stage 3 (S3.6).
 The crop rectangle is a map gesture belonging to the Pipeline pane's export, which arrives at stage 5 ([Q31](decisions.md)).
+
+**F1 was dropped.** A LAN URL and a QR code are only worth anything if the phone that scans them
+shows a map, and the embedded server serves tiles — not a viewer. Giving it one means bundling
+`versatiles-frontend` and serving it, which is F4's job and a different feature; without that, the QR
+code opens a page of JSON. The button was the easy half, and the half nobody needs.
 
 ---
 
@@ -156,11 +161,11 @@ The same information read the other way. Stretch items are marked `*`.
 | **2**       | C1, C2, C3, C4, C9, C5\*, C8\*, G6       |
 | **3**       | C6, E1, E2, E3, E4\*, E6\*, E7, F2       |
 | **4**       | D1, D2, D3, D5\*, D6\*, D8, D9\*, G6, G7 |
-| **5**       | C7, F1, F2, G1, G3, G4                   |
+| **5**       | C7, F2, G1, G3, G4                       |
 | **next**    | B1, B2, B3, F4, F5                       |
 | **later**   | B4, B5, D7, F3, F6, F7                   |
 | **someday** | B6, B7, B8, B9, D4                       |
-| **dropped** | A3, E5                                   |
+| **dropped** | A3, E5, F1                               |
 
 Stages 0 and 5 carry little that is user-visible on their own: stage 0 is the shell, embedded server,
 IPC boundary, bundled assets and CI, and stage 5 is what makes the application reach anyone.

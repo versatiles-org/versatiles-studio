@@ -15,7 +15,7 @@
 use crate::state::AppState;
 use studio_core::history::{EditKind, Target};
 use studio_core::style::{LayerOverride, Preset, Recipe, Recolor};
-use tauri::State;
+use tauri::{AppHandle, State};
 
 /// The recipe as it stands.
 #[tauri::command]
@@ -109,4 +109,41 @@ pub fn style_formats() -> Vec<String> {
 		.iter()
 		.map(|f| (*f).to_string())
 		.collect()
+}
+
+/// Writes a style bundle: the style, the glyphs it names and the sprite sheet (D8, S4.6).
+///
+/// **The webview supplies the style text and the font list**, for the same reason `export_style`
+/// above takes its contents: `@versatiles/style` renders in JavaScript, and the fonts a style uses
+/// are read out of what it rendered to.
+///
+/// The archives come from here, because only the app knows where a bundled resource lives — beside
+/// the binary when packaged, in the source tree in dev — and where installed families were put.
+/// Installed families are searched *after* the bundled tier, mirroring the mount order: the Latin
+/// subset answers first, and anything else is found in whichever family archive has it.
+///
+/// Returns the fonts nothing had, which the pane says out loud rather than swallowing.
+///
+/// **On a blocking thread**: this reads two tar archives and writes a few hundred files.
+#[tauri::command]
+#[specta::specta]
+pub async fn export_style_bundle(
+	app: AppHandle,
+	state: State<'_, AppState>,
+	target: String,
+	zip: bool,
+	contents: String,
+	fonts: Vec<String>,
+) -> Result<Vec<String>, String> {
+	let resources = crate::assets::resource_dir(&app).map_err(|error| format!("{error:#}"))?;
+	let mut glyphs = vec![resources.join("glyphs.tar.gz")];
+	glyphs.extend(studio_core::assets::installed(&state.asset_dir));
+	let sprites = resources.join("sprites.tar.gz");
+
+	tauri::async_runtime::spawn_blocking(move || {
+		studio_core::style::bundle::write(std::path::Path::new(&target), zip, &contents, &fonts, &glyphs, &sprites)
+	})
+	.await
+	.map_err(|error| format!("{error}"))?
+	.map_err(|error| format!("{error:#}"))
 }

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { canGenerateCode, forExport, styleCode, TILE_URL_PLACEHOLDER } from './style-code';
+import {
+	BUNDLED_GLYPHS,
+	BUNDLED_SPRITE,
+	canGenerateCode,
+	forExport,
+	fontsUsed,
+	styleCode,
+	TILE_URL_PLACEHOLDER
+} from './style-code';
 import type { Recipe } from '../ipc/commands';
 
 const recipe = (over: Partial<Recipe> = {}): Recipe =>
@@ -74,5 +82,63 @@ describe('forExport', () => {
 	it('leaves the style it was given alone', () => {
 		forExport(style);
 		expect(JSON.stringify(style)).toContain('studio://');
+	});
+});
+
+describe('forExport assets', () => {
+	const style = {
+		version: 8,
+		glyphs: 'http://127.0.0.1:52341/assets/glyphs/{fontstack}/{range}.pbf',
+		sprite: 'http://127.0.0.1:52341/assets/sprites/basics/sprites',
+		sources: {},
+		layers: []
+	} as unknown as import('maplibre-gl').StyleSpecification;
+
+	// The bug this fixes: an exported style used to carry the ephemeral local port for its glyphs
+	// and sprites, so it rendered on someone else's machine as a map with no labels and no icons.
+	it('points glyphs and sprites at the public assets by default', () => {
+		const out = forExport(style);
+		expect(out.glyphs).toBe('https://tiles.versatiles.org/assets/glyphs/{fontstack}/{range}.pbf');
+		expect(out.sprite).toBe('https://tiles.versatiles.org/assets/sprites/basics/sprites');
+		expect(JSON.stringify(out)).not.toContain('127.0.0.1');
+	});
+
+	it('points them at the bundle’s own copies when asked', () => {
+		const out = forExport(style, 'bundled');
+		expect(out.glyphs).toBe(BUNDLED_GLYPHS);
+		expect(out.sprite).toBe(BUNDLED_SPRITE);
+	});
+});
+
+describe('fontsUsed', () => {
+	const symbol = (fonts: unknown) =>
+		({ id: 'l', type: 'symbol', source: 's', layout: { 'text-font': fonts } }) as never;
+
+	it('names every font stack once, sorted', () => {
+		const style = {
+			version: 8,
+			sources: {},
+			layers: [symbol(['noto_sans_bold']), symbol(['noto_sans_regular']), symbol(['noto_sans_bold'])]
+		} as unknown as import('maplibre-gl').StyleSpecification;
+		expect(fontsUsed(style)).toEqual(['noto_sans_bold', 'noto_sans_regular']);
+	});
+
+	// A font a bundle cannot see beats a bundle carrying every font installed.
+	it('leaves an expression alone rather than guessing what it evaluates to', () => {
+		const style = {
+			version: 8,
+			sources: {},
+			layers: [symbol(['case', ['has', 'x'], ['literal', ['a']], ['literal', ['b']]])]
+		} as unknown as import('maplibre-gl').StyleSpecification;
+		expect(fontsUsed(style)).toEqual([]);
+	});
+
+	it('ignores layers that carry no text', () => {
+		const style = {
+			version: 8,
+			sources: {},
+			layers: [{ id: 'w', type: 'fill', source: 's' }]
+		} as unknown as import('maplibre-gl').StyleSpecification;
+		expect(fontsUsed(style)).toEqual([]);
 	});
 });

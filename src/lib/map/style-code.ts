@@ -11,6 +11,7 @@
  * [Q36]: ../../../docs/decisions.md
  */
 
+import { isExpression } from '@maplibre/maplibre-gl-style-spec';
 import type { StyleSpecification } from 'maplibre-gl';
 import type { Recipe } from '../ipc/commands';
 
@@ -24,13 +25,64 @@ import type { Recipe } from '../ipc/commands';
  */
 export const TILE_URL_PLACEHOLDER = 'https://example.org/tiles/{z}/{x}/{y}';
 
-/** The style with its tile URLs replaced by something a reader is meant to change. */
-export function forExport(style: StyleSpecification): StyleSpecification {
+/**
+ * Where an exported style says its glyphs and sprites are.
+ *
+ * **The tiles are a placeholder and these are not**, because they are different questions. Nobody
+ * else can host your tiles, so the URL has to be replaced; everybody's glyphs and sprites are the
+ * same files, and these are the addresses `@versatiles/style` uses when nothing overrides them. An
+ * exported style therefore draws as soon as its tiles are pointed somewhere real.
+ *
+ * Studio itself overrides both to the embedded server so the map works offline ([Q9]) — which is
+ * exactly why they have to be put back here. A file carrying `http://127.0.0.1:<ephemeral port>`
+ * renders as a map with no labels and no icons, on someone else's machine, with nothing to say why.
+ */
+const PUBLIC_ASSETS = 'https://tiles.versatiles.org/assets';
+
+/** Where a bundle's own copies sit, relative to the `style.json` beside them (D8, S4.6). */
+export const BUNDLED_GLYPHS = 'fonts/{fontstack}/{range}.pbf';
+export const BUNDLED_SPRITE = 'sprites/basics/sprites';
+
+/**
+ * The style with every URL that only works inside Studio replaced.
+ *
+ * `assets` decides where the glyphs and sprites are said to be: `'public'` for a file someone will
+ * host, `'bundled'` for one written into a bundle that carries its own copies.
+ */
+export function forExport(style: StyleSpecification, assets: 'public' | 'bundled' = 'public'): StyleSpecification {
 	const copy = structuredClone(style) as StyleSpecification;
 	for (const source of Object.values(copy.sources ?? {})) {
 		if ('tiles' in source && Array.isArray(source.tiles)) source.tiles = [TILE_URL_PLACEHOLDER];
 	}
+	copy.glyphs = assets === 'bundled' ? BUNDLED_GLYPHS : `${PUBLIC_ASSETS}/glyphs/{fontstack}/{range}.pbf`;
+	copy.sprite = assets === 'bundled' ? BUNDLED_SPRITE : `${PUBLIC_ASSETS}/sprites/basics/sprites`;
 	return copy;
+}
+
+/**
+ * Every font stack the style names, each once.
+ *
+ * What a bundle has to carry. Read from the rendered style rather than from the recipe, because a
+ * preset decides its own fonts and the recipe only says which preset.
+ */
+export function fontsUsed(style: StyleSpecification): string[] {
+	const fonts = new Set<string>();
+	for (const layer of style.layers ?? []) {
+		// Narrowed by hand: `layout` is a union across nine layer types and only `symbol`'s member
+		// has `text-font`, which TypeScript will not index across the union even after the check.
+		if (layer.type !== 'symbol') continue;
+		const stack = layer.layout?.['text-font'];
+		// **A literal stack and an expression are both arrays**, and `['case', …]` would otherwise
+		// contribute a font called "case". The style spec's own `isExpression` is what tells them
+		// apart; reimplementing it would mean keeping a list of every operator.
+		//
+		// An expression can name a font this cannot see, and those are left out rather than guessed
+		// at: a bundle missing one falls back, and a bundle carrying every font installed would be
+		// tens of megabytes.
+		if (!Array.isArray(stack) || isExpression(stack)) continue;
+		for (const name of stack) if (typeof name === 'string') fonts.add(name);
+	}
+	return [...fonts].sort();
 }
 
 /** A preset with no builder behind it cannot be written as a builder call. */

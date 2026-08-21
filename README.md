@@ -132,7 +132,7 @@ Two rules that cost nothing now and save confusion later:
 
 - **A new feature cluster takes the next free letter, `H` onward, and must stop before `M`.**
   `M`, `P`, `Q` and `S` are taken.
-- **Retired identifiers are never reused.** A3 and E5 are dropped; if something else ever became
+- **Retired identifiers are never reused.** A3, E5 and F1 are dropped; if something else ever became
   "A3", every old issue and commit message would silently lie.
 
 Milestone numbers are the funder's and are never renumbered. Work-item numbers are identity rather

@@ -90,7 +90,6 @@ D8 came to have no home at all under [Q22](decisions.md).
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
 | **Pipeline**  | A list of graphs, then the selected graph's chain with Graph / VPL tabs ([Q15](decisions.md)), C1 and C4. Each graph saves, renames and exports on its own ([Q32](decisions.md))         | S2      |
 | **Style**     | Preset and the adjustments over it (D1) today; the layer tree (D3) and its own export (D8) follow. The core owns the **recipe** it is rendered from, not the style ([Q36](decisions.md)) | S4      |
-| **Serve**     | Local server, LAN URL and QR code (F1) — the one publish surface belonging to neither document                                                                                           | S5      |
 | **Produces**  | What the pinned graph turns out to be: format, zoom, layers, property keys                                                                                                               | S3      |
 | **Inspector** | An opened container's own metadata and TileJSON (A6), and bookmarks (A7)                                                                                                                 | S1      |
 
@@ -276,7 +275,6 @@ and to the graph that produced it ([Q32](decisions.md)).
 │ ▾ STYLE      (D3) │                      │                │
 │   ▸ water · roads │                      │                │
 │   [Export style]  │                      │                │
-│ ▾ SERVE      (F1) │                      │                │
 ├───────────────────┴──────────────────────┴────────────────┤
 │ Jobs (1) ▸        Writing basemap.versatiles — 47%  Cancel │
 └───────────────────────────────────────────────────────────┘

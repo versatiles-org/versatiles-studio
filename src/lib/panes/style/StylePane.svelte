@@ -4,8 +4,8 @@
 	import type { StyleSpecification } from 'maplibre-gl';
 	import LayerTree from './LayerTree.svelte';
 	import { save } from '@tauri-apps/plugin-dialog';
-	import { exportStyle } from '../../ipc/commands';
-	import { canGenerateCode, forExport, styleCode } from '../../map/style-code';
+	import { exportStyle, exportStyleBundle } from '../../ipc/commands';
+	import { canGenerateCode, forExport, fontsUsed, styleCode } from '../../map/style-code';
 
 	// The style, as the recipe it is made from (S4.2, D1, [Q36]).
 	//
@@ -79,8 +79,10 @@
 		void style.commitRecolor();
 	}
 
-	/// Writing the style out (S4.6, D8). Two forms, because they answer different questions: the
-	/// JSON is what a map consumes, the code is what a build regenerates it from.
+	/// Writing the style out (S4.6, D8). Three forms, because they answer different questions: the
+	/// JSON is what a map consumes, the code is what a build regenerates it from, and the bundle is
+	/// the JSON with the fonts and sprites it needs beside it — for a machine that will not reach
+	/// versatiles.org.
 	let exporting = $state<string | null>(null);
 
 	async function exportAs(kind: 'json' | 'ts') {
@@ -99,6 +101,33 @@
 				filters: [{ name: kind === 'ts' ? '@versatiles/style code' : 'MapLibre style', extensions: [kind] }]
 			});
 			if (target) await exportStyle(target, contents);
+		} finally {
+			exporting = null;
+		}
+	}
+
+	/// Fonts the bundle could not find, said out loud rather than swallowed. Cleared on the next
+	/// export, because it is about the one that just happened.
+	let missingFonts = $state<string[]>([]);
+
+	/// The style plus everything it names, as a `.zip`.
+	///
+	/// A zip rather than a folder: a bundle is a few hundred files, and quietly filling a directory
+	/// someone chose is a worse surprise than one file with a name.
+	async function exportBundle() {
+		if (!rendered) return;
+		exporting = 'bundle';
+		missingFonts = [];
+		try {
+			const target = await save({
+				title: 'Export style bundle',
+				defaultPath: 'style.zip',
+				filters: [{ name: 'Style bundle', extensions: ['zip'] }]
+			});
+			if (!target) return;
+			// The bundle carries its own copies, so the style has to name them where they will be.
+			const contents = JSON.stringify(forExport(rendered, 'bundled'), null, '\t');
+			missingFonts = await exportStyleBundle(target, true, contents, fontsUsed(rendered));
 		} finally {
 			exporting = null;
 		}
@@ -188,7 +217,22 @@
 			>
 				@versatiles/style code
 			</button>
+			<button
+				type="button"
+				class="button"
+				disabled={!rendered || exporting !== null}
+				title="The style, its glyphs and its sprites, as one .zip"
+				onclick={() => void exportBundle()}
+			>
+				Bundle
+			</button>
 		</div>
+
+		{#if missingFonts.length > 0}
+			<p class="note" role="status">
+				No glyphs were found for {missingFonts.join(', ')} — install the family under Assets, or MapLibre will fall back.
+			</p>
+		{/if}
 	</section>
 {/if}
 
@@ -266,6 +310,11 @@
 		}
 	}
 
+	.note {
+		margin: 0;
+		color: var(--ink-2);
+		font-size: var(--text-xs);
+	}
 	.note {
 		margin: 0;
 		color: var(--ink-2);
