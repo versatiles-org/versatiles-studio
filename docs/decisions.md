@@ -16,6 +16,47 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q36 — The core owns the style's recipe, not the style
+
+**Decided 2026-08-21.** A project has one `style.json` ([Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)),
+and the core owns it — the same way it owns each graph's VPL, and for the same reason: [S4.7](scope-release-1.md)
+requires style edits to land on the one undo stack, and that stack is in the core. What the core
+stores is **not** the MapLibre style. It stores what the style is made from:
+
+```text
+preset      colorful | graybeard | neutrino | … | derived
+options     the @versatiles/style RecolorOptions, colours, fonts, language
+overrides   sparse, per layer: paint, filter, zoom range
+```
+
+A few hundred bytes. The style itself is rendered from it in the webview, where the generator is.
+
+**Because the output does not fit the stack it would have to live on.** `history.rs` keeps whole-text
+snapshots and says why: "a pipeline is a few hundred bytes, so a hundred of them costs less than a
+single map tile." That is true of a pipeline and false of a style. Measured: `colorful` is **125 kB
+across 324 layers**, so 200 snapshots is 25 MB of undo history for one session. Storing the recipe
+keeps the mechanism that already works instead of adding a second one with different rules.
+
+**It is also what D8 asks for.** "Export as `style.json`, as `@versatiles/style` code, or as a
+bundle" — the code _is_ the recipe. A design that kept only the rendered style could emit the first
+and never the second, and D8 would have needed a second source of truth to get it back.
+
+**And it takes the generator out of the edit loop.** Dragging a colour sends one small patch rather
+than 125 kB per frame; the webview re-renders locally at whatever rate the pointer moves, and one
+undo entry is committed when it is released. That was the concern that opened this question, and the
+recipe answers it without a special case.
+
+**What we accept.** Anything not expressible as preset + options + per-layer overrides cannot be
+edited — adding or reordering layers, most obviously. [D3](features.md) asks for filter, zoom and
+paint editing, all of which are per-layer, so release 1 does not need it. A `style.json` written by
+someone else has no recipe to import, which is why it is an output of a project rather than an input
+to one ([Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest) already lists it that
+way).
+
+**Rendered on save, not stored.** The webview hands the finished style to the core to write, the way
+a preview hands over a built pipeline. `style.json` on disk stays a real MapLibre style the CLI can
+consume; the recipe lives in `project.yaml` beside it.
+
 ### Q35 — A graph's name is chosen once, and the core remembers work rather than cursors
 
 **Dated 2026-08-18.** Two things the pipeline-pane audit left open, and they turn out to share an
