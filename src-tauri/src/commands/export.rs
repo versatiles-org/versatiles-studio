@@ -121,3 +121,22 @@ pub async fn estimate_export(state: State<'_, AppState>, graph: GraphId, bounds:
 		.await
 		.map_err(|error| format!("{error:#}"))
 }
+
+/// Narrows what an export of this graph writes (F2, S5.2, S5.4).
+///
+/// **Kept on the graph rather than in the export dialog.** A crop is arrived at by looking at the
+/// map — dragging a rectangle over the city you mean — and the dialog is a modal that covers it. It
+/// is also worth keeping: it goes into the project manifest, so reopening a project tomorrow is
+/// still about the same place.
+///
+/// The estimate and the write both narrow to it, so what the pane shows and what lands on disk
+/// cannot be about different tiles.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_crop(state: State<'_, AppState>, graph: GraphId, crop: Bounds) -> Result<(), String> {
+	let mut graphs = state.graphs.lock().await;
+	if !graphs.set_crop(graph, crop).map_err(|error| format!("{error:#}"))? {
+		return Err("that graph is no longer open".to_string());
+	}
+	Ok(())
+}

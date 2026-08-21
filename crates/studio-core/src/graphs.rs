@@ -16,6 +16,7 @@
 //! [Q25]: ../../docs/decisions.md
 //! [Q32]: ../../docs/decisions.md
 
+use crate::export::Bounds;
 use crate::vpl::Document;
 use anyhow::{Result, bail, ensure};
 use serde::Serialize;
@@ -43,6 +44,8 @@ pub struct GraphInfo {
 	pub path: Option<String>,
 	/// Whether the document differs from what is on disk.
 	pub dirty: bool,
+	/// What an export of this graph is narrowed to (F2, S5.2) — empty until someone sets one.
+	pub crop: Bounds,
 }
 
 /// A graph and the parts of it only the core needs.
@@ -54,6 +57,14 @@ pub struct Graph {
 	/// Path and the text as last saved, so "is there anything to save" is answered by comparison
 	/// rather than by a flag someone has to remember to set.
 	pub file: Option<(PathBuf, String)>,
+	/// The bbox and zoom range an export of this graph is narrowed to (F2, S5.2).
+	///
+	/// **On the graph, not on the export dialog.** A crop is something you arrive at by looking at
+	/// the map and adjusting — the dialog is a modal that covers it — and it is worth keeping: a
+	/// project reopened tomorrow should still be about the same city. It is saved in the manifest
+	/// for that reason, and it is what the export and its estimate both narrow to, so the number
+	/// shown and the tiles written cannot disagree.
+	pub crop: Bounds,
 }
 
 impl Graph {
@@ -69,6 +80,7 @@ impl Graph {
 				.file
 				.as_ref()
 				.is_none_or(|(_, saved)| saved != self.document.text()),
+			crop: self.crop,
 		}
 	}
 }
@@ -129,8 +141,22 @@ impl Graphs {
 			name,
 			document,
 			file,
+			crop: Bounds::default(),
 		});
 		id
+	}
+
+	/// Narrows what an export of this graph writes. `false` when there is no such graph.
+	///
+	/// Checked here rather than at the write, so an inside-out box is refused while the field that
+	/// caused it is still on screen — the reason [`Bounds::check`] exists.
+	pub fn set_crop(&mut self, id: GraphId, crop: Bounds) -> Result<bool> {
+		crop.check()?;
+		let Some(graph) = self.get_mut(id) else {
+			return Ok(false);
+		};
+		graph.crop = crop;
+		Ok(true)
 	}
 
 	/// Removes a graph. `false` when there was none with that id.

@@ -19,7 +19,15 @@ import { token, type MapToken } from '../styles/tokens';
 
 /** What a layer is for, as far as colour is concerned. */
 export type LayerRole =
-	'background' | 'grid-line' | 'grid-label' | 'container-feature' | 'pending-fill' | 'pending-line' | 'pending-label';
+	| 'background'
+	| 'grid-line'
+	| 'grid-label'
+	| 'container-feature'
+	| 'pending-fill'
+	| 'pending-line'
+	| 'pending-label'
+	| 'crop-dim'
+	| 'crop-edge';
 
 /**
  * Which paint properties each role takes from which token.
@@ -43,7 +51,11 @@ const PAINT: Record<LayerRole, [property: ColourProperty, token: MapToken][]> = 
 	'pending-line': [['line-color', '--map-pending']],
 	// The halo token is named for the grid and is simply the map's halo — the colour a label needs
 	// behind it to stay legible over arbitrary tiles. Two overlays want it now.
-	'pending-label': [['text-color', '--map-label']]
+	'pending-label': [['text-color', '--map-label']],
+	// The crop, for the same reason the pending overlay needs two: a fill and a line name their
+	// colour differently (S5.2).
+	'crop-dim': [['fill-color', '--map-crop-dim']],
+	'crop-edge': [['line-color', '--map-crop-edge']]
 };
 
 /** Tags a layer so {@link applyMapTheme} can find it later. */

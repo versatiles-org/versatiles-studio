@@ -56,6 +56,13 @@
 	   Used mostly for a label and an outline rather than a wash. The first version filled each tile
 	   at 28% and read as dark red — which says *error*, the one thing this never means. */
 	--map-pending: #777777;
+	/* The crop (F2, S5.2). Two tokens because the overlay does two things: it dims everything the
+	   export will not write, and traces the edge of what it will. The dim is a near-black rather
+	   than a grey — it has to darken any basemap without tinting it — and is drawn at partial
+	   opacity, so the token itself is opaque. The edge takes the accent, because a crop is a
+	   selection and that is what the accent means everywhere else in the window. */
+	--map-crop-dim: #10161a;
+	--map-crop-edge: var(--accent);
 	/* Controls that float over the map need to stay legible against whatever is under them, so
 	   they sit on a near-opaque white rather than on --surface. */
 	--float-bg: rgb(255 255 255 / 0.94);
@@ -152,6 +159,8 @@
 		--map-grid-halo: #0d1113;
 		--map-feature: #6fa8dc;
 		--map-pending: #777777;
+		/* Dimming a dark map needs to go darker still, or the crop reads as no crop at all. */
+		--map-crop-dim: #05080a;
 		--float-bg: rgb(25 33 31 / 0.94);
 		--scrim: rgb(0 0 0 / 0.6);
 

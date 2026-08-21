@@ -12,7 +12,14 @@
 
 /** The map's own colours, named here so a caller cannot invent a fifth blue. */
 export type MapToken =
-	'--map-bg' | '--map-grid' | '--map-grid-halo' | '--map-feature' | '--map-pending' | '--map-label';
+	| '--map-bg'
+	| '--map-grid'
+	| '--map-grid-halo'
+	| '--map-feature'
+	| '--map-pending'
+	| '--map-label'
+	| '--map-crop-dim'
+	| '--map-crop-edge';
 
 /**
  * The computed value of a token from `:root`.

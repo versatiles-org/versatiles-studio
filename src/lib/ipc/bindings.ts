@@ -59,6 +59,18 @@ export const commands = {
 	 */
 	estimateExport: (graph: number, bounds: Bounds) => typedError<Estimate, string>(__TAURI_INVOKE("estimate_export", { graph, bounds })),
 	/**
+	 *  Narrows what an export of this graph writes (F2, S5.2, S5.4).
+	 * 
+	 *  **Kept on the graph rather than in the export dialog.** A crop is arrived at by looking at the
+	 *  map — dragging a rectangle over the city you mean — and the dialog is a modal that covers it. It
+	 *  is also worth keeping: it goes into the project manifest, so reopening a project tomorrow is
+	 *  still about the same place.
+	 * 
+	 *  The estimate and the write both narrow to it, so what the pane shows and what lands on disk
+	 *  cannot be about different tiles.
+	 */
+	setCrop: (graph: number, crop: Bounds) => typedError<null, string>(__TAURI_INVOKE("set_crop", { graph, crop })),
+	/**
 	 *  The container formats Studio can write.
 	 * 
 	 *  Asked for rather than repeated in the webview: the list decides the file dialog's filters, the
@@ -712,6 +724,8 @@ export type GraphInfo = {
 	path: string | null,
 	/**  Whether the document differs from what is on disk. */
 	dirty: boolean,
+	/**  What an export of this graph is narrowed to (F2, S5.2) — empty until someone sets one. */
+	crop: Bounds,
 };
 
 /**  One way of bringing data in. */

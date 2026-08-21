@@ -91,17 +91,17 @@ nobody can justify is a rule people route around.
 Each set is small and closed **on purpose**. That is the whole mechanism: picking from five type
 sizes is faster than inventing a sixth, so the constraint holds itself up without anyone policing it.
 
-| Set      | Tokens                                                                                                                  |
-| -------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Colour   | `--ink`, `--ink-2`, `--rule`, `--surface`, `--chrome`, `--accent`, `--accent-ink`                                       |
-| Semantic | `--error`, `--error-bg`, `--scrim` — behind a modal                                                                     |
-| Map      | `--map-bg`, `--map-grid`, `--map-grid-halo`, `--map-feature`, `--map-pending`, `--map-label`, `--float-bg`              |
-| Pipeline | `--pipe`, `--pipe-width` — the chain's connectors and its node outlines are one line, so they are one pair of tokens    |
-| Type     | `--text-xs` 12 · `--text-sm` 13 · `--text-md` 14 (default) · `--text-lg` 17 · `--text-xl` 22, plus `--text-mono-adjust` |
-| Syntax   | `--vpl-value` — operation names take the accent; only values need a colour of their own                                 |
-| Fonts    | `--font-ui`, `--font-mono`                                                                                              |
-| Space    | `--space-1` … `--space-6`                                                                                               |
-| Shape    | `--radius`, `--radius-lg`, `--shadow`, `--focus-width`                                                                  |
+| Set      | Tokens                                                                                                                                          |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Colour   | `--ink`, `--ink-2`, `--rule`, `--surface`, `--chrome`, `--accent`, `--accent-ink`                                                               |
+| Semantic | `--error`, `--error-bg`, `--scrim` — behind a modal                                                                                             |
+| Map      | `--map-bg`, `--map-grid`, `--map-grid-halo`, `--map-feature`, `--map-pending`, `--map-label`, `--map-crop-dim`, `--map-crop-edge`, `--float-bg` |
+| Pipeline | `--pipe`, `--pipe-width` — the chain's connectors and its node outlines are one line, so they are one pair of tokens                            |
+| Type     | `--text-xs` 12 · `--text-sm` 13 · `--text-md` 14 (default) · `--text-lg` 17 · `--text-xl` 22, plus `--text-mono-adjust`                         |
+| Syntax   | `--vpl-value` — operation names take the accent; only values need a colour of their own                                                         |
+| Fonts    | `--font-ui`, `--font-mono`                                                                                                                      |
+| Space    | `--space-1` … `--space-6`                                                                                                                       |
+| Shape    | `--radius`, `--radius-lg`, `--shadow`, `--focus-width`                                                                                          |
 
 **Map colours are separate from the chrome palette**, even where the value is identical today. A grid
 drawn over a dark basemap is a different decision from a focus ring, and collapsing them would mean

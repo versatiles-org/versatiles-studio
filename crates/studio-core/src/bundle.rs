@@ -131,9 +131,10 @@ pub struct Plan {
 	pub carry: Vec<Carried>,
 	/// Every reference found, carried or not — what a surface shows to explain the number above.
 	pub references: Vec<Reference>,
-	/// `(name, vpl)` with the carried files renamed to where they will be. Graphs in the order
-	/// given; a graph naming nothing is unchanged, byte for byte.
-	pub graphs: Vec<(String, String)>,
+	/// The graphs with the carried files renamed to where they will be, in the order given; a graph
+	/// naming nothing is unchanged, byte for byte. The crop comes along untouched — it is about
+	/// which tiles, not about which files.
+	pub graphs: Vec<crate::project::SavedGraph>,
 }
 
 impl Plan {
@@ -165,6 +166,8 @@ pub struct Source<'a> {
 	pub name: &'a str,
 	pub text: &'a str,
 	pub dir: Option<&'a Path>,
+	/// Carried through to the copy's manifest, so a crop survives being sent to somebody.
+	pub crop: crate::export::Bounds,
 }
 
 /// Where a reference sits in one graph's text, and what it resolves to.
@@ -214,7 +217,11 @@ pub fn plan(sources: &[Source]) -> Result<Plan> {
 			rewrites.push((index, to.clone()));
 		}
 
-		graphs.push((source.name.to_string(), rewrite(source, &rewrites)?));
+		graphs.push(crate::project::SavedGraph {
+			name: source.name.to_string(),
+			vpl: rewrite(source, &rewrites)?,
+			crop: source.crop,
+		});
 	}
 
 	Ok(Plan {
@@ -418,9 +425,9 @@ pub fn write_zip(path: &Path, plan: &Plan, recipe: &crate::style::Recipe, style:
 		Ok(())
 	};
 
-	for (name, vpl) in &plan.graphs {
-		crate::project::check_name(name)?;
-		text(&mut zip, &format!("{name}.vpl"), vpl)?;
+	for graph in &plan.graphs {
+		crate::project::check_name(&graph.name)?;
+		text(&mut zip, &format!("{}.vpl", graph.name), &graph.vpl)?;
 	}
 	if let Some(style) = style {
 		text(&mut zip, crate::project::STYLE_FILE, style)?;
@@ -461,7 +468,12 @@ mod tests {
 	use crate::style::Recipe;
 
 	fn source<'a>(name: &'a str, text: &'a str, dir: Option<&'a Path>) -> Source<'a> {
-		Source { name, text, dir }
+		Source {
+			name,
+			text,
+			dir,
+			crop: crate::export::Bounds::default(),
+		}
 	}
 
 	#[test]
@@ -470,7 +482,7 @@ mod tests {
 		let plan = plan(&[source("berlin", vpl, None)]).unwrap();
 
 		assert!(plan.carry.is_empty(), "a URL works from anywhere");
-		assert_eq!(plan.graphs[0].1, vpl, "and so is not rewritten");
+		assert_eq!(plan.graphs[0].vpl, vpl, "and so is not rewritten");
 		assert_eq!(plan.references[0].kind, ReferenceKind::Remote);
 	}
 
@@ -486,7 +498,7 @@ mod tests {
 		assert_eq!(plan.carry[0].to, "data/berlin.mbtiles");
 		assert_eq!(plan.carry[0].bytes, 5);
 		assert_eq!(
-			plan.graphs[0].1, "from_container filename='data/berlin.mbtiles' | vector_repair",
+			plan.graphs[0].vpl, "from_container filename='data/berlin.mbtiles' | vector_repair",
 			"the pipeline names the copy, and nothing else about it changed"
 		);
 	}
@@ -511,8 +523,8 @@ mod tests {
 		let plan = plan(&[source("a", &vpl, None), source("b", &vpl, None)]).unwrap();
 
 		assert_eq!(plan.carry.len(), 1);
-		assert_eq!(plan.graphs[0].1, plan.graphs[1].1);
-		assert!(plan.graphs[0].1.contains("data/shared.mbtiles"));
+		assert_eq!(plan.graphs[0].vpl, plan.graphs[1].vpl);
+		assert!(plan.graphs[0].vpl.contains("data/shared.mbtiles"));
 	}
 
 	/// Two different files with one name would otherwise become one, and the second pipeline would
@@ -530,7 +542,11 @@ mod tests {
 		assert_eq!(plan.carry.len(), 2);
 		assert_eq!(plan.carry[0].to, "data/cities.csv");
 		assert_eq!(plan.carry[1].to, "data/cities-2.csv");
-		assert!(plan.graphs[1].1.contains("data/cities-2.csv"), "{}", plan.graphs[1].1);
+		assert!(
+			plan.graphs[1].vpl.contains("data/cities-2.csv"),
+			"{}",
+			plan.graphs[1].vpl
+		);
 	}
 
 	/// Reported rather than fatal: a project with one moved source is still a project worth copying.
@@ -541,7 +557,7 @@ mod tests {
 
 		assert!(plan.carry.is_empty());
 		assert_eq!(plan.missing().len(), 1);
-		assert_eq!(plan.graphs[0].1, vpl, "the name it had is the best guess there is");
+		assert_eq!(plan.graphs[0].vpl, vpl, "the name it had is the best guess there is");
 	}
 
 	/// Every span after an edit moves, and there are three edits here.
@@ -558,7 +574,7 @@ mod tests {
 		let plan = plan(&[source("both", &vpl, None)]).unwrap();
 		assert_eq!(plan.carry.len(), 2);
 		assert_eq!(
-			plan.graphs[0].1,
+			plan.graphs[0].vpl,
 			"from_stacked [ from_csv filename='data/a.csv', from_csv filename='data/b.csv' ]"
 		);
 	}
@@ -574,7 +590,7 @@ mod tests {
 
 		let plan = plan(&[source("berlin", &vpl, None)]).unwrap();
 		assert_eq!(
-			plan.graphs[0].1,
+			plan.graphs[0].vpl,
 			"# Berlin\nfrom_container filename='data/berlin.mbtiles' # the input\n  | vector_repair\n"
 		);
 	}
@@ -587,8 +603,8 @@ mod tests {
 		let vpl = format!("from_container filename='{}'", data.display());
 
 		let plan = plan(&[source("berlin", &vpl, None)]).unwrap();
-		assert_eq!(plan.graphs[0].1, "from_container filename='data/my tiles.mbtiles'");
-		assert!(Document::parse(&plan.graphs[0].1).is_ok());
+		assert_eq!(plan.graphs[0].vpl, "from_container filename='data/my tiles.mbtiles'");
+		assert!(Document::parse(&plan.graphs[0].vpl).is_ok());
 	}
 
 	/// A graph that names nothing comes out byte for byte, so bundling a project cannot rewrite a
@@ -597,7 +613,7 @@ mod tests {
 	fn a_graph_naming_no_file_is_unchanged() {
 		let vpl = "from_debug format=png\n  | raster_overview level=2\n";
 		let plan = plan(&[source("debug", vpl, None)]).unwrap();
-		assert_eq!(plan.graphs[0].1, vpl);
+		assert_eq!(plan.graphs[0].vpl, vpl);
 		assert!(plan.references.is_empty());
 	}
 
@@ -617,7 +633,7 @@ mod tests {
 		);
 
 		let loaded = crate::project::load(&out).unwrap();
-		assert_eq!(loaded.graphs[0].1, "from_container filename='data/berlin.mbtiles'");
+		assert_eq!(loaded.graphs[0].vpl, "from_container filename='data/berlin.mbtiles'");
 	}
 
 	#[test]

@@ -145,6 +145,14 @@ export const openProject = (dir: string) => unwrap(commands.openProject(dir));
 export const deployment = () => unwrap(commands.deployment());
 
 /**
+ * Narrows what an export of this graph writes (F2, S5.2, S5.4).
+ *
+ * The crop lives on the graph in the core, so it survives a reload and goes into the project
+ * manifest — and the estimate and the write both narrow to the same one.
+ */
+export const setCrop = (graph: number, crop: Bounds) => unwrap(commands.setCrop(graph, crop));
+
+/**
  * What a copy of this project would carry (S5.1) — asked before the destination is chosen, so the
  * dialog can say what it costs.
  */

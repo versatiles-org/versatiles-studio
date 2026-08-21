@@ -25,12 +25,16 @@ use tauri::State;
 pub async fn save_project(state: State<'_, AppState>, dir: String, style: Option<String>) -> Result<(), String> {
 	let dir = std::path::PathBuf::from(dir);
 
-	let graphs: Vec<(String, String)> = state
+	let graphs: Vec<studio_core::project::SavedGraph> = state
 		.graphs
 		.lock()
 		.await
 		.iter()
-		.map(|graph| (graph.name.clone(), graph.document.text().to_string()))
+		.map(|graph| studio_core::project::SavedGraph {
+			name: graph.name.clone(),
+			vpl: graph.document.text().to_string(),
+			crop: graph.crop,
+		})
 		.collect();
 	if graphs.is_empty() {
 		return Err("there is nothing to save yet".to_string());
@@ -63,10 +67,10 @@ pub async fn open_project(state: State<'_, AppState>, dir: String) -> Result<stu
 	// Parsed before anything is replaced: a project with one unreadable graph should leave the
 	// window as it was rather than half-open.
 	let mut documents = Vec::with_capacity(loaded.graphs.len());
-	for (name, text) in &loaded.graphs {
-		let document = studio_core::vpl::Document::parse(text.clone())
-			.map_err(|error| format!("{name}.vpl does not parse: {}", error.message))?;
-		documents.push((name.clone(), document, text.clone()));
+	for graph in &loaded.graphs {
+		let document = studio_core::vpl::Document::parse(graph.vpl.clone())
+			.map_err(|error| format!("{}.vpl does not parse: {}", graph.name, error.message))?;
+		documents.push((graph.clone(), document));
 	}
 
 	let mut graphs = state.graphs.lock().await;
@@ -74,11 +78,13 @@ pub async fn open_project(state: State<'_, AppState>, dir: String) -> Result<stu
 	*graphs = studio_core::graphs::Graphs::new();
 	history.clear();
 
-	for (name, document, text) in documents {
-		let file = dir.join(format!("{name}.vpl"));
-		let id = graphs.add(&name, document, Some((file, text.clone())));
+	for (saved, document) in documents {
+		let file = dir.join(format!("{}.vpl", saved.name));
+		let id = graphs.add(&saved.name, document, Some((file, saved.vpl.clone())));
+		// Restored with the graph rather than set afterwards: a crop is part of what the project is.
+		graphs.set_crop(id, saved.crop).map_err(|error| format!("{error:#}"))?;
 		// The baseline every document needs, so undo has somewhere to step back to.
-		history.push(Target::Graph(id), text, EditKind::Replaced);
+		history.push(Target::Graph(id), saved.vpl, EditKind::Replaced);
 	}
 
 	*state.style.lock().await = loaded.manifest.style.clone();
@@ -150,7 +156,9 @@ pub struct CopyPlan {
 /// A graph never saved has none, and falls back to `project_dir` — the same thing every other
 /// relative path in this window resolves against, so a copy and a run agree about what a bare
 /// `berlin.mbtiles` means.
-async fn sources(state: &State<'_, AppState>) -> Vec<(String, String, Option<std::path::PathBuf>)> {
+type Owned = (String, String, Option<std::path::PathBuf>, studio_core::export::Bounds);
+
+async fn sources(state: &State<'_, AppState>) -> Vec<Owned> {
 	let project_dir = state.project_dir.lock().await.clone();
 	state
 		.graphs
@@ -163,18 +171,24 @@ async fn sources(state: &State<'_, AppState>) -> Vec<(String, String, Option<std
 				.as_ref()
 				.and_then(|(path, _)| path.parent().map(std::path::Path::to_path_buf))
 				.unwrap_or_else(|| project_dir.clone());
-			(graph.name.clone(), graph.document.text().to_string(), Some(dir))
+			(
+				graph.name.clone(),
+				graph.document.text().to_string(),
+				Some(dir),
+				graph.crop,
+			)
 		})
 		.collect()
 }
 
-fn plan_of(owned: &[(String, String, Option<std::path::PathBuf>)]) -> Result<studio_core::bundle::Plan, String> {
+fn plan_of(owned: &[Owned]) -> Result<studio_core::bundle::Plan, String> {
 	let sources: Vec<studio_core::bundle::Source> = owned
 		.iter()
-		.map(|(name, text, dir)| studio_core::bundle::Source {
+		.map(|(name, text, dir, crop)| studio_core::bundle::Source {
 			name,
 			text,
 			dir: dir.as_deref(),
+			crop: *crop,
 		})
 		.collect();
 	studio_core::bundle::plan(&sources).map_err(|error| format!("{error:#}"))

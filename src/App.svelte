@@ -28,6 +28,7 @@
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
 	import TileGrid from './lib/map/TileGrid.svelte';
 	import TileActivity from './lib/map/TileActivity.svelte';
+	import CropOverlay from './lib/map/CropOverlay.svelte';
 	import MapControls from './lib/map/MapControls.svelte';
 	import { buildBackground, isBackgroundId, type BackgroundId } from './lib/map/background';
 	import CoordinateJump from './lib/map/CoordinateJump.svelte';
@@ -48,6 +49,7 @@
 		removeGraph,
 		exportGraph,
 		estimateExport,
+		setCrop,
 		writableFormats,
 		renameGraph,
 		addGraph,
@@ -76,6 +78,7 @@
 		previewPipeline,
 		type DocumentView,
 		type Bounds,
+		type Estimate,
 		type Deployment,
 		type CopyPlan,
 		type Camera,
@@ -309,6 +312,91 @@
 		}
 	}
 
+	// -- the crop ------------------------------------------------------------------------------
+
+	/// What the current graph is narrowed to (F2, S5.2, S5.4).
+	///
+	/// **Read from the graph list rather than kept beside it.** The crop lives on the graph in the
+	/// core, which is what makes it survive a reload and land in the project manifest; a copy here
+	/// would be a second answer to the same question.
+	const crop = $derived<Bounds>(
+		graphs.find((graph) => graph.id === currentGraph)?.crop ?? { bbox: null, minZoom: null, maxZoom: null }
+	);
+
+	/// Whether a drag on the map draws a rectangle. Local: a mode you are halfway through is not
+	/// worth restoring after a reload, and leaving the app in it would be a trap.
+	let drawing = $state(false);
+
+	let estimate = $state<Estimate | null>(null);
+	let estimating = $state(false);
+	/// The core's refusal — an absurd pyramid, a pipeline that cannot be built. Shown next to the
+	/// crop that caused it, and again in the export dialog, which it disables.
+	let estimateRefusal = $state<string | null>(null);
+
+	async function changeCrop(next: Bounds) {
+		if (!pipeline) return;
+		try {
+			await setCrop(pipeline.graph, next);
+			await refreshGraphs();
+		} catch (e) {
+			fail(e);
+		}
+	}
+
+	/// Crops to what the map is showing, keeping the zoom range alone — the two are separate
+	/// decisions, and someone who set 4–12 did not mean to lose it by framing a city.
+	function cropToView() {
+		if (!map) return;
+		const bounds = map.getBounds();
+		void changeCrop({
+			bbox: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()],
+			minZoom: crop.minZoom,
+			maxZoom: crop.maxZoom
+		});
+	}
+
+	/// **Asked for after the crop settles, not during it.** Every keystroke in a zoom field changes
+	/// the bounds, and each estimate runs the real pipeline for up to two seconds; without the delay,
+	/// typing "12" would start an estimate for zoom 1 that is meaningless by the time it answers.
+	$effect(() => {
+		const graph = pipeline?.graph;
+		const asked = crop;
+		// Re-run when the pipeline itself changes: the same crop over a different chain is a
+		// different cost.
+		void pipelineRevision;
+		if (graph === undefined) {
+			estimate = null;
+			estimateRefusal = null;
+			return;
+		}
+
+		// Whatever is on screen belongs to the crop that produced it, so it stays until the new
+		// answer arrives rather than blanking on every keystroke.
+		let current = true;
+		const timer = setTimeout(async () => {
+			estimating = true;
+			try {
+				const result = await estimateExport(graph, asked);
+				if (current) {
+					estimate = result;
+					estimateRefusal = null;
+				}
+			} catch (error) {
+				if (current) {
+					estimate = null;
+					estimateRefusal = error instanceof Error ? error.message : String(error);
+				}
+			} finally {
+				if (current) estimating = false;
+			}
+		}, 500);
+
+		return () => {
+			current = false;
+			clearTimeout(timer);
+		};
+	});
+
 	/// Whether the export modal is up. For the graph being edited — exporting is per graph ([Q32]).
 	let exporting = $state(false);
 	/// What Studio can write, for the modal's wording and the dialog's filters. Fetched once.
@@ -316,13 +404,13 @@
 
 	/// Writes this graph to a container, as a job.
 	///
-	/// The modal collects the *narrowing* and the native dialog collects the *destination*, in that
-	/// order, because the extension chosen is what decides the format — asking for a format in the
-	/// form and then letting the filename contradict it would be two answers to one question.
+	/// The crop is the pane's; this collects only the *destination*, because the extension chosen is
+	/// what decides the format — asking for a format in a form and then letting the filename
+	/// contradict it would be two answers to one question.
 	///
 	/// Returns once the job is submitted rather than once it is done: an export runs for minutes,
 	/// and the bar is where it is watched and cancelled (E7).
-	async function startExport(bounds: Bounds) {
+	async function startExport() {
 		if (!pipeline) return;
 		exporting = false;
 		try {
@@ -335,7 +423,7 @@
 			// No `status` message: the job *is* the status. The bar prefers a running job over a
 			// `status` line, so a message set here was invisible while the export ran and surfaced
 			// only once it had stopped — the one moment it was no longer true.
-			await exportGraph(pipeline.graph, target, bounds);
+			await exportGraph(pipeline.graph, target, crop);
 		} catch (e) {
 			fail(e);
 		}
@@ -936,6 +1024,12 @@
 			fits={lastPreview?.fits ?? []}
 			{suggestions}
 			pinned={pinned && pinned.graph === currentGraph ? pinned.path : null}
+			crop={pipeline ? { bounds: crop, drawing, estimating, estimate, refusal: estimateRefusal } : null}
+			cropActions={{
+				set: (bounds) => void changeCrop(bounds),
+				draw: () => (drawing = !drawing),
+				useView: cropToView
+			}}
 			graphActions={{
 				select: (id) => void selectGraph(id),
 				rename: (id, name) => void rename(id, name),
@@ -1027,6 +1121,17 @@
 		<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
 		     has no visibility of its own to toggle. -->
 		<TileActivity {map} />
+		<!-- Always mounted: with no crop it draws nothing, and drawing mode is a prop rather than a
+		     mount, so leaving it does not have to tear down the rectangle it just made. -->
+		<CropOverlay
+			{map}
+			bbox={crop.bbox ?? null}
+			{drawing}
+			onDrawn={(bbox) => {
+				drawing = false;
+				void changeCrop({ bbox, minZoom: crop.minZoom ?? null, maxZoom: crop.maxZoom ?? null });
+			}}
+		/>
 		{#if empty}
 			<LandingScreen
 				{kinds}
@@ -1058,15 +1163,15 @@
 <!-- Outside the shell on purpose: the sidebars scroll and clip, and this has to sit over the
      map beside them ([Q33]). -->
 {#if exporting && pipeline}
-	<!-- Captured here because the callbacks below outlive the block's narrowing: inside the arrow
-	     function `pipeline` is nullable again, however the `{#if}` reads. -->
-	{@const graph = pipeline.graph}
 	<ExportDialog
 		name={pipeline.name}
 		{formats}
+		{crop}
+		{estimate}
+		{estimating}
+		refusal={estimateRefusal}
 		onCancel={() => (exporting = false)}
-		onExport={(bounds) => void startExport(bounds)}
-		onEstimate={(bounds) => estimateExport(graph, bounds)}
+		onExport={() => void startExport()}
 	/>
 {/if}
 

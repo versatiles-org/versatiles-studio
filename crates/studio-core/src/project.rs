@@ -133,12 +133,40 @@ mod tests {
 // ---------------------------------------------------------------------------------------------
 
 /// One graph, as the manifest names it.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+///
+/// `Default` only so that `#[serde(default)]` can fill in a field an older manifest predates — the
+/// crop being the first of those.
+#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct GraphRef {
 	/// The graph's name — its server mount, its source name in the style, and its filename ([Q32]).
 	pub name: String,
 	/// Where its VPL lives, relative to the manifest.
 	pub file: String,
+	/// What an export of it is narrowed to (F2, S5.2).
+	///
+	/// **In the manifest and not in the `.vpl`**, because it is not part of the pipeline: the `.vpl`
+	/// has to stay the thing `versatiles convert` runs, and a crop written into it would narrow
+	/// every use of the graph rather than the one export it belongs to. Omitted when it narrows
+	/// nothing, so a project that never used one has a manifest that never mentions it.
+	#[serde(skip_serializing_if = "is_unset")]
+	pub crop: crate::export::Bounds,
+}
+
+/// Whether these bounds narrow nothing — the manifest omits them when so.
+fn is_unset(bounds: &crate::export::Bounds) -> bool {
+	*bounds == crate::export::Bounds::default()
+}
+
+/// A graph as a project holds it: what it is called, its pipeline, and what an export narrows to.
+///
+/// A tuple would do for two of these and stopped doing when the crop arrived — three positional
+/// strings-and-a-struct at four call sites is where a name starts earning its keep.
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct SavedGraph {
+	pub name: String,
+	pub vpl: String,
+	pub crop: crate::export::Bounds,
 }
 
 /// What `project.yaml` holds.
@@ -158,12 +186,12 @@ pub const MANIFEST_FILE: &str = "project.yaml";
 /// The style Studio writes beside it — an output, never read back.
 pub const STYLE_FILE: &str = "style.json";
 
-/// A project read from disk: the manifest, and each graph's text.
+/// A project read from disk: the manifest, and each graph.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Loaded {
 	pub manifest: Manifest,
-	/// `(name, vpl)` in manifest order.
-	pub graphs: Vec<(String, String)>,
+	/// In manifest order.
+	pub graphs: Vec<SavedGraph>,
 }
 
 /// Whether a directory holds a project.
@@ -180,13 +208,13 @@ pub fn is_project(dir: &Path) -> bool {
 ///
 /// `style` is the rendered MapLibre style, or `None` when there is nothing to draw yet. It is
 /// written for other tools to read; reopening the project renders it again from the recipe.
-pub fn save(dir: &Path, graphs: &[(String, String)], recipe: &crate::style::Recipe, style: Option<&str>) -> Result<()> {
+pub fn save(dir: &Path, graphs: &[SavedGraph], recipe: &crate::style::Recipe, style: Option<&str>) -> Result<()> {
 	let yaml = manifest_text(graphs, recipe)?;
 
 	std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
-	for (name, text) in graphs {
-		check_name(name)?;
-		write_atomically(&dir.join(format!("{name}.vpl")), text)?;
+	for graph in graphs {
+		check_name(&graph.name)?;
+		write_atomically(&dir.join(format!("{}.vpl", graph.name)), &graph.vpl)?;
 	}
 	if let Some(style) = style {
 		write_atomically(&dir.join(STYLE_FILE), style)?;
@@ -198,14 +226,15 @@ pub fn save(dir: &Path, graphs: &[(String, String)], recipe: &crate::style::Reci
 ///
 /// Separate from writing it because a bundle ([`crate::bundle`]) puts the same bytes in a zip entry
 /// rather than in a file, and the two manifests have to be the same manifest.
-pub fn manifest_text(graphs: &[(String, String)], recipe: &crate::style::Recipe) -> Result<String> {
+pub fn manifest_text(graphs: &[SavedGraph], recipe: &crate::style::Recipe) -> Result<String> {
 	let manifest = Manifest {
 		version: 1,
 		graphs: graphs
 			.iter()
-			.map(|(name, _)| GraphRef {
-				name: name.clone(),
-				file: format!("{name}.vpl"),
+			.map(|graph| GraphRef {
+				name: graph.name.clone(),
+				file: format!("{}.vpl", graph.name),
+				crop: graph.crop,
 			})
 			.collect(),
 		style: recipe.clone(),
@@ -258,7 +287,11 @@ pub fn load(dir: &Path) -> Result<Loaded> {
 			graph.file
 		);
 		let vpl = std::fs::read_to_string(&file).with_context(|| format!("reading {}", file.display()))?;
-		graphs.push((graph.name.clone(), vpl));
+		graphs.push(SavedGraph {
+			name: graph.name.clone(),
+			vpl,
+			crop: graph.crop,
+		});
 	}
 
 	Ok(Loaded { manifest, graphs })
@@ -280,13 +313,22 @@ mod project_tests {
 		}
 	}
 
-	fn graphs() -> Vec<(String, String)> {
+	fn graphs() -> Vec<SavedGraph> {
 		vec![
-			("basemap".to_string(), "from_debug format=png".to_string()),
-			(
-				"hillshade".to_string(),
-				"from_debug format=png | raster_overview level=2".to_string(),
-			),
+			SavedGraph {
+				name: "basemap".to_string(),
+				vpl: "from_debug format=png".to_string(),
+				crop: crate::export::Bounds::default(),
+			},
+			SavedGraph {
+				name: "hillshade".to_string(),
+				vpl: "from_debug format=png | raster_overview level=2".to_string(),
+				crop: crate::export::Bounds {
+					bbox: Some([13.0, 52.3, 13.8, 52.7]),
+					min_zoom: Some(4),
+					max_zoom: Some(12),
+				},
+			},
 		]
 	}
 
@@ -303,6 +345,38 @@ mod project_tests {
 			"the recipe is what comes back, not the style"
 		);
 		assert_eq!(loaded.manifest.version, 1);
+	}
+
+	/// A crop is set by looking at the map, and it should still be there tomorrow (F2, S5.2).
+	#[test]
+	fn a_crop_survives_the_manifest() {
+		let dir = crate::testing::dir("project-crop");
+		save(&dir, &graphs(), &recipe(), None).unwrap();
+
+		let loaded = load(&dir).unwrap();
+		assert_eq!(loaded.graphs[1].crop.bbox, Some([13.0, 52.3, 13.8, 52.7]));
+		assert_eq!(loaded.graphs[1].crop.max_zoom, Some(12));
+
+		// A graph that never had one says nothing about it, rather than writing four nulls.
+		let text = std::fs::read_to_string(dir.join(MANIFEST_FILE)).unwrap();
+		let basemap = text.split("- name: hillshade").next().unwrap();
+		assert!(!basemap.contains("crop"), "{basemap}");
+	}
+
+	/// The field is new; every project saved before it exists without one.
+	#[test]
+	fn a_manifest_written_before_crops_still_opens() {
+		let dir = crate::testing::dir("project-no-crop");
+		std::fs::create_dir_all(&dir).unwrap();
+		std::fs::write(dir.join("basemap.vpl"), "from_debug format=png").unwrap();
+		std::fs::write(
+			dir.join(MANIFEST_FILE),
+			"version: 1\ngraphs:\n  - name: basemap\n    file: basemap.vpl\nstyle:\n  preset: colorful\n",
+		)
+		.unwrap();
+
+		let loaded = load(&dir).unwrap();
+		assert_eq!(loaded.graphs[0].crop, crate::export::Bounds::default());
 	}
 
 	/// [Q6]'s whole point: the files beside the manifest are usable without Studio.
@@ -378,7 +452,11 @@ mod project_tests {
 	#[test]
 	fn a_graph_name_that_is_a_path_is_refused() {
 		let dir = crate::testing::dir("project-name");
-		let sneaky = vec![("../escape".to_string(), "from_debug".to_string())];
+		let sneaky = vec![SavedGraph {
+			name: "../escape".to_string(),
+			vpl: "from_debug".to_string(),
+			..SavedGraph::default()
+		}];
 		let error = save(&dir, &sneaky, &recipe(), None).unwrap_err();
 		assert!(format!("{error:#}").contains("cannot be a filename"), "{error:#}");
 	}

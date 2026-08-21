@@ -90,6 +90,7 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `TileGrid`       | z/x/y grid (A5)                                                         | S1.7  |
 | `CoordinateJump` | Jump-to-coordinate box (A5)                                             | S1.7  |
 | `FeaturePopup`   | All attributes of the feature under the cursor (A8)                     | S1.6  |
+| `CropOverlay`    | The crop: everything outside it dimmed, and a drag draws a new one (F2) | S5.2  |
 
 ## Left pane — the chain
 
@@ -109,7 +110,8 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `ModeBar`      | **Map · Assets** — the one bar, arriving with its second occupant ([Q22](decisions.md))                            | S4.1       |
 | `AssetManager` | Font families: size, install, remove. The bundled tier is not listed, being unremovable                            | S4.1       |
 | `LayerTree`    | The rendered style's layers: filter, group, hide, recolour — each change an override in the recipe                 | S4.5       |
-| `ExportDialog` | Format, zoom range and numeric bounds — modal, per graph ([Q32](decisions.md)); carries the cost estimate (C6)     | S3.6, S3.7 |
+| `ExportDialog` | What will be written and what it costs, then the file — modal, per graph ([Q32](decisions.md))                     | S3.6, S3.7 |
+| `CropSection`  | The graph's crop: zoom range, four edges, draw-on-map, and the estimate for it (C6, F2)                            | S5.2, S5.4 |
 
 ## Right pane — what it turns out to be
 
@@ -144,7 +146,6 @@ because Tauri's `dragDropEnabled` delivers S1.2 with no component.
 | ------- | ----------------- | ----- |
 
 | Style export | `style.json`, `@versatiles/style` code, or a bundle (D8) | S4.6 |
-| Crop overlay | Drag a rectangle on the map to crop (F2) — port `BBoxDrawer` | S5.2, S5.4 |
 | Serve panel | Local server, LAN URL and a QR code for testing on a phone (F1) | S5.3 |
 
 ## Conventions

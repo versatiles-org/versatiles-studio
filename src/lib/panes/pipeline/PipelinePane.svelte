@@ -11,9 +11,12 @@
 		type ImportKind,
 		type Fit,
 		type OperationInfo,
-		type GraphInfo
+		type GraphInfo,
+		type Bounds,
+		type Estimate
 	} from '../../ipc/commands';
 	import ImportCards from '../../common/ImportCards.svelte';
+	import CropSection from './CropSection.svelte';
 
 	// The Pipeline pane's contents (Q22, [Q31]).
 	//
@@ -36,6 +39,8 @@
 		pinned = null,
 		pipeline,
 		pipelineRevision,
+		crop,
+		cropActions,
 		graphActions,
 		nodeActions,
 		documentActions
@@ -57,6 +62,14 @@
 		pinned?: number[] | null;
 		/** This window's pipeline, owned by the core (Q25). */
 		pipeline: DocumentView | null;
+		/** What an export of this graph is narrowed to, and what that costs (F2, C6, S5.2). */
+		crop: {
+			bounds: Bounds;
+			drawing: boolean;
+			estimating: boolean;
+			estimate: Estimate | null;
+			refusal: string | null;
+		} | null;
 		/** Bumped only when the document changes from *outside* the editor. Keying the editor on the
 		 *  text itself would remount it on its own edits and throw the caret away. */
 		pipelineRevision: number;
@@ -65,6 +78,14 @@
 		// calls — it receives them and hands them to `GraphList` or `Chain` — and fourteen loose
 		// callbacks made a signature where the six it *does* use were impossible to pick out.
 
+		/** Acting on the crop. It lives on the graph in the core, so all three go out. */
+		cropActions: {
+			set: (bounds: Bounds) => void;
+			/** Turns rectangle-drawing on the map on or off. */
+			draw: () => void;
+			/** Crops to what the map is showing. */
+			useView: () => void;
+		};
 		/** Acting on the set of graphs. Adding a source creates one ([Q32]). */
 		graphActions: {
 			select: (id: number) => void;
@@ -245,6 +266,21 @@
 			onAddOperation={nodeActions.addOperation}
 		/>
 	{/if}
+	<!-- Below the chain and above the actions, which is where it belongs in the reading: this is
+	     what the graph will be narrowed to, between what it is and what to do with it. -->
+	{#if crop && pipeline}
+		<CropSection
+			crop={crop.bounds}
+			drawing={crop.drawing}
+			estimating={crop.estimating}
+			estimate={crop.estimate}
+			refusal={crop.refusal}
+			onChange={cropActions.set}
+			onDraw={cropActions.draw}
+			onUseView={cropActions.useView}
+		/>
+	{/if}
+
 	<!-- Actions on the pipeline itself, available from either tab. Saving a *project* is a
 		     different command with a different scope (G1, S5.1); this writes the pipeline as the
 		     `.vpl` the CLI already reads. -->
