@@ -156,18 +156,18 @@ Ten of the twelve closed at once. Each row below was read in the 4.9.0 source, n
 issue being closed — the two are not the same claim, as vt#229 shows. The last column is the work
 this opens up; only vt#229's is done.
 
-| Issue                                                                | Landed as                                                      | What it lets Studio drop                               |
-| -------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
-| [vt#222](https://github.com/versatiles-org/versatiles-rs/issues/222) | `cache_control` on `serve` and in the config file              | The per-mount revision in the tile URL                 |
-| [vt#223](https://github.com/versatiles-org/versatiles-rs/issues/223) | `versatiles_container::probe::probe_report`                    | Unblocks B2's byte breakdown ([Q12](decisions.md))     |
-| [vt#224](https://github.com/versatiles-org/versatiles-rs/issues/224) | `check_pipeline` and `VplProblem`                              | The checks `validate` re-implements                    |
-| [vt#227](https://github.com/versatiles-org/versatiles-rs/issues/227) | A tile-count guard that refuses an impossible pyramid          | Nothing — `export::MAX_TILES` guards a different limit |
-| [vt#228](https://github.com/versatiles-org/versatiles-rs/issues/228) | The PMTiles writer names `raster_overview` as the cause        | Nothing — there was no workaround                      |
-| [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) | `OperationMeta.summary` and `.details`                         | **Done** — `vpl::summary` and its tripwire are deleted |
-| [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) | `Compatibility` and `compatible_transforms`                    | **Done** — the picker groups by what fits (S2.14)      |
-| [vt#236](https://github.com/versatiles-org/versatiles-rs/issues/236) | `probe_report` returns its analysis instead of printing it     | The facts `analysis::describe` works out again         |
-| [vt#237](https://github.com/versatiles-org/versatiles-rs/issues/237) | `versatiles_core::utils::read_csv_header`                      | **Done** — `tabular` calls it (S3.4)                   |
-| [vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238) | `read_csv_iter` fails rather than panicking on a bad separator | **Done** — the hand-written sniffer is deleted         |
+| Issue                                                                | Landed as                                                      | What it lets Studio drop                                    |
+| -------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------- |
+| [vt#222](https://github.com/versatiles-org/versatiles-rs/issues/222) | `cache_control` on `serve` and in the config file              | The per-mount revision in the tile URL                      |
+| [vt#223](https://github.com/versatiles-org/versatiles-rs/issues/223) | `versatiles_container::probe::probe_report`                    | Unblocks B2's byte breakdown ([Q12](decisions.md))          |
+| [vt#224](https://github.com/versatiles-org/versatiles-rs/issues/224) | `check_pipeline` and `VplProblem`                              | **Done** — `validate` places upstream's verdict in the text |
+| [vt#227](https://github.com/versatiles-org/versatiles-rs/issues/227) | A tile-count guard that refuses an impossible pyramid          | Nothing — `export::MAX_TILES` guards a different limit      |
+| [vt#228](https://github.com/versatiles-org/versatiles-rs/issues/228) | The PMTiles writer names `raster_overview` as the cause        | Nothing — there was no workaround                           |
+| [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) | `OperationMeta.summary` and `.details`                         | **Done** — `vpl::summary` and its tripwire are deleted      |
+| [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) | `Compatibility` and `compatible_transforms`                    | **Done** — the picker groups by what fits (S2.14)           |
+| [vt#236](https://github.com/versatiles-org/versatiles-rs/issues/236) | `probe_report` returns its analysis instead of printing it     | The facts `analysis::describe` works out again              |
+| [vt#237](https://github.com/versatiles-org/versatiles-rs/issues/237) | `versatiles_core::utils::read_csv_header`                      | **Done** — `tabular` calls it (S3.4)                        |
+| [vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238) | `read_csv_iter` fails rather than panicking on a bad separator | **Done** — the hand-written sniffer is deleted              |
 
 Resolved earlier: [vt#216–#218](https://github.com/versatiles-org/versatiles-rs/issues/216), which
 became the lossless CST in 4.8.0 and let Studio delete 1 021 lines of its own parser.

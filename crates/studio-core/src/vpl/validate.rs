@@ -1,17 +1,23 @@
-//! Checking a parsed pipeline against the operations that actually exist (S2.4, C4).
+//! Placing upstream's verdict on a pipeline in the text that produced it (S2.4, C4).
 //!
 //! Parsing says the text is well-formed VPL. It says nothing about whether `from_containr` is an
 //! operation, whether `filename` is one of its parameters, or whether `format=notaformat` names a
 //! real format. Those are the mistakes people actually make, and without this they surface as a
 //! failure at run time, far from the character that caused them.
 //!
-//! **Every rule here was verified against upstream before being written.** Each of the eight cases
-//! below was fed to `PipelineFactory::operation_from_vpl`, and every one is rejected — so these are
-//! errors rather than advice, and Studio is not inventing a stricter language than the CLI runs.
-//! `metadata_matches_upstream` in the tests keeps that true.
+//! **The rules are upstream's** ([vt#224]). Studio used to carry its own copy of them, verified
+//! against `PipelineFactory::operation_from_vpl` case by case and kept honest by a test — which
+//! worked, and was a second implementation of somebody else's language. `check_pipeline` needs no
+//! runtime and does no I/O, so it can run on every keystroke.
+//!
+//! **What stays here is the part upstream cannot do**: turning a problem's node path and parameter
+//! name back into a span the editor can underline, and offering "did you mean" for a name that is
+//! nearly right. Upstream reports the fault; only Studio knows where in the text it is.
+//!
+//! [vt#224]: https://github.com/versatiles-org/versatiles-rs/issues/224
 
 use super::operations::registry as operations;
-use super::{Document, Node, Pipeline, Span, Value};
+use super::{Document, Pipeline, Span};
 
 /// A problem with a position, ready for the editor to underline.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
@@ -28,103 +34,56 @@ pub struct Diagnostic {
 /// three underlines, not one at a time.
 #[must_use]
 pub fn validate(document: &Document) -> Vec<Diagnostic> {
-	let mut out = Vec::new();
-	check_pipeline(document.pipeline(), &mut out);
+	let mut out: Vec<Diagnostic> = versatiles_pipeline::check_pipeline(&document.to_pipeline())
+		.into_iter()
+		.map(|problem| Diagnostic {
+			span: locate(document.pipeline(), &problem.path, problem.property.as_deref()),
+			message: suggest(&problem.message),
+		})
+		.collect();
 	out.sort_by_key(|d| d.span.start);
 	out
 }
 
-fn check_pipeline(pipeline: &Pipeline, out: &mut Vec<Diagnostic>) {
-	for (index, node) in pipeline.nodes.iter().enumerate() {
-		check_node(node, index == 0, out);
-		for source in &node.sources {
-			check_pipeline(source, out);
-		}
+/// The narrowest span a problem is about.
+///
+/// The parameter's key when the problem names one, the operation's name otherwise — and the whole
+/// document when the path names nothing, which happens for "pipeline is empty" and for a path this
+/// build cannot follow. An underline in the wrong place would be worse than one around everything.
+fn locate(pipeline: &Pipeline, path: &[usize], property: Option<&str>) -> Span {
+	let Some(node) = pipeline.at_path(path) else {
+		return Span { start: 0, end: 0 };
+	};
+	let Some(key) = property else {
+		return node.name_span;
+	};
+	node
+		.properties
+		.iter()
+		.find(|p| p.key == key)
+		.map_or(node.name_span, |p| p.key_span)
+}
+
+/// Adds "did you mean `x`?" when a name is nearly one that exists.
+///
+/// Upstream reports the fault and stops there, correctly — it has no reason to guess at intent. An
+/// editor does: a typo is the common case, and the operation list is short enough that the nearest
+/// name is usually the one meant.
+fn suggest(message: &str) -> String {
+	let Some(name) = between(message, "unknown operation \'", "\'") else {
+		return message.to_string();
+	};
+	let names: Vec<&str> = operations().keys().map(String::as_str).collect();
+	match nearest(&name, &names) {
+		Some(near) => format!("{message} — did you mean `{near}`?"),
+		None => message.to_string(),
 	}
 }
 
-fn check_node(node: &Node, is_head: bool, out: &mut Vec<Diagnostic>) {
-	let Some(meta) = operations().get(&node.name) else {
-		let names: Vec<&str> = operations().keys().map(String::as_str).collect();
-		out.push(Diagnostic {
-			message: match nearest(&node.name, &names) {
-				Some(guess) => format!("unknown operation '{}' — did you mean '{guess}'?", node.name),
-				None => format!("unknown operation '{}'", node.name),
-			},
-			span: node.name_span,
-		});
-		return;
-	};
-
-	// A pipeline reads, then transforms. `from_debug | from_debug` and a bare `raster_overview` are
-	// both rejected upstream, so the position of an operation is as checkable as its name.
-	let expected = if is_head { "read" } else { "transform" };
-	if meta.kind != expected {
-		out.push(Diagnostic {
-			message: if is_head {
-				format!("'{}' transforms tiles, so it cannot start a pipeline", node.name)
-			} else {
-				format!("'{}' reads tiles, so it can only be first", node.name)
-			},
-			span: node.name_span,
-		});
-	}
-
-	for property in &node.properties {
-		let Some(field) = meta.fields.iter().find(|f| f.name == property.key) else {
-			let names: Vec<&str> = meta.fields.iter().map(|f| f.name.as_str()).collect();
-			out.push(Diagnostic {
-				message: match nearest(&property.key, &names) {
-					Some(guess) => format!(
-						"'{}' has no parameter '{}' — did you mean '{guess}'?",
-						node.name, property.key
-					),
-					None => format!("'{}' has no parameter '{}'", node.name, property.key),
-				},
-				span: property.key_span,
-			});
-			continue;
-		};
-
-		if field.enum_variants.is_empty() {
-			continue;
-		}
-		let items: Vec<(&str, Span)> = match &property.value {
-			Value::Single(s) => vec![(s.value.as_str(), s.span)],
-			Value::Array { items, .. } => items.iter().map(|i| (i.value.as_str(), i.span)).collect(),
-		};
-		for (value, span) in items {
-			if !field.enum_variants.contains(&value) {
-				out.push(Diagnostic {
-					message: format!(
-						"'{value}' is not a valid {}: expected one of {}",
-						field.name,
-						field.enum_variants.join(", ")
-					),
-					span,
-				});
-			}
-		}
-	}
-
-	for field in meta.fields.iter().filter(|f| f.is_required) {
-		// A `sources` field is satisfied by the `[…]` block, not by a `key=value` pair.
-		let satisfied = if field.is_sources {
-			!node.sources.is_empty()
-		} else {
-			node.properties.iter().any(|p| p.key == field.name)
-		};
-		if !satisfied {
-			out.push(Diagnostic {
-				message: if field.is_sources {
-					format!("'{}' needs input sources, as '{} [ … ]'", node.name, node.name)
-				} else {
-					format!("'{}' needs a '{}' parameter", node.name, field.name)
-				},
-				span: node.name_span,
-			});
-		}
-	}
+/// The text between two markers, if both are there.
+fn between(haystack: &str, open: &str, close: &str) -> Option<String> {
+	let rest = haystack.split_once(open)?.1;
+	Some(rest.split_once(close)?.0.to_string())
 }
 
 /// The closest candidate within a small edit distance, for "did you mean".
@@ -195,7 +154,7 @@ mod tests {
 			messages[0].contains("unknown operation 'from_containr'"),
 			"{messages:?}"
 		);
-		assert!(messages[0].contains("did you mean 'from_container'"), "{messages:?}");
+		assert!(messages[0].contains("did you mean `from_container`"), "{messages:?}");
 	}
 
 	/// `vector_filter` is the name used throughout Studio's own early notes, and it does not exist —
@@ -228,32 +187,43 @@ mod tests {
 		let document = Document::parse("from_container").unwrap();
 		let found = validate(&document);
 		assert_eq!(found.len(), 1, "{found:?}");
-		assert!(found[0].message.contains("needs a 'filename' parameter"), "{found:?}");
+		assert!(
+			found[0].message.contains("requires the parameter 'filename'"),
+			"{found:?}"
+		);
 		assert_eq!(document.slice(found[0].span), Some("from_container"));
 	}
 
+	/// **A value is not checked against the enum, and must not be.** `enum_variants` lists canonical
+	/// names only, while the parsers take aliases besides — so `format=pbf` and `format=jpeg` build
+	/// and would be reported as invalid by anything comparing against that list.
+	///
+	/// Studio did compare against it, and did report them. The cost of a second implementation was
+	/// not that it drifted; it was that it was wrong in a way nobody would look for, because a
+	/// validator that says "expected one of …" reads as authoritative.
 	#[test]
-	fn a_value_outside_an_enum_lists_what_is_allowed() {
-		let document = Document::parse("from_debug format=notaformat").unwrap();
-		let found = validate(&document);
-		assert_eq!(found.len(), 1, "{found:?}");
-		assert!(found[0].message.contains("not a valid format"), "{found:?}");
-		assert!(
-			found[0].message.contains("png"),
-			"the allowed values should be listed: {found:?}"
-		);
-		assert_eq!(document.slice(found[0].span), Some("notaformat"), "underline the value");
+	fn an_accepted_alias_is_never_reported() {
+		for vpl in [
+			"from_debug format=pbf",
+			"from_debug format=jpeg",
+			"from_debug format=mvt",
+		] {
+			assert!(diagnose(vpl).is_empty(), "{vpl} builds, so it must not be flagged");
+		}
+		// The other side of the same coin: an unknown value is not flagged either, because no list
+		// here can tell one from an alias.
+		assert!(diagnose("from_debug format=notaformat").is_empty());
 	}
 
 	/// A pipeline reads and then transforms; both halves of that rule are checked.
 	#[test]
 	fn operations_are_checked_for_position() {
 		assert!(
-			diagnose("from_debug format=png | from_debug format=png")[0].contains("can only be first"),
+			diagnose("from_debug format=png | from_debug format=png")[0].contains("can only be the first node"),
 			"a read in transform position"
 		);
 		assert!(
-			diagnose("raster_overview level=2")[0].contains("cannot start a pipeline"),
+			diagnose("raster_overview level=2")[0].contains("has to start with a read operation"),
 			"a transform at the head"
 		);
 	}
@@ -262,7 +232,7 @@ mod tests {
 	fn a_composite_without_sources_says_what_is_missing() {
 		let messages = diagnose("from_stacked");
 		assert_eq!(messages.len(), 1, "{messages:?}");
-		assert!(messages[0].contains("needs input sources"), "{messages:?}");
+		assert!(messages[0].contains("needs at least one source"), "{messages:?}");
 	}
 
 	#[test]
@@ -273,7 +243,7 @@ mod tests {
 
 	#[test]
 	fn every_problem_is_reported_not_just_the_first() {
-		let messages = diagnose("from_debug format=nope nonsense=1");
+		let messages = diagnose("from_debug nonsense=1 | raster_overview rubbish=2");
 		assert_eq!(messages.len(), 2, "both should be reported: {messages:?}");
 	}
 
@@ -318,37 +288,48 @@ mod tests {
 		// not being hex. Those are the boundary this validator sits on, and
 		// `value_formats_are_not_checked` records it.
 		let cases = [
-			("from_debug format=png", true),
-			("from_color", true),
-			("from_stacked [ from_debug format=png, from_debug format=png ]", true),
-			("from_debug format=png nonsense=1", false),
-			("from_debug format=notaformat", false),
-			("from_container", false),
-			("not_an_operation", false),
-			("from_debug format=png | from_debug format=png", false),
-			("raster_overview level=2", false),
-			("from_stacked", false),
+			"from_debug format=png",
+			"from_color",
+			"from_stacked [ from_debug format=png, from_debug format=png ]",
+			// Aliases. These build, and a validator comparing against `enum_variants` reports them —
+			// which is the bug this test now exists to catch.
+			"from_debug format=pbf",
+			"from_debug format=jpeg",
+			"from_debug format=png nonsense=1",
+			"from_debug format=notaformat",
+			"from_container",
+			"not_an_operation",
+			"from_debug format=png | from_debug format=png",
+			"raster_overview level=2",
+			"from_stacked",
 		];
 
-		let mut disagreements = Vec::new();
-		for (vpl, should_be_valid) in cases {
+		// **One direction, not both.** Everything Studio underlines must genuinely fail, or the
+		// editor tells someone their working pipeline is broken. The reverse is allowed: upstream
+		// decides some things only by building, and staying quiet about those is the honest answer.
+		let mut wrong = Vec::new();
+		let mut missed = Vec::new();
+		for vpl in cases {
 			let studio_ok = diagnose(vpl).is_empty();
 			// `from_container filename=a` opens no file here — the dummy factory builds the operation
 			// without reading, which is exactly the layer being checked.
 			let upstream_ok = factory.operation_from_vpl(vpl).await.is_ok();
-			if studio_ok != upstream_ok || upstream_ok != should_be_valid {
-				disagreements.push(format!(
-					"{vpl:?}: studio {}, upstream {}, expected {}",
-					if studio_ok { "accepts" } else { "rejects" },
-					if upstream_ok { "accepts" } else { "rejects" },
-					if should_be_valid { "accept" } else { "reject" }
-				));
+			if !studio_ok && upstream_ok {
+				wrong.push(vpl);
+			}
+			if studio_ok && !upstream_ok {
+				missed.push(vpl);
 			}
 		}
-		assert!(
-			disagreements.is_empty(),
-			"validation disagrees with the pipeline factory:\n  {}",
-			disagreements.join("\n  ")
+
+		assert!(wrong.is_empty(), "these build, and Studio underlines them: {wrong:?}");
+		// The gap, named rather than left open: a value's *format* is decided by building, so
+		// nothing here can decide it (see `value_formats_are_not_checked`). A new entry means
+		// something else stopped being checked.
+		assert_eq!(
+			missed,
+			["from_debug format=notaformat"],
+			"the set of things not caught changed"
 		);
 	}
 }
