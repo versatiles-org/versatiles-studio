@@ -1,9 +1,21 @@
 //! Project model — a directory holding a `project.yaml` manifest beside real `.vpl` and
 //! `style.json` files (G1, [Q6]).
 //!
-//! Not implemented yet; the manifest arrives at S5.1. Recent sources and bookmarks are **not**
-//! here: they are application state, not project state, and live in [`crate::store`]
-//! ([Q21](../../../docs/decisions.md)).
+//! **Reference, do not embed** ([Q6]). Each graph is a real `.vpl` the CLI can run and the style is
+//! a real MapLibre style, with `project.yaml` naming them by relative path — the same shape
+//! `versatiles serve --config` already uses. Embedding a text DSL in a structured file would mean
+//! escaped newlines and unreadable diffs.
+//!
+//! **The style is written and not read back** ([Q36]). What the manifest carries is the *recipe* —
+//! a preset, its adjustments, the layers someone changed — and `style.json` is rendered from it by
+//! whoever has the generator. A project reopened from its own directory rebuilds the style; a
+//! `style.json` edited by hand is somebody else's file, and saying so is honest rather than
+//! pretending to round-trip it.
+//!
+//! Recent sources and bookmarks are **not** here: they are application state, not project state,
+//! and live in [`crate::store`] ([Q21](../../../docs/decisions.md)).
+//!
+//! [Q36]: ../../../docs/decisions.md
 //!
 //! [Q6]: ../../../docs/decisions.md
 
@@ -113,5 +125,243 @@ mod tests {
 		save_vpl(&path, "from_debug format=webp")?;
 		assert_eq!(std::fs::read_to_string(&path)?, "from_debug format=webp");
 		Ok(())
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// The manifest
+// ---------------------------------------------------------------------------------------------
+
+/// One graph, as the manifest names it.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct GraphRef {
+	/// The graph's name — its server mount, its source name in the style, and its filename ([Q32]).
+	pub name: String,
+	/// Where its VPL lives, relative to the manifest.
+	pub file: String,
+}
+
+/// What `project.yaml` holds.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct Manifest {
+	/// Bumped when a later Studio cannot read an earlier file. One today.
+	pub version: u32,
+	pub graphs: Vec<GraphRef>,
+	/// What the style is made from, not the style ([Q36]).
+	pub style: crate::style::Recipe,
+}
+
+/// The manifest's filename. Fixed, because a directory is a project by containing one.
+pub const MANIFEST_FILE: &str = "project.yaml";
+
+/// The style Studio writes beside it — an output, never read back.
+pub const STYLE_FILE: &str = "style.json";
+
+/// A project read from disk: the manifest, and each graph's text.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Loaded {
+	pub manifest: Manifest,
+	/// `(name, vpl)` in manifest order.
+	pub graphs: Vec<(String, String)>,
+}
+
+/// Whether a directory holds a project.
+#[must_use]
+pub fn is_project(dir: &Path) -> bool {
+	dir.join(MANIFEST_FILE).is_file()
+}
+
+/// Writes a project: the manifest, one `.vpl` per graph, and the rendered style.
+///
+/// **Every file is written before any is renamed into place.** A save interrupted halfway would
+/// otherwise leave a manifest naming a `.vpl` that is not there yet — and the manifest is what makes
+/// the directory a project, so a torn one is worse than no save at all.
+///
+/// `style` is the rendered MapLibre style, or `None` when there is nothing to draw yet. It is
+/// written for other tools to read; reopening the project renders it again from the recipe.
+pub fn save(dir: &Path, graphs: &[(String, String)], recipe: &crate::style::Recipe, style: Option<&str>) -> Result<()> {
+	let manifest = Manifest {
+		version: 1,
+		graphs: graphs
+			.iter()
+			.map(|(name, _)| GraphRef {
+				name: name.clone(),
+				file: format!("{name}.vpl"),
+			})
+			.collect(),
+		style: recipe.clone(),
+	};
+
+	let yaml = serde_yaml_ng::to_string(&manifest).context("writing the project manifest")?;
+	let header = "# VersaTiles Studio project. The .vpl files beside this one are real pipelines\n\
+	              # and style.json is a real MapLibre style — both usable without Studio (Q6).\n";
+
+	std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
+	for (name, text) in graphs {
+		anyhow::ensure!(
+			!name.is_empty() && !name.contains(['/', '\\', ':']) && name != ".." && name != ".",
+			"{name:?} cannot be a filename"
+		);
+		write_atomically(&dir.join(format!("{name}.vpl")), text)?;
+	}
+	if let Some(style) = style {
+		write_atomically(&dir.join(STYLE_FILE), style)?;
+	}
+	write_atomically(&dir.join(MANIFEST_FILE), &format!("{header}{yaml}"))
+}
+
+/// Reads a project back.
+///
+/// A graph whose file is missing is an error rather than a project with a hole in it: the manifest
+/// is the list of what this project *is*, and quietly opening three of four graphs would lose work
+/// without saying so.
+pub fn load(dir: &Path) -> Result<Loaded> {
+	let path = dir.join(MANIFEST_FILE);
+	let text = std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
+	let manifest: Manifest = serde_yaml_ng::from_str(&text).with_context(|| format!("reading {}", path.display()))?;
+
+	anyhow::ensure!(
+		manifest.version <= 1,
+		"{} was written by a later version of Studio (manifest version {})",
+		path.display(),
+		manifest.version
+	);
+
+	let mut graphs = Vec::with_capacity(manifest.graphs.len());
+	for graph in &manifest.graphs {
+		// Relative to the manifest, the way `versatiles serve --config` resolves its own paths — and
+		// joined rather than concatenated, so a name is a name and not a way out of the directory.
+		let file = dir.join(&graph.file);
+		anyhow::ensure!(
+			file.parent() == Some(dir),
+			"{} names {:?}, which is outside the project",
+			path.display(),
+			graph.file
+		);
+		let vpl = std::fs::read_to_string(&file).with_context(|| format!("reading {}", file.display()))?;
+		graphs.push((graph.name.clone(), vpl));
+	}
+
+	Ok(Loaded { manifest, graphs })
+}
+
+#[cfg(test)]
+mod project_tests {
+	use super::*;
+	use crate::style::{Preset, Recipe, Recolor};
+
+	fn recipe() -> Recipe {
+		Recipe {
+			preset: Preset::Graybeard,
+			recolor: Recolor {
+				invert_brightness: Some(true),
+				..Recolor::default()
+			},
+			..Recipe::default()
+		}
+	}
+
+	fn graphs() -> Vec<(String, String)> {
+		vec![
+			("basemap".to_string(), "from_debug format=png".to_string()),
+			(
+				"hillshade".to_string(),
+				"from_debug format=png | raster_overview level=2".to_string(),
+			),
+		]
+	}
+
+	#[test]
+	fn a_project_round_trips_through_its_own_directory() {
+		let dir = crate::testing::dir("project-roundtrip");
+		save(&dir, &graphs(), &recipe(), Some("{\"version\":8}")).unwrap();
+
+		let loaded = load(&dir).unwrap();
+		assert_eq!(loaded.graphs, graphs());
+		assert_eq!(
+			loaded.manifest.style,
+			recipe(),
+			"the recipe is what comes back, not the style"
+		);
+		assert_eq!(loaded.manifest.version, 1);
+	}
+
+	/// [Q6]'s whole point: the files beside the manifest are usable without Studio.
+	#[test]
+	fn the_files_beside_it_are_real_files() {
+		let dir = crate::testing::dir("project-real-files");
+		save(&dir, &graphs(), &recipe(), Some("{\"version\":8}")).unwrap();
+
+		assert_eq!(
+			std::fs::read_to_string(dir.join("basemap.vpl")).unwrap(),
+			"from_debug format=png",
+			"a .vpl is the pipeline, not an escaped copy of it"
+		);
+		assert!(
+			std::fs::read_to_string(dir.join(STYLE_FILE))
+				.unwrap()
+				.contains("\"version\":8")
+		);
+		assert!(is_project(&dir));
+	}
+
+	/// The manifest permits comments, which is half of why it is YAML rather than JSON.
+	#[test]
+	fn the_manifest_says_what_it_is() {
+		let dir = crate::testing::dir("project-header");
+		save(&dir, &graphs(), &recipe(), None).unwrap();
+
+		let text = std::fs::read_to_string(dir.join(MANIFEST_FILE)).unwrap();
+		assert!(text.starts_with('#'), "{text}");
+		assert!(text.contains("basemap.vpl"), "{text}");
+		// Written only when there is something to draw; a project saved before then has no style.
+		assert!(!dir.join(STYLE_FILE).exists());
+	}
+
+	/// The manifest is data, and data that names files decides what gets read.
+	#[test]
+	fn a_manifest_cannot_name_a_file_outside_the_project() {
+		let dir = crate::testing::dir("project-escape");
+		save(&dir, &graphs(), &recipe(), None).unwrap();
+		std::fs::write(
+			dir.join(MANIFEST_FILE),
+			"version: 1\ngraphs:\n  - name: evil\n    file: ../../../etc/passwd\nstyle:\n  preset: colorful\n",
+		)
+		.unwrap();
+
+		let error = load(&dir).unwrap_err();
+		assert!(format!("{error:#}").contains("outside the project"), "{error:#}");
+	}
+
+	/// A missing file is not a project with a hole in it — the manifest is the list of what this
+	/// project is, and opening three of four graphs would lose work silently.
+	#[test]
+	fn a_graph_the_manifest_names_and_the_directory_lacks_is_an_error() {
+		let dir = crate::testing::dir("project-missing");
+		save(&dir, &graphs(), &recipe(), None).unwrap();
+		std::fs::remove_file(dir.join("hillshade.vpl")).unwrap();
+
+		let error = load(&dir).unwrap_err();
+		assert!(format!("{error:#}").contains("hillshade.vpl"), "{error:#}");
+	}
+
+	/// A file from a later Studio is refused rather than half-read.
+	#[test]
+	fn a_manifest_from_the_future_says_so() {
+		let dir = crate::testing::dir("project-future");
+		std::fs::create_dir_all(&dir).unwrap();
+		std::fs::write(dir.join(MANIFEST_FILE), "version: 99\ngraphs: []\n").unwrap();
+
+		let error = load(&dir).unwrap_err();
+		assert!(format!("{error:#}").contains("later version"), "{error:#}");
+	}
+
+	#[test]
+	fn a_graph_name_that_is_a_path_is_refused() {
+		let dir = crate::testing::dir("project-name");
+		let sneaky = vec![("../escape".to_string(), "from_debug".to_string())];
+		let error = save(&dir, &sneaky, &recipe(), None).unwrap_err();
+		assert!(format!("{error:#}").contains("cannot be a filename"), "{error:#}");
 	}
 }

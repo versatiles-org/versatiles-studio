@@ -24,6 +24,9 @@ versatiles_pipeline.workspace = true
 # Verifying a downloaded asset against the digest the manifest pins (G7, Q9). Already in the tree
 # through versatiles' own dependencies; named here because this crate calls it directly.
 sha2 = "0.10"
+# `project.yaml` (Q6). The same crate `versatiles serve --config` reads its own YAML with, so a
+# project file and a serve config cannot disagree about what YAML means.
+serde_yaml_ng = "0.10"
 # Parsing the manifest's download URLs into what `DataReaderHttp` takes. Already in the tree through
 # reqwest; named here because this crate builds one directly.
 url = "2"
