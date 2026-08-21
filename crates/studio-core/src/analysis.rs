@@ -268,6 +268,13 @@ pub struct LayerInspection {
 	pub encoded_bytes: usize,
 	/// Property keys present, for a first look at what is styleable.
 	pub property_keys: Vec<String>,
+	/// What this layer is made of: `point`, `line`, `polygon`, or `unknown` (S4.4, D2).
+	///
+	/// **The commonest of its features, not all of them.** A layer may mix geometries and MapLibre
+	/// draws one kind per layer, so a style deriving itself from this has to pick — and the majority
+	/// is the pick that leaves the fewest features invisible. Free to compute: the type is a field on
+	/// every feature, already read by the time the tile has decoded.
+	pub geometry: String,
 }
 
 /// A decoded tile, layer by layer (A4).
@@ -318,6 +325,7 @@ pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> R
 			feature_count: layer.features.len(),
 			encoded_bytes: layer.to_blob().map(|b| b.len() as usize).unwrap_or(0),
 			property_keys: layer.property_manager.iter_key().cloned().collect(),
+			geometry: commonest_geometry(layer),
 		})
 		.collect();
 
@@ -423,6 +431,30 @@ mod probe_tests {
 		assert!(probe_layers(&source, &info).await.is_empty());
 		Ok(())
 	}
+}
+
+/// The geometry most of a layer's features are.
+///
+/// Ties go to the more specific: a layer split evenly between lines and polygons is drawn as
+/// polygons, because a polygon drawn as a line still shows its outline while a line drawn as a
+/// polygon shows nothing at all.
+fn commonest_geometry(layer: &versatiles_geometry::vector_tile::VectorTileLayer) -> String {
+	use versatiles_geometry::vector_tile::GeomType;
+
+	let mut counts = [0usize; 4];
+	for feature in &layer.features {
+		counts[feature.geom_type as usize] += 1;
+	}
+	// Descending specificity, so the first maximum found is the more specific one.
+	[
+		(GeomType::MultiPolygon, "polygon"),
+		(GeomType::MultiLineString, "line"),
+		(GeomType::MultiPoint, "point"),
+	]
+	.into_iter()
+	.max_by_key(|(kind, _)| counts[*kind as usize])
+	.filter(|(kind, _)| counts[*kind as usize] > 0)
+	.map_or_else(|| "unknown".to_string(), |(_, name)| name.to_string())
 }
 
 /// Whether one transform can be appended to what a node produces (S2.14).

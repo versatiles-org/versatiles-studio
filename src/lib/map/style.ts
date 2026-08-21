@@ -117,3 +117,90 @@ export function drawsAnything(style: StyleSpecification, available: string[]): b
 	const wanted = new Set(available);
 	return style.layers.some((layer) => 'source-layer' in layer && wanted.has(layer['source-layer'] as string));
 }
+
+/** What a layer is made of, and what it is called — the whole input a derived style needs. */
+export interface DerivableLayer {
+	name: string;
+	/** `point`, `line`, `polygon` or `unknown`, from the core's probe (S4.4). */
+	geometry: string;
+}
+
+/**
+ * A style built from the layers the tiles actually contain (S4.4, D2).
+ *
+ * **Not a good-looking map, and not trying to be.** The presets know what `water_polygons` means;
+ * this knows nothing about any layer except its name and what it is made of. What it can promise is
+ * that every layer is visible and told apart from its neighbours — which is what you need before
+ * you can style anything, and what a Shortbread preset over a non-Shortbread container cannot give.
+ *
+ * Colours come from the layer's *name*, so they are stable across reloads and across two people
+ * looking at the same container. They are deliberately not design tokens: a token is a decision
+ * about Studio's own surfaces, and these are as many distinct hues as there happen to be layers.
+ */
+export function deriveStyle(
+	layers: DerivableLayer[],
+	sources: StyleSource[],
+	serverBaseUrl: string
+): StyleSpecification | null {
+	const source = sources[0];
+	if (!source || layers.length === 0) return null;
+
+	// Polygons underneath, then lines, then points — the order things cover each other in. Without
+	// it a layer of building footprints hides every road beneath it, which is exactly the map a
+	// derived style is supposed to rescue you from.
+	const order = { polygon: 0, line: 1, point: 2, unknown: 3 } as const;
+	const sorted = [...layers].sort(
+		(a, b) => (order[a.geometry as keyof typeof order] ?? 3) - (order[b.geometry as keyof typeof order] ?? 3)
+	);
+
+	return {
+		version: 8,
+		glyphs: `${serverBaseUrl}/assets/glyphs/{fontstack}/{range}.pbf`,
+		sprite: `${serverBaseUrl}/assets/sprites/basics/sprites`,
+		sources: { [source.name]: { type: 'vector', tiles: [throughQueue(source.tileUrl)] } },
+		layers: sorted.flatMap((layer) => paint(layer, source.name))
+	} as StyleSpecification;
+}
+
+/** One MapLibre layer for one source layer, of the kind its geometry can be drawn as. */
+function paint(layer: DerivableLayer, source: string): LayerSpecification[] {
+	const colour = hue(layer.name);
+	const common = { id: `derived:${layer.name}`, source, 'source-layer': layer.name };
+
+	if (layer.geometry === 'polygon') {
+		return [
+			{ ...common, type: 'fill', paint: { 'fill-color': colour, 'fill-opacity': 0.35 } },
+			{
+				...common,
+				id: `${common.id}:edge`,
+				type: 'line',
+				paint: { 'line-color': colour, 'line-width': 0.8 }
+			}
+		] as LayerSpecification[];
+	}
+	if (layer.geometry === 'point') {
+		return [
+			{
+				...common,
+				type: 'circle',
+				paint: { 'circle-color': colour, 'circle-radius': 2.5, 'circle-opacity': 0.85 }
+			}
+		] as LayerSpecification[];
+	}
+	// Lines, and anything whose geometry the probe could not name: a hairline shows a line as itself
+	// and a polygon as its outline, so it is the guess that hides the least.
+	return [{ ...common, type: 'line', paint: { 'line-color': colour, 'line-width': 1 } }] as LayerSpecification[];
+}
+
+/**
+ * A colour for a layer name — the same one every time, and far from its neighbours'.
+ *
+ * The hash is spread around the wheel by the golden angle rather than used directly: consecutive
+ * hashes land next to each other on the circle, which is how two adjacent layers end up two
+ * indistinguishable greens apart.
+ */
+function hue(name: string): string {
+	let hash = 0;
+	for (const character of name) hash = (hash * 31 + character.codePointAt(0)!) % 360;
+	return `hsl(${Math.round((hash * 137.508) % 360)}, 70%, 45%)`;
+}

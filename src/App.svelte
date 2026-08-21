@@ -29,7 +29,7 @@
 	import CoordinateJump from './lib/map/CoordinateJump.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { addContainerToMap, removeContainerFromMap } from './lib/map/add-source';
-	import { drawsAnything, renderStyle } from './lib/map/style';
+	import { deriveStyle, drawsAnything, renderStyle } from './lib/map/style';
 	import { whyNotRenderable } from './lib/map/tile-format';
 	import {
 		forgetRecent,
@@ -449,7 +449,13 @@
 		const recipe = styleRecipe.current;
 		const source = lastPreview;
 		if (!recipe || !source || !serverUrl) return null;
-		const rendered = renderStyle(recipe, [{ name: source.name, tileUrl: source.tileUrl }], serverUrl);
+		const sources = [{ name: source.name, tileUrl: source.tileUrl }];
+
+		// Built from what the tiles have rather than from what a schema expects (S4.4). The probe
+		// already reports each layer's geometry, so nothing extra is read to draw them.
+		if (recipe.preset === 'derived') return deriveStyle(source.layers, sources, serverUrl);
+
+		const rendered = renderStyle(recipe, sources, serverUrl);
 		return rendered && drawsAnything(rendered, mountedLayers) ? rendered : null;
 	});
 

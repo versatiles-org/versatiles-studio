@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { drawsAnything, renderStyle } from './style';
+import { deriveStyle, drawsAnything, renderStyle } from './style';
 import type { Recipe } from '../ipc/commands';
 
 const BASE = 'http://127.0.0.1:8080';
@@ -115,5 +115,77 @@ describe('drawsAnything', () => {
 
 	it('needs only one layer in common to be worth drawing', () => {
 		expect(drawsAnything(style, ['nothing_like_it', 'water_polygons'])).toBe(true);
+	});
+});
+
+describe('deriveStyle', () => {
+	// Deliberately not Shortbread names — `buildings` is one, which is the whole difficulty this
+	// function exists for: a container that shares a name or two with the schema still gets a nearly
+	// empty map from a preset.
+	const LAYERS = [
+		{ name: 'roads', geometry: 'line' },
+		{ name: 'parcels', geometry: 'polygon' },
+		{ name: 'sensors', geometry: 'point' },
+		{ name: 'mystery', geometry: 'unknown' }
+	];
+
+	const style = deriveStyle(LAYERS, SOURCES, BASE)!;
+
+	it('draws every layer the tiles have', () => {
+		const drawn = new Set(style.layers.map((l) => ('source-layer' in l ? l['source-layer'] : null)));
+		for (const layer of LAYERS) expect(drawn).toContain(layer.name);
+	});
+
+	// The whole point: a preset over these tiles draws nothing, and this draws all of them.
+	it('is what a preset cannot be for tiles it was not written for', () => {
+		expect(
+			drawsAnything(
+				style,
+				LAYERS.map((l) => l.name)
+			)
+		).toBe(true);
+		expect(
+			drawsAnything(
+				renderStyle(recipe(), SOURCES, BASE)!,
+				LAYERS.map((l) => l.name)
+			)
+		).toBe(false);
+	});
+
+	it('draws each geometry as something that can show it', () => {
+		const kinds = (name: string) =>
+			style.layers.filter((l) => 'source-layer' in l && l['source-layer'] === name).map((l) => l.type);
+		expect(kinds('parcels')).toEqual(['fill', 'line']);
+		expect(kinds('sensors')).toEqual(['circle']);
+		expect(kinds('roads')).toEqual(['line']);
+		// An unnamed geometry gets the guess that hides the least.
+		expect(kinds('mystery')).toEqual(['line']);
+	});
+
+	// A layer of building footprints drawn over the roads hides them, which is the map this exists
+	// to rescue you from.
+	it('puts polygons under lines under points', () => {
+		const at = (name: string) => style.layers.findIndex((l) => 'source-layer' in l && l['source-layer'] === name);
+		expect(at('parcels')).toBeLessThan(at('roads'));
+		expect(at('roads')).toBeLessThan(at('sensors'));
+	});
+
+	it('gives a layer the same colour every time and its neighbour a different one', () => {
+		const again = deriveStyle(LAYERS, SOURCES, BASE)!;
+		expect(JSON.stringify(again.layers)).toEqual(JSON.stringify(style.layers));
+
+		const colours = new Set(
+			style.layers.map((l) => JSON.stringify(Object.values(('paint' in l ? l.paint : {}) ?? {})[0]))
+		);
+		expect(colours.size).toBeGreaterThan(2);
+	});
+
+	it('routes its tiles through the queue, like every other pipeline tile', () => {
+		expect(JSON.stringify(style.sources)).toContain('studio://');
+	});
+
+	it('has nothing to derive from nothing', () => {
+		expect(deriveStyle([], SOURCES, BASE)).toBeNull();
+		expect(deriveStyle(LAYERS, [], BASE)).toBeNull();
 	});
 });

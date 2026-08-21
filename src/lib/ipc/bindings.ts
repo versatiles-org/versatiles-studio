@@ -726,6 +726,15 @@ export type LayerInspection = {
 	encodedBytes: number,
 	/**  Property keys present, for a first look at what is styleable. */
 	propertyKeys: string[],
+	/**
+	 *  What this layer is made of: `point`, `line`, `polygon`, or `unknown` (S4.4, D2).
+	 * 
+	 *  **The commonest of its features, not all of them.** A layer may mix geometries and MapLibre
+	 *  draws one kind per layer, so a style deriving itself from this has to pick — and the majority
+	 *  is the pick that leaves the fewest features invisible. Free to compute: the type is a field on
+	 *  every feature, already read by the time the tile has decoded.
+	 */
+	geometry: string,
 };
 
 /**

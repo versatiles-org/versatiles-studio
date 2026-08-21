@@ -19,7 +19,11 @@
 		{ id: 'neutrino', label: 'Neutrino', note: 'minimal, few layers' },
 		{ id: 'shadow', label: 'Shadow', note: 'dark' },
 		{ id: 'eclipse', label: 'Eclipse', note: 'dark, high contrast' },
-		{ id: 'satellite', label: 'Satellite', note: 'for imagery underneath' }
+		{ id: 'satellite', label: 'Satellite', note: 'for imagery underneath' },
+		// Not one of `@versatiles/style`'s six. The others know what `water_polygons` means; this one
+		// knows only what the tiles turn out to contain, which is the only thing that works when they
+		// are not Shortbread (S4.4, D2).
+		{ id: 'derived', label: 'From the data', note: 'every layer these tiles actually have' }
 	];
 
 	/// Each slider's range and the value that means "unchanged".
