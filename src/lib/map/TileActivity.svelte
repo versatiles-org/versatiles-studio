@@ -59,11 +59,7 @@
 					'symbol-placement': 'point'
 				},
 				paint: {
-					// `--ink` rather than black: the same near-black in the light theme, and readable
-					// in the dark one, where a literal `#000` disappears into the tiles.
-					'text-color': token('--ink'),
-					'text-halo-color': token('--map-grid-halo'),
-					'text-halo-width': 1,
+					'text-color': '#000000',
 					'text-opacity': ['case', ['==', ['get', 'state'], 'rendering'], 0.8, 0.5]
 				}
 			});
