@@ -393,6 +393,24 @@
 		color: var(--vpl-value);
 	}
 
+	/* At the right edge, where the parameter rows put theirs — those sit in a grid column of their
+	   own, so the two ×s do the same job one level apart and now read the same way. `margin-left`
+	   rather than a spacer, so it lands last whatever precedes it: a `?` when the operation has
+	   documentation, the name when it does not.
+	   
+	   It had no rule at all before, which is also why it wore the title's colour rather than the
+	   quieter one every other × here has. */
+	.drop {
+		flex: none;
+		margin-left: auto;
+		padding: 0 var(--space-1);
+		color: var(--ink-2);
+
+		&:hover {
+			color: var(--error);
+		}
+	}
+
 	/* The rule between two arguments belongs to neither of them: it is the relationship. Svelte
 	   scopes `.arg` per component, so reaching the child's class is the only way to say it. */
 
