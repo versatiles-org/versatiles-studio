@@ -98,3 +98,25 @@ export const selectionSurvives = (
 	fromGraph: number | null,
 	next: { graph: number; pipeline: VplPipeline }
 ): boolean => selected !== null && next.graph === fromGraph && nodeAtPath(next.pipeline, selected) !== null;
+
+/**
+ * Whether a node's output reaches what the map is showing (C3).
+ *
+ * **The same rule `preview::up_to` walks**, in the webview, so the chain can draw it. Pinning a node
+ * previews the pipeline *up to and including* it — and pinning one inside a `[ … ]` block previews
+ * that block's chain, not the pipeline consuming it. So a node feeds the preview when it sits in the
+ * pinned node's own chain at or before it, or anywhere inside such a node.
+ *
+ * With nothing pinned the map draws the whole graph, so everything feeds it.
+ */
+export function feedsPreview(path: number[], pinned: number[] | null): boolean {
+	if (!pinned) return true;
+	// A path alternates node index and source index, so the last element is always a node's position
+	// in its chain and everything before it names the chain.
+	const chain = pinned.slice(0, -1);
+	if (path.length < pinned.length) return false;
+	if (!chain.every((step, index) => path[index] === step)) return false;
+	// At or before the pin in that chain — and anything deeper than such a node is inside it, which
+	// is how it got its own output.
+	return path[chain.length] <= pinned[pinned.length - 1];
+}

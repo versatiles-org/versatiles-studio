@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Fit, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
-	import { walk, samePath, isChainHead } from '../../vpl/node-at';
+	import { walk, samePath, isChainHead, feedsPreview } from '../../vpl/node-at';
 	import NodeCard from './NodeCard.svelte';
 	import Picker from '../../common/Picker.svelte';
 
@@ -11,17 +11,15 @@
 	//
 	// **`＋ operation…` lives on the rail, outside the nodes** ([Q32]). `＋ parameter…` inside a node
 	// acts on the node; this acts on the chain, and drawing it where an insertion actually goes
-	// means the two never have to be told apart by weight or colour. Only the selected node's rail
-	// carries it, so a ten-node chain still shows nine plain connectors.
+	// means the two never have to be told apart by weight or colour. Every rail carries one — it
+	// used to be only the selected node's, which is a distinction the chain no longer makes.
 	let {
 		pipeline,
-		selected,
 		pinned,
 		operations = [],
 		properties = [],
 		fits = [],
 		suggestions = {},
-		onSelect,
 		onPin,
 		onCommit,
 		onRemove,
@@ -30,7 +28,6 @@
 		onAddOperation
 	}: {
 		pipeline: VplPipeline;
-		selected: number[] | null;
 		/** The pinned node's path, when the pin is in *this* graph. */
 		pinned: number[] | null;
 		operations?: OperationInfo[];
@@ -44,16 +41,19 @@
 		 */
 		fits?: Fit[];
 		suggestions?: Record<string, string[]>;
-		onSelect: (path: number[], span: Span) => void;
 		onPin: (path: number[]) => void;
 		onCommit: (span: Span, value: string) => void;
 		onRemove: (span: Span) => void;
-		onSet: (key: string, values: string[]) => void;
+		onSet: (span: Span, key: string, values: string[]) => void;
 		onRemoveNode: (span: Span) => void;
 		onAddOperation: (afterNameSpan: Span, operation: string) => void;
 	} = $props();
 
 	const rows = $derived(walk(pipeline));
+
+	/// Which rows reach what the map is showing. The pin decides, so this is the chain drawing the
+	/// same answer `preview::up_to` computes (C3).
+	const active = $derived(rows.map((row) => feedsPreview(row.path, pinned)));
 
 	/// Only transforms. A read node belongs at the head and gets there by adding a source (Q14);
 	/// offering one here would produce a document that parses and is then immediately marked wrong.
@@ -98,18 +98,18 @@
 
 <div class="chain">
 	{#each rows as row, index (row.path.join('.'))}
-		{@const isSelected = samePath(selected, row.path)}
-		<div class="row" style:--depth={row.depth}>
+		<!-- `suggestions` reach only the node they were worked out for: they are fetched for one path
+		     (S3.4), and handing them to every node would offer one file's columns for another file's
+		     node — the exact thing that data is documented as avoiding. -->
+		<div class="row" class:inactive={!active[index]} style:--depth={row.depth}>
 			<NodeCard
 				node={row.node}
 				path={row.path}
-				selected={isSelected}
 				pinned={samePath(pinned, row.path)}
 				isHead={isChainHead(row.path)}
 				{operations}
 				{properties}
-				{suggestions}
-				{onSelect}
+				suggestions={samePath(selected, row.path) ? suggestions : {}}
 				{onPin}
 				{onCommit}
 				{onRemove}
@@ -118,11 +118,14 @@
 			/>
 		</div>
 
-		{#if index < rows.length - 1 || isSelected}
-			<div class="rail" style:--depth={row.depth} class:offering={isSelected}>
+		{#if index < rows.length - 1 || transforms.length > 0}
+			<!-- A connection is live when the node it arrives at is, because that is what makes it a
+			     connection. The last rail arrives nowhere — it is the invitation to add an operation,
+			     not a pipe carrying anything — so it is never live. `active[index + 1]` is `undefined`
+			     there, which is exactly the answer. -->
+			<div class="rail" class:inactive={!active[index + 1]} style:--depth={row.depth}>
 				<span class="stem" aria-hidden="true"></span>
-				{#if isSelected && transforms.length > 0}
-					<span class="elbow" aria-hidden="true"></span>
+				{#if transforms.length > 0}
 					<Picker
 						label="＋ operation…"
 						placeholder="Filter operations…"
@@ -157,15 +160,23 @@
 		min-height: 0.7rem;
 		padding-left: calc(var(--depth) * var(--space-4));
 
-		&.offering {
-			min-height: 1.5rem;
-		}
+		/* One height, always. It used to grow only for the selected node's rail, which meant every
+		   click moved the rest of the chain — the same restlessness the folding had. */
+		min-height: 1.5rem;
 	}
 
 	/* **The pipe, and the node's outline, are one object.** Same colour and same width, so a chain
 	   reads as something joined rather than as cards stacked near a hairline — which is what it
 	   looked like when this was 1px of `--rule` and the nodes were bordered in the same grey as
 	   every other separator in the pane. */
+	/* **Only the part that reaches the map is the accent.** The eye decides what is previewed, and
+	   everything downstream of it is not being drawn — so it says so, in the colour a separator has
+	   rather than the one the pipeline has. Without this the whole chain claimed to be live while
+	   half of it was not running at all. */
+	.inactive {
+		--pipe: var(--rule);
+	}
+
 	.stem {
 		width: var(--pipe-width);
 		/* Half its own width back from the middle, so the line is centred rather than starting
@@ -173,19 +184,6 @@
 		margin-left: calc(50% - var(--pipe-width) / 2);
 		align-self: stretch;
 		background: var(--pipe);
-		flex: none;
-	}
-
-	/* The elbow is what says "this hangs off the chain" rather than "this is part of the node". */
-	.elbow {
-		width: var(--space-4);
-		height: 0.55rem;
-		border-left: var(--pipe-width) solid var(--pipe);
-		border-bottom: var(--pipe-width) solid var(--pipe);
-		border-bottom-left-radius: 4px;
-		margin-top: -0.55rem;
-		/* Back by its own border, so the corner meets the stem instead of sitting beside it. */
-		margin-left: calc(var(--pipe-width) * -1);
 		flex: none;
 	}
 </style>

@@ -31,9 +31,13 @@
 	--ink-2: #66716f; /* secondary text, labels, disabled */
 	--rule: #d6dcda; /* borders and separators */
 	/* The pipeline's plumbing: the line between nodes *and* the outline of a node, so a chain reads
-	   as one continuous thing rather than as a stack of cards near a hairline. Two steps darker than
-	   --rule, because a separator should recede and a pipe should not. */
-	--pipe: #a9b5b2;
+	   as one continuous thing rather than as a stack of cards near a hairline.
+	   
+	   The accent, and deliberately: the pipeline is the thing this pane is for, and it used to spend
+	   the accent on *which node was selected* instead. Now that every node carries its own form
+	   there is nothing to single out, so the emphasis goes to the chain itself. An alias rather than
+	   a copy, so it follows the accent into the dark theme without a second value to keep in step. */
+	--pipe: var(--accent);
 	--surface: #fbfcfb; /* panels and cards that sit above the chrome */
 	--chrome: #f2f4f3; /* application background, inset wells */
 	--accent: #0e7c7b; /* focus, selection, the one emphatic colour */
@@ -130,7 +134,6 @@
 		--ink: #e4eae8;
 		--ink-2: #97a5a1;
 		--rule: #2c3836;
-		--pipe: #4a5c58;
 		--surface: #19211f;
 		--chrome: #121917;
 		--accent: #35b3a4;

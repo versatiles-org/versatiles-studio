@@ -6,26 +6,27 @@
 
 	// One node in the chain (S2.13, [Q32]).
 	//
-	// **The selected node is the form.** It shows one row per argument; every other node is only its
-	// name. Six operations then fit in the height four used to take, which is what makes a
-	// ten-node chain workable in a sidebar — and it is why there is no Parameters pane any more.
+	// **A node is its form.** One row per argument, and the arguments are the node — which is why
+	// there is no Parameters pane any more ([Q32]).
 	//
-	// **The head node is the exception** and keeps its filename: a graph reading `osm.versatiles` is
-	// a different thing from one reading `berlin.mbtiles`, and that is worth a line. No other node
-	// earns one.
+	// **Nothing folds.** Every node shows its parameters, whether it is selected or not. The rule used
+	// to be that only the selected node did — six operations in the height four took — but the cost
+	// was that clicking down a chain made every node in it change height, and a list that reshuffles
+	// under the pointer is harder to read than a long one. The pane scrolls; that is what it is for.
+	//
+	// What still follows the selection is *adding*: `＋ parameter…` and the row for a parameter being
+	// typed belong to the node being worked on, and one per node would be a column of invitations.
 	//
 	// Nothing here is written per operation. The controls come from `field_meta` by way of the core,
 	// so an operation added upstream gets a working form with no change in Studio (C2).
 	let {
 		node,
 		path,
-		selected,
 		pinned,
 		isHead,
 		operations = [],
 		properties = [],
 		suggestions = {},
-		onSelect,
 		onPin,
 		onCommit,
 		onRemove,
@@ -34,7 +35,6 @@
 	}: {
 		node: VplNode;
 		path: number[];
-		selected: boolean;
 		/** Whether the map is showing *this* node. Independent of selection ([Q32]). */
 		pinned: boolean;
 		/** Whether this is the node the chain starts with — the one node with no `×`, because a
@@ -46,11 +46,17 @@
 		properties?: string[];
 		/** Per-field values read from what the node points at — a CSV's own columns (S3.4). */
 		suggestions?: Record<string, string[]>;
-		onSelect: (path: number[], span: Span) => void;
 		onPin: (path: number[]) => void;
 		onCommit: (span: Span, value: string) => void;
 		onRemove: (span: Span) => void;
-		onSet: (key: string, values: string[]) => void;
+		/**
+		 * Sets a parameter on **this** node.
+		 *
+		 * The node's own span goes with it. Before every node showed its parameters, this could be
+		 * bound to the selected node's span and be right by construction; now that any node's form
+		 * can be typed into, being right by construction means saying which node.
+		 */
+		onSet: (span: Span, key: string, values: string[]) => void;
 		onRemoveNode: (span: Span) => void;
 	} = $props();
 
@@ -76,19 +82,8 @@
 	/// produces VPL that parses and then fails when the pipeline builds.
 	function commitRequired(key: string, raw: string) {
 		const value = raw.trim();
-		if (value) onSet(key, control(key)?.kind === 'list' ? parts(value) : [value]);
+		if (value) onSet(node.nameSpan, key, control(key)?.kind === 'list' ? parts(value) : [value]);
 	}
-
-	/// What a collapsed read node shows. The most identifying value it has, and nothing else.
-	///
-	/// Keyed on the node being a `from_*`, not on it being the head: a `from_stacked [ a, b ]` puts
-	/// two read nodes on screen, and without their filenames both rows read `from_container` and
-	/// cannot be told apart. Being undeletable is a different question, and `isHead` answers it.
-	const headline = $derived.by(() => {
-		if (!node.name.startsWith('from_')) return null;
-		const value = node.properties.find((property) => property.key === 'filename')?.value;
-		return value?.kind === 'single' ? value.value : null;
-	});
 
 	function text(property: VplProperty): string {
 		return property.value.kind === 'single'
@@ -112,7 +107,7 @@
 		const control = fieldOf(property.key)?.control;
 		if (raw.trim() === '') onRemove(property.span);
 		else if (control?.kind === 'list' || control?.kind === 'numbers' || isArray(property)) {
-			onSet(property.key, parts(raw));
+			onSet(node.nameSpan, property.key, parts(raw));
 		} else onCommit(property.value.span, raw);
 	}
 
@@ -180,8 +175,8 @@
 	/// Everything else needs typing, and until it is typed there is nothing worth recording.
 	function addParameter(key: string) {
 		const control = fieldOf(key)?.control;
-		if (control?.kind === 'boolean') onSet(key, ['true']);
-		else if (control?.kind === 'choice' && control.options.length > 0) onSet(key, [control.options[0]]);
+		if (control?.kind === 'boolean') onSet(node.nameSpan, key, ['true']);
+		else if (control?.kind === 'choice' && control.options.length > 0) onSet(node.nameSpan, key, [control.options[0]]);
 		else pending = key;
 	}
 
@@ -191,13 +186,13 @@
 		pending = null;
 		if (!key) return;
 		const value = raw.trim();
-		if (value) onSet(key, control(key)?.kind === 'list' ? parts(value) : [value]);
+		if (value) onSet(node.nameSpan, key, control(key)?.kind === 'list' ? parts(value) : [value]);
 	}
 
 	const control = (key: string) => fieldOf(key)?.control;
 </script>
 
-<div class="node" class:selected>
+<div class="node">
 	<div class="title">
 		<button
 			type="button"
@@ -223,27 +218,20 @@
 			</svg>
 		</button>
 
-		<button
-			type="button"
-			class="nm truncate"
-			title={meta?.summary || node.name}
-			onclick={() => onSelect(path, node.nameSpan)}
-		>
-			{node.name}
-		</button>
+		<!-- A name, not a control. Clicking a node used to select it, and selection used to decide
+		     which node showed its form; now every node shows one and there is nothing left for the
+		     click to do. A button that does nothing still says it does something — the cursor, the
+		     focus ring, the press — so it stops being one. -->
+		<span class="nm truncate" title={meta?.summary || node.name}>{node.name}</span>
 
-		{#if selected && meta}
+		{#if meta}
 			<!-- The operation's own help. A `?` rather than the name, because the name's click is
 			     already selection — and hovering names would flash a popover per node while scanning a
 			     chain ([Q33]). -->
 			<HelpTrigger content={operationHelp(meta)} />
 		{/if}
 
-		{#if !selected && headline}
-			<span class="headline truncate" title={headline}>{headline}</span>
-		{/if}
-
-		{#if selected && !isHead}
+		{#if !isHead}
 			<button
 				type="button"
 				class="drop"
@@ -256,74 +244,72 @@
 		{/if}
 	</div>
 
-	{#if selected}
-		<dl class="args">
-			<!-- Set parameters. A required one has no ×: you cannot remove what must exist, which is
+	<dl class="args">
+		<!-- Set parameters. A required one has no ×: you cannot remove what must exist, which is
 			     how that rule is said ([Q33]) — the same way the head node has no ×. -->
-			{#each node.properties as property (property.keySpan.start)}
-				{@const field = fieldOf(property.key)}
-				<NodeArgument
-					name={property.key}
-					{field}
-					value={text(property)}
-					help={field ? contentFor(property.key, field) : undefined}
-					suggestions={options(property.key, field?.control)}
-					onCommit={(raw) => commit(property, raw)}
-					onRemove={field?.required ? undefined : () => onRemove(property.span)}
-				/>
-			{/each}
+		{#each node.properties as property (property.keySpan.start)}
+			{@const field = fieldOf(property.key)}
+			<NodeArgument
+				name={property.key}
+				{field}
+				value={text(property)}
+				help={field ? contentFor(property.key, field) : undefined}
+				suggestions={options(property.key, field?.control)}
+				onCommit={(raw) => commit(property, raw)}
+				onRemove={field?.required ? undefined : () => onRemove(property.span)}
+			/>
+		{/each}
 
-			<!-- Required and not yet set. Always shown, so "required" needs no symbol: the field is
+		<!-- Required and not yet set. Always shown, so "required" needs no symbol: the field is
 			     simply there, and empty ([Q33]). -->
-			{#each missing as field (field.name)}
-				<NodeArgument
-					name={field.name}
-					{field}
-					value=""
-					help={contentFor(field.name, field)}
-					suggestions={options(field.name, field.control)}
-					placeholder="needs a value"
-					onCommit={(raw) => commitRequired(field.name, raw)}
-				/>
-			{/each}
+		{#each missing as field (field.name)}
+			<NodeArgument
+				name={field.name}
+				{field}
+				value=""
+				help={contentFor(field.name, field)}
+				suggestions={options(field.name, field.control)}
+				placeholder="needs a value"
+				onCommit={(raw) => commitRequired(field.name, raw)}
+			/>
+		{/each}
 
-			<!-- Chosen from ＋ parameter… and not yet given a value. Real in the pane and unknown to
+		<!-- Chosen from ＋ parameter… and not yet given a value. Real in the pane and unknown to
 			     the document until there is something to record: `filename=''` parses and then fails
 			     when the pipeline is built. -->
-			{#if pending}
-				{@const field = fieldOf(pending)}
-				<NodeArgument
-					name={pending}
-					{field}
-					value=""
-					help={field ? contentFor(pending, field) : undefined}
-					suggestions={options(pending, field?.control)}
-					placeholder="a value"
-					tentative
-					onCommit={commitPending}
-					onRemove={() => (pending = null)}
-					removeLabel="Cancel"
-				/>
-			{/if}
+		{#if pending}
+			{@const field = fieldOf(pending)}
+			<NodeArgument
+				name={pending}
+				{field}
+				value=""
+				help={field ? contentFor(pending, field) : undefined}
+				suggestions={options(pending, field?.control)}
+				placeholder="a value"
+				tentative
+				onCommit={commitPending}
+				onRemove={() => (pending = null)}
+				removeLabel="Cancel"
+			/>
+		{/if}
 
-			{#if addable.length > 0}
-				<div class="add">
-					<!-- The documentation was a `title` the platform showed at its own discretion, and
+		{#if addable.length > 0}
+			<div class="add">
+				<!-- The documentation was a `title` the platform showed at its own discretion, and
 					     for a parameter list that is where the difference between two similarly named
 					     fields lives. Here it is a line under the name. -->
-					<Picker
-						label="＋ parameter…"
-						placeholder="Filter parameters…"
-						items={addable.map((field) => ({
-							value: field.name,
-							description: field.doc
-						}))}
-						onPick={addParameter}
-					/>
-				</div>
-			{/if}
-		</dl>
-	{/if}
+				<Picker
+					label="＋ parameter…"
+					placeholder="Filter parameters…"
+					items={addable.map((field) => ({
+						value: field.name,
+						description: field.doc
+					}))}
+					onPick={addParameter}
+				/>
+			</div>
+		{/if}
+	</dl>
 </div>
 
 <style>
@@ -337,23 +323,14 @@
 		border: var(--pipe-width) solid var(--pipe);
 		border-radius: var(--radius);
 		background: var(--surface);
-
-		&.selected {
-			/* Colour, not weight. The ring that used to sit here existed to make a 1px border read as
-			   selected; now that the outline is the pipe's own width, adding to it would make the
-			   selected node 3px against everything else's 2px — a bulge in a line that is supposed to
-			   run straight through. */
-			border-color: var(--accent);
-
-			.title {
-				background: var(--chrome);
-				border-bottom: 1px solid var(--rule);
-				border-radius: var(--radius) var(--radius) 0 0;
-			}
-		}
 	}
 
+	/* The header sits on its own ground, above the arguments. This used to belong to the selected
+	   node, because it was the only one that had arguments under it to be separated from. */
 	.title {
+		background: var(--chrome);
+		border-bottom: 1px solid var(--rule);
+		border-radius: var(--radius) var(--radius) 0 0;
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
@@ -388,15 +365,6 @@
 	}
 
 	/* Only the head node has one, and only when collapsed. */
-	.headline {
-		flex: 1;
-		min-width: 0;
-		text-align: left;
-		direction: rtl;
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		color: var(--vpl-value);
-	}
 
 	/* At the right edge, where the parameter rows put theirs — those sit in a grid column of their
 	   own, so the two ×s do the same job one level apart and now read the same way. `margin-left`

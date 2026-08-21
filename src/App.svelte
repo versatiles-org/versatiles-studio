@@ -268,7 +268,6 @@
 
 	/// Shows another graph's chain. The pin does not move: the map is a separate question ([Q32]).
 	async function selectGraph(id: number) {
-		selected = null;
 		const found = await getGraph(id);
 		if (!found) return;
 		pipeline = found;
@@ -337,7 +336,6 @@
 			if (id === currentGraph) {
 				// Show the first remaining graph, or nothing at all when that was the last one.
 				const next = graphs[0]?.id ?? null;
-				selected = null;
 				pipeline = next === null ? null : ((await getGraph(next)) ?? null);
 				pipelineRevision += 1;
 			}
@@ -593,7 +591,6 @@
 		// A path taken from one graph does not name anything in another, and undo may hand back a
 		// graph other than the one on screen ([Q32]). The selection goes with it, exactly as it does
 		// when a graph is chosen from the list.
-		if (!selectionSurvives(selected, currentGraph, next)) selected = null;
 		pipeline = next;
 		pipelineRevision += 1;
 		// The list shows the name, the pin and the unsaved dot — the last of which changes on every
@@ -603,29 +600,22 @@
 		await refreshPreview();
 	}
 
-	/// Adds a transform after the node whose name occupies `span`, and selects what it added.
+	/// Adds a transform after the node whose name occupies `span`.
 	///
-	/// Selecting it is the point, for the same reason an import selects its node ([Q29]): the next
-	/// thing to do is set its parameters, and after [Q32] the node *is* the form — an unselected one
-	/// shows only its name, so the form would be one unmarked click away.
+	/// It used to select what it added, so the new node's form was showing — every node shows one
+	/// now, so the insertion is the whole of the work.
 	async function addOperation(afterNameSpan: Span, operation: string) {
 		if (!pipeline) return;
-		const at = nodeAt(pipeline.pipeline, afterNameSpan.start)?.path;
 		try {
 			await applyDocument(
 				await setPipelineText(await vplInsertNode(pipeline.text, afterNameSpan, operation), 'structured')
 			);
-			if (at) {
-				const next = [...at];
-				next[next.length - 1] += 1;
-				selected = next;
-			}
 		} catch (e) {
 			fail(e);
 		}
 	}
 
-	/// Removes a node. The selection is dropped: what was selected is gone.
+	/// Removes a node.
 	///
 	/// Dropped here rather than left to `applyDocument`, which keeps a selection whose path still
 	/// resolves: removing the middle of a three-node chain leaves `[1]` naming whatever moved up
@@ -634,7 +624,6 @@
 		if (!pipeline) return;
 		try {
 			const next = await setPipelineText(await vplRemoveNode(pipeline.text, span), 'structured');
-			selected = null;
 			await applyDocument(next);
 		} catch (e) {
 			fail(e);
@@ -697,7 +686,6 @@
 	async function load(source: string) {
 		// A remote container reads its index over the network, so this is not always instant.
 		status = { kind: 'busy', message: `Opening ${filename(source)}…` };
-		selected = null;
 		try {
 			const kind = await importKindFor(source);
 			if (kind === null) {
@@ -722,12 +710,6 @@
 			} else {
 				pipeline = await setPipelineText(await importReadNode(kind.id, source), 'replaced', source);
 				pipelineRevision += 1;
-				// Selected, so the form for it is showing. Importing *is* configuring: `from_geo`
-				// takes a zoom range, simplification and property filters, and the generated form
-				// is where those are set — [ui.md](../docs/ui.md) settled that there is no import
-				// surface of its own. Landing on an unselected node would mean the one thing an
-				// import needs next is one click away and unmarked.
-				selected = [0];
 				// Whether the node is complete is the *document's* answer, not the kind's. A CSV
 				// whose header named its coordinate columns arrives with them already set (S3.4),
 				// so asking the kind — which needs them for every CSV — would tell someone to fill
@@ -791,7 +773,6 @@
 			{graphs}
 			{pipeline}
 			{pipelineRevision}
-			{selected}
 			properties={producedProperties}
 			fits={lastPreview?.fits ?? []}
 			{suggestions}
@@ -803,12 +784,6 @@
 				addSource: (kind) => void pick(kind)
 			}}
 			nodeActions={{
-				// No preview refresh: since [Q32] the map follows the *pin*, not the selection, so
-				// rebuilding here would produce the identical tiles. It used to, when the two were
-				// the same thing.
-				select: (path) => {
-					selected = path;
-				},
 				pin: (path) => void pin(path),
 				addOperation: (afterNameSpan, operation) => void addOperation(afterNameSpan, operation),
 				remove: (span) => void removeNode(span),

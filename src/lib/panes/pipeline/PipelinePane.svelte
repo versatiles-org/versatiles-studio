@@ -2,7 +2,7 @@
 	import VplEditor from './VplEditor.svelte';
 	import NodeChain from './NodeChain.svelte';
 	import GraphList from './GraphList.svelte';
-	import { nodeAt, nodeAtPath, samePath } from '../../vpl/node-at';
+	import { nodeAt, samePath } from '../../vpl/node-at';
 	import {
 		vplReview,
 		type VplToken,
@@ -37,7 +37,6 @@
 		pinned = null,
 		pipeline,
 		pipelineRevision,
-		selected,
 		graphActions,
 		nodeActions,
 		documentActions
@@ -48,7 +47,7 @@
 		operations?: OperationInfo[];
 		/** Property names the pipeline produces, for list fields (S3.3). */
 		properties?: string[];
-		/** What can be appended to the selected node's output (S2.14). */
+		/** What can be appended to what the map is showing (S2.14). */
 		fits?: Fit[];
 		/** Per-field values read from what a node points at (S3.4). */
 		suggestions?: Record<string, string[]>;
@@ -61,10 +60,6 @@
 		/** Bumped only when the document changes from *outside* the editor. Keying the editor on the
 		 *  text itself would remount it on its own edits and throw the caret away. */
 		pipelineRevision: number;
-		/** Path of the selected node. Lifted into the application because one selection drives two
-		 *  views — the chain and the text caret ([Q15]) — and because inserting or removing a node
-		 *  has to move it. Since [Q32] the node itself is the form, so nothing downstream reads it. */
-		selected: number[] | null;
 
 		// Grouped by what they act on rather than passed one by one. Most of these this file never
 		// calls — it receives them and hands them to `GraphList` or `Chain` — and fourteen loose
@@ -80,7 +75,6 @@
 		};
 		/** Acting on a node or one of its arguments. */
 		nodeActions: {
-			select: (path: number[] | null) => void;
 			/** Moves the map to this node, or clears the pin when it is already there. */
 			pin: (path: number[]) => void;
 			/** Inserts a transform after the node whose name occupies `span`. */
@@ -108,19 +102,9 @@
 	/// way through choosing is not worth remembering across a reload.
 	let adding = $state(false);
 
-	/// The selected node's name span, which is how a property edit addresses its node.
-	const selectedSpan = $derived(
-		selected && pipeline ? (nodeAtPath(pipeline.pipeline, selected)?.nameSpan ?? null) : null
-	);
-
-	/** Where the caret should go when the VPL tab opens. Cleared once the editor has used it. */
-	let reveal = $state<Span | null>(null);
-
-	/** Selecting a node in either view selects it in the other (Q15). */
-	function selectNode(path: number[], span: Span) {
-		nodeActions.select(path);
-		reveal = span;
-	}
+	// **The graph no longer moves the caret.** [Q15](../../../docs/decisions.md) had selection
+	// running both ways between the tabs; a node is not clickable any more, so only the text side is
+	// left — the caret still follows into the graph, and `caretMoved` is what does it.
 
 	/** The caret moved in the text; follow it in the graph, but do not fight the editor's own
 	 *  selection by pushing one back at it. */
@@ -245,7 +229,6 @@
 				initialText={pipeline?.text ?? ''}
 				{tokens}
 				{problems}
-				selection={reveal}
 				onInput={(next) => void type(next)}
 				onCaret={caretMoved}
 			/>
@@ -261,17 +244,15 @@
 	{:else}
 		<NodeChain
 			pipeline={pipeline.pipeline}
-			{selected}
 			{pinned}
 			{operations}
 			{properties}
 			{fits}
 			{suggestions}
-			onSelect={selectNode}
 			onPin={nodeActions.pin}
 			onCommit={nodeActions.commitValue}
 			onRemove={nodeActions.removeProperty}
-			onSet={(key, values) => selectedSpan && nodeActions.setProperty(selectedSpan, key, values)}
+			onSet={(span, key, values) => nodeActions.setProperty(span, key, values)}
 			onRemoveNode={nodeActions.remove}
 			onAddOperation={nodeActions.addOperation}
 		/>

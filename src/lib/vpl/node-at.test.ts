@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isChainHead, nodeAt, nodeAtPath, samePath, selectionSurvives, walk } from './node-at';
+import { feedsPreview, isChainHead, nodeAt, nodeAtPath, samePath, selectionSurvives, walk } from './node-at';
 import type { VplNode, VplPipeline } from '../ipc/commands';
 
 /** A minimal node, positioned. Only the fields these functions read. */
@@ -129,5 +129,37 @@ describe('selectionSurvives', () => {
 
 	it('is trivially lost when nothing was selected', () => {
 		expect(selectionSurvives(null, 7, doc(7, nested))).toBe(false);
+	});
+});
+
+describe('feedsPreview', () => {
+	it('is everything when nothing is pinned — the map draws the whole graph', () => {
+		expect(feedsPreview([0], null)).toBe(true);
+		expect(feedsPreview([4, 1, 2], null)).toBe(true);
+	});
+
+	it('is the pinned node and what comes before it in its chain', () => {
+		expect(feedsPreview([0], [2])).toBe(true);
+		expect(feedsPreview([2], [2])).toBe(true);
+		expect(feedsPreview([3], [2])).toBe(false);
+	});
+
+	it('counts what is nested inside a node that feeds it', () => {
+		// A source chain hanging off node 1 is how node 1 has anything to produce.
+		expect(feedsPreview([1, 0, 0], [2])).toBe(true);
+		// …and one hanging off a node after the pin still does not.
+		expect(feedsPreview([3, 0, 0], [2])).toBe(false);
+	});
+
+	// Pinning inside a block previews *that block's* chain, so the pipeline consuming it is not
+	// part of the answer — which is what `preview::up_to` does, and looks surprising until you
+	// remember that the point of pinning a nested node is to see the data at that step.
+	it('leaves the outer pipeline out when the pin is nested', () => {
+		expect(feedsPreview([1, 0, 0], [1, 0, 1])).toBe(true);
+		expect(feedsPreview([1, 0, 2], [1, 0, 1])).toBe(false);
+		expect(feedsPreview([0], [1, 0, 1])).toBe(false);
+		expect(feedsPreview([1], [1, 0, 1])).toBe(false);
+		// A different source of the same node feeds a different chain.
+		expect(feedsPreview([1, 1, 0], [1, 0, 1])).toBe(false);
 	});
 });
