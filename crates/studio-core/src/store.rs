@@ -199,6 +199,14 @@ pub struct Layout {
 	/// `None` is not the same as a default camera: it means *nothing to restore*, so a first run
 	/// still fits the view to whatever is opened instead of jumping to null island.
 	pub view: Option<Camera>,
+	/// Which mode the bar is on — `map`, or `assets` (G7, [Q22](../../docs/decisions.md)).
+	///
+	/// Owned here because [architecture.md](../../docs/architecture.md) said it would be: a reloaded
+	/// window comes back where it was, and "where it was" includes which surface was open. Held as a
+	/// plain string for the same reason as `background`: the catalogue of modes is a webview concern,
+	/// and a value this build does not recognise falls back to the map rather than to a blank
+	/// window.
+	pub mode: String,
 }
 
 /// Where the map camera is.
@@ -254,6 +262,8 @@ impl Default for Layout {
 			// A background is the user asking for remote data, explicitly.
 			background: "none".to_string(),
 			view: None,
+			// The map, because the other mode is a place you go to fetch something and come back.
+			mode: "map".to_string(),
 		}
 	}
 }

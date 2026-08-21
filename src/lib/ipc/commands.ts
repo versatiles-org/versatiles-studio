@@ -36,6 +36,7 @@ export * from './bindings';
  */
 export type {
 	Bounds,
+	Family,
 	Fit,
 	Estimate,
 	Preset,
@@ -115,6 +116,22 @@ export const exportGraph = (graph: number, target: string, bounds: Bounds = {}) 
  * the export would have failed with, which is the point of asking first.
  */
 export const estimateExport = (graph: number, bounds: Bounds = {}) => unwrap(commands.estimateExport(graph, bounds));
+
+// -- assets ------------------------------------------------------------------------------------
+
+/** Every font family this build offers, and whether it is installed (G7, S4.1). */
+export const fontFamilies = () => unwrap(commands.fontFamilies());
+
+/**
+ * Downloads and mounts a family, returning the job doing it.
+ *
+ * Resolves when the download has *started*: 48 MB is minutes, and what happens to it afterwards
+ * arrives on the jobs channel where the bar can show progress and offer to cancel.
+ */
+export const installFont = (id: string) => unwrap(commands.installFont(id));
+
+/** Removes a family. Reports whether one was there. */
+export const removeFont = (id: string) => unwrap(commands.removeFont(id));
 
 // -- style ------------------------------------------------------------------------------------
 

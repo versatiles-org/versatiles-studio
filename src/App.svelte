@@ -18,6 +18,8 @@
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
 	import StylePane from './lib/panes/style/StylePane.svelte';
+	import ModeBar from './lib/shell/ModeBar.svelte';
+	import AssetManager from './lib/panes/assets/AssetManager.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import { samePath, walk } from './lib/vpl/node-at';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
@@ -166,6 +168,12 @@
 
 	/** A value from an older build is not trusted — the catalogue decides what exists. */
 	const background = $derived<BackgroundId>(isBackgroundId(layout?.background) ? layout.background : 'none');
+
+	/// Which surface is open (Q22, S4.1). Core-owned, so a reloaded window comes back to it.
+	///
+	/// A value this build does not know falls back to the map — the same rule `background` follows,
+	/// and for the same reason: an old layout file must not be able to open a blank window.
+	const mode = $derived(layout?.mode === 'assets' ? 'assets' : 'map');
 	let recents = $state<RecentEntry[]>([]);
 
 	// The landing screen is what an *empty* window shows — it goes away for good once something is
@@ -888,8 +896,16 @@
 	onRightResize={(width, done) => resizePane('right', width, done)}
 	rightPane={empty ? undefined : rightPaneContent}
 >
+	{#snippet modeBar()}
+		<ModeBar {mode} onChange={(next) => layout && void changeLayout({ ...layout, mode: next })} />
+	{/snippet}
 	{#snippet mapPane()}
-		{#if style}
+		<!-- The map keeps running behind the asset manager rather than being torn down: coming back
+		     from installing a font should return to the view you left, and rebuilding a map is the
+		     one thing here that is not instant. -->
+		{#if mode === 'assets'}
+			<AssetManager />
+		{:else if style}
 			<MapCanvas
 				{style}
 				bind:map

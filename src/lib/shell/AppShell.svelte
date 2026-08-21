@@ -22,8 +22,11 @@
 		onRightResize,
 		mapPane,
 		rightPane,
-		statusBar
+		statusBar,
+		modeBar
 	}: {
+		/** The Map · Assets bar, above everything (Q22, S4.1). */
+		modeBar?: Snippet;
 		leftPane?: Snippet;
 		/** CSS pixels. The core clamps it, so this is already in range. */
 		leftWidth?: number;
@@ -45,6 +48,7 @@
 	style:--left-width="{leftWidth}px"
 	style:--right-width="{rightWidth}px"
 >
+	{#if modeBar}<div class="modes">{@render modeBar()}</div>{/if}
 	{#if leftPane}
 		<aside class="left">{@render leftPane()}</aside>
 		<PaneResizer side="left" width={leftWidth} onResize={(w, done) => onLeftResize?.(w, done)} />
@@ -61,30 +65,36 @@
 	.shell {
 		display: grid;
 		grid-template-columns: 1fr;
-		grid-template-rows: 1fr auto;
-		grid-template-areas: 'map' 'status';
+		/* A row for the mode bar above everything. It is `auto`, so with no bar the row collapses to
+		   nothing and the layout is what it was (Q22, S4.1). */
+		grid-template-rows: auto 1fr auto;
+		grid-template-areas: 'modes' 'map' 'status';
 		height: 100vh;
 		color: var(--ink);
 		background: var(--chrome);
 
 		&.has-right {
 			grid-template-columns: 1fr clamp(180px, var(--right-width), 640px);
-			grid-template-areas: 'map right' 'status status';
+			grid-template-areas: 'modes modes' 'map right' 'status status';
 		}
 
 		&.has-left.has-right {
 			grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr clamp(180px, var(--right-width), 640px);
-			grid-template-areas: 'left map right' 'status status status';
+			grid-template-areas: 'modes modes modes' 'left map right' 'status status status';
 		}
 
 		&.has-left {
 			grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr;
-			grid-template-areas: 'left map' 'status status';
+			grid-template-areas: 'modes modes' 'left map' 'status status';
 		}
 	}
 
 	/* `clamp` mirrors the range the core enforces on save (`store::Layout`), which stays the
 	   authority — this only keeps a live drag from overshooting before it is stored. */
+
+	.modes {
+		grid-area: modes;
+	}
 
 	/* Both panes clip; their content scrolls. Keeping the scroll inside the content means a pane can
 	   hold a sticky header or a footer later without the aside fighting it — and it is one rule

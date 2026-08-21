@@ -104,6 +104,8 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `TileActivity` | Tiles the map is still waiting for, shaded and labelled `queued` or `rendering` (S2.16)                            | S2.16      |
 | `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3       |
 | `StylePane`    | Preset and the global adjustments over it (D1) — the layer tree is S4.5                                            | S4.2       |
+| `ModeBar`      | **Map · Assets** — the one bar, arriving with its second occupant ([Q22](decisions.md))                            | S4.1       |
+| `AssetManager` | Font families: size, install, remove. The bundled tier is not listed, being unremovable                            | S4.1       |
 | `LayerTree`    | The rendered style's layers: filter, group, hide, recolour — each change an override in the recipe                 | S4.5       |
 | `ExportDialog` | Format, zoom range and numeric bounds — modal, per graph ([Q32](decisions.md)); carries the cost estimate (C6)     | S3.6, S3.7 |
 
@@ -136,10 +138,8 @@ Named by what they do, not by a component name chosen in advance: `ParamForm`, `
 `TileGridOverlay` all drifted from what shipped, and a planned `FileDrop` never happened at all
 because Tauri's `dragDropEnabled` delivers S1.2 with no component.
 
-| Surface       | What it has to do                                                   | Stage |
-| ------------- | ------------------------------------------------------------------- | ----- |
-| Mode bar      | **Map** vs non-map tools — assets (G7), where D9 and D10 live (Q22) | S4.1  |
-| Asset manager | Font families and sprite sets: install, pin, verify, remove (G7)    | S4.1  |
+| Surface | What it has to do | Stage |
+| ------- | ----------------- | ----- |
 
 | Style export | `style.json`, `@versatiles/style` code, or a bundle (D8) | S4.6 |
 | Crop overlay | Drag a rectangle on the map to crop (F2) — port `BBoxDrawer` | S5.2, S5.4 |

@@ -892,6 +892,16 @@ export type Layout = {
 	 *  still fits the view to whatever is opened instead of jumping to null island.
 	 */
 	view?: Camera | null,
+	/**
+	 *  Which mode the bar is on — `map`, or `assets` (G7, [Q22](../../docs/decisions.md)).
+	 * 
+	 *  Owned here because [architecture.md](../../docs/architecture.md) said it would be: a reloaded
+	 *  window comes back where it was, and "where it was" includes which surface was open. Held as a
+	 *  plain string for the same reason as `background`: the catalogue of modes is a webview concern,
+	 *  and a value this build does not recognise falls back to the map rather than to a blank
+	 *  window.
+	 */
+	mode?: string,
 };
 
 /**  One operation, its parameters, and any nested pipelines feeding it. */
