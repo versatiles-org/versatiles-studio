@@ -8,7 +8,20 @@
 	// It arrives now and not earlier for the reason Q22 gives: with one occupant it would be chrome
 	// that switches between nothing and itself. Font families are its second.
 
-	let { mode, onChange }: { mode: string; onChange: (mode: string) => void } = $props();
+	let {
+		mode,
+		onChange,
+		onOpenProject,
+		onSaveProject
+	}: {
+		mode: string;
+		onChange: (mode: string) => void;
+		/** Opening and saving a *project* (G1, S5.1) — app-level work, so it sits on the app-level
+		 *  bar rather than in a pane, which under [Q31] owns only what it emits. Native menus
+		 *  (S0.1) are where these belong eventually. */
+		onOpenProject: () => void;
+		onSaveProject: () => void;
+	} = $props();
 
 	// **`Map`, not `Map mode`.** The bar is already understood as modes, so the word is redundant —
 	// and the label reads against its sibling: the map is the thing being made, assets are what it
@@ -31,6 +44,10 @@
 			{entry.label}
 		</button>
 	{/each}
+
+	<span class="spacer"></span>
+	<button type="button" class="project" onclick={onOpenProject}>Open project…</button>
+	<button type="button" class="project" onclick={onSaveProject}>Save project…</button>
 </nav>
 
 <style>
@@ -41,6 +58,20 @@
 		padding: var(--space-1) var(--space-2);
 		border-bottom: 1px solid var(--rule);
 		background: var(--chrome);
+	}
+
+	.spacer {
+		flex: 1;
+	}
+
+	.project {
+		padding: var(--space-1) var(--space-2);
+		color: var(--ink-2);
+		font-size: var(--text-sm);
+
+		&:hover {
+			color: var(--ink);
+		}
 	}
 
 	.mode {

@@ -32,6 +32,7 @@
 	import { defaultStyle } from './lib/map/default-style';
 	import { addContainerToMap, removeContainerFromMap } from './lib/map/add-source';
 	import { deriveStyle, drawsAnything, renderStyle } from './lib/map/style';
+	import { forExport } from './lib/map/style-code';
 	import { whyNotRenderable } from './lib/map/tile-format';
 	import {
 		forgetRecent,
@@ -57,6 +58,9 @@
 		recentSources,
 		serverBaseUrl,
 		setLayout,
+		saveProject,
+		openProject,
+		isProject,
 		vplRemoveProperty,
 		vplInsertNode,
 		vplRemoveNode,
@@ -377,6 +381,44 @@
 		const same = pinned && pinned.graph === currentGraph && samePath(pinned.path, path);
 		pinned = await setPin(same ? null : { graph: currentGraph, path });
 		await refreshPreview();
+	}
+
+	/// Writes the project into a directory someone chooses (G1, S5.1).
+	///
+	/// The rendered style goes with it: the core holds the recipe, and `style.json` is for the tools
+	/// that cannot render one ([Q36]).
+	async function saveProjectAs() {
+		try {
+			const dir = await open({ directory: true, title: 'Save project into…' });
+			if (typeof dir !== 'string') return;
+			status = { kind: 'busy', message: 'Saving the project…' };
+			await saveProject(dir, styled ? JSON.stringify(forExport(styled), null, '\t') : null);
+			status = { kind: 'idle' };
+		} catch (e) {
+			fail(e);
+		}
+	}
+
+	/// Opens a project directory, replacing what is open — a window is one project ([Q16]).
+	async function openProjectDir() {
+		try {
+			const dir = await open({ directory: true, title: 'Open project' });
+			if (typeof dir !== 'string') return;
+			if (!(await isProject(dir))) {
+				status = { kind: 'error', message: `${dir} holds no project.yaml` };
+				return;
+			}
+			status = { kind: 'busy', message: 'Opening the project…' };
+			styleRecipe.restored(await openProject(dir));
+			await refreshGraphs();
+			if (graphs.length > 0) pipeline = await getGraph(graphs[0].id);
+			pipelineRevision += 1;
+			await syncContainersToPipeline();
+			await refreshPreview();
+			status = { kind: 'idle' };
+		} catch (e) {
+			fail(e);
+		}
 	}
 
 	async function changeLayout(next: Layout) {
@@ -897,7 +939,12 @@
 	rightPane={empty ? undefined : rightPaneContent}
 >
 	{#snippet modeBar()}
-		<ModeBar {mode} onChange={(next) => layout && void changeLayout({ ...layout, mode: next })} />
+		<ModeBar
+			{mode}
+			onChange={(next) => layout && void changeLayout({ ...layout, mode: next })}
+			onOpenProject={() => void openProjectDir()}
+			onSaveProject={() => void saveProjectAs()}
+		/>
 	{/snippet}
 	{#snippet mapPane()}
 		<!-- The map keeps running behind the asset manager rather than being torn down: coming back

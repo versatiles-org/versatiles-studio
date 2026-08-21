@@ -148,6 +148,34 @@ export const commands = {
 	exportStyle: (path: string, contents: string) => typedError<null, string>(__TAURI_INVOKE("export_style", { path, contents })),
 	/**  What Studio can write a style as — the file dialog's filters come from here. */
 	styleFormats: () => __TAURI_INVOKE<string[]>("style_formats"),
+	/**
+	 *  Writes every graph, the style recipe, and the rendered style.
+	 * 
+	 *  **The rendered style comes from the webview**, for the reason [Q36] gives: the generator is
+	 *  `@versatiles/style` and the core holds the recipe rather than the 125 kB it produces. `None` when
+	 *  there is nothing on the map yet, which is a project saved before it draws anything rather than an
+	 *  error.
+	 * 
+	 *  Saving also moves what relative paths resolve against, because they are now relative to this
+	 *  directory — a `.vpl` reading `berlin.mbtiles` beside it must keep meaning that file.
+	 * 
+	 *  [Q36]: ../../../docs/decisions.md
+	 */
+	saveProject: (dir: string, style: string | null) => typedError<null, string>(__TAURI_INVOKE("save_project", { dir, style })),
+	/**
+	 *  Opens a project directory, replacing everything currently open.
+	 * 
+	 *  **Replacing, not merging.** A window is one project ([Q16]); opening a second one beside the
+	 *  first would leave two sets of graphs sharing an undo stack and a style, which is not a project.
+	 * 
+	 *  Returns the recipe, because the webview has to render the style again — the manifest carries what
+	 *  it is made from, not the style itself.
+	 * 
+	 *  [Q16]: ../../../docs/decisions.md
+	 */
+	openProject: (dir: string) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("open_project", { dir })),
+	/**  Whether a directory holds a project — so the open dialog can say why one does not. */
+	isProject: (dir: string) => __TAURI_INVOKE<boolean>("is_project", { dir }),
 	/**  Every family this build offers, and whether it is installed. */
 	fontFamilies: () => typedError<Family[], string>(__TAURI_INVOKE("font_families")),
 	/**

@@ -9,6 +9,7 @@ pub mod bookmarks;
 pub mod export;
 pub mod jobs;
 pub mod layout;
+pub mod project;
 pub mod sources;
 pub mod style;
 pub mod vpl;

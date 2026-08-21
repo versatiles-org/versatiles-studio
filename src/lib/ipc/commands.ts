@@ -117,6 +117,29 @@ export const exportGraph = (graph: number, target: string, bounds: Bounds = {}) 
  */
 export const estimateExport = (graph: number, bounds: Bounds = {}) => unwrap(commands.estimateExport(graph, bounds));
 
+// -- the project ------------------------------------------------------------------------------
+
+/**
+ * Writes the whole project into a directory (G1, S5.1, [Q6]).
+ *
+ * The rendered style is passed in because the generator lives here; the core holds the recipe it is
+ * made from. `null` when nothing is on the map yet.
+ *
+ * [Q6]: ../../../docs/decisions.md
+ */
+export const saveProject = (dir: string, style: string | null) => unwrap(commands.saveProject(dir, style));
+
+/**
+ * Opens a project directory, replacing what is open.
+ *
+ * Returns the style recipe: the manifest carries what the style is made from, so the webview renders
+ * it again rather than reading a `style.json` Studio wrote for other tools.
+ */
+export const openProject = (dir: string) => unwrap(commands.openProject(dir));
+
+/** Whether a directory holds a project, so the dialog can say why one does not. */
+export const isProject = (dir: string) => commands.isProject(dir);
+
 // -- assets ------------------------------------------------------------------------------------
 
 /** Every font family this build offers, and whether it is installed (G7, S4.1). */
