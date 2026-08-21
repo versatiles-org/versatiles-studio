@@ -21,6 +21,7 @@
 	import ModeBar from './lib/shell/ModeBar.svelte';
 	import AssetManager from './lib/panes/assets/AssetManager.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
+	import DeployDialog from './lib/panes/project/DeployDialog.svelte';
 	import { samePath, walk } from './lib/vpl/node-at';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
@@ -61,6 +62,7 @@
 		saveProject,
 		openProject,
 		isProject,
+		deployment,
 		vplRemoveProperty,
 		vplInsertNode,
 		vplRemoveNode,
@@ -71,6 +73,7 @@
 		previewPipeline,
 		type DocumentView,
 		type Bounds,
+		type Deployment,
 		type Camera,
 		type Layout,
 		type OperationInfo,
@@ -416,6 +419,21 @@
 			await syncContainersToPipeline();
 			await refreshPreview();
 			status = { kind: 'idle' };
+		} catch (e) {
+			fail(e);
+		}
+	}
+
+	/// What is on screen in the deploy dialog, or `null` when it is closed (C7, S5.5).
+	///
+	/// **Fetched on opening rather than kept in step.** The four artefacts are a function of the
+	/// graphs as they stand, and every rename would otherwise have to remember to regenerate them;
+	/// asking once, when someone wants to read them, cannot go stale.
+	let deploying = $state<Deployment | null>(null);
+
+	async function showDeployment() {
+		try {
+			deploying = await deployment();
 		} catch (e) {
 			fail(e);
 		}
@@ -944,6 +962,8 @@
 			onChange={(next) => layout && void changeLayout({ ...layout, mode: next })}
 			onOpenProject={() => void openProjectDir()}
 			onSaveProject={() => void saveProjectAs()}
+			onDeploy={() => void showDeployment()}
+			canDeploy={graphs.length > 0}
 		/>
 	{/snippet}
 	{#snippet mapPane()}
@@ -1007,6 +1027,10 @@
 		onExport={(bounds) => void startExport(bounds)}
 		onEstimate={(bounds) => estimateExport(graph, bounds)}
 	/>
+{/if}
+
+{#if deploying}
+	<DeployDialog deployment={deploying} onClose={() => (deploying = null)} />
 {/if}
 
 <Help />

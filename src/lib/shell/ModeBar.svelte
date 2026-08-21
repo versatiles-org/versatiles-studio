@@ -12,7 +12,9 @@
 		mode,
 		onChange,
 		onOpenProject,
-		onSaveProject
+		onSaveProject,
+		onDeploy,
+		canDeploy
 	}: {
 		mode: string;
 		onChange: (mode: string) => void;
@@ -21,6 +23,12 @@
 		 *  (S0.1) are where these belong eventually. */
 		onOpenProject: () => void;
 		onSaveProject: () => void;
+		/** The commands that reproduce this project outside Studio (C7, S5.5). Beside the project
+		 *  actions because it is about the project rather than about one graph — a serve config
+		 *  names every graph at once, which no pane is in a position to emit. */
+		onDeploy: () => void;
+		/** False with nothing open: all four artefacts would name no tiles. */
+		canDeploy: boolean;
 	} = $props();
 
 	// **`Map`, not `Map mode`.** The bar is already understood as modes, so the word is redundant —
@@ -48,6 +56,7 @@
 	<span class="spacer"></span>
 	<button type="button" class="project" onclick={onOpenProject}>Open project…</button>
 	<button type="button" class="project" onclick={onSaveProject}>Save project…</button>
+	<button type="button" class="project" onclick={onDeploy} disabled={!canDeploy}>Run elsewhere…</button>
 </nav>
 
 <style>
@@ -71,6 +80,10 @@
 
 		&:hover {
 			color: var(--ink);
+		}
+
+		&:disabled {
+			opacity: 0.4;
 		}
 	}
 

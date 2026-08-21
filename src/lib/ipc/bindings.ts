@@ -176,6 +176,13 @@ export const commands = {
 	openProject: (dir: string) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("open_project", { dir })),
 	/**  Whether a directory holds a project — so the open dialog can say why one does not. */
 	isProject: (dir: string) => __TAURI_INVOKE<boolean>("is_project", { dir }),
+	/**
+	 *  Generates them from the project as it stands.
+	 * 
+	 *  **Generated on asking, never stored.** A file written once and kept would describe the graphs a
+	 *  project used to have, and these exist to be correct at the moment someone copies them.
+	 */
+	deployment: () => typedError<Deployment, string>(__TAURI_INVOKE("deployment")),
 	/**  Every family this build offers, and whether it is installed. */
 	fontFamilies: () => typedError<Family[], string>(__TAURI_INVOKE("font_families")),
 	/**
@@ -549,6 +556,15 @@ export type Control = { kind: "text" } |
 { kind: "list" } | 
 /**  A fixed-size numeric array: a bbox is four, a colour or a centre three. */
 { kind: "numbers"; count: number };
+
+/**  The four ways to run this project somewhere else (C7, S5.5). */
+export type Deployment = {
+	/**  One `versatiles convert` per graph, in project order. */
+	commands: string[],
+	serveConfig: string,
+	dockerfile: string,
+	githubAction: string,
+};
 
 /**  A problem with a position, ready for the editor to underline. */
 export type Diagnostic = {

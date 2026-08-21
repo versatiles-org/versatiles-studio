@@ -36,6 +36,7 @@ export * from './bindings';
  */
 export type {
 	Bounds,
+	Deployment,
 	Family,
 	Fit,
 	Estimate,
@@ -136,6 +137,9 @@ export const saveProject = (dir: string, style: string | null) => unwrap(command
  * it again rather than reading a `style.json` Studio wrote for other tools.
  */
 export const openProject = (dir: string) => unwrap(commands.openProject(dir));
+
+/** The four ways to run this project elsewhere (C7, S5.5). Generated on asking, never stored. */
+export const deployment = () => unwrap(commands.deployment());
 
 /** Whether a directory holds a project, so the dialog can say why one does not. */
 export const isProject = (dir: string) => commands.isProject(dir);

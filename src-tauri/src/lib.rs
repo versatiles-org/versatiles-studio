@@ -55,6 +55,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::project::save_project,
 		commands::project::open_project,
 		commands::project::is_project,
+		commands::project::deployment,
 		commands::assets::font_families,
 		commands::assets::install_font,
 		commands::assets::remove_font,

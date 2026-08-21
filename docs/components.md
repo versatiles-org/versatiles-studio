@@ -77,6 +77,7 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 | `LandingScreen`    | What an empty window shows                                                                                | S1.1  |
 | `PipelineOutput`   | What the pipeline produces: format, zoom, layers and their property keys (Q22)                            | S3.3  |
 | `ImportCards`      | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)          | S3.2  |
+| `DeployDialog`     | The command, serve config, Dockerfile and Action that reproduce the project elsewhere (C7), a tab each    | S5.5  |
 
 ## Map
 
@@ -144,7 +145,6 @@ because Tauri's `dragDropEnabled` delivers S1.2 with no component.
 | Style export | `style.json`, `@versatiles/style` code, or a bundle (D8) | S4.6 |
 | Crop overlay | Drag a rectangle on the map to crop (F2) — port `BBoxDrawer` | S5.2, S5.4 |
 | Serve panel | Local server, LAN URL and a QR code for testing on a phone (F1) | S5.3 |
-| Command strip | The CLI command, serve config or Action that reproduces this (C7) | S5.5 |
 
 ## Conventions
 

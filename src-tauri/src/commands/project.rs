@@ -92,3 +92,39 @@ pub async fn open_project(state: State<'_, AppState>, dir: String) -> Result<stu
 pub fn is_project(dir: String) -> bool {
 	studio_core::project::is_project(std::path::Path::new(&dir))
 }
+
+/// The four ways to run this project somewhere else (C7, S5.5).
+#[derive(serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct Deployment {
+	/// One `versatiles convert` per graph, in project order.
+	pub commands: Vec<String>,
+	pub serve_config: String,
+	pub dockerfile: String,
+	pub github_action: String,
+}
+
+/// Generates them from the project as it stands.
+///
+/// **Generated on asking, never stored.** A file written once and kept would describe the graphs a
+/// project used to have, and these exist to be correct at the moment someone copies them.
+#[tauri::command]
+#[specta::specta]
+pub async fn deployment(state: State<'_, AppState>) -> Result<Deployment, String> {
+	use studio_core::deploy;
+
+	let names: Vec<String> = state.graphs.lock().await.iter().map(|g| g.name.clone()).collect();
+	// `.versatiles` because it is the format Studio itself writes first, and the one the CLI reads
+	// fastest — someone changing it is changing one word.
+	let extension = studio_core::export::WRITABLE[0];
+
+	Ok(Deployment {
+		commands: names
+			.iter()
+			.map(|name| deploy::convert_command(name, &format!("{name}.{extension}")))
+			.collect(),
+		serve_config: deploy::serve_config(&names),
+		dockerfile: deploy::dockerfile(&names),
+		github_action: deploy::github_action(&names, extension),
+	})
+}
