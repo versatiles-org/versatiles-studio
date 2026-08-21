@@ -291,7 +291,11 @@ before the window exists and possibly again later; Linux puts the path in `argv`
 funnels both into a queue the webview drains, rather than each caller learning the difference.
 
 **Tile URLs carry a revision.** The embedded server sends `cache-control: public, max-age=2419200`
-— 28 days, hardcoded in `versatiles`' handler with no way to turn it off. That is right for a public
+— 28 days. That used to be hardcoded, and 4.9.0 made it configurable
+([vt#222](https://github.com/versatiles-org/versatiles-rs/issues/222), asked for by us); the
+revision stays anyway, because it is the better answer. Shortening the header would make panning
+back over tiles the browser already holds fetch them again, while a URL nothing has seen invalidates
+exactly what changed and keeps the rest. That is right for a public
 tile server and wrong for an editing surface: mount names are stable by design, so a rebuilt preview
 or a re-opened file asks for the same URL and the webview answers from its cache with tiles that may
 be weeks old. `ServerManager::tile_url` appends a per-mount counter, so every build is a URL no cache

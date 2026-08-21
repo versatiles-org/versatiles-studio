@@ -111,14 +111,21 @@ versatiles-rs planning session. None blocks Studio; each removes a workaround.
 | Ask                                           | Why                                                                              | Raised by                                 |
 | --------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------- |
 | **A lossless VPL syntax tree and serialiser** | The node graph must edit text without reordering parameters or dropping comments | [Q11](decisions.md); the largest of these |
-| **Data types on `OperationMeta`**             | So the graph can reject invalid connections instead of failing at run time       | finding 1 above                           |
-| **Default values on `VPLFieldMeta`**          | So generated forms are pre-filled rather than empty                              | finding 1 above                           |
 | **A compute/render split in `probe`**         | Studio needs data, not `PrettyPrint` text; the CLI would gain `--json` for free  | [Q4](decisions.md)                        |
 | **`tools` moved into `versatiles`'s lib**     | `layer_stats()` is binary-only, so B2's breakdown cannot be imported             | [Q12](decisions.md)                       |
 | **An ignored `x-` namespace in `Config`**     | `deny_unknown_fields` stops one file serving as both project and serve config    | [Q6](decisions.md)                        |
 
 The first is on the critical path for stage 2 and should be offered upstream during stage 1, so
 review overlaps with cluster A rather than following it. The rest can land whenever.
+
+**Drafted and deliberately not filed: an operation declaring what it produces.** `check_pipeline`
+passes `from_debug format=pbf | raster_flatten` and the build refuses it, so a type mismatch is
+caught by building and not by checking. It would be a real improvement for a `--dry-run` or a CI
+check — and Studio barely needs it: the picker cannot offer a misfit since
+[vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) landed, and a hand-typed one
+already fails the preview with upstream's own wording a second later. The difference is an underline
+rather than a status line. Worth raising when someone has the CI case to point at, which
+[S5.5](scope-release-1.md) would give us.
 
 Two more were filed on 2026-08-21 and are listed below rather than here: identifying the software
 making a request ([vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248)) and a
@@ -143,12 +150,14 @@ the same standard, and cannot be satisfied by a fix arriving in an unexpected fo
 
 #### Still open
 
-| Issue                                                                | Asks for                                                   | What Studio does meanwhile                                                                                                                            |
-| -------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link              | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
-| [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue** | The pinned fork above                                                                                                                                 |
-| [vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248) | A product token a host can add to the `User-Agent`         | Every remote read says `versatiles/…` and nothing more ([S1.11](scope-release-1.md))                                                                  |
-| [vt#249](https://github.com/versatiles-org/versatiles-rs/issues/249) | A formatter over the CST, so comments survive it           | No Format command in the VPL editor ([S2.15](scope-release-1.md))                                                                                     |
+| Issue                                                                | Asks for                                                         | What Studio does meanwhile                                                                                                                            |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link                    | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
+| [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue**       | The pinned fork above                                                                                                                                 |
+| [vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248) | A product token a host can add to the `User-Agent`               | Every remote read says `versatiles/…` and nothing more ([S1.11](scope-release-1.md))                                                                  |
+| [vt#249](https://github.com/versatiles-org/versatiles-rs/issues/249) | A formatter over the CST, so comments survive it                 | No Format command in the VPL editor ([S2.15](scope-release-1.md))                                                                                     |
+| [vt#252](https://github.com/versatiles-org/versatiles-rs/issues/252) | An enum value checked by the type's parser, not its variant list | Nothing — a bad value is a failed preview rather than an underline                                                                                    |
+| [vt#253](https://github.com/versatiles-org/versatiles-rs/issues/253) | Default values on `VPLFieldMeta`                                 | A generated form shows an empty box whether or not a default exists                                                                                   |
 
 #### Landed in 4.9.0
 
@@ -156,18 +165,33 @@ Ten of the twelve closed at once. Each row below was read in the 4.9.0 source, n
 issue being closed — the two are not the same claim, as vt#229 shows. The last column is the work
 this opens up; only vt#229's is done.
 
-| Issue                                                                | Landed as                                                      | What it lets Studio drop                                    |
-| -------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------- |
-| [vt#222](https://github.com/versatiles-org/versatiles-rs/issues/222) | `cache_control` on `serve` and in the config file              | The per-mount revision in the tile URL                      |
-| [vt#223](https://github.com/versatiles-org/versatiles-rs/issues/223) | `versatiles_container::probe::probe_report`                    | Unblocks B2's byte breakdown ([Q12](decisions.md))          |
-| [vt#224](https://github.com/versatiles-org/versatiles-rs/issues/224) | `check_pipeline` and `VplProblem`                              | **Done** — `validate` places upstream's verdict in the text |
-| [vt#227](https://github.com/versatiles-org/versatiles-rs/issues/227) | A tile-count guard that refuses an impossible pyramid          | Nothing — `export::MAX_TILES` guards a different limit      |
-| [vt#228](https://github.com/versatiles-org/versatiles-rs/issues/228) | The PMTiles writer names `raster_overview` as the cause        | Nothing — there was no workaround                           |
-| [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) | `OperationMeta.summary` and `.details`                         | **Done** — `vpl::summary` and its tripwire are deleted      |
-| [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) | `Compatibility` and `compatible_transforms`                    | **Done** — the picker groups by what fits (S2.14)           |
-| [vt#236](https://github.com/versatiles-org/versatiles-rs/issues/236) | `probe_report` returns its analysis instead of printing it     | The facts `analysis::describe` works out again              |
-| [vt#237](https://github.com/versatiles-org/versatiles-rs/issues/237) | `versatiles_core::utils::read_csv_header`                      | **Done** — `tabular` calls it (S3.4)                        |
-| [vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238) | `read_csv_iter` fails rather than panicking on a bad separator | **Done** — the hand-written sniffer is deleted              |
+| Issue                                                                | Landed as                                                      | What it lets Studio drop                                                   |
+| -------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [vt#222](https://github.com/versatiles-org/versatiles-rs/issues/222) | `cache_control` on `serve` and in the config file              | **Not taken** — the revision is the better answer; see below               |
+| [vt#223](https://github.com/versatiles-org/versatiles-rs/issues/223) | `versatiles_container::probe::probe_report`                    | **Not taken yet** — its new half is B2's, which [Q12](decisions.md) defers |
+| [vt#224](https://github.com/versatiles-org/versatiles-rs/issues/224) | `check_pipeline` and `VplProblem`                              | **Done** — `validate` places upstream's verdict in the text                |
+| [vt#227](https://github.com/versatiles-org/versatiles-rs/issues/227) | A tile-count guard that refuses an impossible pyramid          | Nothing — `export::MAX_TILES` guards a different limit                     |
+| [vt#228](https://github.com/versatiles-org/versatiles-rs/issues/228) | The PMTiles writer names `raster_overview` as the cause        | Nothing — there was no workaround                                          |
+| [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) | `OperationMeta.summary` and `.details`                         | **Done** — `vpl::summary` and its tripwire are deleted                     |
+| [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) | `Compatibility` and `compatible_transforms`                    | **Done** — the picker groups by what fits (S2.14)                          |
+| [vt#236](https://github.com/versatiles-org/versatiles-rs/issues/236) | `probe_report` returns its analysis instead of printing it     | **Not taken yet** — its new half is B2's, which [Q12](decisions.md) defers |
+| [vt#237](https://github.com/versatiles-org/versatiles-rs/issues/237) | `versatiles_core::utils::read_csv_header`                      | **Done** — `tabular` calls it (S3.4)                                       |
+| [vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238) | `read_csv_iter` fails rather than panicking on a bad separator | **Done** — the hand-written sniffer is deleted                             |
+
+**Two of the ten are not worth taking, and that is a finding rather than a backlog.**
+
+_vt#222, the configurable `Cache-Control`._ Studio asked for it because the server hardcoded four
+weeks and a rebuilt preview served stale tiles. The fix landed, and the workaround it was meant to
+retire is better than the fix: a per-mount revision in the tile URL gives perfect caching _and_
+immediate invalidation, while `no-cache` would make panning back over tiles the browser already has
+fetch them again. The revision stays, and the four-week default is now right rather than tolerated.
+
+_vt#223 and vt#236, `probe_report`._ The half that would replace `analysis::describe` does not: it
+carries no geographic bounding box, so the extent still has to be derived, and at its shallowest
+depth it calls `tile_pyramid()` — the one thing `describe` already does. What is genuinely new is
+`tile_sizes` and `contents`, which scan a container for the per-layer byte breakdown. That is
+[B2](features.md), which [Q12](decisions.md) keeps out of release 1. The ask was right and the answer
+is good; it is simply for a feature that is not being built yet.
 
 Resolved earlier: [vt#216–#218](https://github.com/versatiles-org/versatiles-rs/issues/216), which
 became the lossless CST in 4.8.0 and let Studio delete 1 021 lines of its own parser.
