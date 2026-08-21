@@ -71,6 +71,13 @@ the mode bar arriving above them at S4.
 tiles, the style renders them, export writes them out — steps that used to be a mode switch apart,
 which is the point of merging the modes.
 
+**The bar along the bottom says what is happening** ([Q24](decisions.md)): a failure, a running job
+with its speed and what is left of it, or — when neither needs the row — how many tiles the map is
+still waiting for, split into **queued** and **rendering** (S2.16). Those tiles are also shaded on
+the map itself, labelled with which of the two they are, so a slow operation can be seen where it is
+slow rather than only counted. Neither appears until the wait has lasted long enough to be worth
+mentioning; a pipeline that keeps up says nothing at all.
+
 **Panes, not fixed sections** ([Q31](decisions.md)). Each sidebar renders a list of panes — id,
 title, foldable — so an analysis surface is a list entry rather than an argument about which section
 it belongs to. Reordering them by hand is deferred until there are enough to be worth rearranging.
@@ -79,13 +86,13 @@ it belongs to. Reordering them by hand is deferred until there are enough to be 
 style from Style. "Export" named a shared destination that turned out not to be one — which is how
 D8 came to have no home at all under [Q22](decisions.md).
 
-| Pane          | Contains                                                                                                                                                                         | Arrives |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
-| **Pipeline**  | A list of graphs, then the selected graph's chain with Graph / VPL tabs ([Q15](decisions.md)), C1 and C4. Each graph saves, renames and exports on its own ([Q32](decisions.md)) | S2      |
-| **Style**     | Layer tree (D3), presets (D1), over every mounted graph as a named source. Exports `style.json` and `@versatiles/style` code (D8)                                                | S4      |
-| **Serve**     | Local server, LAN URL and QR code (F1) — the one publish surface belonging to neither document                                                                                   | S5      |
-| **Produces**  | What the pinned graph turns out to be: format, zoom, layers, property keys                                                                                                       | S3      |
-| **Inspector** | An opened container's own metadata and TileJSON (A6), and bookmarks (A7)                                                                                                         | S1      |
+| Pane          | Contains                                                                                                                                                                                 | Arrives |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| **Pipeline**  | A list of graphs, then the selected graph's chain with Graph / VPL tabs ([Q15](decisions.md)), C1 and C4. Each graph saves, renames and exports on its own ([Q32](decisions.md))         | S2      |
+| **Style**     | Preset and the adjustments over it (D1) today; the layer tree (D3) and its own export (D8) follow. The core owns the **recipe** it is rendered from, not the style ([Q36](decisions.md)) | S4      |
+| **Serve**     | Local server, LAN URL and QR code (F1) — the one publish surface belonging to neither document                                                                                           | S5      |
+| **Produces**  | What the pinned graph turns out to be: format, zoom, layers, property keys                                                                                                               | S3      |
+| **Inspector** | An opened container's own metadata and TileJSON (A6), and bookmarks (A7)                                                                                                                 | S1      |
 
 There is **no Parameters pane**: every node carries its own arguments in the chain ([Q32](decisions.md)). A parameter's documentation opens beside the sidebar rather than inside the node, and required parameters are shown empty rather than marked with a symbol ([Q33](decisions.md)).
 
@@ -130,10 +137,12 @@ network once its assets are installed, and off is the default that keeps that tr
 `json`, `geojson`, `topojson` and `svg` cannot. Those are named in the status bar rather than left as
 a blank map.
 
-**The map shows what the pipeline produces, not the file that feeds it** (C3). Selecting a node runs
+**The map shows what the pipeline produces, not the file that feeds it** (C3). Pinning a node runs
 the pipeline **up to and including it** and mounts the result, so tightening a filter changes the
 tiles rather than a number in a form. A node inside a `[ … ]` block previews that block's own chain,
-which is the reason to select one. Containers are inputs; the map never shows one directly.
+which is the reason to pin one. With nothing pinned the map draws every graph the project serves.
+The chain says which half of itself is running: the part feeding the pin wears the accent, the rest
+a separator's colour. Containers are inputs; the map never shows one directly.
 
 **Undo is one stack for the whole document** (G6). The text editor, the parameter forms and the
 graph all change the same pipeline, so ⌘Z means the same thing wherever the focus is — a form change

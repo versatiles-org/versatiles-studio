@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -153,4 +153,35 @@ describe('documentation identifiers', () => {
 			expect([...unknown].sort(), `define it in ${definedIn}, or fix the reference`).toEqual([]);
 		});
 	}
+});
+
+/**
+ * The repository layout in `architecture.md` is a map, and a map missing a third of its streets is
+ * worse than none: a reader who finds `export.rs` there and not `estimate.rs` concludes the second
+ * does not exist.
+ *
+ * It drifted furthest of anything in these documents, because every other claim has either a link
+ * to resolve or an identifier to find and this had neither. `lib.rs` is a module root and
+ * `testing.rs` is only reachable from tests, so neither earns a line; everything else does.
+ */
+describe('the repository layout', () => {
+	const LAYOUT = read('docs/architecture.md');
+	const EXEMPT = new Set(['lib.rs', 'testing.rs', 'main.rs', 'tsconfig.json', 'docs-pdf.head.html']);
+
+	const listed = (dir: string) =>
+		readdirSync(join(root, dir))
+			.filter((name) => /\.(rs|ts|sh)$/.test(name) && !EXEMPT.has(name))
+			.filter((name) => !LAYOUT.includes(name));
+
+	it('names every module of the core', () => {
+		expect(listed('crates/studio-core/src'), 'add it to the tree in docs/architecture.md').toEqual([]);
+	});
+
+	it('names every module of the Tauri layer', () => {
+		expect(listed('src-tauri/src'), 'add it to the tree in docs/architecture.md').toEqual([]);
+	});
+
+	it('names every script', () => {
+		expect(listed('scripts'), 'add it to the tree in docs/architecture.md').toEqual([]);
+	});
 });

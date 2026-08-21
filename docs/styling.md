@@ -94,7 +94,7 @@ sizes is faster than inventing a sixth, so the constraint holds itself up withou
 | Set      | Tokens                                                                                                                  |
 | -------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Colour   | `--ink`, `--ink-2`, `--rule`, `--surface`, `--chrome`, `--accent`, `--accent-ink`                                       |
-| Semantic | `--error`, `--error-bg`                                                                                                 |
+| Semantic | `--error`, `--error-bg`, `--scrim` — behind a modal                                                                     |
 | Map      | `--map-bg`, `--map-grid`, `--map-grid-halo`, `--map-feature`, `--map-pending`, `--map-label`, `--float-bg`              |
 | Pipeline | `--pipe`, `--pipe-width` — the chain's connectors and its node outlines are one line, so they are one pair of tokens    |
 | Type     | `--text-xs` 12 · `--text-sm` 13 · `--text-md` 14 (default) · `--text-lg` 17 · `--text-xl` 22, plus `--text-mono-adjust` |

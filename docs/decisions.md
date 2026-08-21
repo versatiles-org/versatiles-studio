@@ -1200,6 +1200,20 @@ slow for large payloads, so tile bytes must not travel over IPC. Channels are Ta
 streaming mechanism, which is what the job runner (E7) needs. For a one-off blob — a raw tile for
 A4 — `tauri::ipc::Response` returns an array buffer without JSON.
 
+**Studio's own tiles take a detour through the webview.** They still travel the data plane over
+HTTP; what changed is who queues them. MapLibre fetches through a `studio://` protocol Studio
+registers, which holds a queue bounded at the browser's own per-origin limit and hands requests on
+from there. The reason is that neither end could otherwise answer a question S2.16 needed: MapLibre
+reports a tile as loading the moment it _issues_ a fetch, which is before the browser has a
+connection for it, and a counter inside the mounted tile source would only ever see the handful the
+browser let through. With the queue in the middle, "rendering" means the server has it and "queued"
+means nobody has started — and the status bar and the map overlay can say which. Keeping the bound at
+or below the browser's cap is what keeps that true; above it, "rendering" would quietly start
+including tiles still waiting for a socket.
+
+Only Studio's own tiles. A background map's come from versatiles.org, and queueing those would report
+someone else's network as this pipeline being slow.
+
 **The core sits below the commands:** a plain Rust library with no Tauri types, so it is testable
 without a Tauri runtime. `versatiles_node` demonstrates the shape — `TileServer`, `TileSource` and a
 `Progress` class carrying `onProgress`/`onMessage` map closely onto the control and event planes.

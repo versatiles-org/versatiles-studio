@@ -47,6 +47,11 @@ to remember here is that tile bytes must never travel over IPC, and that a one-o
 exception: `tauri::ipc::Response` returns an array buffer without JSON, which is how A4 reads a raw
 tile.
 
+The data plane has one wrinkle worth knowing before reading `map/tile-queue.ts`: Studio's own tiles
+go through a `studio://` protocol registered with MapLibre, so the **queue is the webview's** rather
+than the browser's. That is what makes "queued" and "rendering" separable at all (S2.16) — Q3 has
+the argument. The tiles still travel over HTTP; only the waiting moved.
+
 ### Paths across the control plane
 
 Tauri treats the webview as the less-trusted side, so a filesystem path arriving over IPC is
@@ -142,6 +147,8 @@ versatiles-studio/
 │           ├── jobs.rs         runner, progress, cancellation, log       (E7)
 │           ├── preview.rs      running a graph so the map can show it    (C3)
 │           ├── export.rs       writing the result to a container         (F2)
+│           ├── estimate.rs     what that write will cost, before it runs (C6)
+│           ├── style.rs        the style as the recipe it is made from   (Q36)
 │           ├── import.rs       the catalogue of ways in                  (E1–E3)
 │           ├── tabular.rs      a delimited file's header                 (E2)
 │           ├── suggest.rs      values a field could take                 (E2)
@@ -183,10 +190,15 @@ versatiles-studio/
 │       ├── styles/             tokens, base, and reading tokens from JS
 │       └── vpl/                parsing and highlighting, for the editor
 │
-├── scripts/                    build-time tooling, not shipped
+├── scripts/                    tooling, not shipped
 │   ├── bundle_worker.ts        MapLibre 6 worker fix                     (S1.4)
-│   └── fetch-assets.ts         · update-assets.ts — the pinned tier      (S0.6, S0.12)
-├── .github/workflows/          CI for Linux and macOS                    (S0.7)
+│   ├── fetch-assets.ts         · update-assets.ts — the pinned tier      (S0.6, S0.12)
+│   ├── upgrade-deps.sh         · prune-build-dirs.sh — housekeeping
+│   ├── docs-pdf.sh             every planning document as one PDF
+│   └── docs.test.ts            · guards.test.ts — what these documents promise
+├── .github/
+│   ├── workflows/              CI for Linux and macOS                    (S0.7)
+│   └── actions/tauri-deps      the Linux packages, from a cache          (S0.7)
 └── docs/
 ```
 
