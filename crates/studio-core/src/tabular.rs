@@ -12,16 +12,8 @@
 
 use anyhow::{Context, Result};
 use serde::Serialize;
-use std::io::Cursor;
 use std::path::Path;
-use versatiles_core::utils::read_csv_iter;
-
-/// Delimiters worth trying, in the order they are preferred on a tie.
-///
-/// A comma first because that is what the format is named after and what `from_csv` assumes;
-/// semicolon next because it is what a spreadsheet exports in locales where the comma is the
-/// decimal separator, which is the case that otherwise yields one enormous column.
-const DELIMITERS: [char; 4] = [',', ';', '\t', '|'];
+use versatiles_core::utils::read_csv_header;
 
 /// What a delimited file's first line says about it.
 #[derive(Debug, Clone, Serialize)]
@@ -53,111 +45,26 @@ const LAT_NAMES: [&str; 5] = ["latitude", "lat", "lat_deg", "y_wgs84", "lattitud
 /// Reads the header of a delimited file, sniffing the delimiter.
 ///
 /// Only the first record is read, so this costs the same on a 4 GB file as on a small one.
+///
+/// **The reading and the sniffing are upstream's** ([vt#237], [vt#238]). Studio used to do both,
+/// counting separators outside quotes rather than parsing them, because a wrong candidate panicked
+/// inside `read_csv_iter` instead of failing. Both are fixed, and `read_csv_header` uses the same
+/// parser `from_csv` will — which is the property that matters here, since a column this offers and
+/// a column that operation finds have to be the same column. What stays is the part that is Studio's
+/// own: guessing which of them hold the coordinates.
+///
+/// [vt#237]: https://github.com/versatiles-org/versatiles-rs/issues/237
+/// [vt#238]: https://github.com/versatiles-org/versatiles-rs/issues/238
 pub fn columns(path: &Path) -> Result<Columns> {
-	// Read once, then answer both questions from the same bytes. Opening the file a second time to
-	// parse what was just measured would let the two disagree if it changed in between, and there is
-	// nothing in the second read that the first did not already have.
-	let record = first_record(path)?;
-	let delimiter = sniff(&record);
-	let names = header(&record, delimiter)?;
-	anyhow::ensure!(!names.is_empty(), "{} has no header row", path.display());
+	let header = read_csv_header(path, None).with_context(|| format!("reading {}", path.display()))?;
+	anyhow::ensure!(!header.columns.is_empty(), "{} has no header row", path.display());
 
 	Ok(Columns {
-		lon: guess(&names, &LON_NAMES),
-		lat: guess(&names, &LAT_NAMES),
-		delimiter: delimiter.to_string(),
-		names,
+		lon: guess(&header.columns, &LON_NAMES),
+		lat: guess(&header.columns, &LAT_NAMES),
+		delimiter: (header.separator as char).to_string(),
+		names: header.columns,
 	})
-}
-
-/// The delimiter that splits the header into the most fields.
-///
-/// A file's real delimiter always yields more columns than a character that does not appear in it,
-/// which yields exactly one. Ties go to the earlier entry in [`DELIMITERS`], so a file with no
-/// delimiter at all is reported as a one-column CSV rather than as a pipe-separated anything.
-///
-/// **Counted rather than parsed.** Asking the parser to read the header once per candidate is the
-/// obvious way and cannot be done: a quoted field followed by anything but the candidate separator
-/// panics inside `read_csv_iter` rather than failing
-/// ([vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238)) — and trying separators a
-/// file does not use is precisely what sniffing is. Counting is also the cheaper answer, since the
-/// file is read once instead of once per candidate.
-fn sniff(record: &str) -> char {
-	let mut best = (DELIMITERS[0], 0);
-	for delimiter in DELIMITERS {
-		let count = separators(record, delimiter);
-		if count > best.1 {
-			best = (delimiter, count);
-		}
-	}
-	best.0
-}
-
-/// How often `delimiter` separates fields — occurrences inside a quoted field do not count.
-///
-/// `""` inside a quoted field is an escaped quote, and toggling twice leaves the state it found,
-/// so it needs no case of its own.
-fn separators(record: &str, delimiter: char) -> usize {
-	let mut quoted = false;
-	record
-		.chars()
-		.filter(|&c| {
-			if c == '"' {
-				quoted = !quoted;
-			}
-			c == delimiter && !quoted
-		})
-		.count()
-}
-
-/// The first record's raw text: up to the first newline that is not inside a quoted field.
-///
-/// Bounded, because this only ever needs a header: a file whose first record does not arrive in
-/// 64 KiB is not one whose columns anybody is about to pick from a list.
-fn first_record(path: &Path) -> Result<String> {
-	use std::io::Read;
-
-	let mut head = vec![0; 64 * 1024];
-	let mut file = std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
-	let read = file
-		.read(&mut head)
-		.with_context(|| format!("reading {}", path.display()))?;
-	head.truncate(read);
-
-	let text = String::from_utf8_lossy(&head);
-	let mut quoted = false;
-	let end = text
-		.char_indices()
-		.find(|&(_, c)| {
-			if c == '"' {
-				quoted = !quoted;
-			}
-			c == '\n' && !quoted
-		})
-		.map_or(text.len(), |(index, _)| index);
-
-	Ok(text[..end].trim_end_matches('\r').to_string())
-}
-
-/// Reads the first row, with **the same reader the pipeline will use**.
-///
-/// `from_csv` reads the file through `versatiles_core`'s CSV utilities, so anything else parsing it
-/// here would be a second reading of one file: a form could offer a column the pipeline then cannot
-/// find, over nothing worse than a disagreement about quoting. Asked upstream as
-/// [vt#237](https://github.com/versatiles-org/versatiles-rs/issues/237) to expose the header
-/// question itself, which is the half that is still ours.
-///
-/// A ragged file is still worth a header. `read_csv_iter` refuses a row whose field count differs
-/// from the first — but that is a row this never asks for, because it stops after one.
-fn header(record: &str, delimiter: char) -> Result<Vec<String>> {
-	let mut rows = read_csv_iter(Cursor::new(record.as_bytes()), delimiter as u8).context("parsing the header row")?;
-
-	let Some(first) = rows.next() else {
-		return Ok(Vec::new());
-	};
-	let (names, _, _) = first.context("parsing the header row")?;
-
-	Ok(names.into_iter().map(|name| name.trim().to_string()).collect())
 }
 
 /// The first column whose name is one of `candidates`, preferring earlier candidates.
@@ -168,7 +75,11 @@ fn guess(names: &[String], candidates: &[&str]) -> Option<String> {
 	candidates.iter().find_map(|candidate| {
 		names
 			.iter()
-			.find(|name| name.to_lowercase() == *candidate)
+			// Trimmed for the comparison and **not** for the answer. `a, lon` has a column called
+			// ` lon`, and that is the name `from_csv` will look up — offering `lon` instead would
+			// name a column the operation cannot find. Matching has to be forgiving about the space
+			// so the guess still works; reporting must not be.
+			.find(|name| name.trim().to_lowercase() == *candidate)
 			.map(ToString::to_string)
 	})
 }
@@ -203,14 +114,23 @@ mod tests {
 		assert_eq!(columns(&path).unwrap().delimiter, "\t");
 	}
 
-	/// The case that made counting necessary: with `;` as a candidate, a quoted field followed by a
-	/// comma used to reach `read_csv_iter`, which panics rather than failing on it (vt#238).
+	/// The case that used to need a hand-written sniffer: a comma inside a quoted field is not a
+	/// separator, and reaching `read_csv_iter` with the wrong candidate panicked rather than failing
+	/// (vt#238). Asserted through `columns` rather than through an internal, because it is now
+	/// upstream's answer and this is the contract Studio depends on.
 	#[test]
 	fn a_delimiter_inside_quotes_does_not_count_as_one() {
-		assert_eq!(separators("\"name, formal\",lon,lat", ','), 2);
-		assert_eq!(separators("\"name, formal\",lon,lat", ';'), 0);
-		// `""` is an escaped quote: toggling twice leaves the state it found.
-		assert_eq!(separators("\"a\"\"b,c\",d", ','), 1);
+		let path = crate::testing::file("quoted.csv", "\"name, formal\",lon,lat\nBerlin,13.4,52.5\n");
+		let found = columns(&path).unwrap();
+		assert_eq!(found.delimiter, ",");
+		assert_eq!(found.names, ["name, formal", "lon", "lat"]);
+	}
+
+	/// `""` inside a quoted field is an escaped quote, not the end of it.
+	#[test]
+	fn an_escaped_quote_does_not_end_the_field() {
+		let path = crate::testing::file("escaped.csv", "\"a\"\"b,c\",lon,lat\n1,2,3\n");
+		assert_eq!(columns(&path).unwrap().names, ["a\"b,c", "lon", "lat"]);
 	}
 
 	/// A quoted field may hold a newline, so the first *line* is not always the first record.
@@ -235,13 +155,17 @@ mod tests {
 		assert_eq!(columns(&path).unwrap().lon.as_deref(), Some("longitude"));
 	}
 
+	/// **Matching is forgiving about space; reporting is not.** `a, lon` has a column called ` lon`,
+	/// and that is the name `from_csv` will look it up by — so the guess has to find it through the
+	/// space while still answering with the name the operation needs. Studio's own reader used to
+	/// trim, which offered a name that would not have been found.
 	#[test]
 	fn matching_ignores_case_and_surrounding_space() {
 		let path = crate::testing::file("shouty.csv", "ID, LON , LAT \n1,13.4,52.5\n");
 		let columns = columns(&path).unwrap();
-		assert_eq!(columns.names, ["ID", "LON", "LAT"]);
-		assert_eq!(columns.lon.as_deref(), Some("LON"));
-		assert_eq!(columns.lat.as_deref(), Some("LAT"));
+		assert_eq!(columns.names, ["ID", " LON ", " LAT "]);
+		assert_eq!(columns.lon.as_deref(), Some(" LON "));
+		assert_eq!(columns.lat.as_deref(), Some(" LAT "));
 	}
 
 	/// A guess fills in a required field, so a wrong one is worse than none. `x`/`y` are exactly

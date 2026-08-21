@@ -20,7 +20,8 @@ import { tileRing } from '../map/tile-grid';
  * How long the map may be busy before the bar mentions it.
  *
  * Long enough that panning around a quick pipeline never produces a message, short enough that a
- * slow one is explained before it feels broken.
+ * slow one is explained before it feels broken. Tuned by watching it: a second read as unresponsive
+ * before it said anything.
  */
 export const PATIENCE = 300;
 

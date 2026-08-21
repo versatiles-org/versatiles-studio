@@ -166,8 +166,8 @@ this opens up; only vt#229's is done.
 | [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) | `OperationMeta.summary` and `.details`                         | **Done** — `vpl::summary` and its tripwire are deleted |
 | [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) | `Compatibility` and `compatible_transforms`                    | **Done** — the picker groups by what fits (S2.14)      |
 | [vt#236](https://github.com/versatiles-org/versatiles-rs/issues/236) | `probe_report` returns its analysis instead of printing it     | The facts `analysis::describe` works out again         |
-| [vt#237](https://github.com/versatiles-org/versatiles-rs/issues/237) | `versatiles_core::utils::read_csv_header`                      | `tabular`'s separate header read                       |
-| [vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238) | `read_csv_iter` fails rather than panicking on a bad separator | `tabular`'s own separator sniffing                     |
+| [vt#237](https://github.com/versatiles-org/versatiles-rs/issues/237) | `versatiles_core::utils::read_csv_header`                      | **Done** — `tabular` calls it (S3.4)                   |
+| [vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238) | `read_csv_iter` fails rather than panicking on a bad separator | **Done** — the hand-written sniffer is deleted         |
 
 Resolved earlier: [vt#216–#218](https://github.com/versatiles-org/versatiles-rs/issues/216), which
 became the lossless CST in 4.8.0 and let Studio delete 1 021 lines of its own parser.
