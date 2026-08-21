@@ -11,6 +11,7 @@
 	import { connectJobs } from './lib/state/jobs.svelte';
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
+	import { registerTileProtocol } from './lib/state/tiles.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import LandingScreen from './lib/common/LandingScreen.svelte';
 	import PipelineOutput from './lib/panes/output/PipelineOutput.svelte';
@@ -184,6 +185,9 @@
 		void vplOperations().then((loaded) => (operations = loaded));
 		// The style survives a reload the way the graphs do — the core owns it ([Q36]).
 		void styleRecipe.load();
+		// Once, and before any source is added: a tile URL handed to MapLibre before its scheme is
+		// registered is a tile MapLibre does not know how to fetch (S2.16).
+		registerTileProtocol();
 		void importKinds().then((loaded) => (kinds = loaded));
 		void refreshGraphs().then(async () => {
 			if (graphs.length > 0) pipeline = await getGraph(graphs[0].id);

@@ -9,6 +9,7 @@ import type { OpenedContainer } from '../ipc/commands';
 import { token } from '../styles/tokens';
 import { renderableAs } from './tile-format';
 import { role } from './theme';
+import { throughQueue } from './tile-queue';
 
 export function addContainerToMap(
 	map: MaplibreMap,
@@ -25,7 +26,10 @@ export function addContainerToMap(
 
 	map.addSource(name, {
 		type: kind,
-		tiles: [tileUrl],
+		// Through Studio's own queue rather than straight at the server (S2.16): it is the only
+		// place that can tell a tile waiting for a slot from one the server is rendering, and the
+		// status bar says which.
+		tiles: [throughQueue(tileUrl)],
 		minzoom: info.minZoom,
 		maxzoom: info.maxZoom,
 		...(info.bbox ? { bounds: info.bbox } : {})

@@ -17,6 +17,14 @@ describe('renderStyle', () => {
 		expect(JSON.stringify(style!.sources)).toContain('/tiles/berlin/');
 	});
 
+	// Every pipeline tile goes through Studio's queue, or the status bar's count is of some of them
+	// (S2.16). Glyphs and sprites do not: they are a handful of requests, not per-tile work.
+	it('routes its tiles through the queue and its assets straight at the server', () => {
+		const style = renderStyle(recipe(), SOURCES, BASE)!;
+		expect(JSON.stringify(style.sources)).toContain('studio://');
+		expect(style.glyphs).toContain('http://');
+	});
+
 	// G5 promises Studio works offline once its assets are installed, so nothing in a generated
 	// style may point at versatiles.org — the builders' own default.
 	it('serves glyphs and sprites from the embedded server, never the network', () => {

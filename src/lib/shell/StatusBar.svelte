@@ -16,6 +16,7 @@
 	import { jobs, cancelJob } from '../state/jobs.svelte';
 	import JobsPanel from './JobsPanel.svelte';
 	import { duration } from '../common/format';
+	import { tiles } from '../state/tiles.svelte';
 
 	let { status, onDismiss }: { status: Status; onDismiss?: () => void } = $props();
 
@@ -62,6 +63,10 @@
 				};
 			}
 			if (status.kind === 'busy') return { message: status.message, fraction: status.fraction };
+			// Below the others on purpose: a job or a failure is something the user started or needs
+			// to act on, while this is the map catching up. It fills the bar when nothing else needs
+			// it, which is exactly when a slow pipeline leaves someone wondering (S2.16).
+			if (tiles.message) return { message: tiles.message };
 			return { message: '' };
 		}
 	);

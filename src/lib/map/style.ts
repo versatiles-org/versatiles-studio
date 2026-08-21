@@ -18,6 +18,7 @@
 import { colorful, eclipse, graybeard, neutrino, satellite, shadow } from '@versatiles/style';
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
 import type { LayerOverride, Recipe } from '../ipc/commands';
+import { throughQueue } from './tile-queue';
 
 /** The six builders, by the name the core stores. */
 const BUILDERS = { colorful, eclipse, graybeard, neutrino, satellite, shadow } as const;
@@ -46,7 +47,7 @@ export function renderStyle(recipe: Recipe, sources: StyleSource[], serverBaseUr
 	const style = build({
 		// The first source is what the preset's own layers draw from. A preset knows one schema and
 		// one source; naming several is S4.4's problem, not this function's.
-		tiles: sources.length > 0 ? [sources[0].tileUrl] : [],
+		tiles: sources.length > 0 ? [throughQueue(sources[0].tileUrl)] : [],
 		glyphs: `${serverBaseUrl}/assets/glyphs/{fontstack}/{range}.pbf`,
 		sprite: `${serverBaseUrl}/assets/sprites/basics/sprites`,
 		recolor: cleaned(recipe.recolor)
