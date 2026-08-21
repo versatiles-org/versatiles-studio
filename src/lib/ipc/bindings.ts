@@ -115,6 +115,25 @@ export const commands = {
 	/**  Saves a bookmark, replacing any with the same name. */
 	saveBookmark: (bookmark: Bookmark) => typedError<null, string>(__TAURI_INVOKE("save_bookmark", { bookmark })),
 	deleteBookmark: (name: string) => typedError<boolean, string>(__TAURI_INVOKE("delete_bookmark", { name })),
+	/**  The recipe as it stands. */
+	style: () => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("style")),
+	/**  Switches which style the project starts from (D1). */
+	setStylePreset: (preset: Preset) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_preset", { preset })),
+	/**
+	 *  Sets the global recolouring — hue, saturation, brightness, contrast and the rest (D1, D5).
+	 * 
+	 *  Takes the whole of it rather than one field at a time. The controls move together, the webview
+	 *  holds them together, and ten commands would let the two ends disagree about which of them the
+	 *  recipe currently has.
+	 */
+	setStyleRecolor: (recolor: Recolor_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_recolor", { recolor })),
+	/**
+	 *  Changes one layer, or resets it (D3).
+	 * 
+	 *  An override that says nothing removes the layer from the recipe rather than storing an empty
+	 *  patch, so "reset" and "never touched" are the same state — see `Recipe::set_override`.
+	 */
+	setLayerOverride: (layer: string, patch: LayerOverride_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_layer_override", { layer, patch })),
 	/**  The remembered pane layout, or the default one. */
 	layout: () => typedError<Layout, string>(__TAURI_INVOKE("layout")),
 	/**
@@ -335,48 +354,8 @@ export const commands = {
 	 *  **One stack across every graph** ([Q32], G6), so this may hand back a graph other than the one
 	 *  being edited — which is why it returns the whole document rather than just its text.
 	 */
-	undo: () => typedError<{
-	/**
-	 *  Which graph this is ([Q32](../../../docs/decisions.md)). The webview addresses everything by
-	 *  id rather than by name, so a rename cannot invalidate a reference held mid-edit.
-	 */
-	graph: number,
-	name: string,
-	text: string,
-	pipeline: Pipeline,
-	/**  For the editor to paint, derived from the same tree ([Q25](../../../docs/decisions.md)). */
-	tokens: Token[],
-	/**  Checked against the operations that exist (C4). A pipeline can parse and still be wrong. */
-	diagnostics: Diagnostic[],
-	/**  Whether ⌘Z and ⇧⌘Z have anywhere to go, so the interface can say so. */
-	canUndo: boolean,
-	canRedo: boolean,
-	/**  The `.vpl` this came from, if any, so Save has somewhere to write without asking. */
-	path: string | null,
-	/**  Whether the pipeline differs from what is on disk. */
-	dirty: boolean,
-} | null, VplError>(__TAURI_INVOKE("undo")),
-	redo: () => typedError<{
-	/**
-	 *  Which graph this is ([Q32](../../../docs/decisions.md)). The webview addresses everything by
-	 *  id rather than by name, so a rename cannot invalidate a reference held mid-edit.
-	 */
-	graph: number,
-	name: string,
-	text: string,
-	pipeline: Pipeline,
-	/**  For the editor to paint, derived from the same tree ([Q25](../../../docs/decisions.md)). */
-	tokens: Token[],
-	/**  Checked against the operations that exist (C4). A pipeline can parse and still be wrong. */
-	diagnostics: Diagnostic[],
-	/**  Whether ⌘Z and ⇧⌘Z have anywhere to go, so the interface can say so. */
-	canUndo: boolean,
-	canRedo: boolean,
-	/**  The `.vpl` this came from, if any, so Save has somewhere to write without asking. */
-	path: string | null,
-	/**  Whether the pipeline differs from what is on disk. */
-	dirty: boolean,
-} | null, VplError>(__TAURI_INVOKE("redo")),
+	undo: () => typedError<({ graph: DocumentView }) & { style?: never } | ({ style: Recipe_Serialize }) & { graph?: never } | null, VplError>(__TAURI_INVOKE("undo")),
+	redo: () => typedError<({ graph: DocumentView }) & { style?: never } | ({ style: Recipe_Serialize }) & { graph?: never } | null, VplError>(__TAURI_INVOKE("redo")),
 	/**
 	 *  Opens a `.vpl` file as this window's pipeline (C9, S2.9).
 	 * 
@@ -722,6 +701,69 @@ export type LayerInspection = {
 };
 
 /**
+ *  What was changed about one layer by hand (D3).
+ * 
+ *  **Sparse, and only these three.** [D3](../../docs/features.md) asks for filter, zoom range and
+ *  paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
+ *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
+ *  accepted rather than overlooked.
+ * 
+ *  `paint` and `filter` are opaque JSON, declared so for the same reason as
+ *  `ContainerInfo::tile_json`: specta refuses `serde_json::Value` because a `Number` can hold an
+ *  `i64`, and there is no shape to describe here beyond "whatever MapLibre accepts". A type for
+ *  them would be a second, worse copy of the style specification that has to be kept in step.
+ */
+export type LayerOverride = LayerOverride_Serialize | LayerOverride_Deserialize;
+
+/**
+ *  What was changed about one layer by hand (D3).
+ * 
+ *  **Sparse, and only these three.** [D3](../../docs/features.md) asks for filter, zoom range and
+ *  paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
+ *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
+ *  accepted rather than overlooked.
+ * 
+ *  `paint` and `filter` are opaque JSON, declared so for the same reason as
+ *  `ContainerInfo::tile_json`: specta refuses `serde_json::Value` because a `Number` can hold an
+ *  `i64`, and there is no shape to describe here beyond "whatever MapLibre accepts". A type for
+ *  them would be a second, worse copy of the style specification that has to be kept in step.
+ */
+export type LayerOverride_Deserialize = {
+	/**  Painted or not. `None` leaves the preset's own answer alone. */
+	visible?: boolean | null,
+	minZoom?: number | null,
+	maxZoom?: number | null,
+	/**  Paint properties to merge over the layer's own, by MapLibre's names. */
+	paint?: any | null,
+	/**  A MapLibre filter expression, replacing the layer's own. */
+	filter?: any | null,
+};
+
+/**
+ *  What was changed about one layer by hand (D3).
+ * 
+ *  **Sparse, and only these three.** [D3](../../docs/features.md) asks for filter, zoom range and
+ *  paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
+ *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
+ *  accepted rather than overlooked.
+ * 
+ *  `paint` and `filter` are opaque JSON, declared so for the same reason as
+ *  `ContainerInfo::tile_json`: specta refuses `serde_json::Value` because a `Number` can hold an
+ *  `i64`, and there is no shape to describe here beyond "whatever MapLibre accepts". A type for
+ *  them would be a second, worse copy of the style specification that has to be kept in step.
+ */
+export type LayerOverride_Serialize = {
+	/**  Painted or not. `None` leaves the preset's own answer alone. */
+	visible?: boolean | null,
+	minZoom?: number | null,
+	maxZoom?: number | null,
+	/**  Paint properties to merge over the layer's own, by MapLibre's names. */
+	paint?: any | null,
+	/**  A MapLibre filter expression, replacing the layer's own. */
+	filter?: any | null,
+};
+
+/**
  *  Which left-pane sections are open, and how wide the pane is ([Q22]).
  * 
  *  This lives in the core rather than the webview for the reason everything else here does ([Q16]):
@@ -839,6 +881,20 @@ export type Pipeline = {
 	span: Span,
 };
 
+/**
+ *  Where a style starts before anything is adjusted.
+ * 
+ *  The six are `@versatiles/style`'s own builders, named as it names them so the webview needs no
+ *  translation table — a mapping between two spellings of the same six things is a thing to keep in
+ *  step for no gain.
+ */
+export type Preset = "colorful" | "eclipse" | "graybeard" | "neutrino" | "shadow" | "satellite" | 
+/**
+ *  Built from the layers the tiles actually contain, rather than from a Shortbread assumption
+ *  (D2, S4.4). A recipe rather than a fixed style, so it re-derives when the pipeline changes.
+ */
+"derived";
+
 /**  The pipeline's output, mounted on the embedded server and ready for the map (S2.7, C3). */
 export type Preview = {
 	/**  Mount name, stable so a rebuild replaces rather than accumulates. */
@@ -896,6 +952,147 @@ export type RecentEntry = {
 	 */
 	openedAt: number,
 };
+
+/**
+ *  The whole style, as the core holds it.
+ * 
+ *  Ordered by layer id (`BTreeMap`, not `HashMap`) so that the text this serialises to depends only
+ *  on its contents. The undo stack compares snapshots to decide whether anything changed, and a map
+ *  that iterated differently between two identical states would record an edit every time the style
+ *  was touched.
+ */
+export type Recipe = Recipe_Serialize | Recipe_Deserialize;
+
+/**
+ *  The whole style, as the core holds it.
+ * 
+ *  Ordered by layer id (`BTreeMap`, not `HashMap`) so that the text this serialises to depends only
+ *  on its contents. The undo stack compares snapshots to decide whether anything changed, and a map
+ *  that iterated differently between two identical states would record an edit every time the style
+ *  was touched.
+ */
+export type Recipe_Deserialize = {
+	preset?: Preset,
+	recolor?: Recolor_Deserialize,
+	/**  By layer id. Empty for a style nobody has edited by hand. */
+	overrides?: { [key in string]: LayerOverride_Deserialize },
+};
+
+/**
+ *  The whole style, as the core holds it.
+ * 
+ *  Ordered by layer id (`BTreeMap`, not `HashMap`) so that the text this serialises to depends only
+ *  on its contents. The undo stack compares snapshots to decide whether anything changed, and a map
+ *  that iterated differently between two identical states would record an edit every time the style
+ *  was touched.
+ */
+export type Recipe_Serialize = {
+	preset: Preset,
+	recolor: Recolor_Serialize,
+	/**  By layer id. Empty for a style nobody has edited by hand. */
+	overrides: { [key in string]: LayerOverride_Serialize },
+};
+
+/**
+ *  The adjustments applied to every colour in the style at once (D1).
+ * 
+ *  A mirror of `@versatiles/style`'s `RecolorOptions`, field for field. Mirrored rather than
+ *  wrapped: these cross the IPC boundary and are handed to the generator unchanged, so a field this
+ *  end that the generator does not have would be a setting that silently does nothing.
+ * 
+ *  Every field is optional and `None` means "leave it alone". `skip_serializing_if` on each is what
+ *  makes that true in the text as well as in the type: without it an untouched recolour serialises
+ *  as ten `null`s, which is both larger than the recipe it belongs to and a lie about having been
+ *  configured.
+ */
+export type Recolor = Recolor_Serialize | Recolor_Deserialize;
+
+/**
+ *  The adjustments applied to every colour in the style at once (D1).
+ * 
+ *  A mirror of `@versatiles/style`'s `RecolorOptions`, field for field. Mirrored rather than
+ *  wrapped: these cross the IPC boundary and are handed to the generator unchanged, so a field this
+ *  end that the generator does not have would be a setting that silently does nothing.
+ * 
+ *  Every field is optional and `None` means "leave it alone". `skip_serializing_if` on each is what
+ *  makes that true in the text as well as in the type: without it an untouched recolour serialises
+ *  as ten `null`s, which is both larger than the recipe it belongs to and a lie about having been
+ *  configured.
+ */
+export type Recolor_Deserialize = {
+	/**  Swap light for dark while keeping the hues — D5's whole feature, in one flag. */
+	invertBrightness?: boolean | null,
+	/**  Hue rotation, in degrees. */
+	rotate?: number | null,
+	saturate?: number | null,
+	gamma?: number | null,
+	contrast?: number | null,
+	brightness?: number | null,
+	tint?: number | null,
+	tintColor?: string | null,
+	blend?: number | null,
+	blendColor?: string | null,
+};
+
+/**
+ *  The adjustments applied to every colour in the style at once (D1).
+ * 
+ *  A mirror of `@versatiles/style`'s `RecolorOptions`, field for field. Mirrored rather than
+ *  wrapped: these cross the IPC boundary and are handed to the generator unchanged, so a field this
+ *  end that the generator does not have would be a setting that silently does nothing.
+ * 
+ *  Every field is optional and `None` means "leave it alone". `skip_serializing_if` on each is what
+ *  makes that true in the text as well as in the type: without it an untouched recolour serialises
+ *  as ten `null`s, which is both larger than the recipe it belongs to and a lie about having been
+ *  configured.
+ */
+export type Recolor_Serialize = {
+	/**  Swap light for dark while keeping the hues — D5's whole feature, in one flag. */
+	invertBrightness?: boolean | null,
+	/**  Hue rotation, in degrees. */
+	rotate?: number | null,
+	saturate?: number | null,
+	gamma?: number | null,
+	contrast?: number | null,
+	brightness?: number | null,
+	tint?: number | null,
+	tintColor?: string | null,
+	blend?: number | null,
+	blendColor?: string | null,
+};
+
+/**
+ *  What a step back or forward restored.
+ * 
+ *  **The step says which document it changed**, because one stack now spans the graphs and the
+ *  style ([Q36]) and the webview has to know which of them to redraw. Returning only a graph view
+ *  would have made undoing a style edit look like nothing happened.
+ * 
+ *  [Q36]: ../../../docs/decisions.md
+ */
+export type Restored = Restored_Serialize | Restored_Deserialize;
+
+/**
+ *  What a step back or forward restored.
+ * 
+ *  **The step says which document it changed**, because one stack now spans the graphs and the
+ *  style ([Q36]) and the webview has to know which of them to redraw. Returning only a graph view
+ *  would have made undoing a style edit look like nothing happened.
+ * 
+ *  [Q36]: ../../../docs/decisions.md
+ */
+export type Restored_Deserialize = ({ graph: DocumentView }) & { style?: never } | ({ style: Recipe_Deserialize }) & { graph?: never };
+
+/**
+ *  What a step back or forward restored.
+ * 
+ *  **The step says which document it changed**, because one stack now spans the graphs and the
+ *  style ([Q36]) and the webview has to know which of them to redraw. Returning only a graph view
+ *  would have made undoing a style edit look like nothing happened.
+ * 
+ *  [Q36]: ../../../docs/decisions.md
+ */
+export type Restored_Serialize = ({ graph: DocumentView }) & { style?: never } | ({ style: Recipe_Serialize }) & { graph?: never };
 
 /**
  *  What the editor needs on every keystroke: how to paint the text, and what is wrong with it.

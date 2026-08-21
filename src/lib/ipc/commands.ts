@@ -18,7 +18,12 @@
  */
 
 import { commands } from './bindings';
-import type { Bounds } from './bindings';
+import type {
+	Bounds,
+	Preset,
+	Recolor_Serialize as Recolor,
+	LayerOverride_Serialize as LayerOverride
+} from './bindings';
 
 export * from './bindings';
 
@@ -32,6 +37,14 @@ export * from './bindings';
 export type {
 	Bounds,
 	Estimate,
+	Preset,
+	// One name each. `skip_serializing_if` makes specta emit a `_Serialize` and a `_Deserialize`
+	// form; for `Recolor` and `LayerOverride` the two are character-for-character identical, and a
+	// `Recipe` that came back from a command satisfies the form a command takes. The distinction is
+	// the generator's, not the application's, so it stops here.
+	Recipe_Serialize as Recipe,
+	Recolor_Serialize as Recolor,
+	LayerOverride_Serialize as LayerOverride,
 	Node as VplNode,
 	Pipeline as VplPipeline,
 	Property as VplProperty,
@@ -101,6 +114,33 @@ export const exportGraph = (graph: number, target: string, bounds: Bounds = {}) 
  * the export would have failed with, which is the point of asking first.
  */
 export const estimateExport = (graph: number, bounds: Bounds = {}) => unwrap(commands.estimateExport(graph, bounds));
+
+// -- style ------------------------------------------------------------------------------------
+
+/**
+ * The project's style, as the recipe it is rendered from (S4.2, [Q36]).
+ *
+ * Not a MapLibre style: a preset, the adjustments over it, and whatever layers were changed by
+ * hand. `renderStyle` in `lib/style` turns one into a style, because the generator lives here.
+ *
+ * [Q36]: ../../../docs/decisions.md
+ */
+export const style = () => unwrap(commands.style());
+
+/** Switches which style the project starts from (D1). Returns the recipe as it now stands. */
+export const setStylePreset = (preset: Preset) => unwrap(commands.setStylePreset(preset));
+
+/**
+ * Sets the whole global recolouring at once (D1, D5).
+ *
+ * Call this when a gesture *ends*, not while it runs: the core records an undo entry per call, and
+ * a colour drag that called it per frame would bury the stack. Preview locally in between.
+ */
+export const setStyleRecolor = (recolor: Recolor) => unwrap(commands.setStyleRecolor(recolor));
+
+/** Changes one layer, or resets it by passing an empty patch (D3). */
+export const setLayerOverride = (layer: string, patch: LayerOverride) =>
+	unwrap(commands.setLayerOverride(layer, patch));
 
 // -- sources ---------------------------------------------------------------------------------
 

@@ -299,6 +299,10 @@ impl From<&(&str, Side, bool)> for PaneState {
 const PANES: &[(&str, Side, bool)] = &[
 	// Left: the documents. Open, because at S2 it is the only pane with anything in it.
 	("pipeline", Side::Left, true),
+	// Below the pipeline, because it renders what the pipeline produces — the same order as the
+	// work ([Q22](../../docs/decisions.md)). Closed on a fresh install: a style has nothing to show
+	// until there are tiles under it.
+	("style", Side::Left, false),
 	// Right: what the pipeline turns out to be. **No `parameters` pane** — the selected node carries
 	// its own arguments in the chain ([Q32]), which is what moved [Q31]'s axis from
 	// document-versus-selection to what-you-are-building versus what-it-turns-out-to-be.
@@ -581,6 +585,7 @@ mod tests {
 			pane("output", Side::Left, false),
 			pane("pipeline", Side::Left, true),
 			pane("inspector", Side::Right, false),
+			pane("style", Side::Left, false),
 		];
 		layout.save(&dir)?;
 		assert_eq!(Layout::load(&dir), layout);
@@ -632,7 +637,7 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		assert_eq!(ids, ["pipeline", "output", "inspector"]);
+		assert_eq!(ids, ["pipeline", "style", "output", "inspector"]);
 		assert!(!layout.panes[0].open, "the remembered pane kept its own state");
 	}
 
@@ -647,7 +652,10 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		assert_eq!(ids, ["inspector", "pipeline", "output"]);
+		// The two remembered ones keep their order; the arrivals follow in catalogue order. Within
+		// each sidebar that is still "last": left is pipeline then style, right is inspector then
+		// output.
+		assert_eq!(ids, ["inspector", "pipeline", "style", "output"]);
 	}
 
 	/// Nothing produces a duplicate, but a hand-edited file can — and two panes with one id would

@@ -18,6 +18,7 @@ use studio_core::{
 	history::History,
 	server::ServerManager,
 	store::{Bookmarks, Layout, Recents},
+	style::Recipe,
 };
 use tokio::sync::Mutex;
 
@@ -45,6 +46,10 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::bookmarks::list_bookmarks,
 		commands::bookmarks::save_bookmark,
 		commands::bookmarks::delete_bookmark,
+		commands::style::style,
+		commands::style::set_style_preset,
+		commands::style::set_style_recolor,
+		commands::style::set_layer_override,
 		commands::layout::layout,
 		commands::layout::set_layout,
 		commands::vpl::vpl_parse,
@@ -118,6 +123,7 @@ pub fn run() {
 					bookmarks: Mutex::new(bookmarks),
 					layout: Mutex::new(layout),
 					graphs: Mutex::new(studio_core::graphs::Graphs::new()),
+					style: Mutex::new(Recipe::default()),
 					history: Mutex::new(History::new()),
 					jobs: studio_core::jobs::Jobs::new(),
 					pinned: Mutex::new(None),

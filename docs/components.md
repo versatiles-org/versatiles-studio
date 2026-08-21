@@ -101,6 +101,7 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `Help`         | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md)) | S2.13      |
 | `HelpTrigger`  | The `?` that opens it — hover or focus peeks, click pins ([Q33](decisions.md))                                     | S2.13      |
 | `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3       |
+| `StylePane`    | Preset and the global adjustments over it (D1) — the layer tree is S4.5                                            | S4.2       |
 | `ExportDialog` | Format, zoom range and numeric bounds — modal, per graph ([Q32](decisions.md)); carries the cost estimate (C6)     | S3.6, S3.7 |
 
 ## Right pane — what it turns out to be

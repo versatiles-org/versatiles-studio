@@ -17,6 +17,7 @@ pub mod preview;
 pub mod project;
 pub mod server;
 pub mod store;
+pub mod style;
 pub mod suggest;
 pub mod tabular;
 #[cfg(test)]

@@ -9,11 +9,14 @@
 	import StatusBar, { type Status } from './lib/shell/StatusBar.svelte';
 	import Help from './lib/common/Help.svelte';
 	import { connectJobs } from './lib/state/jobs.svelte';
+	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
+	import { style as styleRecipe } from './lib/state/style.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import LandingScreen from './lib/common/LandingScreen.svelte';
 	import PipelineOutput from './lib/panes/output/PipelineOutput.svelte';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
+	import StylePane from './lib/panes/style/StylePane.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import { nodeAt, samePath, selectionSurvives, walk } from './lib/vpl/node-at';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
@@ -179,6 +182,8 @@
 		void refreshRecents();
 		void getLayout().then((loaded) => (layout = loaded));
 		void vplOperations().then((loaded) => (operations = loaded));
+		// The style survives a reload the way the graphs do — the core owns it ([Q36]).
+		void styleRecipe.load();
 		void importKinds().then((loaded) => (kinds = loaded));
 		void refreshGraphs().then(async () => {
 			if (graphs.length > 0) pipeline = await getGraph(graphs[0].id);
@@ -661,10 +666,17 @@
 		}
 	}
 
+	/// ⌘Z walks one stack across the graphs *and* the style ([Q36], S4.7), so the step says which
+	/// document it restored and this redraws that one. Undoing a style edit and undoing a pipeline
+	/// edit are the same gesture on the same history; only what changes afterwards differs.
 	async function stepHistory(back: boolean) {
 		try {
 			const next = await (back ? undoPipeline() : redoPipeline());
-			if (next) await applyDocument(next);
+			if (!next) return;
+			// Tested for a value rather than for the key: specta spells the union with `?: never` on
+			// the absent side, so `'graph' in next` narrows the variant without narrowing the field.
+			if (next.graph) await applyDocument(next.graph);
+			else if (next.style) styleRecipe.restored(next.style);
 		} catch (e) {
 			fail(e);
 		}
@@ -819,6 +831,8 @@
 				export: () => (exporting = true)
 			}}
 		/>
+	{:else if id === 'style'}
+		<StylePane />
 	{:else if id === 'output'}
 		<PipelineOutput preview={lastPreview} />
 	{:else if id === 'inspector'}

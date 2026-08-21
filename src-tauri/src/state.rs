@@ -16,6 +16,7 @@ use studio_core::{
 	jobs::Jobs,
 	server::ServerManager,
 	store::{Bookmarks, Layout, Recents},
+	style::Recipe,
 };
 
 /// Which node, in which graph, the map is pinned to ([Q32]).
@@ -39,7 +40,12 @@ pub struct AppState {
 	/// source ([Q32]). Owned here rather than in the webview ([Q16]); each carries its own file and
 	/// dirty state, which is why `pipeline_file` no longer exists beside this.
 	pub graphs: Mutex<Graphs>,
-	/// One undo stack across every graph, whichever view an edit came from ([Q11], [Q32], G6).
+	/// **The project's style**, as the recipe it is rendered from ([Q36], S4.2). One per project
+	/// over every graph it serves ([Q32]); the webview turns it into a MapLibre style, because that
+	/// is where the generator is.
+	pub style: Mutex<Recipe>,
+	/// One undo stack across every graph *and* the style, whichever view an edit came from
+	/// ([Q11], [Q32], [Q36], G6).
 	pub history: Mutex<History>,
 	/// The node whose output the map is showing, overriding the style ([Q32]). `None` is the
 	/// ordinary state: the map draws every mounted graph.

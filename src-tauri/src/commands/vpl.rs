@@ -7,9 +7,10 @@
 
 use crate::state::AppState;
 use studio_core::graphs::GraphId;
-use studio_core::history::EditKind;
+use studio_core::history::{EditKind, Target};
 use studio_core::jobs::{JobHandle, Lane};
 use studio_core::preview::VPLPipeline;
+use studio_core::style::Recipe;
 use studio_core::vpl::{Diagnostic, Document, OperationInfo, ParseError, Pipeline, Span, Token, operations, validate};
 use tauri::{AppHandle, State};
 
@@ -131,7 +132,7 @@ pub async fn add_graph(
 	// The baseline every graph needs, so undo has somewhere to step back to rather than stopping
 	// at this graph's first edit (see `History`).
 	let graph = graphs.get(id).expect("just added");
-	history.push(id, graph.document.text(), EditKind::Replaced);
+	history.push(Target::Graph(id), graph.document.text(), EditKind::Replaced);
 	Ok(DocumentView::of(graph, &history))
 }
 
@@ -207,7 +208,7 @@ pub async fn set_graph(
 	let mut history = state.history.lock().await;
 	// The caller says where the edit came from, because only it knows: the same command carries a
 	// keystroke and a form change, and they deserve different undo granularity.
-	history.push(id, graph.document.text(), kind.unwrap_or_default());
+	history.push(Target::Graph(id), graph.document.text(), kind.unwrap_or_default());
 	Ok(DocumentView::of(graph, &history))
 }
 
@@ -217,31 +218,59 @@ pub async fn set_graph(
 /// being edited — which is why it returns the whole document rather than just its text.
 #[tauri::command]
 #[specta::specta]
-pub async fn undo(state: State<'_, AppState>) -> Result<Option<DocumentView>, VplError> {
+pub async fn undo(state: State<'_, AppState>) -> Result<Option<Restored>, VplError> {
 	step(state, true).await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn redo(state: State<'_, AppState>) -> Result<Option<DocumentView>, VplError> {
+pub async fn redo(state: State<'_, AppState>) -> Result<Option<Restored>, VplError> {
 	step(state, false).await
 }
 
-async fn step(state: State<'_, AppState>, back: bool) -> Result<Option<DocumentView>, VplError> {
+/// What a step back or forward restored.
+///
+/// **The step says which document it changed**, because one stack now spans the graphs and the
+/// style ([Q36]) and the webview has to know which of them to redraw. Returning only a graph view
+/// would have made undoing a style edit look like nothing happened.
+///
+/// [Q36]: ../../../docs/decisions.md
+#[derive(serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub enum Restored {
+	Graph(DocumentView),
+	Style(Recipe),
+}
+
+async fn step(state: State<'_, AppState>, back: bool) -> Result<Option<Restored>, VplError> {
 	let mut history = state.history.lock().await;
 	let Some(step) = (if back { history.undo() } else { history.redo() }) else {
 		return Ok(None);
 	};
-	// Every state on the stack parsed when it was recorded, so this cannot fail — but it is parsed
-	// rather than assumed, because a panic here would take the window with it.
-	let document = Document::parse(step.text)?;
-	let mut graphs = state.graphs.lock().await;
-	let Some(graph) = graphs.get_mut(step.graph) else {
-		// The graph was removed after the edit was recorded; there is nothing to restore into.
-		return Ok(None);
-	};
-	graph.document = document;
-	Ok(Some(DocumentView::of(graph, &history)))
+
+	match step.target {
+		Target::Graph(id) => {
+			// Every state on the stack parsed when it was recorded, so this cannot fail — but it is
+			// parsed rather than assumed, because a panic here would take the window with it.
+			let document = Document::parse(step.text)?;
+			let mut graphs = state.graphs.lock().await;
+			let Some(graph) = graphs.get_mut(id) else {
+				// The graph was removed after the edit was recorded; nothing to restore into.
+				return Ok(None);
+			};
+			graph.document = document;
+			Ok(Some(Restored::Graph(DocumentView::of(graph, &history))))
+		}
+		Target::Style => {
+			// Same reasoning: it serialised from a `Recipe`, so it reads back as one — and a
+			// corrupt entry loses the step rather than the window.
+			let Ok(recipe) = Recipe::parse(&step.text) else {
+				return Ok(None);
+			};
+			*state.style.lock().await = recipe.clone();
+			Ok(Some(Restored::Style(recipe)))
+		}
+	}
 }
 
 /// What the editor needs on every keystroke: how to paint the text, and what is wrong with it.
@@ -478,7 +507,7 @@ pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 
 	let mut history = state.history.lock().await;
 	let graph = graphs.get(id).expect("just added");
-	history.push(id, graph.document.text(), EditKind::Replaced);
+	history.push(Target::Graph(id), graph.document.text(), EditKind::Replaced);
 	let view = DocumentView::of(graph, &history);
 	drop(graphs);
 

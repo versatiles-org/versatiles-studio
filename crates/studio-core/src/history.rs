@@ -1,9 +1,14 @@
-//! One undo stack for the whole document (S2.8, G6).
+//! One undo stack for the whole project (S2.8, S4.7, G6).
 //!
 //! Undo belongs to the *document*, not to any one view of it ([Q11], [Q25]). The text editor, the
 //! parameter forms and the graph all change the same pipeline, so a stack per view would mean
 //! ⌘Z doing something different depending on where the focus happened to be — and no way at all to
 //! undo a form change from the text tab.
+//!
+//! **The style is on it too**, not on a second one ([Q36]). It is a different document, but it is
+//! not a different kind of thing: a small text that a user changes and expects ⌘Z to walk back. The
+//! only generalisation it needed was [`Target`] — every rule below already handled documents that
+//! interleave, because several graphs do.
 //!
 //! **Snapshots, not inverse edits.** A pipeline is a few hundred bytes, so a hundred of them costs
 //! less than a single map tile. Storing the text is exact by construction; deriving an inverse for
@@ -11,6 +16,7 @@
 //!
 //! [Q11]: ../../docs/decisions.md
 //! [Q25]: ../../docs/decisions.md
+//! [Q36]: ../../docs/decisions.md
 
 use crate::graphs::GraphId;
 use std::time::{Duration, Instant};
@@ -40,10 +46,25 @@ pub enum EditKind {
 	Replaced,
 }
 
+/// What a state belongs to.
+///
+/// A project holds several graphs ([Q32](../../docs/decisions.md)) *and* one style recipe
+/// ([Q36](../../docs/decisions.md)), and G6 wants one ⌘Z across all of them. They are the same kind
+/// of thing as far as this module is concerned: a named document whose whole text is small enough to
+/// snapshot. Q36 is what makes the second half of that true — the core stores what the style is made
+/// from, not the 125 kB it renders to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Target {
+	/// One graph's VPL, by id.
+	Graph(GraphId),
+	/// The project's style recipe. There is one, so it needs no id.
+	Style,
+}
+
 #[derive(Debug, Clone)]
 struct Entry {
-	/// Which graph this state belongs to ([Q32](../../docs/decisions.md)).
-	graph: GraphId,
+	/// Which document this state belongs to.
+	target: Target,
 	text: String,
 	kind: EditKind,
 	at: Instant,
@@ -52,7 +73,7 @@ struct Entry {
 /// What an undo or redo asks the caller to restore.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Step {
-	pub graph: GraphId,
+	pub target: Target,
 	pub text: String,
 }
 
@@ -83,27 +104,27 @@ impl History {
 	///
 	/// Editing after undoing abandons the branch that was undone — the usual and expected model:
 	/// there is one past, and stepping off it forgets the future you stepped away from.
-	pub fn push(&mut self, graph: GraphId, text: impl Into<String>, kind: EditKind) {
-		self.push_at(graph, text, kind, Instant::now());
+	pub fn push(&mut self, target: Target, text: impl Into<String>, kind: EditKind) {
+		self.push_at(target, text, kind, Instant::now());
 	}
 
 	/// [`push`](Self::push) with the clock supplied, so coalescing can be tested without sleeping.
-	pub fn push_at(&mut self, graph: GraphId, text: impl Into<String>, kind: EditKind, at: Instant) {
+	pub fn push_at(&mut self, target: Target, text: impl Into<String>, kind: EditKind, at: Instant) {
 		let text = text.into();
-		if self.current_of(graph) == Some(text.as_str()) {
+		if self.current_of(target) == Some(text.as_str()) {
 			return; // nothing changed; a re-render is not an edit
 		}
 
 		self.entries.truncate(self.cursor + 1);
 
-		let merge = self.should_merge(graph, kind, at);
+		let merge = self.should_merge(target, kind, at);
 		if let (true, Some(last)) = (merge, self.entries.last_mut()) {
 			last.text = text;
 			last.at = at;
 			return;
 		}
 
-		self.entries.push(Entry { graph, text, kind, at });
+		self.entries.push(Entry { target, text, kind, at });
 		if self.entries.len() > LIMIT {
 			self.entries.remove(0);
 		}
@@ -114,27 +135,27 @@ impl History {
 	///
 	/// **In the same graph.** Typing here, then typing there, is two edits however fast it happened —
 	/// merging them would produce one undo step that changes two documents.
-	fn should_merge(&self, graph: GraphId, kind: EditKind, at: Instant) -> bool {
+	fn should_merge(&self, target: Target, kind: EditKind, at: Instant) -> bool {
 		if kind != EditKind::Typing || self.entries.is_empty() {
 			return false;
 		}
 		self.entries.last().is_some_and(|last| {
-			last.graph == graph && last.kind == EditKind::Typing && at.duration_since(last.at) < COALESCE
+			last.target == target && last.kind == EditKind::Typing && at.duration_since(last.at) < COALESCE
 		})
 	}
 
 	/// The text of `graph` as it stands, or `None` if it has nothing recorded up to the cursor.
 	#[must_use]
-	pub fn current_of(&self, graph: GraphId) -> Option<&str> {
-		self.latest(graph, self.cursor + 1)
+	pub fn current_of(&self, target: Target) -> Option<&str> {
+		self.latest(target, self.cursor + 1)
 	}
 
 	/// The most recent text for `graph` among the first `upto` entries.
-	fn latest(&self, graph: GraphId, upto: usize) -> Option<&str> {
+	fn latest(&self, target: Target, upto: usize) -> Option<&str> {
 		self.entries[..upto.min(self.entries.len())]
 			.iter()
 			.rev()
-			.find(|entry| entry.graph == graph)
+			.find(|entry| entry.target == target)
 			.map(|entry| entry.text.as_str())
 	}
 
@@ -153,11 +174,11 @@ impl History {
 		if self.cursor == 0 {
 			return None;
 		}
-		let graph = self.entries.get(self.cursor)?.graph;
+		let target = self.entries.get(self.cursor)?.target;
 		// The state to go back to is this graph's *previous* entry — not the stack's, which may
 		// belong to another graph and must be left where it is.
-		self.latest(graph, self.cursor).map(|text| Step {
-			graph,
+		self.latest(target, self.cursor).map(|text| Step {
+			target,
 			text: text.to_string(),
 		})
 	}
@@ -177,7 +198,7 @@ impl History {
 		self.cursor += 1;
 		let entry = self.entries.get(self.cursor)?;
 		Some(Step {
-			graph: entry.graph,
+			target: entry.target,
 			text: entry.text.clone(),
 		})
 	}
@@ -192,10 +213,8 @@ impl History {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::graphs::GraphId;
-
 	/// The graph these single-graph tests all edit. Multi-graph behaviour has its own tests below.
-	const G: GraphId = 1;
+	const G: Target = Target::Graph(1);
 
 	/// `undo`/`redo` hand back the graph as well as the text; most of these only look at the text.
 	trait StepText {
@@ -325,7 +344,7 @@ mod tests {
 
 	// -- several graphs, one stack ([Q32]) -------------------------------------------------------
 
-	const H: GraphId = 2;
+	const H: Target = Target::Graph(2);
 
 	/// G6: ⌘Z undoes the last thing you did, not the last thing you did *here*. So a stack shared
 	/// between graphs has to hand back which graph to restore, not only the text.
@@ -340,14 +359,14 @@ mod tests {
 		assert_eq!(
 			history.undo(),
 			Some(Step {
-				graph: H,
+				target: H,
 				text: "h1".into()
 			})
 		);
 		assert_eq!(
 			history.undo(),
 			Some(Step {
-				graph: G,
+				target: G,
 				text: "g1".into()
 			})
 		);
@@ -364,7 +383,7 @@ mod tests {
 		history.push(G, "from_debug format=png | raster_flatten", EditKind::Structured);
 
 		let step = history.undo().expect("something to undo");
-		assert_eq!(step.graph, G);
+		assert_eq!(step.target, G);
 		assert_eq!(
 			step.text, "from_debug format=png",
 			"restored G's own previous text, not H's"
@@ -383,7 +402,7 @@ mod tests {
 		assert_eq!(
 			history.redo(),
 			Some(Step {
-				graph: G,
+				target: G,
 				text: "g2".into()
 			})
 		);
@@ -408,7 +427,7 @@ mod tests {
 		assert_eq!(
 			history.undo(),
 			Some(Step {
-				graph: H,
+				target: H,
 				text: "h0".into()
 			}),
 			"H falls back to its baseline in one step"
@@ -437,5 +456,67 @@ mod tests {
 		assert!(!history.can_undo(), "H has no earlier state of its own");
 		assert_eq!(history.undo(), None);
 		assert_eq!(history.current_of(G).unwrap(), "g1", "and G was not disturbed");
+	}
+	/// **The claim S4.7 makes**: one ⌘Z across the style and the graphs, not one per document.
+	///
+	/// Interleaved deliberately. Undo after a style edit must restore the style and leave the graph
+	/// where it is, and the step after that must reach back past the style edit to the graph's own
+	/// previous state — which is the same rule that already governs two graphs, now that a style is
+	/// just another target.
+	#[test]
+	fn the_style_and_the_graphs_share_one_stack() {
+		let mut history = History::new();
+		history.push(G, "from_debug", EditKind::Structured);
+		history.push(Target::Style, r#"{"preset":"colorful"}"#, EditKind::Structured);
+		history.push(G, "from_debug | filter", EditKind::Structured);
+		history.push(Target::Style, r#"{"preset":"graybeard"}"#, EditKind::Structured);
+
+		// Back over the style edit.
+		let step = history.undo().unwrap();
+		assert_eq!(step.target, Target::Style);
+		assert_eq!(step.text, r#"{"preset":"colorful"}"#);
+
+		// Back over the graph edit, which the style edits in between must not have disturbed.
+		let step = history.undo().unwrap();
+		assert_eq!(step.target, G);
+		assert_eq!(step.text, "from_debug");
+
+		// And forward again, in the order it happened.
+		assert_eq!(history.redo().unwrap().target, G);
+		assert_eq!(history.redo().unwrap().target, Target::Style);
+	}
+
+	/// Typing in the editor coalesces; a style edit never merges into it, however quickly it
+	/// follows. Two documents in one undo step is exactly what the coalescing rule exists to stop.
+	///
+	/// **The style is given a baseline first, and it has to be.** Undo restores a target's
+	/// *previous* entry, so a target whose first edit is also its first entry has nothing to go back
+	/// to — the same reason every graph is recorded when it is added. Writing this test without one
+	/// is what showed the style needs the same treatment.
+	#[test]
+	fn a_style_edit_never_merges_into_a_run_of_typing() {
+		let mut history = History::new();
+		let start = Instant::now();
+		history.push_at(Target::Style, r#"{"preset":"colorful"}"#, EditKind::Replaced, start);
+		history.push_at(G, "from_", EditKind::Typing, later(start, 10));
+		history.push_at(G, "from_d", EditKind::Typing, later(start, 20));
+		history.push_at(
+			Target::Style,
+			r#"{"preset":"shadow"}"#,
+			EditKind::Typing,
+			later(start, 30),
+		);
+
+		let step = history.undo().unwrap();
+		assert_eq!(step.target, Target::Style);
+		assert_eq!(
+			step.text, r#"{"preset":"colorful"}"#,
+			"the style goes back to its own last state"
+		);
+		assert_eq!(
+			history.current_of(G),
+			Some("from_d"),
+			"the run of typing was not swallowed into the style's edit"
+		);
 	}
 }
