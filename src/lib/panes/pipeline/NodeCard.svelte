@@ -332,13 +332,18 @@
 	   clipping was for. */
 	.node {
 		min-width: 0;
-		border: 1px solid var(--rule);
+		/* The same line as the connector between nodes, because they are the same object: a node is
+		   a widening of the pipe, not a card that happens to sit near one. */
+		border: var(--pipe-width) solid var(--pipe);
 		border-radius: var(--radius);
 		background: var(--surface);
 
 		&.selected {
+			/* Colour, not weight. The ring that used to sit here existed to make a 1px border read as
+			   selected; now that the outline is the pipe's own width, adding to it would make the
+			   selected node 3px against everything else's 2px — a bulge in a line that is supposed to
+			   run straight through. */
 			border-color: var(--accent);
-			box-shadow: 0 0 0 1px var(--accent);
 
 			.title {
 				background: var(--chrome);

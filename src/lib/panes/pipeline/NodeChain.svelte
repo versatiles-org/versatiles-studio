@@ -147,22 +147,32 @@
 		padding-left: calc(var(--depth) * var(--space-4));
 	}
 
+	/* The rail's content box matches the row's, so a percentage inside it is a percentage of the
+	   node above — which is what lets the stem sit under the node's middle rather than near its
+	   left edge. */
 	.rail {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
 		min-height: 0.7rem;
-		padding-left: calc(var(--depth) * var(--space-4) + var(--space-4));
+		padding-left: calc(var(--depth) * var(--space-4));
 
 		&.offering {
 			min-height: 1.5rem;
 		}
 	}
 
+	/* **The pipe, and the node's outline, are one object.** Same colour and same width, so a chain
+	   reads as something joined rather than as cards stacked near a hairline — which is what it
+	   looked like when this was 1px of `--rule` and the nodes were bordered in the same grey as
+	   every other separator in the pane. */
 	.stem {
-		width: 1px;
+		width: var(--pipe-width);
+		/* Half its own width back from the middle, so the line is centred rather than starting
+		   there. */
+		margin-left: calc(50% - var(--pipe-width) / 2);
 		align-self: stretch;
-		background: var(--rule);
+		background: var(--pipe);
 		flex: none;
 	}
 
@@ -170,11 +180,12 @@
 	.elbow {
 		width: var(--space-4);
 		height: 0.55rem;
-		border-left: 1px solid var(--rule);
-		border-bottom: 1px solid var(--rule);
-		border-bottom-left-radius: 3px;
+		border-left: var(--pipe-width) solid var(--pipe);
+		border-bottom: var(--pipe-width) solid var(--pipe);
+		border-bottom-left-radius: 4px;
 		margin-top: -0.55rem;
-		margin-left: -1px;
+		/* Back by its own border, so the corner meets the stem instead of sitting beside it. */
+		margin-left: calc(var(--pipe-width) * -1);
 		flex: none;
 	}
 </style>

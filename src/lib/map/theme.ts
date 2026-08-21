@@ -44,7 +44,7 @@ const PAINT: Record<LayerRole, [property: ColourProperty, token: MapToken][]> = 
 	// The halo token is named for the grid and is simply the map's halo — the colour a label needs
 	// behind it to stay legible over arbitrary tiles. Two overlays want it now.
 	'pending-label': [
-		['text-color', '--map-pending'],
+		['text-color', '--ink'],
 		['text-halo-color', '--map-grid-halo']
 	]
 };
