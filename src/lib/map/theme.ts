@@ -18,7 +18,8 @@ import type { Map as MaplibreMap } from 'maplibre-gl';
 import { token, type MapToken } from '../styles/tokens';
 
 /** What a layer is for, as far as colour is concerned. */
-export type LayerRole = 'background' | 'grid-line' | 'grid-label' | 'container-feature';
+export type LayerRole =
+	'background' | 'grid-line' | 'grid-label' | 'container-feature' | 'pending-fill' | 'pending-line';
 
 /**
  * Which paint properties each role takes from which token.
@@ -35,7 +36,11 @@ const PAINT: Record<LayerRole, [property: ColourProperty, token: MapToken][]> = 
 		['text-color', '--map-grid'],
 		['text-halo-color', '--map-grid-halo']
 	],
-	'container-feature': [['line-color', '--map-feature']]
+	'container-feature': [['line-color', '--map-feature']],
+	// Two roles for one overlay, because a fill and a line take differently named properties and
+	// this table is typed against MapLibre's own names (S2.16).
+	'pending-fill': [['fill-color', '--map-pending']],
+	'pending-line': [['line-color', '--map-pending']]
 };
 
 /** Tags a layer so {@link applyMapTheme} can find it later. */

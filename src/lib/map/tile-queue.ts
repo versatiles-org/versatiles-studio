@@ -39,6 +39,29 @@ export function throughQueue(tileUrl: string): string {
 	return tileUrl.replace(/^https?:\/\//, `${SCHEME}://`);
 }
 
+/** Where a tile is, from the URL MapLibre resolved. */
+export interface TileCoord {
+	z: number;
+	x: number;
+	y: number;
+}
+
+/**
+ * The `z/x/y` a resolved tile URL ends in, or `null` when it does not end in one.
+ *
+ * MapLibre substitutes the placeholders before handing the URL over, so the coordinates are there
+ * to be read — which is what lets the queue's state be drawn on the map rather than only counted.
+ * Anchored at the end and tolerant of an extension and a query, because the server's URLs carry a
+ * cache-defeating revision.
+ */
+export function coordFromUrl(url: string): TileCoord | null {
+	const match = /\/(\d+)\/(\d+)\/(\d+)(?:\.[a-z0-9]+)?(?:\?.*)?$/i.exec(url);
+	if (!match) return null;
+	const [z, x, y] = [Number(match[1]), Number(match[2]), Number(match[3])];
+	// A zoom past 30 is not a tile, it is a parse that happened to succeed on something else.
+	return z <= 30 ? { z, x, y } : null;
+}
+
 interface Waiter {
 	resolve: () => void;
 	reject: (error: unknown) => void;

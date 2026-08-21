@@ -23,6 +23,7 @@
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
 	import TileGrid from './lib/map/TileGrid.svelte';
+	import TileActivity from './lib/map/TileActivity.svelte';
 	import MapControls from './lib/map/MapControls.svelte';
 	import { buildBackground, isBackgroundId, type BackgroundId } from './lib/map/background';
 	import CoordinateJump from './lib/map/CoordinateJump.svelte';
@@ -873,6 +874,9 @@
 		{/if}
 		<FeaturePopup {map} source={containers.at(-1)?.info.source ?? null} />
 		<TileGrid {map} visible={showGrid} />
+		<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
+		     has no visibility of its own to toggle. -->
+		<TileActivity {map} />
 		{#if empty}
 			<LandingScreen
 				{kinds}

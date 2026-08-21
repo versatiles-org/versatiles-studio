@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { SCHEME, throughQueue, TileQueue } from './tile-queue';
+import { coordFromUrl, SCHEME, throughQueue, TileQueue } from './tile-queue';
 
 /** A task that finishes when told to. */
 function held() {
@@ -127,5 +127,25 @@ describe('throughQueue', () => {
 	// that scheme.
 	it('only rewrites at the front', () => {
 		expect(throughQueue('http://a/x?u=http://b')).toBe(`${SCHEME}://a/x?u=http://b`);
+	});
+});
+
+describe('coordFromUrl', () => {
+	it('reads the coordinates MapLibre substituted', () => {
+		expect(coordFromUrl('http://127.0.0.1:8080/tiles/berlin/12/2200/1343')).toEqual({ z: 12, x: 2200, y: 1343 });
+	});
+
+	it('sees past an extension and a cache-defeating revision', () => {
+		expect(coordFromUrl('http://h/t/3/4/5.pbf')).toEqual({ z: 3, x: 4, y: 5 });
+		expect(coordFromUrl('http://h/t/3/4/5?r=7')).toEqual({ z: 3, x: 4, y: 5 });
+		expect(coordFromUrl('http://h/t/3/4/5.png?r=7')).toEqual({ z: 3, x: 4, y: 5 });
+	});
+
+	it('is not fooled by a URL that merely ends in numbers', () => {
+		// A sprite has two numeric segments, not three — the glyph and sprite URLs share this host.
+		expect(coordFromUrl('http://h/assets/sprites/basics/1/2')).toBeNull();
+		// Three numbers, but a zoom that cannot exist: a parse that happened to succeed on a date.
+		expect(coordFromUrl('http://h/v/2024/11/30')).toBeNull();
+		expect(coordFromUrl('http://h/tiles/berlin')).toBeNull();
 	});
 });

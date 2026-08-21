@@ -36,6 +36,26 @@ export function tileToLngLat(x: number, y: number, z: number): [number, number] 
  * Capped at 2048 tiles: past that the labels are unreadable anyway, and generating them stalls the
  * frame that draws them.
  */
+/**
+ * The four corners of one tile, as a GeoJSON ring.
+ *
+ * Shared by the grid and by the pending overlay (S2.16), so the two cannot disagree about where a
+ * tile is — a shaded square half a tile off its outline would be worse than no shading.
+ */
+export function tileRing(x: number, y: number, z: number): [number, number][][] {
+	const [w, n] = tileToLngLat(x, y, z);
+	const [e, s] = tileToLngLat(x + 1, y + 1, z);
+	return [
+		[
+			[w, n],
+			[e, n],
+			[e, s],
+			[w, s],
+			[w, n]
+		]
+	];
+}
+
 export function gridFeatures(bounds: LngLatBounds, z: number): GridFeature[] {
 	const nw = tileForLngLat(bounds.getWest(), bounds.getNorth(), z);
 	const se = tileForLngLat(bounds.getEast(), bounds.getSouth(), z);
@@ -45,22 +65,9 @@ export function gridFeatures(bounds: LngLatBounds, z: number): GridFeature[] {
 
 	for (let x = nw.x; x <= se.x && features.length < limit; x++) {
 		for (let y = nw.y; y <= se.y && features.length < limit; y++) {
-			const [w, n] = tileToLngLat(x, y, z);
-			const [e, s] = tileToLngLat(x + 1, y + 1, z);
 			features.push({
 				type: 'Feature',
-				geometry: {
-					type: 'Polygon',
-					coordinates: [
-						[
-							[w, n],
-							[e, n],
-							[e, s],
-							[w, s],
-							[w, n]
-						]
-					]
-				},
+				geometry: { type: 'Polygon', coordinates: tileRing(x, y, z) },
 				properties: { label: `${z}/${x}/${y}` }
 			});
 		}

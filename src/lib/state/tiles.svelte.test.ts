@@ -39,7 +39,9 @@ describe('tile activity', () => {
 		vi.stubGlobal('fetch', tile.fetch);
 
 		const inFlight = request(1);
-		await vi.advanceTimersByTimeAsync(PATIENCE - 100);
+		// One tick short of the threshold, whatever the threshold is — a fixed margin breaks the day
+		// somebody lowers `PATIENCE` to watch the overlay, which is a reasonable thing to do.
+		await vi.advanceTimersByTimeAsync(PATIENCE - 1);
 
 		expect(tiles.rendering).toBe(1);
 		expect(tiles.message).toBeNull();
@@ -81,6 +83,43 @@ describe('tile activity', () => {
 		tile.deliver();
 		await Promise.all(all);
 		expect([tiles.rendering, tiles.queued]).toEqual([0, 0]);
+	});
+
+	// The other half of the indicator: the overlay draws these, so "no features" and "no overlay"
+	// are the same bug seen from two ends.
+	it('gives the map a square per pending tile, saying which state it is in', async () => {
+		const tile = pending();
+		vi.stubGlobal('fetch', tile.fetch);
+
+		const all = Array.from({ length: 8 }, (_, n) => request(n));
+		await vi.advanceTimersByTimeAsync(PATIENCE);
+
+		const features = tiles.features;
+		expect(features).toHaveLength(8);
+		expect(features.map((f) => f.properties.state).filter((state) => state === 'rendering')).toHaveLength(6);
+		expect(features.map((f) => f.properties.state).filter((state) => state === 'queued')).toHaveLength(2);
+
+		// A ring of five points, closed — a polygon MapLibre will accept.
+		const ring = features[0].geometry.coordinates[0];
+		expect(ring).toHaveLength(5);
+		expect(ring[0]).toEqual(ring[4]);
+
+		tile.deliver();
+		await Promise.all(all);
+		expect(tiles.features).toHaveLength(0);
+	});
+
+	it('says nothing to draw until the wait has lasted long enough', async () => {
+		const tile = pending();
+		vi.stubGlobal('fetch', tile.fetch);
+		const inFlight = request(1);
+		await vi.advanceTimersByTimeAsync(PATIENCE - 1);
+
+		expect(tiles.rendering).toBe(1);
+		expect(tiles.features).toEqual([]);
+
+		tile.deliver();
+		await inFlight;
 	});
 
 	it('a failed tile is not counted forever', async () => {
