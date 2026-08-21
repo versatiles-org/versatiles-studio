@@ -188,6 +188,25 @@ impl Document {
 		Ok(())
 	}
 
+	/// Lays the document out again, keeping every comment ([vt#249]).
+	///
+	/// **Upstream's formatter, on the tree that still has the comments.** `to_string_pretty`
+	/// formats the *semantic* pipeline, which has already forgotten them — so before 4.9.1, "format
+	/// this" and "keep what I wrote" were exclusive, and offering a Format command meant either
+	/// deleting someone's notes or growing a second formatter that would disagree with the first.
+	///
+	/// Only trivia changes: no node moves, no parameter is reordered, no value is re-quoted. That is
+	/// what makes it safe to offer on a document someone is in the middle of editing.
+	///
+	/// [vt#249]: https://github.com/versatiles-org/versatiles-rs/issues/249
+	pub fn format(&mut self) {
+		let mut cst = self.cst.clone();
+		cst.format();
+		// `format` reindexes as it goes; going through `rebuilt` anyway keeps one path from a
+		// changed tree to a Document, rather than two that could stop agreeing.
+		*self = Self::rebuilt(cst);
+	}
+
 	/// Removes the property occupying `span`, together with the whitespace that separated it.
 	pub fn remove_property(&mut self, span: Span) -> Result<(), ParseError> {
 		let mut cst = self.cst.clone();

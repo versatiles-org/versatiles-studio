@@ -83,6 +83,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::vpl::remove_graph,
 		commands::vpl::rename_graph,
 		commands::vpl::set_graph,
+		commands::vpl::format_graph,
 		commands::vpl::preview_pipeline,
 		commands::vpl::mount_graph,
 		commands::vpl::pinned,
@@ -102,6 +103,11 @@ pub fn run() {
 	tauri::Builder::default()
 		.plugin(tauri_plugin_dialog::init())
 		.setup(|app| {
+			// Before anything can fetch: a remote container opened during start-up would otherwise
+			// go out as plain `versatiles/…` (vt#248).
+			if let Err(error) = studio_core::identify(env!("CARGO_PKG_VERSION")) {
+				eprintln!("could not name Studio in the User-Agent: {error:#}");
+			}
 			// The server is started once, for the whole application. Blocking here is deliberate:
 			// no window should exist before the data plane does.
 			let mut server = tauri::async_runtime::block_on(ServerManager::start())?;

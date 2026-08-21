@@ -145,6 +145,16 @@ export const openProject = (dir: string) => unwrap(commands.openProject(dir));
 export const deployment = () => unwrap(commands.deployment());
 
 /**
+ * Lays a graph's VPL out again, keeping its comments (S1.11, [vt#249]).
+ *
+ * Upstream's own formatter, applied to the tree that still has the comments — so Studio does not
+ * have to choose between tidying a file and keeping what its author wrote.
+ *
+ * [vt#249]: https://github.com/versatiles-org/versatiles-rs/issues/249
+ */
+export const formatGraph = (id: number) => unwrap(commands.formatGraph(id));
+
+/**
  * Narrows what an export of this graph writes (F2, S5.2, S5.4).
  *
  * The crop lives on the graph in the core, so it survives a reload and goes into the project

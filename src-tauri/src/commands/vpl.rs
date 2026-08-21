@@ -212,6 +212,33 @@ pub async fn set_graph(
 	Ok(DocumentView::of(graph, &history))
 }
 
+/// Lays a graph's VPL out again, keeping its comments ([vt#249], S1.11).
+///
+/// **Recorded as an edit, not a rewrite.** It goes on the undo stack like anything else, and the
+/// file behind it is kept — reformatting a `.vpl` is a change to it, not a replacement of it, so
+/// Save still writes where it came from.
+///
+/// [vt#249]: https://github.com/versatiles-org/versatiles-rs/issues/249
+#[tauri::command]
+#[specta::specta]
+pub async fn format_graph(state: State<'_, AppState>, id: GraphId) -> Result<DocumentView, VplError> {
+	let mut graphs = state.graphs.lock().await;
+	let Some(graph) = graphs.get_mut(id) else {
+		return Err(VplError {
+			message: "no such graph".to_string(),
+			span: Span::new(0, 0),
+		});
+	};
+
+	graph.document.format();
+
+	let mut history = state.history.lock().await;
+	// `Replaced` rather than a keystroke: this changes the whole document at once, and merging it
+	// into a run of typing would make one ⌘Z undo both the formatting and the last thing typed.
+	history.push(Target::Graph(id), graph.document.text(), EditKind::Replaced);
+	Ok(DocumentView::of(graph, &history))
+}
+
 /// Steps back, or forward again. `None` when there is nowhere to go.
 ///
 /// **One stack across every graph** ([Q32], G6), so this may hand back a graph other than the one

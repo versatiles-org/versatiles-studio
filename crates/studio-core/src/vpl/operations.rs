@@ -130,6 +130,21 @@ pub struct FieldInfo {
 	/// Fed by a `[ … ]` block rather than by a `key=value` pair, so it has no control.
 	pub sources: bool,
 	pub control: Control,
+	/// What the operation does when this parameter is absent, spelled as VPL would write it
+	/// ([vt#253]). `None` when there is no literal to show.
+	///
+	/// **Shown, never filled in.** An empty box for `from_color`'s `color` and an empty box for
+	/// `from_csv`'s `lon_column` used to look identical, and one of them means `000000` while the
+	/// other means the pipeline will not build. Writing the default into the document instead would
+	/// turn every form into a wall of restated defaults and freeze today's value into a file that
+	/// should follow whatever the operation does next.
+	///
+	/// `None` is not "required": an optional parameter with no default is one whose absence *does*
+	/// something — `filter`'s `bbox` clips nothing at all when unset — and a form has nothing to
+	/// say about those.
+	///
+	/// [vt#253]: https://github.com/versatiles-org/versatiles-rs/issues/253
+	pub default: Option<String>,
 }
 
 /// One operation, ready to render.
@@ -169,6 +184,7 @@ pub fn operations() -> Vec<OperationInfo> {
 					required: field.is_required,
 					sources: field.is_sources,
 					control: control_for(&field.rust_type, &field.enum_variants),
+					default: field.default.clone(),
 				})
 				.collect(),
 		})
@@ -324,5 +340,33 @@ mod summary_tests {
 				operation.name
 			);
 		}
+	}
+}
+
+#[cfg(test)]
+mod default_tests {
+	use super::*;
+
+	fn field(operation: &str, name: &str) -> FieldInfo {
+		operations()
+			.into_iter()
+			.find(|op| op.name == operation)
+			.unwrap_or_else(|| panic!("no operation {operation}"))
+			.fields
+			.into_iter()
+			.find(|f| f.name == name)
+			.unwrap_or_else(|| panic!("no field {operation}.{name}"))
+	}
+
+	/// The distinction the form rests on: an optional parameter with a literal default has something
+	/// to show, and a required one has nothing — the two used to look identical (vt#253).
+	#[test]
+	fn a_default_is_carried_when_there_is_one() {
+		let colour = field("from_color", "color");
+		assert!(!colour.required);
+		assert!(colour.default.is_some(), "from_color uses 000000 when color is absent");
+
+		let column = field("from_csv", "lon_column");
+		assert!(column.default.is_none(), "there is no value this could fall back to");
 	}
 }

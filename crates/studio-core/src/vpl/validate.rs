@@ -194,13 +194,14 @@ mod tests {
 		assert_eq!(document.slice(found[0].span), Some("from_container"));
 	}
 
-	/// **A value is not checked against the enum, and must not be.** `enum_variants` lists canonical
-	/// names only, while the parsers take aliases besides — so `format=pbf` and `format=jpeg` build
-	/// and would be reported as invalid by anything comparing against that list.
+	/// **An alias builds, so it must not be underlined.** `enum_variants` lists canonical names only,
+	/// while the parsers take aliases besides — so `format=pbf` and `format=jpeg` build and would be
+	/// reported as invalid by anything comparing against that list.
 	///
 	/// Studio did compare against it, and did report them. The cost of a second implementation was
 	/// not that it drifted; it was that it was wrong in a way nobody would look for, because a
-	/// validator that says "expected one of …" reads as authoritative.
+	/// validator that says "expected one of …" reads as authoritative. Asking `check_pipeline` is
+	/// what fixed it, and this is what keeps it fixed.
 	#[test]
 	fn an_accepted_alias_is_never_reported() {
 		for vpl in [
@@ -210,9 +211,23 @@ mod tests {
 		] {
 			assert!(diagnose(vpl).is_empty(), "{vpl} builds, so it must not be flagged");
 		}
-		// The other side of the same coin: an unknown value is not flagged either, because no list
-		// here can tell one from an alias.
-		assert!(diagnose("from_debug format=notaformat").is_empty());
+	}
+
+	/// The other half, which only became true in 4.9.1.
+	///
+	/// Before [vt#252], upstream checked an enum value against the variant list too, and its answer
+	/// for an unknown value was the same as its answer for an alias: accept it, and fail when the
+	/// operation was built. Now the type's own parser decides, so a value that is neither a variant
+	/// nor an alias is refused — and because Studio asks `check_pipeline` rather than deciding for
+	/// itself, it is underlined while it is being typed rather than failing on the first tile.
+	///
+	/// [vt#252]: https://github.com/versatiles-org/versatiles-rs/issues/252
+	#[test]
+	fn a_value_that_is_neither_a_variant_nor_an_alias_is_reported() {
+		assert!(
+			!diagnose("from_debug format=notaformat").is_empty(),
+			"upstream refuses this, so the editor should say so"
+		);
 	}
 
 	/// A pipeline reads and then transforms; both halves of that rule are checked.
@@ -296,6 +311,8 @@ mod tests {
 			"from_debug format=pbf",
 			"from_debug format=jpeg",
 			"from_debug format=png nonsense=1",
+			// Neither a variant nor an alias. Caught since 4.9.1 (vt#252); it used to be the one
+			// entry in `missed` below.
 			"from_debug format=notaformat",
 			"from_container",
 			"not_an_operation",
@@ -323,13 +340,10 @@ mod tests {
 		}
 
 		assert!(wrong.is_empty(), "these build, and Studio underlines them: {wrong:?}");
-		// The gap, named rather than left open: a value's *format* is decided by building, so
-		// nothing here can decide it (see `value_formats_are_not_checked`). A new entry means
-		// something else stopped being checked.
-		assert_eq!(
-			missed,
-			["from_debug format=notaformat"],
-			"the set of things not caught changed"
-		);
+		// **Empty since 4.9.1.** Every case here that upstream refuses, Studio now underlines. The
+		// remaining gap is a value's *format*, which is decided by building rather than by checking
+		// (see `value_formats_are_not_checked`) and so has no case in this list. An entry appearing
+		// means something stopped being checked.
+		assert_eq!(missed, Vec::<&str>::new(), "the set of things not caught changed");
 	}
 }

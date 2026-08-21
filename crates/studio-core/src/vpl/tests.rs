@@ -661,3 +661,33 @@ fn a_span_that_names_no_node_is_refused_by_both_structural_edits() {
 	assert!(document.remove_node(nowhere).is_err());
 	assert_eq!(document.text(), "from_debug format=png");
 }
+
+/// The whole point of asking upstream for a CST formatter (vt#249): a Format command that deletes
+/// the notes in a file is a Format command nobody uses twice.
+#[test]
+fn formatting_keeps_the_comments() {
+	let mut document =
+		Document::parse("# Berlin\nfrom_container filename='berlin.mbtiles'   |   vector_repair # tidy it").unwrap();
+	document.format();
+
+	let text = document.text();
+	assert!(text.contains("# Berlin"), "{text}");
+	assert!(text.contains("# tidy it"), "{text}");
+	assert_eq!(document.comments().len(), 2, "{text}");
+	assert!(text.contains("| vector_repair"), "and it did lay it out again: {text}");
+}
+
+/// Only whitespace moves, so a value keeps the quoting its author chose and a document that was
+/// already tidy comes back unchanged.
+#[test]
+fn formatting_changes_nothing_but_the_layout() {
+	let mut document = Document::parse("from_container filename='a b.mbtiles' | filter level_min=2").unwrap();
+	document.format();
+	let once = document.text().to_string();
+
+	assert!(once.contains("filename='a b.mbtiles'"), "{once}");
+
+	let mut again = Document::parse(once.clone()).unwrap();
+	again.format();
+	assert_eq!(again.text(), once, "formatting twice is formatting once");
+}

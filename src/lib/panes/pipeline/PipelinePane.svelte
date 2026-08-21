@@ -110,6 +110,8 @@
 			change: (text: string) => void;
 			undo: () => void;
 			redo: () => void;
+			/** Lays the VPL out again, keeping its comments (S1.11). */
+			format: () => void;
 			/** `true` to choose a new file rather than writing to the one already open. */
 			save: (chooseFile: boolean) => void;
 			/** Opens the export modal for this graph — a run, not an edit ([Q32]). */
@@ -214,6 +216,18 @@
 			</button>
 		{/each}
 		<div class="history">
+			<!-- In the VPL tab only: the graph tab has no layout of its own to tidy, and a button
+			     that did nothing visible from there would read as broken. -->
+			{#if tab === 'vpl'}
+				<button
+					type="button"
+					class="step"
+					disabled={!pipeline}
+					title="Tidy the layout, keeping comments"
+					aria-label="Format"
+					onclick={documentActions.format}>¶</button
+				>
+			{/if}
 			<button
 				type="button"
 				class="step"

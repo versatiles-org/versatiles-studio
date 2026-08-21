@@ -426,6 +426,16 @@ export const commands = {
 /**  The document was replaced wholesale, e.g. by opening a file. */
 "replaced" | null) => typedError<DocumentView, VplError>(__TAURI_INVOKE("set_graph", { id, text, kind })),
 	/**
+	 *  Lays a graph's VPL out again, keeping its comments ([vt#249], S1.11).
+	 * 
+	 *  **Recorded as an edit, not a rewrite.** It goes on the undo stack like anything else, and the
+	 *  file behind it is kept — reformatting a `.vpl` is a change to it, not a replacement of it, so
+	 *  Save still writes where it came from.
+	 * 
+	 *  [vt#249]: https://github.com/versatiles-org/versatiles-rs/issues/249
+	 */
+	formatGraph: (id: number) => typedError<DocumentView, VplError>(__TAURI_INVOKE("format_graph", { id })),
+	/**
 	 *  Runs the pipeline up to `path` and mounts the result — as a cancellable job (S2.7, S3.1).
 	 * 
 	 *  Building opens the inputs, which on a large source is not instant, so this runs in the runner's
@@ -711,6 +721,23 @@ export type FieldInfo = {
 	/**  Fed by a `[ … ]` block rather than by a `key=value` pair, so it has no control. */
 	sources: boolean,
 	control: Control,
+	/**
+	 *  What the operation does when this parameter is absent, spelled as VPL would write it
+	 *  ([vt#253]). `None` when there is no literal to show.
+	 * 
+	 *  **Shown, never filled in.** An empty box for `from_color`'s `color` and an empty box for
+	 *  `from_csv`'s `lon_column` used to look identical, and one of them means `000000` while the
+	 *  other means the pipeline will not build. Writing the default into the document instead would
+	 *  turn every form into a wall of restated defaults and freeze today's value into a file that
+	 *  should follow whatever the operation does next.
+	 * 
+	 *  `None` is not "required": an optional parameter with no default is one whose absence *does*
+	 *  something — `filter`'s `bbox` clips nothing at all when unset — and a form has nothing to
+	 *  say about those.
+	 * 
+	 *  [vt#253]: https://github.com/versatiles-org/versatiles-rs/issues/253
+	 */
+	default: string | null,
 };
 
 /**  What one field could be set to. */

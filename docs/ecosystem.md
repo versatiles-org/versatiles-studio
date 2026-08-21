@@ -127,11 +127,11 @@ already fails the preview with upstream's own wording a second later. The differ
 rather than a status line. Worth raising when someone has the CI case to point at, which
 [S5.5](scope-release-1.md) would give us.
 
-Two more were filed on 2026-08-21 and are listed below rather than here: identifying the software
-making a request ([vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248)) and a
-formatter that keeps comments ([vt#249](https://github.com/versatiles-org/versatiles-rs/issues/249)).
-Both passed the same test as the ten that landed in 4.9.0 — they are about _tiles_ rather than about
-Studio's interface, and the CLI and `versatiles_node` want them too.
+Two more were filed on 2026-08-21: identifying the software making a request
+([vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248)) and a formatter that keeps
+comments ([vt#249](https://github.com/versatiles-org/versatiles-rs/issues/249)). Both passed the same
+test as the ten before them — they are about _tiles_ rather than about Studio's interface, and the
+CLI and `versatiles_node` want them too. Both landed the next day, in 4.9.1.
 
 ### Filed, and what came back
 
@@ -150,14 +150,26 @@ the same standard, and cannot be satisfied by a fix arriving in an unexpected fo
 
 #### Still open
 
-| Issue                                                                | Asks for                                                         | What Studio does meanwhile                                                                                                                            |
-| -------------------------------------------------------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link                    | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
-| [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue**       | The pinned fork above                                                                                                                                 |
-| [vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248) | A product token a host can add to the `User-Agent`               | Every remote read says `versatiles/…` and nothing more ([S1.11](scope-release-1.md))                                                                  |
-| [vt#249](https://github.com/versatiles-org/versatiles-rs/issues/249) | A formatter over the CST, so comments survive it                 | No Format command in the VPL editor ([S2.15](scope-release-1.md))                                                                                     |
-| [vt#252](https://github.com/versatiles-org/versatiles-rs/issues/252) | An enum value checked by the type's parser, not its variant list | Nothing — a bad value is a failed preview rather than an underline                                                                                    |
-| [vt#253](https://github.com/versatiles-org/versatiles-rs/issues/253) | Default values on `VPLFieldMeta`                                 | A generated form shows an empty box whether or not a default exists                                                                                   |
+| Issue                                                                | Asks for                                                   | What Studio does meanwhile                                                                                                                            |
+| -------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link              | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
+| [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue** | The pinned fork above                                                                                                                                 |
+
+#### Landed in 4.9.1
+
+Four, the day after the last of them was filed. Each row was read in the 4.9.1 source rather than
+taken from the issue being closed, for the reason vt#229 gives above.
+
+| Issue                                                                | Landed as                                                            | What Studio does with it                                                                                                                     |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| [vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248) | `io::set_product`, appended to `USER_AGENT` rather than replacing it | `studio_core::identify` at start-up, so a remote read says `versatiles/4.9.1 … VersaTiles-Studio/…` ([S1.11](scope-release-1.md)) — **done** |
+| [vt#249](https://github.com/versatiles-org/versatiles-rs/issues/249) | `CstFile::format`, rewriting trivia and moving nothing else          | A Format button in the VPL tab, on the undo stack ([S2.15](scope-release-1.md)) — **done**                                                   |
+| [vt#252](https://github.com/versatiles-org/versatiles-rs/issues/252) | `VPLFieldMeta::accepts`, the type's own parser                       | Nothing to change — Studio asks `check_pipeline`, so `format=notaformat` is now underlined as it is typed rather than failing a preview      |
+| [vt#253](https://github.com/versatiles-org/versatiles-rs/issues/253) | `VPLFieldMeta::default`, in VPL's own spelling                       | The generated form shows it as the empty box's placeholder — shown, never written — **done**                                                 |
+
+**vt#252 needed no adoption, which is the point of having taken `check_pipeline` in 4.9.0.** Studio
+stopped deciding for itself then; the fix arrived underneath it, and the only change here was a test
+that recorded `from_debug format=notaformat` as a known miss and now records that it is caught.
 
 #### Landed in 4.9.0
 

@@ -286,7 +286,12 @@ deleted — **about 700 lines removed for 250 added**, and one grammar in the ec
 The second payout was wider rather than deeper. Ten of the twelve asks filed during stage 1 landed
 together in 4.9.0, including an operation that reports whether it fits a source — a capability
 Studio would otherwise have had to guess at, one operation at a time, from metadata that does not
-carry the answer.
+carry the answer. Four more landed in 4.9.1, one of them the day after it was filed.
+
+**One of those four needed no adoption at all**, which is the clearest measure of the arrangement
+working. Studio stopped validating enum values itself when it took `check_pipeline` in 4.9.0; when
+the parser started deciding them ([vt#252](https://github.com/versatiles-org/versatiles-rs/issues/252)),
+the fix arrived underneath Studio and the only change here was a test that had recorded the gap.
 
 **The two platforms deliver an opened file differently.** macOS sends `RunEvent::Opened`, possibly
 before the window exists and possibly again later; Linux puts the path in `argv`, once. `opened.rs`

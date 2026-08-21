@@ -54,6 +54,7 @@
 		renameGraph,
 		addGraph,
 		setGraph,
+		formatGraph,
 		undo as undoPipeline,
 		openVpl,
 		saveVpl,
@@ -847,6 +848,20 @@
 		await refreshPreview();
 	}
 
+	/// Lays the current graph's VPL out again (S1.11).
+	///
+	/// `applyDocument` because the text changes from outside the editor, which is what bumps the
+	/// revision the editor reloads on — without it the textarea would keep the old layout while the
+	/// document had the new one.
+	async function formatPipeline() {
+		if (!pipeline) return;
+		try {
+			await applyDocument(await formatGraph(pipeline.graph));
+		} catch (e) {
+			fail(e);
+		}
+	}
+
 	/// Adds a transform after the node whose name occupies `span`.
 	///
 	/// It used to select what it added, so the new node's form was showing — every node shows one
@@ -1061,6 +1076,7 @@
 					}),
 				undo: () => void stepHistory(true),
 				redo: () => void stepHistory(false),
+				format: () => void formatPipeline(),
 				save: (chooseFile) => void savePipeline(chooseFile),
 				export: () => (exporting = true)
 			}}

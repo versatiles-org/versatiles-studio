@@ -37,6 +37,7 @@
 		help?: HelpContent;
 		/** Values this field could take, from either end of the pipeline (S3.3, S3.4). */
 		suggestions?: string[];
+		/** What the empty box should say when the field has no default of its own to show. */
 		placeholder?: string;
 		/** In the pane and not yet in the document — tinted to say so. */
 		tentative?: boolean;
@@ -49,6 +50,19 @@
 	} = $props();
 
 	const control = $derived(field?.control);
+
+	/// What the empty box says.
+	///
+	/// **A default beats whatever the caller suggested** ([vt#253]). "a value" is a restatement of
+	/// the box; `000000` is what the operation will actually do if this is left alone — which is the
+	/// difference between `from_color`'s `color`, whose absence is fine, and `from_csv`'s
+	/// `lon_column`, whose absence is a pipeline that will not build. They used to look identical.
+	///
+	/// Shown and never written: putting the default into the document would freeze today's value
+	/// into a file that should follow whatever the operation does next.
+	///
+	/// [vt#253]: https://github.com/versatiles-org/versatiles-rs/issues/253
+	const hint = $derived(field?.default ?? placeholder);
 
 	/** A list is typed as one comma-separated line and stored as a VPL array. */
 	const parts = (raw: string) =>
@@ -94,7 +108,7 @@
 			<input
 				type="number"
 				{value}
-				{placeholder}
+				placeholder={hint}
 				step={control.integer ? 1 : 'any'}
 				min={control.min ?? undefined}
 				max={control.max ?? undefined}
@@ -109,7 +123,7 @@
 				class:path={isPath}
 				{value}
 				title={value}
-				placeholder={placeholder || (control?.kind === 'numbers' ? `${control.count} numbers` : '')}
+				placeholder={hint || (control?.kind === 'numbers' ? `${control.count} numbers` : '')}
 				list={suggestions.length > 0 ? listId : undefined}
 				spellcheck="false"
 				autocomplete="off"
