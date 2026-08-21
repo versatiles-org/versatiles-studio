@@ -253,12 +253,14 @@ reverse test matters more — **when the knowledge lives upstream, so does the q
 fits a source instead of reimplementing every operation's requirements here.
 
 This is not a rule to wait. Studio builds what it needs now _and_ files the ask alongside;
-[Ecosystem Inventory](ecosystem.md) records each one with what Studio does meanwhile, and where a
-workaround can have a tripwire it has one. What the rule forbids is building quietly: a capability
+[Ecosystem Inventory](ecosystem.md) records each one with what Studio does meanwhile. Where a
+workaround rests on a claim, a test holds that claim — not the shape of the fix that will retire it,
+which is the reminder that
+[was tried and failed](ecosystem.md#filed-and-what-came-back). What the rule forbids is building quietly: a capability
 that should have been upstream and was never offered there costs the ecosystem an improvement and
 costs us the maintenance of a private copy.
 
-**It has already paid out once, and largely.** Studio needed a lossless VPL syntax tree for C1 and
+**It has already paid out twice.** Studio needed a lossless VPL syntax tree for C1 and
 upstream's parser could not give one ([Q23](decisions.md)); rather than keep the second grammar it
 had written, Studio filed
 [#216](https://github.com/versatiles-org/versatiles-rs/issues/216),
@@ -267,6 +269,11 @@ had written, Studio filed
 `CstFile`, and Studio's parser, printer and the differential test that kept the two honest were
 deleted — **about 700 lines removed for 250 added**, and one grammar in the ecosystem instead of two.
 `crates/studio-vpl` not existing is the visible result: it would only be here if upstream had said no.
+
+The second payout was wider rather than deeper. Ten of the twelve asks filed during stage 1 landed
+together in 4.9.0, including an operation that reports whether it fits a source — a capability
+Studio would otherwise have had to guess at, one operation at a time, from metadata that does not
+carry the answer.
 
 **The two platforms deliver an opened file differently.** macOS sends `RunEvent::Opened`, possibly
 before the window exists and possibly again later; Linux puts the path in `argv`, once. `opened.rs`

@@ -140,10 +140,13 @@ pub struct OperationInfo {
 	pub name: String,
 	/// `read` or `transform` — which end of a pipeline it belongs at.
 	pub kind: String,
-	/// What it does, in a sentence — see [`summary`] for why this is separate from `doc`.
+	/// What it does, in a sentence.
 	pub summary: String,
-	/// The whole rustdoc, of which four fifths restates `fields` in prose.
-	pub doc: String,
+	/// Everything else upstream has to say, minus the parameter list — that is `fields`, and
+	/// sending it twice is what [vt#229] was about. Empty when the summary is the whole of it.
+	///
+	/// [vt#229]: https://github.com/versatiles-org/versatiles-rs/issues/229
+	pub details: String,
 	pub fields: Vec<FieldInfo>,
 }
 
@@ -155,8 +158,8 @@ pub fn operations() -> Vec<OperationInfo> {
 		.map(|meta| OperationInfo {
 			name: meta.tag_name.clone(),
 			kind: meta.kind.to_string(),
-			summary: summary(&meta.doc).to_string(),
-			doc: meta.doc.clone(),
+			summary: meta.summary.clone(),
+			details: meta.details.clone(),
 			fields: meta
 				.fields
 				.iter()
@@ -280,76 +283,21 @@ mod tests {
 
 /// The first paragraph of an operation's documentation — what it does, in a sentence.
 ///
-/// **A workaround, and marked as one.** `all_operation_metadata()` returns the whole rustdoc in one
-/// string: a summary paragraph followed by a generated `### Parameters` section. Measured across the
-/// 30 operations, that section is 81% of the text, and all 127 field docs appear verbatim inside it —
-/// the same data this call already returns, structured, in `fields`. So this takes the tenth that is
-/// not a duplicate.
-///
-/// Asked for upstream as [versatiles-rs#229](https://github.com/versatiles-org/versatiles-rs/issues/229);
-/// when `doc` carries a summary of its own this becomes a field access. Until then the split is
-/// conservative: a blank line or the `###` heading, whichever comes first, and the whole string when
-/// neither appears.
-///
-/// `the_workaround_is_still_needed` below fails the day that lands, so nobody has to remember.
-#[must_use]
-pub fn summary(doc: &str) -> &str {
-	let end = doc
-		.find("\n\n")
-		.into_iter()
-		.chain(doc.find("\n#"))
-		.min()
-		.unwrap_or(doc.len());
-	doc[..end].trim()
-}
-
 #[cfg(test)]
 mod summary_tests {
 	use super::*;
 
-	#[test]
-	fn the_summary_is_the_first_paragraph() {
-		assert_eq!(
-			summary("Does a thing.\n\n### Parameters\n\n- **a**: …"),
-			"Does a thing."
-		);
-		assert_eq!(
-			summary("Two\nlines of summary.\n\n### Parameters"),
-			"Two\nlines of summary."
-		);
-		// A heading with no blank line before it still ends the summary.
-		assert_eq!(summary("Does a thing.\n### Parameters"), "Does a thing.");
-		// Nothing to split on: the whole string is the summary.
-		assert_eq!(summary("Just one line."), "Just one line.");
-		assert_eq!(summary(""), "");
-	}
-
-	/// **Deliberately fails when upstream fixes this.**
+	/// What the picker rests on: every operation in this build has a summary short enough to sit
+	/// in a list, and it is not the whole document.
 	///
-	/// [versatiles-rs#229](https://github.com/versatiles-org/versatiles-rs/issues/229) asks for the
-	/// generated `### Parameters` section to be split out of `doc`, or dropped — everything in it is
-	/// already in `fields`. The day that ships, this test goes red and says what to delete, which is
-	/// a more reliable form of remembering than a note somebody has to re-read.
-	#[test]
-	fn the_workaround_is_still_needed() {
-		let bloated = operations()
-			.iter()
-			.filter(|operation| operation.doc.contains("### Parameters"))
-			.count();
-		assert!(
-			bloated > 0,
-			"no operation doc carries a `### Parameters` section any more — upstream #229 has \
-			 landed. Delete `summary()` and its tests, read the summary from the metadata instead, \
-			 and drop the note in docs/ecosystem.md."
-		);
-	}
-
-	/// The claim the workaround rests on: every operation in this build has a usable first
-	/// paragraph, and it is a small fraction of the whole.
+	/// Studio used to split this out of `doc` itself, because upstream only offered the full
+	/// rustdoc. [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) added
+	/// `summary` and `details`, so the splitter is gone — but the claim it rested on is still a
+	/// claim, and upstream's field can regress as easily as ours could.
 	#[test]
 	fn every_operation_has_a_short_usable_summary() {
 		for operation in operations() {
-			let summary = summary(&operation.doc);
+			let summary = &operation.summary;
 			assert!(!summary.is_empty(), "{} has no summary", operation.name);
 			assert!(
 				!summary.contains("###"),
@@ -361,6 +309,19 @@ mod summary_tests {
 				"{}'s summary is {} chars, which is not a sentence",
 				operation.name,
 				summary.chars().count()
+			);
+		}
+	}
+
+	/// The other half of vt#229: `details` must not carry the parameter list back in, or the
+	/// duplication the issue removed returns by a different name.
+	#[test]
+	fn details_leave_the_parameter_list_to_fields() {
+		for operation in operations() {
+			assert!(
+				!operation.details.contains("### Parameters"),
+				"{}'s details still carry the generated parameter list",
+				operation.name
 			);
 		}
 	}

@@ -120,32 +120,49 @@ versatiles-rs planning session. None blocks Studio; each removes a workaround.
 The first is on the critical path for stage 2 and should be offered upstream during stage 1, so
 review overlaps with cluster A rather than following it. The rest can land whenever.
 
-### Filed and open
+### Filed, and what came back
 
 What has actually been asked for, and what each one buys back here. Most workarounds are things
 Studio would keep anyway — a tile URL that defeats a cache, a guard against an unbounded traversal —
-so they need no reminder to remove. **Where a workaround exists only until the fix lands, a test
-fails on that day**: `vpl::operations::the_workaround_is_still_needed` is the one such tripwire
-today, for vt#229. This table is the map, not the reminder.
+so they need no reminder to remove.
 
-| Issue                                                                | Asks for                                                            | What Studio does meanwhile                                                                                                                            |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [vt#222](https://github.com/versatiles-org/versatiles-rs/issues/222) | Configurable `cache-control` on `serve`                             | A per-mount revision in the tile URL                                                                                                                  |
-| [vt#223](https://github.com/versatiles-org/versatiles-rs/issues/223) | `tools` in the library, not binary-only                             | B2's byte breakdown is deferred ([Q12](decisions.md))                                                                                                 |
-| [vt#224](https://github.com/versatiles-org/versatiles-rs/issues/224) | Check a pipeline without building it                                | `validate` re-implements the checks it can                                                                                                            |
-| [vt#225](https://github.com/versatiles-org/versatiles-rs/issues/225) | A name accessor on `SourceType`                                     | `analysis::container_name` parses `Display` output                                                                                                    |
-| [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link                       | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
-| [vt#227](https://github.com/versatiles-org/versatiles-rs/issues/227) | A sanity check before an unbounded traversal                        | `export::MAX_TILES` refuses one ([S3.6](scope-release-1.md))                                                                                          |
-| [vt#228](https://github.com/versatiles-org/versatiles-rs/issues/228) | PMTiles from an overview pipeline                                   | Nothing — the failure is reported and readable                                                                                                        |
-| [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) | An operation summary separate from its doc                          | `vpl::summary` splits the first paragraph                                                                                                             |
-| [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) | A transform that says whether it fits a source                      | The picker offers every transform, sound or not                                                                                                       |
-| [vt#236](https://github.com/versatiles-org/versatiles-rs/issues/236) | `probe` to return its analysis rather than print it                 | `analysis::describe` works the facts out again                                                                                                        |
-| [vt#237](https://github.com/versatiles-org/versatiles-rs/issues/237) | Reading a CSV's header with the reader `from_csv` uses              | `tabular` reads it with the `csv` crate — a second reading of one file                                                                                |
-| [vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238) | `read_csv_iter` to fail rather than panic on a mismatched separator | `tabular` sniffs by counting separators outside quotes, never by parsing                                                                              |
-| [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue**          | The pinned fork above                                                                                                                                 |
+**One reminder was tried and did not work.** `the_workaround_is_still_needed` was a test built to
+fail the day vt#229 landed, so nobody had to remember. It never fired. It watched for the generated
+`### Parameters` section to disappear from `doc`; upstream instead added `summary` and `details` and
+left `doc` whole — the other of the two fixes the issue had offered. A tripwire that names one
+acceptable outcome is silent when the other one arrives, and a silent tripwire is worse than none,
+because it is trusted. What replaced it asserts the claim the workaround rested on rather than the
+shape of the fix: `every_operation_has_a_short_usable_summary` holds whoever supplies the summary to
+the same standard, and cannot be satisfied by a fix arriving in an unexpected form.
 
-Resolved: [vt#216–#218](https://github.com/versatiles-org/versatiles-rs/issues/216), which became
-the lossless CST in 4.8.0 and let Studio delete 1 021 lines of its own parser.
+#### Still open
+
+| Issue                                                                | Asks for                                                   | What Studio does meanwhile                                                                                                                            |
+| -------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link              | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
+| [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue** | The pinned fork above                                                                                                                                 |
+
+#### Landed in 4.9.0
+
+Ten of the twelve closed at once. Each row below was read in the 4.9.0 source, not taken from the
+issue being closed — the two are not the same claim, as vt#229 shows. The last column is the work
+this opens up; only vt#229's is done.
+
+| Issue                                                                | Landed as                                                      | What it lets Studio drop                               |
+| -------------------------------------------------------------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
+| [vt#222](https://github.com/versatiles-org/versatiles-rs/issues/222) | `cache_control` on `serve` and in the config file              | The per-mount revision in the tile URL                 |
+| [vt#223](https://github.com/versatiles-org/versatiles-rs/issues/223) | `versatiles_container::probe::probe_report`                    | Unblocks B2's byte breakdown ([Q12](decisions.md))     |
+| [vt#224](https://github.com/versatiles-org/versatiles-rs/issues/224) | `check_pipeline` and `VplProblem`                              | The checks `validate` re-implements                    |
+| [vt#227](https://github.com/versatiles-org/versatiles-rs/issues/227) | A tile-count guard that refuses an impossible pyramid          | Nothing — `export::MAX_TILES` guards a different limit |
+| [vt#228](https://github.com/versatiles-org/versatiles-rs/issues/228) | The PMTiles writer names `raster_overview` as the cause        | Nothing — there was no workaround                      |
+| [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) | `OperationMeta.summary` and `.details`                         | **Done** — `vpl::summary` and its tripwire are deleted |
+| [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) | `Compatibility` and `compatible_transforms`                    | A picker that offers every transform, sound or not     |
+| [vt#236](https://github.com/versatiles-org/versatiles-rs/issues/236) | `probe_report` returns its analysis instead of printing it     | The facts `analysis::describe` works out again         |
+| [vt#237](https://github.com/versatiles-org/versatiles-rs/issues/237) | `versatiles_core::utils::read_csv_header`                      | `tabular`'s separate header read                       |
+| [vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238) | `read_csv_iter` fails rather than panicking on a bad separator | `tabular`'s own separator sniffing                     |
+
+Resolved earlier: [vt#216–#218](https://github.com/versatiles-org/versatiles-rs/issues/216), which
+became the lossless CST in 4.8.0 and let Studio delete 1 021 lines of its own parser.
 
 ## Frontend pieces
 

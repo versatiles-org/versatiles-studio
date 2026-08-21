@@ -770,10 +770,15 @@ export type OperationInfo = {
 	name: string,
 	/**  `read` or `transform` — which end of a pipeline it belongs at. */
 	kind: string,
-	/**  What it does, in a sentence — see [`summary`] for why this is separate from `doc`. */
+	/**  What it does, in a sentence. */
 	summary: string,
-	/**  The whole rustdoc, of which four fifths restates `fields` in prose. */
-	doc: string,
+	/**
+	 *  Everything else upstream has to say, minus the parameter list — that is `fields`, and
+	 *  sending it twice is what [vt#229] was about. Empty when the summary is the whole of it.
+	 * 
+	 *  [vt#229]: https://github.com/versatiles-org/versatiles-rs/issues/229
+	 */
+	details: string,
 	fields: FieldInfo[],
 };
 

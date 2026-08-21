@@ -276,8 +276,9 @@ mod tests {
 			// The container reader names its formats in the summary; the others list them under
 			// `filename`. Searching both covers either style without depending on which.
 			let text = format!(
-				"{}{}",
-				operation.doc,
+				"{}{}{}",
+				operation.summary,
+				operation.details,
 				operation.fields.iter().map(|f| f.doc.clone()).collect::<String>()
 			);
 			let words: Vec<String> = text
