@@ -36,6 +36,7 @@ export * from './bindings';
  */
 export type {
 	Bounds,
+	Fit,
 	Estimate,
 	Preset,
 	// One name each. `skip_serializing_if` makes specta emit a `_Serialize` and a `_Deserialize`

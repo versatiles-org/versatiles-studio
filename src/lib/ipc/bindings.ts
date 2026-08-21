@@ -329,6 +329,15 @@ export const commands = {
 	 *  from a pipeline that no longer exists. Empty for raster output.
 	 */
 	layers: LayerInspection[],
+	/**
+	 *  Which transforms can be appended to this, and why the rest cannot (S2.14).
+	 * 
+	 *  Carried here for the same reason as `layers`, and it is the same kind of answer: what fits
+	 *  depends on what this build produces, so asking separately would race the next edit and offer
+	 *  operations chosen for a pipeline that no longer exists. It also costs nothing extra — the
+	 *  source is already built and every check is a comparison against its declared tile type.
+	 */
+	fits: Fit[],
 } | null, string>(__TAURI_INVOKE("mount_graph", { graph })),
 	/**  Where the map is looking: the pinned node, or `None` for the ordinary state ([Q32]). */
 	pinned: () => typedError<{
@@ -545,6 +554,20 @@ export type FieldInfo = {
 export type FieldSuggestion = {
 	field: string,
 	values: string[],
+};
+
+/**  Whether one transform can be appended to what a node produces (S2.14). */
+export type Fit = {
+	/**  The operation's tag, as it would be written in VPL. */
+	name: string,
+	/**
+	 *  Why it does not fit, in upstream's words — or `None` when nothing rules it out.
+	 * 
+	 *  The reason is the whole point of reporting the misfits at all: a picker that silently
+	 *  dropped `raster_flatten` from a vector chain would leave someone looking for an operation
+	 *  they know exists.
+	 */
+	reason: string | null,
 };
 
 /**  One graph: a VPL document, what it is called, and where it came from. */
@@ -909,6 +932,15 @@ export type Preview = {
 	 *  from a pipeline that no longer exists. Empty for raster output.
 	 */
 	layers: LayerInspection[],
+	/**
+	 *  Which transforms can be appended to this, and why the rest cannot (S2.14).
+	 * 
+	 *  Carried here for the same reason as `layers`, and it is the same kind of answer: what fits
+	 *  depends on what this build produces, so asking separately would race the next edit and offer
+	 *  operations chosen for a pipeline that no longer exists. It also costs nothing extra — the
+	 *  source is already built and every check is a comparison against its declared tile type.
+	 */
+	fits: Fit[],
 };
 
 /**

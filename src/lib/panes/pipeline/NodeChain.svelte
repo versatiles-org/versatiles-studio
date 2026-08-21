@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { OperationInfo, Span, VplPipeline } from '../../ipc/commands';
+	import type { Fit, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
 	import { walk, samePath, isChainHead } from '../../vpl/node-at';
 	import NodeCard from './NodeCard.svelte';
 
@@ -18,6 +18,7 @@
 		pinned,
 		operations = [],
 		properties = [],
+		fits = [],
 		suggestions = {},
 		onSelect,
 		onPin,
@@ -33,6 +34,14 @@
 		pinned: number[] | null;
 		operations?: OperationInfo[];
 		properties?: string[];
+		/**
+		 * What can be appended to the selected node's output, and why the rest cannot (S2.14).
+		 *
+		 * From the preview, because it is an answer about the tiles that node actually produces.
+		 * Empty before the first build, which is why the picker degrades to an ungrouped list
+		 * rather than to an empty one.
+		 */
+		fits?: Fit[];
 		suggestions?: Record<string, string[]>;
 		onSelect: (path: number[], span: Span) => void;
 		onPin: (path: number[]) => void;
@@ -50,6 +59,23 @@
 	const transforms = $derived(
 		operations.filter((operation) => operation.kind === 'transform').sort((a, b) => a.name.localeCompare(b.name))
 	);
+
+	// -- what fits (S2.14) --------------------------------------------------------------------
+
+	/// Why each operation was refused, by name. Absent means nothing ruled it out.
+	const refusal = $derived(new Map(fits.map((fit) => [fit.name, fit.reason])));
+
+	/// **Unknown counts as fitting.** Before the first preview this map is empty, and an operation
+	/// the core did not mention is one nothing is known about — offering it is the honest default,
+	/// and it is what the picker did before it could ask.
+	const reasonFor = (name: string): string | null => refusal.get(name) ?? null;
+
+	const fitting = $derived(transforms.filter((operation) => reasonFor(operation.name) === null));
+	const misfits = $derived(transforms.filter((operation) => reasonFor(operation.name) !== null));
+
+	/// Group only when there is something to group by, so an ungrouped list is never labelled as
+	/// having been checked.
+	const grouped = $derived(misfits.length > 0);
 
 	let adding = $state('');
 </script>
@@ -92,9 +118,28 @@
 							}}
 						>
 							<option value="">＋ operation…</option>
-							{#each transforms as operation (operation.name)}
-								<option value={operation.name} title={operation.summary}>{operation.name}</option>
-							{/each}
+							{#if grouped}
+								<!-- Refused operations stay listed and disabled rather than being dropped: an
+								     operation someone knows exists, silently missing, is a worse answer than
+								     one shown with the reason it cannot go here. Upstream refuses to build
+								     these too, so choosing one could only produce a node that fails. -->
+								<optgroup label="Fits these tiles">
+									{#each fitting as operation (operation.name)}
+										<option value={operation.name} title={operation.summary}>{operation.name}</option>
+									{/each}
+								</optgroup>
+								<optgroup label="Not for these tiles">
+									{#each misfits as operation (operation.name)}
+										<option value={operation.name} title={reasonFor(operation.name)} disabled>
+											{operation.name}
+										</option>
+									{/each}
+								</optgroup>
+							{:else}
+								{#each transforms as operation (operation.name)}
+									<option value={operation.name} title={operation.summary}>{operation.name}</option>
+								{/each}
+							{/if}
 						</select>
 					</label>
 				{/if}

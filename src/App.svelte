@@ -788,6 +788,7 @@
 			{pipelineRevision}
 			{selected}
 			properties={producedProperties}
+			fits={lastPreview?.fits ?? []}
 			{suggestions}
 			pinned={pinned && pinned.graph === currentGraph ? pinned.path : null}
 			graphActions={{

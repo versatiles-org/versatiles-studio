@@ -371,6 +371,13 @@ pub struct Preview {
 	/// build: asking afterwards would race the next edit, and the form would offer property names
 	/// from a pipeline that no longer exists. Empty for raster output.
 	pub layers: Vec<studio_core::analysis::LayerInspection>,
+	/// Which transforms can be appended to this, and why the rest cannot (S2.14).
+	///
+	/// Carried here for the same reason as `layers`, and it is the same kind of answer: what fits
+	/// depends on what this build produces, so asking separately would race the next edit and offer
+	/// operations chosen for a pipeline that no longer exists. It also costs nothing extra — the
+	/// source is already built and every check is a comparison against its declared tile type.
+	pub fits: Vec<studio_core::analysis::Fit>,
 }
 
 /// What a preview request came to.
@@ -464,6 +471,7 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, na
 
 	handle.working("looking at what it contains");
 	let layers = studio_core::analysis::probe_layers(&source, &info).await;
+	let fits = studio_core::analysis::fitting(&source).await;
 
 	server.mount(name, source).await?;
 	Ok(Preview {
@@ -471,6 +479,7 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, na
 		tile_url: server.tile_url(name),
 		info,
 		layers,
+		fits,
 	})
 }
 

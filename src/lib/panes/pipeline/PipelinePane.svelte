@@ -10,6 +10,7 @@
 		type Span,
 		type DocumentView,
 		type ImportKind,
+		type Fit,
 		type OperationInfo,
 		type GraphInfo
 	} from '../../ipc/commands';
@@ -30,6 +31,7 @@
 		kinds,
 		operations = [],
 		properties = [],
+		fits = [],
 		suggestions = {},
 		graphs = [],
 		pinned = null,
@@ -46,6 +48,8 @@
 		operations?: OperationInfo[];
 		/** Property names the pipeline produces, for list fields (S3.3). */
 		properties?: string[];
+		/** What can be appended to the selected node's output (S2.14). */
+		fits?: Fit[];
 		/** Per-field values read from what a node points at (S3.4). */
 		suggestions?: Record<string, string[]>;
 		/** Every graph in the project ([Q32]). */
@@ -261,6 +265,7 @@
 			{pinned}
 			{operations}
 			{properties}
+			{fits}
 			{suggestions}
 			onSelect={selectNode}
 			onPin={nodeActions.pin}

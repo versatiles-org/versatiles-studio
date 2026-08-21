@@ -424,3 +424,114 @@ mod probe_tests {
 		Ok(())
 	}
 }
+
+/// Whether one transform can be appended to what a node produces (S2.14).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct Fit {
+	/// The operation's tag, as it would be written in VPL.
+	pub name: String,
+	/// Why it does not fit, in upstream's words — or `None` when nothing rules it out.
+	///
+	/// The reason is the whole point of reporting the misfits at all: a picker that silently
+	/// dropped `raster_flatten` from a vector chain would leave someone looking for an operation
+	/// they know exists.
+	pub reason: Option<String>,
+}
+
+/// Which transforms can be appended to `source`, and why the rest cannot (S2.14).
+///
+/// **Upstream's answer, not ours.** Studio asked for this as
+/// [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) rather than reimplementing
+/// every operation's requirements here, because the operation is the thing that knows them — the
+/// reverse test in [architecture.md](../../docs/architecture.md): when the knowledge lives
+/// upstream, so does the question.
+///
+/// Cheap enough to run on every preview: each check is a comparison against the source's declared
+/// tile type, so nothing here reads a tile.
+pub async fn fitting(source: &SharedTileSource) -> Vec<Fit> {
+	versatiles_pipeline::compatible_transforms(source.as_ref().as_ref())
+		.await
+		.into_iter()
+		.map(|(meta, compatibility)| Fit {
+			name: meta.tag_name,
+			reason: match compatibility {
+				versatiles_pipeline::Compatibility::Fits => None,
+				versatiles_pipeline::Compatibility::Wrong(reason) => Some(reason),
+				// `Compatibility` is `#[non_exhaustive]`, so a later version can add a verdict this
+				// build has never heard of. Offering it is the safe direction: a picker that hid an
+				// operation would have no reason to show, and "no reason to show" is exactly the
+				// state this feature exists to remove.
+				_ => None,
+			},
+		})
+		.collect()
+}
+
+#[cfg(test)]
+mod fit_tests {
+	use super::*;
+
+	/// The whole point: a vector chain and a raster chain must not be offered the same operations.
+	///
+	/// Asserted as a *difference* rather than against a fixed list — the operation set grows with
+	/// every upstream release, and a test that named them would fail on the good news.
+	#[tokio::test]
+	async fn what_fits_depends_on_what_the_tiles_are() {
+		let vector = fits_for("from_debug format=pbf").await;
+		let raster = fits_for("from_debug format=png").await;
+
+		assert!(!vector.is_empty() && !raster.is_empty(), "no transforms at all");
+		assert_ne!(
+			offered(&vector),
+			offered(&raster),
+			"vector and raster tiles were offered exactly the same operations"
+		);
+
+		// A refusal has to say why; that reason is what the picker shows.
+		for fit in vector.iter().chain(&raster) {
+			if let Some(reason) = &fit.reason {
+				assert!(!reason.trim().is_empty(), "{} was refused without a reason", fit.name);
+			}
+		}
+	}
+
+	/// A raster-only operation is refused for vector tiles and offered for raster ones — the
+	/// concrete case from the issue that asked for this upstream.
+	#[tokio::test]
+	async fn a_raster_operation_is_not_offered_for_vector_tiles() {
+		let vector = fits_for("from_debug format=pbf").await;
+		let raster = fits_for("from_debug format=png").await;
+
+		let Some(refused) = vector.iter().find(|fit| fit.name.starts_with("raster_")) else {
+			panic!("this build has no raster_* transform to check");
+		};
+		assert!(
+			refused.reason.is_some(),
+			"{} was offered for vector tiles",
+			refused.name
+		);
+		let same = raster.iter().find(|fit| fit.name == refused.name).unwrap();
+		assert_eq!(same.reason, None, "{} was refused for raster tiles too", same.name);
+	}
+
+	async fn fits_for(vpl: &str) -> Vec<Fit> {
+		let runtime = versatiles::runtime::create_runtime_builder()
+			.silent_progress(true)
+			.build();
+		let document = crate::vpl::Document::parse(vpl).unwrap();
+		let source = crate::preview::build(&runtime, document.to_pipeline(), std::path::Path::new("."))
+			.await
+			.unwrap();
+		fitting(&source).await
+	}
+
+	fn offered(fits: &[Fit]) -> Vec<&str> {
+		fits
+			.iter()
+			.filter(|fit| fit.reason.is_none())
+			.map(|fit| fit.name.as_str())
+			.collect()
+	}
+}
