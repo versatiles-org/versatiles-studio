@@ -50,3 +50,19 @@ pub async fn mount_bundled(app: &AppHandle, server: &mut studio_core::server::Se
 		.context("mounting bundled sprites")?;
 	Ok(())
 }
+
+/// Mounts every installed font family beside the bundled tier (G7, S4.1).
+///
+/// **After the bundled one, and at the same prefix.** `add_static_source` pushes onto a list, so a
+/// family is another place the server looks for `/assets/glyphs/{fontstack}/{range}.pbf` rather than
+/// a replacement for the Latin subset that ships in the binary. A font stack the bundled tier does
+/// not have is found in an installed archive; one it does is answered without touching them.
+pub async fn mount_fonts(dir: &std::path::Path, server: &mut studio_core::server::ServerManager) -> Result<()> {
+	for archive in studio_core::assets::installed(dir) {
+		server
+			.mount_static(&archive, "/assets/glyphs")
+			.await
+			.with_context(|| format!("mounting {}", archive.display()))?;
+	}
+	Ok(())
+}

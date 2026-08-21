@@ -52,6 +52,9 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::style::set_layer_override,
 		commands::style::export_style,
 		commands::style::style_formats,
+		commands::assets::font_families,
+		commands::assets::install_font,
+		commands::assets::remove_font,
 		commands::layout::layout,
 		commands::layout::set_layout,
 		commands::vpl::vpl_parse,
@@ -104,6 +107,13 @@ pub fn run() {
 				.unwrap_or_else(|_| std::path::PathBuf::from("."));
 			// Recents reset silently when unreadable; bookmarks do not, because they are the user's
 			// own work. A broken bookmarks file is surfaced and left untouched rather than replaced.
+			// Installed families, after the bundled tier so they extend it rather than shadow it
+			// (G7, S4.1). Failing to mount one is not worth refusing to start over: the map falls
+			// back to the Latin subset, which is what it had before the family was installed.
+			let asset_dir = data_dir.join("fonts");
+			if let Err(error) = tauri::async_runtime::block_on(assets::mount_fonts(&asset_dir, &mut server)) {
+				eprintln!("could not mount an installed font family: {error:#}");
+			}
 			let recents = Recents::load(&data_dir);
 			let layout = Layout::load(&data_dir);
 			let bookmarks = match Bookmarks::load(&data_dir) {
@@ -130,6 +140,7 @@ pub fn run() {
 					jobs: studio_core::jobs::Jobs::new(),
 					pinned: Mutex::new(None),
 					project_dir: Mutex::new(std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+					asset_dir,
 					data_dir,
 				},
 			);

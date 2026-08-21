@@ -137,6 +137,37 @@ pub fn accept(dir: &Path, id: &str, bytes: &[u8], digest: &str) -> Result<PathBu
 	Ok(path)
 }
 
+/// Downloads a family and installs it, reporting to the job that asked for it.
+///
+/// **Through `versatiles_core`'s HTTP reader rather than a client of its own.** Every other request
+/// Studio makes goes that way, so this one carries the same `User-Agent` — including the product
+/// token that [vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248) will add. A
+/// second client would be a second thing to remember when that lands.
+///
+/// The whole archive is read before anything is written, because the digest is about the whole of
+/// it: a check that verified as it streamed would still have written the bytes it was checking.
+pub async fn install(handle: &crate::jobs::JobHandle, id: &str, dir: &Path) -> Result<PathBuf> {
+	use versatiles_core::io::{DataReaderHttp, DataReaderTrait};
+
+	let asset = pinned()?
+		.into_iter()
+		.find(|asset| asset.id == id)
+		.with_context(|| format!("{id} is not a family this build knows about"))?;
+
+	handle.log(format!("{} — {:.0} MB", asset.url, asset.bytes as f64 / 1_000_000.0));
+	handle.working(format!("downloading {id}"));
+
+	let url = url::Url::parse(&asset.url).with_context(|| format!("parsing {}", asset.url))?;
+	let reader = DataReaderHttp::try_from(&url).with_context(|| format!("opening {}", asset.url))?;
+	let blob = reader
+		.read_all()
+		.await
+		.with_context(|| format!("downloading {}", asset.url))?;
+
+	handle.working(format!("checking {id}"));
+	accept(dir, id, blob.as_slice(), &asset.digest)
+}
+
 /// Removes a family, and says whether one was there.
 pub fn remove(dir: &Path, id: &str) -> Result<bool> {
 	let path = archive_path(dir, id);

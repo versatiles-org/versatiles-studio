@@ -66,4 +66,9 @@ pub struct AppState {
 	/// `~/.local/share` versus `~/.config`, and bookmarks belong in the former. The store owns the
 	/// filenames inside it.
 	pub data_dir: PathBuf,
+	/// Where installed font families live (G7, S4.1).
+	///
+	/// A directory of its own inside `data_dir`, because these are archives the server mounts by
+	/// scanning the directory — and a scan that also found `recents.json` would try to serve it.
+	pub asset_dir: PathBuf,
 }

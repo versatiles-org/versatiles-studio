@@ -148,6 +148,29 @@ export const commands = {
 	exportStyle: (path: string, contents: string) => typedError<null, string>(__TAURI_INVOKE("export_style", { path, contents })),
 	/**  What Studio can write a style as — the file dialog's filters come from here. */
 	styleFormats: () => __TAURI_INVOKE<string[]>("style_formats"),
+	/**  Every family this build offers, and whether it is installed. */
+	fontFamilies: () => typedError<Family[], string>(__TAURI_INVOKE("font_families")),
+	/**
+	 *  Downloads a family and mounts it, as a job.
+	 * 
+	 *  **`Queued`, like an export** ([Q27]): 48 MB is minutes on a slow line, it is something you start
+	 *  and walk away from, and two at once would only make both slower. Returning the job rather than
+	 *  the result is what lets the bar show progress and offer to cancel.
+	 * 
+	 *  The mount happens here rather than at the next start, because a font someone just installed and
+	 *  cannot use until they restart is a font they will think failed to install.
+	 * 
+	 *  [Q27]: ../../../docs/decisions.md
+	 */
+	installFont: (id: string) => typedError<number, string>(__TAURI_INVOKE("install_font", { id })),
+	/**
+	 *  Removes a family. Reports whether one was there.
+	 * 
+	 *  **The mount is not removed**, and cannot be: the server takes static sources and never gives them
+	 *  back. Until it does, a family removed mid-session keeps serving until the next start — which is
+	 *  the harmless direction for this to be wrong in, and is said here rather than left to be noticed.
+	 */
+	removeFont: (id: string) => typedError<boolean, string>(__TAURI_INVOKE("remove_font", { id })),
 	/**  The remembered pane layout, or the default one. */
 	layout: () => typedError<Layout, string>(__TAURI_INVOKE("layout")),
 	/**
@@ -556,6 +579,15 @@ export type Estimate = {
 	 *  a fast one deserve different wording.
 	 */
 	sampled: number,
+};
+
+/**  A family someone can install, and whether they have. */
+export type Family = {
+	/**  The name the archive and the font stack share — `noto_sans`. */
+	id: string,
+	/**  Download size, so a 48 MB decision is made before it starts rather than during. */
+	bytes: number,
+	installed: boolean,
 };
 
 /**  One parameter of an operation, ready to render. */
