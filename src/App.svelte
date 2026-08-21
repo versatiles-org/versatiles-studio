@@ -22,6 +22,7 @@
 	import AssetManager from './lib/panes/assets/AssetManager.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import DeployDialog from './lib/panes/project/DeployDialog.svelte';
+	import CopyDialog from './lib/panes/project/CopyDialog.svelte';
 	import { samePath, walk } from './lib/vpl/node-at';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
@@ -63,6 +64,8 @@
 		openProject,
 		isProject,
 		deployment,
+		copyPlan,
+		saveProjectCopy,
 		vplRemoveProperty,
 		vplInsertNode,
 		vplRemoveNode,
@@ -74,6 +77,7 @@
 		type DocumentView,
 		type Bounds,
 		type Deployment,
+		type CopyPlan,
 		type Camera,
 		type Layout,
 		type OperationInfo,
@@ -418,6 +422,42 @@
 			pipelineRevision += 1;
 			await syncContainersToPipeline();
 			await refreshPreview();
+			status = { kind: 'idle' };
+		} catch (e) {
+			fail(e);
+		}
+	}
+
+	/// What a copy would carry, while the dialog asking about it is open (S5.1).
+	///
+	/// Fetched on opening, like the deployment above and for the same reason — and the write plans
+	/// again on the other side, so what lands is what the project is then rather than what it was
+	/// when this dialog appeared.
+	let copying = $state<CopyPlan | null>(null);
+
+	async function showCopy() {
+		try {
+			copying = await copyPlan();
+		} catch (e) {
+			fail(e);
+		}
+	}
+
+	/// Asks where, then writes it. A zip is one file and a folder is a directory, so the two take
+	/// different pickers.
+	async function writeCopy(zip: boolean) {
+		copying = null;
+		try {
+			const target = zip
+				? await save({
+						title: 'Save a copy as',
+						defaultPath: 'project.zip',
+						filters: [{ name: 'Zip archive', extensions: ['zip'] }]
+					})
+				: await open({ directory: true, title: 'Save a copy into…' });
+			if (typeof target !== 'string') return;
+			status = { kind: 'busy', message: 'Copying the project…' };
+			await saveProjectCopy(target, zip, styled ? JSON.stringify(forExport(styled), null, '\t') : null);
 			status = { kind: 'idle' };
 		} catch (e) {
 			fail(e);
@@ -962,6 +1002,7 @@
 			onChange={(next) => layout && void changeLayout({ ...layout, mode: next })}
 			onOpenProject={() => void openProjectDir()}
 			onSaveProject={() => void saveProjectAs()}
+			onSaveCopy={() => void showCopy()}
 			onDeploy={() => void showDeployment()}
 			canDeploy={graphs.length > 0}
 		/>
@@ -1027,6 +1068,10 @@
 		onExport={(bounds) => void startExport(bounds)}
 		onEstimate={(bounds) => estimateExport(graph, bounds)}
 	/>
+{/if}
+
+{#if copying}
+	<CopyDialog plan={copying} onCancel={() => (copying = null)} onWrite={(zip) => void writeCopy(zip)} />
 {/if}
 
 {#if deploying}

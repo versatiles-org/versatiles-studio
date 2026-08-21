@@ -13,6 +13,7 @@
 		onChange,
 		onOpenProject,
 		onSaveProject,
+		onSaveCopy,
 		onDeploy,
 		canDeploy
 	}: {
@@ -23,11 +24,13 @@
 		 *  (S0.1) are where these belong eventually. */
 		onOpenProject: () => void;
 		onSaveProject: () => void;
+		/** A copy that works on another machine (S5.1) — the data comes with it. */
+		onSaveCopy: () => void;
 		/** The commands that reproduce this project outside Studio (C7, S5.5). Beside the project
 		 *  actions because it is about the project rather than about one graph — a serve config
 		 *  names every graph at once, which no pane is in a position to emit. */
 		onDeploy: () => void;
-		/** False with nothing open: all four artefacts would name no tiles. */
+		/** False with nothing open: there is neither a project to copy nor tiles to name. */
 		canDeploy: boolean;
 	} = $props();
 
@@ -56,6 +59,7 @@
 	<span class="spacer"></span>
 	<button type="button" class="project" onclick={onOpenProject}>Open project…</button>
 	<button type="button" class="project" onclick={onSaveProject}>Save project…</button>
+	<button type="button" class="project" onclick={onSaveCopy} disabled={!canDeploy}>Save a copy…</button>
 	<button type="button" class="project" onclick={onDeploy} disabled={!canDeploy}>Run elsewhere…</button>
 </nav>
 

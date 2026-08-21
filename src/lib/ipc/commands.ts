@@ -36,6 +36,8 @@ export * from './bindings';
  */
 export type {
 	Bounds,
+	Carried,
+	CopyPlan,
 	Deployment,
 	Family,
 	Fit,
@@ -48,6 +50,7 @@ export type {
 	Recipe_Serialize as Recipe,
 	Recolor_Serialize as Recolor,
 	LayerOverride_Serialize as LayerOverride,
+	Reference as FileReference,
 	Node as VplNode,
 	Pipeline as VplPipeline,
 	Property as VplProperty,
@@ -140,6 +143,19 @@ export const openProject = (dir: string) => unwrap(commands.openProject(dir));
 
 /** The four ways to run this project elsewhere (C7, S5.5). Generated on asking, never stored. */
 export const deployment = () => unwrap(commands.deployment());
+
+/**
+ * What a copy of this project would carry (S5.1) — asked before the destination is chosen, so the
+ * dialog can say what it costs.
+ */
+export const copyPlan = () => unwrap(commands.copyPlan());
+
+/**
+ * Writes a self-contained copy: the data the pipelines name, and the pipelines rewritten to point
+ * at the copies. `zip` decides whether `target` is a `.zip` file or a directory.
+ */
+export const saveProjectCopy = (target: string, zip: boolean, style: string | null) =>
+	unwrap(commands.saveProjectCopy(target, zip, style));
 
 /** Whether a directory holds a project, so the dialog can say why one does not. */
 export const isProject = (dir: string) => commands.isProject(dir);

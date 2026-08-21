@@ -7,6 +7,7 @@
 
 pub mod analysis;
 pub mod assets;
+pub mod bundle;
 pub mod deploy;
 pub mod estimate;
 pub mod export;

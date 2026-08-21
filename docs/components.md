@@ -78,6 +78,7 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 | `PipelineOutput`   | What the pipeline produces: format, zoom, layers and their property keys (Q22)                            | S3.3  |
 | `ImportCards`      | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)          | S3.2  |
 | `DeployDialog`     | The command, serve config, Dockerfile and Action that reproduce the project elsewhere (C7), a tab each    | S5.5  |
+| `CopyDialog`       | What a portable copy would carry, and whether to write it as a folder or a `.zip` (G1)                    | S5.1  |
 
 ## Map
 

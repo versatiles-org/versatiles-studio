@@ -128,3 +128,107 @@ pub async fn deployment(state: State<'_, AppState>) -> Result<Deployment, String
 		github_action: deploy::github_action(&names, extension),
 	})
 }
+
+// ---------------------------------------------------------------------------------------------
+// A copy that works somewhere else
+// ---------------------------------------------------------------------------------------------
+
+/// What a copy of this project would carry (S5.1).
+#[derive(serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct CopyPlan {
+	/// The files that would come along, each once however many pipelines name it.
+	pub carry: Vec<studio_core::bundle::Carried>,
+	/// References naming a file that is not there — shown, because a copy missing one of these is
+	/// still worth making and the person making it should know.
+	pub missing: Vec<studio_core::bundle::Reference>,
+}
+
+/// The graphs as [`studio_core::bundle`] wants them: text, and what their relative names point at.
+///
+/// A graph's own `.vpl` directory, because that is what the pipeline resolves against when it runs.
+/// A graph never saved has none, and falls back to `project_dir` — the same thing every other
+/// relative path in this window resolves against, so a copy and a run agree about what a bare
+/// `berlin.mbtiles` means.
+async fn sources(state: &State<'_, AppState>) -> Vec<(String, String, Option<std::path::PathBuf>)> {
+	let project_dir = state.project_dir.lock().await.clone();
+	state
+		.graphs
+		.lock()
+		.await
+		.iter()
+		.map(|graph| {
+			let dir = graph
+				.file
+				.as_ref()
+				.and_then(|(path, _)| path.parent().map(std::path::Path::to_path_buf))
+				.unwrap_or_else(|| project_dir.clone());
+			(graph.name.clone(), graph.document.text().to_string(), Some(dir))
+		})
+		.collect()
+}
+
+fn plan_of(owned: &[(String, String, Option<std::path::PathBuf>)]) -> Result<studio_core::bundle::Plan, String> {
+	let sources: Vec<studio_core::bundle::Source> = owned
+		.iter()
+		.map(|(name, text, dir)| studio_core::bundle::Source {
+			name,
+			text,
+			dir: dir.as_deref(),
+		})
+		.collect();
+	studio_core::bundle::plan(&sources).map_err(|error| format!("{error:#}"))
+}
+
+/// What copying this project elsewhere would carry, without writing anything.
+///
+/// Asked before the destination is chosen, so the dialog can say what it costs — the same
+/// plan-then-write split `estimate` and `export` use.
+#[tauri::command]
+#[specta::specta]
+pub async fn copy_plan(state: State<'_, AppState>) -> Result<CopyPlan, String> {
+	let owned = sources(&state).await;
+	let plan = plan_of(&owned)?;
+	Ok(CopyPlan {
+		carry: plan.carry.clone(),
+		missing: plan.missing().into_iter().cloned().collect(),
+	})
+}
+
+/// Writes a self-contained copy — a directory, or one `.zip`.
+///
+/// **Planned again here rather than carried over from [`copy_plan`].** The plan is a few `stat`
+/// calls, and recomputing it means what is written describes the project as it is now rather than as
+/// it was when a dialog opened.
+///
+/// **On a blocking thread**, because this copies tile containers: `std::fs::copy` of twenty
+/// gigabytes must not be sitting on the async runtime. There is no progress to report — neither
+/// `fs::copy` nor the zip writer offers any — so the status bar says it is working and that is all
+/// it can honestly say.
+#[tauri::command]
+#[specta::specta]
+pub async fn save_project_copy(
+	state: State<'_, AppState>,
+	target: String,
+	zip: bool,
+	style: Option<String>,
+) -> Result<(), String> {
+	let owned = sources(&state).await;
+	if owned.is_empty() {
+		return Err("there is nothing to copy yet".to_string());
+	}
+	let plan = plan_of(&owned)?;
+	let recipe = state.style.lock().await.clone();
+
+	tauri::async_runtime::spawn_blocking(move || {
+		let target = std::path::Path::new(&target);
+		if zip {
+			studio_core::bundle::write_zip(target, &plan, &recipe, style.as_deref())
+		} else {
+			studio_core::bundle::write_directory(target, &plan, &recipe, style.as_deref())
+		}
+	})
+	.await
+	.map_err(|error| format!("{error}"))?
+	.map_err(|error| format!("{error:#}"))
+}

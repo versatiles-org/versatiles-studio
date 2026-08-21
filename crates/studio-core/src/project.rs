@@ -181,6 +181,24 @@ pub fn is_project(dir: &Path) -> bool {
 /// `style` is the rendered MapLibre style, or `None` when there is nothing to draw yet. It is
 /// written for other tools to read; reopening the project renders it again from the recipe.
 pub fn save(dir: &Path, graphs: &[(String, String)], recipe: &crate::style::Recipe, style: Option<&str>) -> Result<()> {
+	let yaml = manifest_text(graphs, recipe)?;
+
+	std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
+	for (name, text) in graphs {
+		check_name(name)?;
+		write_atomically(&dir.join(format!("{name}.vpl")), text)?;
+	}
+	if let Some(style) = style {
+		write_atomically(&dir.join(STYLE_FILE), style)?;
+	}
+	write_atomically(&dir.join(MANIFEST_FILE), &yaml)
+}
+
+/// `project.yaml`'s contents for these graphs, header and all.
+///
+/// Separate from writing it because a bundle ([`crate::bundle`]) puts the same bytes in a zip entry
+/// rather than in a file, and the two manifests have to be the same manifest.
+pub fn manifest_text(graphs: &[(String, String)], recipe: &crate::style::Recipe) -> Result<String> {
 	let manifest = Manifest {
 		version: 1,
 		graphs: graphs
@@ -196,19 +214,19 @@ pub fn save(dir: &Path, graphs: &[(String, String)], recipe: &crate::style::Reci
 	let yaml = serde_yaml_ng::to_string(&manifest).context("writing the project manifest")?;
 	let header = "# VersaTiles Studio project. The .vpl files beside this one are real pipelines\n\
 	              # and style.json is a real MapLibre style — both usable without Studio (Q6).\n";
+	Ok(format!("{header}{yaml}"))
+}
 
-	std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
-	for (name, text) in graphs {
-		anyhow::ensure!(
-			!name.is_empty() && !name.contains(['/', '\\', ':']) && name != ".." && name != ".",
-			"{name:?} cannot be a filename"
-		);
-		write_atomically(&dir.join(format!("{name}.vpl")), text)?;
-	}
-	if let Some(style) = style {
-		write_atomically(&dir.join(STYLE_FILE), style)?;
-	}
-	write_atomically(&dir.join(MANIFEST_FILE), &format!("{header}{yaml}"))
+/// Refuses a graph name that would be a path rather than a filename.
+///
+/// A name reaches this from a rename box, and it becomes a filename in a directory the user chose;
+/// `../../.bashrc` is a name someone can type.
+pub fn check_name(name: &str) -> Result<()> {
+	anyhow::ensure!(
+		!name.is_empty() && !name.contains(['/', '\\', ':']) && name != ".." && name != ".",
+		"{name:?} cannot be a filename"
+	);
+	Ok(())
 }
 
 /// Reads a project back.

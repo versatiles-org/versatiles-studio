@@ -183,6 +183,26 @@ export const commands = {
 	 *  project used to have, and these exist to be correct at the moment someone copies them.
 	 */
 	deployment: () => typedError<Deployment, string>(__TAURI_INVOKE("deployment")),
+	/**
+	 *  What copying this project elsewhere would carry, without writing anything.
+	 * 
+	 *  Asked before the destination is chosen, so the dialog can say what it costs — the same
+	 *  plan-then-write split `estimate` and `export` use.
+	 */
+	copyPlan: () => typedError<CopyPlan, string>(__TAURI_INVOKE("copy_plan")),
+	/**
+	 *  Writes a self-contained copy — a directory, or one `.zip`.
+	 * 
+	 *  **Planned again here rather than carried over from [`copy_plan`].** The plan is a few `stat`
+	 *  calls, and recomputing it means what is written describes the project as it is now rather than as
+	 *  it was when a dialog opened.
+	 * 
+	 *  **On a blocking thread**, because this copies tile containers: `std::fs::copy` of twenty
+	 *  gigabytes must not be sitting on the async runtime. There is no progress to report — neither
+	 *  `fs::copy` nor the zip writer offers any — so the status bar says it is working and that is all
+	 *  it can honestly say.
+	 */
+	saveProjectCopy: (target: string, zip: boolean, style: string | null) => typedError<null, string>(__TAURI_INVOKE("save_project_copy", { target, zip, style })),
 	/**  Every family this build offers, and whether it is installed. */
 	fontFamilies: () => typedError<Family[], string>(__TAURI_INVOKE("font_families")),
 	/**
@@ -518,6 +538,14 @@ export type Camera = {
 	pitch: number,
 };
 
+/**  A file the bundle will carry, and where it will land. */
+export type Carried = {
+	from: string,
+	/**  Its path inside the bundle, `data/berlin.mbtiles`. */
+	to: string,
+	bytes: number,
+};
+
 /**
  *  What Studio knows about a container without reading a single tile body.
  * 
@@ -556,6 +584,17 @@ export type Control = { kind: "text" } |
 { kind: "list" } | 
 /**  A fixed-size numeric array: a bbox is four, a colour or a centre three. */
 { kind: "numbers"; count: number };
+
+/**  What a copy of this project would carry (S5.1). */
+export type CopyPlan = {
+	/**  The files that would come along, each once however many pipelines name it. */
+	carry: Carried[],
+	/**
+	 *  References naming a file that is not there — shown, because a copy missing one of these is
+	 *  still worth making and the person making it should know.
+	 */
+	missing: Reference[],
+};
 
 /**  The four ways to run this project somewhere else (C7, S5.5). */
 export type Deployment = {
@@ -1213,6 +1252,31 @@ export type Recolor_Serialize = {
 	blend?: number | null,
 	blendColor?: string | null,
 };
+
+/**  One file a pipeline names. */
+export type Reference = {
+	/**  The graph it was found in. */
+	graph: string,
+	/**  The parameter, as written — `filename`, `data_source_path`, … */
+	field: string,
+	/**  What it says, before any rewriting. */
+	value: string,
+	kind: ReferenceKind,
+};
+
+/**  What one reference turned out to be. */
+export type ReferenceKind = 
+/**  A URL. Works from anywhere, so it is neither carried nor rewritten. */
+{ kind: "remote" } | 
+/**  A file that is there. */
+{ kind: "local"; path: string; 
+/**  Its size, so a surface can say what a bundle will cost before writing it. */
+bytes: number } | 
+/**
+ *  Named, and not where it says. Carried as nothing; the pipeline keeps the name it had, so a
+ *  bundle opened somewhere the file *does* exist still works.
+ */
+{ kind: "missing"; path: string };
 
 /**
  *  What a step back or forward restored.

@@ -141,14 +141,15 @@ versatiles-studio/
 │   └── studio-core/
 │       └── src/
 │           ├── vpl/            document model; several named graphs      (Q11, Q32)
-│           ├── project.rs      project.yaml, load/save, Save As, zip     (G1, Q6)
+│           ├── project.rs      project.yaml, load and save a directory   (G1, Q6)
+│           ├── bundle.rs       a copy that runs elsewhere: folder or zip (G1)
 │           ├── graphs.rs       the set of graphs a project holds         (Q32)
 │           ├── history.rs      one undo stack across all of them         (G6)
 │           ├── jobs.rs         runner, progress, cancellation, log       (E7)
 │           ├── preview.rs      running a graph so the map can show it    (C3)
 │           ├── export.rs       writing the result to a container         (F2)
 │           ├── estimate.rs     what that write will cost, before it runs (C6)
-│           ├── deploy.rs       the commands that reproduce this elsewhere    (C7)
+│           ├── deploy.rs       the commands that reproduce this elsewhere (C7)
 │           ├── style.rs        the style as the recipe it is made from   (Q36)
 │           ├── import.rs       the catalogue of ways in                  (E1–E3)
 │           ├── tabular.rs      a delimited file's header                 (E2)

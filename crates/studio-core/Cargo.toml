@@ -37,6 +37,7 @@ specta = { version = "=2.0.0-rc.25", optional = true, features = ["derive", "ser
 # Only for the `Any` marker, which is the sole way to say "arbitrary JSON" — specta itself has no
 # opaque type. Gated with the rest of the generation tooling.
 specta-typescript = { version = "0.0.12", optional = true }
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib"] }
 
 [features]
 bindings = ["dep:specta", "dep:specta-typescript"]
