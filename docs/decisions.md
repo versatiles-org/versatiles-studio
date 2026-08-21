@@ -18,7 +18,7 @@ All dated 2026-08-16 unless an entry says otherwise.
 
 ### Q36 — The core owns the style's recipe, not the style
 
-**Decided 2026-08-21.** A project has one `style.json` ([Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)),
+**Decided 2026-08-21.** A project has one `style.json` ([Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)),
 and the core owns it — the same way it owns each graph's VPL, and for the same reason: [S4.7](scope-release-1.md)
 requires style edits to land on the one undo stack, and that stack is in the core. What the core
 stores is **not** the MapLibre style. It stores what the style is made from:
@@ -63,7 +63,7 @@ consume; the recipe lives in `project.yaml` beside it.
 answer: what a name binds, and what a reload owes you.
 
 **Saving to a new filename does not rename the graph.**
-[Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form) said the name is
+[Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form) said the name is
 the identity in three places at once — the server mount, the `style.json` source and the `.vpl`
 filename. Read as an invariant that runs in both directions, saving `basemap` to `hillshade.vpl`
 would have to rename the graph, and would therefore move the server mount and rewrite the style's
@@ -86,17 +86,16 @@ not disagree: opening `berlin.vpl` and opening `berlin.mbtiles` name the same gr
 therefore takes the **source** rather than a name — a caller that passed a whole path would have
 produced `users-me-data-berlin-mbtiles`, and the type no longer lets it.
 
-**The core remembers work, not cursors.** The **selected node is deliberately webview state**, and
+**The core remembers work, not cursors.** Scroll position is deliberately webview state, and
 [ui.md](ui.md)'s list of what the core must own drops it.
 
 The line is not "durable versus volatile" — it is _what you would have to redo by hand_. The map
 camera is owned because getting back to where you were looking means panning and zooming until it
-looks right again, and you cannot tell when you have got it exactly. A selection is one click on a
-node that is on screen. Scroll position is one flick. Neither is work; both are gestures, and a
-reload that costs a gesture has not lost anything.
+looks right again, and you cannot tell when you have got it exactly. Scroll position is one flick:
+not work, a gesture, and a reload that costs a gesture has not lost anything.
 
 Nothing is at risk in the gap: a parameter's value reaches the core when it is committed, not when
-the form closes, so a reload cannot lose a typed value — only which node was open. What it costs is
+the field is left, so a reload cannot lose a typed value. What it costs is
 that after a reload the form is shut and the node has to be picked again, which is the price of not
 sending a message on every click.
 
@@ -143,8 +142,8 @@ is why that decision needed no revisiting, only this one adding.
 
 ### Q33 — The node form explains itself without symbols to learn
 
-**Dated 2026-08-18.** Two questions the form raised once the selected node became it
-([Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)). One it left
+**Dated 2026-08-18.** Two questions the form raised once a node became one
+([Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)). One it left
 open: Q32 put documentation behind a `?` without saying where the `?` opens _to_. The other it had
 answered, and this reverses — Q32 said a required argument is **marked**, and the mark turned out to
 be a symbol nobody could read.
@@ -195,7 +194,7 @@ An empty required row lives in the pane and **not** in the document, the same ru
 parameter, so it never writes `lon_column=''` — VPL that parses and then fails when the pipeline is
 built.
 
-### Q32 — A project holds several named graphs, and the selected node is the form
+### Q32 — A project holds several named graphs, and every node is a form
 
 **Dated 2026-08-18.** Drawn before it was written:
 [wireframe](https://claude.ai/code/artifact/69159dd5-bfb3-4619-bbee-eb5a5c15497a). Supersedes
@@ -242,24 +241,40 @@ pane catalogue dynamic and turns four graphs into four folded boxes; tabs per gr
 keeps one pane, keeps Q15 intact, and gives per-graph state — the dirty dot, the pin, the name — a
 natural home. Renaming happens in that list, because the list is where graphs live.
 
-**The selected node is the form.** It shows one row per argument — value editable, ~~required
-marked~~, `×` removing it, `＋ parameter…` offering what the operation accepts but has not set. Every
-other node is only its name. **Amended by [Q33](#q33--the-node-form-explains-itself-without-symbols-to-learn):**
-a required argument is shown empty rather than marked, and is the one row with no `×` — being
+**Every node is a form**, whether or not anything is pointing at it. Each shows one row per
+argument — value editable, `×` removing it, `＋ parameter…` offering what the operation accepts but
+has not set. **Amended by [Q33](#q33--the-node-form-explains-itself-without-symbols-to-learn):** a
+required argument is shown empty rather than marked, and is the one row with no `×` — being
 unremovable is how it says it is required.
 
-- **The head node is the exception** and keeps its filename. A graph named `basemap` reading
-  `osm.versatiles` is a different thing from one reading `berlin.mbtiles`, and that is worth a line.
-  No other node earns one.
+**Only the selected node used to be a form**, which fitted six operations in the height four took.
+That was worth having and is now spent: reading down a chain meant every node changing height as the
+selection moved, and a list that reshuffles under the pointer is harder to read than a long one. The
+pane scrolls, which is what it is for.
+
+**So nothing is selectable.** A node is not a control — clicking one had nothing left to do once
+every node showed its arguments, and a button that does nothing still says it does something. What
+follows the pointer instead is _adding_: `＋ parameter…` and the row for an argument being typed
+belong to the node being worked on.
+
+**The accent marks what the map is drawing**, not what was clicked. Every node outline and every
+connection between nodes is the same line at the same width; the part of the chain that feeds the
+pin wears the accent and the rest wears a separator's colour, so the pane says which half of the
+pipeline is actually running.
+
+- **Two bugs came out of that change**, and they were one bug twice: `onSet` wrote to whichever node
+  was selected, and field suggestions offered one file's columns for another file's node. Both were
+  correct while a single node had a form, and both took the selection as an unnamed argument. Any
+  state that reads "the selected node" is worth the same suspicion.
 - **The head node has no `×`.** A chain must start with a `from_*` node, so the rule is expressed by
   the missing control rather than by an error afterwards.
 - **`＋ operation…` sits on the rail, outside the node's border**, while `＋ parameter…` sits inside
   it. Inside acts on the node, outside acts on the chain — the difference is structural, so the two
   never have to be told apart by weight or colour, and the insertion point is drawn where an insertion
-  goes. Only the selected node's rail carries it.
+  goes. Every rail carries one.
 - **Documentation is behind a `?`** on each argument, and on hover for a mouse. It overlays the rows
   below rather than displacing them: help that reflows what you were reading moves the target while
-  you aim at it, and it would be worst on the long chains the collapse exists to make workable.
+  you aim at it, and worst on a long chain.
 
 **Export is a modal, per graph, and its bounding box is four number fields.** A form and a job rather
 than a button, so it does not compete with the chain for height — and numeric bounds are what make a
@@ -305,7 +320,7 @@ Two alternatives were considered and rejected against the full feature inventory
   precisely the overload Q22 already flagged as its own biggest risk.
 
 Under document-versus-selection every analysis feature has an obvious home, because each is _about
-the current selection_: B2 is about the selected node's output, A4 about the selected tile, A6 about
+the current selection_: B2 is about the pinned node's output, A4 about the selected tile, A6 about
 the selected container.
 
 **Each pane owns what it emits.** The Export section is dissolved. "Export tiles" belongs to the
@@ -336,11 +351,11 @@ problem**, and the default arrangement still has to be right, because most peopl
 Photoshop is the example in both directions. Revisit when the analysis panes land and there is
 something worth rearranging.
 
-**Amended 2026-08-18 by [Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form),
+**Amended 2026-08-18 by [Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form),
 on the axis and on one pane.**
 
-_The Parameters pane is removed._ Once the selected node carries its own arguments, a right-hand
-Parameters pane shows what the graph already shows.
+_The Parameters pane is removed._ Once a node carries its own arguments, a right-hand Parameters
+pane shows what the graph already shows.
 
 _And the axis moves with it._ This decision called it **document versus selection** — left is what you
 are building, right is the selected thing, both what it is and what you can set on it. Moving the
@@ -514,7 +529,7 @@ as both a file format and an IPC type.
 **Dated 2026-08-17.** Two things S2.3 had to settle: what the editor edits, and what it is built from.
 
 **One pipeline document per window.** ~~Superseded 2026-08-18 by
-[Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form): a project holds
+[Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form): a project holds
 several named graphs, each its own source with its own save and export. The composite-node answer
 below solves _merging inputs into one source_, which is a different question from _a style with
 several sources_.~~ [Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest) already said a project holds a single `pipeline.vpl`, and the multi-source layer stack was dropped early on, so the window's pipeline is one
@@ -668,7 +683,7 @@ map at all — the asset manager (G7) today, glyph generation (D9) and whatever 
 
 _Drawn as decided. Two things moved since: the Export section dissolved into the panes that produce
 its output ([Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits)), and the parameters moved
-out of the right pane into the node ([Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form))._
+out of the right pane into the node ([Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form))._
 
 **Why.** The four modes asserted a separation the work does not have. Tighten a filter, look at how
 it renders, adjust a colour, notice a missing layer, go back to the filter — every one of those was a
@@ -712,7 +727,7 @@ glyphs (D9) and generating sprite sheets (D10) are both features _of_ the asset 
 modes beside it.
 
 **The right pane shows parameters _and_ resulting metadata.** ~~Superseded 2026-08-18 by
-[Q32](#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)~~, which moved
+[Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)~~, which moved
 the parameters into the node. The half that survived is A6: the merged surface has to put a
 container's own metadata somewhere, and this is where.
 
@@ -936,7 +951,7 @@ No stacking several containers in one view with opacity, swipe and split. Droppe
 nowhere to live. [Q16](#q16--one-application-instance-one-window-per-project) mostly replaces it: one window per project means comparing two
 containers is two windows side by side. Not a swipe, but free and the platform convention.
 
-**Release 1 therefore has no comparison view at all.** C3 is not one — it shows the selected node's
+**Release 1 therefore has no comparison view at all.** C3 is not one — it shows the pinned node's
 output on one map. **B5 (container diff) is the first feature needing two, and it is post-1.0**, so a
 swipe/split control can be designed then. Release 1 needs exactly one live `Map` per project.
 
@@ -1038,8 +1053,6 @@ question — the layout no longer needs ~1400 px, so no drawer is required.
 
 Side-by-side existed so a user could see graph and file agree, so the tabs owe that back:
 
-- **Selection survives the switch** — select a node, switch to VPL, land on its span, and back. This
-  is what makes two tabs feel like one document.
 - **The Graph tab never shows a stale graph** — a parse failure is shown, not the last good render.
 - **The VPL tab carries an error badge** when parsing or validation fails (C4).
 - **Switching is free** — no reparse, no lost cursor or scroll; both are views over one syntax tree.

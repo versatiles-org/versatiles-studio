@@ -12,13 +12,7 @@
 
 /** The map's own colours, named here so a caller cannot invent a fifth blue. */
 export type MapToken =
-	| '--map-bg'
-	| '--map-grid'
-	| '--map-grid-halo'
-	| '--map-feature'
-	| '--map-pending'
-	/// Not a map colour as such — the label over a pending tile is text, and text is `--ink`.
-	| '--ink';
+	'--map-bg' | '--map-grid' | '--map-grid-halo' | '--map-feature' | '--map-pending' | '--map-label';
 
 /**
  * The computed value of a token from `:root`.

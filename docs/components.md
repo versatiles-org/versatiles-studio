@@ -38,7 +38,7 @@ lib/panes/pipeline/   PipelinePane and its parts: GraphList · NodeChain · Node
 lib/panes/inspector/  Inspector · Bookmarks
 lib/panes/output/     PipelineOutput
 lib/map/              MapCanvas · MapControls · TileGrid · CoordinateJump · FeaturePopup
-lib/common/           used by more than one owner: Help · HelpTrigger · JsonTree · ImportCards · LandingScreen
+lib/common/           used by more than one owner: Help · HelpTrigger · Picker · JsonTree · ImportCards · LandingScreen
 ```
 
 A pane's folder is named for the pane, so "what uses `NodeArgument`?" is answered by its path before
@@ -96,10 +96,12 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `PipelinePane` | Graph list, then the selected graph's chain, tabs and its own save/rename/export ([Q32](decisions.md))             | S2.2       |
 | `GraphList`    | The project's graphs: pin, name, unsaved dot, inline rename                                                        | S2.2       |
 | `NodeChain`    | The chain of nodes; vertical, with `＋ operation…` on the rail outside them ([Q32](decisions.md))                  | S2.13      |
-| `NodeCard`     | One node in the chain. Name only unless selected; then arguments, `?` docs, `×`, and the rail's `＋ operation…`    | S2.6       |
+| `NodeCard`     | One node in the chain: its arguments, `?` docs and `×`. Every node shows all of it ([Q32](decisions.md))           | S2.6       |
 | `NodeArgument` | One argument: name, `?`, the control from `field_meta`, and a `×` unless required ([Q33](decisions.md))            | S2.13      |
 | `Help`         | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md)) | S2.13      |
 | `HelpTrigger`  | The `?` that opens it — hover or focus peeks, click pins ([Q33](decisions.md))                                     | S2.13      |
+| `Picker`       | `＋ operation…` and `＋ parameter…`: a filterable list, grouped, with the full text beside the row it belongs to   | S2.13      |
+| `TileActivity` | Tiles the map is still waiting for, shaded and labelled `queued` or `rendering` (S2.16)                            | S2.16      |
 | `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3       |
 | `StylePane`    | Preset and the global adjustments over it (D1) — the layer tree is S4.5                                            | S4.2       |
 | `ExportDialog` | Format, zoom range and numeric bounds — modal, per graph ([Q32](decisions.md)); carries the cost estimate (C6)     | S3.6, S3.7 |

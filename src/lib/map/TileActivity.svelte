@@ -59,7 +59,7 @@
 					'symbol-placement': 'point'
 				},
 				paint: {
-					'text-color': '#000000',
+					'text-color': token('--map-label'),
 					'text-opacity': ['case', ['==', ['get', 'state'], 'rendering'], 0.8, 0.5]
 				}
 			});

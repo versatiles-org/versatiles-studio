@@ -232,10 +232,9 @@ graph needs a lossless syntax tree rather than a parse-and-print round trip ([Q1
 server; the webview renders them. The map camera, the graphs and their text, and the pane
 layout are all restorable from the core, so a reloaded window comes back where it was
 ([Q16](decisions.md)); the active mode joins them when the mode bar arrives at S4.1. **Cursors are
-deliberately not owned** — the selected node and scroll position stay in the webview
-([Q35](decisions.md)), because the test is what you would have to redo by hand rather than whether
-the value survives: a camera has to be found again, a selection is one click on something already on
-screen. This is the source-of-truth principle applied to volatile UI state
+deliberately not owned** — scroll position stays in the webview ([Q35](decisions.md)), because the
+test is what you would have to redo by hand rather than whether the value survives: a camera has to
+be found again, a scroll is one flick. This is the source-of-truth principle applied to volatile UI state
 rather than to files.
 
 **Generate UI from metadata where possible.** Parameter forms come from `field_meta`

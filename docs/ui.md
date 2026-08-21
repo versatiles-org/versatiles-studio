@@ -8,7 +8,7 @@
 **One map surface, not four modes** ([Q22](decisions.md)). The left pane shows the chain from data to
 pixels as collapsible sections, the map sits in the middle, and the right pane shows what the
 pipeline and the opened container turn out to be. Parameters are not there: since
-[Q32](decisions.md) the selected node carries its own arguments in the chain.
+[Q32](decisions.md) every node carries its own arguments in the chain.
 
 Studio is a workbench, not a wizard ([Q13](decisions.md)) — so the P1 risk from `audiences.md` is
 accepted rather than designed around.
@@ -51,7 +51,7 @@ True everywhere. These matter more than the arrangement.
   execute, and beside the export button. An estimate you must go looking for is one you will not see.
 - **Nothing durable lives only in the webview** ([Q16](decisions.md)). The map camera, the graphs
   and their text, and the pane layout all come back from the core, so a reloaded window is looking
-  where it was. The **selected node** and **scroll position** deliberately stay in the webview
+  where it was. **Scroll position** deliberately stays in the webview
   ([Q35](decisions.md#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)):
   both cost a gesture to restore, not work.
 
@@ -87,9 +87,9 @@ D8 came to have no home at all under [Q22](decisions.md).
 | **Produces**  | What the pinned graph turns out to be: format, zoom, layers, property keys                                                                                                       | S3      |
 | **Inspector** | An opened container's own metadata and TileJSON (A6), and bookmarks (A7)                                                                                                         | S1      |
 
-There is **no Parameters pane**: the selected node carries its own arguments in the chain ([Q32](decisions.md)). A parameter's documentation opens beside the sidebar rather than inside the node, and required parameters are shown empty rather than marked with a symbol ([Q33](decisions.md)).
+There is **no Parameters pane**: every node carries its own arguments in the chain ([Q32](decisions.md)). A parameter's documentation opens beside the sidebar rather than inside the node, and required parameters are shown empty rather than marked with a symbol ([Q33](decisions.md)).
 
-**A graph is a named VPL document producing one named tile source** ([Q32](decisions.md#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)), and that one name is
+**A graph is a named VPL document producing one named tile source** ([Q32](decisions.md#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)), and that one name is
 the server mount, the `style.json` source and the `.vpl` filename at once. Every graph is served, so
 that from S4 a style can name them all; **one node, in one graph, may be pinned** to override the
 map — the debugging view C3 describes.
@@ -172,7 +172,7 @@ other an inspector — so what is shared is the resizer, not a wrapper around bo
 4.8.0 ([Q23](decisions.md)), so this is a decision about what a blank field means — for a filename or
 a layer name, nothing — rather than the limitation it started as.
 
-**The right pane shows what things turn out to be**, not what you set — since [Q32](decisions.md#q32--a-project-holds-several-named-graphs-and-the-selected-node-is-the-form)
+**The right pane shows what things turn out to be**, not what you set — since [Q32](decisions.md#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)
 the parameters live in the node. What is left is the pipeline's output and an opened container's own
 format, real zoom range and TileJSON (A6). It never shows global settings, or it becomes the junk
 drawer where every new feature lands.
@@ -301,11 +301,11 @@ Not because of mode switches — there are none — but because a window can cra
 Map camera · the graphs and their text · the sources they read · which panes are open and how wide ·
 the global undo stack · running jobs and their logs · unsaved edits.
 
-**What it deliberately does not own: cursors.** The selected node and scroll position stay in the
-webview ([Q35](decisions.md#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)).
+**What it deliberately does not own: cursors.** Scroll position stays in the webview
+([Q35](decisions.md#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)).
 The test is not durable versus volatile but _what you would have to redo by hand_ — recovering a
-camera means panning until it looks right again, while a selection is one click on a node that is on
-screen. A committed parameter value is already in the core, so the gap costs a gesture, not work.
+camera means panning until it looks right again, while a scroll is one flick. A committed parameter
+value is already in the core, so the gap costs a gesture, not work.
 
 ## Settled elsewhere
 
