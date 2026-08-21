@@ -104,6 +104,7 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `TileActivity` | Tiles the map is still waiting for, shaded and labelled `queued` or `rendering` (S2.16)                            | S2.16      |
 | `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3       |
 | `StylePane`    | Preset and the global adjustments over it (D1) — the layer tree is S4.5                                            | S4.2       |
+| `LayerTree`    | The rendered style's layers: filter, group, hide, recolour — each change an override in the recipe                 | S4.5       |
 | `ExportDialog` | Format, zoom range and numeric bounds — modal, per graph ([Q32](decisions.md)); carries the cost estimate (C6)     | S3.6, S3.7 |
 
 ## Right pane — what it turns out to be
@@ -135,15 +136,15 @@ Named by what they do, not by a component name chosen in advance: `ParamForm`, `
 `TileGridOverlay` all drifted from what shipped, and a planned `FileDrop` never happened at all
 because Tauri's `dragDropEnabled` delivers S1.2 with no component.
 
-| Surface       | What it has to do                                                   | Stage      |
-| ------------- | ------------------------------------------------------------------- | ---------- |
-| Mode bar      | **Map** vs non-map tools — assets (G7), where D9 and D10 live (Q22) | S4.1       |
-| Asset manager | Font families and sprite sets: install, pin, verify, remove (G7)    | S4.1       |
-| Layer tree    | Style layers with visibility, selection, paint and expressions (D3) | S4.5       |
-| Style export  | `style.json`, `@versatiles/style` code, or a bundle (D8)            | S4.6       |
-| Crop overlay  | Drag a rectangle on the map to crop (F2) — port `BBoxDrawer`        | S5.2, S5.4 |
-| Serve panel   | Local server, LAN URL and a QR code for testing on a phone (F1)     | S5.3       |
-| Command strip | The CLI command, serve config or Action that reproduces this (C7)   | S5.5       |
+| Surface       | What it has to do                                                   | Stage |
+| ------------- | ------------------------------------------------------------------- | ----- |
+| Mode bar      | **Map** vs non-map tools — assets (G7), where D9 and D10 live (Q22) | S4.1  |
+| Asset manager | Font families and sprite sets: install, pin, verify, remove (G7)    | S4.1  |
+
+| Style export | `style.json`, `@versatiles/style` code, or a bundle (D8) | S4.6 |
+| Crop overlay | Drag a rectangle on the map to crop (F2) — port `BBoxDrawer` | S5.2, S5.4 |
+| Serve panel | Local server, LAN URL and a QR code for testing on a phone (F1) | S5.3 |
+| Command strip | The CLI command, serve config or Action that reproduces this (C7) | S5.5 |
 
 ## Conventions
 

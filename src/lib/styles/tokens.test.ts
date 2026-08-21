@@ -173,7 +173,12 @@ describe('design tokens', () => {
 	/** Colours reaching MapLibre go through styles/tokens.ts, or the map cannot follow a theme. */
 	it('are the only place a map colour is written', () => {
 		const offenders = sources()
-			.filter((path) => /\.(ts|svelte)$/.test(path) && !path.startsWith('lib/styles/'))
+			// **Tests are exempt, and only tests.** The rule is about colours the application paints:
+			// one written into a component reaches MapLibre and cannot follow a theme. A colour in a
+			// fixture reaches a pure function and is never drawn — `layer-tree.test.ts` needs a style
+			// with `fill-color` in it to have anything to read. Mangling fixtures to satisfy a guard
+			// is how a guard stops being believed.
+			.filter((path) => /\.(ts|svelte)$/.test(path) && !path.startsWith('lib/styles/') && !path.endsWith('.test.ts'))
 			.flatMap((path) => {
 				const text = readFileSync(join(SRC, path), 'utf8').replace(/<style>.*?<\/style>/gs, '');
 				const hits = withoutComments(text).match(/['"]#[0-9a-fA-F]{3,8}['"]/g) ?? [];

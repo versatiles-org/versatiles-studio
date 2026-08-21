@@ -864,7 +864,7 @@
 			}}
 		/>
 	{:else if id === 'style'}
-		<StylePane />
+		<StylePane rendered={styled} />
 	{:else if id === 'output'}
 		<PipelineOutput preview={lastPreview} />
 	{:else if id === 'inspector'}

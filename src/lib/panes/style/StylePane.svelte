@@ -1,17 +1,24 @@
 <script lang="ts">
 	import { style } from '../../state/style.svelte';
 	import type { Preset, Recolor } from '../../ipc/commands';
+	import type { StyleSpecification } from 'maplibre-gl';
+	import LayerTree from './LayerTree.svelte';
 
 	// The style, as the recipe it is made from (S4.2, D1, [Q36]).
 	//
-	// **Presets and adjustments only.** The layer tree is D3 and arrives at S4.5; what is here is
-	// the whole of D1 — where a style starts, and the adjustments that apply to every colour in it
-	// at once. Building the tree first would have meant a list of 324 layers before there was any
-	// way to change one.
+	// **Three things, in the order they narrow.** Where a style starts, the adjustments that apply to
+	// every colour in it at once (D1), and then the layers themselves (D3). The tree came last on
+	// purpose: a list of 324 layers before there was any way to change one is a list nobody reads.
 	//
 	// The controls below preview continuously and commit once, which is why each is bound to a
 	// local value rather than to the recipe: a slider bound to the core would record an undo entry
 	// per pixel of travel ([Q36]).
+
+	let {
+		/** The style on the map, whose layers the tree lists (S4.5). It is the *output* of the recipe,
+		 *  which is why it arrives as a prop rather than being read from the state module. */
+		rendered = null
+	}: { rendered?: StyleSpecification | null } = $props();
 
 	const PRESETS: { id: Preset; label: string; note: string }[] = [
 		{ id: 'colorful', label: 'Colorful', note: 'the default, full colour' },
@@ -126,7 +133,9 @@
 			</label>
 		{/each}
 
-		<p class="note">The layer tree is D3 and arrives with S4.5. These apply to every colour in the style at once.</p>
+		<p class="note">These apply to every colour in the style at once.</p>
+
+		<LayerTree {rendered} />
 	</section>
 {/if}
 
