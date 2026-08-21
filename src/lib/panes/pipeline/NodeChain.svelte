@@ -2,6 +2,7 @@
 	import type { Fit, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
 	import { walk, samePath, isChainHead } from '../../vpl/node-at';
 	import NodeCard from './NodeCard.svelte';
+	import Picker from '../../common/Picker.svelte';
 
 	// The graph as a chain of nodes (C1, S2.13).
 	//
@@ -77,7 +78,22 @@
 	/// having been checked.
 	const grouped = $derived(misfits.length > 0);
 
-	let adding = $state('');
+	/// What the picker offers: the ones that fit, then the ones that do not with their reason.
+	///
+	/// Refused operations stay on the list rather than being dropped — an operation someone knows
+	/// exists, silently missing, is a worse answer than one shown with why it cannot go here.
+	const choices = $derived([
+		...fitting.map((operation) => ({
+			value: operation.name,
+			description: operation.summary,
+			group: grouped ? 'Fits these tiles' : undefined
+		})),
+		...misfits.map((operation) => ({
+			value: operation.name,
+			unavailable: reasonFor(operation.name) ?? undefined,
+			group: 'Not for these tiles'
+		}))
+	]);
 </script>
 
 <div class="chain">
@@ -107,41 +123,12 @@
 				<span class="stem" aria-hidden="true"></span>
 				{#if isSelected && transforms.length > 0}
 					<span class="elbow" aria-hidden="true"></span>
-					<label class="insert">
-						<span class="visually-hidden">Add an operation after {row.node.name}</span>
-						<select
-							bind:value={adding}
-							onchange={() => {
-								if (!adding) return;
-								onAddOperation(row.node.nameSpan, adding);
-								adding = '';
-							}}
-						>
-							<option value="">＋ operation…</option>
-							{#if grouped}
-								<!-- Refused operations stay listed and disabled rather than being dropped: an
-								     operation someone knows exists, silently missing, is a worse answer than
-								     one shown with the reason it cannot go here. Upstream refuses to build
-								     these too, so choosing one could only produce a node that fails. -->
-								<optgroup label="Fits these tiles">
-									{#each fitting as operation (operation.name)}
-										<option value={operation.name} title={operation.summary}>{operation.name}</option>
-									{/each}
-								</optgroup>
-								<optgroup label="Not for these tiles">
-									{#each misfits as operation (operation.name)}
-										<option value={operation.name} title={reasonFor(operation.name)} disabled>
-											{operation.name}
-										</option>
-									{/each}
-								</optgroup>
-							{:else}
-								{#each transforms as operation (operation.name)}
-									<option value={operation.name} title={operation.summary}>{operation.name}</option>
-								{/each}
-							{/if}
-						</select>
-					</label>
+					<Picker
+						label="＋ operation…"
+						placeholder="Filter operations…"
+						items={choices}
+						onPick={(name) => onAddOperation(row.node.nameSpan, name)}
+					/>
 				{/if}
 			</div>
 		{/if}
@@ -189,10 +176,5 @@
 		margin-top: -0.55rem;
 		margin-left: -1px;
 		flex: none;
-	}
-
-	.insert select {
-		font-size: var(--text-xs);
-		color: var(--ink-2);
 	}
 </style>

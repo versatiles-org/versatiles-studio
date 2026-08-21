@@ -2,6 +2,7 @@
 	import type { FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../../ipc/commands';
 	import HelpTrigger from '../../common/HelpTrigger.svelte';
 	import NodeArgument from './NodeArgument.svelte';
+	import Picker from '../../common/Picker.svelte';
 
 	// One node in the chain (S2.13, [Q32]).
 	//
@@ -114,8 +115,6 @@
 			onSet(property.key, parts(raw));
 		} else onCommit(property.value.span, raw);
 	}
-
-	let adding = $state('');
 
 	/// What a parameter *is*, from `field_meta` — type, bounds, whether it is required.
 	///
@@ -308,22 +307,20 @@
 			{/if}
 
 			{#if addable.length > 0}
-				<label class="add">
-					<span class="visually-hidden">Add a parameter</span>
-					<select
-						bind:value={adding}
-						onchange={() => {
-							if (!adding) return;
-							addParameter(adding);
-							adding = '';
-						}}
-					>
-						<option value="">＋ parameter…</option>
-						{#each addable as field (field.name)}
-							<option value={field.name} title={field.doc}>{field.name}</option>
-						{/each}
-					</select>
-				</label>
+				<div class="add">
+					<!-- The documentation was a `title` the platform showed at its own discretion, and
+					     for a parameter list that is where the difference between two similarly named
+					     fields lives. Here it is a line under the name. -->
+					<Picker
+						label="＋ parameter…"
+						placeholder="Filter parameters…"
+						items={addable.map((field) => ({
+							value: field.name,
+							description: field.doc
+						}))}
+						onPick={addParameter}
+					/>
+				</div>
 			{/if}
 		</dl>
 	{/if}
@@ -426,9 +423,5 @@
 	/* Marked as not-yet-real: it is in the pane and not in the document until it has a value. */
 	.add {
 		padding: var(--space-1) var(--space-3) var(--space-2);
-
-		select {
-			font-size: var(--text-xs);
-		}
 	}
 </style>
