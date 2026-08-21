@@ -46,6 +46,16 @@
 		void style.setLayer(id, {});
 	}
 
+	/// Narrows the zooms a layer is drawn at.
+	///
+	/// Empty means "as the style says", which is not the same as 0 or 30 — a layer the style draws
+	/// from z6 and one someone pinned to z0 look identical at z10 and differ everywhere else.
+	function setZoom(id: string, edge: 'minZoom' | 'maxZoom', raw: string) {
+		const value = raw.trim() === '' ? undefined : Number(raw);
+		if (value !== undefined && !Number.isFinite(value)) return;
+		void style.setLayer(id, { ...overrideOf(id), [edge]: value });
+	}
+
 	const visible = (id: string) => overrideOf(id).visible !== false;
 	const touched = (id: string) => Object.keys(overrideOf(id)).length > 0;
 </script>
@@ -93,6 +103,29 @@
 					{/if}
 
 					<span class="name truncate" title="{layer.id} — {layer.type}">{layer.id}</span>
+
+					<label class="zoom">
+						<span class="visually-hidden">Lowest zoom for {layer.id}</span>
+						<input
+							type="number"
+							min="0"
+							max="30"
+							placeholder="–"
+							value={overrideOf(layer.id).minZoom ?? ''}
+							onchange={(event) => setZoom(layer.id, 'minZoom', event.currentTarget.value)}
+						/>
+					</label>
+					<label class="zoom">
+						<span class="visually-hidden">Highest zoom for {layer.id}</span>
+						<input
+							type="number"
+							min="0"
+							max="30"
+							placeholder="–"
+							value={overrideOf(layer.id).maxZoom ?? ''}
+							onchange={(event) => setZoom(layer.id, 'maxZoom', event.currentTarget.value)}
+						/>
+					</label>
 
 					{#if touched(layer.id)}
 						<button type="button" class="reset" title="Undo the changes to this layer" onclick={() => reset(layer.id)}>
@@ -161,6 +194,15 @@
 		.reset {
 			color: var(--accent);
 			font-size: var(--text-xs);
+		}
+
+		/* Narrow on purpose: two zooms are two characters each, and a row that gave them room would
+		   leave none for the name. */
+		.zoom input {
+			width: 2.4rem;
+			padding: 0 var(--space-1);
+			font-size: var(--text-xs);
+			text-align: center;
 		}
 	}
 

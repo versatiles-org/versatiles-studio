@@ -77,3 +77,36 @@ pub async fn set_layer_override(
 	recipe.set_override(layer, patch);
 	Ok(record(&state, recipe).await)
 }
+
+/// Writes a style someone chose a destination for (S4.6, D8).
+///
+/// **The webview supplies the text.** A style is rendered by `@versatiles/style`, which is a
+/// JavaScript library, and the recipe exists precisely so that the core never has to hold the 125 kB
+/// it produces ([Q36]). So this command is about the destination rather than the contents: it checks
+/// the extension and writes atomically, the way a `.vpl` is saved.
+///
+/// The path came from a native save dialog, which is the whole of the trust story — see
+/// [architecture.md](../../../docs/architecture.md)'s note on paths across the control plane.
+#[tauri::command]
+#[specta::specta]
+pub async fn export_style(path: String, contents: String) -> Result<(), String> {
+	let path = std::path::PathBuf::from(path);
+	if !studio_core::style::is_exportable(&path) {
+		return Err(format!(
+			"cannot write {}: a style is written as .{}",
+			path.display(),
+			studio_core::style::EXPORTABLE.join(" or .")
+		));
+	}
+	studio_core::project::write_atomically(&path, &contents).map_err(|error| format!("{error:#}"))
+}
+
+/// What Studio can write a style as — the file dialog's filters come from here.
+#[tauri::command]
+#[specta::specta]
+pub fn style_formats() -> Vec<String> {
+	studio_core::style::EXPORTABLE
+		.iter()
+		.map(|f| (*f).to_string())
+		.collect()
+}

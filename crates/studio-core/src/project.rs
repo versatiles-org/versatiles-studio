@@ -30,6 +30,19 @@ pub fn save_vpl(path: &Path, text: &str) -> Result<()> {
 		crate::import::pipeline_extensions().join(" or .")
 	);
 
+	write_atomically(path, text)
+}
+
+/// Writes `text` to `path` through a temporary file beside it.
+///
+/// **Beside, not in the system temp directory**, for the reason `Recents::save` and
+/// `export::scratch_path` both give: a rename is atomic only within one filesystem, and a temp
+/// directory is routinely on another. A half-written file where a whole one used to be is the
+/// failure this exists to prevent.
+///
+/// Shared by every text a project writes — a `.vpl`, and a style ([S4.6](../../docs/scope-release-1.md)).
+/// The guard about *what* may be written belongs to the caller; this one is about writing it safely.
+pub fn write_atomically(path: &Path, text: &str) -> Result<()> {
 	let dir = path.parent().context("target has no parent directory")?;
 	let mut temp = path.as_os_str().to_owned();
 	temp.push(".tmp");

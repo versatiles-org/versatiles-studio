@@ -134,6 +134,20 @@ export const commands = {
 	 *  patch, so "reset" and "never touched" are the same state — see `Recipe::set_override`.
 	 */
 	setLayerOverride: (layer: string, patch: LayerOverride_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_layer_override", { layer, patch })),
+	/**
+	 *  Writes a style someone chose a destination for (S4.6, D8).
+	 * 
+	 *  **The webview supplies the text.** A style is rendered by `@versatiles/style`, which is a
+	 *  JavaScript library, and the recipe exists precisely so that the core never has to hold the 125 kB
+	 *  it produces ([Q36]). So this command is about the destination rather than the contents: it checks
+	 *  the extension and writes atomically, the way a `.vpl` is saved.
+	 * 
+	 *  The path came from a native save dialog, which is the whole of the trust story — see
+	 *  [architecture.md](../../../docs/architecture.md)'s note on paths across the control plane.
+	 */
+	exportStyle: (path: string, contents: string) => typedError<null, string>(__TAURI_INVOKE("export_style", { path, contents })),
+	/**  What Studio can write a style as — the file dialog's filters come from here. */
+	styleFormats: () => __TAURI_INVOKE<string[]>("style_formats"),
 	/**  The remembered pane layout, or the default one. */
 	layout: () => typedError<Layout, string>(__TAURI_INVOKE("layout")),
 	/**

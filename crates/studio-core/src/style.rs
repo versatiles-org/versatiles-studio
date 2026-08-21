@@ -19,6 +19,27 @@
 
 use anyhow::{Context, Result};
 use std::collections::BTreeMap;
+use std::path::Path;
+
+/// What a style may be written as (S4.6, D8).
+///
+/// `.json` is the style itself, for anything that consumes a MapLibre style. `.ts` is the recipe as
+/// code — the thing [Q36] keeps the recipe *for*, and the reason a rendered style alone would not
+/// have been enough.
+pub const EXPORTABLE: [&str; 2] = ["json", "ts"];
+
+/// Whether Studio will write a style to this path.
+///
+/// The same shape as [`export::is_writable`](crate::export::is_writable) and for the same reason: a
+/// destination the application refuses should be refused in the dialog that chose it, not by a
+/// failure afterwards.
+#[must_use]
+pub fn is_exportable(path: &Path) -> bool {
+	path
+		.extension()
+		.map(|extension| extension.to_string_lossy().to_lowercase())
+		.is_some_and(|extension| EXPORTABLE.contains(&extension.as_str()))
+}
 
 /// Where a style starts before anything is adjusted.
 ///

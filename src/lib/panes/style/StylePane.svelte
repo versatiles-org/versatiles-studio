@@ -3,6 +3,9 @@
 	import type { Preset, Recolor } from '../../ipc/commands';
 	import type { StyleSpecification } from 'maplibre-gl';
 	import LayerTree from './LayerTree.svelte';
+	import { save } from '@tauri-apps/plugin-dialog';
+	import { exportStyle } from '../../ipc/commands';
+	import { canGenerateCode, forExport, styleCode } from '../../map/style-code';
 
 	// The style, as the recipe it is made from (S4.2, D1, [Q36]).
 	//
@@ -76,6 +79,31 @@
 		void style.commitRecolor();
 	}
 
+	/// Writing the style out (S4.6, D8). Two forms, because they answer different questions: the
+	/// JSON is what a map consumes, the code is what a build regenerates it from.
+	let exporting = $state<string | null>(null);
+
+	async function exportAs(kind: 'json' | 'ts') {
+		if (!recipe || !rendered) return;
+		const code = kind === 'ts' ? styleCode(recipe) : null;
+		if (kind === 'ts' && code === null) return;
+		// The tile URL is swapped for a placeholder in both forms: what the map reads from is an
+		// ephemeral local port, and a file carrying it away would work once.
+		const contents = kind === 'ts' ? code! : JSON.stringify(forExport(rendered), null, '\t');
+
+		exporting = kind;
+		try {
+			const target = await save({
+				title: 'Export style',
+				defaultPath: kind === 'ts' ? 'style.ts' : 'style.json',
+				filters: [{ name: kind === 'ts' ? '@versatiles/style code' : 'MapLibre style', extensions: [kind] }]
+			});
+			if (target) await exportStyle(target, contents);
+		} finally {
+			exporting = null;
+		}
+	}
+
 	const adjusted = $derived(Object.values(recipe?.recolor ?? {}).some((v) => v !== undefined && v !== null));
 </script>
 
@@ -136,6 +164,31 @@
 		<p class="note">These apply to every colour in the style at once.</p>
 
 		<LayerTree {rendered} />
+
+		<h2 class="section-label">Export</h2>
+		<div class="exports">
+			<button
+				type="button"
+				class="button"
+				disabled={!rendered || exporting !== null}
+				onclick={() => void exportAs('json')}
+			>
+				style.json
+			</button>
+			<!-- Disabled rather than hidden for a derived style: the reason it cannot be written as
+			     code is worth saying, and a button that vanishes says nothing. -->
+			<button
+				type="button"
+				class="button"
+				disabled={!rendered || exporting !== null || !canGenerateCode(recipe)}
+				title={canGenerateCode(recipe)
+					? 'The preset and what was changed, as code'
+					: 'A derived style has no builder to call — export it as style.json'}
+				onclick={() => void exportAs('ts')}
+			>
+				@versatiles/style code
+			</button>
+		</div>
 	</section>
 {/if}
 

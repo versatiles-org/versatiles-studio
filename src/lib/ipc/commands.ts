@@ -139,6 +139,17 @@ export const setStylePreset = (preset: Preset) => unwrap(commands.setStylePreset
  */
 export const setStyleRecolor = (recolor: Recolor) => unwrap(commands.setStyleRecolor(recolor));
 
+/** What Studio can write a style as — the save dialog's filters come from here. */
+export const styleFormats = () => commands.styleFormats();
+
+/**
+ * Writes a style to a path the user chose (S4.6, D8).
+ *
+ * The webview supplies the text because the generator lives here; the core checks the destination
+ * and writes it atomically, the way a `.vpl` is saved.
+ */
+export const exportStyle = (path: string, contents: string) => unwrap(commands.exportStyle(path, contents));
+
 /** Changes one layer, or resets it by passing an empty patch (D3). */
 export const setLayerOverride = (layer: string, patch: LayerOverride) =>
 	unwrap(commands.setLayerOverride(layer, patch));
