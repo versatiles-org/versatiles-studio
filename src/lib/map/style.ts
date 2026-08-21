@@ -100,3 +100,20 @@ function applyOverride(layer: LayerSpecification, patch: LayerOverride | undefin
 
 	return next as LayerSpecification;
 }
+
+/**
+ * Whether a generated style would draw anything from the tiles it was pointed at.
+ *
+ * **The presets assume Shortbread**, a layer naming scheme most of the world's vector tiles do not
+ * use. Point `colorful` at a container of `buildings` and `admin` and it renders its background and
+ * nothing else — a blank map where the hairlines used to be, with no error to explain it.
+ *
+ * So the caller asks first, and keeps the hairlines when the answer is no. Deriving a style from the
+ * layers a container actually has is [S4.4](../../../docs/scope-release-1.md); until then this is
+ * the difference between "styled" and "silently empty".
+ */
+export function drawsAnything(style: StyleSpecification, available: string[]): boolean {
+	if (available.length === 0) return false;
+	const wanted = new Set(available);
+	return style.layers.some((layer) => 'source-layer' in layer && wanted.has(layer['source-layer'] as string));
+}

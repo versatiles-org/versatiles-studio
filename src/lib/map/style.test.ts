@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderStyle } from './style';
+import { drawsAnything, renderStyle } from './style';
 import type { Recipe } from '../ipc/commands';
 
 const BASE = 'http://127.0.0.1:8080';
@@ -93,5 +93,27 @@ describe('layer overrides', () => {
 		const patched = renderStyle(recipe({ overrides: { [id]: { visible: false } } }), SOURCES, BASE)!;
 		const untouched = plain.layers.filter((l) => l.id !== id);
 		expect(JSON.stringify(patched.layers.filter((l) => l.id !== id))).toEqual(JSON.stringify(untouched));
+	});
+});
+
+describe('drawsAnything', () => {
+	const style = renderStyle(recipe(), SOURCES, BASE)!;
+
+	it('is true for the schema the presets are written against', () => {
+		// Shortbread's own names, which is what `colorful` draws.
+		expect(drawsAnything(style, ['water_polygons', 'street_motorway', 'boundaries'])).toBe(true);
+	});
+
+	it('is false for a container that names its layers something else', () => {
+		expect(drawsAnything(style, ['parcels', 'zoning', 'my_layer'])).toBe(false);
+	});
+
+	// A raster source has no vector layers at all, and a preset has nothing to draw from it.
+	it('is false when there are no layers to match', () => {
+		expect(drawsAnything(style, [])).toBe(false);
+	});
+
+	it('needs only one layer in common to be worth drawing', () => {
+		expect(drawsAnything(style, ['nothing_like_it', 'water_polygons'])).toBe(true);
 	});
 });

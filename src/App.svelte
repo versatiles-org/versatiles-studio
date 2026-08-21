@@ -29,6 +29,7 @@
 	import CoordinateJump from './lib/map/CoordinateJump.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { addContainerToMap, removeContainerFromMap } from './lib/map/add-source';
+	import { drawsAnything, renderStyle } from './lib/map/style';
 	import { whyNotRenderable } from './lib/map/tile-format';
 	import {
 		forgetRecent,
@@ -430,12 +431,41 @@
 			.catch(fail);
 	});
 
-	// The background is the one part of Studio that fetches from the network (G5), so it is built
-	// only when asked for. `none` returns to the empty style the map starts on.
+	/// The layers the mounted tiles actually contain, for deciding whether a preset can draw them.
+	const mountedLayers = $derived(
+		((lastPreview?.info.tileJson?.vector_layers ?? []) as { id?: string }[])
+			.map((layer) => layer.id)
+			.filter((id): id is string => typeof id === 'string')
+	);
+
+	/// The style the recipe describes, or `null` when it would draw nothing (S4.3).
+	///
+	/// **Null is a real answer, not a failure.** The six presets are written against Shortbread's
+	/// layer names; a container that names its layers something else gets a background and no
+	/// features, which reads as a broken map rather than as an unstyled one. Deriving a style from
+	/// the layers a container actually has is S4.4 — until then the hairlines stay, and this says
+	/// which of the two the map is showing.
+	const styled = $derived.by(() => {
+		const recipe = styleRecipe.current;
+		const source = lastPreview;
+		if (!recipe || !source || !serverUrl) return null;
+		const rendered = renderStyle(recipe, [{ name: source.name, tileUrl: source.tileUrl }], serverUrl);
+		return rendered && drawsAnything(rendered, mountedLayers) ? rendered : null;
+	});
+
+	// **One owner for the map's style.** The recipe and the background both want to set it, and two
+	// effects assigning it in whatever order they happen to run is how a map ends up showing the
+	// wrong one after a reload. A styled recipe wins: a full basemap under it would be invisible,
+	// and the background exists to give *unstyled* pipeline output something to sit on (G5).
 	$effect(() => {
+		const rendered = styled;
 		const chosen = background;
 		const url = serverUrl;
 		if (!url) return;
+		if (rendered) {
+			style = rendered;
+			return;
+		}
 		void untrack(async () => {
 			try {
 				style = (await buildBackground(chosen, url)) ?? defaultStyle(url);
@@ -446,8 +476,13 @@
 	});
 
 	/// Puts the preview back after a style swap, which discards every layer added to the old style.
+	/// Re-adds what a replaced style discarded.
+	///
+	/// Not the hairlines when the recipe is drawing these tiles: they are the fallback for a preset
+	/// that matches nothing, and adding them over a styled map would put a line over every feature
+	/// the style just drew.
 	function restorePreview() {
-		if (map && lastPreview) addContainerToMap(map, lastPreview);
+		if (map && lastPreview && !styled) addContainerToMap(map, lastPreview);
 	}
 
 	/// Returns the camera to what is currently open.
@@ -572,6 +607,14 @@
 			lastPreview = result;
 			if (result) {
 				previewName = result.name;
+				// The hairlines are what a *styled* map does not need: when the recipe renders these
+				// tiles, its own layers draw them and a line over the top would be a second opinion
+				// (S4.3). `styled` is null when the preset matches nothing, which is when they earn
+				// their place.
+				if (untrack(() => styled)) {
+					status = { kind: 'idle' };
+					return;
+				}
 				// A format the map cannot draw is a thing to say, not a blank map with errors in the
 				// console — which is what it used to be.
 				if (!addContainerToMap(map, result)) {
