@@ -43,9 +43,11 @@
 	--map-feature: #2b6cb0; /* the hairline every vector layer gets until D2 */
 	/* Tiles the map is still waiting for (S2.16). Amber rather than another blue or teal: it has to
 	   read as *work in progress* over whatever the tiles underneath happen to be, and be told apart
-	   at a glance from the grid and the features it overlays. One colour for both states — queued
-	   and rendering differ by opacity, because they are two stages of one thing. */
-	--map-pending: #c2711c;
+	   at a glance from the grid and the features it overlays.
+	   
+	   Used mostly for a label and an outline rather than a wash. The first version filled each tile
+	   at 28% and read as dark red — which says *error*, the one thing this never means. */
+	--map-pending: #777777;
 	/* Controls that float over the map need to stay legible against whatever is under them, so
 	   they sit on a near-opaque white rather than on --surface. */
 	--float-bg: rgb(255 255 255 / 0.94);
@@ -138,7 +140,7 @@
 		--map-grid: #45c3b3;
 		--map-grid-halo: #0d1113;
 		--map-feature: #6fa8dc;
-		--map-pending: #e0a45c;
+		--map-pending: #777777;
 		--float-bg: rgb(25 33 31 / 0.94);
 		--scrim: rgb(0 0 0 / 0.6);
 

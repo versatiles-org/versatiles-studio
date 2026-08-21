@@ -22,7 +22,7 @@
 
 	const SOURCE = 'studio:tile-activity';
 	const FILL = `${SOURCE}:fill`;
-	const EDGE = `${SOURCE}:edge`;
+	const LABEL = `${SOURCE}:label`;
 
 	/**
 	 * Puts the overlay back, and on top.
@@ -44,32 +44,32 @@
 				metadata: role('pending-fill'),
 				paint: {
 					'fill-color': token('--map-pending'),
-					// One colour, two weights: rendering is work happening and queued is work waiting,
-					// which are stages of one thing rather than two different things.
-					'fill-opacity': ['case', ['==', ['get', 'state'], 'rendering'], 0.28, 0.12]
+					'fill-opacity': ['case', ['==', ['get', 'state'], 'rendering'], 0.4, 0.2]
 				}
 			});
 			m.addLayer({
-				id: EDGE,
-				type: 'line',
+				id: LABEL,
+				type: 'symbol',
 				source: SOURCE,
-				metadata: role('pending-line'),
+				metadata: role('pending-label'),
+				layout: {
+					'text-field': ['get', 'state'],
+					'text-font': ['noto_sans_regular'],
+					'text-size': 20,
+					'symbol-placement': 'point'
+				},
 				paint: {
-					'line-color': token('--map-pending'),
-					'line-width': 1,
-					'line-opacity': ['case', ['==', ['get', 'state'], 'rendering'], 0.8, 0.35]
+					'text-color': '#000',
+					'text-opacity': ['case', ['==', ['get', 'state'], 'rendering'], 0.8, 0.5]
 				}
 			});
 			// Whatever was pending across the restyle is still pending; `untrack` because this runs
 			// from a style event as well as from the effect, and reading it must not subscribe.
-			draw(
-				m,
-				untrack(() => tiles.features)
-			);
+			draw(m, untrack(featuresOf));
 			return;
 		}
 		// Already there, so only the order can be wrong.
-		for (const id of [FILL, EDGE]) if (m.getLayer(id)) m.moveLayer(id);
+		for (const id of [FILL, LABEL]) if (m.getLayer(id)) m.moveLayer(id);
 	}
 
 	function draw(m: MaplibreMap, features: ReturnType<typeof featuresOf>) {
@@ -98,7 +98,7 @@
 		return () => {
 			m.off('styledata', restore);
 			m.off('load', restore);
-			for (const id of [EDGE, FILL]) if (m.getLayer(id)) m.removeLayer(id);
+			for (const id of [LABEL, FILL]) if (m.getLayer(id)) m.removeLayer(id);
 			if (m.getSource(SOURCE)) m.removeSource(SOURCE);
 		};
 	});
@@ -111,6 +111,6 @@
 		draw(map, features);
 		// The preview's layers are added as previews finish, which puts them above this one. Raising
 		// here costs nothing and keeps the overlay visible without watching for every such moment.
-		if (features.length > 0) for (const id of [FILL, EDGE]) if (map.getLayer(id)) map.moveLayer(id);
+		if (features.length > 0) for (const id of [FILL, LABEL]) if (map.getLayer(id)) map.moveLayer(id);
 	});
 </script>
