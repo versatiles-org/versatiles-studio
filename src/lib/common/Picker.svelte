@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { grouped, matching, pickable, type PickerItem } from './picker';
+	import { help } from '../state/help.svelte';
 	// The "add something" picker, in place of a `<select>`.
 	//
 	// Both places that offer a list of things to insert — `＋ operation…` on the chain's rail and
@@ -159,6 +160,13 @@
 	/// Flips to the left of the list when there is no room on the right: panes have sides
 	/// ([Q31](../../../docs/decisions.md)), so a picker near the right edge is a real case.
 	const tip = $derived.by(() => {
+		// **Yields to a pinned popover.** `Help` lands beside the sidebar and this lands beside the
+		// list, which is inside the sidebar — so the two occupy the same strip of screen, and this
+		// one is on top. Pinning is the gesture for "keep this where I can read it", so the thing
+		// that arrives later is the one that gives way. A *peek* is not covered: it belongs to a
+		// pointer that is somewhere else entirely, and it goes on its own the moment this one could
+		// appear.
+		if (help.current?.pinned) return null;
 		if (!position || anchor === null || !detail) return null;
 		const width = Math.min(22 * 16, window.innerWidth * 0.3);
 		const right = position.left + position.width + GAP;
