@@ -31,6 +31,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "ahash"
+version = "0.8.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
+dependencies = [
+ "cfg-if",
+ "const-random",
+ "once_cell",
+ "version_check",
+ "zerocopy",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -704,6 +717,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "const-random"
+version = "0.1.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87e00182fe74b066627d63b85fd550ac2998d4b0bd86bfed477a0ae4c7c71359"
+dependencies = [
+ "const-random-macro",
+]
+
+[[package]]
+name = "const-random-macro"
+version = "0.1.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9d839f2a20b0aee515dc581a6172f2321f96cab76c1a38a4c584a194955390e"
+dependencies = [
+ "getrandom 0.2.17",
+ "once_cell",
+ "tiny-keccak",
+]
+
+[[package]]
 name = "cookie"
 version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -813,6 +846,12 @@ name = "crossbeam-utils"
 version = "0.8.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61803da095bee82a81bb1a452ecc25d3b2f1416d1897eb86430c6159ef717c17"
+
+[[package]]
+name = "crunchy"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
 name = "crypto-common"
@@ -1419,6 +1458,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "float_eq"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28a80e3145d8ad11ba0995949bbcf48b9df2be62772b3d351ef017dff6ecb853"
+
+[[package]]
 name = "float_next_after"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1734,6 +1779,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "geo-traits"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e7c353d12a704ccfab1ba8bfb1a7fe6cb18b665bf89d37f4f7890edcd260206"
+
+[[package]]
 name = "geo-types"
 version = "0.7.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1986,6 +2037,28 @@ dependencies = [
  "tokio-util",
  "tracing",
 ]
+
+[[package]]
+name = "h3o"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f033ee4f3b98f6842df9ce5111ff2dd36fd9be9804b9c0afd43e69e3891a6fbf"
+dependencies = [
+ "ahash",
+ "either",
+ "float_eq",
+ "geo",
+ "geo-traits",
+ "h3o-bit",
+ "libm",
+ "ordered-float",
+]
+
+[[package]]
+name = "h3o-bit"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b42eb4efef1f96510ae1a33b2682562a677d504641e9903a77bf5c666b9013e"
 
 [[package]]
 name = "hash32"
@@ -3509,6 +3582,15 @@ name = "option-ext"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04744f49eae99ab78e0d5c0b603ab218f515ea8cfe5a456d7629ad883a3b6e7d"
+
+[[package]]
+name = "ordered-float"
+version = "5.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7d950ca161dc355eaf28f82b11345ed76c6e1f6eb1f4f4479e0323b9e2fbd0e"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "owned_ttf_parser"
@@ -5537,6 +5619,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "tempfile"
+version = "3.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
+dependencies = [
+ "fastrand",
+ "getrandom 0.4.3",
+ "once_cell",
+ "rustix",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "tendril"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5625,6 +5720,15 @@ checksum = "7e689342a48d2ea927c87ea50cabf8594854bf940e9310208848d680d668ed85"
 dependencies = [
  "num-conv",
  "time-core",
+]
+
+[[package]]
+name = "tiny-keccak"
+version = "2.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
+dependencies = [
+ "crunchy",
 ]
 
 [[package]]
@@ -6094,9 +6198,9 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "versatiles"
-version = "4.8.0"
+version = "4.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d0b7f8e18f4905aa963b2f8b99d52d9cdca0a8899dee8ccd131813b7bc97645"
+checksum = "3100a8790c722d2f08ec11b9269e8d4d9db15576119b5127bd6152438da6d430"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6144,9 +6248,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_container"
-version = "4.8.0"
+version = "4.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "436695ba0265d1334fd303fa2521a68dfdf0b155088876361b92683ae60f8f19"
+checksum = "2a4fa59b213f13f823d53d8c53d0e07278ead00c5fae2ce8cb188e89dfccd87f"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6165,6 +6269,7 @@ dependencies = [
  "regex",
  "reqwest",
  "tar",
+ "tempfile",
  "terminal_size",
  "time",
  "tokio",
@@ -6177,9 +6282,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_core"
-version = "4.8.0"
+version = "4.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1df603d718adcb8fc81229599d382768b79ecb23692024e8979462f804d7d6a0"
+checksum = "6e1945ac9763179385c3c6b360e8d236e4217c5a08f5541f640008148400fb82"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6207,9 +6312,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_derive"
-version = "4.8.0"
+version = "4.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fc68dde0bdc0458fb06d2e9eeba8e3c37852a9b5139e36b4a9d6fc8b63fc5fd"
+checksum = "bfda7e09d74843ab8c7ef16d9d4a5625350a388ca585b20e4dab460a07cf0a91"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6218,9 +6323,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_geometry"
-version = "4.8.0"
+version = "4.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fba87472250067e1972e469186929d04325e94a3b8afb67483b833879e9bd86"
+checksum = "d3e44adf1ea6e02c15ae23d3a7ce78def4ae5573d06781d7e9b4b18cdbb70176"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -6240,9 +6345,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_image"
-version = "4.8.0"
+version = "4.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "608c256ccfb3397038c321fe3e985c48e52224de1ba2a9d7154096d120ca5c15"
+checksum = "fb9ac41fa67c5ef6dba28f089b67117d8a8c5237a92cbe6e1e7facfb49d5139d"
 dependencies = [
  "anyhow",
  "fast_image_resize",
@@ -6255,9 +6360,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_pipeline"
-version = "4.8.0"
+version = "4.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3ab54ad5e16e775dbfbc8d6b2428e6620f5ea4d1c60b7b2a34ad3891db7d9c2"
+checksum = "fde3b23de4305aa0b13af091ab0242902b754cf1f96d33096715a940f66492f0"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -6270,6 +6375,7 @@ dependencies = [
  "gdal-sys",
  "geo",
  "geo-types",
+ "h3o",
  "imageproc",
  "itertools 0.15.0",
  "log",

@@ -416,15 +416,17 @@ mod tests {
 	#[tokio::test]
 	async fn a_format_a_pipeline_cannot_produce_fails_with_a_reason() {
 		let (handle, _) = job();
-		// Vector tiles, uncompressed: MBTiles wants them gzipped and says so.
-		let document = Document::parse("from_debug format=pbf").unwrap();
+		// AVIF is a format MBTiles has no column for. It used to be uncompressed `pbf` here, until
+		// versatiles-rs 4.9 taught the writer to recompress vector tiles rather than refuse them —
+		// so that pair stopped being a refusal, and the test moved to one that still is.
+		let document = Document::parse("from_debug format=avif").unwrap();
 		let target = crate::testing::path("mismatch.mbtiles");
 
 		let error = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS)
 			.await
 			.unwrap_err();
 		let message = format!("{error:#}");
-		assert!(message.contains("MBTiles supports only"), "{message}");
+		assert!(message.contains("MBTiles cannot store"), "{message}");
 		assert!(!target.exists(), "a refused format left a file behind");
 	}
 
