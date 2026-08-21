@@ -108,24 +108,23 @@ thing stage 2 has to build — ideally upstream.
 Small changes to versatiles-rs that Studio is a good reason to make — the list to take to a
 versatiles-rs planning session. None blocks Studio; each removes a workaround.
 
-| Ask                                           | Why                                                                                                                                         | Raised by                                 |
-| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
-| **A lossless VPL syntax tree and serialiser** | The node graph must edit text without reordering parameters or dropping comments                                                            | [Q11](decisions.md); the largest of these |
-| **Data types on `OperationMeta`**             | So the graph can reject invalid connections instead of failing at run time                                                                  | finding 1 above                           |
-| **Default values on `VPLFieldMeta`**          | So generated forms are pre-filled rather than empty                                                                                         | finding 1 above                           |
-| **A compute/render split in `probe`**         | Studio needs data, not `PrettyPrint` text; the CLI would gain `--json` for free                                                             | [Q4](decisions.md)                        |
-| **`tools` moved into `versatiles`'s lib**     | `layer_stats()` is binary-only, so B2's breakdown cannot be imported                                                                        | [Q12](decisions.md)                       |
-| **An ignored `x-` namespace in `Config`**     | `deny_unknown_fields` stops one file serving as both project and serve config                                                               | [Q6](decisions.md)                        |
-| **A settable `User-Agent`**                   | `versatiles_core::io::USER_AGENT` is a `const` baked at compile time, so a host application cannot name itself to the servers it reads from | [S1.11](scope-release-1.md)               |
-| **A formatter over the CST**                  | `VPLPipeline::to_string_pretty` lowers through the AST and drops comments; the CST already holds the trivia a formatter would rewrite       | [S2.15](scope-release-1.md)               |
+| Ask                                           | Why                                                                              | Raised by                                 |
+| --------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------------- |
+| **A lossless VPL syntax tree and serialiser** | The node graph must edit text without reordering parameters or dropping comments | [Q11](decisions.md); the largest of these |
+| **Data types on `OperationMeta`**             | So the graph can reject invalid connections instead of failing at run time       | finding 1 above                           |
+| **Default values on `VPLFieldMeta`**          | So generated forms are pre-filled rather than empty                              | finding 1 above                           |
+| **A compute/render split in `probe`**         | Studio needs data, not `PrettyPrint` text; the CLI would gain `--json` for free  | [Q4](decisions.md)                        |
+| **`tools` moved into `versatiles`'s lib**     | `layer_stats()` is binary-only, so B2's breakdown cannot be imported             | [Q12](decisions.md)                       |
+| **An ignored `x-` namespace in `Config`**     | `deny_unknown_fields` stops one file serving as both project and serve config    | [Q6](decisions.md)                        |
 
 The first is on the critical path for stage 2 and should be offered upstream during stage 1, so
 review overlaps with cluster A rather than following it. The rest can land whenever.
 
-The last two are new and follow the same rule as the ten below: both are about _tiles_ rather than
-about Studio's interface, so both belong upstream. Identifying the software making a request is
-something the CLI and `versatiles_node` want as much as Studio does, and a formatter that keeps
-comments is the CST's job — it is the only thing that has them.
+Two more were filed on 2026-08-21 and are listed below rather than here: identifying the software
+making a request ([vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248)) and a
+formatter that keeps comments ([vt#249](https://github.com/versatiles-org/versatiles-rs/issues/249)).
+Both passed the same test as the ten that landed in 4.9.0 — they are about _tiles_ rather than about
+Studio's interface, and the CLI and `versatiles_node` want them too.
 
 ### Filed, and what came back
 
@@ -148,6 +147,8 @@ the same standard, and cannot be satisfied by a fix arriving in an unexpected fo
 | -------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link              | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
 | [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue** | The pinned fork above                                                                                                                                 |
+| [vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248) | A product token a host can add to the `User-Agent`         | Every remote read says `versatiles/…` and nothing more ([S1.11](scope-release-1.md))                                                                  |
+| [vt#249](https://github.com/versatiles-org/versatiles-rs/issues/249) | A formatter over the CST, so comments survive it           | No Format command in the VPL editor ([S2.15](scope-release-1.md))                                                                                     |
 
 #### Landed in 4.9.0
 
