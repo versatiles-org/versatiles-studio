@@ -250,11 +250,89 @@ function checkSigningSecrets(): void {
 	}
 }
 
-async function confirm(question: string, expected: string): Promise<boolean> {
+/**
+ * `y` to go ahead. Anything else, including a bare return, stops.
+ *
+ * Defaulting to no is the whole safety of it: the expensive mistake is an absent-minded return, and
+ * this is the one prompt standing between a local commit and a published release.
+ */
+async function confirm(question: string): Promise<boolean> {
 	const rl = createInterface({ input: process.stdin, output: process.stdout });
 	const answer = await rl.question(question);
 	rl.close();
-	return answer.trim() === expected;
+	return answer.trim().toLowerCase() === 'y';
+}
+
+/** One job, as `gh` reports it. */
+interface Job {
+	name: string;
+	status: string;
+	conclusion: string | null;
+}
+
+/** How wide the table is allowed to be. A release is watched in whatever terminal is open. */
+const WIDTH = 56;
+
+const MARK: Record<string, string> = {
+	success: '\x1b[32m✓\x1b[0m',
+	failure: '\x1b[31m✗\x1b[0m',
+	cancelled: '\x1b[31m✗\x1b[0m',
+	skipped: '\x1b[2m–\x1b[0m',
+	in_progress: '\x1b[33m•\x1b[0m',
+	queued: '\x1b[2m·\x1b[0m'
+};
+
+/** `4m12s`. */
+function elapsed(seconds: number): string {
+	return `${Math.floor(seconds / 60)}m${String(Math.floor(seconds % 60)).padStart(2, '0')}s`;
+}
+
+/**
+ * One line per job, redrawn in place until the run finishes.
+ *
+ * **Rather than `gh run watch`.** That prints the full job tree with every step, which wraps in any
+ * terminal narrower than very wide and turns a forty-minute wait into thousands of lines of
+ * scrollback. What is actually wanted is three rows and a clock.
+ *
+ * Polled every fifteen seconds: the jobs take tens of minutes, and the API has a rate limit worth
+ * respecting when the wait is this long.
+ */
+async function watch(runId: string): Promise<void> {
+	const started = Date.now();
+	let drawn = 0;
+
+	for (;;) {
+		const raw = capture('gh', [
+			'run',
+			'view',
+			runId,
+			'--json=status,conclusion,jobs',
+			'--jq=[.status, (.conclusion // ""), (.jobs | map({name, status, conclusion: (.conclusion // null)}))] | @json'
+		]);
+		const [status, conclusion, jobs] = JSON.parse(raw) as [string, string, Job[]];
+
+		const lines = jobs.map((job) => {
+			const state = job.conclusion ?? job.status;
+			const mark = MARK[state] ?? '\x1b[2m?\x1b[0m';
+			// Truncated rather than wrapped: a wrapped row breaks the redraw, because the cursor has
+			// to move back over a number of lines this cannot then predict.
+			const name = job.name.length > 34 ? `${job.name.slice(0, 33)}…` : job.name;
+			return `  ${mark} ${name.padEnd(35)}${state === 'in_progress' ? '' : state}`;
+		});
+		lines.push(`  \x1b[2m${elapsed((Date.now() - started) / 1000)} elapsed\x1b[0m`);
+
+		// Back over what was printed last time, clearing each line before rewriting it — otherwise a
+		// shorter row leaves the tail of the longer one behind it.
+		if (drawn > 0) process.stdout.write(`\x1b[${drawn}A`);
+		process.stdout.write(lines.map((line) => `\x1b[2K${line}`).join('\n') + '\n');
+		drawn = lines.length;
+
+		if (status === 'completed') {
+			if (conclusion !== 'success') throw new Error(`the release build ${conclusion} — see the run above`);
+			return;
+		}
+		await new Promise((resolve) => setTimeout(resolve, 15_000));
+	}
 }
 
 async function main(): Promise<void> {
@@ -379,7 +457,7 @@ async function main(): Promise<void> {
 	if (!runId) {
 		throw new Error(`no release run for ${tag} — check the Actions tab; the tag is pushed, so re-run it there`);
 	}
-	run('gh', ['run', 'watch', runId, '--exit-status']);
+	await watch(runId);
 
 	say('Publishing');
 	run('gh', ['release', 'edit', tag, '--draft=false', '--latest']);

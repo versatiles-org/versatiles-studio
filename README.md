@@ -114,7 +114,7 @@ npm run tauri dev
 **Package it**
 
 ```sh
-npm run bundle           # → src-tauri/target/release/bundle/
+npm run bundle           # → target/release/bundle/
 ```
 
 **The scripts**
