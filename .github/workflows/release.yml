@@ -75,25 +75,22 @@ jobs:
         include:
           # `.deb` **and** an AppImage: a `.deb` is built against one WebKitGTK version and may not
           # install across distributions, which is exactly what the AppImage is for (Q10).
-          - label: Linux (x86_64)
-            runner: ubuntu-latest
-            artefact: linux-x86_64
-            platform: linux-x86_64
-          # A desktop GUI on ARM Linux is a smaller audience than a CLI on ARM Linux — a Raspberry
-          # Pi or Asahi, rather than every cloud instance — but the runner is free and the smoke
-          # test on it is the only way this target is ever exercised.
-          - label: Linux (arm64)
+          - label: Linux arm
             runner: ubuntu-24.04-arm
             artefact: linux-aarch64
             platform: linux-aarch64
+          - label: Linux x86
+            runner: ubuntu-latest
+            artefact: linux-x86_64
+            platform: linux-x86_64
           # Two Macs rather than a universal binary. `lipo` would mean building GDAL from source
           # twice and joining the results, and a Homebrew cask names one URL and one checksum per
           # architecture anyway — so two files is the shape the consumer already wants.
-          - label: macOS (Apple Silicon)
+          - label: macOS arm
             runner: macos-latest
             artefact: macos-aarch64
             platform: darwin-aarch64
-          - label: macOS (Intel)
+          - label: macOS x86
             runner: macos-26-intel
             artefact: macos-x86_64
             platform: darwin-x86_64
