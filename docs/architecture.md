@@ -186,7 +186,7 @@ versatiles-studio/
 │           └── server.rs       embedded server lifecycle, named mounts   (Q16)
 │
 ├── src-tauri/                  deliberately thin
-│   ├── tauri.conf.json
+│   ├── tauri.conf.json         · tauri.macos.conf.json — one name each way
 │   ├── capabilities/
 │   ├── icons/                  generated from app-icon.png
 │   ├── resources/              bundled tier, shipped as archives         (Q9)

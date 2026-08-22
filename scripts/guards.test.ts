@@ -143,19 +143,19 @@ describe('latest.json', () => {
 	/** What the Collect step leaves behind, once each platform has uploaded. */
 	const NAMES = [
 		// Installers, under the names Tauri gave them.
-		'VersaTiles Studio_0.1.0_aarch64.dmg',
-		'VersaTiles Studio_0.1.0_x64.dmg',
+		'VersaTiles-Studio_0.1.0_aarch64.dmg',
+		'VersaTiles-Studio_0.1.0_x64.dmg',
 		'versatiles-studio_0.1.0_amd64.deb',
-		'VersaTiles Studio_0.1.0_amd64.AppImage',
-		'VersaTiles Studio_0.1.0_arm64.AppImage'.replace('arm64', 'aarch64'),
+		'VersaTiles-Studio_0.1.0_amd64.AppImage',
+		'VersaTiles-Studio_0.1.0_aarch64.AppImage',
 		// macOS updater bundles, renamed because Tauri gives both the same name.
 		'darwin-aarch64.app.tar.gz',
 		'darwin-aarch64.app.tar.gz.sig',
 		'darwin-x86_64.app.tar.gz',
 		'darwin-x86_64.app.tar.gz.sig',
 		// Linux signs the AppImage itself — there is no .AppImage.tar.gz.
-		'VersaTiles Studio_0.1.0_amd64.AppImage.sig',
-		'VersaTiles Studio_0.1.0_aarch64.AppImage.sig'
+		'VersaTiles-Studio_0.1.0_amd64.AppImage.sig',
+		'VersaTiles-Studio_0.1.0_aarch64.AppImage.sig'
 	];
 
 	it('serves every platform the release builds', () => {
@@ -165,8 +165,8 @@ describe('latest.json', () => {
 
 	it('points Linux at the AppImage a person also downloads', () => {
 		const platforms = platformsFor(NAMES, '0.1.0', sig);
-		expect(platforms['linux-x86_64'].url).toContain('VersaTiles%20Studio_0.1.0_amd64.AppImage');
-		expect(platforms['linux-x86_64'].signature).toBe('signature-of-VersaTiles Studio_0.1.0_amd64.AppImage.sig');
+		expect(platforms['linux-x86_64'].url).toContain('VersaTiles-Studio_0.1.0_amd64.AppImage');
+		expect(platforms['linux-x86_64'].signature).toBe('signature-of-VersaTiles-Studio_0.1.0_amd64.AppImage.sig');
 		// A space in a filename has to survive being a URL, or the updater 404s on every release.
 		expect(platforms['linux-aarch64'].url).not.toContain(' ');
 	});
@@ -181,8 +181,8 @@ describe('latest.json', () => {
 			'VersaTiles Studio.app.tar.gz',
 			'VersaTiles Studio.app.tar.gz.sig',
 			'VersaTiles Studio_0.1.0_aarch64.dmg',
-			'VersaTiles Studio_0.1.0_amd64.AppImage',
-			'VersaTiles Studio_0.1.0_amd64.AppImage.sig',
+			'VersaTiles-Studio_0.1.0_amd64.AppImage',
+			'VersaTiles-Studio_0.1.0_amd64.AppImage.sig',
 			'VersaTiles Studio_0.1.0_amd64.deb',
 			'VersaTiles Studio_0.1.0_amd64.deb.sig',
 			'VersaTiles Studio_0.1.0_x64.dmg',
@@ -192,6 +192,16 @@ describe('latest.json', () => {
 			'sprites.tar.gz'
 		];
 		expect(() => platformsFor(asItWas, '0.1.0', sig)).toThrow(/no platform claims/);
+	});
+
+	/**
+	 * What the first successful release actually shipped: `latest.json` pointed at
+	 * `VersaTiles%20Studio_…`, GitHub had stored `VersaTiles.Studio_…`, and every Linux update
+	 * would have 404'd. The workflow renames them now; this is what notices if it stops.
+	 */
+	it('refuses a name GitHub would rewrite on upload', () => {
+		const withSpace = ['VersaTiles Studio_0.1.0_amd64.AppImage', 'VersaTiles Studio_0.1.0_amd64.AppImage.sig'];
+		expect(() => platformsFor(withSpace, '0.1.0', sig)).toThrow(/GitHub rewrites/);
 	});
 
 	it('leaves out a platform that produced nothing', () => {
@@ -404,5 +414,44 @@ describe('Cargo.lock', () => {
 		// And nothing else moved: two lines differ, no more.
 		const differing = text.split('\n').filter((line, i) => line !== real.split('\n')[i]);
 		expect(differing).toEqual(['version = "9.9.9"', 'version = "9.9.9"']);
+	});
+});
+
+/**
+ * The macOS bundle name, wherever it is written down.
+ *
+ * `tauri.macos.conf.json` decides it, and six other places spell it out — two smoke tests, the
+ * cask's `app` stanza and its caveats, the release notes, the README. They are literals on purpose:
+ * a shell substitution reading the config is harder to read than the name it produces, and three of
+ * the six are user-facing prose where a literal is the only option. What was missing was not
+ * indirection but a check that they agree.
+ */
+describe('the macOS bundle name', () => {
+	const root = new URL('../', import.meta.url).pathname;
+	const read = (path: string) => readFileSync(join(root, path), 'utf8');
+
+	const expected = `${JSON.parse(read('src-tauri/tauri.macos.conf.json')).productName}.app`;
+
+	it('is what every file that names it says', () => {
+		const wrong: string[] = [];
+		for (const path of [
+			'.github/workflows/ci.yml',
+			'.github/workflows/release.yml',
+			'packaging/versatiles-studio.rb',
+			'README.md'
+		]) {
+			// Preceded by a quote or a path separator, but not by `//` — otherwise the README's
+			// link to https://tauri.app reads as a bundle name.
+			for (const [, name] of read(path).matchAll(/(?<=["'/])(?<!\/\/)([A-Za-z][A-Za-z0-9 _.-]*\.app)\b/g)) {
+				if (name !== expected) wrong.push(`${path}: ${name}`);
+			}
+		}
+		expect(wrong, `tauri.macos.conf.json says ${expected}`).toEqual([]);
+	});
+
+	// Without this, a rename that updated every file consistently but wrongly would still pass.
+	it('is actually mentioned, so the check cannot pass by finding nothing', () => {
+		expect(read('.github/workflows/ci.yml')).toContain(expected);
+		expect(read('packaging/versatiles-studio.rb')).toContain(expected);
 	});
 });

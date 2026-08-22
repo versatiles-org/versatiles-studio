@@ -217,6 +217,16 @@ jobs:
               ;;
           esac
 
+          # **No spaces in what we upload.** GitHub rewrites a space in an asset name to a dot, so
+          # `VersaTiles Studio_0.1.0_amd64.AppImage` becomes `VersaTiles.Studio_…` on the release
+          # while `latest.json` still points at the name we had — and every Linux update 404s. Naming
+          # them ourselves means GitHub has nothing to rewrite, rather than us reimplementing its
+          # rule and hoping a space is the only character it touches.
+          for file in upload/*\ *; do
+            [ -e "$file" ] || continue
+            mv "$file" "${file// /-}"
+          done
+
           # An empty upload is a bundle that silently produced nothing, which would otherwise
           # surface as a release missing one platform and nobody noticing until an install failed.
           if [ -z "$(ls -A upload)" ]; then

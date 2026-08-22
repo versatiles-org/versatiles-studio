@@ -18,12 +18,12 @@ cask "versatiles-studio" do
 
   on_arm do
     sha256 "0000000000000000000000000000000000000000000000000000000000000000"
-    url "https://github.com/versatiles-org/versatiles-studio/releases/download/v#{version}/VersaTiles.Studio_#{version}_aarch64.dmg",
+    url "https://github.com/versatiles-org/versatiles-studio/releases/download/v#{version}/VersaTiles-Studio_#{version}_aarch64.dmg",
         verified: "github.com/versatiles-org/versatiles-studio/"
   end
   on_intel do
     sha256 "0000000000000000000000000000000000000000000000000000000000000000"
-    url "https://github.com/versatiles-org/versatiles-studio/releases/download/v#{version}/VersaTiles.Studio_#{version}_x64.dmg",
+    url "https://github.com/versatiles-org/versatiles-studio/releases/download/v#{version}/VersaTiles-Studio_#{version}_x64.dmg",
         verified: "github.com/versatiles-org/versatiles-studio/"
   end
 

@@ -1,6 +1,10 @@
 [package]
 name = "versatiles-studio"
-description = "VersaTiles Studio — Tauri shell. Deliberately thin: the bridge to the platform, no application logic."
+# **This is user-facing.** It becomes `Comment=` in the Linux desktop entry, which is the
+# sentence shown under the name in an application menu — so it says what the application is
+# for, not how the crate is arranged. The architecture note it used to hold is in the module
+# documentation in `lib.rs`, where its readers are.
+description = "Open, inspect and build map tiles — pipelines, styles and conversion, without a terminal"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

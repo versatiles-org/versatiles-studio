@@ -68,6 +68,13 @@ export function platformsFor(names: string[], version: string, read: (name: stri
 			// produce an update every installed copy downloads and then refuses.
 			throw new Error(`${bundle} has no ${signature} — was TAURI_SIGNING_PRIVATE_KEY set?`);
 		}
+		// **A name GitHub would rewrite must never reach the manifest.** It turns a space into a
+		// dot on upload, so the asset ends up called something else and the URL here 404s — silently,
+		// for every user of that platform. The release workflow renames them; this is what notices
+		// if it ever stops.
+		if (/[^A-Za-z0-9._-]/.test(bundle)) {
+			throw new Error(`${bundle} has characters GitHub rewrites in an asset name — rename it before upload`);
+		}
 		claimed.add(bundle);
 		claimed.add(signature);
 
