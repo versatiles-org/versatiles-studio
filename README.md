@@ -1,7 +1,7 @@
 [![CI](https://img.shields.io/github/actions/workflow/status/versatiles-org/versatiles-studio/ci.yml?branch=main&label=CI)](https://github.com/versatiles-org/versatiles-studio/actions/workflows/ci.yml)
 [![Rust coverage](https://img.shields.io/codecov/c/github/versatiles-org/versatiles-studio?flag=rust&label=rust%20coverage)](https://codecov.io/gh/versatiles-org/versatiles-studio?flags[0]=rust)
 [![TypeScript coverage](https://img.shields.io/codecov/c/github/versatiles-org/versatiles-studio?flag=typescript&label=typescript%20coverage)](https://codecov.io/gh/versatiles-org/versatiles-studio?flags[0]=typescript)
-[![License](https://img.shields.io/badge/license-MIT-green)](#license)
+[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 # VersaTiles Studio
 
@@ -256,4 +256,4 @@ anything.
 
 ## License
 
-MIT
+[MIT](LICENSE) — Copyright (c) 2024-2026 Michael Kreil
