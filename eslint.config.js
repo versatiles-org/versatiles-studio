@@ -25,6 +25,8 @@ export default ts.config(
 			'target/',
 			'src-tauri/target/',
 			'src-tauri/gen/',
+			// Generated coverage reports; the HTML one carries third-party JS.
+			'coverage/',
 			'public/maplibre-gl-worker.js'
 		]
 	},

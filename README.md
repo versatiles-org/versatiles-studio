@@ -130,6 +130,23 @@ npm run check:rust       # cargo fmt --check, clippy -D warnings, cargo test
 
 CI runs these individually rather than through `npm run check`, so a failure names itself.
 
+**Coverage**
+
+```sh
+npm run coverage         # both halves, with a summary of each
+npm run coverage:rust    # cargo llvm-cov over the workspace
+```
+
+`check:test` already writes `coverage/lcov.info`, so the frontend half costs nothing extra. Both are
+uploaded to [Codecov](https://codecov.io/gh/versatiles-org/versatiles-studio) under separate
+**flags** — `rust` and `typescript` — because one number over two codebases is an average of two
+unrelated facts. [`codecov.yml`](codecov.yml) splits them further into components: the Rust core is
+held to 90%, and the `src-tauri` command layer is reported but never enforced, since it is
+`#[tauri::command]` glue that needs a running application to call ([Q3](docs/decisions.md)).
+
+Uploading needs a `CODECOV_TOKEN` repository secret. Pull requests from forks skip the upload rather
+than failing on a secret they cannot have.
+
 Some Rust tests need sample containers, which are not vendored — `berlin.versatiles` alone is 25 MB.
 They are found automatically if a `versatiles-rs` checkout sits beside this one, or via
 `STUDIO_TESTDATA=/path/to/containers`; without either they skip rather than fail. Tests marked

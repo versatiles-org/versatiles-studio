@@ -201,6 +201,7 @@ versatiles-studio/
 │   ├── cask.ts                 · latest-json.ts — a release's two manifests (S5.7, S5.8)
 │   └── docs.test.ts            · guards.test.ts — what these documents promise
 ├── packaging/                  the cask itself; the tap holds the copy    (Q10)
+├── codecov.yml                 one flag per codebase, components within
 ├── .github/
 │   ├── workflows/              ci.yml, release.yml — Linux and macOS     (S0.7, S5.6)
 │   └── actions/tauri-deps      the Linux packages, from a cache          (S0.7)

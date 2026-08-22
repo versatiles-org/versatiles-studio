@@ -1,0 +1,124 @@
+# Coverage, for two codebases in one repository.
+#
+# **One number over both would mean nothing.** The Rust core sits at ~95% and the Svelte components
+# at 0%, so a single figure is an average of two unrelated facts that moves when the ratio of Rust to
+# TypeScript in a release changes. Flags keep them apart: each language uploads under its own name,
+# gets its own target and its own status check on a pull request, and one cannot mask the other.
+#
+# **Components slice further, inside a flag.** The split that matters in the Rust half is not
+# per-crate but per-role: `studio-core` is a plain library with no Tauri types precisely so it can be
+# tested without a runtime (Q3), and `src-tauri` is the thin glue that cannot be. Holding both to one
+# target would either excuse the core or fail the glue forever.
+
+codecov:
+  # A pull request's checks wait for both uploads rather than reporting on whichever landed first.
+  notify:
+    wait_for_ci: true
+
+coverage:
+  precision: 1
+  round: down
+  range: '60...95'
+
+  status:
+    project:
+      # The combined number, for the reason above.
+      default: false
+
+      rust:
+        flags: [rust]
+        # A ratchet rather than a line in the sand: whatever it is today, it does not get worse.
+        # A fixed target invites arguing with the number instead of writing the test.
+        target: auto
+        threshold: 1%
+      typescript:
+        flags: [typescript]
+        target: auto
+        threshold: 1%
+
+    patch:
+      # **The diff is the number worth gating on.** Total coverage moves slowly and is mostly about
+      # decisions made years ago; the coverage of what this pull request adds is entirely within its
+      # author's control.
+      default: false
+      rust:
+        flags: [rust]
+        target: 80%
+        threshold: 5%
+      typescript:
+        flags: [typescript]
+        # Informational until the components are testable: a patch touching only `.svelte` files
+        # cannot pass, and a check nobody can act on is a check people learn to ignore. Make this a
+        # real gate the day component tests exist.
+        informational: true
+
+# `carryforward` is the one setting that must not be forgotten. A job that did not run — a skipped
+# matrix leg, a re-run of one half — otherwise uploads nothing and Codecov reads that as zero,
+# failing the *other* language's check for a reason that has nothing to do with it.
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: rust
+      paths:
+        - crates/
+        - src-tauri/
+    - name: typescript
+      paths:
+        - src/
+        - scripts/
+
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+        threshold: 1%
+  individual_components:
+    - component_id: core
+      name: Rust core
+      paths:
+        - crates/studio-core/**
+      statuses:
+        - type: project
+          target: 90%
+          threshold: 1%
+
+    - component_id: commands
+      name: Tauri commands
+      paths:
+        - src-tauri/**
+      statuses:
+        # Reported, never enforced. This layer is `#[tauri::command]` wrappers that need a running
+        # Tauri application to call; the architecture puts the logic below it in `studio-core`
+        # exactly so that it can be tested (Q3). A target here would be a target on the glue.
+        - type: project
+          informational: true
+
+    - component_id: frontend
+      name: Svelte application
+      paths:
+        - src/**
+
+    - component_id: tooling
+      name: Scripts
+      paths:
+        - scripts/**
+
+# Not measured, and each for its own reason rather than to flatter the number.
+ignore:
+  # Generated from the Rust commands by specta. A change here is a Rust change, and a coverage
+  # target on generated code measures the generator.
+  - src/lib/ipc/bindings.ts
+  # A bundled third-party worker, vendored by scripts/bundle_worker.ts (Q18).
+  - public/maplibre-gl-worker.js
+  - '**/*.test.ts'
+  - src/main.ts
+  - src-tauri/src/main.rs
+
+comment:
+  # Both flags and every component, so the two halves are visible in one place on the pull request.
+  layout: 'condensed_header, diff, flags, components, condensed_files'
+  behavior: default
+  # No comment when a pull request changes no covered code — a docs-only change should not get one.
+  require_changes: true
