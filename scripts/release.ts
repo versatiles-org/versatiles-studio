@@ -1,0 +1,339 @@
+/**
+ * Cutting a release, end to end (S5.6, S5.7, S5.8).
+ *
+ *   npm run release -- 0.2.0        an explicit version
+ *   npm run release -- minor        or bump the current one
+ *   npm run release -- minor --dry-run
+ *
+ * **One confirmation, and it is the only one.** Everything before it is local and reversible —
+ * checks, a version bump, a changelog, a commit and a tag, all of which `git reset` undoes. The
+ * prompt names exactly what is about to become public; past it the script pushes, waits for the
+ * build, and publishes the release without asking again. Two prompts for one decision teaches people
+ * to press return twice.
+ *
+ * **The order is deliberate.** Nothing public happens until the full test suite has passed and a
+ * human has read the notes, because a tag is cheap to make and expensive to retract: an installed
+ * copy that has seen `latest.json` cannot be told to forget it.
+ *
+ * **What it does not do.** Bump the Homebrew tap. That is a second repository and a second decision,
+ * and the cask needs the digests of assets that only exist once this has finished — so it fills in
+ * `packaging/versatiles-studio.rb` and prints where it goes.
+ */
+
+import { execFileSync, spawnSync } from 'node:child_process';
+import { createInterface } from 'node:readline/promises';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = new URL('../', import.meta.url).pathname;
+const CHANGELOG = `${ROOT}CHANGELOG.md`;
+const BRANCH = 'main';
+
+// ------------------------------------------------------------------------------------------------
+// Running things
+// ------------------------------------------------------------------------------------------------
+
+/** A command whose output is the answer. Throws with the command in the message. */
+function capture(command: string, args: string[]): string {
+	try {
+		return execFileSync(command, args, { cwd: ROOT, encoding: 'utf8' }).trim();
+	} catch (error) {
+		const detail = error instanceof Error ? error.message : String(error);
+		throw new Error(`${command} ${args.join(' ')} failed:\n${detail}`, { cause: error });
+	}
+}
+
+/** A command whose *output* is the point — inherited, so `npm run check` scrolls past as it runs. */
+function run(command: string, args: string[]): void {
+	const result = spawnSync(command, args, { cwd: ROOT, stdio: 'inherit' });
+	if (result.status !== 0) {
+		throw new Error(`${command} ${args.join(' ')} exited with ${result.status ?? 'a signal'}`);
+	}
+}
+
+function say(step: string): void {
+	process.stdout.write(`\n\x1b[1m▸ ${step}\x1b[0m\n`);
+}
+
+// ------------------------------------------------------------------------------------------------
+// The version
+// ------------------------------------------------------------------------------------------------
+
+/** The files that state the version, and how to rewrite each one. */
+const VERSION_FILES: { path: string; replace: (text: string, version: string) => string }[] = [
+	{
+		path: 'package.json',
+		replace: (text, version) => text.replace(/^(\s*"version":\s*)"[^"]*"/m, `$1"${version}"`)
+	},
+	{
+		path: 'src-tauri/tauri.conf.json',
+		replace: (text, version) => text.replace(/^(\s*"version":\s*)"[^"]*"/m, `$1"${version}"`)
+	},
+	{
+		// The workspace version, which both crates inherit with `version.workspace = true`. Anchored
+		// to `[workspace.package]`'s first `version =` — a plain match would find a dependency's.
+		path: 'Cargo.toml',
+		replace: (text, version) => text.replace(/^version = "[^"]*"$/m, `version = "${version}"`)
+	}
+];
+
+/**
+ * `0.2.0`, or what `patch`/`minor`/`major` means for `current`.
+ *
+ * Exported for the tests: an off-by-one here is a version number spent, and a wrong one is spent
+ * publicly.
+ */
+export function nextVersion(current: string, wanted: string): string {
+	if (/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(wanted)) return wanted;
+
+	const parts = current.split('.').map(Number);
+	if (parts.length !== 3 || parts.some(Number.isNaN)) {
+		throw new Error(`the current version "${current}" is not semver — pass an explicit one`);
+	}
+	const [major, minor, patch] = parts;
+	switch (wanted) {
+		case 'major':
+			return `${major + 1}.0.0`;
+		case 'minor':
+			return `${major}.${minor + 1}.0`;
+		case 'patch':
+			return `${major}.${minor}.${patch + 1}`;
+		default:
+			throw new Error(`"${wanted}" is neither a version nor one of major, minor, patch`);
+	}
+}
+
+/** Whether `next` is actually ahead of `current`, comparing numerically rather than as text. */
+export function isAhead(current: string, next: string): boolean {
+	const parse = (v: string) => v.split('-')[0].split('.').map(Number);
+	const [a, b] = [parse(current), parse(next)];
+	for (let i = 0; i < 3; i += 1) {
+		if (a[i] !== b[i]) return b[i] > a[i];
+	}
+	// Equal releases differ only by a pre-release suffix, and `0.2.0` is ahead of `0.2.0-rc.1`.
+	return current.includes('-') && !next.includes('-');
+}
+
+// ------------------------------------------------------------------------------------------------
+// The notes
+// ------------------------------------------------------------------------------------------------
+
+const GROUPS: [prefix: string, heading: string][] = [
+	['feat', 'Features'],
+	['fix', 'Fixes'],
+	['perf', 'Performance'],
+	['refactor', 'Refactoring'],
+	['docs', 'Documentation'],
+	['test', 'Tests'],
+	['build', 'Build'],
+	['ci', 'CI'],
+	['chore', 'Chores']
+];
+
+/**
+ * A changelog section from conventional-commit subjects.
+ *
+ * **A starting point, not the output.** Every line here is a commit message, written for the next
+ * developer; release notes are written for someone deciding whether to update. So this is opened in
+ * an editor before it is committed, and the generated shape exists to make sure nothing is
+ * forgotten rather than to be shipped as-is.
+ *
+ * A subject with no recognised prefix still appears, under `Other` — dropping a change because its
+ * message was informal is the one failure a changelog must not have.
+ */
+export function changelogSection(version: string, date: string, subjects: string[]): string {
+	const buckets = new Map<string, string[]>();
+	const other: string[] = [];
+
+	for (const subject of subjects) {
+		const match = /^([a-z]+)(\([^)]*\))?!?:\s*(.+)$/.exec(subject);
+		const group = match && GROUPS.find(([prefix]) => prefix === match[1]);
+		if (group && match) {
+			const [, heading] = group;
+			buckets.set(heading, [...(buckets.get(heading) ?? []), match[3]]);
+		} else {
+			other.push(subject);
+		}
+	}
+
+	const lines = [`## ${version} — ${date}`, ''];
+	for (const [, heading] of GROUPS) {
+		const items = buckets.get(heading);
+		if (!items) continue;
+		lines.push(`### ${heading}`, '', ...items.map((item) => `- ${item}`), '');
+	}
+	if (other.length > 0) {
+		lines.push('### Other', '', ...other.map((item) => `- ${item}`), '');
+	}
+	if (buckets.size === 0 && other.length === 0) {
+		lines.push('_No changes recorded — write them here._', '');
+	}
+	return lines.join('\n');
+}
+
+/** The new section, above whatever is already there. */
+function prependChangelog(section: string): void {
+	const header =
+		'# Changelog\n\nWhat changed in each release. Written for someone deciding whether\nto update, not for the next developer — the commit log is that.\n';
+	const existing = existsSync(CHANGELOG)
+		? readFileSync(CHANGELOG, 'utf8').replace(/^# Changelog\n\n[\s\S]*?\n(?=## |$)/, '')
+		: '';
+	writeFileSync(CHANGELOG, `${header}\n${section}${existing ? `\n${existing.trimStart()}` : ''}`);
+}
+
+// ------------------------------------------------------------------------------------------------
+// The flow
+// ------------------------------------------------------------------------------------------------
+
+async function confirm(question: string, expected: string): Promise<boolean> {
+	const rl = createInterface({ input: process.stdin, output: process.stdout });
+	const answer = await rl.question(question);
+	rl.close();
+	return answer.trim() === expected;
+}
+
+async function main(): Promise<void> {
+	const args = process.argv.slice(2);
+	const dryRun = args.includes('--dry-run');
+	const wanted = args.find((arg) => !arg.startsWith('-'));
+	if (!wanted) throw new Error('usage: npm run release -- <version|patch|minor|major> [--dry-run]');
+
+	// --- nothing has changed yet -----------------------------------------------------------
+
+	say('Checking the working tree');
+	if (capture('git', ['status', '--porcelain'])) {
+		throw new Error('the working tree is not clean — commit or stash first');
+	}
+	const branch = capture('git', ['rev-parse', '--abbrev-ref', 'HEAD']);
+	if (branch !== BRANCH) throw new Error(`on ${branch}, not ${BRANCH}`);
+
+	capture('git', ['fetch', 'origin', BRANCH, '--tags']);
+	const [behind, ahead] = capture('git', ['rev-list', '--left-right', '--count', `origin/${BRANCH}...HEAD`])
+		.split(/\s+/)
+		.map(Number);
+	if (behind > 0) throw new Error(`${behind} commits behind origin/${BRANCH} — pull first`);
+	if (ahead > 0) process.stdout.write(`  ${ahead} commits to push\n`);
+
+	// `gh` is what publishes, and finding out it is missing after the tag is pushed would leave a
+	// release half-cut.
+	if (!dryRun) {
+		try {
+			capture('gh', ['auth', 'status']);
+		} catch {
+			throw new Error('gh is not installed or not authenticated — run `gh auth login`');
+		}
+	}
+
+	const current = JSON.parse(readFileSync(`${ROOT}package.json`, 'utf8')).version as string;
+	const version = nextVersion(current, wanted);
+	if (!isAhead(current, version)) throw new Error(`${version} is not ahead of ${current}`);
+	const tag = `v${version}`;
+	if (capture('git', ['tag', '--list', tag])) throw new Error(`${tag} already exists`);
+	process.stdout.write(`  ${current} → ${version}\n`);
+
+	say('Running every check');
+	run('npm', ['run', 'check']);
+
+	// --- local, and reversible with `git reset --hard` ---------------------------------------
+
+	say('Bumping the version');
+	for (const { path, replace } of VERSION_FILES) {
+		const file = `${ROOT}${path}`;
+		const before = readFileSync(file, 'utf8');
+		const after = replace(before, version);
+		if (before === after) throw new Error(`nothing to replace in ${path} — has it changed shape?`);
+		writeFileSync(file, after);
+		process.stdout.write(`  ${path}\n`);
+	}
+	// Both lockfiles record the version of the packages in this repository, and a lockfile left
+	// behind is a diff in the next unrelated commit.
+	run('npm', ['install', '--package-lock-only', '--ignore-scripts', '--silent']);
+	capture('cargo', ['metadata', '--format-version', '1', '--offline', '--quiet']);
+
+	say('Writing the release notes');
+	const previous = capture('git', ['tag', '--list', 'v*', '--sort=-v:refname']).split('\n')[0];
+	const range = previous ? `${previous}..HEAD` : 'HEAD';
+	const subjects = capture('git', ['log', range, '--no-merges', '--pretty=%s']).split('\n').filter(Boolean);
+	process.stdout.write(`  ${subjects.length} commits since ${previous || 'the beginning'}\n`);
+
+	prependChangelog(changelogSection(tag, new Date().toISOString().slice(0, 10), subjects));
+
+	const editor = process.env.EDITOR ?? process.env.VISUAL;
+	if (editor && !dryRun) {
+		process.stdout.write(`  opening CHANGELOG.md in ${editor} — the generated list is a draft\n`);
+		run(editor, [CHANGELOG]);
+	} else {
+		process.stdout.write('  CHANGELOG.md written; $EDITOR is not set, so edit it by hand if you want to\n');
+	}
+
+	if (dryRun) {
+		say('Dry run — stopping here');
+		process.stdout.write('  the version files and CHANGELOG.md are changed; `git checkout .` undoes it\n');
+		return;
+	}
+
+	say('Committing and tagging');
+	run('git', ['add', '-A']);
+	run('git', ['commit', '-m', `chore(release): ${tag}`]);
+	run('git', ['tag', '-a', tag, '-m', tag]);
+
+	// --- the only public step ----------------------------------------------------------------
+
+	say('Ready to publish');
+	process.stdout.write(
+		[
+			`  push       ${BRANCH} and ${tag} to origin`,
+			`  build      .deb, AppImage and two .dmgs, signed for the updater`,
+			`  publish    the release, which is what reaches every installed copy`,
+			'',
+			'  Everything so far is local. `git reset --hard HEAD~1 && git tag -d ' + tag + '` undoes it.',
+			''
+		].join('\n')
+	);
+	if (!(await confirm(`  Type ${tag} to go ahead, anything else to stop: `, tag))) {
+		process.stdout.write('\n  Stopped. Nothing was pushed.\n');
+		return;
+	}
+
+	say('Pushing');
+	run('git', ['push', 'origin', BRANCH]);
+	run('git', ['push', 'origin', tag]);
+
+	say('Waiting for the build');
+	process.stdout.write('  this takes up to an hour on a cold cache — GDAL is built from source\n');
+	// Give the tag push a moment to become a run; `gh run list` on a ref that has none is an empty
+	// answer rather than an error, and would otherwise look like a finished build.
+	await new Promise((resolve) => setTimeout(resolve, 10_000));
+	const runId = capture('gh', [
+		'run',
+		'list',
+		'--workflow=release.yml',
+		`--branch=${tag}`,
+		'--limit=1',
+		'--json=databaseId',
+		'--jq=.[0].databaseId'
+	]);
+	if (!runId) {
+		throw new Error(`no release run for ${tag} — check the Actions tab; the tag is pushed, so re-run it there`);
+	}
+	run('gh', ['run', 'watch', runId, '--exit-status']);
+
+	say('Publishing');
+	run('gh', ['release', 'edit', tag, '--draft=false', '--latest']);
+	process.stdout.write(`  https://github.com/versatiles-org/versatiles-studio/releases/tag/${tag}\n`);
+
+	say('The Homebrew cask');
+	// Only possible now: the checksums come from assets that did not exist a minute ago.
+	run('npm', ['run', 'cask', '--', tag, '--write']);
+	process.stdout.write(
+		'\n  Copy packaging/versatiles-studio.rb into versatiles-org/homebrew-versatiles\n' +
+			'  as Casks/versatiles-studio.rb, and commit the result there.\n\n'
+	);
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+	main().catch((error: unknown) => {
+		process.stderr.write(`\n\x1b[31m${error instanceof Error ? error.message : String(error)}\x1b[0m\n`);
+		process.exitCode = 1;
+	});
+}

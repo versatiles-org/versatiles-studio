@@ -169,7 +169,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          sparse-checkout: scripts/latest-json.ts
+          sparse-checkout: |
+            scripts/latest-json.ts
+            CHANGELOG.md
           sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v7
         with:
@@ -189,6 +191,23 @@ jobs:
       # draft is invisible to every installed copy until someone presses publish. That is the same
       # property the draft gives the installers, applied to the thing that reaches people
       # automatically.
+      # The notes were written by a person before the tag existed, and this is where they are read
+      # rather than re-stated. Missing is not fatal: a release with the install instructions and no
+      # notes is worse than one with both, and better than no release.
+      - name: Read the notes
+        run: |
+          set -euo pipefail
+          version="${{ needs.version.outputs.version }}"
+          if [ -f CHANGELOG.md ]; then
+            awk -v v="## v$version " 'index($0, v) == 1 { on = 1; next } on && /^## / { exit } on' \
+              CHANGELOG.md >notes.md
+          fi
+          if [ ! -s notes.md ]; then
+            echo "::warning::CHANGELOG.md has no section for v$version"
+            : >notes.md
+          fi
+          cat notes.md
+
       - name: Build latest.json
         run: node --experimental-strip-types scripts/latest-json.ts installers ${{ needs.version.outputs.version }} > installers/latest.json
       - run: cat installers/latest.json
@@ -200,6 +219,10 @@ jobs:
           files: installers/*
           # macOS is unsigned until Q10 is revisited, so every download from this page meets
           # Gatekeeper. Saying so on the page beats letting someone find out at first launch.
+          # `body_path` is the notes; `append_body` puts the standing install text after them, so
+          # what changed is the first thing on the page and the Gatekeeper warning is still on it.
+          body_path: notes.md
+          append_body: true
           body: |
             ## Install
 

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { assertSafeSegment, resolveRepo } from './update-assets';
 import { digestFor, fill } from './cask';
 import { platformsFor } from './latest-json';
+import { changelogSection, isAhead, nextVersion } from './release';
 
 // The manifest is data, and data that reaches `fetch()` decides where a build machine connects.
 // These are the checks that keep a tampered `assets/manifest.json` from redirecting CI.
@@ -183,5 +184,60 @@ describe('latest.json', () => {
 				sig
 			)
 		).toThrow(/2 bundles match/);
+	});
+});
+
+/**
+ * Cutting a release (S5.6).
+ *
+ * The version arithmetic and the changelog grouping are the parts that are wrong quietly: a bad
+ * bump spends a version number publicly, and a dropped commit is a change nobody is told about.
+ */
+describe('release', () => {
+	it('bumps the part it was asked for', () => {
+		expect(nextVersion('0.1.4', 'patch')).toBe('0.1.5');
+		expect(nextVersion('0.1.4', 'minor')).toBe('0.2.0');
+		expect(nextVersion('0.1.4', 'major')).toBe('1.0.0');
+		expect(nextVersion('0.1.4', '2.0.0-rc.1')).toBe('2.0.0-rc.1');
+	});
+
+	it('refuses a word it does not know rather than guessing', () => {
+		expect(() => nextVersion('0.1.4', 'next')).toThrow(/neither a version nor/);
+		expect(() => nextVersion('0.1.4', '0.2')).toThrow(/neither a version nor/);
+	});
+
+	// Comparing versions as text puts 0.10.0 before 0.9.0, which is a release that silently goes
+	// backwards.
+	it('compares versions as numbers', () => {
+		expect(isAhead('0.9.0', '0.10.0')).toBe(true);
+		expect(isAhead('0.10.0', '0.9.0')).toBe(false);
+		expect(isAhead('0.2.0', '0.2.0')).toBe(false);
+		expect(isAhead('0.2.0-rc.1', '0.2.0')).toBe(true);
+	});
+
+	it('groups the commits it recognises', () => {
+		const section = changelogSection('v0.2.0', '2026-08-22', [
+			'feat: crop by rectangle',
+			'feat(style): a bundle',
+			'fix: the URLs the plain export carried',
+			'chore: versatiles-rs 4.9.1'
+		]);
+		expect(section).toContain('## v0.2.0 — 2026-08-22');
+		expect(section).toContain('### Features');
+		expect(section).toContain('- crop by rectangle');
+		expect(section).toContain('- a bundle');
+		expect(section).toContain('### Fixes');
+		expect(section.indexOf('### Features')).toBeLessThan(section.indexOf('### Chores'));
+	});
+
+	// The one failure a changelog must not have.
+	it('keeps a commit whose message has no prefix', () => {
+		const section = changelogSection('v0.2.0', '2026-08-22', ['tidied some things up']);
+		expect(section).toContain('### Other');
+		expect(section).toContain('- tidied some things up');
+	});
+
+	it('says so rather than emitting an empty section', () => {
+		expect(changelogSection('v0.2.0', '2026-08-22', [])).toContain('No changes recorded');
 	});
 });
