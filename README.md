@@ -1,3 +1,8 @@
+[![CI](https://img.shields.io/github/actions/workflow/status/versatiles-org/versatiles-studio/ci.yml?branch=main&label=CI)](https://github.com/versatiles-org/versatiles-studio/actions/workflows/ci.yml)
+[![Rust coverage](https://img.shields.io/codecov/c/github/versatiles-org/versatiles-studio?flag=rust&label=rust%20coverage)](https://codecov.io/gh/versatiles-org/versatiles-studio?flags[0]=rust)
+[![TypeScript coverage](https://img.shields.io/codecov/c/github/versatiles-org/versatiles-studio?flag=typescript&label=typescript%20coverage)](https://codecov.io/gh/versatiles-org/versatiles-studio?flags[0]=typescript)
+[![License](https://img.shields.io/badge/license-MIT-green)](#license)
+
 # VersaTiles Studio
 
 A cross-platform desktop application for working with map tiles: open them, inspect them, build
