@@ -1,4 +1,6 @@
 <script lang="ts">
+	import UpdateNotice from './UpdateNotice.svelte';
+
 	// **Map · Assets** ([Q22], G7, S4.1).
 	//
 	// Not four modes. Explore, Pipeline, Style and Publish were merged into one surface because the
@@ -57,6 +59,9 @@
 	{/each}
 
 	<span class="spacer"></span>
+	<!-- Left of the project actions, and quiet until it has something to say (G4, S5.8). -->
+	<UpdateNotice />
+	<span class="divider" aria-hidden="true"></span>
 	<button type="button" class="project" onclick={onOpenProject}>Open project…</button>
 	<button type="button" class="project" onclick={onSaveProject}>Save project…</button>
 	<button type="button" class="project" onclick={onSaveCopy} disabled={!canDeploy}>Save a copy…</button>
@@ -75,6 +80,13 @@
 
 	.spacer {
 		flex: 1;
+	}
+
+	.divider {
+		width: 1px;
+		align-self: stretch;
+		margin: 0 var(--space-1);
+		background: var(--rule);
 	}
 
 	.project {

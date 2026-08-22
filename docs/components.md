@@ -108,6 +108,7 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3       |
 | `StylePane`    | Preset and the global adjustments over it (D1) — the layer tree is S4.5                                            | S4.2       |
 | `ModeBar`      | **Map · Assets** — the one bar, arriving with its second occupant ([Q22](decisions.md))                            | S4.1       |
+| `UpdateNotice` | "Check for updates", and what came back. On the bar because an update is never why the window is open (G4)         | S5.8       |
 | `AssetManager` | Font families: size, install, remove. The bundled tier is not listed, being unremovable                            | S4.1       |
 | `LayerTree`    | The rendered style's layers: filter, group, hide, recolour — each change an override in the recipe                 | S4.5       |
 | `ExportDialog` | What will be written and what it costs, then the file — modal, per graph ([Q32](decisions.md))                     | S3.6, S3.7 |

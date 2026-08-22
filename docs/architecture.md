@@ -197,9 +197,11 @@ versatiles-studio/
 │   ├── fetch-assets.ts         · update-assets.ts — the pinned tier      (S0.6, S0.12)
 │   ├── upgrade-deps.sh         · prune-build-dirs.sh — housekeeping
 │   ├── docs-pdf.sh             every planning document as one PDF
+│   ├── cask.ts                 · latest-json.ts — a release's two manifests (S5.7, S5.8)
 │   └── docs.test.ts            · guards.test.ts — what these documents promise
+├── packaging/                  the cask itself; the tap holds the copy    (Q10)
 ├── .github/
-│   ├── workflows/              CI for Linux and macOS                    (S0.7)
+│   ├── workflows/              ci.yml, release.yml — Linux and macOS     (S0.7, S5.6)
 │   └── actions/tauri-deps      the Linux packages, from a cache          (S0.7)
 └── docs/
 ```

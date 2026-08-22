@@ -102,6 +102,12 @@ pub fn run() {
 
 	tauri::Builder::default()
 		.plugin(tauri_plugin_dialog::init())
+		// Auto-update (G4, S5.8). **Checked from the webview, never on its own**: an application
+		// that downloads and swaps itself out while someone is mid-export is worse than one that
+		// waits to be asked. `process` is the other half — an installed update takes effect on
+		// restart, and offering the restart is the difference between "installed" and "running".
+		.plugin(tauri_plugin_updater::Builder::new().build())
+		.plugin(tauri_plugin_process::init())
 		.setup(|app| {
 			// Before anything can fetch: a remote container opened during start-up would otherwise
 			// go out as plain `versatiles/…` (vt#248).

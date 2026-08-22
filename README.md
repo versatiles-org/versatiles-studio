@@ -32,6 +32,57 @@ procurement off the critical path ([Q10](docs/decisions.md)).
 
 See [Release 1 Scope](docs/scope-release-1.md) for the feature mapping and the work-item breakdown.
 
+## Installing
+
+There is no release yet. When there is, it will be on the
+[releases page](https://github.com/versatiles-org/versatiles-studio/releases) and these are the
+instructions.
+
+### Linux
+
+A `.deb` for Debian and Ubuntu, and an AppImage for everything else:
+
+```sh
+sudo dpkg -i versatiles-studio_*_amd64.deb
+# or
+chmod +x VersaTiles*.AppImage && ./VersaTiles*.AppImage
+```
+
+Both are offered because a `.deb` is built against one WebKitGTK version and may not install across
+distributions ([Q10](docs/decisions.md)).
+
+### macOS
+
+```sh
+brew install --cask versatiles-org/versatiles/versatiles-studio
+```
+
+or download the `.dmg` — `aarch64` for Apple Silicon, `x86_64` for Intel.
+
+**macOS will refuse to open it the first time.** This is not a broken download. Release 1 is
+deliberately not notarised: an Apple Developer identity costs $99 a year and, more to the point, has
+an approval lead time we chose to keep off the critical path ([Q10](docs/decisions.md)). Every build
+_is_ ad-hoc signed, which is the minimum a binary needs to run on Apple Silicon at all — what is
+missing is Apple's counter-signature saying they have seen it.
+
+Either way round it:
+
+- **Open System Settings → Privacy & Security.** Under _Security_ there will be a line naming
+  VersaTiles Studio and an **Open Anyway** button. Press it, then open the app again. Once per
+  installed version.
+- **Or clear the quarantine flag** yourself, which is the same decision made in one line:
+
+  ```sh
+  xattr -d com.apple.quarantine "/Applications/VersaTiles Studio.app"
+  ```
+
+Homebrew applies the quarantine flag too, and as of 6.0.15 has no `--no-quarantine` flag or opt-out
+variable — so a cask install meets the same dialog as a `.dmg` install.
+
+### Windows
+
+Not yet. Deferred with notarisation, for the same reason ([Q10](docs/decisions.md)).
+
 ## Building
 
 **Prerequisites**
@@ -92,6 +143,26 @@ npm run assets:update    # move the pins deliberately
 ```
 
 Both are metadata-only, so neither downloads anything.
+
+**Cutting a release**
+
+1. Bump the version in `package.json`, `src-tauri/tauri.conf.json` and the workspace `Cargo.toml`.
+   `npm run check:test` fails if they disagree, and so does the release workflow if the tag does not
+   match them.
+2. Tag it: `git tag v0.2.0 && git push origin v0.2.0`.
+3. [`release.yml`](.github/workflows/release.yml) builds the `.deb`, the AppImage and both `.dmg`s,
+   signs the updater bundles, and attaches everything to a **draft** release with a `latest.json`.
+4. Read the draft, write the notes, publish. Publishing is what makes the update reach every
+   installed copy — nothing before it does.
+5. `npm run cask -- v0.2.0 --write`, then copy `packaging/versatiles-studio.rb` into
+   `versatiles-org/homebrew-versatiles` as `Casks/versatiles-studio.rb`.
+
+`workflow_dispatch` runs the same build on any branch and creates no release, which is how a
+packaging change is tested without spending a version number.
+
+The updater signs with `TAURI_SIGNING_PRIVATE_KEY` from the repository secrets; its public half is
+in `tauri.conf.json` and is compiled into the app, so a compromised release page cannot install
+anything we did not sign.
 
 ## Planning documents
 
