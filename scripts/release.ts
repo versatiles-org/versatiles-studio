@@ -114,6 +114,41 @@ export function isAhead(current: string, next: string): boolean {
 	return current.includes('-') && !next.includes('-');
 }
 
+/**
+ * The version of this repository's own packages in `Cargo.lock`.
+ *
+ * **Edited directly, rather than by asking cargo to rewrite it.** `cargo metadata` resolves the
+ * whole graph across every target and feature, so it wants crates an ordinary build never fetches —
+ * under `--offline` it fails on the first of them, and without `--offline` a version bump depends on
+ * the network. Neither is a reasonable thing for renaming a number.
+ *
+ * A workspace member is a `[[package]]` with no `source`: a path dependency has nowhere to have come
+ * from. That is the whole rule, and it needs no list to keep in step with `[workspace] members`.
+ */
+export function withCargoLockVersion(lock: string, version: string): { text: string; changed: number } {
+	let changed = 0;
+	const text = lock.replace(
+		/(\[\[package\]\]\nname = "[^"]+"\nversion = )"[^"]*"(\n(?!source = ))/g,
+		(_match, head: string, tail: string) => {
+			changed += 1;
+			return `${head}"${version}"${tail}`;
+		}
+	);
+	return { text, changed };
+}
+
+function bumpCargoLock(version: string): void {
+	const path = `${ROOT}Cargo.lock`;
+	const { text, changed } = withCargoLockVersion(readFileSync(path, 'utf8'), version);
+
+	// Cargo would rewrite this on the next build anyway, so a miss is not fatal at once — it is a
+	// lockfile that turns up dirty in somebody's unrelated commit a week later, which is worse to
+	// diagnose than to prevent.
+	if (changed === 0) throw new Error('no workspace member found in Cargo.lock — has its format changed?');
+	writeFileSync(path, text);
+	process.stdout.write(`  Cargo.lock (${changed} packages)\n`);
+}
+
 // ------------------------------------------------------------------------------------------------
 // The notes
 // ------------------------------------------------------------------------------------------------
@@ -279,7 +314,7 @@ async function main(): Promise<void> {
 	// Both lockfiles record the version of the packages in this repository, and a lockfile left
 	// behind is a diff in the next unrelated commit.
 	run('npm', ['install', '--package-lock-only', '--ignore-scripts', '--silent']);
-	capture('cargo', ['metadata', '--format-version', '1', '--offline', '--quiet']);
+	bumpCargoLock(version);
 
 	say('Writing the release notes');
 	const previous = capture('git', ['tag', '--list', 'v*', '--sort=-v:refname']).split('\n')[0];

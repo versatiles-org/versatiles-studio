@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { assertSafeSegment, resolveRepo } from './update-assets';
 import { digestFor, fill } from './cask';
 import { platformsFor } from './latest-json';
-import { changelogSection, isAhead, nextVersion } from './release';
+import { changelogSection, isAhead, nextVersion, withCargoLockVersion } from './release';
 import { membersOf } from './run';
 
 // The manifest is data, and data that reaches `fetch()` decides where a build machine connects.
@@ -329,5 +329,63 @@ describe('scripts/run.ts', () => {
 
 	it('finds nothing for a leaf', () => {
 		expect(membersOf(tree, 'check:types')).toEqual([]);
+	});
+});
+
+/**
+ * Bumping `Cargo.lock` (S5.6).
+ *
+ * `cargo metadata` used to do this and could not: it resolves every target and feature, so under
+ * `--offline` it fails on the first crate an ordinary build never fetched, and without it a version
+ * bump needs the network. The rule that replaces it — a workspace member is a `[[package]]` with no
+ * `source` — has to touch our packages and no others, and there are 700 others.
+ */
+describe('Cargo.lock', () => {
+	const LOCK = [
+		'[[package]]',
+		'name = "studio-core"',
+		'version = "0.1.0"',
+		'dependencies = [',
+		' "anyhow",',
+		']',
+		'',
+		'[[package]]',
+		'name = "anyhow"',
+		'version = "1.0.100"',
+		'source = "registry+https://github.com/rust-lang/crates.io-index"',
+		'',
+		'[[package]]',
+		'name = "versatiles-studio"',
+		'version = "0.1.0"',
+		'dependencies = []',
+		''
+	].join('\n');
+
+	it('bumps the packages in this repository', () => {
+		const { text, changed } = withCargoLockVersion(LOCK, '0.2.0');
+		expect(changed).toBe(2);
+		expect(text).toContain('name = "studio-core"\nversion = "0.2.0"');
+		expect(text).toContain('name = "versatiles-studio"\nversion = "0.2.0"');
+	});
+
+	// The one thing this must never do. A dependency's version is what the lockfile is for.
+	it('leaves every dependency alone', () => {
+		const { text } = withCargoLockVersion(LOCK, '0.2.0');
+		expect(text).toContain('name = "anyhow"\nversion = "1.0.100"');
+	});
+
+	it('refuses a lockfile it does not recognise rather than writing it back unchanged', () => {
+		const { changed } = withCargoLockVersion('# not a lockfile\n', '0.2.0');
+		expect(changed).toBe(0);
+	});
+
+	/** The real file, so the rule is checked against the thing it will actually run on. */
+	it('finds exactly the two workspace members in the real lockfile', () => {
+		const real = readFileSync(join(new URL('../', import.meta.url).pathname, 'Cargo.lock'), 'utf8');
+		const { text, changed } = withCargoLockVersion(real, '9.9.9');
+		expect(changed).toBe(2);
+		// And nothing else moved: two lines differ, no more.
+		const differing = text.split('\n').filter((line, i) => line !== real.split('\n')[i]);
+		expect(differing).toEqual(['version = "9.9.9"', 'version = "9.9.9"']);
 	});
 });
