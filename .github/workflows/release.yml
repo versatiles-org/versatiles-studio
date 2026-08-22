@@ -132,15 +132,57 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
+      # **Does the thing we just built actually run?** "An installer was produced" and "the binary
+      # starts" are different claims: GDAL is linked statically and WebKit dynamically, so a bundle
+      # can be well-formed and unlaunchable. `--version` answers without a window, which is the only
+      # way to ask on a runner with no display.
+      #
+      # It also checks the bundled tier is inside the bundle. Without `sprites.tar.gz` and
+      # `glyphs.tar.gz` the map renders with no labels and no icons (Q9) — a failure that looks like
+      # a styling bug to whoever hits it, and is invisible to every other check here.
+      - name: Smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ needs.version.outputs.version }}"
+
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            app="target/release/bundle/macos/VersaTiles Studio.app"
+            binary="$app/Contents/MacOS/versatiles-studio"
+            resources="$app/Contents/Resources/resources"
+          else
+            binary="target/release/versatiles-studio"
+            resources="target/release/resources"
+          fi
+
+          got="$("$binary" --version)"
+          echo "  $got"
+          [ "$got" = "versatiles-studio $expected" ] || {
+            echo "::error::the bundled binary reports \"$got\", not \"versatiles-studio $expected\"" >&2
+            exit 1
+          }
+
+          for asset in sprites.tar.gz glyphs.tar.gz; do
+            [ -f "$resources/$asset" ] || {
+              echo "::error::$asset is missing from the bundle — the map would have no labels" >&2
+              exit 1
+            }
+          done
+          echo "  the bundled tier is present"
+
       # Named for the platform rather than left as Tauri's nested `bundle/<kind>/` tree, so the
       # release job can attach everything it downloads without knowing which runner made it.
       - name: Collect
         run: |
           set -euo pipefail
           mkdir -p upload
+          # `target/` at the workspace root, not `src-tauri/target/`: the two crates share one
+          # target directory, and `tauri build` writes the bundle where cargo writes everything
+          # else. The stale `src-tauri/target` predates the workspace.
+          #
           # The updater's own artefacts come too: the `.tar.gz` is what it downloads and the `.sig`
           # is what it checks before replacing anything.
-          find src-tauri/target/release/bundle \
+          find target/release/bundle \
             \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' \
                -o -name '*.tar.gz' -o -name '*.sig' \) \
             -exec cp {} upload/ \;
