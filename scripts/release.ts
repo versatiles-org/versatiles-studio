@@ -353,7 +353,7 @@ async function main(): Promise<void> {
 			''
 		].join('\n')
 	);
-	if (!(await confirm(`  Type ${tag} to go ahead, anything else to stop: `, tag))) {
+	if (!(await confirm('  Go ahead? [y/N] '))) {
 		process.stdout.write('\n  Stopped. Nothing was pushed.\n');
 		return;
 	}
