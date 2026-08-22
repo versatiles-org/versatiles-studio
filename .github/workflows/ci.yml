@@ -35,15 +35,18 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      # The `:web` half of each check. `npm run check:format` would also run `cargo fmt`, which
+      # this runner has no toolchain for — the two-level names exist so one job can take the Node
+      # half and the job below the cargo half, with neither restating the command.
+      #
       # Run granularly rather than through `npm run check`, so a failure names which check failed
-      # without reading the log. `npm run check` is the single command for a human before a commit,
-      # and includes the Rust half that the job below owns.
-      - run: npm run check:format
+      # without reading the log.
+      - run: npm run check:format:web
       - run: npm run check:types
-      - run: npm run check:lint
-      # `check:test` runs vitest with coverage, so the report below is a by-product of the tests
+      - run: npm run check:lint:web
+      # `check:test:web` runs vitest with coverage, so the report below is a by-product of the tests
       # that already had to run rather than a second pass over the same code.
-      - run: npm run check:test
+      - run: npm run check:test:web
       - name: Upload coverage
         # A fork's pull request has no access to the secret, and failing someone's first
         # contribution on a missing token is the worst possible first impression.
@@ -100,8 +103,8 @@ jobs:
       # The bundled tier is gitignored, so fetch it or the archive-serving test skips itself.
       - run: npm ci
       - run: npm run assets:fetch
-      - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: npm run check:format:rust
+      - run: npm run check:lint:rust
       # **Coverage instead of a plain `cargo test`, not as well as.** `cargo llvm-cov` runs the same
       # tests; a separate coverage job would build GDAL from source a second time, which is most of
       # this job's wall clock (Q19, Q20).
@@ -111,7 +114,7 @@ jobs:
       # know why.
       #
       # The core carries the logic and has no Tauri types, so it tests without a display server.
-      - run: cargo llvm-cov --workspace --lcov --output-path lcov.info
+      - run: npm run coverage:rust
       - name: Upload coverage
         if: ${{ !github.event.pull_request.head.repo.fork }}
         uses: codecov/codecov-action@v5
@@ -161,4 +164,4 @@ jobs:
       - run: npm run assets:fetch
       # Proves the app actually bundles on both release-1 targets (Q10). Ad-hoc signing on macOS is
       # not optional — on Apple Silicon a binary needs at least that to execute.
-      - run: npx tauri build --ci
+      - run: npm run bundle -- --ci

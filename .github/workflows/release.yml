@@ -121,7 +121,7 @@ jobs:
       # never leaves the secret store; the public half is compiled into the app, which is what makes
       # a compromised release page unable to install anything we did not sign.
       - name: Bundle
-        run: npx tauri build --ci --bundles ${{ matrix.bundles }}
+        run: npm run bundle -- --ci --bundles ${{ matrix.bundles }}
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}

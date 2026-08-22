@@ -109,26 +109,40 @@ npm run tauri dev
 **Package it**
 
 ```sh
-npm run tauri build      # → src-tauri/target/release/bundle/
+npm run bundle           # → src-tauri/target/release/bundle/
 ```
 
-**Check it**
+**The scripts**
 
-```sh
-npm run check            # everything below, in order — the one command before a commit
+Every script is `{action}` or `{action}:{context}`, and a bare `{action}` runs its whole group —
+`npm run check` runs every `check:*`, in the order `package.json` lists them. It finds them rather
+than naming them ([`scripts/run.ts`](scripts/run.ts)), so a script added to a group cannot be
+forgotten out of it. `guards.test.ts` holds the convention up.
+
+```
+check                    the one command before a commit
+├── check:format         prettier · cargo fmt --check
+├── check:types          svelte-check over src/, tsc over scripts/
+├── check:lint           eslint · clippy -D warnings
+└── check:test           vitest with coverage · cargo test
+
+fix                      the writing counterparts
+├── fix:format           prettier --write · cargo fmt
+└── fix:lint             eslint --fix
+
+coverage                 coverage:web · coverage:rust
+build                    build:worker · build:web
+generate                 what is generated and checked in — generate:bindings
 ```
 
-Or a single half of it:
+Where the two toolchains differ, the group goes one level deeper: `check:lint:web` is eslint alone
+and `check:lint:rust` is clippy alone. That is what lets CI run the Node half on a runner with no
+cargo and the cargo half on one with no browser, without either restating the command.
 
-```sh
-npm run check:format     # prettier
-npm run check:types      # svelte-check over src/, tsc over scripts/
-npm run check:lint       # eslint
-npm run check:test       # vitest
-npm run check:rust       # cargo fmt --check, clippy -D warnings, cargo test
-```
-
-CI runs these individually rather than through `npm run check`, so a failure names itself.
+`assets:*` is deliberately the exception — noun-first, and with no aggregate. The three are
+alternatives rather than a set, and `assets:check` asks GitHub whether a newer upstream release
+exists; sweeping a network call and an unrelated release into the command run before every commit is
+how a check teaches people to ignore it.
 
 **Coverage**
 
@@ -137,7 +151,7 @@ npm run coverage         # both halves, with a summary of each
 npm run coverage:rust    # cargo llvm-cov over the workspace
 ```
 
-`check:test` already writes `coverage/lcov.info`, so the frontend half costs nothing extra. Both are
+`check:test:web` already writes `coverage/lcov.info`, so the frontend half costs nothing extra. Both are
 uploaded to [Codecov](https://codecov.io/gh/versatiles-org/versatiles-studio) under separate
 **flags** — `rust` and `typescript` — because one number over two codebases is an average of two
 unrelated facts. [`codecov.yml`](codecov.yml) splits them further into components: the Rust core is

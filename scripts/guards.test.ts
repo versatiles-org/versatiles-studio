@@ -5,6 +5,7 @@ import { assertSafeSegment, resolveRepo } from './update-assets';
 import { digestFor, fill } from './cask';
 import { platformsFor } from './latest-json';
 import { changelogSection, isAhead, nextVersion } from './release';
+import { membersOf } from './run';
 
 // The manifest is data, and data that reaches `fetch()` decides where a build machine connects.
 // These are the checks that keep a tampered `assets/manifest.json` from redirecting CI.
@@ -239,5 +240,94 @@ describe('release', () => {
 
 	it('says so rather than emitting an empty section', () => {
 		expect(changelogSection('v0.2.0', '2026-08-22', [])).toContain('No changes recorded');
+	});
+});
+
+/**
+ * The shape of `package.json`'s scripts.
+ *
+ * **A convention nobody can check is a convention that decays.** This one is `{action}` or
+ * `{action}:{context}`, and a bare `{action}` runs every `{action}:*` there is — which is only true
+ * if it delegates to the runner rather than naming its members. The previous `check` named five by
+ * hand, so a sixth could be added and silently never run: the tick still appears, and the check that
+ * was added to catch something catches nothing.
+ */
+describe('npm scripts', () => {
+	const scripts = JSON.parse(readFileSync(new URL('../package.json', import.meta.url).pathname, 'utf8'))
+		.scripts as Record<string, string>;
+
+	/** Groups whose members are alternatives rather than a set, so no aggregate is correct. */
+	const NO_AGGREGATE = new Set(['assets']);
+
+	it('names every script action-first', () => {
+		// `assets:*` is the documented exception: three alternatives on one subject, one of which
+		// reaches the network, so sweeping them into an aggregate would be wrong.
+		const offenders = Object.keys(scripts).filter((name) => {
+			const [head] = name.split(':');
+			return name.includes(':') && !scripts[head] && !NO_AGGREGATE.has(head);
+		});
+		expect(offenders, 'an `x:y` script needs an `x` that runs the group, or an exemption').toEqual([]);
+	});
+
+	it('lets every aggregate find its members', () => {
+		for (const [name, body] of Object.entries(scripts)) {
+			if (name.includes(':') || !body.includes('scripts/run.ts')) continue;
+			expect(membersOf(scripts, name), `${name} matches no ${name}:* scripts`).not.toEqual([]);
+		}
+	});
+
+	/**
+	 * An aggregate that names its members is the drift this exists to stop. Anything running
+	 * `run.ts` cannot go stale; anything else has to be a single command.
+	 */
+	it('has no aggregate that hardcodes its members', () => {
+		const offenders = Object.entries(scripts)
+			.filter(([name, body]) => membersOf(scripts, name).length > 0 && !body.includes('scripts/run.ts'))
+			.map(([name]) => name);
+		expect(offenders, 'delegate to scripts/run.ts instead of listing the members').toEqual([]);
+	});
+
+	// One command, one definition. Two scripts running the same thing is two places to change it.
+	it('defines each command once', () => {
+		const bodies = Object.entries(scripts).filter(([, body]) => !body.includes('scripts/run.ts'));
+		const seen = new Map<string, string>();
+		const duplicates: string[] = [];
+		for (const [name, body] of bodies) {
+			const first = seen.get(body);
+			if (first) duplicates.push(`${first} and ${name}: ${body}`);
+			else seen.set(body, name);
+		}
+		expect(duplicates).toEqual([]);
+	});
+});
+
+/**
+ * The runner's tree walk.
+ *
+ * Matching every descendant rather than the direct children would make `check` run each leaf twice —
+ * once through its parent and once on its own — which is invisible except as a check that takes
+ * twice as long as it should.
+ */
+describe('scripts/run.ts', () => {
+	const tree = {
+		check: '',
+		'check:lint': '',
+		'check:lint:web': '',
+		'check:lint:rust': '',
+		'check:types': '',
+		other: ''
+	};
+
+	it('takes the direct children and not the grandchildren', () => {
+		expect(membersOf(tree, 'check')).toEqual(['check:lint', 'check:types']);
+		expect(membersOf(tree, 'check:lint')).toEqual(['check:lint:web', 'check:lint:rust']);
+	});
+
+	it('keeps the order package.json declares, which is what makes check cheapest-first', () => {
+		expect(membersOf({ 'check:z': '', 'check:a': '' }, 'check')).toEqual(['check:z', 'check:a']);
+	});
+
+	it('finds nothing for a leaf', () => {
+		expect(membersOf(tree, 'check:types')).toEqual([]);
 	});
 });
