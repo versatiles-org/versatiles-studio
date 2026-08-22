@@ -20,22 +20,25 @@ import { fileURLToPath } from 'node:url';
 const BASE = 'https://github.com/versatiles-org/versatiles-studio/releases/download';
 
 /**
- * The platforms a release serves, and the file each looks for.
+ * The platforms a release serves, and the end of the filename that identifies each.
  *
- * **A lookup, not a guess about architecture spellings.** The release workflow renames each updater
- * artefact to its platform key, because Tauri names the macOS one `VersaTiles Studio.app.tar.gz` —
- * no version and no architecture — so both Mac builds produce the same filename. Matching on
- * `aarch64` or `x64` inside a name that contains neither is how this silently emitted a manifest
- * with no macOS entries at all.
+ * **Matched on a suffix, and the two halves are asymmetric for a reason.**
  *
- * macOS updates ship as a `.app.tar.gz`, Linux as an `.AppImage.tar.gz`. The `.deb` is an install
- * format and not an update one, which is why it is not here although the release carries it.
+ * macOS emits `VersaTiles Studio.app.tar.gz` — no version and no architecture — so both Mac builds
+ * produce one filename, and the release workflow renames each to its platform key. Those suffixes
+ * are therefore whole names.
+ *
+ * Linux has no `.AppImage.tar.gz` at all: Tauri signs the AppImage itself, so the file the updater
+ * downloads is the same one a person downloads, under the name Tauri gave it — which already carries
+ * the architecture. Those suffixes are the tail of that name.
+ *
+ * Both were read off a real release run rather than from the documentation, which describes neither.
  */
-const PLATFORMS: { key: string; file: string }[] = [
-	{ key: 'darwin-aarch64', file: 'darwin-aarch64.app.tar.gz' },
-	{ key: 'darwin-x86_64', file: 'darwin-x86_64.app.tar.gz' },
-	{ key: 'linux-x86_64', file: 'linux-x86_64.AppImage.tar.gz' },
-	{ key: 'linux-aarch64', file: 'linux-aarch64.AppImage.tar.gz' }
+const PLATFORMS: { key: string; suffix: string }[] = [
+	{ key: 'darwin-aarch64', suffix: 'darwin-aarch64.app.tar.gz' },
+	{ key: 'darwin-x86_64', suffix: 'darwin-x86_64.app.tar.gz' },
+	{ key: 'linux-x86_64', suffix: '_amd64.AppImage' },
+	{ key: 'linux-aarch64', suffix: '_aarch64.AppImage' }
 ];
 
 interface Entry {
@@ -51,30 +54,36 @@ interface Entry {
  */
 export function platformsFor(names: string[], version: string, read: (name: string) => string): Record<string, Entry> {
 	const platforms: Record<string, Entry> = {};
+	const claimed = new Set<string>();
 
-	for (const { key, file } of PLATFORMS) {
-		if (!names.includes(file)) continue;
+	for (const { key, suffix } of PLATFORMS) {
+		const found = names.filter((name) => name.endsWith(suffix));
+		if (found.length === 0) continue;
+		if (found.length > 1) throw new Error(`${found.length} files end in ${suffix}: ${found.join(', ')}`);
 
-		const signature = `${file}.sig`;
+		const bundle = found[0];
+		const signature = `${bundle}.sig`;
 		if (!names.includes(signature)) {
 			// Unsigned means the secret was missing from the run. Publishing the entry anyway would
 			// produce an update every installed copy downloads and then refuses.
-			throw new Error(`${file} has no ${signature} — was TAURI_SIGNING_PRIVATE_KEY set?`);
+			throw new Error(`${bundle} has no ${signature} — was TAURI_SIGNING_PRIVATE_KEY set?`);
 		}
+		claimed.add(bundle);
+		claimed.add(signature);
 
 		platforms[key] = {
 			signature: read(signature).trim(),
-			url: `${BASE}/v${version}/${encodeURIComponent(file)}`
+			url: `${BASE}/v${version}/${encodeURIComponent(bundle)}`
 		};
 	}
 
-	// **Nothing may be left over.** A `.tar.gz` that no platform claimed is a build whose artefact
-	// was named something this does not expect — and the failure mode without this is the quiet one:
-	// the platform is simply absent from the manifest, and those users never see an update again.
-	const claimed = new Set(PLATFORMS.flatMap(({ file }) => [file, `${file}.sig`]));
-	const orphans = names.filter((name) => name.endsWith('.tar.gz') && !claimed.has(name));
+	// **No signature may be left over.** A `.sig` no platform claimed means an updater artefact was
+	// named something this does not expect — and without this the failure is the quiet one: the
+	// platform is simply absent from the manifest, and those users never see an update again. That
+	// is exactly how the macOS entries went missing.
+	const orphans = names.filter((name) => name.endsWith('.sig') && !claimed.has(name));
 	if (orphans.length > 0) {
-		throw new Error(`updater artefacts no platform claims: ${orphans.join(', ')}`);
+		throw new Error(`signed artefacts no platform claims: ${orphans.join(', ')}`);
 	}
 
 	return platforms;

@@ -183,33 +183,42 @@ jobs:
       # Named for the platform rather than left as Tauri's nested `bundle/<kind>/` tree, so the
       # release job can attach everything it downloads without knowing which runner made it.
       - name: Collect
+        shell: bash
         run: |
           set -euo pipefail
           mkdir -p upload
 
           # `target/` at the workspace root, not `src-tauri/target/`: the two crates share one
-          # target directory, and `tauri build` writes the bundle where cargo writes everything
-          # else. The stale `src-tauri/target` predates the workspace.
+          # target directory, and `tauri build` writes the bundle where cargo writes everything else.
           #
-          # Installers keep the names Tauri gave them — they are what a person downloads, and they
-          # already carry the version and the architecture.
-          find target/release/bundle \
+          # `-maxdepth 2` matters. Under `bundle/` sit the *staging* directories the deb and the
+          # AppImage were assembled from, holding the package's own `control.tar.gz` and `data.tar.gz`
+          # and a copy of our `sprites.tar.gz` and `glyphs.tar.gz`. A recursive search swept all four
+          # into the release.
+          find target/release/bundle -maxdepth 2 \
             \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' \) \
             -exec cp {} upload/ \;
 
-          # **The updater artefacts are renamed, and they have to be.** Tauri calls the macOS one
-          # `VersaTiles Studio.app.tar.gz` — no version, no architecture — so both Mac runners
-          # produce the same filename and the merged download would silently keep one of them.
-          # Naming each after the platform key the updater looks it up by makes them unique and
-          # turns `latest.json` into a lookup rather than a guess about arch spellings.
-          while IFS= read -r file; do
-            case "$file" in
-              *.app.tar.gz)          cp "$file" "upload/${{ matrix.platform }}.app.tar.gz" ;;
-              *.app.tar.gz.sig)      cp "$file" "upload/${{ matrix.platform }}.app.tar.gz.sig" ;;
-              *.AppImage.tar.gz)     cp "$file" "upload/${{ matrix.platform }}.AppImage.tar.gz" ;;
-              *.AppImage.tar.gz.sig) cp "$file" "upload/${{ matrix.platform }}.AppImage.tar.gz.sig" ;;
-            esac
-          done < <(find target/release/bundle \( -name '*.tar.gz' -o -name '*.tar.gz.sig' \))
+          # **The updater artefacts differ by platform, and not the way the docs suggest.**
+          #
+          # macOS produces `VersaTiles Studio.app.tar.gz` — no version, no architecture — so both Mac
+          # builds emit the same filename and the merged download would silently keep one. Renaming
+          # each to its updater platform key makes them distinct and makes `latest.json` a lookup.
+          #
+          # Linux has no `.AppImage.tar.gz`; Tauri signs the AppImage itself. So the file the updater
+          # downloads *is* the file a person downloads, and it needs no rename — its own name already
+          # carries the architecture. Only the signature comes along.
+          case "$RUNNER_OS" in
+            macOS)
+              find target/release/bundle -maxdepth 2 -name '*.app.tar.gz' \
+                -exec cp {} "upload/${{ matrix.platform }}.app.tar.gz" \;
+              find target/release/bundle -maxdepth 2 -name '*.app.tar.gz.sig' \
+                -exec cp {} "upload/${{ matrix.platform }}.app.tar.gz.sig" \;
+              ;;
+            Linux)
+              find target/release/bundle -maxdepth 2 -name '*.AppImage.sig' -exec cp {} upload/ \;
+              ;;
+          esac
 
           # An empty upload is a bundle that silently produced nothing, which would otherwise
           # surface as a release missing one platform and nobody noticing until an install failed.

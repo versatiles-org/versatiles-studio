@@ -134,53 +134,74 @@ describe('the cask', () => {
  * The updater's manifest (S5.8).
  *
  * Every failure here is silent from the outside: a platform missing from the manifest looks exactly
- * like being up to date, forever, for everyone on it.
+ * like being up to date, forever, for everyone on it. The names below are the ones a real release
+ * run produced, not the ones the documentation describes — they differ.
  */
 describe('latest.json', () => {
 	const sig = (name: string) => `signature-of-${name}\n`;
 
-	/** What the release workflow's Collect step leaves behind, names and all. */
+	/** What the Collect step leaves behind, once each platform has uploaded. */
 	const NAMES = [
-		'VersaTiles Studio_1.2.3_aarch64.dmg',
-		'VersaTiles Studio_1.2.3_x64.dmg',
-		'versatiles-studio_1.2.3_amd64.deb',
-		'VersaTiles Studio_1.2.3_amd64.AppImage',
+		// Installers, under the names Tauri gave them.
+		'VersaTiles Studio_0.1.0_aarch64.dmg',
+		'VersaTiles Studio_0.1.0_x64.dmg',
+		'versatiles-studio_0.1.0_amd64.deb',
+		'VersaTiles Studio_0.1.0_amd64.AppImage',
+		'VersaTiles Studio_0.1.0_arm64.AppImage'.replace('arm64', 'aarch64'),
+		// macOS updater bundles, renamed because Tauri gives both the same name.
 		'darwin-aarch64.app.tar.gz',
 		'darwin-aarch64.app.tar.gz.sig',
 		'darwin-x86_64.app.tar.gz',
 		'darwin-x86_64.app.tar.gz.sig',
-		'linux-x86_64.AppImage.tar.gz',
-		'linux-x86_64.AppImage.tar.gz.sig',
-		'linux-aarch64.AppImage.tar.gz',
-		'linux-aarch64.AppImage.tar.gz.sig'
+		// Linux signs the AppImage itself — there is no .AppImage.tar.gz.
+		'VersaTiles Studio_0.1.0_amd64.AppImage.sig',
+		'VersaTiles Studio_0.1.0_aarch64.AppImage.sig'
 	];
 
 	it('serves every platform the release builds', () => {
-		const platforms = platformsFor(NAMES, '1.2.3', sig);
+		const platforms = platformsFor(NAMES, '0.1.0', sig);
 		expect(Object.keys(platforms).sort()).toEqual(['darwin-aarch64', 'darwin-x86_64', 'linux-aarch64', 'linux-x86_64']);
-		expect(platforms['linux-aarch64'].url).toContain('/v1.2.3/linux-aarch64.AppImage.tar.gz');
-		expect(platforms['darwin-x86_64'].signature).toBe('signature-of-darwin-x86_64.app.tar.gz.sig');
+	});
+
+	it('points Linux at the AppImage a person also downloads', () => {
+		const platforms = platformsFor(NAMES, '0.1.0', sig);
+		expect(platforms['linux-x86_64'].url).toContain('VersaTiles%20Studio_0.1.0_amd64.AppImage');
+		expect(platforms['linux-x86_64'].signature).toBe('signature-of-VersaTiles Studio_0.1.0_amd64.AppImage.sig');
+		// A space in a filename has to survive being a URL, or the updater 404s on every release.
+		expect(platforms['linux-aarch64'].url).not.toContain(' ');
 	});
 
 	/**
-	 * The bug this replaced. Tauri names the macOS updater bundle `VersaTiles Studio.app.tar.gz` —
-	 * no version, no architecture — so matching on `aarch64` or `x64` found neither Mac, and the
-	 * manifest went out with Linux alone. Now an unexpected name is loud.
+	 * The exact directory the failed v0.1.0 run produced: no renaming, a Linux `.AppImage.sig`
+	 * rather than a `.tar.gz`, and four `.tar.gz` files swept out of the deb's staging directory.
+	 * It emitted nothing at all. Now the leftovers are named rather than ignored.
 	 */
-	it('refuses an artefact no platform claims rather than dropping it', () => {
-		expect(() => platformsFor([...NAMES, 'VersaTiles Studio.app.tar.gz'], '1.2.3', sig)).toThrow(
-			/no platform claims: VersaTiles Studio\.app\.tar\.gz/
-		);
+	it('refuses the directory that produced an empty manifest', () => {
+		const asItWas = [
+			'VersaTiles Studio.app.tar.gz',
+			'VersaTiles Studio.app.tar.gz.sig',
+			'VersaTiles Studio_0.1.0_aarch64.dmg',
+			'VersaTiles Studio_0.1.0_amd64.AppImage',
+			'VersaTiles Studio_0.1.0_amd64.AppImage.sig',
+			'VersaTiles Studio_0.1.0_amd64.deb',
+			'VersaTiles Studio_0.1.0_amd64.deb.sig',
+			'VersaTiles Studio_0.1.0_x64.dmg',
+			'control.tar.gz',
+			'data.tar.gz',
+			'glyphs.tar.gz',
+			'sprites.tar.gz'
+		];
+		expect(() => platformsFor(asItWas, '0.1.0', sig)).toThrow(/no platform claims/);
 	});
 
 	it('leaves out a platform that produced nothing', () => {
-		const linuxOnly = NAMES.filter((n) => n.startsWith('linux-x86_64'));
-		expect(Object.keys(platformsFor(linuxOnly, '1.2.3', sig))).toEqual(['linux-x86_64']);
+		const macOnly = NAMES.filter((n) => n.startsWith('darwin-aarch64'));
+		expect(Object.keys(platformsFor(macOnly, '0.1.0', sig))).toEqual(['darwin-aarch64']);
 	});
 
 	// Publishing an unsigned entry produces an update every installed copy downloads and refuses.
 	it('refuses a bundle with no signature beside it', () => {
-		expect(() => platformsFor(['linux-x86_64.AppImage.tar.gz'], '1.2.3', sig)).toThrow(/TAURI_SIGNING_PRIVATE_KEY/);
+		expect(() => platformsFor(['darwin-x86_64.app.tar.gz'], '0.1.0', sig)).toThrow(/TAURI_SIGNING_PRIVATE_KEY/);
 	});
 });
 
