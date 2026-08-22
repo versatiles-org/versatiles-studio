@@ -75,7 +75,8 @@ pub fn families(dir: &Path) -> Result<Vec<Family>> {
 	Ok(pinned()?
 		.into_iter()
 		.map(|asset| Family {
-			installed: archive_path(dir, &asset.id).exists(),
+			// From the compiled-in manifest, so it cannot fail; `false` if it somehow did.
+			installed: archive_path(dir, &asset.id).is_ok_and(|path| path.exists()),
 			id: asset.id,
 			bytes: asset.bytes,
 		})
@@ -107,12 +108,14 @@ pub fn pinned() -> Result<Vec<Pinned>> {
 
 /// Where an installed family's archive lives.
 ///
-/// Named from the family rather than from the URL, and the name is checked: this is a path built
-/// from data, which is the shape [architecture.md](../../docs/architecture.md) names as the one to
-/// be careful with. A family that is not in the manifest has no path at all.
-#[must_use]
-pub fn archive_path(dir: &Path, id: &str) -> PathBuf {
-	dir.join(format!("{id}.tar.gz"))
+/// **The name is checked here, and it did not used to be.** The doc said it was; nothing did it.
+/// `remove` reached this with an id straight from the webview, so `../../../x` named `x.tar.gz`
+/// outside the asset directory — and `remove` deletes what it finds. A path built from data is the
+/// shape [architecture.md](../../docs/architecture.md) names as the one to be careful with, and this
+/// was the counter-example sitting inside the sentence claiming otherwise.
+pub fn archive_path(dir: &Path, id: &str) -> Result<PathBuf> {
+	crate::paths::segment(id)?;
+	Ok(dir.join(format!("{id}.tar.gz")))
 }
 
 /// Writes a downloaded archive, refusing one whose contents are not what was pinned.
@@ -127,7 +130,7 @@ pub fn accept(dir: &Path, id: &str, bytes: &[u8], digest: &str) -> Result<PathBu
 		"{id} does not match what the manifest pins — expected {digest}, got {found}"
 	);
 
-	let path = archive_path(dir, id);
+	let path = archive_path(dir, id)?;
 	std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
 	// The same temporary-then-rename as every other write here: a half-downloaded archive that the
 	// server picks up serves half a font.
@@ -170,7 +173,7 @@ pub async fn install(handle: &crate::jobs::JobHandle, id: &str, dir: &Path) -> R
 
 /// Removes a family, and says whether one was there.
 pub fn remove(dir: &Path, id: &str) -> Result<bool> {
-	let path = archive_path(dir, id);
+	let path = archive_path(dir, id)?;
 	if !path.exists() {
 		return Ok(false);
 	}
@@ -220,7 +223,7 @@ mod tests {
 		assert!(before.iter().all(|f| !f.installed), "nothing is installed yet");
 
 		let id = &before[0].id;
-		std::fs::write(archive_path(&dir, id), b"x").unwrap();
+		std::fs::write(archive_path(&dir, id).unwrap(), b"x").unwrap();
 		let after = families(&dir).unwrap();
 		assert!(after.iter().find(|f| &f.id == id).unwrap().installed);
 	}
@@ -235,12 +238,12 @@ mod tests {
 		let error = accept(&dir, "noto_sans", b"something else", &right).unwrap_err();
 		assert!(format!("{error:#}").contains("does not match"), "{error:#}");
 		assert!(
-			!archive_path(&dir, "noto_sans").exists(),
+			!archive_path(&dir, "noto_sans").unwrap().exists(),
 			"a refused archive must not be left behind"
 		);
 
 		accept(&dir, "noto_sans", b"the real thing", &right).expect("the right bytes should install");
-		assert!(archive_path(&dir, "noto_sans").exists());
+		assert!(archive_path(&dir, "noto_sans").unwrap().exists());
 	}
 
 	#[test]
@@ -251,7 +254,7 @@ mod tests {
 
 		assert!(remove(&dir, "lato").unwrap());
 		assert!(!remove(&dir, "lato").unwrap(), "the second removal has nothing to do");
-		assert!(!archive_path(&dir, "lato").exists());
+		assert!(!archive_path(&dir, "lato").unwrap().exists());
 	}
 
 	/// The server mounts these in the order given, so it must not be the order the filesystem
@@ -276,5 +279,37 @@ mod tests {
 	#[test]
 	fn nothing_installed_is_an_empty_list_rather_than_an_error() {
 		assert!(installed(Path::new("/nonexistent/asset/dir")).is_empty());
+	}
+}
+
+#[cfg(test)]
+mod traversal_tests {
+	use super::*;
+
+	/// **The bug this guard was added for.** `remove` takes an id straight from the webview, and
+	/// `archive_path` used to join it unchecked — so `../…` named, and `remove` deleted, a
+	/// `.tar.gz` outside the asset directory.
+	///
+	/// The core is Tauri-free precisely so it can be exercised like this ([Q3]): no window, no IPC,
+	/// just the call the command layer makes.
+	///
+	/// [Q3]: ../../../docs/decisions.md
+	#[test]
+	fn a_family_id_cannot_name_a_file_outside_the_asset_directory() {
+		let root = crate::testing::dir("assets-traversal");
+		let assets = root.join("fonts");
+		std::fs::create_dir_all(&assets).unwrap();
+
+		// A file a caller should not be able to reach, one level above the asset directory.
+		let outside = root.join("precious.tar.gz");
+		std::fs::write(&outside, b"do not delete").unwrap();
+
+		let error = remove(&assets, "../precious").unwrap_err();
+		assert!(format!("{error:#}").contains("path separator"), "{error:#}");
+		assert!(outside.exists(), "the file above the asset directory was deleted");
+
+		// And the ordinary case still works.
+		std::fs::write(assets.join("noto_sans.tar.gz"), b"x").unwrap();
+		assert!(remove(&assets, "noto_sans").unwrap());
 	}
 }

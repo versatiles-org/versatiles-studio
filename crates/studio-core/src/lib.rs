@@ -34,6 +34,7 @@ pub mod graphs;
 pub mod history;
 pub mod import;
 pub mod jobs;
+pub mod paths;
 pub mod preview;
 pub mod project;
 pub mod server;

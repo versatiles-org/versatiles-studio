@@ -251,11 +251,7 @@ pub fn manifest_text(graphs: &[SavedGraph], recipe: &crate::style::Recipe) -> Re
 /// A name reaches this from a rename box, and it becomes a filename in a directory the user chose;
 /// `../../.bashrc` is a name someone can type.
 pub fn check_name(name: &str) -> Result<()> {
-	anyhow::ensure!(
-		!name.is_empty() && !name.contains(['/', '\\', ':']) && name != ".." && name != ".",
-		"{name:?} cannot be a filename"
-	);
-	Ok(())
+	crate::paths::segment(name).with_context(|| format!("{name:?} cannot be a graph name"))
 }
 
 /// Reads a project back.

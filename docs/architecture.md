@@ -56,7 +56,7 @@ the argument. The tiles still travel over HTTP; only the waiting moved.
 
 Tauri treats the webview as the less-trusted side, so a filesystem path arriving over IPC is
 tainted by construction — and static analysis says so, repeatedly and correctly. Every such path in
-Studio is one of four things, and knowing which is what decides whether anything needs doing:
+Studio is one of five things, and knowing which is what decides whether anything needs doing:
 
 | Kind                             | Where it comes from                        | What constrains it                                        |
 | -------------------------------- | ------------------------------------------ | --------------------------------------------------------- |
@@ -64,8 +64,9 @@ Studio is one of four things, and knowing which is what decides whether anything
 | **Application data**             | `app_data_dir()` plus a module constant    | The webview cannot name it ([Q21](decisions.md))          |
 | **Chosen destination**           | a native save dialog, passed back over IPC | The command checks the extension, not the dialog's filter |
 | **Source named by the document** | a `filename` in the VPL being edited       | Nothing — and deliberately so                             |
+| **Assembled from data**          | a manifest id, an entry inside a `.tar.gz` | [`paths`](../crates/studio-core/src/paths.rs) — a guard   |
 
-The third and fourth are the ones worth being precise about.
+The third, fourth and fifth are the ones worth being precise about.
 
 **A chosen destination is checked in the core, not in the dialog.** The filter that shapes a save
 dialog runs in the webview and therefore decides nothing: `export_graph` refuses a target whose
@@ -80,9 +81,26 @@ same node decodes it in full and draws it on the map, so inspecting its header r
 Restricting it to the project directory would also make Studio **stricter than the CLI it drives**,
 which is the drift `vpl::validate` exists to prevent.
 
-So the recurring `rust/path-injection` alert is a false positive in every case seen so far, and this
-is the table to cite rather than re-derive. What would _not_ be one: a path reaching the filesystem
-without falling into one of these four rows.
+**A path assembled from data is the one that is not a false positive.** The four rows above all end
+at a person: they chose the file, or they typed the pipeline. This row does not — a name inside
+`project.yaml`, a family id arriving over IPC, an entry in an archive fetched over the network were
+all written by whoever produced the data, and that is not always whoever is sitting in front of the
+application. Every one of them goes through
+[`studio_core::paths`](../crates/studio-core/src/paths.rs): `segment` for something that must be a
+single filename, `within` for something that must stay inside a directory.
+
+The row exists because two of them did not, and the scanner was right about both. `assets::remove`
+joined a family id straight from the webview, so `../…` deleted a `.tar.gz` outside the asset
+directory; `style::bundle` trusted the names inside a `.tar.gz`, which is the classic zip slip. Both
+are fixed, and both have a test that fails when the guard is removed.
+
+**Triaging an alert, then.** Find which row it is in. Rows one to four are false positives and this
+table is the citation; row five is a bug unless the path went through `paths`. What would be neither:
+a path reaching the filesystem that fits no row at all.
+
+Two thirds of the 65 `rust/path-injection` alerts standing on 2026-08-22 were in `#[cfg(test)]`
+code, which is why [`.github/codeql/`](../.github/codeql/) exists — and why the rule is left **on**
+rather than filtered away. It is noisy and it has been right.
 
 ## Layers
 
@@ -203,6 +221,7 @@ versatiles-studio/
 │   └── docs.test.ts            · guards.test.ts — what these documents promise
 ├── packaging/                  the cask itself; the tap holds the copy    (Q10)
 ├── codecov.yml                 one flag per codebase, components within
+├── .github/codeql/             what the scanner reads, and why            (Q3)
 ├── .github/
 │   ├── workflows/              ci.yml, release.yml — Linux and macOS     (S0.7, S5.6)
 │   └── actions/tauri-deps      the Linux packages, from a cache          (S0.7)
