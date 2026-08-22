@@ -256,6 +256,50 @@ function checkSigningSecrets(): void {
  * Defaulting to no is the whole safety of it: the expensive mistake is an absent-minded return, and
  * this is the one prompt standing between a local commit and a published release.
  */
+/**
+ * Refuses to release a commit CI has not passed.
+ *
+ * **A gate, not a wait.** Making the release *workflow* depend on the CI workflow would put thirteen
+ * minutes in front of a forty-minute build, re-running checks this script has already run. What is
+ * actually missing is different: the local run happens on whatever machine you are sitting at, so a
+ * Linux-only failure would be tagged and published without anyone seeing it. Asking whether the
+ * commit is already green costs one request and closes exactly that gap.
+ *
+ * **HEAD, before the version bump.** The bump commit does not exist yet at this point in the run,
+ * and would have no CI run of its own if it did — it changes three version numbers and a changelog.
+ * The commit being released is the one under it.
+ *
+ * A consequence worth knowing: an unpushed commit has no CI run, so releasing now means pushing
+ * first and waiting. That is the guarantee, not a side effect — code CI has never seen is precisely
+ * what this refuses to tag.
+ */
+function checkCiIsGreen(): void {
+	const sha = capture('git', ['rev-parse', 'HEAD']);
+	const [status, conclusion] = capture('gh', [
+		'api',
+		// The full 40 characters: `head_sha` is an exact match, and an abbreviated one silently
+		// returns nothing — which would read as "no CI run" for a commit that has one.
+		`/repos/{owner}/{repo}/actions/workflows/ci.yml/runs?head_sha=${sha}`,
+		'--jq',
+		'[(.workflow_runs[0].status // ""), (.workflow_runs[0].conclusion // "")] | @tsv'
+	]).split('\t');
+
+	const short = sha.slice(0, 7);
+	if (!status) {
+		throw new Error(
+			`no CI run for ${short} — push it and let CI finish first.\n` +
+				'Releasing a commit CI has never seen is what this check exists to prevent.'
+		);
+	}
+	if (status !== 'completed') {
+		throw new Error(`CI is still ${status} on ${short} — wait for it, then run this again`);
+	}
+	if (conclusion !== 'success') {
+		throw new Error(`CI ${conclusion} on ${short} — fix it before releasing`);
+	}
+	process.stdout.write(`  CI is green on ${short}\n`);
+}
+
 async function confirm(question: string): Promise<boolean> {
 	const rl = createInterface({ input: process.stdin, output: process.stdout });
 	const answer = await rl.question(question);
@@ -270,8 +314,14 @@ interface Job {
 	conclusion: string | null;
 }
 
-/** How wide the table is allowed to be. A release is watched in whatever terminal is open. */
+/**
+ * How wide the table is allowed to be. A release is watched in whatever terminal is open, and 56
+ * fits every one of them.
+ */
 const WIDTH = 56;
+
+/** What is left for a job's name: the width, less `  ✓ ` and the longest state word. */
+const NAME_WIDTH = WIDTH - 4 - 'in_progress'.length;
 
 const MARK: Record<string, string> = {
 	success: '\x1b[32m✓\x1b[0m',
@@ -316,8 +366,9 @@ async function watch(runId: string): Promise<void> {
 			const mark = MARK[state] ?? '\x1b[2m?\x1b[0m';
 			// Truncated rather than wrapped: a wrapped row breaks the redraw, because the cursor has
 			// to move back over a number of lines this cannot then predict.
-			const name = job.name.length > 34 ? `${job.name.slice(0, 33)}…` : job.name;
-			return `  ${mark} ${name.padEnd(35)}${state === 'in_progress' ? '' : state}`;
+			const name = job.name.length > NAME_WIDTH ? `${job.name.slice(0, NAME_WIDTH - 1)}…` : job.name;
+			// `in_progress` is left blank: the dot already says it, and the word is the widest here.
+			return `  ${mark} ${name.padEnd(NAME_WIDTH)}${state === 'in_progress' ? '' : state}`;
 		});
 		lines.push(`  \x1b[2m${elapsed((Date.now() - started) / 1000)} elapsed\x1b[0m`);
 
@@ -366,6 +417,7 @@ async function main(): Promise<void> {
 			throw new Error('gh is not installed or not authenticated — run `gh auth login`', { cause: error });
 		}
 		checkSigningSecrets();
+		checkCiIsGreen();
 	}
 
 	const current = JSON.parse(readFileSync(`${ROOT}package.json`, 'utf8')).version as string;

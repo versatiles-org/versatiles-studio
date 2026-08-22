@@ -187,15 +187,25 @@ npm run release -- minor       # or patch, major, or an explicit 0.2.0
 npm run release -- minor --dry-run
 ```
 
-It refuses to start on a dirty tree, off `main`, out of sync with `origin`, or on a tag that already
-exists. Then it runs every check, bumps the version in `package.json`,
-`src-tauri/tauri.conf.json`, the workspace `Cargo.toml` and both lockfiles, writes a `CHANGELOG.md`
-section from the commits since the last tag and opens it in `$EDITOR`, and commits and tags.
+It refuses to start on a dirty tree, off `main`, out of sync with `origin`, on a tag that already
+exists, or on a commit CI has not passed. That last one means pushing and letting CI finish before
+releasing — the guarantee rather than a side effect, since the local checks run on whatever machine
+you are sitting at and a Linux-only failure would otherwise be tagged and published.
 
-**Then it stops and asks once.** Everything up to that point is local, and the prompt says so along
-with what is about to become public. Past it there are no more questions: it pushes, watches
-[`release.yml`](.github/workflows/release.yml) build the `.deb`, the AppImage and both `.dmg`s,
-publishes the release, and fills in the Homebrew cask from the assets that now exist.
+Then it runs every check, bumps the version in `package.json`, `src-tauri/tauri.conf.json`, the
+workspace `Cargo.toml` and both lockfiles, writes a `CHANGELOG.md` section from the commits since
+the last tag, and commits and tags. The notes are generated, not opened for editing: turning a
+commit list into prose is a normal commit afterwards, not something to do with a release waiting.
+
+**Then it stops and asks once** — `y/N`, defaulting to no. Everything to that point is local and the
+prompt says how to undo it. Past it there are no more questions: it pushes, watches
+[`release.yml`](.github/workflows/release.yml) build the `.deb`, the AppImage and both `.dmg`s —
+shown as one row per platform and a clock rather than a full job tree — publishes the release, and
+fills in the Homebrew cask from the assets that now exist.
+
+Each bundle is smoke-tested before it is attached: the binary is asked `--version`, which proves it
+starts at all, and the bundled tier is checked to be inside it. "An installer was produced" and "the
+binary runs" are different claims when GDAL is linked statically.
 
 The one thing left by hand is copying `packaging/versatiles-studio.rb` into
 `versatiles-org/homebrew-versatiles` — a second repository is a second decision.
