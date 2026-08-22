@@ -3,7 +3,7 @@ members = ["crates/studio-core", "src-tauri"]
 resolver = "3"
 
 [workspace.package]
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 # 1.85 is edition 2024's floor; 1.88 is what a patched serde_with needs (GHSA-7gcf-g7xr-8hxj).
 # This is an application, not a library — we control the build toolchain, so tracking security
