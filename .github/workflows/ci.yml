@@ -171,3 +171,26 @@ jobs:
       # thrown away. Overriding the one key keeps the signing secret to the workflow that actually
       # publishes, rather than handing it to every push to main.
       - run: npm run bundle -- --ci --config '{"bundle":{"createUpdaterArtifacts":false}}'
+
+      # The same question a release asks, asked on every push to main instead of once a version:
+      # does the binary that was just bundled start, and did the bundled tier come with it (Q9)?
+      # No version comparison here — `main` carries whatever version it carries.
+      - name: Smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            app="target/release/bundle/macos/VersaTiles Studio.app"
+            binary="$app/Contents/MacOS/versatiles-studio"
+            resources="$app/Contents/Resources/resources"
+          else
+            binary="target/release/versatiles-studio"
+            resources="target/release/resources"
+          fi
+          echo "  $("$binary" --version)"
+          for asset in sprites.tar.gz glyphs.tar.gz; do
+            [ -f "$resources/$asset" ] || {
+              echo "::error::$asset is missing from the bundle — the map would have no labels" >&2
+              exit 1
+            }
+          done
