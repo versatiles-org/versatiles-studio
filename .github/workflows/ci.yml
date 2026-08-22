@@ -126,7 +126,10 @@ jobs:
           fail_ci_if_error: true
 
   bundle:
-    name: Bundle (${{ matrix.os }})
+    # `Bundle Linux arm64` rather than `Bundle (ubuntu-24.04-arm)`: the runner label is an
+    # implementation detail, and the Actions UI truncates a long job name exactly where the part
+    # that tells them apart lives.
+    name: Bundle ${{ matrix.label }}
     # **Not on pull requests.** Bundling is six minutes a platform on a warm cache and fifteen on a
     # cold one, which is the whole critical path: `Frontend` answers in 30s and `Rust` in about two
     # minutes, and both already prove the code compiles. What a bundle proves on top of that is that
@@ -139,11 +142,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # ARM Linux is here for a reason the others do not need: nobody on this project has an ARM
-        # Linux machine to open the AppImage on, so the runner *is* the test. The smoke step below
-        # runs the arm64 binary it just built — which is the only evidence that target works.
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
-    runs-on: ${{ matrix.os }}
+        include:
+          - label: Linux x86
+            runner: ubuntu-latest
+          # ARM Linux is here for a reason the others do not need: nobody on this project has an ARM
+          # Linux machine to open the AppImage on, so the runner *is* the test. The smoke step below
+          # runs the arm64 binary it just built — which is the only evidence that target works.
+          - label: Linux arm
+            runner: ubuntu-24.04-arm
+          - label: macOS arm
+            runner: macos-latest
+    runs-on: ${{ matrix.runner }}
     # Six minutes warm, about sixteen when the cache misses and GDAL is rebuilt from source.
     timeout-minutes: 45
     steps:
@@ -159,7 +168,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          key: bundle-${{ matrix.os }}
+          key: bundle-${{ matrix.runner }}
           # A bundle that fails part-way has still built GDAL from source, which is most of its
           # fifteen minutes. Keeping that is worth more here than anywhere else in this workflow.
           cache-on-failure: true
