@@ -164,4 +164,10 @@ jobs:
       - run: npm run assets:fetch
       # Proves the app actually bundles on both release-1 targets (Q10). Ad-hoc signing on macOS is
       # not optional — on Apple Silicon a binary needs at least that to execute.
-      - run: npm run bundle -- --ci
+      #
+      # **Without the updater artefacts.** `createUpdaterArtifacts` is on in `tauri.conf.json` so
+      # that a release signs them, and `tauri build` then refuses to run anywhere the private key is
+      # absent — which is here, and rightly so: this job proves packaging works and its output is
+      # thrown away. Overriding the one key keeps the signing secret to the workflow that actually
+      # publishes, rather than handing it to every push to main.
+      - run: npm run bundle -- --ci --config '{"bundle":{"createUpdaterArtifacts":false}}'

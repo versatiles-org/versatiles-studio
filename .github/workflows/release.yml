@@ -77,18 +77,15 @@ jobs:
           # install across distributions, which is exactly what the AppImage is for (Q10).
           - label: Linux (x86_64)
             runner: ubuntu-latest
-            bundles: deb,appimage
             artefact: linux-x86_64
           # Two Macs rather than a universal binary. `lipo` would mean building GDAL from source
           # twice and joining the results, and a Homebrew cask names one URL and one checksum per
           # architecture anyway — so two files is the shape the consumer already wants.
           - label: macOS (Apple Silicon)
             runner: macos-latest
-            bundles: dmg
             artefact: macos-aarch64
           - label: macOS (Intel)
             runner: macos-26-intel
-            bundles: dmg
             artefact: macos-x86_64
     runs-on: ${{ matrix.runner }}
     # A cold cache rebuilds GDAL from source, which is most of the time here (Q19, Q20).
@@ -120,8 +117,17 @@ jobs:
       # `.tar.gz`/`.AppImage.tar.gz` and a `.sig` beside each installer (G4, S5.8). The private key
       # never leaves the secret store; the public half is compiled into the app, which is what makes
       # a compromised release page unable to install anything we did not sign.
+      # **`--bundles` is deliberately not passed.** `tauri.conf.json` already lists exactly the four
+      # targets release 1 wants and Tauri filters them by platform, so restricting the list here
+      # would only be a second place to keep in step.
+      #
+      # It would also be wrong. Restricting it *drops the updater artefact*: measured on macOS,
+      # `--bundles dmg` produces the `.dmg` and no `.app.tar.gz`, and does not even attempt to sign.
+      # `latest-json.ts` only refuses when *no* platform has one, so a release would have published a
+      # manifest with the Linux entry alone — and every Mac would simply never see an update, with
+      # nothing anywhere saying so.
       - name: Bundle
-        run: npm run bundle -- --ci --bundles ${{ matrix.bundles }}
+        run: npm run bundle -- --ci
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
