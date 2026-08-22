@@ -78,15 +78,25 @@ jobs:
           - label: Linux (x86_64)
             runner: ubuntu-latest
             artefact: linux-x86_64
+            platform: linux-x86_64
+          # A desktop GUI on ARM Linux is a smaller audience than a CLI on ARM Linux — a Raspberry
+          # Pi or Asahi, rather than every cloud instance — but the runner is free and the smoke
+          # test on it is the only way this target is ever exercised.
+          - label: Linux (arm64)
+            runner: ubuntu-24.04-arm
+            artefact: linux-aarch64
+            platform: linux-aarch64
           # Two Macs rather than a universal binary. `lipo` would mean building GDAL from source
           # twice and joining the results, and a Homebrew cask names one URL and one checksum per
           # architecture anyway — so two files is the shape the consumer already wants.
           - label: macOS (Apple Silicon)
             runner: macos-latest
             artefact: macos-aarch64
+            platform: darwin-aarch64
           - label: macOS (Intel)
             runner: macos-26-intel
             artefact: macos-x86_64
+            platform: darwin-x86_64
     runs-on: ${{ matrix.runner }}
     # A cold cache rebuilds GDAL from source, which is most of the time here (Q19, Q20).
     timeout-minutes: 60
@@ -176,16 +186,31 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p upload
+
           # `target/` at the workspace root, not `src-tauri/target/`: the two crates share one
           # target directory, and `tauri build` writes the bundle where cargo writes everything
           # else. The stale `src-tauri/target` predates the workspace.
           #
-          # The updater's own artefacts come too: the `.tar.gz` is what it downloads and the `.sig`
-          # is what it checks before replacing anything.
+          # Installers keep the names Tauri gave them — they are what a person downloads, and they
+          # already carry the version and the architecture.
           find target/release/bundle \
-            \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' \
-               -o -name '*.tar.gz' -o -name '*.sig' \) \
+            \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' \) \
             -exec cp {} upload/ \;
+
+          # **The updater artefacts are renamed, and they have to be.** Tauri calls the macOS one
+          # `VersaTiles Studio.app.tar.gz` — no version, no architecture — so both Mac runners
+          # produce the same filename and the merged download would silently keep one of them.
+          # Naming each after the platform key the updater looks it up by makes them unique and
+          # turns `latest.json` into a lookup rather than a guess about arch spellings.
+          while IFS= read -r file; do
+            case "$file" in
+              *.app.tar.gz)          cp "$file" "upload/${{ matrix.platform }}.app.tar.gz" ;;
+              *.app.tar.gz.sig)      cp "$file" "upload/${{ matrix.platform }}.app.tar.gz.sig" ;;
+              *.AppImage.tar.gz)     cp "$file" "upload/${{ matrix.platform }}.AppImage.tar.gz" ;;
+              *.AppImage.tar.gz.sig) cp "$file" "upload/${{ matrix.platform }}.AppImage.tar.gz.sig" ;;
+            esac
+          done < <(find target/release/bundle \( -name '*.tar.gz' -o -name '*.tar.gz.sig' \))
+
           # An empty upload is a bundle that silently produced nothing, which would otherwise
           # surface as a release missing one platform and nobody noticing until an install failed.
           if [ -z "$(ls -A upload)" ]; then

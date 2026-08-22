@@ -20,28 +20,22 @@ import { fileURLToPath } from 'node:url';
 const BASE = 'https://github.com/versatiles-org/versatiles-studio/releases/download';
 
 /**
- * The platform keys Tauri's updater looks for, and how to recognise the bundle for each.
+ * The platforms a release serves, and the file each looks for.
  *
- * `platform-arch`, with the arch spelled Rust's way. The suffixes are what the bundler produces:
- * macOS updates ship as a `.app.tar.gz`, Linux as an `.AppImage.tar.gz` — the `.deb` is an install
- * format and not an update one, which is why it is not listed here even though the release carries
- * it.
+ * **A lookup, not a guess about architecture spellings.** The release workflow renames each updater
+ * artefact to its platform key, because Tauri names the macOS one `VersaTiles Studio.app.tar.gz` —
+ * no version and no architecture — so both Mac builds produce the same filename. Matching on
+ * `aarch64` or `x64` inside a name that contains neither is how this silently emitted a manifest
+ * with no macOS entries at all.
+ *
+ * macOS updates ship as a `.app.tar.gz`, Linux as an `.AppImage.tar.gz`. The `.deb` is an install
+ * format and not an update one, which is why it is not here although the release carries it.
  */
-const PLATFORMS: { key: string; matches: (name: string) => boolean }[] = [
-	{
-		key: 'darwin-aarch64',
-		matches: (name) => name.endsWith('.app.tar.gz') && name.includes('aarch64')
-	},
-	{
-		key: 'darwin-x86_64',
-		// Tauri writes `x64` in a bundle name and the updater key says `x86_64`; matching on the
-		// name's spelling and emitting the key's is the whole of the translation.
-		matches: (name) => name.endsWith('.app.tar.gz') && name.includes('x64')
-	},
-	{
-		key: 'linux-x86_64',
-		matches: (name) => name.endsWith('.AppImage.tar.gz')
-	}
+const PLATFORMS: { key: string; file: string }[] = [
+	{ key: 'darwin-aarch64', file: 'darwin-aarch64.app.tar.gz' },
+	{ key: 'darwin-x86_64', file: 'darwin-x86_64.app.tar.gz' },
+	{ key: 'linux-x86_64', file: 'linux-x86_64.AppImage.tar.gz' },
+	{ key: 'linux-aarch64', file: 'linux-aarch64.AppImage.tar.gz' }
 ];
 
 interface Entry {
@@ -58,25 +52,29 @@ interface Entry {
 export function platformsFor(names: string[], version: string, read: (name: string) => string): Record<string, Entry> {
 	const platforms: Record<string, Entry> = {};
 
-	for (const { key, matches } of PLATFORMS) {
-		const bundles = names.filter(matches);
-		if (bundles.length === 0) continue;
-		if (bundles.length > 1) {
-			throw new Error(`${bundles.length} bundles match ${key}: ${bundles.join(', ')}`);
-		}
+	for (const { key, file } of PLATFORMS) {
+		if (!names.includes(file)) continue;
 
-		const bundle = bundles[0];
-		const signature = `${bundle}.sig`;
+		const signature = `${file}.sig`;
 		if (!names.includes(signature)) {
 			// Unsigned means the secret was missing from the run. Publishing the entry anyway would
 			// produce an update every installed copy downloads and then refuses.
-			throw new Error(`${bundle} has no ${signature} — was TAURI_SIGNING_PRIVATE_KEY set?`);
+			throw new Error(`${file} has no ${signature} — was TAURI_SIGNING_PRIVATE_KEY set?`);
 		}
 
 		platforms[key] = {
 			signature: read(signature).trim(),
-			url: `${BASE}/v${version}/${encodeURIComponent(bundle)}`
+			url: `${BASE}/v${version}/${encodeURIComponent(file)}`
 		};
+	}
+
+	// **Nothing may be left over.** A `.tar.gz` that no platform claimed is a build whose artefact
+	// was named something this does not expect — and the failure mode without this is the quiet one:
+	// the platform is simply absent from the manifest, and those users never see an update again.
+	const claimed = new Set(PLATFORMS.flatMap(({ file }) => [file, `${file}.sig`]));
+	const orphans = names.filter((name) => name.endsWith('.tar.gz') && !claimed.has(name));
+	if (orphans.length > 0) {
+		throw new Error(`updater artefacts no platform claims: ${orphans.join(', ')}`);
 	}
 
 	return platforms;

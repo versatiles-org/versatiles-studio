@@ -139,7 +139,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # ARM Linux is here for a reason the others do not need: nobody on this project has an ARM
+        # Linux machine to open the AppImage on, so the runner *is* the test. The smoke step below
+        # runs the arm64 binary it just built — which is the only evidence that target works.
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
     runs-on: ${{ matrix.os }}
     # Six minutes warm, about sixteen when the cache misses and GDAL is rebuilt from source.
     timeout-minutes: 45

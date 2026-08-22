@@ -29,8 +29,12 @@ runs:
         path: ~/apt-cache
         # Bump the suffix when `packages` changes, to start a fresh cache rather than carrying
         # archives nothing installs any more. Forgetting only costs one download.
-        key: apt-${{ runner.os }}-tauri-v1
-        restore-keys: apt-${{ runner.os }}-tauri-
+        # **`runner.arch` is load-bearing.** Both the x86_64 and the arm64 runner report
+        # `runner.os == Linux`, so without it they would share one cache and each would restore the
+        # other's `.deb` files — wrong-architecture archives that apt ignores and re-downloads,
+        # which is the cache silently doing nothing.
+        key: apt-${{ runner.os }}-${{ runner.arch }}-tauri-v1
+        restore-keys: apt-${{ runner.os }}-${{ runner.arch }}-tauri-
 
     - name: Install
       shell: bash

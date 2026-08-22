@@ -45,16 +45,18 @@ instructions.
 
 ### Linux
 
-A `.deb` for Debian and Ubuntu, and an AppImage for everything else:
+A `.deb` for Debian and Ubuntu, and an AppImage for everything else. Both are built for **x86_64 and
+arm64** — the arm64 ones are for a Raspberry Pi desktop or Asahi Linux, not for a Mac, which has its
+own `.dmg` below.
 
 ```sh
-sudo dpkg -i versatiles-studio_*_amd64.deb
+sudo dpkg -i versatiles-studio_*_amd64.deb      # or _arm64.deb
 # or
 chmod +x VersaTiles*.AppImage && ./VersaTiles*.AppImage
 ```
 
-Both are offered because a `.deb` is built against one WebKitGTK version and may not install across
-distributions ([Q10](docs/decisions.md)).
+Both formats are offered because a `.deb` is built against one WebKitGTK version and may not install
+across distributions ([Q10](docs/decisions.md)).
 
 ### macOS
 
