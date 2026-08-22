@@ -322,15 +322,12 @@ async function main(): Promise<void> {
 	const subjects = capture('git', ['log', range, '--no-merges', '--pretty=%s']).split('\n').filter(Boolean);
 	process.stdout.write(`  ${subjects.length} commits since ${previous || 'the beginning'}\n`);
 
+	// **Written, not opened.** An editor in the middle of a release is a prompt that has to be
+	// answered before anything else can happen, and the answer is almost always ":wq". The section
+	// is a commit-by-commit list; editing it into prose is a thing to do afterwards, in a normal
+	// commit, when there is time to write rather than a release waiting.
 	prependChangelog(changelogSection(tag, new Date().toISOString().slice(0, 10), subjects));
-
-	const editor = process.env.EDITOR ?? process.env.VISUAL;
-	if (editor && !dryRun) {
-		process.stdout.write(`  opening CHANGELOG.md in ${editor} — the generated list is a draft\n`);
-		run(editor, [CHANGELOG]);
-	} else {
-		process.stdout.write('  CHANGELOG.md written; $EDITOR is not set, so edit it by hand if you want to\n');
-	}
+	process.stdout.write('  CHANGELOG.md written\n');
 
 	if (dryRun) {
 		say('Dry run — stopping here');
