@@ -98,9 +98,17 @@ are fixed, and both have a test that fails when the guard is removed.
 table is the citation; row five is a bug unless the path went through `paths`. What would be neither:
 a path reaching the filesystem that fits no row at all.
 
-Two thirds of the 65 `rust/path-injection` alerts standing on 2026-08-22 were in `#[cfg(test)]`
-code, which is why [`.github/codeql/`](../.github/codeql/) exists — and why the rule is left **on**
-rather than filtered away. It is noisy and it has been right.
+**Why the noise is not filtered away.** Of the 65 `rust/path-injection` alerts standing on
+2026-08-22, 43 were in `#[cfg(test)]` code — so the obvious move is to stop scanning tests. It does
+not work. Code scanning here runs on GitHub's **default setup**, which reads no configuration at
+all: no `paths-ignore`, no `query-filters`. Advanced setup would allow both, and was tried and
+reverted — it cannot shrink that 43 either, because path filters work on files and those tests live
+inside the product files they test, and switching risks re-opening the dismissals already recorded.
+
+So the controls are the ones above: the guard, and this table to triage against. The residual cost is
+dismissing the test-code alerts by hand, which is bounded — test code changes rarely, so each
+dismissal is made once. Filtering the rule out entirely would buy a quiet list; it would also have
+kept both of the bugs in the row above.
 
 ## Layers
 
@@ -221,7 +229,6 @@ versatiles-studio/
 │   └── docs.test.ts            · guards.test.ts — what these documents promise
 ├── packaging/                  the cask itself; the tap holds the copy    (Q10)
 ├── codecov.yml                 one flag per codebase, components within
-├── .github/codeql/             what the scanner reads, and why            (Q3)
 ├── .github/
 │   ├── workflows/              ci.yml, release.yml — Linux and macOS     (S0.7, S5.6)
 │   └── actions/tauri-deps      the Linux packages, from a cache          (S0.7)
