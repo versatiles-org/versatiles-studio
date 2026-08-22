@@ -225,7 +225,7 @@ jobs:
           fi
           ls -lh upload
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: installers-${{ matrix.artefact }}
           path: upload/*
@@ -255,7 +255,7 @@ jobs:
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: installers-*
           merge-multiple: true
@@ -291,7 +291,7 @@ jobs:
         run: node --experimental-strip-types scripts/latest-json.ts installers ${{ needs.version.outputs.version }} > installers/latest.json
       - run: cat installers/latest.json
 
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           draft: true
           name: VersaTiles Studio ${{ needs.version.outputs.version }}

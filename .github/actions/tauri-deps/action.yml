@@ -24,7 +24,7 @@ runs:
   using: composite
   steps:
     - name: Restore downloaded packages
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/apt-cache
         # Bump the suffix when `packages` changes, to start a fresh cache rather than carrying

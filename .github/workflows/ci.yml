@@ -51,7 +51,7 @@ jobs:
         # A fork's pull request has no access to the secret, and failing someone's first
         # contribution on a missing token is the worst possible first impression.
         if: ${{ !github.event.pull_request.head.repo.fork }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage/lcov.info
@@ -117,7 +117,7 @@ jobs:
       - run: npm run coverage:rust
       - name: Upload coverage
         if: ${{ !github.event.pull_request.head.repo.fork }}
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
