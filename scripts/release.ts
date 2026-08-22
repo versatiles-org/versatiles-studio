@@ -185,6 +185,36 @@ function prependChangelog(section: string): void {
 // The flow
 // ------------------------------------------------------------------------------------------------
 
+/**
+ * That the updater can be signed, checked before a tag exists.
+ *
+ * **The failure this prevents costs a version number.** Signing happens near the end of a build that
+ * takes up to an hour, on a tag that is already pushed — so a missing secret is discovered at the
+ * most expensive possible moment. Reading the names here costs one API call.
+ *
+ * **Only the key is checked.** `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` is deliberately not set: the
+ * key was generated without a password, and an unset secret expands to the empty string that means
+ * exactly that. Warning about it would fire on every release for a state that is correct and
+ * permanent, which is how a check teaches people to stop reading it.
+ */
+function checkSigningSecrets(): void {
+	let names: string[];
+	try {
+		names = capture('gh', ['secret', 'list', '--json=name', '--jq=.[].name']).split('\n').filter(Boolean);
+	} catch {
+		// Listing secrets needs admin. Not having it is normal, and is not a reason to refuse.
+		process.stdout.write('  could not read the repository secrets — skipping the signing check\n');
+		return;
+	}
+
+	if (!names.includes('TAURI_SIGNING_PRIVATE_KEY')) {
+		throw new Error(
+			'TAURI_SIGNING_PRIVATE_KEY is not set — the updater bundles cannot be signed.\n' +
+				'Generate a key with `npx tauri signer generate` and add it to the repository secrets.'
+		);
+	}
+}
+
 async function confirm(question: string, expected: string): Promise<boolean> {
 	const rl = createInterface({ input: process.stdin, output: process.stdout });
 	const answer = await rl.question(question);
@@ -219,9 +249,10 @@ async function main(): Promise<void> {
 	if (!dryRun) {
 		try {
 			capture('gh', ['auth', 'status']);
-		} catch {
-			throw new Error('gh is not installed or not authenticated — run `gh auth login`');
+		} catch (error) {
+			throw new Error('gh is not installed or not authenticated — run `gh auth login`', { cause: error });
 		}
+		checkSigningSecrets();
 	}
 
 	const current = JSON.parse(readFileSync(`${ROOT}package.json`, 'utf8')).version as string;

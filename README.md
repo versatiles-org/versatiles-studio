@@ -186,7 +186,8 @@ packaging change is tested without spending a version number.
 
 The updater signs with `TAURI_SIGNING_PRIVATE_KEY` from the repository secrets; its public half is
 in `tauri.conf.json` and is compiled into the app, so a compromised release page cannot install
-anything we did not sign.
+anything we did not sign. There is deliberately no `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — the key
+has none, and an unset secret expands to the empty string that means exactly that.
 
 ## Planning documents
 
