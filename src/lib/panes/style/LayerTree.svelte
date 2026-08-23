@@ -3,6 +3,7 @@
 	import { style } from '../../state/style.svelte';
 	import type { LayerOverride } from '../../ipc/commands';
 	import { colourKey, colourOf, grouped, isExpression, matching, rows } from './layer-tree';
+	import { filterOf, format, isOverridden, parse } from './filter';
 
 	// The layers of the style that is on the map (S4.5, D3).
 	//
@@ -44,6 +45,68 @@
 
 	function reset(id: string) {
 		void style.setLayer(id, {});
+		if (editing === id) editing = null;
+	}
+
+	/// Which layer's filter is open. One at a time: the point of editing a filter is watching the
+	/// map change, and a column of open editors leaves no map to watch.
+	let editing = $state<string | null>(null);
+	/// What is in the box, which is not the filter until it parses.
+	let draft = $state('');
+	/// What the box held when it opened, so opening one is not itself an edit.
+	let loaded = $state('');
+	/// Whether what is in the box is what the map is drawing. False while a pause is still running.
+	let settled = $state(true);
+
+	function openFilter(id: string) {
+		if (editing === id) {
+			editing = null;
+			return;
+		}
+		editing = id;
+		const current = filterOf(spec(id), overrideOf(id));
+		draft = loaded = current === null ? '' : format(current);
+		settled = true;
+	}
+
+	/// What the box says about what is in it, recomputed as it is typed.
+	const parsed = $derived(parse(draft));
+
+	/// Applies the filter, live, once typing pauses.
+	///
+	/// **Live, because a filter is guesswork about data you cannot see** and the map is the only
+	/// thing that answers it — that is D3's "live preview". An invalid draft changes nothing and
+	/// says so; the map keeps the last filter that worked, the same rule the pipeline preview
+	/// follows.
+	///
+	/// **After a pause, because every commit is an undo entry** ([Q36]). Changing `"river"` to
+	/// `"stream"` keeps the JSON valid at every keystroke, so applying on each one would put a dozen
+	/// steps on the stack for one edit and make ⌘Z useless here. Recolouring hit this first and
+	/// answered it with an explicit preview/commit pair; a filter has no gesture to end, so the pause
+	/// is what stands in for releasing the mouse. Same 400 ms as the crop's estimate.
+	$effect(() => {
+		const id = editing;
+		const text = draft;
+		// Opening an editor fills the box, and that is not an edit — without this, looking at a
+		// layer's filter would mark it as changed.
+		if (id === null || text === loaded) return;
+
+		settled = false;
+		const timer = setTimeout(() => {
+			const result = parse(text);
+			if (!result.ok) return; // stays unsettled, and the box already says why
+			void style.setLayer(id, { ...overrideOf(id), filter: result.filter ?? undefined }).then(() => {
+				settled = true;
+			});
+		}, 400);
+		return () => clearTimeout(timer);
+	});
+
+	/// Gives the style's own filter back, leaving the rest of the override alone.
+	function clearFilter(id: string) {
+		draft = loaded = '';
+		settled = true;
+		void style.setLayer(id, { ...overrideOf(id), filter: undefined });
 	}
 
 	/// Narrows the zooms a layer is drawn at.
@@ -127,12 +190,59 @@
 						/>
 					</label>
 
+					<button
+						type="button"
+						class="funnel"
+						class:set={isOverridden(overrideOf(layer.id))}
+						class:open={editing === layer.id}
+						title={filterOf(spec(layer.id), overrideOf(layer.id)) === null
+							? 'This layer has no filter — add one'
+							: 'Edit which features this layer draws'}
+						aria-expanded={editing === layer.id}
+						onclick={() => openFilter(layer.id)}
+					>
+						ƒ
+					</button>
+
 					{#if touched(layer.id)}
 						<button type="button" class="reset" title="Undo the changes to this layer" onclick={() => reset(layer.id)}>
 							reset
 						</button>
 					{/if}
 				</div>
+
+				{#if editing === layer.id}
+					<!-- Under the row it belongs to, not in a modal: a filter is guesswork about data you
+					     cannot see, so the map has to stay visible while it is typed (the same reasoning
+					     that moved the crop out of its dialog at S5.2). -->
+					<div class="editor">
+						<textarea
+							class="expression"
+							rows="5"
+							spellcheck="false"
+							aria-label="Filter for {layer.id}"
+							aria-invalid={!parsed.ok}
+							bind:value={draft}></textarea>
+
+						<p class="verdict" aria-live="polite">
+							{#if !parsed.ok}
+								<span class="problem">{parsed.problem}</span>
+							{:else if draft.trim() === ''}
+								No filter — this layer draws everything in {layer.source ?? 'its source'}.
+							{:else if settled}
+								<span class="fine">This is what the map is drawing.</span>
+							{:else}
+								Applying…
+							{/if}
+						</p>
+
+						{#if isOverridden(overrideOf(layer.id))}
+							<button type="button" class="reset" onclick={() => clearFilter(layer.id)}>
+								back to the style's filter
+							</button>
+						{/if}
+					</div>
+				{/if}
 			{/each}
 		{/each}
 
@@ -196,6 +306,22 @@
 			font-size: var(--text-xs);
 		}
 
+		/* Always present, so the rows do not shift when one layer gains a filter. Quiet until it is
+		   carrying something of the user's. */
+		.funnel {
+			color: var(--ink-2);
+			font-size: var(--text-xs);
+			font-style: italic;
+
+			&.set {
+				color: var(--accent);
+			}
+
+			&.open {
+				color: var(--ink);
+			}
+		}
+
 		/* Narrow on purpose: two zooms are two characters each, and a row that gave them room would
 		   leave none for the name. */
 		.zoom input {
@@ -203,6 +329,55 @@
 			padding: 0 var(--space-1);
 			font-size: var(--text-xs);
 			text-align: center;
+		}
+	}
+
+	/* Indented under its row, so a tree of 324 layers still reads as a tree with one open. */
+	.editor {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		margin: var(--space-1) 0 var(--space-2) var(--space-4);
+		padding-left: var(--space-2);
+		border-left: 2px solid var(--rule);
+
+		.expression {
+			width: 100%;
+			padding: var(--space-1);
+			border: 1px solid var(--rule);
+			border-radius: var(--radius-sm);
+			background: var(--surface);
+			color: var(--ink);
+			font-family: var(--font-mono);
+			font-size: var(--text-xs);
+			line-height: 1.45;
+			resize: vertical;
+
+			&[aria-invalid='true'] {
+				border-color: var(--error);
+			}
+		}
+
+		.verdict {
+			margin: 0;
+			color: var(--ink-2);
+			font-size: var(--text-xs);
+			/* Two lines' worth, so the box below does not jump as the message changes length. */
+			min-height: 2.4em;
+		}
+
+		.problem {
+			color: var(--error);
+		}
+
+		.fine {
+			color: var(--ink-2);
+		}
+
+		.reset {
+			align-self: flex-start;
+			color: var(--accent);
+			font-size: var(--text-xs);
 		}
 	}
 

@@ -16,6 +16,37 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q37 — D3's expression editor edits filters, because that is where the expressions are
+
+**Decided 2026-08-23.** [S4.5](scope-release-1.md) delivered the layer tree and recorded its
+remaining half as "a colour that is an _expression_ is shown as one and left alone; editing those is
+what remains". Scoping that work found the premise wrong.
+
+Generating all six presets and walking every node says: across 1,503 layers there are **1,825 colour
+paint properties and not one of them is an expression**, while **1,475 of those layers carry a filter
+and every one is**. `deriveStyle` ([S4.4](scope-release-1.md)) writes plain string colours too, and
+there is no style _import_ — `StylePane` only ever saves. So a colour expression cannot occur in
+Studio by any path, and the `ƒ` swatch marks a branch nothing reaches. An editor for it would have
+had nothing to open and no way to be tested against real data.
+
+Filters are the other half of the same D3 sentence — "filter / zoom / paint editing" — and were the
+one of the three never built, though `LayerOverride.filter` was plumbed through the core from the
+start and simply never sent.
+
+**Text, not a builder.** The vocabulary the presets use is narrow — `get`, `==`, `all`, `!=`, `has`,
+`!`, `in` and the comparisons — so a row-per-clause editor would cover most filters and then have to
+refuse the rest. An editor that cannot open what it is pointed at is worse than one that shows the
+value as it is: a filter is already JSON, and 318 of them round-trip through the formatter in a test.
+
+**Validated by `featureFilter`**, the function MapLibre itself calls to turn a filter into a
+predicate, so what the editor accepts is exactly what the map will draw rather than a second opinion
+that can drift. It is lenient about shape — a bare string, `true` and `[]` all pass — so those are
+refused before it is asked.
+
+**Cost to accept:** someone who wants to change a colour that _is_ an expression still cannot, if a
+style ever arrives with one. Nothing produces one today; if a style import lands, this is the item
+that reopens.
+
 ### Q36 — The core owns the style's recipe, not the style
 
 **Decided 2026-08-21.** A project has one `style.json` ([Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)),
