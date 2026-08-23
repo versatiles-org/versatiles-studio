@@ -39,7 +39,6 @@
 	}
 </script>
 
-<!-- Placed by the cluster it sits in, not by itself: it shares the corner with the view list. -->
 <form onsubmit={jump} class:invalid>
 	<input
 		bind:value={text}
@@ -52,6 +51,13 @@
 </form>
 
 <style>
+	form {
+		position: absolute;
+		left: 0.5rem;
+		bottom: 0.5rem;
+		z-index: 4;
+	}
+
 	input {
 		width: 11rem;
 		font-family: var(--font-mono);

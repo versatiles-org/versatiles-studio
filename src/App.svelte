@@ -1064,12 +1064,8 @@
 				}}
 			/>
 		{:else}
-			<!-- The two ways to move the camera by hand, in one corner: type a coordinate, or pick a
-			     view you named ([Q38]). -->
-			<div class="jumps">
-				<CoordinateJump {map} />
-				<Views {map} />
-			</div>
+			<CoordinateJump {map} />
+			<Views {map} />
 			<MapControls
 				{background}
 				{showGrid}
@@ -1111,16 +1107,6 @@
 <Help />
 
 <style>
-	.jumps {
-		position: absolute;
-		left: 0.5rem;
-		bottom: 0.5rem;
-		z-index: 4;
-		display: flex;
-		align-items: flex-start;
-		gap: var(--space-2);
-	}
-
 	/* The landing screen covers the map region entirely; the map keeps running behind it so that
 	   opening something does not have to build one. */
 	:global(.landing) {

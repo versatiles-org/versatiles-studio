@@ -6,8 +6,11 @@
 	// come back to is worth keeping whether or not a project exists.
 	//
 	// **On the map, not in a pane** ([Q38]). What this does is move the camera — the same job as the
-	// `CoordinateJump` box beside it — and nothing to do with what an opened container turns out to
-	// be, which is all the inspector it used to live in is for.
+	// `CoordinateJump` box in the corner below — and nothing to do with what an opened container
+	// turns out to be, which is all the inspector it used to live in is for.
+	//
+	// Top-left, a corner to itself: it is the one map control that opens a panel, and it opens
+	// downward into the map rather than upward past the window edge.
 	//
 	// One button rather than an open form: naming a view is occasional, jumping between them is
 	// constant, and the always-visible "Name this view" input charged the frequent act for the rare
@@ -254,7 +257,9 @@
 
 <style>
 	.views {
-		position: relative;
+		position: absolute;
+		top: 0.5rem;
+		left: 0.5rem;
 		z-index: 4;
 	}
 
@@ -280,10 +285,10 @@
 		flex: none;
 	}
 
-	/* Opens upward: the cluster sits on the bottom edge, so downward would leave the window. */
+	/* Opens downward, away from the edge the button sits on. */
 	.panel {
 		position: absolute;
-		bottom: calc(100% + var(--space-2));
+		top: calc(100% + var(--space-2));
 		left: 0;
 		width: 15rem;
 		max-height: 60vh;
