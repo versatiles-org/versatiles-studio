@@ -7,9 +7,9 @@
  *
  * **One confirmation, and it is the only one.** Everything before it is local and reversible —
  * checks, a version bump, a changelog, a commit and a tag, all of which `git reset` undoes. The
- * prompt names exactly what is about to become public; past it the script pushes, waits for the
- * build, and publishes the release without asking again. Two prompts for one decision teaches people
- * to press return twice.
+ * prompt names exactly what is about to become public; past it the script pushes and the workflow
+ * takes over, publishing once it has verified the release. Two prompts for one decision teaches
+ * people to press return twice.
  *
  * **The order is deliberate.** Nothing public happens until the full test suite has passed and a
  * human has read the notes, because a tag is cheap to make and expensive to retract: an installed
@@ -477,7 +477,7 @@ async function main(): Promise<void> {
 		[
 			`  push       ${BRANCH} and ${tag} to origin`,
 			`  build      .deb, AppImage and two .dmgs, signed for the updater`,
-			`  publish    the release, which is what reaches every installed copy`,
+			`  publish    the release once the build verifies, which reaches every installed copy`,
 			'',
 			'  Everything so far is local. `git reset --hard HEAD~1 && git tag -d ' + tag + '` undoes it.',
 			''
@@ -511,8 +511,9 @@ async function main(): Promise<void> {
 	}
 	await watch(runId);
 
-	say('Publishing');
-	run('gh', ['release', 'edit', tag, '--draft=false', '--latest']);
+	// **Published by the workflow, not from here.** It publishes once it has verified that every URL
+	// in `latest.json` names an asset that exists — a better gate than this script being the only
+	// route, which left a hand-pushed tag stopping at a draft nobody was told about.
 	process.stdout.write(`  https://github.com/versatiles-org/versatiles-studio/releases/tag/${tag}\n`);
 
 	say('The Homebrew cask');

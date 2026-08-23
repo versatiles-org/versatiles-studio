@@ -200,10 +200,15 @@ the last tag, and commits and tags. The notes are generated, not opened for edit
 commit list into prose is a normal commit afterwards, not something to do with a release waiting.
 
 **Then it stops and asks once** — `y/N`, defaulting to no. Everything to that point is local and the
-prompt says how to undo it. Past it there are no more questions: it pushes, watches
-[`release.yml`](.github/workflows/release.yml) build the `.deb`, the AppImage and both `.dmg`s —
-shown as one row per platform and a clock rather than a full job tree — publishes the release, and
-fills in the Homebrew cask from the assets that now exist.
+prompt says how to undo it. Past it there are no more questions: it pushes, then watches
+[`release.yml`](.github/workflows/release.yml) build the `.deb`s, the AppImages and both `.dmg`s —
+shown as one row per platform and a clock rather than a full job tree — and fills in the Homebrew
+cask from the assets that now exist.
+
+**The workflow publishes, not the script.** It drafts the release, checks that every URL in
+`latest.json` names an asset that actually exists, and only then marks it published and _latest_ —
+which is what the updater reads. So a tag pushed by hand finishes too, rather than stopping at a
+draft nobody is told about. The other side of that: a tag pushed by accident is a release.
 
 Each bundle is smoke-tested before it is attached: the binary is asked `--version`, which proves it
 starts at all, and the bundled tier is checked to be inside it. "An installer was produced" and "the

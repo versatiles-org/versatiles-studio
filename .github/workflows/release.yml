@@ -3,9 +3,14 @@ name: Release
 # Builds the installers for release 1's targets and attaches them to a **draft** release
 # ([Q10](../../docs/decisions.md), S5.6, S5.7).
 #
-# **Draft, always.** Publishing is a person's decision: it is what sends the auto-updater to every
-# installed copy, and what a Homebrew cask is bumped against. The workflow produces the artefacts and
-# stops; someone reads the notes and presses the button.
+# **Drafted, verified, then published — in that order, in one run.** The draft exists only for the
+# seconds between uploading the assets and checking them, because that check is what publishing is
+# gated on: every URL in `latest.json` must name an asset that actually exists. A human reading the
+# page was the old gate, and it stopped being one when the notes became generated rather than
+# written — while leaving a hand-pushed tag to dead-end at a draft nobody was told about.
+#
+# The cost, stated plainly: a tag pushed by accident is a release within the hour. `git tag` is the
+# deliberate act this relies on.
 #
 # **Not Windows.** Q10 defers it with the Apple Developer identity — both are procurement, not code.
 # Nothing here is Windows-shaped, so adding it later is a matrix row and a certificate.
@@ -313,6 +318,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         with:
+          # Published by the step below, once the manifest has been checked — not here.
           draft: true
           name: VersaTiles Studio ${{ needs.version.outputs.version }}
           files: installers/*
@@ -349,5 +355,16 @@ jobs:
             }
           ')
           exit "$missing"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      # **`--latest` is not decoration.** The updater fetches
+      # `releases/latest/download/latest.json`, so a release that is published without being marked
+      # latest reaches nobody: every installed copy keeps seeing the previous version, and nothing
+      # anywhere reports an error.
+      - name: Publish
+        run: |
+          gh release edit "v${{ needs.version.outputs.version }}" --draft=false --latest
+          echo "published https://github.com/${{ github.repository }}/releases/tag/v${{ needs.version.outputs.version }}"
         env:
           GH_TOKEN: ${{ github.token }}
