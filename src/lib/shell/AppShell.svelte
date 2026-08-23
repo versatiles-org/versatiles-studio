@@ -9,11 +9,10 @@
 	//
 	// There is no in-app title bar. The window has native decorations, so one would have repeated
 	// the OS title verbatim; which document a window holds is said in the window title instead, the
-	// way a document application says it. The strip at the top comes back at S4 with the mode bar,
-	// which has something to put there.
+	// way a document application says it. The strip at the top is the application bar, which arrived
+	// at S4 holding the mode tabs and now holds what is about Studio or the project ([Q39]).
 	//
-	// The bottom row is the status and job bar (Q24). The mode bar arrives at S4, when it has a
-	// second entry to switch to; it slots into this grid without moving anything.
+	// The bottom row is the status and job bar (Q24).
 	let {
 		leftPane,
 		leftWidth = 264,
@@ -23,10 +22,10 @@
 		mapPane,
 		rightPane,
 		statusBar,
-		modeBar
+		appBar
 	}: {
 		/** The Map · Assets bar, above everything (Q22, S4.1). */
-		modeBar?: Snippet;
+		appBar?: Snippet;
 		leftPane?: Snippet;
 		/** CSS pixels. The core clamps it, so this is already in range. */
 		leftWidth?: number;
@@ -48,7 +47,7 @@
 	style:--left-width="{leftWidth}px"
 	style:--right-width="{rightWidth}px"
 >
-	{#if modeBar}<div class="modes">{@render modeBar()}</div>{/if}
+	{#if appBar}<div class="bar">{@render appBar()}</div>{/if}
 	{#if leftPane}
 		<aside class="left">{@render leftPane()}</aside>
 		<PaneResizer side="left" width={leftWidth} onResize={(w, done) => onLeftResize?.(w, done)} />
@@ -65,35 +64,35 @@
 	.shell {
 		display: grid;
 		grid-template-columns: 1fr;
-		/* A row for the mode bar above everything. It is `auto`, so with no bar the row collapses to
-		   nothing and the layout is what it was (Q22, S4.1). */
+		/* A row for the application bar above everything. It is `auto`, so with no bar the row
+		   collapses to nothing and the layout is what it was (Q22, S4.1). */
 		grid-template-rows: auto 1fr auto;
-		grid-template-areas: 'modes' 'map' 'status';
+		grid-template-areas: 'bar' 'map' 'status';
 		height: 100vh;
 		color: var(--ink);
 		background: var(--chrome);
 
 		&.has-right {
 			grid-template-columns: 1fr clamp(180px, var(--right-width), 640px);
-			grid-template-areas: 'modes modes' 'map right' 'status status';
+			grid-template-areas: 'bar bar' 'map right' 'status status';
 		}
 
 		&.has-left.has-right {
 			grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr clamp(180px, var(--right-width), 640px);
-			grid-template-areas: 'modes modes modes' 'left map right' 'status status status';
+			grid-template-areas: 'bar bar bar' 'left map right' 'status status status';
 		}
 
 		&.has-left {
 			grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr;
-			grid-template-areas: 'modes modes' 'left map' 'status status';
+			grid-template-areas: 'bar bar' 'left map' 'status status';
 		}
 	}
 
 	/* `clamp` mirrors the range the core enforces on save (`store::Layout`), which stays the
 	   authority — this only keeps a live drag from overshooting before it is stored. */
 
-	.modes {
-		grid-area: modes;
+	.bar {
+		grid-area: bar;
 	}
 
 	/* Both panes clip; their content scrolls. Keeping the scroll inside the content means a pane can

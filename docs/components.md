@@ -33,7 +33,7 @@ common but the absence of a better home. Ownership is a fact you can check by gr
 import; kind is a judgement, and judgements drift.
 
 ```text
-lib/shell/            the frame: AppShell · Sidebar · Pane · PaneResizer · StatusBar · JobsPanel
+lib/shell/            the frame and its bar: AppShell · AppBar · Sidebar · Pane · PaneResizer · StatusBar · JobsPanel · UpdateNotice · AssetsDialog
 lib/panes/pipeline/   PipelinePane and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor
 lib/panes/inspector/  Inspector
 lib/panes/output/     PipelineOutput
@@ -95,25 +95,25 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 
 ## Left pane — the chain
 
-| Component      | Does                                                                                                               | Stage      |
-| -------------- | ------------------------------------------------------------------------------------------------------------------ | ---------- |
-| `PipelinePane` | Graph list, then the selected graph's chain, tabs and its own save/rename/export ([Q32](decisions.md))             | S2.2       |
-| `GraphList`    | The project's graphs: pin, name, unsaved dot, inline rename                                                        | S2.2       |
-| `NodeChain`    | The chain of nodes; vertical, with `＋ operation…` on the rail outside them ([Q32](decisions.md))                  | S2.13      |
-| `NodeCard`     | One node in the chain: its arguments, `?` docs and `×`. Every node shows all of it ([Q32](decisions.md))           | S2.6       |
-| `NodeArgument` | One argument: name, `?`, the control from `field_meta`, and a `×` unless required ([Q33](decisions.md))            | S2.13      |
-| `Help`         | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md)) | S2.13      |
-| `HelpTrigger`  | The `?` that opens it — hover or focus peeks, click pins ([Q33](decisions.md))                                     | S2.13      |
-| `Picker`       | `＋ operation…` and `＋ parameter…`: a filterable list, grouped, with the full text beside the row it belongs to   | S2.13      |
-| `TileActivity` | Tiles the map is still waiting for, shaded and labelled `queued` or `rendering` (S2.16)                            | S2.16      |
-| `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                     | S2.3       |
-| `StylePane`    | Preset and the global adjustments over it (D1) — the layer tree is S4.5                                            | S4.2       |
-| `ModeBar`      | **Map · Assets** — the one bar, arriving with its second occupant ([Q22](decisions.md))                            | S4.1       |
-| `UpdateNotice` | "Check for updates", and what came back. On the bar because an update is never why the window is open (G4)         | S5.8       |
-| `AssetManager` | Font families: size, install, remove. The bundled tier is not listed, being unremovable                            | S4.1       |
-| `LayerTree`    | The rendered style's layers: search, group, hide, recolour, zoom range, and edit the filter ([Q37](decisions.md))  | S4.5       |
-| `ExportDialog` | What will be written and what it costs, then the file — modal, per graph ([Q32](decisions.md))                     | S3.6, S3.7 |
-| `CropSection`  | The graph's crop: zoom range, four edges, draw-on-map, and the estimate for it (C6, F2)                            | S5.2, S5.4 |
+| Component      | Does                                                                                                                                             | Stage      |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `PipelinePane` | Graph list, then the selected graph's chain, tabs and its own save/rename/export ([Q32](decisions.md))                                           | S2.2       |
+| `GraphList`    | The project's graphs: pin, name, unsaved dot, inline rename                                                                                      | S2.2       |
+| `NodeChain`    | The chain of nodes; vertical, with `＋ operation…` on the rail outside them ([Q32](decisions.md))                                                | S2.13      |
+| `NodeCard`     | One node in the chain: its arguments, `?` docs and `×`. Every node shows all of it ([Q32](decisions.md))                                         | S2.6       |
+| `NodeArgument` | One argument: name, `?`, the control from `field_meta`, and a `×` unless required ([Q33](decisions.md))                                          | S2.13      |
+| `Help`         | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md))                               | S2.13      |
+| `HelpTrigger`  | The `?` that opens it — hover or focus peeks, click pins ([Q33](decisions.md))                                                                   | S2.13      |
+| `Picker`       | `＋ operation…` and `＋ parameter…`: a filterable list, grouped, with the full text beside the row it belongs to                                 | S2.13      |
+| `TileActivity` | Tiles the map is still waiting for, shaded and labelled `queued` or `rendering` (S2.16)                                                          | S2.16      |
+| `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                                                   | S2.3       |
+| `StylePane`    | Preset and the global adjustments over it (D1) — the layer tree is S4.5                                                                          | S4.2       |
+| `AppBar`       | Fonts, open, save, save a copy, run elsewhere. Was the mode bar until [Q39](decisions.md) retired the modes                                      | S4.1       |
+| `UpdateNotice` | "Check for updates", and what came back. On the bar because an update is never why the window is open (G4)                                       | S5.8       |
+| `AssetsDialog` | Font families: size, install, remove, download all. A modal, not a mode ([Q39](decisions.md)); the bundled tier is not listed, being unremovable | S4.1       |
+| `LayerTree`    | The rendered style's layers: search, group, hide, recolour, zoom range, and edit the filter ([Q37](decisions.md))                                | S4.5       |
+| `ExportDialog` | What will be written and what it costs, then the file — modal, per graph ([Q32](decisions.md))                                                   | S3.6, S3.7 |
+| `CropSection`  | The graph's crop: zoom range, four edges, draw-on-map, and the estimate for it (C6, F2)                                                          | S5.2, S5.4 |
 
 ## Right pane — what it turns out to be
 

@@ -13,19 +13,21 @@ pipeline and the opened container turn out to be. Parameters are not there: sinc
 Studio is a workbench, not a wizard ([Q13](decisions.md)) — so the P1 risk from `audiences.md` is
 accepted rather than designed around.
 
-**The mode bar separates map work from non-map tools** — Map, and the asset manager (G7). It no
-longer divides the map work itself. It arrives at S4, when there is finally something to switch to;
-a one-item bar before then would be chrome that does nothing.
+**There is one surface, and no modes** ([Q39](decisions.md)). [Q22](decisions.md) kept a mode bar to
+separate map work from non-map tools, with the asset manager (G7) as the second occupant that made it
+worth having; making that an errand-shaped **dialog** took the occupant away, and a one-item bar is
+chrome that does nothing. What arrived at S4 is an **application bar** instead: what is about Studio
+or the project — fonts, open, save, run elsewhere — rather than about any one pane's output.
 
 **It still grows one stage at a time.** Sections are added, not rebuilt:
 
-| Stage | What appears                                                                     |
-| ----- | -------------------------------------------------------------------------------- |
-| S1    | The surface, sections collapsed: map, inspector, status bar                      |
-| S2    | Left pane opens — Pipeline section, Graph / VPL tabs                             |
-| S3    | Import cards on the landing screen and "add source"                              |
-| S4    | Style pane — layer tree and its own export; **the mode bar appears** with Assets |
-| S5    | Crop, estimate and serve join the panes that own them ([Q31](decisions.md))      |
+| Stage | What appears                                                                |
+| ----- | --------------------------------------------------------------------------- |
+| S1    | The surface, sections collapsed: map, inspector, status bar                 |
+| S2    | Left pane opens — Pipeline section, Graph / VPL tabs                        |
+| S3    | Import cards on the landing screen and "add source"                         |
+| S4    | Style pane — layer tree and its own export; **the application bar appears** |
+| S5    | Crop, estimate and serve join the panes that own them ([Q31](decisions.md)) |
 
 The alternatives fail differently: a **node-graph-as-app** needs the graph in S1 but C1 lands in S2,
 and a layer tree is not a node; a **file-tree IDE** matches [Q6](decisions.md) but sells P1 the
@@ -58,14 +60,14 @@ True everywhere. These matter more than the arrangement.
 ## Panes and sections
 
 Three regions, always present — **left pane, map, right pane** — over the status and job bar, with
-the mode bar arriving above them at S4.
+the application bar arriving above them at S4.
 
-| Region         | Holds                                                                                                                                                                    |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Mode bar**   | **Map** (default) · **Assets** (G7, from S4). Locally generated glyphs (D9) are a feature of the asset manager, not a third mode ([Q22](decisions.md))                   |
-| **Left pane**  | The chain, as collapsible sections: **Pipeline · Style · Export**                                                                                                        |
-| **Map**        | The subject, the preview, an input device for the crop rectangle (F2), and the controls that move the camera — coordinate jump and named views (A7, [Q38](decisions.md)) |
-| **Right pane** | What things turn out to be — the pipeline's output, and an opened container's own metadata. Not parameters ([Q32](decisions.md))                                         |
+| Region         | Holds                                                                                                                                                                                                                   |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **App bar**    | What is about Studio or the project, not about a pane: fonts (G7), open, save, save a copy, run elsewhere. No modes ([Q39](decisions.md)); locally generated glyphs (D9) belong to the asset manager, which is a dialog |
+| **Left pane**  | The chain, as collapsible sections: **Pipeline · Style · Export**                                                                                                                                                       |
+| **Map**        | The subject, the preview, an input device for the crop rectangle (F2), and the controls that move the camera — coordinate jump and named views (A7, [Q38](decisions.md))                                                |
+| **Right pane** | What things turn out to be — the pipeline's output, and an opened container's own metadata. Not parameters ([Q32](decisions.md))                                                                                        |
 
 **The left pane is the chain from data to pixels.** Sources feed the pipeline, the pipeline produces
 tiles, the style renders them, export writes them out — steps that used to be a mode switch apart,
@@ -258,13 +260,13 @@ lists the four debts and this is where they are paid.
 
 ### S4 and S5 — Style joins the chain
 
-Nothing moves. More panes appear below the ones already there, and the asset manager joins the mode
-bar. Export is not among them: it belongs to the pane whose output it writes ([Q31](decisions.md)),
+Nothing moves. More panes appear below the ones already there, and the asset manager opens as a
+dialog over them ([Q39](decisions.md)). Export is not among them: it belongs to the pane whose output it writes ([Q31](decisions.md)),
 and to the graph that produced it ([Q32](decisions.md)).
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
-│ Map │ Assets                                              │
+│  [Fonts…]  [Open…]  [Save…]  [Run elsewhere…]             │
 ├───────────────────┬──────────────────────┬────────────────┤
 │ ▾ PIPELINE        │        MAP           │ PRODUCES       │
 │   ◉ basemap    •  │   live style over    │ mvt · z0–14    │
@@ -323,9 +325,10 @@ value is already in the core, so the gap costs a gesture, not work.
 
 ## Settled elsewhere
 
-**Project settings open as a dialog from the mode bar**, beside the asset manager. They are edited
-rarely and are not a selection, so a modal is honest — and it keeps the right pane's rule intact
-rather than carving an exception into it.
+**Project settings open as a dialog from the application bar**, beside the asset manager — which
+[Q39](decisions.md) made a dialog too, for the same reason. They are edited rarely and are not a
+selection, so a modal is honest — and it keeps the right pane's rule intact rather than carving an
+exception into it.
 
 A3 was dropped ([Q17](decisions.md)), so **release 1 has no
 comparison view at all** — C3 shows one node's output on one map. B5 is the first feature needing

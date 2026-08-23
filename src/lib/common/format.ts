@@ -27,6 +27,16 @@ export function bytes(count: number): string {
 	return `${Math.round(count)} B`;
 }
 
+/// Always megabytes, for a **column** of sizes rather than one size in a sentence.
+///
+/// `bytes` picks the unit that suits each number, which is right when the number is read on its own
+/// and wrong when it is read down a list: `900 kB` above `1.2 GB` cannot be compared at a glance,
+/// and the eye has to parse a unit per row to find the big one. One unit for the column makes the
+/// digits line up and the comparison free.
+export function megabytes(count: number): string {
+	return `${(count / 1e6).toFixed(1)} MB`;
+}
+
 /// Thousands separated, for counts that are read rather than compared — "1,048,576 tiles".
 export function count(value: number): string {
 	return value.toLocaleString('en-US');

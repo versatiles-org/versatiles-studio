@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bytes, count, duration } from './format';
+import { bytes, count, duration, megabytes } from './format';
 
 describe('duration', () => {
 	it('stops pretending to be precise as it gets further away', () => {
@@ -14,6 +14,20 @@ describe('duration', () => {
 	it('is a phrase a caller can build a sentence from', () => {
 		expect(duration(600).startsWith('about')).toBe(false);
 		expect(duration(600).endsWith('left')).toBe(false);
+	});
+});
+
+describe('megabytes', () => {
+	// The point of the one unit: a column of these compares by eye, which a mixed-unit column does
+	// not — `900 kB` above `1.2 GB` reads as the bigger number on top.
+	it('holds the unit steady across the whole range', () => {
+		expect(megabytes(900_000)).toBe('0.9 MB');
+		expect(megabytes(2_300_000)).toBe('2.3 MB');
+		expect(megabytes(1_200_000_000)).toBe('1200.0 MB');
+	});
+
+	it('does not round a real size away to nothing it can be confused with', () => {
+		expect(megabytes(0)).toBe('0.0 MB');
 	});
 });
 

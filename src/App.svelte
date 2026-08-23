@@ -19,8 +19,8 @@
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
 	import StylePane from './lib/panes/style/StylePane.svelte';
-	import ModeBar from './lib/shell/ModeBar.svelte';
-	import AssetManager from './lib/panes/assets/AssetManager.svelte';
+	import AppBar from './lib/shell/AppBar.svelte';
+	import AssetsDialog from './lib/shell/AssetsDialog.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import DeployDialog from './lib/panes/project/DeployDialog.svelte';
 	import CopyDialog from './lib/panes/project/CopyDialog.svelte';
@@ -182,7 +182,9 @@
 	///
 	/// A value this build does not know falls back to the map — the same rule `background` follows,
 	/// and for the same reason: an old layout file must not be able to open a blank window.
-	const mode = $derived(layout?.mode === 'assets' ? 'assets' : 'map');
+	/// Whether the fonts dialog is up. Local, not durable: a window is never restored onto a dialog
+	/// ([Q39]).
+	let assets = $state(false);
 	let recents = $state<RecentEntry[]>([]);
 
 	// The landing screen is what an *empty* window shows — it goes away for good once something is
@@ -1010,10 +1012,9 @@
 	onRightResize={(width, done) => resizePane('right', width, done)}
 	rightPane={empty ? undefined : rightPaneContent}
 >
-	{#snippet modeBar()}
-		<ModeBar
-			{mode}
-			onChange={(next) => layout && void changeLayout({ ...layout, mode: next })}
+	{#snippet appBar()}
+		<AppBar
+			onOpenAssets={() => (assets = true)}
 			onOpenProject={() => void openProjectDir()}
 			onSaveProject={() => void saveProjectAs()}
 			onSaveCopy={() => void showCopy()}
@@ -1022,12 +1023,7 @@
 		/>
 	{/snippet}
 	{#snippet mapPane()}
-		<!-- The map keeps running behind the asset manager rather than being torn down: coming back
-		     from installing a font should return to the view you left, and rebuilding a map is the
-		     one thing here that is not instant. -->
-		{#if mode === 'assets'}
-			<AssetManager />
-		{:else if style}
+		{#if style}
 			<MapCanvas
 				{style}
 				bind:map
@@ -1102,6 +1098,12 @@
 
 {#if deploying}
 	<DeployDialog deployment={deploying} onClose={() => (deploying = null)} />
+{/if}
+
+<!-- Outside the map region, like every other modal: the map keeps running behind it rather than
+     being torn down, so coming back from installing a font returns to the view you left. -->
+{#if assets}
+	<AssetsDialog onClose={() => (assets = false)} />
 {/if}
 
 <Help />

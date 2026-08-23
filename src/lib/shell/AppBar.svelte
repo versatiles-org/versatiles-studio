@@ -1,26 +1,24 @@
 <script lang="ts">
 	import UpdateNotice from './UpdateNotice.svelte';
 
-	// **Map · Assets** ([Q22], G7, S4.1).
+	// The application's own bar: what is about *Studio* or *the project*, rather than about one
+	// pane's output ([Q31]).
 	//
-	// Not four modes. Explore, Pipeline, Style and Publish were merged into one surface because the
-	// work moves between them constantly; what is left is the difference between working with the
-	// map and going somewhere else to fetch something you will bring back to it.
-	//
-	// It arrives now and not earlier for the reason Q22 gives: with one occupant it would be chrome
-	// that switches between nothing and itself. Font families are its second.
+	// **It was the mode bar** ([Q22], S4.1) — Map · Assets — until [Q39] made the asset manager a
+	// dialog. That left one mode, which is the state Q22 itself called chrome that switches between
+	// nothing and itself, so the tabs went and the errand became a button among the others.
 
 	let {
-		mode,
-		onChange,
+		onOpenAssets,
 		onOpenProject,
 		onSaveProject,
 		onSaveCopy,
 		onDeploy,
 		canDeploy
 	}: {
-		mode: string;
-		onChange: (mode: string) => void;
+		/** Fonts to install (G7, S4.1) — an errand you leave the window for and come back from, which
+		 *  is what a dialog is. */
+		onOpenAssets: () => void;
 		/** Opening and saving a *project* (G1, S5.1) — app-level work, so it sits on the app-level
 		 *  bar rather than in a pane, which under [Q31] owns only what it emits. Native menus
 		 *  (S0.1) are where these belong eventually. */
@@ -35,32 +33,14 @@
 		/** False with nothing open: there is neither a project to copy nor tiles to name. */
 		canDeploy: boolean;
 	} = $props();
-
-	// **`Map`, not `Map mode`.** The bar is already understood as modes, so the word is redundant —
-	// and the label reads against its sibling: the map is the thing being made, assets are what it
-	// consumes.
-	const MODES = [
-		{ id: 'map', label: 'Map' },
-		{ id: 'assets', label: 'Assets' }
-	];
 </script>
 
-<nav class="bar" aria-label="Mode">
-	{#each MODES as entry (entry.id)}
-		<button
-			type="button"
-			class="mode"
-			class:on={mode === entry.id}
-			aria-current={mode === entry.id ? 'page' : undefined}
-			onclick={() => onChange(entry.id)}
-		>
-			{entry.label}
-		</button>
-	{/each}
-
+<nav class="bar" aria-label="Application">
 	<span class="spacer"></span>
 	<!-- Left of the project actions, and quiet until it has something to say (G4, S5.8). -->
 	<UpdateNotice />
+	<span class="divider" aria-hidden="true"></span>
+	<button type="button" class="project" onclick={onOpenAssets}>Fonts…</button>
 	<span class="divider" aria-hidden="true"></span>
 	<button type="button" class="project" onclick={onOpenProject}>Open project…</button>
 	<button type="button" class="project" onclick={onSaveProject}>Save project…</button>
@@ -100,24 +80,6 @@
 
 		&:disabled {
 			opacity: 0.4;
-		}
-	}
-
-	.mode {
-		padding: var(--space-1) var(--space-3);
-		border-radius: var(--radius);
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-
-		&:hover {
-			color: var(--ink);
-		}
-
-		/* The current mode carries the surface it opens onto, so the bar reads as a set of tabs over
-		   one window rather than as a row of buttons. */
-		&.on {
-			background: var(--surface);
-			color: var(--ink);
 		}
 	}
 </style>

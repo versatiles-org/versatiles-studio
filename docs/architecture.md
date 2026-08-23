@@ -280,7 +280,7 @@ graph needs a lossless syntax tree rather than a parse-and-print round trip ([Q1
 **Nothing durable lives only in the webview.** The core holds the project, pipeline, jobs and
 server; the webview renders them. The map camera, the graphs and their text, and the pane
 layout are all restorable from the core, so a reloaded window comes back where it was
-([Q16](decisions.md)); the active mode joins them when the mode bar arrives at S4.1. **Cursors are
+([Q16](decisions.md)). There is no active mode to join them — [Q39](decisions.md) retired the modes, and a window is never restored onto a dialog. **Cursors are
 deliberately not owned** — scroll position stays in the webview ([Q35](decisions.md)), because the
 test is what you would have to redo by hand rather than whether the value survives: a camera has to
 be found again, a scroll is one flick. This is the source-of-truth principle applied to volatile UI state

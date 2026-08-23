@@ -16,6 +16,48 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q39 — The asset manager is a dialog, and with it the mode bar goes
+
+**Decided 2026-08-23.** [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools) kept
+a mode bar to separate working with the map from tools that are not about the map at all, and named
+the asset manager (G7) as the second occupant that made a bar worth having. Built, it was a mode in
+name only: `AssetManager` rendered _inside_ the map region while everything layered over that region
+— the coordinate box, the view list, the map controls — kept rendering too, so the font list came up
+with map buttons floating on top of it. The bug is the design telling on itself. A mode replaces a
+surface; this never replaced one, because it was never that kind of thing.
+
+**It is an errand.** You leave the map to fetch something you will bring straight back to it, and
+you want the window exactly as you left it when you return. That is what a dialog is, and Studio
+already had the shell for it — `Modal`, over the top layer, with Escape and focus containment for
+free. Closing it stops nothing: an install is a job, the status bar reports it, and the list catches
+up when it lands.
+
+**So the modes go.** Q22 said a one-item bar "would be chrome that switches between nothing and
+itself", and that is exactly what removing Assets leaves. The **bar** survives, because it had
+quietly become something else — open, save, save a copy, run elsewhere, the update notice — but it
+is an application bar, not a mode bar, and `ModeBar` is now `AppBar`. `Layout.mode` went with the
+tabs: a window is never restored onto a dialog, so there is no surface to remember. An old
+`layout.json` keeps its `mode` key and is ignored, like any other key this struct has stopped having.
+
+**D9 does not lose its home.** Q22 parked locally generated glyphs with the asset manager rather
+than in a third mode; that is still where they go, and the asset manager is now a dialog. What Q22
+was actually deciding — that non-map tools do not divide the map work — survives the bar it chose to
+express it with.
+
+**Download all, with the total on the button.** [Q9](#q9--fonts-and-sprites-are-fetched-per-family-and-never-unpacked)
+puts the size on each row so that 48 MB is a decision made before it starts rather than during; a
+button that fetches every missing family has to answer the same question, so it carries the sum of
+what it would fetch and disables itself — rather than disappearing — once there is nothing left.
+
+**Sizes are megabytes down the whole column.** `bytes` picks the unit that suits each number, which
+is right in a sentence and wrong in a list: `900 kB` above `1.2 GB` cannot be compared at a glance.
+One unit, right-aligned, tabular figures, and a track of its own so the column does not depend on
+how wide each row's buttons are — which is what actually kept these from lining up, since each row
+is its own grid.
+
+_Amends [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools):
+the mode bar it kept is retired, its remaining reasoning intact._
+
 ### Q38 — Views are named camera positions, they live on the map, and the inspector holds neither them nor a way in
 
 **Decided 2026-08-23.** Three S1-era surfaces in the right pane outlived the decisions that gave
@@ -835,6 +877,12 @@ are unaffected.
 **Amended by [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits).** The three fixed
 sections become a list of panes, and the Export section is dissolved — each pane carries its own
 export instead. The left/right axis this decision set is unchanged.
+
+**Amended 2026-08-23 by [Q39](#q39--the-asset-manager-is-a-dialog-and-with-it-the-mode-bar-goes).**
+The mode bar is retired: the asset manager became a dialog, which left it with one mode — the state
+this decision itself called chrome that switches between nothing and itself. The merge of Explore,
+Pipeline, Style and Publish into one surface is untouched, and so is the ruling that non-map tools
+do not divide the map work; only the bar that expressed it is gone.
 
 ### Q21 — Recents and bookmarks are application state in JSON files, not project state
 
