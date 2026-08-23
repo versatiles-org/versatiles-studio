@@ -125,6 +125,11 @@ jobs:
         if: runner.os == 'Linux'
         timeout-minutes: 12
         uses: ./.github/actions/tauri-deps
+      # PROJ generates `proj.db` with the sqlite3 *binary* during the build, and the Windows
+      # images are the only ones without it.
+      - name: Install sqlite3
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/sqlite3
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:

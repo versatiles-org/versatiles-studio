@@ -1,0 +1,63 @@
+name: sqlite3 command-line tool
+description: Puts sqlite3.exe on PATH for the Windows runners, which have no package that supplies it.
+
+# **PROJ builds `proj.db` at compile time, with the sqlite3 *binary*.** Not the library — the
+# library is already in the tree. `libproj`'s CMakeLists does `find_program(EXE_SQLITE3 sqlite3)`
+# and stops with "sqlite3 binary not found!" when that fails, which is where both Windows bundles
+# died. The Ubuntu and macOS images ship the tool, so this is the only platform that needs it.
+#
+# Studio compiles GDAL and PROJ from source ([Q19], [Q34]), so this is not avoidable by asking for
+# a prebuilt PROJ — there isn't one in this build.
+#
+# **Downloaded and checksummed rather than installed from a package manager.** Chocolatey's `sqlite`
+# package is x64-only and the arm64 runner is a reduced image, so the one recipe that is known to
+# work on both is the official zip. It is pinned by version *and* by hash: this reaches the network
+# during a build that produces a signed artefact, and "whatever sqlite.org serves today" is not
+# something to take on trust. sqlite.org keeps every release under its year, so a pinned URL does
+# not rot.
+#
+# [Q19]: ../../../docs/decisions.md
+# [Q34]: ../../../docs/decisions.md
+
+runs:
+  using: composite
+  steps:
+    - name: Install sqlite3
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+
+        # Pinned as one fact: the release, and the hash of each architecture's zip. Moving the
+        # version means replacing the hashes in the same edit — which is the point of them being
+        # here rather than behind an input that would let the two drift apart.
+        $release = '3530400'
+        $year    = '2026'
+
+        # `runner.arch` is ARM64 or X64; the filenames are lower case. Both are native builds, so
+        # neither runner is emulating.
+        $arch = if ('${{ runner.arch }}' -eq 'ARM64') { 'arm64' } else { 'x64' }
+        $sha = if ($arch -eq 'arm64') {
+          '8A7C30165F6E9B054FBBE5BA6048ACF23C967FD76955F7A5D66DC519542D3393'
+        } else {
+          'F46EE2475DE4CBE287E6E5F7D43C838796B14E7379CD216BDBB28D391429F9FC'
+        }
+
+        $name = "sqlite-tools-win-$arch-$release.zip"
+        $url  = "https://sqlite.org/$year/$name"
+        $zip  = Join-Path $env:RUNNER_TEMP $name
+        $dest = Join-Path $env:RUNNER_TEMP 'sqlite3'
+
+        Write-Host "downloading $url"
+        Invoke-WebRequest -Uri $url -OutFile $zip -MaximumRetryCount 3 -RetryIntervalSec 5
+
+        # Before unzipping, not after: a mismatch means these are not the bytes this was written
+        # against, and running them to find out is the thing being avoided.
+        $got = (Get-FileHash -Algorithm SHA256 $zip).Hash
+        if ($got -ne $sha) { throw "$name hashed $got, expected $sha — bump both together" }
+
+        Expand-Archive -Path $zip -DestinationPath $dest -Force
+        # `GITHUB_PATH` rather than `$env:PATH`: a composite step's environment does not survive
+        # into the job's later steps, and cmake runs in one of those.
+        Add-Content -Path $env:GITHUB_PATH -Value $dest
+
+        & (Join-Path $dest 'sqlite3.exe') -version

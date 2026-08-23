@@ -232,8 +232,9 @@ versatiles-studio/
 │   └── spawn.test.ts           the Windows spawn rules, asserted from any platform
 ├── codecov.yml                 one flag per codebase, components within
 ├── .github/
-│   ├── workflows/              ci.yml, release.yml — Linux and macOS     (S0.7, S5.6)
-│   └── actions/tauri-deps      the Linux packages, from a cache          (S0.7)
+│   ├── workflows/              ci.yml, release.yml — Linux, macOS, Windows (S0.7, S5.6, S5.9)
+│   ├── actions/tauri-deps      the Linux packages, from a cache          (S0.7)
+│   └── actions/sqlite3         the tool PROJ builds `proj.db` with       (S5.9)
 └── docs/
 ```
 
