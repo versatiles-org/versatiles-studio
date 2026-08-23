@@ -157,8 +157,10 @@ jobs:
           # finds out whether it still builds.
           - label: Windows x86_64
             runner: windows-latest
-          - label: Windows arm64
-            runner: windows-11-arm
+          # **No Windows arm64.** `gdal-sys` ships prebuilt bindings for four targets and generates
+          # none at build time in a bundled build, and `aarch64 + windows` is not one of the four —
+          # so the bundle stops in its build script. Not something this repository can fix from
+          # outside the crate; see S5.9. Windows on ARM runs the x64 installer under emulation.
     runs-on: ${{ matrix.runner }}
     # Six minutes warm, about sixteen when the cache misses and GDAL is rebuilt from source.
     timeout-minutes: 45

@@ -99,19 +99,16 @@ jobs:
             runner: macos-26-intel
             artefact: macos-x86_64
             platform: darwin-x86_64
-          # Native, not cross-compiled. versatiles-rs builds its Windows arm64 binary on an x64
-          # runner and notes it cannot be executed there; Studio compiles GDAL from source, and a
-          # cross-compiled GDAL that nothing can run is not something to ship. `windows-11-arm` is
-          # generally available and free for public repositories, so the build and the smoke test
-          # both happen on the architecture they are for.
+          # Native, not cross-compiled: Studio compiles GDAL from source, and a cross-compiled
+          # GDAL that nothing can run is not something to ship.
+          #
+          # **x86_64 only.** `gdal-sys` has no prebuilt bindings for `aarch64 + windows` and
+          # generates none in a bundled build, so that target cannot be built at all from here
+          # (S5.9). Windows on ARM runs this installer under emulation.
           - label: Windows (x86_64)
             runner: windows-latest
             artefact: windows-x86_64
             platform: windows-x86_64
-          - label: Windows (arm64)
-            runner: windows-11-arm
-            artefact: windows-aarch64
-            platform: windows-aarch64
     runs-on: ${{ matrix.runner }}
     # A cold cache rebuilds GDAL from source, which is most of the time here (Q19, Q20).
     timeout-minutes: 60

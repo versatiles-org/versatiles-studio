@@ -1267,12 +1267,20 @@ only.
 
 ### Q10 — Release 1 ships Linux packages and a Homebrew cask; signing comes later
 
-**Amended 2026-08-23: Windows is built, and unsigned.** The original decision deferred Windows
-entirely. What actually costs money and lead time is the _certificate_, not the build — and once
-`windows-11-arm` runners became generally available and free for public repositories, both
-architectures build natively, which also means both are smoke-tested on the architecture they are
-for rather than cross-compiled and hoped over. So Windows ships on the same terms macOS already
-does: an installer that the platform warns about, and instructions for getting past the warning.
+**Amended 2026-08-23: Windows x86_64 is built, and unsigned.** The original decision deferred
+Windows entirely. What actually costs money and lead time is the _certificate_, not the build. So
+Windows ships on the same terms macOS already does: an installer that the platform warns about, and
+instructions for getting past the warning.
+
+**arm64 was attempted and dropped the same day.** `windows-11-arm` runners are free for public
+repositories, so the plan was to build both natively. `gdal-sys` 0.12 ends it: it ships prebuilt
+bindings for four targets, `aarch64 + windows` is not among them, and it generates none at build
+time unless its `bindgen` feature is on — which a bundled build cannot use, because `gdal-src`
+publishes no include directory for bindgen to read. The upstream fix is one line, and the same file
+already shares one binding set between x86_64 and aarch64 on Linux, so the change is small and
+well-founded; applying it from here would mean a second pinned fork on top of [Q34](#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)'s.
+Not worth it while Windows on ARM runs the x64 build under emulation. Revisit if upstream takes the
+patch, or if ARM laptops become a large enough share to justify the fork.
 SmartScreen is the Windows equivalent of Gatekeeper here.
 
 A paid Apple Developer identity remains deferred, and so does the Windows certificate.

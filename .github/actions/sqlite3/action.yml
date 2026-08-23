@@ -9,9 +9,9 @@ description: Puts sqlite3.exe on PATH for the Windows runners, which have no pac
 # Studio compiles GDAL and PROJ from source ([Q19], [Q34]), so this is not avoidable by asking for
 # a prebuilt PROJ — there isn't one in this build.
 #
-# **Downloaded and checksummed rather than installed from a package manager.** Chocolatey's `sqlite`
-# package is x64-only and the arm64 runner is a reduced image, so the one recipe that is known to
-# work on both is the official zip. It is pinned by version *and* by hash: this reaches the network
+# **Downloaded and checksummed rather than installed from a package manager.** Chocolatey adds a
+# package manager to the build for one 4 MB tool. The official zip is pinned by version *and* by
+# hash: this reaches the network
 # during a build that produces a signed artefact, and "whatever sqlite.org serves today" is not
 # something to take on trust. sqlite.org keeps every release under its year, so a pinned URL does
 # not rot.
@@ -27,22 +27,18 @@ runs:
       run: |
         $ErrorActionPreference = 'Stop'
 
-        # Pinned as one fact: the release, and the hash of each architecture's zip. Moving the
-        # version means replacing the hashes in the same edit — which is the point of them being
-        # here rather than behind an input that would let the two drift apart.
+        # Pinned as one fact: the release, and the hash of its zip. Moving the version means
+        # replacing the hash in the same edit — which is the point of it being here rather than
+        # behind an input that would let the two drift apart.
         $release = '3530400'
         $year    = '2026'
 
-        # `runner.arch` is ARM64 or X64; the filenames are lower case. Both are native builds, so
-        # neither runner is emulating.
-        $arch = if ('${{ runner.arch }}' -eq 'ARM64') { 'arm64' } else { 'x64' }
-        $sha = if ($arch -eq 'arm64') {
-          '8A7C30165F6E9B054FBBE5BA6048ACF23C967FD76955F7A5D66DC519542D3393'
-        } else {
-          'F46EE2475DE4CBE287E6E5F7D43C838796B14E7379CD216BDBB28D391429F9FC'
-        }
+        # x64 only, because that is the only Windows target built (S5.9). An arm64 branch here
+        # would carry a hash nobody can verify, against a runner that never runs it; sqlite.org
+        # publishes a native arm64 build if that target ever comes back.
+        $sha = 'F46EE2475DE4CBE287E6E5F7D43C838796B14E7379CD216BDBB28D391429F9FC'
 
-        $name = "sqlite-tools-win-$arch-$release.zip"
+        $name = "sqlite-tools-win-x64-$release.zip"
         $url  = "https://sqlite.org/$year/$name"
         $zip  = Join-Path $env:RUNNER_TEMP $name
         $dest = Join-Path $env:RUNNER_TEMP 'sqlite3'

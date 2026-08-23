@@ -44,8 +44,10 @@ const PLATFORMS: { key: string; suffixes: string[] }[] = [
 	// `.AppImage.tar.gz`, and Linux ships a bare `.AppImage`. Rather than spend a release finding
 	// out, both spellings are accepted; the first that appears wins, and the guard below still
 	// refuses anything left over. Narrow this once a real Windows release has been seen.
-	{ key: 'windows-x86_64', suffixes: ['_x64-setup.exe.zip', '_x64-setup.exe'] },
-	{ key: 'windows-aarch64', suffixes: ['_arm64-setup.exe.zip', '_arm64-setup.exe'] }
+	// No `windows-aarch64`: `gdal-sys` cannot build that target (S5.9), and Windows on ARM runs
+	// the x64 installer under emulation. An entry here for a platform the release does not build
+	// would offer an update that 404s.
+	{ key: 'windows-x86_64', suffixes: ['_x64-setup.exe.zip', '_x64-setup.exe'] }
 ];
 interface Entry {
 	signature: string;

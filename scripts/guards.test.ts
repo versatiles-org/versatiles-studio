@@ -108,14 +108,24 @@ describe('latest.json', () => {
 	];
 
 	/** Whichever spelling Tauri turns out to use for the Windows updater artefact. */
-	it.each([
-		['versatiles-studio_0.1.0_x64-setup.exe.zip', 'versatiles-studio_0.1.0_arm64-setup.exe.zip'],
-		['versatiles-studio_0.1.0_x64-setup.exe', 'versatiles-studio_0.1.0_arm64-setup.exe']
-	])('serves Windows whether the artefact is %s or not', (x64, arm64) => {
-		const names = [x64, `${x64}.sig`, arm64, `${arm64}.sig`];
-		const platforms = platformsFor(names, '0.1.0', sig);
-		expect(Object.keys(platforms).sort()).toEqual(['windows-aarch64', 'windows-x86_64']);
-		expect(platforms['windows-x86_64'].url).toContain(x64);
+	it.each([['versatiles-studio_0.1.0_x64-setup.exe.zip'], ['versatiles-studio_0.1.0_x64-setup.exe']])(
+		'serves Windows whether the artefact is %s or not',
+		(x64) => {
+			const platforms = platformsFor([x64, `${x64}.sig`], '0.1.0', sig);
+			expect(Object.keys(platforms).sort()).toEqual(['windows-x86_64']);
+			expect(platforms['windows-x86_64'].url).toContain(x64);
+		}
+	);
+
+	/**
+	 * Windows arm64 is not built — `gdal-sys` has no bindings for it (S5.9) — so an arm64 artefact
+	 * turning up means the matrix gained a target that this file was not told about. The orphan
+	 * guard is what makes that loud: without it the platform would simply be missing from the
+	 * manifest, and every user of it would silently never see an update again.
+	 */
+	it('refuses an arm64 artefact rather than quietly ignoring it', () => {
+		const arm = 'versatiles-studio_0.1.0_arm64-setup.exe';
+		expect(() => platformsFor([arm, `${arm}.sig`], '0.1.0', sig)).toThrow(/no platform claims/);
 	});
 
 	it('serves every platform the release builds', () => {

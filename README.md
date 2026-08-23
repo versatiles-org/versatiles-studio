@@ -54,7 +54,8 @@ across distributions ([Q10](docs/decisions.md)).
 
 ### Windows
 
-Download the `-setup.exe` — `x64` or `arm64`.
+Download the `x64` `-setup.exe`. There is no separate ARM build — Windows on ARM runs this one
+under emulation ([S5.9](docs/scope-release-1.md)).
 
 **Windows will warn you on first run.** SmartScreen shows "Windows protected your PC" for anything
 it has not seen signed before; click **More info**, then **Run anyway**. Studio is not code-signed

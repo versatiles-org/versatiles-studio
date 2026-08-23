@@ -219,16 +219,16 @@ apart from its neighbours, which is what you need before styling anything (S4.5)
 
 Delivers no milestone, and without it none of them reaches anyone.
 
-| Item     | Work                                                                                                                                                                                                                         | Feature        |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| **S5.1** | ~~Project directory: `project.yaml` beside real `.vpl` and `style.json`; zip and "Save As"~~ — **done**; the manifest carries the graphs and the style recipe ([Q36](decisions.md)); the files beside it work without Studio | G1             |
-| **S5.2** | ~~Crop and estimate in the Pipeline pane; the map as a crop tool. No Export pane ([Q31](decisions.md))~~ — **done**; the crop lives on the graph in the core, so it survives a reload and goes into the manifest             | infrastructure |
-| **S5.4** | ~~Crop by rectangle plus a zoom range~~ — **done**: dragging on the map fills the same fields typing does, and the area is shown by dimming everything the export will not write                                             | F2             |
-| **S5.5** | ~~Export as CLI command, serve config, Dockerfile or GitHub Action~~ — **done**; `deploy.rs` builds all four from the project as it stands, and the serve config is checked against `versatiles`' own parser                 | C7             |
-| **S5.6** | ~~Linux packaging: `.deb` plus an AppImage, from GitHub releases~~ — **done**; `release.yml` builds on a `v*` tag, verifies every URL in `latest.json`, then publishes as _latest_; `npm run release` drives the whole thing | G3             |
-| **S5.7** | ~~macOS Homebrew cask in our own tap, plus install instructions covering Gatekeeper~~ — **instructions done**, which Q10 calls the deliverable; the cask is filled by `npm run cask`. **Pushing to the tap is still to do**  | G3             |
-| **S5.8** | ~~Auto-update~~ — **done**; checked when asked, never on a timer — an app that swaps itself out mid-export is what people turn updaters off to escape. Only a **published** release resolves                                 | G4             |
-| **S5.9** | ~~Windows packaging: an NSIS installer for x86_64 and arm64~~ — **built, not yet verified green**; both build natively ([Q10](decisions.md)), unsigned, so SmartScreen warns. v0.1.0 predates it, so no asset exists yet     | infrastructure |
+| Item     | Work                                                                                                                                                                                                                                                                                                                            | Feature        |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **S5.1** | ~~Project directory: `project.yaml` beside real `.vpl` and `style.json`; zip and "Save As"~~ — **done**; the manifest carries the graphs and the style recipe ([Q36](decisions.md)); the files beside it work without Studio                                                                                                    | G1             |
+| **S5.2** | ~~Crop and estimate in the Pipeline pane; the map as a crop tool. No Export pane ([Q31](decisions.md))~~ — **done**; the crop lives on the graph in the core, so it survives a reload and goes into the manifest                                                                                                                | infrastructure |
+| **S5.4** | ~~Crop by rectangle plus a zoom range~~ — **done**: dragging on the map fills the same fields typing does, and the area is shown by dimming everything the export will not write                                                                                                                                                | F2             |
+| **S5.5** | ~~Export as CLI command, serve config, Dockerfile or GitHub Action~~ — **done**; `deploy.rs` builds all four from the project as it stands, and the serve config is checked against `versatiles`' own parser                                                                                                                    | C7             |
+| **S5.6** | ~~Linux packaging: `.deb` plus an AppImage, from GitHub releases~~ — **done**; `release.yml` builds on a `v*` tag, verifies every URL in `latest.json`, then publishes as _latest_; `npm run release` drives the whole thing                                                                                                    | G3             |
+| **S5.7** | ~~macOS Homebrew cask in our own tap, plus install instructions covering Gatekeeper~~ — **instructions done**, which Q10 calls the deliverable; the cask is filled by `npm run cask`. **Pushing to the tap is still to do**                                                                                                     | G3             |
+| **S5.8** | ~~Auto-update~~ — **done**; checked when asked, never on a timer — an app that swaps itself out mid-export is what people turn updaters off to escape. Only a **published** release resolves                                                                                                                                    | G4             |
+| **S5.9** | ~~Windows packaging: an NSIS installer~~ — **done for x86_64**, which builds and smoke-tests green. **arm64 is not buildable**: `gdal-sys` has no bindings for `aarch64 + windows` and generates none when bundled ([Q10](decisions.md)). Windows on ARM runs the x64 installer under emulation. Unsigned, so SmartScreen warns | infrastructure |
 
 **S5.7's deliverable is the instructions, not the cask.** Homebrew still applies quarantine and there
 is no opt-out, so every macOS user meets a security dialog before first launch — and that lands
@@ -247,8 +247,9 @@ and the stretch items above. Also **code signing** — an Apple Developer identi
 certificate — both deferred by [Q10](decisions.md).
 
 **Windows builds are no longer out.** [Q10](decisions.md) was amended on 2026-08-23: what costs
-money and lead time is the certificate, not the build, and once `windows-11-arm` runners became free
-for public repositories both architectures build natively. S5.9 is the item.
+money and lead time is the certificate, not the build. S5.9 is the item — **x86_64 only**, because
+`gdal-sys` cannot build `aarch64 + windows` at all; Windows on ARM runs the x64 installer under
+emulation.
 
 **Dropped rather than deferred:** E5 ([Q7](decisions.md)) and A3 ([Q17](decisions.md)). Neither is
 on a later roadmap.

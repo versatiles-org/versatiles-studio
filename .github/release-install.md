@@ -12,7 +12,7 @@ Security** and choose **Open Anyway**, or run:
 xattr -d com.apple.quarantine "/Applications/VersaTiles Studio.app"
 ```
 
-**Windows** — the `-setup.exe` for your machine: `x64` or `arm64`. **This build is not signed**, so
+**Windows** — the `x64` `-setup.exe`; on ARM it runs under emulation. **This build is not signed**, so
 SmartScreen shows "Windows protected your PC" on first run. Click **More info**, then **Run anyway**.
 Code-signing certificates are the deferred part, not the build ([Q10]).
 
