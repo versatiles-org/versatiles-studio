@@ -16,6 +16,27 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q44 — A crop being dragged is drawn as a rectangle; the dim is for a crop that exists
+
+**Decided 2026-08-23.** `CropOverlay` draws a crop by dimming everything outside it — one polygon
+with a hole, so the fill and the edge can never disagree. That is the right picture for a crop that
+exists: a crop is not a rectangle on the world, it is the part of the world that survives.
+
+**It is the wrong picture for a rectangle being dragged.** Starting a small box turned the whole map
+dark and grew a hole in it, which reads as the map breaking rather than as a rectangle being drawn —
+and the thing you most need to see while aiming is the map you are aiming at.
+
+So the draft is its own overlay: a lightly filled box in the crop's colour with a **dashed** outline,
+solid being reserved for the crop that exists, so the difference needs no legend. Only one of the two
+is ever on screen — while a rectangle is in flight, the crop it will replace is not the subject, and
+two overlapping treatments is one too many to aim through.
+
+**A drag released off the map is abandoned.** MapLibre's `mouseup` fires only over the canvas, so a
+drag ending on a pane or outside the window never finished. That was invisible before and is not any
+more — the draft rectangle would sit there until the next click — so a window-level listener clears
+it. It runs after the canvas event has bubbled, which means an ordinary release has already been
+handled and it has nothing to do.
+
 ### Q43 — The crop folds away, and the Pipeline pane's three actions are centred and full size
 
 **Decided 2026-08-23.** Two changes to the Pipeline pane, both about what it puts in front of you.

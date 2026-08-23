@@ -13,6 +13,13 @@
 	// **Drawing takes the map's drag.** A rectangle and a pan are the same gesture, so while drawing
 	// is on, `dragPan` is off and the cursor says so; both are restored the moment a rectangle is
 	// finished or the mode is left.
+	//
+	// **A rectangle in flight is drawn as a rectangle, not as a hole.** The dim treatment is right
+	// for a crop that exists — it says which part of the world survives — and wrong for one being
+	// dragged: starting a small box turned the whole map dark and grew a hole in it, which reads as
+	// the map breaking rather than as a rectangle being drawn. So the draft is its own thing, an
+	// outlined and lightly filled box in the crop's colour, and the dim arrives when the rectangle
+	// is finished. Only one of the two is ever on screen.
 
 	let {
 		map,
@@ -30,11 +37,38 @@
 	} = $props();
 
 	const SOURCE = 'studio:crop';
+	const DRAFT = 'studio:crop-draft';
+
+	const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 
 	/// The rectangle being dragged right now, which is what gets drawn while a drag is in flight.
 	let dragged = $state<[number, number, number, number] | null>(null);
 
-	const shown = $derived(dragged ?? bbox);
+	/// The rectangle itself, for the draft. The committed crop wants the opposite of this.
+	function rectangle(box: [number, number, number, number]) {
+		const [west, south, east, north] = box;
+		return {
+			type: 'FeatureCollection' as const,
+			features: [
+				{
+					type: 'Feature' as const,
+					properties: {},
+					geometry: {
+						type: 'Polygon' as const,
+						coordinates: [
+							[
+								[west, south],
+								[east, south],
+								[east, north],
+								[west, north],
+								[west, south]
+							]
+						]
+					}
+				}
+			]
+		};
+	}
 
 	/// The world, with the crop punched out of it — or nothing, when there is no crop.
 	///
@@ -79,9 +113,14 @@
 		// Attached before the layers are added, for the reason `TileActivity` learned the hard way:
 		// `addSource` throws when the style is not loaded, and a listener registered after it would
 		// never run — leaving the overlay permanently absent instead of merely late.
-		const ensure = () => {
+		//
+		// **Each overlay is ensured on its own.** One guard over both was a bug waiting for the second
+		// one to arrive: with the crop's source already on the map, the whole function returned and
+		// the draft's layers were never added — silently, because a missing layer throws nothing. Any
+		// path that leaves one present and the other absent now heals on the next `styledata`.
+		const ensureCrop = () => {
 			if (m.getSource(SOURCE)) return;
-			m.addSource(SOURCE, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+			m.addSource(SOURCE, { type: 'geojson', data: EMPTY });
 			m.addLayer({
 				id: `${SOURCE}:dim`,
 				type: 'fill',
@@ -100,8 +139,38 @@
 			});
 		};
 
+		// Added after the crop's, so the draft sits above them.
+		const ensureDraft = () => {
+			if (m.getSource(DRAFT)) return;
+			m.addSource(DRAFT, { type: 'geojson', data: EMPTY });
+			m.addLayer({
+				id: `${DRAFT}:fill`,
+				type: 'fill',
+				source: DRAFT,
+				metadata: role('crop-draft-fill'),
+				// Faint: enough to read as a filled shape over any tiles, not enough to hide what is
+				// under it — the whole point of dragging here is to see what you are enclosing.
+				paint: { 'fill-color': token('--map-crop-edge'), 'fill-opacity': 0.12 }
+			});
+			m.addLayer({
+				id: `${DRAFT}:line`,
+				type: 'line',
+				source: DRAFT,
+				metadata: role('crop-draft-line'),
+				// Dashed, because it is not a crop yet. The committed one is solid, and the difference
+				// is visible without a legend.
+				paint: {
+					'line-color': token('--map-crop-edge'),
+					'line-width': 1.5,
+					'line-dasharray': [2, 2]
+				}
+			});
+		};
+
 		const restore = () => {
-			if (m.isStyleLoaded()) ensure();
+			if (!m.isStyleLoaded()) return;
+			ensureCrop();
+			ensureDraft();
 		};
 		m.on('styledata', restore);
 		m.on('load', restore);
@@ -110,17 +179,25 @@
 		return () => {
 			m.off('styledata', restore);
 			m.off('load', restore);
-			for (const id of [`${SOURCE}:edge`, `${SOURCE}:dim`]) {
+			for (const id of [`${DRAFT}:line`, `${DRAFT}:fill`, `${SOURCE}:edge`, `${SOURCE}:dim`]) {
 				if (m.getLayer(id)) m.removeLayer(id);
 			}
-			if (m.getSource(SOURCE)) m.removeSource(SOURCE);
+			for (const id of [DRAFT, SOURCE]) {
+				if (m.getSource(id)) m.removeSource(id);
+			}
 		};
 	});
 
 	// Redrawn whenever the crop changes, including on every frame of a drag.
+	//
+	// **One or the other, never both.** While a rectangle is in flight the crop it will replace is
+	// not the subject any more, and two overlapping treatments is one too many to aim through.
 	$effect(() => {
-		const source = map?.getSource(SOURCE) as GeoJSONSource | undefined;
-		source?.setData(shown ? outside(shown) : { type: 'FeatureCollection', features: [] });
+		const committed = map?.getSource(SOURCE) as GeoJSONSource | undefined;
+		committed?.setData(bbox && !dragged ? outside(bbox) : EMPTY);
+
+		const draft = map?.getSource(DRAFT) as GeoJSONSource | undefined;
+		draft?.setData(dragged ? rectangle(dragged) : EMPTY);
 	});
 
 	$effect(() => {
@@ -154,16 +231,29 @@
 			onDrawn(finished);
 		};
 
+		// **Released off the map, the drag is abandoned rather than left hanging.** MapLibre's own
+		// `mouseup` fires only over the canvas, so a drag that ends on a pane or outside the window
+		// never reached `up` — which used to be invisible and is not any more: the draft rectangle
+		// would stay on screen until the next click. This runs after the canvas event has bubbled, so
+		// on an ordinary release `from` is already null and there is nothing to do.
+		const abandon = () => {
+			if (!from) return;
+			from = null;
+			dragged = null;
+		};
+
 		m.dragPan.disable();
 		m.getCanvas().style.cursor = 'crosshair';
 		m.on('mousedown', down);
 		m.on('mousemove', move);
 		m.on('mouseup', up);
+		window.addEventListener('mouseup', abandon);
 
 		return () => {
 			m.off('mousedown', down);
 			m.off('mousemove', move);
 			m.off('mouseup', up);
+			window.removeEventListener('mouseup', abandon);
 			m.dragPan.enable();
 			m.getCanvas().style.cursor = '';
 			dragged = null;

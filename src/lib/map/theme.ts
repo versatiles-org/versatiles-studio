@@ -27,7 +27,9 @@ export type LayerRole =
 	| 'pending-line'
 	| 'pending-label'
 	| 'crop-dim'
-	| 'crop-edge';
+	| 'crop-edge'
+	| 'crop-draft-fill'
+	| 'crop-draft-line';
 
 /**
  * Which paint properties each role takes from which token.
@@ -55,7 +57,11 @@ const PAINT: Record<LayerRole, [property: ColourProperty, token: MapToken][]> = 
 	// The crop, for the same reason the pending overlay needs two: a fill and a line name their
 	// colour differently (S5.2).
 	'crop-dim': [['fill-color', '--map-crop-dim']],
-	'crop-edge': [['line-color', '--map-crop-edge']]
+	'crop-edge': [['line-color', '--map-crop-edge']],
+	// The rectangle while it is being dragged, which is the crop's own colour on both — it is the
+	// same crop, one moment before it exists.
+	'crop-draft-fill': [['fill-color', '--map-crop-edge']],
+	'crop-draft-line': [['line-color', '--map-crop-edge']]
 };
 
 /** Tags a layer so {@link applyMapTheme} can find it later. */
