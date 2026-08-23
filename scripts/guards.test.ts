@@ -2,7 +2,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { assertSafeSegment, resolveRepo } from './update-assets';
-import { digestFor, fill } from './cask';
 import { platformsFor } from './latest-json';
 import { changelogSection, isAhead, nextVersion, withCargoLockVersion } from './release';
 import { membersOf } from './run';
@@ -76,57 +75,6 @@ describe('the version', () => {
 
 		expect(stated['Cargo.toml'], 'no `version = "…"` in the workspace Cargo.toml').toBeDefined();
 		expect(new Set(Object.values(stated)).size, `these disagree: ${JSON.stringify(stated)}`).toBe(1);
-	});
-});
-
-/**
- * Filling in the cask (S5.7).
- *
- * The two things that can go wrong here are silent: replacing nothing, and replacing one checksum
- * instead of two. Either produces a cask that installs the previous version's binary under this
- * version's name, and neither shows up until someone runs `brew install`.
- */
-describe('the cask', () => {
-	const template = readFileSync(new URL('../packaging/versatiles-studio.rb', import.meta.url).pathname, 'utf8');
-	const A = 'a'.repeat(64);
-	const B = 'b'.repeat(64);
-
-	it('replaces the version and both checksums', () => {
-		const filled = fill(template, '1.2.3', A, B);
-		expect(filled).toContain('version "1.2.3"');
-		expect(filled).toContain(`"${A}"`);
-		expect(filled).toContain(`"${B}"`);
-		expect(filled).not.toContain('0000000000000000');
-	});
-
-	it('puts the Apple Silicon checksum in the on_arm block', () => {
-		const filled = fill(template, '1.2.3', A, B);
-		const arm = filled.indexOf('on_arm');
-		const intel = filled.indexOf('on_intel');
-		expect(filled.indexOf(`"${A}"`)).toBeGreaterThan(arm);
-		expect(filled.indexOf(`"${A}"`)).toBeLessThan(intel);
-		expect(filled.indexOf(`"${B}"`)).toBeGreaterThan(intel);
-	});
-
-	it('refuses a template it cannot recognise rather than returning it unchanged', () => {
-		expect(() => fill('cask "x" do\nend\n', '1.2.3', A, B)).toThrow(/nothing was replaced/);
-		// One block deleted: the version still replaces, so this is the case a plain
-		// "did anything change" check would wave through.
-		const halved = template.replace(/^\s*sha256 "[0-9a-f]{64}"$/m, '');
-		expect(() => fill(halved, '1.2.3', A, B)).toThrow(/found 1/);
-	});
-
-	it('names the asset it could not find', () => {
-		expect(() => digestFor([], '_aarch64.dmg')).toThrow(/_aarch64.dmg/);
-		expect(() =>
-			digestFor(
-				[
-					{ name: 'a_x64.dmg', digest: 'sha256:1' },
-					{ name: 'b_x64.dmg', digest: 'sha256:2' }
-				],
-				'_x64.dmg'
-			)
-		).toThrow(/2 assets end in/);
 	});
 });
 
@@ -421,7 +369,7 @@ describe('Cargo.lock', () => {
  * The macOS bundle name, wherever it is written down.
  *
  * `tauri.macos.conf.json` decides it, and six other places spell it out — two smoke tests, the
- * cask's `app` stanza and its caveats, the release notes, the README. They are literals on purpose:
+ * release notes and the README — and, in another repository, the tap's cask generator. They are literals on purpose:
  * a shell substitution reading the config is harder to read than the name it produces, and three of
  * the six are user-facing prose where a literal is the only option. What was missing was not
  * indirection but a check that they agree.
@@ -434,12 +382,7 @@ describe('the macOS bundle name', () => {
 
 	it('is what every file that names it says', () => {
 		const wrong: string[] = [];
-		for (const path of [
-			'.github/workflows/ci.yml',
-			'.github/workflows/release.yml',
-			'packaging/versatiles-studio.rb',
-			'README.md'
-		]) {
+		for (const path of ['.github/workflows/ci.yml', '.github/workflows/release.yml', 'README.md']) {
 			// Preceded by a quote or a path separator, but not by `//` — otherwise the README's
 			// link to https://tauri.app reads as a bundle name.
 			for (const [, name] of read(path).matchAll(/(?<=["'/])(?<!\/\/)([A-Za-z][A-Za-z0-9 _.-]*\.app)\b/g)) {
@@ -452,6 +395,5 @@ describe('the macOS bundle name', () => {
 	// Without this, a rename that updated every file consistently but wrongly would still pass.
 	it('is actually mentioned, so the check cannot pass by finding nothing', () => {
 		expect(read('.github/workflows/ci.yml')).toContain(expected);
-		expect(read('packaging/versatiles-studio.rb')).toContain(expected);
 	});
 });

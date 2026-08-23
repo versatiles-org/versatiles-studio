@@ -225,9 +225,8 @@ versatiles-studio/
 │   ├── docs-pdf.sh             every planning document as one PDF
 │   ├── run.ts                  every `{action}:*` script, for one action
 │   ├── release.ts              check, bump, tag, push, publish            (S5.6)
-│   ├── cask.ts                 · latest-json.ts — a release's two manifests (S5.7, S5.8)
+│   ├── latest-json.ts          the manifest the updater reads           (S5.8)
 │   └── docs.test.ts            · guards.test.ts — what these documents promise
-├── packaging/                  the cask itself; the tap holds the copy    (Q10)
 ├── codecov.yml                 one flag per codebase, components within
 ├── .github/
 │   ├── workflows/              ci.yml, release.yml — Linux and macOS     (S0.7, S5.6)

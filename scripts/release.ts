@@ -15,9 +15,9 @@
  * human has read the notes, because a tag is cheap to make and expensive to retract: an installed
  * copy that has seen `latest.json` cannot be told to forget it.
  *
- * **What it does not do.** Bump the Homebrew tap. That is a second repository and a second decision,
- * and the cask needs the digests of assets that only exist once this has finished — so it fills in
- * `packaging/versatiles-studio.rb` and prints where it goes.
+ * **What it does not do.** Write the Homebrew cask. The tap generates its own from the published
+ * release, triggered by the release workflow — one place that knows what a cask looks like, reading
+ * the assets rather than being told about them.
  */
 
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -517,12 +517,11 @@ async function main(): Promise<void> {
 	process.stdout.write(`  https://github.com/versatiles-org/versatiles-studio/releases/tag/${tag}\n`);
 
 	say('The Homebrew cask');
-	// Only possible now: the checksums come from assets that did not exist a minute ago.
-	run('npm', ['run', 'cask', '--', tag, '--write']);
-	process.stdout.write(
-		'\n  Copy packaging/versatiles-studio.rb into versatiles-org/homebrew-versatiles\n' +
-			'  as Casks/versatiles-studio.rb, and commit the result there.\n\n'
-	);
+	// Updated by the tap, not from here: `release.yml` triggers `update_cask.yml` in
+	// versatiles-org/homebrew-versatiles once the release is published, and `bin/make_cask.sh` over
+	// there reads the assets that now exist. A copy of the cask in this repository was a second thing
+	// to keep in step, and it fell out of step three times while the naming was being settled.
+	process.stdout.write('  versatiles-org/homebrew-versatiles updates itself from the published release\n\n');
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -202,8 +202,7 @@ commit list into prose is a normal commit afterwards, not something to do with a
 **Then it stops and asks once** — `y/N`, defaulting to no. Everything to that point is local and the
 prompt says how to undo it. Past it there are no more questions: it pushes, then watches
 [`release.yml`](.github/workflows/release.yml) build the `.deb`s, the AppImages and both `.dmg`s —
-shown as one row per platform and a clock rather than a full job tree — and fills in the Homebrew
-cask from the assets that now exist.
+shown as one row per platform and a clock rather than a full job tree.
 
 **The workflow publishes, not the script.** It drafts the release, checks that every URL in
 `latest.json` names an asset that actually exists, and only then marks it published and _latest_ —
@@ -214,8 +213,9 @@ Each bundle is smoke-tested before it is attached: the binary is asked `--versio
 starts at all, and the bundled tier is checked to be inside it. "An installer was produced" and "the
 binary runs" are different claims when GDAL is linked statically.
 
-The one thing left by hand is copying `packaging/versatiles-studio.rb` into
-`versatiles-org/homebrew-versatiles` — a second repository is a second decision.
+The Homebrew cask updates itself: publishing triggers `update_cask.yml` in
+[versatiles-org/homebrew-versatiles](https://github.com/versatiles-org/homebrew-versatiles), whose
+`bin/make_cask.sh` reads the release's own assets. Nothing about the cask is written here.
 
 `workflow_dispatch` runs the same build on any branch and creates no release, which is how a
 packaging change is tested without spending a version number.
