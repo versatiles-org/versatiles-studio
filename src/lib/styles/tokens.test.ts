@@ -11,10 +11,11 @@
  */
 
 import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const SRC = new URL('../../', import.meta.url).pathname;
+const SRC = fileURLToPath(new URL('../../', import.meta.url));
 const TOKENS = 'lib/styles/tokens.css';
 
 /** Every source file, relative to `src/`. */

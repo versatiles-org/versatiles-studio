@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { assertSafeSegment, resolveRepo } from './update-assets';
@@ -62,7 +63,7 @@ describe('assertSafeSegment', () => {
  * builds, installs, and reports the wrong version of itself.
  */
 describe('the version', () => {
-	const root = new URL('../', import.meta.url).pathname;
+	const root = fileURLToPath(new URL('../', import.meta.url));
 	const read = (path: string) => readFileSync(join(root, path), 'utf8');
 
 	it('is the same in every file that states it', () => {
@@ -239,7 +240,7 @@ describe('release', () => {
  * was added to catch something catches nothing.
  */
 describe('npm scripts', () => {
-	const scripts = JSON.parse(readFileSync(new URL('../package.json', import.meta.url).pathname, 'utf8'))
+	const scripts = JSON.parse(readFileSync(fileURLToPath(new URL('../package.json', import.meta.url)), 'utf8'))
 		.scripts as Record<string, string>;
 
 	/** Groups whose members are alternatives rather than a set, so no aggregate is correct. */
@@ -367,7 +368,7 @@ describe('Cargo.lock', () => {
 
 	/** The real file, so the rule is checked against the thing it will actually run on. */
 	it('finds exactly the two workspace members in the real lockfile', () => {
-		const real = readFileSync(join(new URL('../', import.meta.url).pathname, 'Cargo.lock'), 'utf8');
+		const real = readFileSync(join(fileURLToPath(new URL('../', import.meta.url)), 'Cargo.lock'), 'utf8');
 		const { text, changed } = withCargoLockVersion(real, '9.9.9');
 		expect(changed).toBe(2);
 		// And nothing else moved: two lines differ, no more.
@@ -386,7 +387,7 @@ describe('Cargo.lock', () => {
  * indirection but a check that they agree.
  */
 describe('the macOS bundle name', () => {
-	const root = new URL('../', import.meta.url).pathname;
+	const root = fileURLToPath(new URL('../', import.meta.url));
 	const read = (path: string) => readFileSync(join(root, path), 'utf8');
 
 	const expected = `${JSON.parse(read('src-tauri/tauri.macos.conf.json')).productName}.app`;
@@ -408,3 +409,43 @@ describe('the macOS bundle name', () => {
 		expect(read('.github/workflows/ci.yml')).toContain(expected);
 	});
 });
+
+/**
+ * Turning a `file:` URL into a path, which has exactly one correct spelling.
+ *
+ * `new URL(…).pathname` is the one everybody writes and it is wrong on Windows: it yields
+ * `/D:/a/repo/`, and Node resolves that leading slash against the current drive, so reading
+ * `${root}package.json` looks for `D:\D:\a\repo\package.json`. It is also wrong on any platform
+ * when the path contains a character URLs escape — a checkout under `my repo` becomes `my%20repo`.
+ *
+ * Both failures are invisible where they are written: they need a Windows runner, or a space in the
+ * checkout path. This cost a red `main` — every `npm run {action}:*` on Windows died in
+ * `beforeBuildCommand` before a single Rust file compiled, and the doubled drive letter in the
+ * ENOENT was the only clue. `fileURLToPath` is correct on both counts and no longer to write.
+ */
+describe('turning a file URL into a path', () => {
+	const root = fileURLToPath(new URL('../', import.meta.url));
+
+	it('is never done with .pathname', () => {
+		const offenders: string[] = [];
+		for (const dir of ['scripts', 'src']) {
+			for (const file of sources(join(root, dir))) {
+				const text = readFileSync(file, 'utf8');
+				// The URL and the `.pathname` can be split across lines by the formatter.
+				if (/import\.meta\.url\s*\)?\s*\)?\s*\.pathname/s.test(text)) {
+					offenders.push(file.slice(root.length));
+				}
+			}
+		}
+		expect(offenders, 'use fileURLToPath(new URL(…)) instead — .pathname breaks on Windows').toEqual([]);
+	});
+});
+
+/** Every `.ts` under `dir`, recursively. */
+function sources(dir: string): string[] {
+	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		const path = join(dir, entry.name);
+		if (entry.isDirectory()) return entry.name === 'node_modules' ? [] : sources(path);
+		return entry.name.endsWith('.ts') || entry.name.endsWith('.svelte') ? [path] : [];
+	});
+}

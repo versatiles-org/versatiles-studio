@@ -25,7 +25,7 @@ import { createInterface } from 'node:readline/promises';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = new URL('../', import.meta.url).pathname;
+const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const CHANGELOG = `${ROOT}CHANGELOG.md`;
 const BRANCH = 'main';
 
