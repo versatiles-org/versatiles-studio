@@ -68,6 +68,20 @@ solid being reserved for the crop that exists, so the difference needs no legend
 is ever on screen — while a rectangle is in flight, the crop it will replace is not the subject, and
 two overlapping treatments is one too many to aim through.
 
+**The real fault was guarding a whole overlay on its source.** `ensure` checked for the source, then
+added the source and its layers together — so `addSource` succeeding and a later `addLayer` throwing
+left the source present and the layers absent, and every call after that returned early on the source
+it had just added. Half-drawn for the life of the style, and silent, because a layer that was never
+added throws nothing afterwards. One overlay's failure also aborted the next one's turn. Each piece
+is now checked and attempted on its own, so a failure costs one layer and the next attempt heals it —
+and anything still missing once the map is **idle** says so in the console with the error that
+stopped it. Three rounds of this bug looked identical from the outside; that is what the audit is
+for.
+
+**A rebuilt source is refilled.** A style change destroys the sources and `ensure` brings them back
+empty, while the effect that fills them has no reason to run again — so a crop vanished the moment
+someone switched the background. `restore` now repaints whatever it had to rebuild.
+
 **The overlay is not gated on `isStyleLoaded()`.** That was the guard the crop's own layers were
 added under, and it is the wrong question: `Style.loaded()` returns false while _any_ tile manager is
 still fetching, so with a background basemap on the map it is false most of the time. The crop's
@@ -117,16 +131,14 @@ because it is what the other two lead to.
 _Amends nothing: [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits) says each pane owns
 what it emits, and this is a pane deciding how loudly to say it._
 
-### Q42 — The export dialog's estimate is asked for; the crop section's stays live
+### Q42 — The estimate is asked for, in the one place that still shows it
+
+**Decided 2026-08-23. Corrected 2026-08-24** — see the note at the end; this entry was written
+describing a crop-section estimate that had already been removed.
 
 **Decided 2026-08-23.** The estimate runs the real pipeline over a stratified sample under a
 two-second budget (S3.7) and is not cached — every call pays it again. Where that buys a feedback
 loop it is worth paying unasked. Where it does not, it is a button.
-
-**In the crop section it buys the loop, so nothing changes there.** Drag a rectangle over the city
-you mean and watch four hours fall to twelve minutes: the number is the feedback, and one you had to
-ask for after every drag would not be feedback at all. That is C6's "shown where a run is committed"
-and S5.4's reason for putting the crop in the pane, and it stands.
 
 **In the export dialog there is no loop.** The crop is settled — the dialog is a modal and covers
 the pane that would change it, which is why [S5.2](scope-release-1.md) moved the crop out of here in
@@ -135,18 +147,20 @@ two seconds every time the dialog opens. So the dialog opens saying what it will
 **Estimate size and time**; the answer replaces the button in the same place, directly above the
 control that commits.
 
-**What this costs.** Someone can now export without knowing what it will cost. That is a real
-loosening of C6, mitigated by where the number already is: the crop section has it, live, for as long
-as the crop is being decided — the dialog is the second telling, not the first.
+**What this costs.** Someone can now export without knowing what it will cost — a real loosening of
+C6, and no longer softened by a second telling elsewhere.
 
-**The dialog does not reuse the pane's answer**, and so re-runs work that was just done. It could be
-handed the live one, but then there would be nothing for a button to do — which is the thing being
-asked for. The alternative worth weighing if this proves wasteful is the other direction entirely:
-make the crop section's estimate on-demand too, and have one answer that both surfaces show. That
-trades away the drag-and-watch loop above, so it is not a change to make quietly.
+**Corrected 2026-08-24.** As written, this entry claimed the crop section keeps a live estimate that
+drops from four hours to twelve minutes as a rectangle is dragged, and rested half its argument on
+that contrast. It does not: `CropSection` had already lost its `estimate`, `estimating` and `refusal`
+props and its cost line before this was decided, and the claim was never checked. The **conclusion**
+survives — the export dialog asks rather than tells — but the reasoning is now simpler and weaker
+than it read: there is one estimate, in one place, and it is on request. C6's "shown where a run is
+committed" is met by the button sitting directly above the control that commits, not by a number
+appearing unbidden.
 
-_Amends [ui.md](ui.md)'s "an estimate you must go looking for is one you will not see", which is now
-true of the crop section and deliberately not of the dialog._
+_Amends [ui.md](ui.md)'s "an estimate you must go looking for is one you will not see", which this
+decision knowingly gives up rather than relocates._
 
 ### Q41 — What a graph produces is reported where it is about to matter: the export dialog
 

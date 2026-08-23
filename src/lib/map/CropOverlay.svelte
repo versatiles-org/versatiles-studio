@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { untrack } from 'svelte';
 	import type { Map as MaplibreMap, GeoJSONSource, MapMouseEvent, LngLat, LayerSpecification } from 'maplibre-gl';
 	import { token } from '../styles/tokens';
 	import { role } from './theme';
@@ -165,20 +166,42 @@
 		/// half-drawn for the life of the style — and silently, because a layer that was never added
 		/// throws nothing afterwards. It also meant one overlay's failure aborted the next one's turn.
 		/// Now a failure costs exactly one layer, and the next attempt heals it.
-		const ensure = (id: string, layers: LayerSpecification[]) => {
+		const ensure = (id: string, layers: LayerSpecification[]): boolean => {
+			let added = false;
 			try {
-				if (!m.getSource(id)) m.addSource(id, { type: 'geojson', data: EMPTY });
+				if (!m.getSource(id)) {
+					m.addSource(id, { type: 'geojson', data: EMPTY });
+					added = true;
+				}
 			} catch {
-				return; // No style yet. The listeners below bring us round again.
+				return false; // No style yet. The listeners below bring us round again.
 			}
 			for (const layer of layers) {
 				if (m.getLayer(layer.id)) continue;
 				try {
 					m.addLayer(layer);
+					added = true;
 				} catch (error) {
 					refused[layer.id] = error;
 				}
 			}
+			return added;
+		};
+
+		/// Puts the current crop back onto a source that has just been rebuilt.
+		///
+		/// **A style change destroys the sources**, and `ensure` brings them back *empty* — while the
+		/// effect that fills them has no reason to run again, because nothing it reads has changed.
+		/// Without this the crop disappeared the moment someone switched the background: the same
+		/// silent half-state as a missing layer, wearing different clothes.
+		///
+		/// `untrack`, because this runs from map events as well as from the effect below — reading
+		/// the crop here must not subscribe to it.
+		const repaint = () => {
+			const committed = untrack(() => bbox);
+			const inFlight = untrack(() => dragged);
+			(m.getSource(SOURCE) as GeoJSONSource | undefined)?.setData(committed && !inFlight ? outside(committed) : EMPTY);
+			(m.getSource(DRAFT) as GeoJSONSource | undefined)?.setData(inFlight ? rectangle(inFlight) : EMPTY);
 		};
 
 		/// What could not be added, and why. A plain record, not reactive state — nothing renders it;
@@ -188,8 +211,10 @@
 		let complained = false;
 
 		const restore = () => {
-			ensure(SOURCE, cropLayers());
-			ensure(DRAFT, draftLayers());
+			// Both, then repaint once: `some` after the fact rather than `||`, which would skip the
+			// second call as soon as the first reported an addition.
+			const rebuilt = [ensure(SOURCE, cropLayers()), ensure(DRAFT, draftLayers())].some(Boolean);
+			if (rebuilt) repaint();
 		};
 
 		/// **A silent overlay is the thing to prevent.** Every round of this bug looked identical
@@ -236,9 +261,6 @@
 
 		const draft = map?.getSource(DRAFT) as GeoJSONSource | undefined;
 		draft?.setData(dragged ? rectangle(dragged) : EMPTY);
-
-		// TEMPORARY (crop draw diagnosis) — remove once this is understood.
-		if (dragged) console.log('crop draw: setData', { source: Boolean(draft), box: [...dragged] });
 	});
 
 	$effect(() => {
@@ -254,27 +276,12 @@
 			Math.max(a.lat, b.lat)
 		];
 
-		// TEMPORARY (crop draw diagnosis) — remove once this is understood.
-		console.log('crop draw: armed', {
-			draftSource: Boolean(m.getSource(DRAFT)),
-			draftFill: Boolean(m.getLayer(`${DRAFT}:fill`)),
-			draftLine: Boolean(m.getLayer(`${DRAFT}:line`)),
-			order: m
-				.getStyle()
-				.layers.map((l) => l.id)
-				.slice(-8)
-		});
-		let moves = 0;
-
 		const down = (event: MapMouseEvent) => {
 			from = event.lngLat;
 			dragged = null;
-			moves = 0;
-			console.log('crop draw: down', event.lngLat.toArray());
 		};
 		const move = (event: MapMouseEvent) => {
 			if (from) dragged = box(from, event.lngLat);
-			if (from && moves++ === 0) console.log('crop draw: first move');
 		};
 		const up = (event: MapMouseEvent) => {
 			if (!from) return;

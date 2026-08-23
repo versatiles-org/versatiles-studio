@@ -49,12 +49,11 @@ True everywhere. These matter more than the arrangement.
 - **Undo is global** ([Q11](decisions.md) → G6).
 - **Jobs are never modal**, and the job bar expands into a drawer with a per-job log. A conversion
   that fails at minute 40 has to say why; a failed job stays until dismissed.
-- **The cost estimate (C6) appears where the crop is decided, and is asked for where the run is
-  committed** ([Q42](decisions.md)). In the pane it is unasked and live, because dragging a rectangle
-  and watching four hours fall to twelve minutes is the loop it exists for — an estimate you must go
-  looking for is one you will not see. In the export dialog the crop is settled, there is no loop,
-  and the seconds it costs are spent on request. The crop section itself is folded away until wanted
-  ([Q43](decisions.md)), so neither costs anything on a graph nobody is cropping.
+- **The cost estimate (C6) is asked for, where the run is committed** ([Q42](decisions.md)). It runs
+  the real pipeline for up to two seconds and is not cached, so the export dialog offers it rather
+  than spending that on every opening — and the answer replaces the button directly above the control
+  that commits. This is the one place it appears; the crop section shows what will be written, not
+  what it will cost, and is folded away until wanted ([Q43](decisions.md)).
 - **Nothing durable lives only in the webview** ([Q16](decisions.md)). The map camera, the graphs
   and their text, and the pane layout all come back from the core, so a reloaded window is looking
   where it was. **Scroll position** deliberately stays in the webview
