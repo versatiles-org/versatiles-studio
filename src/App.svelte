@@ -22,7 +22,6 @@
 	import AppBar from './lib/shell/AppBar.svelte';
 	import AssetsDialog from './lib/shell/AssetsDialog.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
-	import DeployDialog from './lib/panes/project/DeployDialog.svelte';
 	import CopyDialog from './lib/panes/project/CopyDialog.svelte';
 	import { samePath } from './lib/vpl/node-at';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
@@ -65,7 +64,6 @@
 		saveProject,
 		openProject,
 		isProject,
-		deployment,
 		copyPlan,
 		saveProjectCopy,
 		vplRemoveProperty,
@@ -78,7 +76,6 @@
 		type DocumentView,
 		type Bounds,
 		type Estimate,
-		type Deployment,
 		type CopyPlan,
 		type Camera,
 		type Layout,
@@ -514,9 +511,8 @@
 
 	/// What a copy would carry, while the dialog asking about it is open (S5.1).
 	///
-	/// Fetched on opening, like the deployment above and for the same reason — and the write plans
-	/// again on the other side, so what lands is what the project is then rather than what it was
-	/// when this dialog appeared.
+	/// Fetched on opening rather than kept in step, and the write plans again on the other side: what
+	/// lands is what the project is then, rather than what it was when this dialog appeared.
 	let copying = $state<CopyPlan | null>(null);
 
 	async function showCopy() {
@@ -543,21 +539,6 @@
 			status = { kind: 'busy', message: 'Copying the project…' };
 			await saveProjectCopy(target, zip, styled ? JSON.stringify(forExport(styled), null, '\t') : null);
 			status = { kind: 'idle' };
-		} catch (e) {
-			fail(e);
-		}
-	}
-
-	/// What is on screen in the deploy dialog, or `null` when it is closed (C7, S5.5).
-	///
-	/// **Fetched on opening rather than kept in step.** The four artefacts are a function of the
-	/// graphs as they stand, and every rename would otherwise have to remember to regenerate them;
-	/// asking once, when someone wants to read them, cannot go stale.
-	let deploying = $state<Deployment | null>(null);
-
-	async function showDeployment() {
-		try {
-			deploying = await deployment();
 		} catch (e) {
 			fail(e);
 		}
@@ -1018,8 +999,7 @@
 			onOpenProject={() => void openProjectDir()}
 			onSaveProject={() => void saveProjectAs()}
 			onSaveCopy={() => void showCopy()}
-			onDeploy={() => void showDeployment()}
-			canDeploy={graphs.length > 0}
+			hasProject={graphs.length > 0}
 		/>
 	{/snippet}
 	{#snippet mapPane()}
@@ -1094,10 +1074,6 @@
 
 {#if copying}
 	<CopyDialog plan={copying} onCancel={() => (copying = null)} onWrite={(zip) => void writeCopy(zip)} />
-{/if}
-
-{#if deploying}
-	<DeployDialog deployment={deploying} onClose={() => (deploying = null)} />
 {/if}
 
 <!-- Outside the map region, like every other modal: the map keeps running behind it rather than

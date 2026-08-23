@@ -135,7 +135,7 @@ const schemes = [
  * promise: reusing one means deleting a line from this array, which is not something anyone does
  * by accident.
  */
-const retired = new Set(['A3', 'E5', 'F1']);
+const retired = new Set(['A3', 'C7', 'E5', 'F1']);
 
 describe('documentation identifiers', () => {
 	for (const { name, definedIn, define, refer } of schemes) {

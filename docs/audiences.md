@@ -36,8 +36,8 @@ skills, rarely have permission to install a Node toolchain or push data to a clo
 process that hates subscriptions.
 
 **Needs.** GDAL-backed import (E3), DEM and raster processing (E4), export plus upload (F2, F3), the
-mandated corporate-design typeface (D9), and reproducibility — the CLI command or CI snippet to run
-the same thing on their own server (C7).
+mandated corporate-design typeface (D9), and reproducibility — which G1 answers directly: a project
+is a directory of real `.vpl` files that `versatiles` runs unchanged on their own server.
 
 **Why Studio.** Local, no account, no telemetry, open source, auditable. That combination is rare and
 is the entire pitch for this group.

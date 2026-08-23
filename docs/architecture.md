@@ -176,7 +176,6 @@ versatiles-studio/
 │           ├── preview.rs      running a graph so the map can show it    (C3)
 │           ├── export.rs       writing the result to a container         (F2)
 │           ├── estimate.rs     what that write will cost, before it runs (C6)
-│           ├── deploy.rs       the commands that reproduce this elsewhere (C7)
 │           ├── style/          the recipe, and the bundle a style ships in (Q36, D8)
 │           ├── import.rs       the catalogue of ways in                  (E1–E3)
 │           ├── tabular.rs      a delimited file's header                 (E2)

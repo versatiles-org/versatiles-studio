@@ -38,7 +38,6 @@ export type {
 	Bounds,
 	Carried,
 	CopyPlan,
-	Deployment,
 	Family,
 	Fit,
 	Estimate,
@@ -140,9 +139,6 @@ export const saveProject = (dir: string, style: string | null) => unwrap(command
  * it again rather than reading a `style.json` Studio wrote for other tools.
  */
 export const openProject = (dir: string) => unwrap(commands.openProject(dir));
-
-/** The four ways to run this project elsewhere (C7, S5.5). Generated on asking, never stored. */
-export const deployment = () => unwrap(commands.deployment());
 
 /**
  * Lays a graph's VPL out again, keeping its comments (S1.11, [vt#249]).

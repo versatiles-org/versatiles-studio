@@ -266,7 +266,7 @@ and to the graph that produced it ([Q32](decisions.md)).
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
-│  [Fonts…]  [Open…]  [Save…]  [Run elsewhere…]             │
+│  [Fonts…]  [Open project…]  [Save…]  [Save a copy…]       │
 ├───────────────────┬──────────────────────┬────────────────┤
 │ ▾ PIPELINE        │        MAP           │ PRODUCES       │
 │   ◉ basemap    •  │   live style over    │ mvt · z0–14    │

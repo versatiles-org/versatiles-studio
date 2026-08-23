@@ -214,13 +214,6 @@ export const commands = {
 	/**  Whether a directory holds a project — so the open dialog can say why one does not. */
 	isProject: (dir: string) => __TAURI_INVOKE<boolean>("is_project", { dir }),
 	/**
-	 *  Generates them from the project as it stands.
-	 * 
-	 *  **Generated on asking, never stored.** A file written once and kept would describe the graphs a
-	 *  project used to have, and these exist to be correct at the moment someone copies them.
-	 */
-	deployment: () => typedError<Deployment, string>(__TAURI_INVOKE("deployment")),
-	/**
 	 *  What copying this project elsewhere would carry, without writing anything.
 	 * 
 	 *  Asked before the destination is chosen, so the dialog can say what it costs — the same
@@ -628,15 +621,6 @@ export type CopyPlan = {
 	 *  still worth making and the person making it should know.
 	 */
 	missing: Reference[],
-};
-
-/**  The four ways to run this project somewhere else (C7, S5.5). */
-export type Deployment = {
-	/**  One `versatiles convert` per graph, in project order. */
-	commands: string[],
-	serveConfig: string,
-	dockerfile: string,
-	githubAction: string,
 };
 
 /**  A problem with a position, ready for the editor to underline. */

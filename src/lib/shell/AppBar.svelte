@@ -13,8 +13,7 @@
 		onOpenProject,
 		onSaveProject,
 		onSaveCopy,
-		onDeploy,
-		canDeploy
+		hasProject
 	}: {
 		/** Fonts to install (G7, S4.1) — an errand you leave the window for and come back from, which
 		 *  is what a dialog is. */
@@ -26,12 +25,8 @@
 		onSaveProject: () => void;
 		/** A copy that works on another machine (S5.1) — the data comes with it. */
 		onSaveCopy: () => void;
-		/** The commands that reproduce this project outside Studio (C7, S5.5). Beside the project
-		 *  actions because it is about the project rather than about one graph — a serve config
-		 *  names every graph at once, which no pane is in a position to emit. */
-		onDeploy: () => void;
-		/** False with nothing open: there is neither a project to copy nor tiles to name. */
-		canDeploy: boolean;
+		/** False with nothing open: there is no project to copy. */
+		hasProject: boolean;
 	} = $props();
 </script>
 
@@ -44,8 +39,7 @@
 	<span class="divider" aria-hidden="true"></span>
 	<button type="button" class="project" onclick={onOpenProject}>Open project…</button>
 	<button type="button" class="project" onclick={onSaveProject}>Save project…</button>
-	<button type="button" class="project" onclick={onSaveCopy} disabled={!canDeploy}>Save a copy…</button>
-	<button type="button" class="project" onclick={onDeploy} disabled={!canDeploy}>Run elsewhere…</button>
+	<button type="button" class="project" onclick={onSaveCopy} disabled={!hasProject}>Save a copy…</button>
 </nav>
 
 <style>

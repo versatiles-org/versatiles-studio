@@ -3,7 +3,8 @@
 
 	// The shell every modal in Studio shares.
 	//
-	// Three of them had grown their own — export, deploy, save-a-copy — and the parts that differed
+	// Three of them had grown their own — export, save-a-copy, and the since-removed deploy dialog —
+	// and the parts that differed
 	// were the title, the width and what goes inside. Everything else was the same code three times:
 	// `.actions` and `.primary` were byte-identical, `.body` in two of three, and each repeated the
 	// `showModal()` effect and the `oncancel`/`onclose` wiring.

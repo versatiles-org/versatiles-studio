@@ -16,6 +16,54 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q40 — C7 is dropped: four artefacts that never composed into one story
+
+**Decided 2026-08-23.** S5.5 shipped "Run this elsewhere" — a dialog with four tabs, generated from
+the project as it stands. It is removed, along with `deploy.rs` and the `deployment` command.
+
+**It was sorted by file format, and people arrive with a verb.** Two of the tabs _build_ tiles: the
+`versatiles convert` line, per graph, and a GitHub workflow that runs the same conversions on push.
+Two of them _serve_ tiles: `serve.yaml`, and a Dockerfile that runs it. One title covered both, and
+"run" could mean either of them.
+
+**Two of the four were never alternatives.** The Dockerfile's first instruction was
+`COPY serve.yaml`; it does not work without the contents of the tab beside it. The component's own
+comment said the opposite — _"Tabs rather than four boxes: they are alternatives"_ — which is the
+design being wrong in a sentence rather than in a screenshot.
+
+**And the two halves contradicted each other.** The workflow built `*.versatiles` containers and
+uploaded them. The Dockerfile ignored containers and served the `.vpl` pipelines live, which is why
+it had to carry a warning that the source data must be reachable from inside the container. Follow
+both and the tiles you built are not the tiles you serve. **No path through the dialog built tiles
+and then served the built thing** — the one route most people actually want.
+
+**Fixing it was possible; keeping it was not obviously worth it.** Regrouping by verb and making the
+serve half a file _set_ would have answered the first two objections, and picking build-then-serve
+would have answered the third. What that leaves is Studio maintaining a small deployment opinion —
+one Dockerfile shape, one CI shape, one serving model — for every downstream someone might have. The
+module's doc had already conceded the limit of what it could know: the workflow ships "no caching, no
+deploy step: where the result goes is the one part of this nobody else can guess". A generated
+artefact that stops one step short of the answer is a template, and a template is better maintained
+where templates live.
+
+**The need it served is G1's, and G1 already serves it.** A project is a directory of real files
+([Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest)) — `.vpl` documents that
+`versatiles convert` runs unchanged, in a folder `versatiles serve` can be pointed at. Reproducibility
+is the file layout, not a dialog that types the invocation for you. This is the same ground
+[Q24](#q24--g2-is-dropped-the-bottom-bar-shows-status-and-progress) settled when it
+dropped G2's command strip: reproducibility "is served properly by G1". C7 was the fragment of that
+idea which survived, and it turns out to have survived on the same reasoning that removed the rest.
+
+**What is lost, said plainly.** Someone putting a map on a server now writes their own
+`versatiles serve` config and their own Dockerfile. That is a real cost, borne by the audience
+`audiences.md` describes as needing reproducibility most. It is accepted because the generated
+versions were not correct together, and four artefacts that disagree cost more than none.
+
+_Drops [C7](features.md). Amends [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits),
+which assigned "the CLI command (C7) to whichever pane produced the thing it reproduces" — there is
+no such command to assign. Amends [Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest)'s
+note that Studio exports a serve config as a derived artefact; it no longer does._
+
 ### Q39 — The asset manager is a dialog, and with it the mode bar goes
 
 **Decided 2026-08-23.** [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools) kept
@@ -455,7 +503,9 @@ the selected container.
 
 **Each pane owns what it emits.** The Export section is dissolved. "Export tiles" belongs to the
 Pipeline pane, "export style" (D8) to the Style pane, and the CLI command (C7) to whichever pane
-produced the thing it reproduces. This closes a gap the alternatives exposed: Q22 named one Export
+produced the thing it reproduces. _C7 was dropped by
+[Q40](#q40--c7-is-dropped-four-artefacts-that-never-composed-into-one-story), so the third clause has
+nothing left to assign; the rule it is an instance of is untouched._ This closes a gap the alternatives exposed: Q22 named one Export
 section, [ui.md](ui.md) defined it as tiles-only (F2), and **D8 therefore had no declared home at
 all**. "Export" as a shared destination was a category that only looked like one.
 
@@ -1321,9 +1371,10 @@ hand-editable file. TOML was rejected as a second format and awkward for nested 
 for having no comments. YAML's footguns are accepted since Studio mostly reads its own output.
 
 **`project.yaml` cannot double as a serve config:** `versatiles/src/config/main.rs` sets
-`#[serde(deny_unknown_fields)]`, so any Studio key invalidates it. Studio exports a serve config as
-a derived artefact instead (C7). _Worth raising upstream:_ an ignored `x-` namespace would let one
-file serve both purposes.
+`#[serde(deny_unknown_fields)]`, so any Studio key invalidates it. Studio exported one as a derived
+artefact instead (C7) until [Q40](#q40--c7-is-dropped-four-artefacts-that-never-composed-into-one-story)
+dropped that; the config is now the reader's to write. _Worth raising upstream:_ an ignored `x-`
+namespace would let one file serve both purposes.
 
 **Design for:** a project is a folder, so sharing means sending one — offer zip/unzip and a
 "Save As" that copies the whole directory.
