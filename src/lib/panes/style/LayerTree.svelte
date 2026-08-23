@@ -60,6 +60,10 @@
 
 	function openFilter(id: string) {
 		if (editing === id) {
+			// Commit before collapsing. The pause that batches typing is only 400 ms, but closing
+			// inside it would drop the edit without saying so — and a silently discarded change is
+			// worse than an extra undo entry.
+			commit(id);
 			editing = null;
 			return;
 		}
@@ -71,6 +75,17 @@
 
 	/// What the box says about what is in it, recomputed as it is typed.
 	const parsed = $derived(parse(draft));
+
+	/// Writes the draft, if it is one. Does nothing when it has not changed or does not parse.
+	function commit(id: string) {
+		if (draft === loaded) return;
+		const result = parse(draft);
+		if (!result.ok) return; // the box already says why, and the map keeps what worked
+		loaded = draft;
+		void style.setLayer(id, { ...overrideOf(id), filter: result.filter ?? undefined }).then(() => {
+			settled = true;
+		});
+	}
 
 	/// Applies the filter, live, once typing pauses.
 	///
@@ -92,13 +107,7 @@
 		if (id === null || text === loaded) return;
 
 		settled = false;
-		const timer = setTimeout(() => {
-			const result = parse(text);
-			if (!result.ok) return; // stays unsettled, and the box already says why
-			void style.setLayer(id, { ...overrideOf(id), filter: result.filter ?? undefined }).then(() => {
-				settled = true;
-			});
-		}, 400);
+		const timer = setTimeout(() => commit(id), 400);
 		return () => clearTimeout(timer);
 	});
 
@@ -158,8 +167,9 @@
 						/>
 					{:else if current && isExpression(current, overrideOf(layer.id).paint)}
 						<!-- An expression is a real value this cannot show as one swatch, and saying so is
-						     better than a colour picker that would delete it. The editor is S4.5's own
-						     remaining half. -->
+						     better than a colour picker that would delete it. Not editable, and that is
+						     settled rather than pending: nothing Studio can produce puts an expression
+						     here ([Q37](../../../../docs/decisions.md)). -->
 						<span class="swatch none" title="This colour is an expression">ƒ</span>
 					{:else}
 						<span class="swatch none" title="{layer.type} layers have no colour of their own">·</span>
@@ -201,7 +211,7 @@
 						aria-expanded={editing === layer.id}
 						onclick={() => openFilter(layer.id)}
 					>
-						ƒ
+						{editing === layer.id ? '▾' : '▸'}
 					</button>
 
 					{#if touched(layer.id)}
@@ -306,8 +316,10 @@
 			font-size: var(--text-xs);
 		}
 
-		/* Always present, so the rows do not shift when one layer gains a filter. Quiet until it is
-		   carrying something of the user's. */
+		/* A disclosure triangle rather than an `ƒ`: the swatch beside it already means "this value is
+		   an expression", and two of those in one row would be two things with one name. Always
+		   present, so rows do not shift when a layer gains a filter; quiet until it carries an
+		   override of the user's. */
 		.funnel {
 			color: var(--ink-2);
 			font-size: var(--text-xs);
