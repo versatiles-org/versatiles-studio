@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '../../common/Modal.svelte';
 	import type { CopyPlan } from '../../ipc/commands';
 	import { bytes as formatBytes, count } from '../../common/format';
 
@@ -33,97 +34,67 @@
 	const total = $derived(plan.carry.reduce((sum, file) => sum + file.bytes, 0));
 </script>
 
-<dialog bind:this={dialog} oncancel={onCancel} onclose={onCancel} aria-label="Save a copy">
-	<div class="body">
-		<h2>Save a copy</h2>
-		<p class="lead">
-			Carries the data your pipelines read, and rewrites them to name the copies — so the result opens on another
-			machine.
-		</p>
+<Modal title="Save a copy" width="32rem" onClose={onCancel}>
+	<p class="lead">
+		Carries the data your pipelines read, and rewrites them to name the copies — so the result opens on another machine.
+	</p>
 
-		<fieldset>
-			<legend class="section-label">As</legend>
-			<label class="choice">
-				<input type="radio" bind:group={zip} value={true} />
-				<span>One <code>.zip</code> file</span>
-			</label>
-			<label class="choice">
-				<input type="radio" bind:group={zip} value={false} />
-				<span>A folder</span>
-			</label>
-		</fieldset>
+	<fieldset>
+		<legend class="section-label">As</legend>
+		<label class="choice">
+			<input type="radio" bind:group={zip} value={true} />
+			<span>One <code>.zip</code> file</span>
+		</label>
+		<label class="choice">
+			<input type="radio" bind:group={zip} value={false} />
+			<span>A folder</span>
+		</label>
+	</fieldset>
 
-		<section>
-			<h3 class="section-label">Carries</h3>
-			{#if plan.carry.length === 0}
-				<p class="note">Nothing — every source is a URL, so the copy needs no data beside it.</p>
-			{:else}
-				<p class="total">
-					<strong>{count(plan.carry.length)} files · {formatBytes(total)}</strong>
-				</p>
-				<ul class="files">
-					{#each plan.carry as file (file.to)}
-						<li>
-							<span class="path">{file.to}</span>
-							<span class="size">{formatBytes(file.bytes)}</span>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</section>
-
-		<!-- Said rather than refused: a project with one moved source is still worth copying, and the
-		     copy keeps the name it had so it works wherever that file does exist. -->
-		{#if plan.missing.length > 0}
-			<section class="missing">
-				<h3 class="section-label">Not found, so not carried</h3>
-				<ul class="files">
-					{#each plan.missing as reference (reference.graph + reference.field + reference.value)}
-						<li>
-							<span class="path">{reference.value}</span>
-							<span class="size">{reference.graph}</span>
-						</li>
-					{/each}
-				</ul>
-			</section>
+	<section>
+		<h3 class="section-label">Carries</h3>
+		{#if plan.carry.length === 0}
+			<p class="note">Nothing — every source is a URL, so the copy needs no data beside it.</p>
+		{:else}
+			<p class="total">
+				<strong>{count(plan.carry.length)} files · {formatBytes(total)}</strong>
+			</p>
+			<ul class="files">
+				{#each plan.carry as file (file.to)}
+					<li>
+						<span class="path">{file.to}</span>
+						<span class="size">{formatBytes(file.bytes)}</span>
+					</li>
+				{/each}
+			</ul>
 		{/if}
+	</section>
 
-		<div class="actions">
-			<button type="button" class="button" onclick={onCancel}>Cancel</button>
-			<button type="button" class="button primary" onclick={() => onWrite(zip)}>
-				{zip ? 'Choose file…' : 'Choose folder…'}
-			</button>
-		</div>
-	</div>
-</dialog>
+	<!-- Said rather than refused: a project with one moved source is still worth copying, and the
+		     copy keeps the name it had so it works wherever that file does exist. -->
+	{#if plan.missing.length > 0}
+		<section class="missing">
+			<h3 class="section-label">Not found, so not carried</h3>
+			<ul class="files">
+				{#each plan.missing as reference (reference.graph + reference.field + reference.value)}
+					<li>
+						<span class="path">{reference.value}</span>
+						<span class="size">{reference.graph}</span>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
+
+	{#snippet actions()}
+		<button type="button" class="button" onclick={onCancel}>Cancel</button>
+		<button type="button" class="button primary" onclick={() => onWrite(zip)}>
+			{zip ? 'Choose file…' : 'Choose folder…'}
+		</button>
+	{/snippet}
+</Modal>
 
 <style>
-	dialog {
-		width: min(32rem, calc(100vw - var(--space-6)));
-		padding: 0;
-		border: 1px solid var(--rule);
-		border-radius: var(--radius-lg);
-		background: var(--surface);
-		color: var(--ink);
-
-		&::backdrop {
-			background: var(--scrim);
-		}
-	}
-
-	.body {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-4);
-		padding: var(--space-5);
-	}
-
-	h2 {
-		margin: 0;
-		font-size: var(--text-lg);
-		font-weight: 600;
-	}
-
 	.lead,
 	.note {
 		margin: 0;
@@ -196,12 +167,6 @@
 
 	.missing .path {
 		color: var(--error);
-	}
-
-	.actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-2);
 	}
 
 	.primary {

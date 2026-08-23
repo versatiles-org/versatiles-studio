@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '../../common/Modal.svelte';
 	import type { Deployment } from '../../ipc/commands';
 
 	// The commands that reproduce this project elsewhere (C7, S5.5).
@@ -56,70 +57,41 @@
 	}
 </script>
 
-<dialog bind:this={dialog} oncancel={onClose} onclose={onClose} aria-label="Run this elsewhere">
-	<div class="body">
-		<h2>Run this elsewhere</h2>
-		<p class="lead">
-			Everything Studio does, the command line does too. These are generated from the project as it stands.
-		</p>
+<Modal title="Run this elsewhere" width="46rem" {onClose}>
+	<p class="lead">
+		Everything Studio does, the command line does too. These are generated from the project as it stands.
+	</p>
 
-		<div class="tabs" role="tablist">
-			{#each TABS as tab (tab.id)}
-				<button
-					type="button"
-					role="tab"
-					class="tab"
-					class:on={shown === tab.id}
-					aria-selected={shown === tab.id}
-					onclick={() => (shown = tab.id)}
-				>
-					{tab.label}
-				</button>
-			{/each}
-		</div>
-
-		{#if filename}
-			<p class="note">Save as <code>{filename}</code> in the project directory.</p>
-		{/if}
-
-		<pre class="text">{text}</pre>
-
-		<div class="actions">
-			<button type="button" class="button" onclick={() => void copy()}>
-				{copied === shown ? 'Copied' : 'Copy'}
+	<div class="tabs" role="tablist">
+		{#each TABS as tab (tab.id)}
+			<button
+				type="button"
+				role="tab"
+				class="tab"
+				class:on={shown === tab.id}
+				aria-selected={shown === tab.id}
+				onclick={() => (shown = tab.id)}
+			>
+				{tab.label}
 			</button>
-			<button type="button" class="button primary" onclick={onClose}>Done</button>
-		</div>
+		{/each}
 	</div>
-</dialog>
+
+	{#if filename}
+		<p class="note">Save as <code>{filename}</code> in the project directory.</p>
+	{/if}
+
+	<pre class="text">{text}</pre>
+
+	{#snippet actions()}
+		<button type="button" class="button" onclick={() => void copy()}>
+			{copied === shown ? 'Copied' : 'Copy'}
+		</button>
+		<button type="button" class="button primary" onclick={onClose}>Done</button>
+	{/snippet}
+</Modal>
 
 <style>
-	dialog {
-		width: min(46rem, calc(100vw - var(--space-6)));
-		padding: 0;
-		border: 1px solid var(--rule);
-		border-radius: var(--radius-lg);
-		background: var(--surface);
-		color: var(--ink);
-
-		&::backdrop {
-			background: var(--scrim);
-		}
-	}
-
-	.body {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-		padding: var(--space-5);
-	}
-
-	h2 {
-		margin: 0;
-		font-size: var(--text-lg);
-		font-weight: 600;
-	}
-
 	.lead,
 	.note {
 		margin: 0;
@@ -160,12 +132,6 @@
 		font-size: var(--text-xs);
 		line-height: 1.5;
 		white-space: pre;
-	}
-
-	.actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-2);
 	}
 
 	.primary {

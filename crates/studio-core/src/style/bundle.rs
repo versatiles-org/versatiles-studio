@@ -17,9 +17,10 @@
 //!
 //! [Q9]: ../../../../docs/decisions.md
 
+use crate::archive::{self, Entry};
 use anyhow::{Context, Result};
 use std::collections::BTreeSet;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// Where the style file goes, and the name a reader will look for.
@@ -32,20 +33,6 @@ pub const STYLE_FILE: &str = "style.json";
 /// style say `fonts/{fontstack}/{range}.pbf` regardless.
 pub const FONTS_DIR: &str = "fonts";
 pub const SPRITES_DIR: &str = "sprites";
-
-/// One file on its way into the bundle.
-struct Entry {
-	/// Its path inside the bundle, e.g. `fonts/noto_sans_regular/0-255.pbf`.
-	path: String,
-	bytes: Vec<u8>,
-}
-
-/// The path only. A failing assertion should not print a glyph range.
-impl std::fmt::Debug for Entry {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "Entry({:?}, {} bytes)", self.path, self.bytes.len())
-	}
-}
 
 /// Writes the bundle, as a directory or as one `.zip`.
 ///
@@ -66,10 +53,7 @@ pub fn write(
 	glyph_archives: &[PathBuf],
 	sprites: &Path,
 ) -> Result<Vec<String>> {
-	let mut entries = vec![Entry {
-		path: STYLE_FILE.to_string(),
-		bytes: style.as_bytes().to_vec(),
-	}];
+	let mut entries = vec![Entry::bytes(STYLE_FILE, style.as_bytes())];
 
 	let mut missing = Vec::new();
 	for font in dedup(fonts) {
@@ -86,9 +70,9 @@ pub fn write(
 	entries.append(&mut take(sprites, "basics/", &format!("{SPRITES_DIR}/basics/"))?);
 
 	if zip {
-		write_zip(target, &entries)
+		archive::write_zip(target, &entries)
 	} else {
-		write_directory(target, &entries)
+		archive::write_directory(target, &entries)
 	}?;
 	Ok(missing)
 }
@@ -134,43 +118,9 @@ fn take(archive: &Path, prefix: &str, into: &str) -> Result<Vec<Entry>> {
 
 		let mut bytes = Vec::new();
 		entry.read_to_end(&mut bytes).context("reading an entry's contents")?;
-		out.push(Entry { path, bytes });
+		out.push(Entry::bytes(path, bytes));
 	}
 	Ok(out)
-}
-
-fn write_directory(dir: &Path, entries: &[Entry]) -> Result<()> {
-	for entry in entries {
-		// Checked again at the write. `take` refuses these already; this is the guard that has to
-		// hold if a second producer of `Entry` is ever added, and it costs a string walk per file.
-		let path = crate::paths::within(dir, &entry.path)?;
-		let parent = path.parent().context("a bundle entry with no directory")?;
-		std::fs::create_dir_all(parent).with_context(|| format!("creating {}", parent.display()))?;
-		std::fs::write(&path, &entry.bytes).with_context(|| format!("writing {}", path.display()))?;
-	}
-	Ok(())
-}
-
-/// Glyph ranges and sprite sheets are already compressed, so only the style is worth deflating.
-fn write_zip(path: &Path, entries: &[Entry]) -> Result<()> {
-	use zip::write::SimpleFileOptions;
-
-	let file = std::fs::File::create(path).with_context(|| format!("creating {}", path.display()))?;
-	let mut zip = zip::ZipWriter::new(std::io::BufWriter::new(file));
-
-	let deflated = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-	let stored = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
-
-	for entry in entries {
-		let text = entry.path.ends_with(".json");
-		zip.start_file(&entry.path, if text { deflated } else { stored })
-			.with_context(|| format!("adding {}", entry.path))?;
-		zip.write_all(&entry.bytes)
-			.with_context(|| format!("writing {}", entry.path))?;
-	}
-
-	zip.finish().context("finishing the archive")?;
-	Ok(())
 }
 
 #[cfg(test)]
@@ -360,6 +310,9 @@ mod traversal_tests {
 		assert!(format!("{error:#}").contains("escapes the bundle"), "{error:#}");
 	}
 
+	// The matching test for the *writer* refusing an escaping entry lives in `crate::archive`,
+	// which now owns both writers — one guard, tested where it is.
+
 	/// The guard has to refuse the hostile entry without refusing the ordinary ones beside it.
 	#[test]
 	fn an_ordinary_entry_still_comes_through() {
@@ -373,22 +326,5 @@ mod traversal_tests {
 		.unwrap();
 		assert_eq!(taken.len(), 1);
 		assert_eq!(taken[0].path, "fonts/noto_sans_regular/0-255.pbf");
-	}
-
-	/// The second guard, at the write. `take` refuses these first; this proves the write would too,
-	/// which is what has to hold if another producer of `Entry` is ever added.
-	#[test]
-	fn the_writer_refuses_an_escaping_entry_as_well() {
-		let out = crate::testing::dir("style-bundle-escape");
-		let entries = vec![Entry {
-			path: "../pwned.pbf".to_string(),
-			bytes: b"pwned".to_vec(),
-		}];
-
-		assert!(write_directory(&out, &entries).is_err());
-		assert!(
-			!out.parent().unwrap().join("pwned.pbf").exists(),
-			"a file was written outside the bundle directory"
-		);
 	}
 }

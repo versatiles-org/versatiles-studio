@@ -373,93 +373,55 @@ fn rewrite(source: &Source, rewrites: &[(usize, String)]) -> Result<String> {
 ///
 /// The destination is somewhere the user chose, so this must not be a project *and* the source of
 /// its own data: copying a file onto itself would truncate it. Guarded below rather than assumed.
-pub fn write_directory(dir: &Path, plan: &Plan, recipe: &crate::style::Recipe, style: Option<&str>) -> Result<()> {
-	std::fs::create_dir_all(dir.join(DATA_DIR)).with_context(|| format!("creating {}", dir.display()))?;
-
-	for file in &plan.carry {
-		let target = dir.join(&file.to);
-		anyhow::ensure!(
-			!same_file(&file.from, &target),
-			"{} is already where the bundle would put it",
-			file.from.display()
-		);
-		std::fs::copy(&file.from, &target)
-			.with_context(|| format!("copying {} to {}", file.from.display(), target.display()))?;
-	}
-
-	crate::project::save(dir, &plan.graphs, recipe, style)
+/// The files a bundle carries, as entries — the data, not the project's own three.
+fn carried(plan: &Plan) -> Vec<crate::archive::Entry> {
+	plan
+		.carry
+		.iter()
+		.map(|file| crate::archive::Entry::file(&file.to, &file.from))
+		.collect()
 }
 
-/// Whether two paths are the same file, as far as can be told without opening them.
+/// Writes a self-contained project directory: the plan's pipelines, the files they name, the
+/// manifest and the style.
 ///
-/// `canonicalize` fails on a path that does not exist yet, which is the ordinary case for the
-/// destination — and two paths that cannot both be resolved cannot be the same file.
-fn same_file(a: &Path, b: &Path) -> bool {
-	match (a.canonicalize(), b.canonicalize()) {
-		(Ok(a), Ok(b)) => a == b,
-		_ => false,
-	}
+/// **The project's own files still go through [`crate::project::save`], and that is not an
+/// oversight.** It writes each one temp-then-rename, so an interrupted save cannot leave a manifest
+/// naming a `.vpl` that is not there — and it refuses a graph name that is a path. A bundle is
+/// usually a fresh directory where neither matters, but it is a directory *someone chose*, and it
+/// may be a project already. The carried data has no such history and is written plainly.
+pub fn write_directory(dir: &Path, plan: &Plan, recipe: &crate::style::Recipe, style: Option<&str>) -> Result<()> {
+	std::fs::create_dir_all(dir.join(DATA_DIR)).with_context(|| format!("creating {}", dir.display()))?;
+	crate::archive::write_directory(dir, &carried(plan))?;
+	crate::project::save(dir, &plan.graphs, recipe, style)
 }
 
 /// Writes the same thing as one `.zip`.
 ///
-/// **Streamed from the original files**, never through a staging copy: the data a project carries is
-/// tiles, and a container is routinely larger than the disk has room for twice.
-///
-/// Stored without compression for anything already compressed — a `.versatiles`, `.mbtiles` or
-/// `.pmtiles` holds tiles that are gzip or webp already, and deflating them again spends minutes to
-/// save nothing. Text is deflated.
+/// Nothing is staged: a `Content::File` is streamed straight into the archive, because the data a
+/// project carries is tiles and a container is routinely larger than the disk has room for twice.
 pub fn write_zip(path: &Path, plan: &Plan, recipe: &crate::style::Recipe, style: Option<&str>) -> Result<()> {
-	use std::io::Write;
-	use zip::write::SimpleFileOptions;
-
-	let file = std::fs::File::create(path).with_context(|| format!("creating {}", path.display()))?;
-	let mut zip = zip::ZipWriter::new(std::io::BufWriter::new(file));
-
-	let deflated = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
-	let stored = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Stored);
-
-	let text = |zip: &mut zip::ZipWriter<_>, name: &str, contents: &str| -> Result<()> {
-		zip.start_file(name, deflated)?;
-		zip.write_all(contents.as_bytes())?;
-		Ok(())
-	};
-
+	let mut entries = Vec::new();
 	for graph in &plan.graphs {
 		crate::project::check_name(&graph.name)?;
-		text(&mut zip, &format!("{}.vpl", graph.name), &graph.vpl)?;
+		entries.push(crate::archive::Entry::bytes(
+			format!("{}.vpl", graph.name),
+			graph.vpl.as_bytes(),
+		));
 	}
 	if let Some(style) = style {
-		text(&mut zip, crate::project::STYLE_FILE, style)?;
+		entries.push(crate::archive::Entry::bytes(
+			crate::project::STYLE_FILE,
+			style.as_bytes(),
+		));
 	}
-	text(
-		&mut zip,
+	entries.push(crate::archive::Entry::bytes(
 		crate::project::MANIFEST_FILE,
-		&crate::project::manifest_text(&plan.graphs, recipe)?,
-	)?;
+		crate::project::manifest_text(&plan.graphs, recipe)?.as_bytes(),
+	));
+	entries.extend(carried(plan));
 
-	for carried in &plan.carry {
-		zip.start_file(
-			&carried.to,
-			if is_compressed(&carried.from) { stored } else { deflated },
-		)
-		.with_context(|| format!("adding {}", carried.to))?;
-		let mut source =
-			std::fs::File::open(&carried.from).with_context(|| format!("reading {}", carried.from.display()))?;
-		std::io::copy(&mut source, &mut zip).with_context(|| format!("copying {}", carried.from.display()))?;
-	}
-
-	zip.finish().context("finishing the archive")?;
-	Ok(())
-}
-
-/// Whether a file's contents are already compressed, so deflating them would only cost time.
-fn is_compressed(path: &Path) -> bool {
-	const ALREADY: [&str; 8] = ["versatiles", "mbtiles", "pmtiles", "gz", "zip", "png", "jpg", "webp"];
-	path
-		.extension()
-		.and_then(|extension| extension.to_str())
-		.is_some_and(|extension| ALREADY.contains(&extension.to_ascii_lowercase().as_str()))
+	crate::archive::write_zip(path, &entries)
 }
 
 #[cfg(test)]

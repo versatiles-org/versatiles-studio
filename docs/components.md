@@ -133,9 +133,10 @@ another node — are the one control with no counterpart in any existing repo.
 
 ## Cross-cutting
 
-| Component  | Does                                                              | Stage |
-| ---------- | ----------------------------------------------------------------- | ----- |
-| `JsonTree` | Any JSON, collapsible — used by `Inspector` and by `FeaturePopup` | S1.5  |
+| Component  | Does                                                                    | Stage |
+| ---------- | ----------------------------------------------------------------------- | ----- |
+| `JsonTree` | Any JSON, collapsible — used by `Inspector` and by `FeaturePopup`       | S1.5  |
+| `Modal`    | The dialog shell: title, width, body, buttons. Used by all three modals | S5.5  |
 
 ## Still to build
 

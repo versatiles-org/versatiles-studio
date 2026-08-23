@@ -169,6 +169,7 @@ versatiles-studio/
 │           ├── vpl/            document model; several named graphs      (Q11, Q32)
 │           ├── project.rs      project.yaml, load and save a directory   (G1, Q6)
 │           ├── bundle.rs       a copy that runs elsewhere: folder or zip (G1)
+│           ├── archive.rs      writing either of those; both bundles use it
 │           ├── graphs.rs       the set of graphs a project holds         (Q32)
 │           ├── history.rs      one undo stack across all of them         (G6)
 │           ├── jobs.rs         runner, progress, cancellation, log       (E7)

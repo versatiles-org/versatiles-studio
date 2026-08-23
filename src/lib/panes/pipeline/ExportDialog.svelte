@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Modal from '../../common/Modal.svelte';
 	import type { Bounds, Estimate } from '../../ipc/commands';
 	import { bytes, count, duration } from '../../common/format';
 
@@ -41,12 +42,6 @@
 		onExport: () => void;
 	} = $props();
 
-	let dialog = $state<HTMLDialogElement>();
-
-	// `showModal()` rather than the `open` attribute: only the method puts the element in the top
-	// layer and makes Escape and focus containment work.
-	$effect(() => dialog?.showModal());
-
 	/// The crop in a sentence — "zoom 4–12, 13.0 −52.3 → 13.8 52.7" — or what it means to have none.
 	const narrowing = $derived.by(() => {
 		const parts: string[] = [];
@@ -63,76 +58,44 @@
 	const cost = $derived(estimate === null ? null : `${bytes(estimate.bytes)} · about ${duration(estimate.seconds)}`);
 </script>
 
-<dialog bind:this={dialog} oncancel={onCancel} onclose={onCancel} aria-label="Export {name}">
-	<div class="body">
-		<h2>Export {name}</h2>
-
-		<dl>
-			<dt>Writes</dt>
-			<dd>
-				{#if narrowing.length === 0}
-					Everything the graph produces.
-				{:else}
-					{narrowing.join(' · ')}
-				{/if}
-			</dd>
-			<dt>Format</dt>
-			<dd>{formats.join(', ')} — the file you choose decides which.</dd>
-		</dl>
-
-		<!-- Directly above the button that commits the run, which is the only place it can change a
-		     decision. `aria-live` because it can still arrive while this is open. -->
-		<p class="cost" aria-live="polite" class:waiting={estimating}>
-			{#if refusal}
-				<span class="problem">{refusal}</span>
-			{:else if estimate === null}
-				{estimating ? 'Estimating…' : 'Estimating the size and time…'}
-			{:else if estimate.tiles === 0}
-				Nothing to write — this crop selects no tiles.
+<Modal title="Export {name}" width="28rem" onClose={onCancel}>
+	<dl>
+		<dt>Writes</dt>
+		<dd>
+			{#if narrowing.length === 0}
+				Everything the graph produces.
 			{:else}
-				<strong>{cost}</strong>
-				<span class="basis">{count(estimate.tiles)} tiles, from {estimate.sampled} sampled</span>
+				{narrowing.join(' · ')}
 			{/if}
-		</p>
+		</dd>
+		<dt>Format</dt>
+		<dd>{formats.join(', ')} — the file you choose decides which.</dd>
+	</dl>
 
-		<p class="note">Change what is written with the crop in the Pipeline pane.</p>
+	<!-- Directly above the button that commits the run, which is the only place it can change a
+		     decision. `aria-live` because it can still arrive while this is open. -->
+	<p class="cost" aria-live="polite" class:waiting={estimating}>
+		{#if refusal}
+			<span class="problem">{refusal}</span>
+		{:else if estimate === null}
+			{estimating ? 'Estimating…' : 'Estimating the size and time…'}
+		{:else if estimate.tiles === 0}
+			Nothing to write — this crop selects no tiles.
+		{:else}
+			<strong>{cost}</strong>
+			<span class="basis">{count(estimate.tiles)} tiles, from {estimate.sampled} sampled</span>
+		{/if}
+	</p>
 
-		<div class="actions">
-			<button type="button" class="button" onclick={onCancel}>Cancel</button>
-			<button type="button" class="button primary" disabled={refusal !== null} onclick={onExport}>
-				Choose file…
-			</button>
-		</div>
-	</div>
-</dialog>
+	<p class="note">Change what is written with the crop in the Pipeline pane.</p>
+
+	{#snippet actions()}
+		<button type="button" class="button" onclick={onCancel}>Cancel</button>
+		<button type="button" class="button primary" disabled={refusal !== null} onclick={onExport}> Choose file… </button>
+	{/snippet}
+</Modal>
 
 <style>
-	dialog {
-		width: min(28rem, calc(100vw - var(--space-6)));
-		padding: 0;
-		border: 1px solid var(--rule);
-		border-radius: var(--radius-lg);
-		background: var(--surface);
-		color: var(--ink);
-
-		&::backdrop {
-			background: var(--scrim);
-		}
-	}
-
-	.body {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-4);
-		padding: var(--space-5);
-	}
-
-	h2 {
-		margin: 0;
-		font-size: var(--text-lg);
-		font-weight: 600;
-	}
-
 	dl {
 		display: grid;
 		grid-template-columns: auto 1fr;
@@ -185,12 +148,6 @@
 
 	.basis {
 		font-size: var(--text-xs);
-	}
-
-	.actions {
-		display: flex;
-		justify-content: flex-end;
-		gap: var(--space-2);
 	}
 
 	.primary {
