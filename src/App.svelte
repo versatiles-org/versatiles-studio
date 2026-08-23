@@ -989,12 +989,7 @@
 	{:else if id === 'output'}
 		<PipelineOutput preview={preview.last} />
 	{:else if id === 'inspector'}
-		<Inspector
-			containers={preview.containers.map((c) => c.info)}
-			{map}
-			onOpen={pick}
-			onOpenUrl={(url) => void load(url)}
-		/>
+		<Inspector containers={preview.containers.map((c) => c.info)} {map} />
 	{/if}
 {/snippet}
 

@@ -4,26 +4,20 @@
 	import JsonTree from '../../common/JsonTree.svelte';
 	import Bookmarks from './Bookmarks.svelte';
 
-	// A6 — the right pane shows the parameters of what you are working on, never global settings.
+	// A6 — the right pane shows what things turn out to be, never global settings and never a way in.
+	//
+	// It used to carry its own "Open a tile container…" button and remote-URL form, from S1 when
+	// opening a container was all Studio did. [Q32] made a graph *a* source, so a file opens by
+	// becoming a graph: the one door is "＋ new graph…" next to where graphs live, the same door the
+	// landing screen, drag & drop and the recents list go through. Two doors to the same room is
+	// what `PipelinePane` already removed once; this is the other half of it.
 	let {
 		containers,
-		onOpen,
-		onOpenUrl,
 		map
 	}: {
 		containers: ContainerInfo[];
-		onOpen: () => void;
-		onOpenUrl: (url: string) => void;
 		map: MaplibreMap | undefined;
 	} = $props();
-
-	let url = $state('');
-
-	function submitUrl(event: SubmitEvent) {
-		event.preventDefault();
-		const trimmed = url.trim();
-		if (trimmed) onOpenUrl(trimmed);
-	}
 
 	function extent(bbox: ContainerInfo['bbox']): string {
 		if (!bbox) return '—';
@@ -32,26 +26,8 @@
 </script>
 
 <div class="inspector">
-	<button class="button open" onclick={onOpen}>Open a tile container…</button>
-
-	<!-- A2: HTTPS and SFTP read through byte ranges, so a planet file opens from its index. -->
-	<form onsubmit={submitUrl}>
-		<input
-			bind:value={url}
-			type="text"
-			placeholder="https://… or sftp://…"
-			spellcheck="false"
-			autocapitalize="off"
-			autocorrect="off"
-		/>
-		<button type="submit" disabled={!url.trim()}>Open</button>
-	</form>
-
 	{#if containers.length === 0}
-		<p class="hint">
-			Nothing open yet. Drop a <code>.versatiles</code>, <code>.mbtiles</code> or
-			<code>.pmtiles</code> file here, or use the button above.
-		</p>
+		<p class="hint">No container open.</p>
 	{/if}
 
 	{#each containers as info (info.source)}
@@ -87,25 +63,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-5);
-	}
-
-	.open {
-		padding: var(--space-3);
-	}
-
-	form {
-		display: flex;
-		gap: var(--space-3);
-
-		button {
-			padding: var(--space-2) var(--space-4);
-		}
-	}
-
-	input {
-		flex: 1;
-		min-width: 0;
-		font-family: var(--font-mono);
 	}
 
 	.hint {
