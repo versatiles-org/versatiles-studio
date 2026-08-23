@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Map as MaplibreMap, GeoJSONSource, MapMouseEvent, LngLat } from 'maplibre-gl';
+	import type { Map as MaplibreMap, GeoJSONSource, MapMouseEvent, LngLat, LayerSpecification } from 'maplibre-gl';
 	import { token } from '../styles/tokens';
 	import { role } from './theme';
 
@@ -110,25 +110,17 @@
 		if (!map) return;
 		const m = map;
 
-		// Attached before the layers are added, for the reason `TileActivity` learned the hard way: a
-		// listener registered after a failed attempt would never run, leaving the overlay permanently
-		// absent instead of merely late.
-		//
-		// **Each overlay is ensured on its own.** One guard over both was a bug waiting for the second
-		// one to arrive: with the crop's source already on the map, the whole function returned and
-		// the draft's layers were never added — silently, because a missing layer throws nothing. Any
-		// path that leaves one present and the other absent now heals on the next `styledata`.
-		const ensureCrop = () => {
-			if (m.getSource(SOURCE)) return;
-			m.addSource(SOURCE, { type: 'geojson', data: EMPTY });
-			m.addLayer({
+		// The layers each overlay is made of, built on demand so `token()` is read when they are
+		// added rather than when this module loaded.
+		const cropLayers = (): LayerSpecification[] => [
+			{
 				id: `${SOURCE}:dim`,
 				type: 'fill',
 				source: SOURCE,
 				metadata: role('crop-dim'),
 				paint: { 'fill-color': token('--map-crop-dim'), 'fill-opacity': 0.45 }
-			});
-			m.addLayer({
+			},
+			{
 				id: `${SOURCE}:edge`,
 				type: 'line',
 				source: SOURCE,
@@ -136,14 +128,12 @@
 				// The hole is a ring of this polygon, so one line layer traces the crop's edge — and
 				// the world ring with it, which is off screen at every zoom that shows a crop.
 				paint: { 'line-color': token('--map-crop-edge'), 'line-width': 1.5 }
-			});
-		};
+			}
+		];
 
 		// Added after the crop's, so the draft sits above them.
-		const ensureDraft = () => {
-			if (m.getSource(DRAFT)) return;
-			m.addSource(DRAFT, { type: 'geojson', data: EMPTY });
-			m.addLayer({
+		const draftLayers = (): LayerSpecification[] => [
+			{
 				id: `${DRAFT}:fill`,
 				type: 'fill',
 				source: DRAFT,
@@ -151,8 +141,8 @@
 				// Faint: enough to read as a filled shape over any tiles, not enough to hide what is
 				// under it — the whole point of dragging here is to see what you are enclosing.
 				paint: { 'fill-color': token('--map-crop-edge'), 'fill-opacity': 0.12 }
-			});
-			m.addLayer({
+			},
+			{
 				id: `${DRAFT}:line`,
 				type: 'line',
 				source: DRAFT,
@@ -164,34 +154,69 @@
 					'line-width': 1.5,
 					'line-dasharray': [2, 2]
 				}
-			});
-		};
+			}
+		];
 
-		// **`isStyleLoaded()` is the wrong question**, and gating on it is what kept the draft off the
-		// map. `Style.loaded()` returns false while *any* tile manager is still fetching — with a
-		// background basemap that is most of the time — so on an otherwise idle map this returned
-		// early and there was no later event to bring it back. What actually matters is narrower:
-		// `addSource` throws only when there is no style to add to. So try, and let the listeners
-		// below bring us round again if it was too early.
-		const restore = () => {
+		/// Adds whatever is missing — the source, then each layer, each on its own.
+		///
+		/// **Guarding a whole group on its source was the bug**, twice over. `addSource` succeeding
+		/// and a later `addLayer` throwing left the source present and its layers absent; every call
+		/// after that returned early on the source it had just found, so the overlay stayed
+		/// half-drawn for the life of the style — and silently, because a layer that was never added
+		/// throws nothing afterwards. It also meant one overlay's failure aborted the next one's turn.
+		/// Now a failure costs exactly one layer, and the next attempt heals it.
+		const ensure = (id: string, layers: LayerSpecification[]) => {
 			try {
-				ensureCrop();
-				ensureDraft();
+				if (!m.getSource(id)) m.addSource(id, { type: 'geojson', data: EMPTY });
 			} catch {
-				// No style yet. `styledata`, `load` and `idle` are all still attached.
+				return; // No style yet. The listeners below bring us round again.
+			}
+			for (const layer of layers) {
+				if (m.getLayer(layer.id)) continue;
+				try {
+					m.addLayer(layer);
+				} catch (error) {
+					refused[layer.id] = error;
+				}
 			}
 		};
+
+		/// What could not be added, and why. A plain record, not reactive state — nothing renders it;
+		/// it exists so the audit below can say *why*, not only *that*. Reported from `idle` rather
+		/// than as it happens, because until the map has settled "too early" is a real answer.
+		const refused: Record<string, unknown> = {};
+		let complained = false;
+
+		const restore = () => {
+			ensure(SOURCE, cropLayers());
+			ensure(DRAFT, draftLayers());
+		};
+
+		/// **A silent overlay is the thing to prevent.** Every round of this bug looked identical
+		/// from the outside — nothing on the map, nothing in the console — so once the map is idle,
+		/// anything still absent says so, once, with the error that stopped it.
+		const audit = () => {
+			restore();
+			if (complained) return;
+			const absent = [...cropLayers(), ...draftLayers()].filter((layer) => !m.getLayer(layer.id));
+			if (absent.length === 0) return;
+			complained = true;
+			for (const layer of absent) {
+				console.error(`crop overlay: ${layer.id} is not on the map`, refused[layer.id] ?? '(no error reported)');
+			}
+		};
+
 		m.on('styledata', restore);
 		m.on('load', restore);
-		// The settled-map net: whatever else happens, a map that has finished drawing has a style,
-		// and each `ensure` is a cheap early return once its own source is there.
-		m.on('idle', restore);
+		// The settled-map net: a map that has finished drawing has a style, and `ensure` is a cheap
+		// early return once everything is there.
+		m.on('idle', audit);
 		restore();
 
 		return () => {
 			m.off('styledata', restore);
 			m.off('load', restore);
-			m.off('idle', restore);
+			m.off('idle', audit);
 			for (const id of [`${DRAFT}:line`, `${DRAFT}:fill`, `${SOURCE}:edge`, `${SOURCE}:dim`]) {
 				if (m.getLayer(id)) m.removeLayer(id);
 			}
@@ -211,6 +236,9 @@
 
 		const draft = map?.getSource(DRAFT) as GeoJSONSource | undefined;
 		draft?.setData(dragged ? rectangle(dragged) : EMPTY);
+
+		// TEMPORARY (crop draw diagnosis) — remove once this is understood.
+		if (dragged) console.log('crop draw: setData', { source: Boolean(draft), box: [...dragged] });
 	});
 
 	$effect(() => {
@@ -226,12 +254,27 @@
 			Math.max(a.lat, b.lat)
 		];
 
+		// TEMPORARY (crop draw diagnosis) — remove once this is understood.
+		console.log('crop draw: armed', {
+			draftSource: Boolean(m.getSource(DRAFT)),
+			draftFill: Boolean(m.getLayer(`${DRAFT}:fill`)),
+			draftLine: Boolean(m.getLayer(`${DRAFT}:line`)),
+			order: m
+				.getStyle()
+				.layers.map((l) => l.id)
+				.slice(-8)
+		});
+		let moves = 0;
+
 		const down = (event: MapMouseEvent) => {
 			from = event.lngLat;
 			dragged = null;
+			moves = 0;
+			console.log('crop draw: down', event.lngLat.toArray());
 		};
 		const move = (event: MapMouseEvent) => {
 			if (from) dragged = box(from, event.lngLat);
+			if (from && moves++ === 0) console.log('crop draw: first move');
 		};
 		const up = (event: MapMouseEvent) => {
 			if (!from) return;

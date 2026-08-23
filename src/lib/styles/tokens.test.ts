@@ -243,6 +243,23 @@ describe('design tokens', () => {
 		expect([...new Set(flat)], 'nest it with `&` instead — see docs/styling.md rule 6').toEqual([]);
 	});
 
+	/// Every `MapToken` is a token that exists.
+	///
+	/// `token()` is the one reader the compiler cannot help: the union in `tokens.ts` names what a
+	/// map layer may ask for, and nothing checked that `tokens.css` answers. `--map-label` was in
+	/// the union, read by two layers, and defined nowhere — so the pending overlay's `queued` and
+	/// `rendering` labels drew in the magenta fallback for as long as they have existed, saying so
+	/// only in a console nobody had open.
+	it('define every colour a map layer can ask for', () => {
+		const union = readFileSync(join(SRC, 'lib/styles/tokens.ts'), 'utf8');
+		const asked = [...union.matchAll(/'(--map-[\w-]+)'/g)].map((match) => match[1]);
+		expect(asked.length, 'no MapToken union found in lib/styles/tokens.ts').toBeGreaterThan(4);
+
+		const css = readFileSync(join(SRC, TOKENS), 'utf8');
+		const undefined_ = asked.filter((name) => !new RegExp(`^\\s*${name}\\s*:`, 'm').test(css));
+		expect(undefined_, `add it to ${TOKENS}, or drop it from the MapToken union`).toEqual([]);
+	});
+
 	/// Rule 6, the other half: `&` means *this same element*.
 	///
 	/// A descendant is a different element, so it is written bare — `.message`, not `& .message`.

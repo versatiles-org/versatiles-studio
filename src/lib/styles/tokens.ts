@@ -29,10 +29,25 @@ export type MapToken =
  * to update in place would need the layer's paint set again.
  */
 export function token(name: MapToken): string {
-	const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-	if (value) return value;
-	// A missing token means tokens.css did not load, which is a build problem rather than a runtime
-	// one. Magenta is deliberately hideous: silently drawing something plausible would hide it.
-	console.error(`design token ${name} is not defined — is tokens.css imported?`);
-	return '#ff00ff';
+	const root = getComputedStyle(document.documentElement);
+	const value = root.getPropertyValue(name).trim();
+	if (!value) {
+		// A missing token means tokens.css did not load, which is a build problem rather than a
+		// runtime one. Magenta is deliberately hideous: silently drawing something plausible would
+		// hide it.
+		console.error(`design token ${name} is not defined — is tokens.css imported?`);
+		return '#ff00ff';
+	}
+
+	// **A token defined as another token must arrive resolved.** The computed value of a custom
+	// property is meant to have its `var()` substituted, and a MapLibre paint property is a plain
+	// string — it cannot resolve anything. Handed `var(--accent)` it rejects the layer, and a layer
+	// that was refused draws nothing and says nothing, which is a whole afternoon.
+	//
+	// One level, because that is what the token file has: `--map-crop-edge: var(--accent)`.
+	const reference = /^var\(\s*(--[\w-]+)\s*\)$/.exec(value);
+	if (!reference) return value;
+	const resolved = root.getPropertyValue(reference[1]).trim();
+	console.error(`design token ${name} arrived as ${value} rather than a colour — resolving it here`);
+	return resolved || '#ff00ff';
 }

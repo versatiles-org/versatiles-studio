@@ -56,6 +56,12 @@
 	   Used mostly for a label and an outline rather than a wash. The first version filled each tile
 	   at 28% and read as dark red — which says *error*, the one thing this never means. */
 	--map-pending: #777777;
+	/* The `queued` / `rendering` word itself, over whatever tiles happen to be under it. Near-black
+	   rather than `--map-pending`: the fill and the outline can afford to be quiet, a word cannot,
+	   and it is drawn at half opacity already. **It was missing entirely** until a console error
+	   said so — the whole time, that label was the deliberately-hideous magenta `token()` falls back
+	   to. `tokens.test.ts` now checks that every `MapToken` is defined here. */
+	--map-label: #16201f;
 	/* The crop (F2, S5.2). Two tokens because the overlay does two things: it dims everything the
 	   export will not write, and traces the edge of what it will. The dim is a near-black rather
 	   than a grey — it has to darken any basemap without tinting it — and is drawn at partial
@@ -159,6 +165,7 @@
 		--map-grid-halo: #0d1113;
 		--map-feature: #6fa8dc;
 		--map-pending: #777777;
+		--map-label: #e4eae8;
 		/* Dimming a dark map needs to go darker still, or the crop reads as no crop at all. */
 		--map-crop-dim: #05080a;
 		--float-bg: rgb(25 33 31 / 0.94);
