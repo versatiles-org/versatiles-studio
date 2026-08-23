@@ -49,7 +49,7 @@
 		</section>
 	{/each}
 
-	<Bookmarks {map} source={containers.at(-1)?.source ?? null} />
+	<Bookmarks {map} />
 </div>
 
 <style>

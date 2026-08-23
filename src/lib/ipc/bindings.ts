@@ -528,8 +528,6 @@ export const commands = {
 /**  A named view: where the camera was, and what it was looking at. */
 export type Bookmark = {
 	name: string,
-	/**  The source this view belongs to, so a bookmark can offer to reopen it. */
-	source: string | null,
 	lng: number,
 	lat: number,
 	zoom: number,

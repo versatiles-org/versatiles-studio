@@ -4,7 +4,7 @@
 
 	// A7 — named views. Application-wide, not project-scoped (Q21): a place you want to come back to
 	// is worth keeping whether or not a project exists.
-	let { map, source }: { map: MaplibreMap | undefined; source: string | null } = $props();
+	let { map }: { map: MaplibreMap | undefined } = $props();
 
 	let bookmarks = $state<Bookmark[]>([]);
 	let name = $state('');
@@ -30,7 +30,6 @@
 		try {
 			await saveBookmark({
 				name: trimmed,
-				source,
 				lng: centre.lng,
 				lat: centre.lat,
 				zoom: map.getZoom(),
@@ -75,7 +74,7 @@
 		<ul>
 			{#each bookmarks as bookmark (bookmark.name)}
 				<li>
-					<button class="go" onclick={() => go(bookmark)} title={bookmark.source ?? 'no source'}>
+					<button class="go" onclick={() => go(bookmark)}>
 						<span class="name truncate">{bookmark.name}</span>
 						<span class="meta">z{bookmark.zoom.toFixed(1)}</span>
 					</button>

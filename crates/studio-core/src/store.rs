@@ -398,14 +398,17 @@ fn clamp_width(width: f64, fallback: f64) -> f64 {
 // Bookmarks
 // ---------------------------------------------------------------------------------------------
 
-/// A named view: where the camera was, and what it was looking at.
+/// A named view: a name and where the camera was.
+///
+/// **No source.** It carried one — "so a bookmark can offer to reopen it" — that nothing ever
+/// reopened, filled from whichever container happened to be mounted last. A view is a place, and a
+/// place does not belong to a file. Old `bookmarks.json` files keep their `source` key and load
+/// fine; serde ignores it.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Bookmark {
 	pub name: String,
-	/// The source this view belongs to, so a bookmark can offer to reopen it.
-	pub source: Option<String>,
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub lng: f64,
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
@@ -863,7 +866,6 @@ mod tests {
 		for name in ["zebra", "alpha"] {
 			marks.add(Bookmark {
 				name: name.into(),
-				source: None,
 				lng: 0.0,
 				lat: 0.0,
 				zoom: 4.0,
@@ -874,7 +876,6 @@ mod tests {
 		}
 		marks.add(Bookmark {
 			name: "alpha".into(),
-			source: None,
 			lng: 13.4,
 			lat: 52.5,
 			zoom: 12.0,
@@ -894,7 +895,6 @@ mod tests {
 		let mut marks = Bookmarks::default();
 		marks.add(Bookmark {
 			name: "Berlin".into(),
-			source: Some("/berlin.versatiles".into()),
 			lng: 13.405,
 			lat: 52.52,
 			zoom: 11.0,
