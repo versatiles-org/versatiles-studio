@@ -993,7 +993,12 @@
 			/>
 		{/if}
 		<!-- `mount` is what the click is allowed to hit: Studio's own tiles, never the background. -->
-		<FeaturePopup {map} source={preview.containers.at(-1)?.info.source ?? null} mount={preview.last?.name ?? null} />
+		<FeaturePopup
+			{map}
+			{drawing}
+			source={preview.containers.at(-1)?.info.source ?? null}
+			mount={preview.last?.name ?? null}
+		/>
 		<TileGrid {map} visible={showGrid} />
 		<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
 		     has no visibility of its own to toggle. -->

@@ -9,13 +9,16 @@
 	let {
 		map,
 		source,
-		mount
+		mount,
+		drawing
 	}: {
 		map: MaplibreMap | undefined;
 		/** The container behind the tiles, for A4's per-tile breakdown. A path, not a mount name. */
 		source: string | null;
 		/** The MapLibre source Studio's own tiles are on — the graph's mount ([Q32]), or null. */
 		mount: string | null;
+		/** Whether a crop rectangle is being drawn, in which case this stays out of the way. */
+		drawing: boolean;
 	} = $props();
 
 	let anchor = $state<LngLat | null>(null);
@@ -28,38 +31,67 @@
 	let height = $state(0);
 	const below = $derived(screen !== null && screen.y - height - 10 < 0);
 
-	/// **Only Studio's own tiles answer a click.**
-	///
-	/// `queryRenderedFeatures` with no filter queries every layer in the style, and the background is
-	/// a whole generated basemap — so clicking anywhere at all returned OSM roads, landuse and place
-	/// labels. A8 is about what is in *your* tiles; the background is scenery, there to judge whether
-	/// a road is in the right place, and it has no attributes anyone came here to read.
-	///
-	/// Matched by **source** rather than by layer id or metadata, because that is the one thing true
-	/// of Studio's tiles however they are drawn: the hairlines added per vector layer when nothing is
-	/// styled, and the recipe's own layers once something is (S4). Both sit on the graph's mount.
-	function ownLayers(m: MaplibreMap): string[] {
-		if (!mount || !m.isStyleLoaded()) return [];
-		return m
-			.getStyle()
-			.layers.filter((layer) => 'source' in layer && layer.source === mount)
-			.map((layer) => layer.id);
-	}
-
 	$effect(() => {
-		if (!map) return;
+		// **Nothing at all while a crop is being drawn.** That gesture owns the map: it wants the
+		// crosshair this would overwrite on every move, and it wants its own `mousemove` to run. This
+		// component is mounted first, so a slow or throwing listener here is one the rectangle never
+		// recovers from — MapLibre fires listeners in order, in one loop.
+		if (!map || drawing) return;
 		const m = map;
+
+		// **Only Studio's own tiles answer a click.**
+		//
+		// `queryRenderedFeatures` with no filter queries every layer in the style, and the background
+		// is a whole generated basemap — so clicking anywhere at all returned OSM roads, landuse and
+		// place labels. A8 is about what is in *your* tiles; the background is scenery, there to judge
+		// whether a road is in the right place.
+		//
+		// Matched by **source** rather than by layer id or metadata, because that is the one thing
+		// true of Studio's tiles however they are drawn: the hairlines added per vector layer when
+		// nothing is styled, and the recipe's own layers once something is (S4). Both sit on the mount.
+		//
+		// **Worked out once per style, not once per mouse move.** `getStyle()` serialises every layer
+		// and source it has; calling it from a `mousemove` handler was enough to starve the handlers
+		// registered after this one.
+		const owner = mount;
+		let ids: string[] | null = null;
+		const invalidate = () => (ids = null);
+		const layers = (): string[] => {
+			if (ids) return ids;
+			if (!owner) return [];
+			// Not `isStyleLoaded()`: that is false while any tile is still in flight, which would make
+			// a click answer nothing for as long as the map was busy. `getStyle` throws only when
+			// there is no style at all, and then the next call tries again.
+			try {
+				ids = m
+					.getStyle()
+					.layers.filter((layer) => 'source' in layer && layer.source === owner)
+					.map((layer) => layer.id);
+			} catch {
+				return [];
+			}
+			return ids;
+		};
+
+		/// Never lets a query take the event loop down with it: a layer can leave the style between
+		/// the list being cached and the query running, and this handler runs ahead of others.
+		const hitsAt = (point: MapMouseEvent['point']): MapGeoJSONFeature[] => {
+			const only = layers();
+			if (only.length === 0) return [];
+			try {
+				return m.queryRenderedFeatures(point, { layers: only });
+			} catch {
+				ids = null;
+				return [];
+			}
+		};
 
 		const reposition = () => {
 			screen = anchor ? m.project(anchor) : null;
 		};
 
 		const onClick = (event: MapMouseEvent) => {
-			const layers = ownLayers(m);
-			// No layers of ours on the map is not the same question as "nothing under the cursor" —
-			// `queryRenderedFeatures` with an empty list would answer the second by querying all of
-			// them, which is the bug this filter exists to fix.
-			const hits = layers.length ? m.queryRenderedFeatures(event.point, { layers }) : [];
+			const hits = hitsAt(event.point);
 			if (hits.length === 0) {
 				anchor = null;
 				screen = null;
@@ -84,19 +116,23 @@
 		// Hover feedback costs one query per move, which MapLibre already does for its own hit-testing.
 		// The same filter, or the cursor would promise a popup over every road in the background.
 		const onMove = (event: MapMouseEvent) => {
-			const layers = ownLayers(m);
-			const over = layers.length > 0 && m.queryRenderedFeatures(event.point, { layers }).length > 0;
-			m.getCanvas().style.cursor = over ? 'pointer' : '';
+			m.getCanvas().style.cursor = hitsAt(event.point).length > 0 ? 'pointer' : '';
 		};
 
 		m.on('click', onClick);
 		m.on('mousemove', onMove);
 		m.on('move', reposition);
+		// Adding or removing a layer fires this, so the cached list cannot outlive the style it came
+		// from.
+		m.on('styledata', invalidate);
 
 		return () => {
 			m.off('click', onClick);
 			m.off('mousemove', onMove);
 			m.off('move', reposition);
+			m.off('styledata', invalidate);
+			// Left as it was found: the crosshair belongs to whoever set it.
+			m.getCanvas().style.cursor = '';
 		};
 	});
 

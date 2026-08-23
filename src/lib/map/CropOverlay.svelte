@@ -110,9 +110,9 @@
 		if (!map) return;
 		const m = map;
 
-		// Attached before the layers are added, for the reason `TileActivity` learned the hard way:
-		// `addSource` throws when the style is not loaded, and a listener registered after it would
-		// never run — leaving the overlay permanently absent instead of merely late.
+		// Attached before the layers are added, for the reason `TileActivity` learned the hard way: a
+		// listener registered after a failed attempt would never run, leaving the overlay permanently
+		// absent instead of merely late.
 		//
 		// **Each overlay is ensured on its own.** One guard over both was a bug waiting for the second
 		// one to arrive: with the crop's source already on the map, the whole function returned and
@@ -167,18 +167,31 @@
 			});
 		};
 
+		// **`isStyleLoaded()` is the wrong question**, and gating on it is what kept the draft off the
+		// map. `Style.loaded()` returns false while *any* tile manager is still fetching — with a
+		// background basemap that is most of the time — so on an otherwise idle map this returned
+		// early and there was no later event to bring it back. What actually matters is narrower:
+		// `addSource` throws only when there is no style to add to. So try, and let the listeners
+		// below bring us round again if it was too early.
 		const restore = () => {
-			if (!m.isStyleLoaded()) return;
-			ensureCrop();
-			ensureDraft();
+			try {
+				ensureCrop();
+				ensureDraft();
+			} catch {
+				// No style yet. `styledata`, `load` and `idle` are all still attached.
+			}
 		};
 		m.on('styledata', restore);
 		m.on('load', restore);
+		// The settled-map net: whatever else happens, a map that has finished drawing has a style,
+		// and each `ensure` is a cheap early return once its own source is there.
+		m.on('idle', restore);
 		restore();
 
 		return () => {
 			m.off('styledata', restore);
 			m.off('load', restore);
+			m.off('idle', restore);
 			for (const id of [`${DRAFT}:line`, `${DRAFT}:fill`, `${SOURCE}:edge`, `${SOURCE}:dim`]) {
 				if (m.getLayer(id)) m.removeLayer(id);
 			}

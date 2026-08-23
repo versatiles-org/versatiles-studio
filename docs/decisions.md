@@ -40,6 +40,19 @@ beside it. The region now clips, the popup's `left` is clamped half its own maxi
 either edge, and it flips below the point when there is no room above. The clip is the backstop; the
 clamp and the flip are what stop it ever reaching one.
 
+**The layer list is worked out once per style, not once per mouse move.** The first cut of the
+filter called `getStyle()` from the `mousemove` handler, which serialises every layer and source the
+style has — with a background loaded, hundreds of them, per event. That broke crop drawing outright:
+`FeaturePopup` mounts before `CropOverlay`, MapLibre fires listeners in one ordered loop, and the
+rectangle's own `mousemove` never got a usable turn. The list is cached and invalidated on
+`styledata`, and the query is guarded so a layer leaving the style between the two cannot take the
+loop down with it.
+
+**And it stands down entirely while a crop is being drawn.** That gesture owns the map: it wants the
+crosshair this component was overwriting on every move, and it wants its handlers to run. A popup
+opened by a stray click mid-crop was never wanted either. The lesson is the general one — a listener
+registered ahead of others is not free to be slow or to throw.
+
 ### Q44 — A crop being dragged is drawn as a rectangle; the dim is for a crop that exists
 
 **Decided 2026-08-23.** `CropOverlay` draws a crop by dimming everything outside it — one polygon
@@ -54,6 +67,15 @@ So the draft is its own overlay: a lightly filled box in the crop's colour with 
 solid being reserved for the crop that exists, so the difference needs no legend. Only one of the two
 is ever on screen — while a rectangle is in flight, the crop it will replace is not the subject, and
 two overlapping treatments is one too many to aim through.
+
+**The overlay is not gated on `isStyleLoaded()`.** That was the guard the crop's own layers were
+added under, and it is the wrong question: `Style.loaded()` returns false while _any_ tile manager is
+still fetching, so with a background basemap on the map it is false most of the time. The crop's
+layers survived only because they were added early, against a style with nothing to fetch; the
+draft's, added later, never found a moment when the guard passed — and on an idle map no further
+event came to retry. What actually matters is narrower: `addSource` throws only when there is no
+style to add to. So the overlay tries, catches, and is brought round by `styledata`, `load` or
+`idle`.
 
 **A drag released off the map is abandoned.** MapLibre's `mouseup` fires only over the canvas, so a
 drag ending on a pane or outside the window never finished. That was invisible before and is not any
