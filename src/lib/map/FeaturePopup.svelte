@@ -6,13 +6,45 @@
 
 	// A8 — every attribute of the feature under the cursor. Deliberately shows all of them: the point
 	// is answering "what is actually in this tile", which a curated subset would defeat.
-	let { map, source }: { map: MaplibreMap | undefined; source: string | null } = $props();
+	let {
+		map,
+		source,
+		mount
+	}: {
+		map: MaplibreMap | undefined;
+		/** The container behind the tiles, for A4's per-tile breakdown. A path, not a mount name. */
+		source: string | null;
+		/** The MapLibre source Studio's own tiles are on — the graph's mount ([Q32]), or null. */
+		mount: string | null;
+	} = $props();
 
 	let anchor = $state<LngLat | null>(null);
 	let features = $state<MapGeoJSONFeature[]>([]);
 	let screen = $state<{ x: number; y: number } | null>(null);
 	// A4 — what tile did that click land in, and what is inside it?
 	let tile = $state<TileInspection | null>(null);
+
+	/// Measured, so the popup can flip below the point when there is no room above it.
+	let height = $state(0);
+	const below = $derived(screen !== null && screen.y - height - 10 < 0);
+
+	/// **Only Studio's own tiles answer a click.**
+	///
+	/// `queryRenderedFeatures` with no filter queries every layer in the style, and the background is
+	/// a whole generated basemap — so clicking anywhere at all returned OSM roads, landuse and place
+	/// labels. A8 is about what is in *your* tiles; the background is scenery, there to judge whether
+	/// a road is in the right place, and it has no attributes anyone came here to read.
+	///
+	/// Matched by **source** rather than by layer id or metadata, because that is the one thing true
+	/// of Studio's tiles however they are drawn: the hairlines added per vector layer when nothing is
+	/// styled, and the recipe's own layers once something is (S4). Both sit on the graph's mount.
+	function ownLayers(m: MaplibreMap): string[] {
+		if (!mount || !m.isStyleLoaded()) return [];
+		return m
+			.getStyle()
+			.layers.filter((layer) => 'source' in layer && layer.source === mount)
+			.map((layer) => layer.id);
+	}
 
 	$effect(() => {
 		if (!map) return;
@@ -23,7 +55,11 @@
 		};
 
 		const onClick = (event: MapMouseEvent) => {
-			const hits = m.queryRenderedFeatures(event.point);
+			const layers = ownLayers(m);
+			// No layers of ours on the map is not the same question as "nothing under the cursor" —
+			// `queryRenderedFeatures` with an empty list would answer the second by querying all of
+			// them, which is the bug this filter exists to fix.
+			const hits = layers.length ? m.queryRenderedFeatures(event.point, { layers }) : [];
 			if (hits.length === 0) {
 				anchor = null;
 				screen = null;
@@ -46,8 +82,10 @@
 		};
 
 		// Hover feedback costs one query per move, which MapLibre already does for its own hit-testing.
+		// The same filter, or the cursor would promise a popup over every road in the background.
 		const onMove = (event: MapMouseEvent) => {
-			const over = m.queryRenderedFeatures(event.point).length > 0;
+			const layers = ownLayers(m);
+			const over = layers.length > 0 && m.queryRenderedFeatures(event.point, { layers }).length > 0;
 			m.getCanvas().style.cursor = over ? 'pointer' : '';
 		};
 
@@ -72,7 +110,15 @@
 </script>
 
 {#if screen && features.length}
-	<div class="popup" style="left: {screen.x}px; top: {screen.y}px">
+	<!-- `clamp` keeps it inside the map horizontally: half its own maximum width from either edge, so
+	     a feature clicked at the left rail does not push the popup under the pane. The map region
+	     clips as a backstop, and `below` flips it under the point when there is no room above. -->
+	<div
+		class="popup"
+		class:below
+		bind:clientHeight={height}
+		style="left: clamp(10rem, {screen.x}px, calc(100% - 10rem)); top: {screen.y}px"
+	>
 		<button class="close" onclick={close} aria-label="Close">×</button>
 		{#if tile}
 			<article class="tile">
@@ -135,6 +181,19 @@
 			border: 6px solid transparent;
 			border-top-color: var(--rule);
 			border-bottom: 0;
+		}
+
+		/* Under the point instead of over it, tail turned to match. */
+		&.below {
+			transform: translate(-50%, 10px);
+
+			&::after {
+				bottom: auto;
+				top: -6px;
+				border-top: 0;
+				border-bottom: 6px solid var(--rule);
+				border-top-color: transparent;
+			}
 		}
 	}
 

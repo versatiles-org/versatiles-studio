@@ -16,6 +16,30 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q45 — The feature popup answers for Studio's tiles only, and stays inside the map
+
+**Decided 2026-08-23.** Two faults in A8's popup, both from it being written before the things
+around it existed.
+
+**It answered for the background.** `queryRenderedFeatures` with no filter queries every layer in
+the style, and the background (D1) is a whole generated basemap — so a click anywhere returned OSM
+roads, landuse and place labels. A8 is "what is actually in this tile", meaning _your_ tile; the
+background is scenery, there to judge whether a road is in the right place, and its attributes are
+nobody's question here. The query is now restricted to the layers on the graph's mount.
+
+**Matched by source, not by layer id or metadata.** The mount is the one thing true of Studio's
+tiles however they are drawn — the per-layer hairlines added when nothing is styled, and the
+recipe's own layers once something is (S4) — because a graph's name is its mount and its style
+source at once ([Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)). With no
+mount, the popup answers nothing rather than falling back to querying everything, which is the bug
+in miniature.
+
+**It escaped the map.** The popup is anchored to a projected point and can be clicked at the very
+edge, and the map region had `position: relative` without clipping — so it drew over the panes
+beside it. The region now clips, the popup's `left` is clamped half its own maximum width from
+either edge, and it flips below the point when there is no room above. The clip is the backstop; the
+clamp and the flip are what stop it ever reaching one.
+
 ### Q44 — A crop being dragged is drawn as a rectangle; the dim is for a crop that exists
 
 **Decided 2026-08-23.** `CropOverlay` draws a crop by dimming everything outside it — one polygon

@@ -113,6 +113,10 @@
 		grid-area: map;
 		position: relative;
 		min-width: 0;
+		/* Everything the map floats — controls, the view list, the feature popup — is positioned
+		   against this box, and nothing of it belongs over the panes beside it. The popup is the one
+		   that reached: it is anchored to a point that can sit at the very edge. */
+		overflow: hidden;
 	}
 
 	.right {
