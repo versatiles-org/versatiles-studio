@@ -2,6 +2,7 @@
 	import type { Map as MaplibreMap, MapGeoJSONFeature, LngLat, MapMouseEvent } from 'maplibre-gl';
 	import JsonTree from '../common/JsonTree.svelte';
 	import { inspectTile, type TileInspection } from '../ipc/commands';
+	import { sourceLayers } from './source-layers';
 	import { tileForLngLat } from './tile-grid';
 
 	// A8 — every attribute of the feature under the cursor. Deliberately shows all of them: the point
@@ -39,49 +40,21 @@
 		if (!map || drawing) return;
 		const m = map;
 
-		// **Only Studio's own tiles answer a click.**
-		//
-		// `queryRenderedFeatures` with no filter queries every layer in the style, and the background
-		// is a whole generated basemap — so clicking anywhere at all returned OSM roads, landuse and
-		// place labels. A8 is about what is in *your* tiles; the background is scenery, there to judge
-		// whether a road is in the right place.
-		//
-		// Matched by **source** rather than by layer id or metadata, because that is the one thing
-		// true of Studio's tiles however they are drawn: the hairlines added per vector layer when
-		// nothing is styled, and the recipe's own layers once something is (S4). Both sit on the mount.
-		//
-		// **Worked out once per style, not once per mouse move.** `getStyle()` serialises every layer
-		// and source it has; calling it from a `mousemove` handler was enough to starve the handlers
-		// registered after this one.
-		const owner = mount;
-		let ids: string[] | null = null;
-		const invalidate = () => (ids = null);
-		const layers = (): string[] => {
-			if (ids) return ids;
-			if (!owner) return [];
-			// Not `isStyleLoaded()`: that is false while any tile is still in flight, which would make
-			// a click answer nothing for as long as the map was busy. `getStyle` throws only when
-			// there is no style at all, and then the next call tries again.
-			try {
-				ids = m
-					.getStyle()
-					.layers.filter((layer) => 'source' in layer && layer.source === owner)
-					.map((layer) => layer.id);
-			} catch {
-				return [];
-			}
-			return ids;
-		};
+		// Which layers a click may hit, and how often that is worked out, are `sourceLayers`'s
+		// ([Q46]) — including why it is matched by source and why it is cached.
+		const only = sourceLayers(m, mount);
 
 		/// Never lets a query take the event loop down with it: a layer can leave the style between
 		/// the list being cached and the query running, and this handler runs ahead of others.
 		const hitsAt = (point: MapMouseEvent['point']): MapGeoJSONFeature[] => {
-			const only = layers();
-			if (only.length === 0) return [];
+			const layers = only.ids();
+			// An empty list is not "no filter": `queryRenderedFeatures` would answer it by querying
+			// every layer, which is the bug the filter exists to fix.
+			if (layers.length === 0) return [];
 			try {
-				return m.queryRenderedFeatures(point, { layers: only });
+				return m.queryRenderedFeatures(point, { layers });
 			} catch {
-				ids = null;
+				only.invalidate();
 				return [];
 			}
 		};
@@ -124,13 +97,13 @@
 		m.on('move', reposition);
 		// Adding or removing a layer fires this, so the cached list cannot outlive the style it came
 		// from.
-		m.on('styledata', invalidate);
+		m.on('styledata', only.invalidate);
 
 		return () => {
 			m.off('click', onClick);
 			m.off('mousemove', onMove);
 			m.off('move', reposition);
-			m.off('styledata', invalidate);
+			m.off('styledata', only.invalidate);
 			// Left as it was found: the crosshair belongs to whoever set it.
 			m.getCanvas().style.cursor = '';
 		};

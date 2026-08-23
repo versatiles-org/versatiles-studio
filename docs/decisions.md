@@ -16,6 +16,42 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q46 — An overlay on the map is one helper with one test, not three copies of a pattern
+
+**Decided 2026-08-24.** `TileGrid`, `TileActivity` and `CropOverlay` each hand-rolled the same
+lifecycle — a GeoJSON source, its layers, putting both back after a restyle, taking them away on
+teardown — and each had a different subset of it right. Four bugs came out of that in one sitting,
+three of them invisible from the outside. It is now `lib/map/overlay.ts`, with `lib/map/source-layers.ts`
+beside it for the other thing map code does by hand.
+
+**What the three had each learned separately**, and now share: a style change destroys everything, so
+`styledata` and `load` bring it back; whatever is drawn afterwards goes above it, so existing layers
+are lifted rather than left buried under the tiles they describe; a rebuilt source comes back empty
+while the effect that fills it has no reason to run, so a rebuild redraws.
+
+**And the one none of them had.** Guarding a whole overlay on its source is what made this class of
+bug silent: `addSource` succeeding and a later `addLayer` throwing left the source present and the
+layers absent, and every call after that returned early on the source it had just added. Half-drawn
+for the life of the style, saying nothing, because a layer that was never added throws nothing
+afterwards. Each piece is ensured on its own now, and **anything still missing once the map is
+`idle` says so with the error that stopped it** — `idle` being the point at which "too early" stops
+being an answer.
+
+**`isStyleLoaded()` is not the guard it looks like.** `Style.loaded()` is false while _any_ tile is
+in flight, which with a background basemap is most of the time. `TileActivity` — the overlay _about_
+tiles in flight — was gated on it. `addSource` throws only when there is no style at all, so the
+helper tries and lets the events bring it round.
+
+**Tested against a map that records rather than renders.** Ten cases in `overlay.test.ts`, six in
+`source-layers.test.ts`, in node with no DOM and no WebGL; each was verified to fail against the
+implementation it replaces rather than merely to pass. That is the tier this codebase was missing:
+`preview.svelte.test.ts` already mocked a collaborator to catch rules that "fail silently in the
+running application", and the map had nothing of the kind.
+
+_Costs three components 86 lines between them. Does not replace looking at the running application —
+of the seven faults in the sitting that prompted this, two were only ever going to be caught by
+opening it._
+
 ### Q45 — The feature popup answers for Studio's tiles only, and stays inside the map
 
 **Decided 2026-08-23.** Two faults in A8's popup, both from it being written before the things

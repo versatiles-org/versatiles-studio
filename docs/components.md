@@ -82,14 +82,14 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 
 One `Map` instance for the whole window, owned by the core ([Q16](decisions.md)).
 
-| Component        | Does                                                                                                                      | Stage |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------- | ----- |
-| `MapCanvas`      | Wraps MapLibre; viewport restored from the core, never from local state                                                   | S1.4  |
-| `TileGrid`       | z/x/y grid (A5)                                                                                                           | S1.7  |
-| `CoordinateJump` | Jump-to-coordinate box (A5)                                                                                               | S1.7  |
-| `Views`          | Named views (A7): the list, and saving the camera you are on ([Q38](decisions.md))                                        | S1.8  |
-| `FeaturePopup`   | All attributes of the feature under the cursor (A8) — Studio's own tiles only, never the background ([Q45](decisions.md)) | S1.6  |
-| `CropOverlay`    | The crop: everything outside it dimmed, and a drag draws a new one as a rectangle (F2, [Q44](decisions.md))               | S5.2  |
+| Component        | Does                                                                                                                                                                  | Stage |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `MapCanvas`      | Wraps MapLibre; viewport restored from the core, never from local state                                                                                               | S1.4  |
+| `TileGrid`       | z/x/y grid (A5)                                                                                                                                                       | S1.7  |
+| `CoordinateJump` | Jump-to-coordinate box (A5)                                                                                                                                           | S1.7  |
+| `Views`          | Named views (A7): the list, and saving the camera you are on ([Q38](decisions.md))                                                                                    | S1.8  |
+| `FeaturePopup`   | All attributes of the feature under the cursor (A8) — Studio's own tiles only, never the background ([Q45](decisions.md))                                             | S1.6  |
+| `CropOverlay`    | The crop: everything outside it dimmed, and a drag draws a new one as a rectangle (F2, [Q44](decisions.md)). Its two overlays are `mapOverlay`s ([Q46](decisions.md)) | S5.2  |
 
 ## Left pane — the chain
 
