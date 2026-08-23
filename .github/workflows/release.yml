@@ -280,13 +280,16 @@ jobs:
       # draft is invisible to every installed copy until someone presses publish. That is the same
       # property the draft gives the installers, applied to the thing that reaches people
       # automatically.
-      # The notes were written by a person before the tag existed, and this is where they are read
-      # rather than re-stated. Missing is not fatal: a release with the install instructions and no
-      # notes is worse than one with both, and better than no release.
-      - name: Read the notes
+      # **The whole body is assembled here.** `append_body` appends to an *existing release's*
+      # body when updating one; it does not combine `body` with `body_path`, and `body_path` wins —
+      # so the install instructions were silently dropped from v0.1.0's page, which is the one place
+      # a macOS user finds out why the application refuses to open (Q10 calls that text the
+      # deliverable). One file, passed as `body_path`, has no such ambiguity.
+      - name: Assemble the notes
         run: |
           set -euo pipefail
           version="${{ needs.version.outputs.version }}"
+
           if [ -f CHANGELOG.md ]; then
             awk -v v="## v$version " 'index($0, v) == 1 { on = 1; next } on && /^## / { exit } on' \
               CHANGELOG.md >notes.md
@@ -295,6 +298,13 @@ jobs:
             echo "::warning::CHANGELOG.md has no section for v$version"
             : >notes.md
           fi
+
+          # The standing text lives in a file rather than a heredoc: a heredoc inside a YAML block
+          # keeps its indentation, and ten spaces in front of every line turns markdown into a code
+          # block.
+          printf '\n' >>notes.md
+          cat .github/release-install.md >>notes.md
+
           cat notes.md
 
       - name: Build latest.json
@@ -308,23 +318,36 @@ jobs:
           files: installers/*
           # macOS is unsigned until Q10 is revisited, so every download from this page meets
           # Gatekeeper. Saying so on the page beats letting someone find out at first launch.
-          # `body_path` is the notes; `append_body` puts the standing install text after them, so
-          # what changed is the first thing on the page and the Gatekeeper warning is still on it.
           body_path: notes.md
-          append_body: true
-          body: |
-            ## Install
 
-            **Linux** — `.deb` for Debian and Ubuntu, or the AppImage anywhere else. A `.deb` is
-            built against one WebKitGTK version and may not install across distributions; that is
-            what the AppImage is for.
+      # **Does every URL in the manifest point at an asset that exists?**
+      #
+      # Asked after the upload, because that is when it can be wrong: GitHub rewrites characters it
+      # dislikes in an asset name, so a file uploaded as `A B.AppImage` is stored as `A.B.AppImage`
+      # and the manifest still names the first. v0.1.0 shipped exactly that — a draft whose Linux
+      # entries 404'd — and nothing noticed, because a 404 only surfaces on someone else's machine
+      # weeks later when they check for an update.
+      #
+      # The draft stays; the job fails, so it is not published.
+      - name: Verify the manifest
+        run: |
+          set -euo pipefail
+          gh release view "v${{ needs.version.outputs.version }}" --json assets --jq '.assets[].name' | sort >uploaded.txt
 
-            **macOS** — download the `.dmg` for your Mac: `aarch64` for Apple Silicon, `x86_64` for
-            Intel. **This build is not notarised**, so macOS will refuse it on first launch. Open
-            **System Settings → Privacy & Security** and choose **Open Anyway**, or run:
-
-            ```sh
-            xattr -d com.apple.quarantine "/Applications/VersaTiles Studio.app"
-            ```
-
-            Windows is not built yet.
+          missing=0
+          while IFS= read -r wanted; do
+            if grep -qxF "$wanted" uploaded.txt; then
+              echo "  ok       $wanted"
+            else
+              echo "::error::latest.json points at $wanted, which was not uploaded under that name"
+              missing=1
+            fi
+          done < <(node -e '
+            const m = require("./installers/latest.json");
+            for (const p of Object.values(m.platforms)) {
+              console.log(decodeURIComponent(p.url.split("/").pop()));
+            }
+          ')
+          exit "$missing"
+        env:
+          GH_TOKEN: ${{ github.token }}
