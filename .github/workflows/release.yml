@@ -368,3 +368,15 @@ jobs:
           echo "published https://github.com/${{ github.repository }}/releases/tag/v${{ needs.version.outputs.version }}"
         env:
           GH_TOKEN: ${{ github.token }}
+
+      # **The tap pulls; this only tells it to.** `bin/make_cask.sh` over there reads the release
+      # that was just published and finds its assets by suffix, so a renamed `.dmg` cannot leave the
+      # cask pointing at a file that no longer exists — which is what a hand-edited copy in this
+      # repository kept doing while the naming was being settled.
+      #
+      # `PAT_TOKEN` because `github.token` is scoped to this repository and cannot start a workflow
+      # in another. The same secret and the same call versatiles-rs already uses for its formula.
+      - name: Update the Homebrew cask
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: gh workflow run update_cask.yml --repo versatiles-org/homebrew-versatiles --ref main
