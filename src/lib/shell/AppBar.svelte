@@ -47,7 +47,9 @@
 		display: flex;
 		gap: var(--space-1);
 		align-items: center;
-		padding: var(--space-1) var(--space-2);
+		/* Room on the right for the alpha ribbon, which crosses this corner and is not part of the
+		   flow. Without it the last button sits under the band. */
+		padding: var(--space-1) 5rem var(--space-1) var(--space-2);
 		border-bottom: 1px solid var(--rule);
 		background: var(--chrome);
 	}

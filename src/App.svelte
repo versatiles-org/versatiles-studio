@@ -19,6 +19,7 @@
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
 	import StylePane from './lib/panes/style/StylePane.svelte';
 	import AppBar from './lib/shell/AppBar.svelte';
+	import AlphaRibbon from './lib/shell/AlphaRibbon.svelte';
 	import AssetsDialog from './lib/shell/AssetsDialog.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import CopyDialog from './lib/panes/project/CopyDialog.svelte';
@@ -1066,6 +1067,9 @@
 {#if assets}
 	<AssetsDialog onClose={() => (assets = false)} />
 {/if}
+
+<!-- Outside the shell, like the modals: it belongs to the window rather than to a cell of the grid. -->
+<AlphaRibbon />
 
 <Help />
 

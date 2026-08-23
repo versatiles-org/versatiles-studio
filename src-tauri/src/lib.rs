@@ -108,6 +108,11 @@ pub fn run() {
 		// restart, and offering the restart is the difference between "installed" and "running".
 		.plugin(tauri_plugin_updater::Builder::new().build())
 		.plugin(tauri_plugin_process::init())
+		// Opening a URL in the *system* browser, which is the only kind of link Studio has: the
+		// alpha ribbon's, pointing at the repository. A webview that navigated away from the
+		// application would have no way back — and the capability scopes it to that one host, so
+		// this cannot become a general way out.
+		.plugin(tauri_plugin_opener::init())
 		.setup(|app| {
 			// Before anything can fetch: a remote container opened during start-up would otherwise
 			// go out as plain `versatiles/…` (vt#248).
