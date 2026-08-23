@@ -25,7 +25,10 @@ const docs = [
 	...readdirSync(join(root, 'docs'))
 		.filter((name) => name.endsWith('.md'))
 		.map((name) => `docs/${name}`),
-	'README.md'
+	'README.md',
+	// Not a planning document, but it links into `docs/` and is linked from the README, so its
+	// references decay the same way theirs do.
+	'CONTRIBUTING.md'
 ];
 
 const read = (path: string) => readFileSync(join(root, path), 'utf8');
