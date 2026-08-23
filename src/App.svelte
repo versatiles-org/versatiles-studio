@@ -12,6 +12,7 @@
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
+	import { preview } from './lib/state/preview.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import LandingScreen from './lib/common/LandingScreen.svelte';
 	import PipelineOutput from './lib/panes/output/PipelineOutput.svelte';
@@ -23,7 +24,7 @@
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import DeployDialog from './lib/panes/project/DeployDialog.svelte';
 	import CopyDialog from './lib/panes/project/CopyDialog.svelte';
-	import { samePath, walk } from './lib/vpl/node-at';
+	import { samePath } from './lib/vpl/node-at';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
 	import TileGrid from './lib/map/TileGrid.svelte';
@@ -33,17 +34,14 @@
 	import { buildBackground, isBackgroundId, type BackgroundId } from './lib/map/background';
 	import CoordinateJump from './lib/map/CoordinateJump.svelte';
 	import { defaultStyle } from './lib/map/default-style';
-	import { addContainerToMap, removeContainerFromMap } from './lib/map/add-source';
 	import { deriveStyle, drawsAnything, renderStyle } from './lib/map/style';
 	import { forExport } from './lib/map/style-code';
-	import { whyNotRenderable } from './lib/map/tile-format';
 	import {
 		forgetRecent,
 		takeOpened,
 		OPENED_EVENT,
 		getLayout,
 		listGraphs,
-		mountGraph,
 		setPin,
 		getPinned,
 		removeGraph,
@@ -59,7 +57,6 @@
 		openVpl,
 		saveVpl,
 		redo as redoPipeline,
-		openContainer,
 		recentSources,
 		serverBaseUrl,
 		setLayout,
@@ -76,7 +73,6 @@
 		vplSetProperty,
 		vplOperations,
 		getGraph,
-		previewPipeline,
 		type DocumentView,
 		type Bounds,
 		type Estimate,
@@ -85,7 +81,6 @@
 		type Camera,
 		type Layout,
 		type OperationInfo,
-		type Preview,
 		type Span,
 		importKinds,
 		importKindFor,
@@ -94,7 +89,6 @@
 		type EditKind,
 		type GraphInfo,
 		type ImportKind,
-		type OpenedContainer,
 		type RecentEntry
 	} from './lib/ipc/commands';
 
@@ -113,8 +107,6 @@
 
 	let style = $state<StyleSpecification | null>(null);
 	let map = $state<MaplibreMap | undefined>();
-	// The opened containers, each with the read node it corresponds to (Q22).
-	let containers = $state<OpenedContainer[]>([]);
 	let layout = $state<Layout | null>(null);
 	/** This window's pipeline. The core owns it (Q25); this is a copy to render. */
 	/// The graph being edited. One document at a time on screen; the project holds several (Q32),
@@ -147,8 +139,6 @@
 	// is a state the application is in, and covering the map to say so was never a good trade.
 	let status = $state<Status>({ kind: 'idle' });
 	let showGrid = $state(false);
-	/** The last preview that was put on the map, so a style swap can restore it without rebuilding. */
-	let lastPreview = $state<Preview | null>(null);
 
 	/// What each node's fields could be set to, by the node's path (S3.4).
 	///
@@ -178,7 +168,9 @@
 	/// Flattened across layers and de-duplicated: a node's `properties_include` applies to the
 	/// features passing through it, not to one layer, so splitting them by layer here would be a
 	/// distinction the parameter does not make.
-	const producedProperties = $derived([...new Set((lastPreview?.layers ?? []).flatMap((layer) => layer.propertyKeys))]);
+	const producedProperties = $derived([
+		...new Set((preview.last?.layers ?? []).flatMap((layer) => layer.propertyKeys))
+	]);
 	let serverUrl = $state<string | null>(null);
 
 	/** A value from an older build is not trusted — the catalogue decides what exists. */
@@ -257,7 +249,7 @@
 	// strip that used to repeat the application name back at the OS title bar. One window per
 	// project (Q16), so the window is the right place to name it.
 	$effect(() => {
-		const newest = containers.at(-1)?.info.source;
+		const newest = preview.containers.at(-1)?.info.source;
 		const name = newest ? (newest.split(/[/\\]/).pop() ?? newest) : null;
 		void getCurrentWindow().setTitle(name ? `${name} — VersaTiles Studio` : 'VersaTiles Studio');
 	});
@@ -453,11 +445,10 @@
 
 			if (pipeline) {
 				await refreshPreview();
-			} else if (previewName && map) {
-				// `refreshPreview` returns early with no pipeline, so the layer it drew would outlive
-				// the graph it came from — a map still showing tiles from a document that is gone.
-				removeContainerFromMap(map, previewName);
-				previewName = null;
+			} else {
+				// `refresh` returns early with no graph, so the layer it drew would outlive the graph
+				// it came from — a map still showing tiles from a document that is gone.
+				preview.clear(map);
 			}
 		} catch (e) {
 			fail(e);
@@ -628,13 +619,6 @@
 			.catch(fail);
 	});
 
-	/// The layers the mounted tiles actually contain, for deciding whether a preset can draw them.
-	const mountedLayers = $derived(
-		((lastPreview?.info.tileJson?.vector_layers ?? []) as { id?: string }[])
-			.map((layer) => layer.id)
-			.filter((id): id is string => typeof id === 'string')
-	);
-
 	/// The style the recipe describes, or `null` when it would draw nothing (S4.3).
 	///
 	/// **Null is a real answer, not a failure.** The six presets are written against Shortbread's
@@ -644,7 +628,7 @@
 	/// which of the two the map is showing.
 	const styled = $derived.by(() => {
 		const recipe = styleRecipe.current;
-		const source = lastPreview;
+		const source = preview.last;
 		if (!recipe || !source || !serverUrl) return null;
 		const sources = [{ name: source.name, tileUrl: source.tileUrl }];
 
@@ -653,7 +637,7 @@
 		if (recipe.preset === 'derived') return deriveStyle(source.layers, sources, serverUrl);
 
 		const rendered = renderStyle(recipe, sources, serverUrl);
-		return rendered && drawsAnything(rendered, mountedLayers) ? rendered : null;
+		return rendered && drawsAnything(rendered, preview.mountedLayers) ? rendered : null;
 	});
 
 	// **One owner for the map's style.** The recipe and the background both want to set it, and two
@@ -678,19 +662,9 @@
 		});
 	});
 
-	/// Puts the preview back after a style swap, which discards every layer added to the old style.
-	/// Re-adds what a replaced style discarded.
-	///
-	/// Not the hairlines when the recipe is drawing these tiles: they are the fallback for a preset
-	/// that matches nothing, and adding them over a styled map would put a line over every feature
-	/// the style just drew.
-	function restorePreview() {
-		if (map && lastPreview && !styled) addContainerToMap(map, lastPreview);
-	}
-
 	/// Returns the camera to what is currently open.
 	function resetView() {
-		const bbox = lastPreview?.info.bbox;
+		const bbox = preview.last?.info.bbox;
 		if (map && bbox) map.fitBounds(bbox, { padding: 24, duration: 400 });
 	}
 
@@ -734,20 +708,43 @@
 		if (typeof picked === 'string') await load(picked);
 	}
 
-	/// Opens a container and remembers it. Does not put it on the map — the map shows what the
-	/// *pipeline* produces (C3), and a container is only ever an input to that.
-	async function mount(source: string) {
-		const result = await openContainer(source);
-		containers = [...containers.filter((c) => c.info.source !== result.info.source), result];
-		return result;
+	/// Builds the preview and says in the bar what came of it.
+	///
+	/// The rule itself is `preview.refresh` — this is the half that is about *this window*: the map
+	/// it is bound to, and the one status bar the outcome has to be reported in.
+	async function refreshPreview() {
+		try {
+			const done = await preview.refresh({ map, pipeline, pinned, styled: () => styled !== null });
+			switch (done.kind) {
+				// A newer build owns the map and is still working; the bar is its to set, not ours.
+				case 'superseded':
+					return;
+				// Nothing was built, so nothing later will clear an "Opening …" the caller set.
+				case 'nothing':
+					settle();
+					return;
+				case 'unrenderable':
+					status = { kind: 'error', message: done.message };
+					return;
+				case 'shown':
+					status = { kind: 'idle' };
+					return;
+				// No map or no graph: nothing happened, and whatever the bar says still stands.
+				case 'unavailable':
+					return;
+			}
+		} catch (e) {
+			fail(e);
+		}
 	}
 
-	/// The mount currently drawn on the map, or `null` when nothing is.
-	///
-	/// Kept rather than derived, because taking a layer off again needs the name it went on under
-	/// and the two cases do not share one: a pinned node is built into the fixed `preview` mount,
-	/// while an unpinned graph is mounted under the graph's own name ([Q32]).
-	let previewName = $state<string | null>(null);
+	/// Opens whatever the pipeline now reads, naming each one in the bar as it goes.
+	async function syncContainersToPipeline() {
+		if (!pipeline) return;
+		await preview.syncContainers(pipeline, (source) => {
+			status = { kind: 'busy', message: `Opening ${filename(source)}…` };
+		});
+	}
 
 	// The map is created by an effect, so it can appear after a pipeline has already been loaded —
 	// on a reload, the document comes back from the core before there is anything to draw it on.
@@ -758,78 +755,6 @@
 			if (pipeline) void refreshPreview();
 		});
 	});
-
-	/// Builds what the map should show, and puts it there.
-	///
-	/// This is what "instantly see the result" means (M4): changing the pipeline changes the tiles
-	/// rather than a number in a form. **Which** pipeline is the pin's to say ([Q32]) — a pinned
-	/// node shows the data as it is at that step, and with nothing pinned the map shows the graph's
-	/// output in full.
-	async function refreshPreview() {
-		if (!map || !pipeline) return;
-		// **A document that does not validate is not built.** `＋ operation…` inserts a node with its
-		// required parameters unset by design — [Q33] decided that "required" is said by the field
-		// being present and empty — so an invalid document is the ordinary state one second after
-		// adding an operation, not an exceptional one. Building it anyway replaced a diagnostic that
-		// names the node and the missing parameter with whatever the builder happened to say on its
-		// way out, in the status bar, where it is furthest from the field that needs filling in.
-		//
-		// The map keeps what it last drew, which is what already happens while the text does not
-		// parse. What the user is meant to look at is the empty field in the node they just added.
-		if (pipeline.diagnostics.length > 0) {
-			// Nothing will be built, so nothing later will clear an "Opening …" the caller set. The
-			// pane already says what is wrong; the bar should stop claiming to be working on it.
-			settle();
-			return;
-		}
-		try {
-			// The build is a job in the runner's `latest` lane, so **editing again stops the build
-			// that is now out of date** rather than leaving it to finish. That also removes the
-			// token this used to carry: which preview is current is the runner's to know, and a
-			// second answer to that question in here could only ever disagree with it.
-			// The map follows the **pin**, not the selection ([Q32]): with nothing pinned it shows the
-			// graph being edited, built in full.
-			//
-			// [Q32] wants every graph mounted so a style can name them all. That arrives with the
-			// style at S4 — until something renders them, building every graph on every refresh is
-			// a job apiece for tiles nobody draws. Half of it falls out already: a mount is keyed by
-			// name and nothing unmounts on a graph switch, so each graph visited stays served until
-			// it is removed.
-			const outcome = pinned
-				? await previewPipeline(pinned.graph, pinned.path)
-				: await mountGraph(pipeline.graph).then((p) => (p ? ({ kind: 'ready', ...p } as const) : null));
-			if (!outcome) {
-				settle();
-				return;
-			}
-			if (outcome.kind === 'superseded') return;
-
-			if (previewName && map) removeContainerFromMap(map, previewName);
-			previewName = null;
-			const result = outcome.kind === 'ready' ? outcome : null;
-			lastPreview = result;
-			if (result) {
-				previewName = result.name;
-				// The hairlines are what a *styled* map does not need: when the recipe renders these
-				// tiles, its own layers draw them and a line over the top would be a second opinion
-				// (S4.3). `styled` is null when the preset matches nothing, which is when they earn
-				// their place.
-				if (untrack(() => styled)) {
-					status = { kind: 'idle' };
-					return;
-				}
-				// A format the map cannot draw is a thing to say, not a blank map with errors in the
-				// console — which is what it used to be.
-				if (!addContainerToMap(map, result)) {
-					status = { kind: 'error', message: whyNotRenderable(result.info.tileFormat) };
-					return;
-				}
-			}
-			status = { kind: 'idle' };
-		} catch (e) {
-			fail(e);
-		}
-	}
 
 	/// Applies a document the core has handed back — after an edit, an undo, or a reload.
 	///
@@ -966,7 +891,7 @@
 				// which stayed up over the pipeline it had just opened.
 				await applyDocument(await openVpl(source));
 			} else if (kind.id === 'container') {
-				const result = await mount(source);
+				const result = await preview.mount(source);
 				pipeline = await setPipelineText(result.vpl, 'replaced', source);
 				pipelineRevision += 1;
 			} else {
@@ -991,32 +916,6 @@
 		}
 	}
 
-	/// Makes the map show what the pipeline says.
-	///
-	/// The read nodes are the sources (Q22), so editing one — pointing `filename` somewhere else, or
-	/// deleting a node — has to move the map with it. Without this the document and the picture drift
-	/// apart, which is the one thing merging the modes was meant to prevent.
-	async function syncContainersToPipeline() {
-		if (!pipeline) return;
-		// A plain Set, not `SvelteSet`: this is a local working set inside one call, never held in
-		// `$state` and never read reactively, so there is nothing for a reactive wrapper to do.
-		// eslint-disable-next-line svelte/prefer-svelte-reactivity
-		const wanted = new Set<string>();
-		for (const { node } of walk(pipeline.pipeline)) {
-			if (node.name !== 'from_container') continue;
-			const property = node.properties.find((p) => p.key === 'filename');
-			if (property?.value.kind === 'single' && property.value.value) wanted.add(property.value.value);
-		}
-
-		containers = containers.filter((c) => wanted.has(c.info.source));
-
-		for (const source of wanted) {
-			if (containers.some((c) => c.info.source === source)) continue;
-			status = { kind: 'busy', message: `Opening ${filename(source)}…` };
-			await mount(source);
-		}
-	}
-
 	const filename = (source: string) => source.split(/[/\\]/).pop() || source;
 </script>
 
@@ -1036,7 +935,7 @@
 			{pipeline}
 			{pipelineRevision}
 			properties={producedProperties}
-			fits={lastPreview?.fits ?? []}
+			fits={preview.last?.fits ?? []}
 			{suggestions}
 			pinned={pinned && pinned.graph === currentGraph ? pinned.path : null}
 			crop={pipeline ? { bounds: crop, drawing, estimating, estimate, refusal: estimateRefusal } : null}
@@ -1084,9 +983,14 @@
 	{:else if id === 'style'}
 		<StylePane rendered={styled} />
 	{:else if id === 'output'}
-		<PipelineOutput preview={lastPreview} />
+		<PipelineOutput preview={preview.last} />
 	{:else if id === 'inspector'}
-		<Inspector containers={containers.map((c) => c.info)} {map} onOpen={pick} onOpenUrl={(url) => void load(url)} />
+		<Inspector
+			containers={preview.containers.map((c) => c.info)}
+			{map}
+			onOpen={pick}
+			onOpenUrl={(url) => void load(url)}
+		/>
 	{/if}
 {/snippet}
 
@@ -1129,10 +1033,10 @@
 				bind:map
 				initialView={layout?.view ?? null}
 				onMove={rememberView}
-				onStyleLoad={restorePreview}
+				onStyleLoad={() => preview.restore(map, styled !== null)}
 			/>
 		{/if}
-		<FeaturePopup {map} source={containers.at(-1)?.info.source ?? null} />
+		<FeaturePopup {map} source={preview.containers.at(-1)?.info.source ?? null} />
 		<TileGrid {map} visible={showGrid} />
 		<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
 		     has no visibility of its own to toggle. -->
@@ -1164,7 +1068,7 @@
 			<MapControls
 				{background}
 				{showGrid}
-				canReset={Boolean(lastPreview?.info.bbox)}
+				canReset={Boolean(preview.last?.info.bbox)}
 				onBackground={(id) => layout && void changeLayout({ ...layout, background: id })}
 				onToggleGrid={() => (showGrid = !showGrid)}
 				onReset={resetView}
