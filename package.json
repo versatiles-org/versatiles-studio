@@ -12,6 +12,7 @@
 		"build:worker": "tsx scripts/bundle_worker.ts",
 		"build:web": "vite build",
 		"bundle": "tauri build",
+		"bundle-local": "tsx scripts/bundle-local.ts",
 		"check": "tsx scripts/run.ts check",
 		"check:format": "tsx scripts/run.ts check:format",
 		"check:format:web": "prettier --check .",
