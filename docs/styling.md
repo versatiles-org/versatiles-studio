@@ -148,26 +148,40 @@ font-metric correction, applied once in `base.css`.
 
 Do not write these again — they are done once, for everything:
 
-| Element                                 | You get                                             |
-| --------------------------------------- | --------------------------------------------------- |
-| `button`, `input`, `select`, `textarea` | `font: inherit`, `color: inherit`                   |
-| `input`, `select`, `textarea`           | background, border, radius, padding — a themed face |
-| `button`                                | cursor, the disabled colour, and **no box at all**  |
-| `.button`                               | background, border and radius — the box, on request |
-| `ul`, `ol`                              | no markers, no margin, no padding                   |
-| `code`, `kbd`, `samp`                   | the monospace stack and its optical size correction |
-| anything focusable                      | the focus ring                                      |
+| Element                                 | You get                                                               |
+| --------------------------------------- | --------------------------------------------------------------------- |
+| `button`, `input`, `select`, `textarea` | `font: inherit`, `color: inherit`                                     |
+| `input`, `select`, `textarea`           | background, border, radius, padding — a themed face                   |
+| `button`                                | cursor, the disabled colour, and **no box at all**                    |
+| `.button`                               | the box, on request: background, border, radius and a compact padding |
+| `ul`, `ol`                              | no markers, no margin, no padding                                     |
+| `code`, `kbd`, `samp`                   | the monospace stack and its optical size correction                   |
+| anything focusable                      | the focus ring                                                        |
 
-**Padding is deliberately not in the button rule.** That is layout, and it belongs with the
-component; a global value would inflate every small icon button that only wanted the appearance.
+**Padding is in the button rule, and it did not used to be.** The argument against it — that a
+global value would inflate every small icon button that only wanted the appearance — was written
+while the box was the default. Inverting the default answered it: the ×s, the eyes and the tab strips
+are plain `button`s with a class of their own, and nothing that opts into `.button` is an icon. What
+the omission produced instead was nine buttons, across the three dialogs and the style pane, that
+nobody remembered to pad — bordered text with the glyphs against the border. A control everyone has
+to remember to finish is not finished.
+
+The value is compact, because the panes hold most of them and a pane is narrow. **A dialog overrides
+it**: `Modal` owns the row its buttons sit in and gives them a larger padding there, since a dialog
+has the room and those buttons are the thing it is asking about. That override reaches into the
+caller's snippet with `:global`, scoped under `.actions` — which is the one case where a component
+legitimately styles markup it did not write, because it wrote the row.
 
 ## Shared classes
 
 Four, each applying to elements that have nothing else in common:
 
-- **`.button`** — the box a button gets only when it asks: background, border, radius. A bare
-  `button` is the useful default here, so the box is opt-in rather than something six components
+- **`.button`** — the box a button gets only when it asks: background, border, radius, padding. A
+  bare `button` is the useful default here, so the box is opt-in rather than something six components
   cancel; [Native controls](#native-controls-do-not-follow-the-theme-on-their-own) has the reasoning.
+  Its one modifier is **`.primary`**, the button that commits — three dialogs had written its three
+  lines each, and a fourth had asked for it without defining it, so its confirm button was quietly
+  not one.
 - **`.truncate`** — one line, clipped with an ellipsis. Was written out verbatim in seven places.
 - **`.section-label`** — the small uppercase label that titles a section. Six identical declarations
   in two components, four of them repeated in a third. A class rather than an `h2` rule because it

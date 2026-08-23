@@ -149,10 +149,4 @@
 	.basis {
 		font-size: var(--text-xs);
 	}
-
-	.primary {
-		border-color: var(--accent);
-		background: var(--accent);
-		color: var(--accent-ink);
-	}
 </style>

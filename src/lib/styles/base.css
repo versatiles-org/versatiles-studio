@@ -145,13 +145,24 @@ button:disabled {
  * A button drawn as a button.
  *
  * They all sit on --surface, so the face is --chrome: a step away from the panel behind them in
- * both themes, in the same direction. No padding here — that is layout, and it belongs with the
- * component; a global value would inflate every small icon button that only wanted the appearance.
+ * both themes, in the same direction.
+ *
+ * **Padding is here, and it did not used to be.** The argument against it was that a global value
+ * would inflate every small icon button that only wanted the appearance — but that was written when
+ * the box was the default. Inverting it fixed that: the ×s, the eyes and the tab strips are plain
+ * `button`s with their own class, and nothing that takes `.button` is an icon. What the omission
+ * actually produced was nine buttons across the three dialogs and the style pane whose padding
+ * nobody remembered to write, rendering as bordered text. A control everyone has to remember to
+ * finish is not finished.
+ *
+ * Compact, because the panes are where most of them are and a pane is narrow. A dialog has room and
+ * asks for more — see `Modal`, which owns the row its buttons sit in.
  */
 .button {
 	background: var(--chrome);
 	border: 1px solid var(--rule);
 	border-radius: var(--radius);
+	padding: var(--space-2) var(--space-3);
 }
 
 .button:hover {
@@ -160,6 +171,17 @@ button:disabled {
 
 .button:disabled:hover {
 	border-color: var(--rule);
+}
+
+/*
+ * The one that commits. Three dialogs had written these three lines each, which is what `Modal` set
+ * out to stop and did not reach — and a fourth had asked for `primary` without defining it, so its
+ * confirm button was quietly not one.
+ */
+.button.primary {
+	border-color: var(--accent);
+	background: var(--accent);
+	color: var(--accent-ink);
 }
 
 /* The UA's placeholder is a washed-out version of the text colour, which lands differently in each

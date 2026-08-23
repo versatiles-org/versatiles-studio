@@ -76,5 +76,13 @@
 		display: flex;
 		justify-content: flex-end;
 		gap: var(--space-2);
+
+		/* A dialog has room the panes do not, and these are the buttons it is asking about — so they
+		   are bigger than `.button`'s compact default rather than the same size as a pane's export
+		   button. `:global` because the buttons come from the caller's snippet and carry its scope,
+		   not this one's; the `.actions` above it keeps that from reaching anything else. */
+		:global(.button) {
+			padding: var(--space-3) var(--space-5);
+		}
 	}
 </style>

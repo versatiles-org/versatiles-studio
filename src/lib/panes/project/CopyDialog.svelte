@@ -168,10 +168,4 @@
 	.missing .path {
 		color: var(--error);
 	}
-
-	.primary {
-		border-color: var(--accent);
-		background: var(--accent);
-		color: var(--accent-ink);
-	}
 </style>
