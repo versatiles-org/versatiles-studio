@@ -53,7 +53,8 @@ True everywhere. These matter more than the arrangement.
   committed** ([Q42](decisions.md)). In the pane it is unasked and live, because dragging a rectangle
   and watching four hours fall to twelve minutes is the loop it exists for — an estimate you must go
   looking for is one you will not see. In the export dialog the crop is settled, there is no loop,
-  and the seconds it costs are spent on request.
+  and the seconds it costs are spent on request. The crop section itself is folded away until wanted
+  ([Q43](decisions.md)), so neither costs anything on a graph nobody is cropping.
 - **Nothing durable lives only in the webview** ([Q16](decisions.md)). The map camera, the graphs
   and their text, and the pane layout all come back from the core, so a reloaded window is looking
   where it was. **Scroll position** deliberately stays in the webview

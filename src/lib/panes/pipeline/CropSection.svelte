@@ -1,6 +1,5 @@
 <script lang="ts">
-	import type { Bounds, Estimate } from '../../ipc/commands';
-	import { bytes, count, duration } from '../../common/format';
+	import type { Bounds } from '../../ipc/commands';
 
 	// What an export of this graph is narrowed to, and what that will cost (F2, C6, S5.2, S5.4).
 	//
@@ -16,9 +15,6 @@
 	let {
 		crop,
 		drawing,
-		estimating,
-		estimate,
-		refusal,
 		onChange,
 		onDraw,
 		onUseView
@@ -26,11 +22,6 @@
 		crop: Bounds;
 		/** Whether a drag on the map is currently drawing a rectangle. */
 		drawing: boolean;
-		estimating: boolean;
-		/** What this crop will cost, or `null` while there is nothing to say yet. */
-		estimate: Estimate | null;
-		/** The core's refusal — an absurd pyramid, a pipeline that will not build. */
-		refusal: string | null;
 		onChange: (crop: Bounds) => void;
 		/** Turns rectangle-drawing on the map on or off. */
 		onDraw: () => void;
@@ -103,86 +94,104 @@
 	}
 
 	const cropped = $derived(crop.bbox != null || crop.minZoom != null || crop.maxZoom != null);
-	const cost = $derived(estimate === null ? null : `${bytes(estimate.bytes)} · about ${duration(estimate.seconds)}`);
+
+	/// Folded away by default ([Q43]): most graphs are exported whole, and the fields, the two
+	/// buttons and the estimate were four rows of chrome under every chain that is not being cropped.
+	///
+	/// **Local, not durable.** [Q16] keeps durable state in the core, and a *pane's* fold is durable
+	/// for that reason — but this is a disclosure inside one, in the class [Q35] put scroll position
+	/// in: it costs a gesture to restore, not work. Local also means "closed by default" is true
+	/// every launch rather than only on a fresh install.
+	let open = $state(false);
+
+	/// What the crop comes to, for the header when it is closed. **A crop that is set has to be
+	/// visible while the section is not** — otherwise a graph narrowed to one city exports as one
+	/// city with nothing on screen saying so.
+	const summary = $derived.by(() => {
+		const parts: string[] = [];
+		if (crop.minZoom !== null || crop.maxZoom !== null) {
+			parts.push(`z${crop.minZoom ?? 'min'}–${crop.maxZoom ?? 'max'}`);
+		}
+		if (crop.bbox) parts.push('area');
+		return parts.join(' · ');
+	});
 </script>
 
-<section class="crop">
-	<div class="head">
-		<h3 class="section-label">Crop</h3>
-		<button type="button" class="ghost" class:on={drawing} aria-pressed={drawing} onclick={onDraw}>
-			{drawing ? 'Drawing…' : 'Draw on map'}
+<section class="crop" class:open>
+	<!-- The pane's own disclosure, in miniature: a real button with a real `aria-expanded`, because
+	     the header is the only way to reach what is under it. -->
+	<h3>
+		<button type="button" class="head" aria-expanded={open} aria-controls="crop-body" onclick={() => (open = !open)}>
+			<span class="chevron" aria-hidden="true">▸</span>
+			<span class="section-label">Crop</span>
+			{#if !open && cropped}<span class="summary">{summary}</span>{/if}
 		</button>
-	</div>
+	</h3>
 
-	<div class="row">
-		<span class="what">Zoom</span>
-		<label
-			>from <input
-				value={shown.minZoom}
-				oninput={(e) => commit('minZoom', e.currentTarget.value)}
-				type="number"
-				min="0"
-				max="30"
-				inputmode="numeric"
-			/></label
-		>
-		<label
-			>to <input
-				value={shown.maxZoom}
-				oninput={(e) => commit('maxZoom', e.currentTarget.value)}
-				type="number"
-				min="0"
-				max="30"
-				inputmode="numeric"
-			/></label
-		>
-	</div>
+	{#if open}
+		<div class="body" id="crop-body">
+			<div class="row">
+				<span class="what">Zoom</span>
+				<label
+					>from <input
+						value={shown.minZoom}
+						oninput={(e) => commit('minZoom', e.currentTarget.value)}
+						type="number"
+						min="0"
+						max="30"
+						inputmode="numeric"
+					/></label
+				>
+				<label
+					>to <input
+						value={shown.maxZoom}
+						oninput={(e) => commit('maxZoom', e.currentTarget.value)}
+						type="number"
+						min="0"
+						max="30"
+						inputmode="numeric"
+					/></label
+				>
+			</div>
 
-	<div class="box">
-		{#each FIELDS as [key, label] (key)}
-			<label>
-				{label}
-				<input
-					value={shown[key]}
-					oninput={(e) => commit(key, e.currentTarget.value)}
-					type="number"
-					step="any"
-					inputmode="decimal"
-				/>
-			</label>
-		{/each}
-	</div>
+			<div class="box">
+				{#each FIELDS as [key, label] (key)}
+					<label>
+						{label}
+						<input
+							value={shown[key]}
+							oninput={(e) => commit(key, e.currentTarget.value)}
+							type="number"
+							step="any"
+							inputmode="decimal"
+						/>
+					</label>
+				{/each}
+			</div>
 
-	<div class="row buttons">
-		<button type="button" class="ghost" onclick={onUseView}>This view</button>
-		<button
-			type="button"
-			class="ghost"
-			disabled={!cropped}
-			onclick={() => {
-				edited = null;
-				onChange({ bbox: null, minZoom: null, maxZoom: null });
-			}}
-		>
-			Clear
-		</button>
-	</div>
+			<!-- The three ways to set one, together: take the map's frame, draw a new one, or drop it.
+		     `Draw on map` used to sit in the header, which is now a disclosure and holds no controls. -->
+			<div class="row buttons">
+				<button type="button" class="ghost" onclick={onUseView}>This view</button>
+				<button type="button" class="ghost" class:on={drawing} aria-pressed={drawing} onclick={onDraw}>
+					{drawing ? 'Drawing…' : 'Draw on map'}
+				</button>
+				<button
+					type="button"
+					class="ghost"
+					disabled={!cropped}
+					onclick={() => {
+						edited = null;
+						onChange({ bbox: null, minZoom: null, maxZoom: null });
+					}}
+				>
+					Clear
+				</button>
+			</div>
 
-	{#if problem}<p class="problem" role="alert">{problem}</p>{/if}
-
-	<!-- Half a second behind the typing, because each answer runs the real pipeline (C6). -->
-	<p class="cost" aria-live="polite" class:waiting={estimating}>
-		{#if refusal}
-			<span class="problem">{refusal}</span>
-		{:else if estimate === null}
-			{estimating ? 'Estimating…' : 'Estimating the size and time…'}
-		{:else if estimate.tiles === 0}
-			Nothing to write — this crop selects no tiles.
-		{:else}
-			<strong>{cost}</strong>
-			<span class="basis">{count(estimate.tiles)} tiles, from {estimate.sampled} sampled</span>
-		{/if}
-	</p>
+			{#if problem}<p class="problem" role="alert">{problem}</p>{/if}
+		</div>
+	{/if}
 </section>
 
 <style>
@@ -192,17 +201,57 @@
 		gap: var(--space-2);
 		padding: var(--space-3) 0;
 		border-top: 1px solid var(--rule);
-	}
 
-	.head {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: var(--space-2);
+		&.open .chevron {
+			transform: rotate(90deg);
+		}
 	}
 
 	h3 {
 		margin: 0;
+		font-size: inherit;
+		font-weight: inherit;
+	}
+
+	/* The same disclosure as `Pane`'s, one level in: full width so the whole row is the target. */
+	.head {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		width: 100%;
+		text-align: left;
+		color: var(--ink-2);
+
+		&:hover {
+			color: var(--ink);
+		}
+	}
+
+	.chevron {
+		display: inline-block;
+		font-size: var(--text-xs);
+		color: var(--ink-2);
+		transition: transform 120ms ease;
+	}
+
+	/* What the crop comes to, while the fields that say it are folded away. */
+	.summary {
+		margin-left: auto;
+		font-size: var(--text-xs);
+		color: var(--ink-2);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.body {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.chevron {
+			transition: none;
+		}
 	}
 
 	.row {
@@ -272,30 +321,5 @@
 		margin: 0;
 		color: var(--error);
 		font-size: var(--text-sm);
-	}
-
-	.cost {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-		margin: 0;
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-		/* The line changes from "Estimating…" to a figure and back; a floor keeps what is under it
-		   still while that happens. */
-		min-height: 2.5em;
-
-		strong {
-			color: var(--ink);
-			font-variant-numeric: tabular-nums;
-		}
-	}
-
-	.waiting {
-		opacity: 0.7;
-	}
-
-	.basis {
-		font-size: var(--text-xs);
 	}
 </style>

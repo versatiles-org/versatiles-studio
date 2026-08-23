@@ -12,8 +12,7 @@
 		type Fit,
 		type OperationInfo,
 		type GraphInfo,
-		type Bounds,
-		type Estimate
+		type Bounds
 	} from '../../ipc/commands';
 	import ImportCards from '../../common/ImportCards.svelte';
 	import CropSection from './CropSection.svelte';
@@ -66,9 +65,6 @@
 		crop: {
 			bounds: Bounds;
 			drawing: boolean;
-			estimating: boolean;
-			estimate: Estimate | null;
-			refusal: string | null;
 		} | null;
 		/** Bumped only when the document changes from *outside* the editor. Keying the editor on the
 		 *  text itself would remount it on its own edits and throw the caret away. */
@@ -286,9 +282,6 @@
 		<CropSection
 			crop={crop.bounds}
 			drawing={crop.drawing}
-			estimating={crop.estimating}
-			estimate={crop.estimate}
-			refusal={crop.refusal}
 			onChange={cropActions.set}
 			onDraw={cropActions.draw}
 			onUseView={cropActions.useView}
@@ -299,23 +292,23 @@
 		     different command with a different scope (G1, S5.1); this writes the pipeline as the
 		     `.vpl` the CLI already reads. -->
 	<div class="actions">
-		<div class="files">
-			<button
-				type="button"
-				class="button file"
-				disabled={!pipeline || (!pipeline.dirty && pipeline.path !== null)}
-				title={pipeline?.path ?? 'Choose where to save'}
-				onclick={() => documentActions.save(false)}
-			>
-				Save{#if pipeline?.dirty && pipeline.path}<span class="dot" aria-label="unsaved changes">•</span>{/if}
-			</button>
-			<button type="button" class="button file" disabled={!pipeline} onclick={() => documentActions.save(true)}
-				>Save as…</button
-			>
-			<!-- Exporting is per graph ([Q32]): this writes what *this* chain produces, and the
-			     modal is where the run is committed. -->
-			<button type="button" class="button file" disabled={!pipeline} onclick={documentActions.export}>Export…</button>
-		</div>
+		<button
+			type="button"
+			class="button file"
+			disabled={!pipeline || (!pipeline.dirty && pipeline.path !== null)}
+			title={pipeline?.path ?? 'Choose where to save'}
+			onclick={() => documentActions.save(false)}
+		>
+			Save{#if pipeline?.dirty && pipeline.path}<span class="dot" aria-label="unsaved changes">•</span>{/if}
+		</button>
+		<button type="button" class="button file" disabled={!pipeline} onclick={() => documentActions.save(true)}
+			>Save as…</button
+		>
+		<!-- Exporting is per graph ([Q32]): this writes what *this* chain produces, and the modal is
+		     where the run is committed. The primary one: it is what the other two lead to. -->
+		<button type="button" class="button file primary" disabled={!pipeline} onclick={documentActions.export}
+			>Export…</button
+		>
 	</div>
 </div>
 
@@ -403,24 +396,23 @@
 		overflow-wrap: anywhere;
 	}
 
+	/* Centred, and set apart from the chain above by a rule of its own: these are what the pane is
+	   for, and they had been sitting in the far corner at the smallest size in the application —
+	   read as a footnote rather than as the three things you came here to do. */
 	.actions {
 		display: flex;
+		justify-content: center;
 		align-items: center;
-		gap: var(--space-3);
-		margin-top: var(--space-3);
+		gap: var(--space-2);
+		margin-top: var(--space-4);
+		padding-top: var(--space-4);
+		border-top: 1px solid var(--rule);
 		min-width: 0;
 	}
 
-	.files {
-		margin-left: auto;
-		display: flex;
-		gap: var(--space-2);
-	}
-
+	/* No size override: `.button`'s own padding, which is the pane scale. What was here shrank them
+	   to `--text-xs` and a hairline of padding. */
 	.file {
-		padding: var(--space-1) var(--space-3);
-		font-size: var(--text-xs);
-
 		&:disabled {
 			opacity: 0.45;
 		}

@@ -16,6 +16,40 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q43 — The crop folds away, and the Pipeline pane's three actions are centred and full size
+
+**Decided 2026-08-23.** Two changes to the Pipeline pane, both about what it puts in front of you.
+
+**The crop section is a disclosure, closed by default.** Most graphs are exported whole. For those,
+a zoom row, four bbox fields, three buttons and an estimate sat under every chain, permanently, for a
+decision nobody had made — the pane's own version of the junk drawer
+[ui.md](ui.md) warns about for the right pane. Closed, it is one row.
+
+**A crop that is set says so while it is closed.** The header carries a summary — `z4–12 · area` —
+because the failure mode of hiding this is the serious one: a graph narrowed to one city, exported
+as one city, with nothing on screen to say why. Folding may hide the controls; it may not hide the
+state.
+
+**The fold is local, unlike a pane's.** [Q16](#q16--one-application-instance-one-window-per-project)
+keeps durable state in the core, and [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits)'s
+pane folds are durable for that reason. This is a disclosure _inside_ a pane, in the class
+[Q35](#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors) put scroll
+position in — a gesture to restore, not work. Local is also what makes "closed by default" true on
+every launch rather than only on a fresh install.
+
+**`Draw on map` moved into the body.** It was in the header, and a header that is now a disclosure
+button cannot hold a second control inside it. It sits with `This view` and `Clear`, which is where
+it belonged anyway: the three ways to set a crop, together.
+
+**Save · Save as… · Export… are centred, full size, and Export is the primary one.** They were
+right-aligned in the corner at `--text-xs` with a hairline of padding — the smallest type in the
+application, on the three things the pane exists to do. They now take `.button`'s own padding
+([styling.md](styling.md)), sit centred under a rule of their own, and `Export…` carries the accent,
+because it is what the other two lead to.
+
+_Amends nothing: [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits) says each pane owns
+what it emits, and this is a pane deciding how loudly to say it._
+
 ### Q42 — The export dialog's estimate is asked for; the crop section's stays live
 
 **Decided 2026-08-23.** The estimate runs the real pipeline over a stratified sample under a

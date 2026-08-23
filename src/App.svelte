@@ -322,12 +322,6 @@
 	/// worth restoring after a reload, and leaving the app in it would be a trap.
 	let drawing = $state(false);
 
-	let estimate = $state<Estimate | null>(null);
-	let estimating = $state(false);
-	/// The core's refusal — an absurd pyramid, a pipeline that cannot be built. Shown next to the
-	/// crop that caused it, and again in the export dialog, which it disables.
-	let estimateRefusal = $state<string | null>(null);
-
 	async function changeCrop(next: Bounds) {
 		if (!pipeline) return;
 		try {
@@ -349,48 +343,6 @@
 			maxZoom: crop.maxZoom
 		});
 	}
-
-	/// **Asked for after the crop settles, not during it.** Every keystroke in a zoom field changes
-	/// the bounds, and each estimate runs the real pipeline for up to two seconds; without the delay,
-	/// typing "12" would start an estimate for zoom 1 that is meaningless by the time it answers.
-	$effect(() => {
-		const graph = pipeline?.graph;
-		const asked = crop;
-		// Re-run when the pipeline itself changes: the same crop over a different chain is a
-		// different cost.
-		void pipelineRevision;
-		if (graph === undefined) {
-			estimate = null;
-			estimateRefusal = null;
-			return;
-		}
-
-		// Whatever is on screen belongs to the crop that produced it, so it stays until the new
-		// answer arrives rather than blanking on every keystroke.
-		let current = true;
-		const timer = setTimeout(async () => {
-			estimating = true;
-			try {
-				const result = await estimateExport(graph, asked);
-				if (current) {
-					estimate = result;
-					estimateRefusal = null;
-				}
-			} catch (error) {
-				if (current) {
-					estimate = null;
-					estimateRefusal = error instanceof Error ? error.message : String(error);
-				}
-			} finally {
-				if (current) estimating = false;
-			}
-		}, 500);
-
-		return () => {
-			current = false;
-			clearTimeout(timer);
-		};
-	});
 
 	/// Whether the export modal is up. For the graph being edited — exporting is per graph ([Q32]).
 	let exporting = $state(false);
@@ -956,7 +908,7 @@
 			fits={preview.last?.fits ?? []}
 			{suggestions}
 			pinned={pinned && pinned.graph === currentGraph ? pinned.path : null}
-			crop={pipeline ? { bounds: crop, drawing, estimating, estimate, refusal: estimateRefusal } : null}
+			crop={pipeline ? { bounds: crop, drawing } : null}
 			cropActions={{
 				set: (bounds) => void changeCrop(bounds),
 				draw: () => (drawing = !drawing),
@@ -1093,7 +1045,6 @@
 		{formats}
 		{crop}
 		onEstimate={estimateForExport}
-		refusal={estimateRefusal}
 		onCancel={() => (exporting = false)}
 		produces={producing}
 		onExport={() => void startExport()}

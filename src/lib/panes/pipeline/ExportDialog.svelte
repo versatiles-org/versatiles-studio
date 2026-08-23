@@ -27,7 +27,6 @@
 		crop,
 		produces,
 		onEstimate,
-		refusal,
 		onCancel,
 		onExport
 	}: {
@@ -46,8 +45,6 @@
 		/** Runs the estimate and resolves with it (S3.7, C6). Asked for, not arrived at: see the note
 		 *  on `asked` below. */
 		onEstimate: () => Promise<Estimate>;
-		/** The core's refusal, when the crop is one it will not run. */
-		refusal: string | null;
 		onCancel: () => void;
 		/** Runs when the file may be chosen; picking it is the caller's next step. */
 		onExport: () => void;
@@ -150,8 +147,8 @@
 		     decision. `aria-live` because the answer arrives while this is open, replacing the button
 		     that asked for it. -->
 	<p class="cost" aria-live="polite" class:waiting={running}>
-		{#if refusal ?? failed}
-			<span class="problem">{refusal ?? failed}</span>
+		{#if failed}
+			<span class="problem">{failed}</span>
 		{:else if asked === null}
 			<button type="button" class="button" disabled={running} onclick={() => void estimate()}>
 				{running ? 'Estimating…' : 'Estimate size and time'}
@@ -168,7 +165,7 @@
 
 	{#snippet actions()}
 		<button type="button" class="button" onclick={onCancel}>Cancel</button>
-		<button type="button" class="button primary" disabled={refusal !== null} onclick={onExport}> Choose file… </button>
+		<button type="button" class="button primary" onclick={onExport}> Choose file… </button>
 	{/snippet}
 </Modal>
 
