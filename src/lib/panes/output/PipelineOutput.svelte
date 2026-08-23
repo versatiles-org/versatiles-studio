@@ -19,8 +19,6 @@
 
 {#if preview}
 	<section class="output">
-		<h2 class="section-label">Produces</h2>
-
 		<dl class="facts">
 			<dt>format</dt>
 			<dd>{preview.info.tileFormat}</dd>
