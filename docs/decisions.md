@@ -16,6 +16,42 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q41 — What a graph produces is reported where it is about to matter: the export dialog
+
+**Decided 2026-08-23.** The Produces pane held format, zoom, extent, and the layers with their
+feature counts and property keys. It moves into `ExportDialog`, and the pane is removed.
+
+**The export dialog could not describe what it was writing.** It said what the crop narrows to, what
+container formats are on offer, and what the run would cost — and nothing at all about the artefact.
+"Choose a file" is the last moment to notice that the crop is not the one you meant, which is the
+reason the crop is restated there; the layer you meant is missing, or named after the wrong file, is
+the same kind of noticing and had nowhere to happen.
+
+**A pane is a poor place for a fact consulted twice a session.** It cost permanent width in the
+right sidebar for numbers most people look at when something seems wrong or when they are about to
+commit. The second of those now has a home; the first is discussed below.
+
+**The numbers had to change subject to be correct.** The pane read `preview.last`, which follows the
+pin ([Q32]): with a node pinned it describes _that node's_ output, while an export always writes the
+graph. Reusing it would have put a description of one artefact directly above the button that writes
+a different one. The dialog asks for the graph's own preview by name when it opens — fetched on
+opening, like the copy plan and the estimate, because it is a function of the graph as it stands.
+
+**What this costs, and it is not nothing.** The pane's stated purpose was catching a silent import
+failure _while you build_: a GeoJSON that produced no features, or a layer named after the wrong
+file, looks exactly like success on the map at low zoom — empty. That check now happens only when
+someone opens the export dialog, and nobody exports on every iteration. The bet is that an import
+that produced nothing is noticed at the first export rather than after an hour of styling, and that
+a permanently-open pane was an expensive way to catch it. **Revisit if it turns out people build for
+a long time before exporting** — the answer then is a diagnostic on the node that produced nothing,
+in the chain where the mistake is, rather than a pane restating the whole output.
+
+_Amends [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)'s
+"resulting metadata" half of the right pane: what is left there is A6's opened container. Under
+[Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits) the pane list is a list, so removing an
+entry is removing an entry — `reconcile_panes` drops the id from a stored layout, and an old file
+costs nothing._
+
 ### Q40 — C7 is dropped: four artefacts that never composed into one story
 
 **Decided 2026-08-23.** S5.5 shipped "Run this elsewhere" — a dialog with four tabs, generated from

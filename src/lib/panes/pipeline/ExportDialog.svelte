@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Modal from '../../common/Modal.svelte';
-	import type { Bounds, Estimate } from '../../ipc/commands';
+	import type { Bounds, Estimate, Preview } from '../../ipc/commands';
 	import { bytes, count, duration } from '../../common/format';
 
 	// Writing one graph to a container (S3.6, F2, [Q32]).
@@ -14,12 +14,18 @@
 	// is a consequence of the crop in the pane, shown once more because "choose a file" is the last
 	// moment to notice that the crop is not the one you meant.
 	//
+	// **What the graph produces is here too** ([Q41]), from the pane that used to hold it: format,
+	// zoom, extent and the layers with their property keys. The same argument — this is the last
+	// moment to notice that the layer you meant is not in the list, and the file about to be written
+	// is the thing those numbers describe.
+	//
 	// A native `<dialog>`: modality, focus containment and Escape are the browser's, and the top
 	// layer puts it above every z-index in the application, including the status bar.
 	let {
 		name,
 		formats,
 		crop,
+		produces,
 		estimate,
 		estimating,
 		refusal,
@@ -32,6 +38,12 @@
 		formats: string[];
 		/** What the graph is narrowed to. Set in the pane; read here.  */
 		crop: Bounds;
+		/** What the graph turns out to produce (S3.3), or null while it is being asked for — and on a
+		 *  document that will not build, which is not a reason to refuse to show the rest.
+		 *
+		 *  **The graph's, not the map's.** With a node pinned, the preview describes that node
+		 *  ([Q32]) and the export still writes the graph, so the caller asks for this one by name. */
+		produces: Preview | null;
 		/** What that will cost (S3.7, C6) — the same estimate the pane is showing. */
 		estimate: Estimate | null;
 		estimating: boolean;
@@ -56,21 +68,53 @@
 	});
 
 	const cost = $derived(estimate === null ? null : `${bytes(estimate.bytes)} · about ${duration(estimate.seconds)}`);
+
+	/// Layer counts are a tile's worth, not the file's, so they are given as such rather than as a
+	/// total nobody measured.
+	const features = $derived(produces?.layers.reduce((sum, layer) => sum + layer.featureCount, 0) ?? 0);
 </script>
 
-<Modal title="Export {name}" width="28rem" onClose={onCancel}>
+<Modal title="Export {name}" width="32rem" onClose={onCancel}>
 	<dl>
-		<dt>Writes</dt>
-		<dd>
-			{#if narrowing.length === 0}
-				Everything the graph produces.
-			{:else}
-				{narrowing.join(' · ')}
+		{#if produces}
+			<dt>Produces</dt>
+			<dd>{produces.info.tileFormat} · zoom {produces.info.minZoom}–{produces.info.maxZoom}</dd>
+			{#if produces.info.bbox}
+				<dt>Extent</dt>
+				<dd class="mono truncate" title={produces.info.bbox.join(', ')}>
+					{produces.info.bbox.map((n) => n.toFixed(2)).join(', ')}
+				</dd>
 			{/if}
-		</dd>
-		<dt>Format</dt>
+		{/if}
+		<!-- `Container`, not `Format`: the row above already used that word for the tiles, and these
+		     are the boxes they go in. -->
+		<dt>Container</dt>
 		<dd>{formats.join(', ')} — the file you choose decides which.</dd>
 	</dl>
+
+	{#if produces && produces.layers.length > 0}
+		<!-- Probed from one tile, so the counts are that tile's. Said here rather than left to be
+		     inferred from a number that looks like a total and is not. -->
+		<section class="layers">
+			<h3 class="section-label">
+				{produces.layers.length === 1 ? '1 layer' : `${produces.layers.length} layers`}, {features} features in the sampled
+				tile
+			</h3>
+			<ul>
+				{#each produces.layers as layer (layer.name)}
+					<li>
+						<span class="name truncate" title={layer.name}>{layer.name}</span>
+						<span class="count">{layer.featureCount}</span>
+						{#if layer.propertyKeys.length > 0}
+							<span class="keys truncate" title={layer.propertyKeys.join(', ')}>
+								{layer.propertyKeys.join(', ')}
+							</span>
+						{/if}
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 
 	<!-- Directly above the button that commits the run, which is the only place it can change a
 		     decision. `aria-live` because it can still arrive while this is open. -->
@@ -98,7 +142,8 @@
 <style>
 	dl {
 		display: grid;
-		grid-template-columns: auto 1fr;
+		/* The value column may shrink, which is what keeps a long extent from widening the dialog. */
+		grid-template-columns: auto minmax(0, 1fr);
 		gap: var(--space-1) var(--space-3);
 		margin: 0;
 		font-size: var(--text-sm);
@@ -110,6 +155,54 @@
 
 	dd {
 		margin: 0;
+		min-width: 0;
+	}
+
+	.mono {
+		font-family: var(--font-mono);
+		font-size: var(--text-mono-adjust);
+	}
+
+	.layers {
+		min-width: 0;
+
+		h3 {
+			margin: 0 0 var(--space-2);
+		}
+
+		ul {
+			margin: 0;
+			padding: 0;
+			list-style: none;
+			/* A graph with twenty layers must not push the button that commits off the screen. */
+			max-height: 14rem;
+			overflow-y: auto;
+			overscroll-behavior: contain;
+			font-size: var(--text-sm);
+		}
+
+		li {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			gap: 0 var(--space-3);
+			padding: var(--space-1) 0;
+		}
+
+		.name {
+			font-weight: 500;
+		}
+
+		.count {
+			color: var(--ink-2);
+			font-variant-numeric: tabular-nums;
+		}
+
+		.keys {
+			grid-column: 1 / -1;
+			min-width: 0;
+			color: var(--ink-2);
+			font-size: var(--text-xs);
+		}
 	}
 
 	.note {

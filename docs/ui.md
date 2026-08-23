@@ -92,7 +92,6 @@ D8 came to have no home at all under [Q22](decisions.md).
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
 | **Pipeline**  | A list of graphs, then the selected graph's chain with Graph / VPL tabs ([Q15](decisions.md)), C1 and C4. Each graph saves, renames and exports on its own ([Q32](decisions.md))         | S2      |
 | **Style**     | Preset and the adjustments over it (D1) today; the layer tree (D3) and its own export (D8) follow. The core owns the **recipe** it is rendered from, not the style ([Q36](decisions.md)) | S4      |
-| **Produces**  | What the pinned graph turns out to be: format, zoom, layers, property keys                                                                                                               | S3      |
 | **Inspector** | An opened container's own metadata and TileJSON (A6). Nothing else — no way in, and no named views ([Q38](decisions.md))                                                                 | S1      |
 
 There is **no Parameters pane**: every node carries its own arguments in the chain ([Q32](decisions.md)). A parameter's documentation opens beside the sidebar rather than inside the node, and required parameters are shown empty rather than marked with a symbol ([Q33](decisions.md)).
@@ -268,11 +267,11 @@ and to the graph that produced it ([Q32](decisions.md)).
 ┌───────────────────────────────────────────────────────────┐
 │  [Fonts…]  [Open project…]  [Save…]  [Save a copy…]       │
 ├───────────────────┬──────────────────────┬────────────────┤
-│ ▾ PIPELINE        │        MAP           │ PRODUCES       │
-│   ◉ basemap    •  │   live style over    │ mvt · z0–14    │
-│   ◌ hillshade     │   every mounted      │ 2 layers       │
+│ ▾ PIPELINE        │        MAP           │ ▾ INSPECTOR    │
+│   ◉ basemap    •  │   live style over    │ format, zooms  │
+│   ◌ hillshade     │   every mounted      │ TileJSON (A6)  │
 │   ◌ places        │   graph              │                │
-│   ＋ new graph…    │                      │ ▸ INSPECTOR    │
+│   ＋ new graph…    │                      │                │
 │  ─────────────    │  ┌ ─ ─ ─ ┐           │                │
 │   Graph │ VPL     │  │ pinned│      (C3) │                │
 │   from_geo  ⌄.geo │  └ ─ ─ ─ ┘           │                │

@@ -15,7 +15,6 @@
 	import { preview } from './lib/state/preview.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import LandingScreen from './lib/common/LandingScreen.svelte';
-	import PipelineOutput from './lib/panes/output/PipelineOutput.svelte';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
 	import StylePane from './lib/panes/style/StylePane.svelte';
@@ -73,9 +72,11 @@
 		vplSetProperty,
 		vplOperations,
 		getGraph,
+		mountGraph,
 		type DocumentView,
 		type Bounds,
 		type Estimate,
+		type Preview,
 		type CopyPlan,
 		type Camera,
 		type Layout,
@@ -393,6 +394,26 @@
 
 	/// Whether the export modal is up. For the graph being edited — exporting is per graph ([Q32]).
 	let exporting = $state(false);
+
+	/// What the graph turns out to produce, while the export dialog is open ([Q41]).
+	///
+	/// **Asked for by name, not taken from `preview.last`.** That one follows the pin ([Q32]), so
+	/// with a node pinned it describes an intermediate step — and the export writes the graph
+	/// regardless. Numbers about a different artefact, directly above the button that writes this
+	/// one, would be worse than no numbers.
+	///
+	/// Fetched on opening rather than kept in step, like the copy plan: it is a function of the
+	/// graph as it stands, and asking once, when someone is about to commit, cannot go stale.
+	let producing = $state<Preview | null>(null);
+
+	async function showExport() {
+		exporting = true;
+		producing = null;
+		if (!pipeline) return;
+		// A build that fails is not a reason to refuse the dialog: what it must say is what will be
+		// written and what that costs, and both come from elsewhere. This is confirmation.
+		producing = await mountGraph(pipeline.graph).catch(() => null);
+	}
 	/// What Studio can write, for the modal's wording and the dialog's filters. Fetched once.
 	let formats = $state<string[]>([]);
 
@@ -965,13 +986,11 @@
 				redo: () => void stepHistory(false),
 				format: () => void formatPipeline(),
 				save: (chooseFile) => void savePipeline(chooseFile),
-				export: () => (exporting = true)
+				export: () => void showExport()
 			}}
 		/>
 	{:else if id === 'style'}
 		<StylePane rendered={styled} />
-	{:else if id === 'output'}
-		<PipelineOutput preview={preview.last} />
 	{:else if id === 'inspector'}
 		<Inspector containers={preview.containers.map((c) => c.info)} />
 	{/if}
@@ -1068,6 +1087,7 @@
 		{estimating}
 		refusal={estimateRefusal}
 		onCancel={() => (exporting = false)}
+		produces={producing}
 		onExport={() => void startExport()}
 	/>
 {/if}

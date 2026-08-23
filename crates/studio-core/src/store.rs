@@ -317,7 +317,10 @@ const PANES: &[(&str, Side, bool)] = &[
 	// Right: what the pipeline turns out to be. **No `parameters` pane** — the selected node carries
 	// its own arguments in the chain ([Q32]), which is what moved [Q31]'s axis from
 	// document-versus-selection to what-you-are-building versus what-it-turns-out-to-be.
-	("output", Side::Right, true),
+	//
+	// **And no `output` pane.** It described what the graph produces, which [Q41] moved into the
+	// export dialog — the moment that description is about to matter. A layout naming it is
+	// reconciled away by `reconcile_panes`, so an old file costs nothing.
 	("inspector", Side::Right, true),
 ];
 
@@ -624,10 +627,9 @@ mod tests {
 		};
 		// A moved, reordered and collapsed pane — the three things the list exists to remember.
 		layout.panes = vec![
-			pane("output", Side::Left, false),
+			pane("inspector", Side::Left, false),
 			pane("pipeline", Side::Left, true),
-			pane("inspector", Side::Right, false),
-			pane("style", Side::Left, false),
+			pane("style", Side::Right, false),
 		];
 		layout.save(&dir)?;
 		assert_eq!(Layout::load(&dir), layout);
@@ -679,7 +681,7 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		assert_eq!(ids, ["pipeline", "style", "output", "inspector"]);
+		assert_eq!(ids, ["pipeline", "style", "inspector"]);
 		assert!(!layout.panes[0].open, "the remembered pane kept its own state");
 	}
 
@@ -694,10 +696,8 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		// The two remembered ones keep their order; the arrivals follow in catalogue order. Within
-		// each sidebar that is still "last": left is pipeline then style, right is inspector then
-		// output.
-		assert_eq!(ids, ["inspector", "pipeline", "style", "output"]);
+		// The remembered one keeps its place; the arrivals follow in catalogue order.
+		assert_eq!(ids, ["inspector", "pipeline", "style"]);
 	}
 
 	/// Nothing produces a duplicate, but a hand-edited file can — and two panes with one id would
