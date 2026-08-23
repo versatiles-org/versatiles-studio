@@ -26,8 +26,7 @@
 		formats,
 		crop,
 		produces,
-		estimate,
-		estimating,
+		onEstimate,
 		refusal,
 		onCancel,
 		onExport
@@ -44,9 +43,9 @@
 		 *  **The graph's, not the map's.** With a node pinned, the preview describes that node
 		 *  ([Q32]) and the export still writes the graph, so the caller asks for this one by name. */
 		produces: Preview | null;
-		/** What that will cost (S3.7, C6) — the same estimate the pane is showing. */
-		estimate: Estimate | null;
-		estimating: boolean;
+		/** Runs the estimate and resolves with it (S3.7, C6). Asked for, not arrived at: see the note
+		 *  on `asked` below. */
+		onEstimate: () => Promise<Estimate>;
 		/** The core's refusal, when the crop is one it will not run. */
 		refusal: string | null;
 		onCancel: () => void;
@@ -67,7 +66,30 @@
 		return parts;
 	});
 
-	const cost = $derived(estimate === null ? null : `${bytes(estimate.bytes)} · about ${duration(estimate.seconds)}`);
+	/// The estimate this dialog asked for, or null until somebody asks.
+	///
+	/// **Not the pane's.** The pane estimates as the crop is dragged, because that is the loop it
+	/// exists for (C6, S5.4). Here there is no loop: the crop is settled, and the numbers cost a run
+	/// of the real pipeline. So the dialog opens saying what it will write, and spends those seconds
+	/// only when asked to.
+	let asked = $state<Estimate | null>(null);
+	let running = $state(false);
+	/// A refusal this run produced, as opposed to the standing one in `refusal`.
+	let failed = $state<string | null>(null);
+
+	async function estimate() {
+		running = true;
+		failed = null;
+		try {
+			asked = await onEstimate();
+		} catch (error) {
+			failed = error instanceof Error ? error.message : String(error);
+		} finally {
+			running = false;
+		}
+	}
+
+	const cost = $derived(asked === null ? null : `${bytes(asked.bytes)} · about ${duration(asked.seconds)}`);
 
 	/// Layer counts are a tile's worth, not the file's, so they are given as such rather than as a
 	/// total nobody measured.
@@ -86,6 +108,14 @@
 				</dd>
 			{/if}
 		{/if}
+		<dt>Writes</dt>
+		<dd>
+			{#if narrowing.length === 0}
+				Everything the graph produces.
+			{:else}
+				{narrowing.join(' · ')}
+			{/if}
+		</dd>
 		<!-- `Container`, not `Format`: the row above already used that word for the tiles, and these
 		     are the boxes they go in. -->
 		<dt>Container</dt>
@@ -117,17 +147,20 @@
 	{/if}
 
 	<!-- Directly above the button that commits the run, which is the only place it can change a
-		     decision. `aria-live` because it can still arrive while this is open. -->
-	<p class="cost" aria-live="polite" class:waiting={estimating}>
-		{#if refusal}
-			<span class="problem">{refusal}</span>
-		{:else if estimate === null}
-			{estimating ? 'Estimating…' : 'Estimating the size and time…'}
-		{:else if estimate.tiles === 0}
+		     decision. `aria-live` because the answer arrives while this is open, replacing the button
+		     that asked for it. -->
+	<p class="cost" aria-live="polite" class:waiting={running}>
+		{#if refusal ?? failed}
+			<span class="problem">{refusal ?? failed}</span>
+		{:else if asked === null}
+			<button type="button" class="button" disabled={running} onclick={() => void estimate()}>
+				{running ? 'Estimating…' : 'Estimate size and time'}
+			</button>
+		{:else if asked.tiles === 0}
 			Nothing to write — this crop selects no tiles.
 		{:else}
 			<strong>{cost}</strong>
-			<span class="basis">{count(estimate.tiles)} tiles, from {estimate.sampled} sampled</span>
+			<span class="basis">{count(asked.tiles)} tiles, from {asked.sampled} sampled</span>
 		{/if}
 	</p>
 
@@ -228,6 +261,11 @@
 		color: var(--ink-2);
 		font-size: var(--text-sm);
 		min-height: 2.5em;
+
+		/* The column stretches its children; the button is a control and takes its own width. */
+		button {
+			align-self: flex-start;
+		}
 
 		strong {
 			color: var(--ink);

@@ -406,6 +406,15 @@
 	/// graph as it stands, and asking once, when someone is about to commit, cannot go stale.
 	let producing = $state<Preview | null>(null);
 
+	/// Runs the estimate the export dialog asks for.
+	///
+	/// A named function rather than a closure at the call site: the `{#if exporting && pipeline}`
+	/// around the dialog narrows `pipeline` for the markup, not for a callback that runs later.
+	function estimateForExport(): Promise<Estimate> {
+		if (!pipeline) return Promise.reject(new Error('that graph is no longer open'));
+		return estimateExport(pipeline.graph, crop);
+	}
+
 	async function showExport() {
 		exporting = true;
 		producing = null;
@@ -1083,8 +1092,7 @@
 		name={pipeline.name}
 		{formats}
 		{crop}
-		{estimate}
-		{estimating}
+		onEstimate={estimateForExport}
 		refusal={estimateRefusal}
 		onCancel={() => (exporting = false)}
 		produces={producing}

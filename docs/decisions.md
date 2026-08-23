@@ -16,6 +16,37 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q42 — The export dialog's estimate is asked for; the crop section's stays live
+
+**Decided 2026-08-23.** The estimate runs the real pipeline over a stratified sample under a
+two-second budget (S3.7) and is not cached — every call pays it again. Where that buys a feedback
+loop it is worth paying unasked. Where it does not, it is a button.
+
+**In the crop section it buys the loop, so nothing changes there.** Drag a rectangle over the city
+you mean and watch four hours fall to twelve minutes: the number is the feedback, and one you had to
+ask for after every drag would not be feedback at all. That is C6's "shown where a run is committed"
+and S5.4's reason for putting the crop in the pane, and it stands.
+
+**In the export dialog there is no loop.** The crop is settled — the dialog is a modal and covers
+the pane that would change it, which is why [S5.2](scope-release-1.md) moved the crop out of here in
+the first place. What is left is a single number, wanted before some exports and not others, charged
+two seconds every time the dialog opens. So the dialog opens saying what it will write, and offers
+**Estimate size and time**; the answer replaces the button in the same place, directly above the
+control that commits.
+
+**What this costs.** Someone can now export without knowing what it will cost. That is a real
+loosening of C6, mitigated by where the number already is: the crop section has it, live, for as long
+as the crop is being decided — the dialog is the second telling, not the first.
+
+**The dialog does not reuse the pane's answer**, and so re-runs work that was just done. It could be
+handed the live one, but then there would be nothing for a button to do — which is the thing being
+asked for. The alternative worth weighing if this proves wasteful is the other direction entirely:
+make the crop section's estimate on-demand too, and have one answer that both surfaces show. That
+trades away the drag-and-watch loop above, so it is not a change to make quietly.
+
+_Amends [ui.md](ui.md)'s "an estimate you must go looking for is one you will not see", which is now
+true of the crop section and deliberately not of the dialog._
+
 ### Q41 — What a graph produces is reported where it is about to matter: the export dialog
 
 **Decided 2026-08-23.** The Produces pane held format, zoom, extent, and the layers with their
