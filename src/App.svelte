@@ -34,6 +34,7 @@
 	import { buildBackground, isBackgroundId, type BackgroundId } from './lib/map/background';
 	import CoordinateJump from './lib/map/CoordinateJump.svelte';
 	import { defaultStyle } from './lib/map/default-style';
+	import { fitToBounds } from './lib/map/add-source';
 	import { deriveStyle, drawsAnything, renderStyle } from './lib/map/style';
 	import { forExport } from './lib/map/style-code';
 	import {
@@ -663,9 +664,12 @@
 	});
 
 	/// Returns the camera to what is currently open.
+	///
+	/// **The only thing that reframes the map after the first preview**, now that a rebuild leaves
+	/// the camera alone. Animated, because someone asked for it and should see where they went.
 	function resetView() {
 		const bbox = preview.last?.info.bbox;
-		if (map && bbox) map.fitBounds(bbox, { padding: 24, duration: 400 });
+		if (map && bbox) fitToBounds(map, bbox, true);
 	}
 
 	// A file double-clicked in Finder or passed on the command line. It can arrive before this

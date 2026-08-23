@@ -52,8 +52,25 @@ export function addContainerToMap(
 		map.addLayer({ id: `${name}:raster`, type: 'raster', source: name });
 	}
 
-	if (info.bbox) map.fitBounds(info.bbox, { padding: 24, duration: 0 });
 	return true;
+}
+
+/** How much of the window is left around a container's extent when framing it. */
+const PADDING = 24;
+
+/**
+ * Frames a container's extent.
+ *
+ * **Separate from adding the source, because moving someone's camera is not a detail of that.**
+ * `addContainerToMap` used to end with this, so every rebuild of the preview refit the map — and
+ * the preview rebuilds on every edit to the VPL. Panning somewhere, changing a parameter and being
+ * thrown back to the data's extent is the bug that separated them.
+ *
+ * Animated when a person asked for it and instant when the data simply appeared: a first preview
+ * arriving should already be framed, not glide into place.
+ */
+export function fitToBounds(map: MaplibreMap, bbox: [number, number, number, number], animate = false): void {
+	map.fitBounds(bbox, { padding: PADDING, duration: animate ? 400 : 0 });
 }
 
 export function removeContainerFromMap(map: MaplibreMap, name: string): void {

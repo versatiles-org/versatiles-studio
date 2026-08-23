@@ -10,10 +10,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const added: unknown[] = [];
 const removed: string[] = [];
+const fitted: unknown[] = [];
 
 vi.mock('../map/add-source', () => ({
 	addContainerToMap: (_map: unknown, p: unknown) => (added.push(p), true),
-	removeContainerFromMap: (_map: unknown, name: string) => void removed.push(name)
+	removeContainerFromMap: (_map: unknown, name: string) => void removed.push(name),
+	fitToBounds: (_map: unknown, bbox: unknown) => void fitted.push(bbox)
 }));
 
 const ipc = vi.hoisted(() => ({
@@ -31,7 +33,12 @@ function built(name: string) {
 		name,
 		tileUrl: `x://${name}`,
 		layers: [],
-		info: { source: name, tileFormat: 'mvt', tileJson: { vector_layers: [{ id: 'water' }] } }
+		info: {
+			source: name,
+			tileFormat: 'mvt',
+			bbox: [13, 52, 14, 53],
+			tileJson: { vector_layers: [{ id: 'water' }] }
+		}
 	};
 }
 
@@ -47,6 +54,7 @@ beforeEach(() => {
 	preview.reset();
 	added.length = 0;
 	removed.length = 0;
+	fitted.length = 0;
 	vi.resetAllMocks();
 });
 
@@ -138,6 +146,47 @@ describe('the preview on the map', () => {
 			styled: () => (seen.push(preview.last?.name ?? null), false)
 		});
 		expect(seen).toEqual(['one']);
+	});
+
+	it('frames the data when tiles first appear', async () => {
+		ipc.mountGraph.mockResolvedValueOnce(built('first'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+		expect(fitted).toEqual([[13, 52, 14, 53]]);
+	});
+
+	/**
+	 * The bug this pair exists for: every edit to the VPL rebuilds the preview, and the camera used
+	 * to be refit at the end of `addContainerToMap`. Panning somewhere to look at a change threw you
+	 * straight back out of it.
+	 */
+	it('leaves the camera alone on every rebuild after that', async () => {
+		ipc.mountGraph.mockResolvedValueOnce(built('first'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+		expect(fitted).toHaveLength(1);
+
+		for (const name of ['second', 'third']) {
+			ipc.mountGraph.mockResolvedValueOnce(built(name));
+			await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+		}
+		expect(fitted, 'a rebuild must not move the map').toHaveLength(1);
+	});
+
+	it('frames again once the map has been emptied', async () => {
+		// `clear` is the last graph going; whatever comes next is a first appearance again.
+		ipc.mountGraph.mockResolvedValueOnce(built('first'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+		preview.clear(map);
+
+		ipc.mountGraph.mockResolvedValueOnce(built('next'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+		expect(fitted).toHaveLength(2);
+	});
+
+	it('does not frame a preview a style is drawing', async () => {
+		// It returns before the map is touched at all, camera included.
+		ipc.mountGraph.mockResolvedValueOnce(built('styled-two'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: () => true });
+		expect(fitted).toEqual([]);
 	});
 
 	it('forgets the mount when the last graph goes', async () => {

@@ -25,7 +25,7 @@
  */
 
 import type { Map as MaplibreMap } from 'maplibre-gl';
-import { addContainerToMap, removeContainerFromMap } from '../map/add-source';
+import { addContainerToMap, fitToBounds, removeContainerFromMap } from '../map/add-source';
 import { whyNotRenderable } from '../map/tile-format';
 import { walk } from '../vpl/node-at';
 import {
@@ -158,6 +158,10 @@ export const preview = {
 		// Nothing is written: a newer build already owns the map, and this one is on its way out.
 		if (outcome.kind === 'superseded') return { kind: 'superseded' };
 
+		// **Whether anything was already drawn, read before it is cleared.** It decides the camera
+		// below, and two lines from now the answer is gone.
+		const wasShowing = mountedName !== null;
+
 		// Off the map before the name is overwritten — afterwards there is nothing left to remove it
 		// with, and the layer stays on the map for the rest of the session.
 		if (mountedName) removeContainerFromMap(map, mountedName);
@@ -179,6 +183,12 @@ export const preview = {
 		if (!addContainerToMap(map, result)) {
 			return { kind: 'unrenderable', message: whyNotRenderable(result.info.tileFormat) };
 		}
+
+		// **The camera moves when tiles first appear, and never again on its own.** Every edit to
+		// the VPL rebuilds the preview, so refitting here would drag the map back to the data's
+		// extent on every keystroke that parses — panning somewhere to look at a change and being
+		// thrown out of it. Framing the data again is a deliberate act with a button of its own.
+		if (!wasShowing && result.info.bbox) fitToBounds(map, result.info.bbox);
 		return { kind: 'shown' };
 	},
 
