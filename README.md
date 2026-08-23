@@ -54,7 +54,13 @@ across distributions ([Q10](docs/decisions.md)).
 
 ### Windows
 
-Not yet — deferred with notarisation, for the same reason ([Q10](docs/decisions.md)).
+Download the `-setup.exe` — `x64` or `arm64`.
+
+**Windows will warn you on first run.** SmartScreen shows "Windows protected your PC" for anything
+it has not seen signed before; click **More info**, then **Run anyway**. Studio is not code-signed
+yet: a certificate is an annual cost with a procurement lead time, and after June 2023 it has to
+live on a hardware token or an HSM, which complicates CI ([Q10](docs/decisions.md)). The build
+itself is no longer deferred — only the signature.
 
 ## Building
 

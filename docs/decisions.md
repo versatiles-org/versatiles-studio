@@ -1236,8 +1236,15 @@ only.
 
 ### Q10 — Release 1 ships Linux packages and a Homebrew cask; signing comes later
 
-Windows and a paid Apple Developer identity are deferred — buying an early release for some macOS
-friction, and keeping recurring costs and procurement lead times off the critical path.
+**Amended 2026-08-23: Windows is built, and unsigned.** The original decision deferred Windows
+entirely. What actually costs money and lead time is the _certificate_, not the build — and once
+`windows-11-arm` runners became generally available and free for public repositories, both
+architectures build natively, which also means both are smoke-tested on the architecture they are
+for rather than cross-compiled and hoped over. So Windows ships on the same terms macOS already
+does: an installer that the platform warns about, and instructions for getting past the warning.
+SmartScreen is the Windows equivalent of Gatekeeper here.
+
+A paid Apple Developer identity remains deferred, and so does the Windows certificate.
 
 **Linux.** No signing. Ship Tauri's outputs from GitHub releases — with an AppImage alongside the
 `.deb`, since a `.deb` built against one WebKitGTK version may not install across distributions.
@@ -1253,9 +1260,9 @@ friction, and keeping recurring costs and procurement lead times off the critica
 - Tauri's ad-hoc signing must still be configured — on Apple Silicon a binary needs at least an
   ad-hoc signature to execute at all.
 
-**Cost to accept:** macOS users meet a security dialog before first launch, and it lands hardest on
-P1, who skew towards Macs. The plain-language install instructions are the deliverable here, not the
-packaging.
+**Cost to accept:** macOS users meet a security dialog before first launch, and Windows users meet
+SmartScreen. It lands hardest on P1, who skew towards Macs. The plain-language install instructions
+are the deliverable here, not the packaging.
 
 **Revisit after release 1:** the Apple Developer account ($99/year; the lead time is approval, not
 the money) and the Windows certificate route — OV, EV, or Azure Artifact Signing. Get quotes first;

@@ -34,13 +34,19 @@ const BASE = 'https://github.com/versatiles-org/versatiles-studio/releases/downl
  *
  * Both were read off a real release run rather than from the documentation, which describes neither.
  */
-const PLATFORMS: { key: string; suffix: string }[] = [
-	{ key: 'darwin-aarch64', suffix: 'darwin-aarch64.app.tar.gz' },
-	{ key: 'darwin-x86_64', suffix: 'darwin-x86_64.app.tar.gz' },
-	{ key: 'linux-x86_64', suffix: '_amd64.AppImage' },
-	{ key: 'linux-aarch64', suffix: '_aarch64.AppImage' }
+const PLATFORMS: { key: string; suffixes: string[] }[] = [
+	{ key: 'darwin-aarch64', suffixes: ['darwin-aarch64.app.tar.gz'] },
+	{ key: 'darwin-x86_64', suffixes: ['darwin-x86_64.app.tar.gz'] },
+	{ key: 'linux-x86_64', suffixes: ['_amd64.AppImage'] },
+	{ key: 'linux-aarch64', suffixes: ['_aarch64.AppImage'] },
+	// **Two candidates each, and that is not indecision.** The updater's own documentation says
+	// Windows ships a `.zip` of the installer — the same documentation says Linux ships an
+	// `.AppImage.tar.gz`, and Linux ships a bare `.AppImage`. Rather than spend a release finding
+	// out, both spellings are accepted; the first that appears wins, and the guard below still
+	// refuses anything left over. Narrow this once a real Windows release has been seen.
+	{ key: 'windows-x86_64', suffixes: ['_x64-setup.exe.zip', '_x64-setup.exe'] },
+	{ key: 'windows-aarch64', suffixes: ['_arm64-setup.exe.zip', '_arm64-setup.exe'] }
 ];
-
 interface Entry {
 	signature: string;
 	url: string;
@@ -56,9 +62,12 @@ export function platformsFor(names: string[], version: string, read: (name: stri
 	const platforms: Record<string, Entry> = {};
 	const claimed = new Set<string>();
 
-	for (const { key, suffix } of PLATFORMS) {
+	for (const { key, suffixes } of PLATFORMS) {
+		// The first spelling that turns up. A platform that produced nothing matches none of them.
+		const suffix = suffixes.find((candidate) => names.some((name) => name.endsWith(candidate)));
+		if (!suffix) continue;
+
 		const found = names.filter((name) => name.endsWith(suffix));
-		if (found.length === 0) continue;
 		if (found.length > 1) throw new Error(`${found.length} files end in ${suffix}: ${found.join(', ')}`);
 
 		const bundle = found[0];

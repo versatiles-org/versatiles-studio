@@ -99,6 +99,19 @@ jobs:
             runner: macos-26-intel
             artefact: macos-x86_64
             platform: darwin-x86_64
+          # Native, not cross-compiled. versatiles-rs builds its Windows arm64 binary on an x64
+          # runner and notes it cannot be executed there; Studio compiles GDAL from source, and a
+          # cross-compiled GDAL that nothing can run is not something to ship. `windows-11-arm` is
+          # generally available and free for public repositories, so the build and the smoke test
+          # both happen on the architecture they are for.
+          - label: Windows (x86_64)
+            runner: windows-latest
+            artefact: windows-x86_64
+            platform: windows-x86_64
+          - label: Windows (arm64)
+            runner: windows-11-arm
+            artefact: windows-aarch64
+            platform: windows-aarch64
     runs-on: ${{ matrix.runner }}
     # A cold cache rebuilds GDAL from source, which is most of the time here (Q19, Q20).
     timeout-minutes: 60
@@ -158,7 +171,10 @@ jobs:
           set -euo pipefail
           expected="${{ needs.version.outputs.version }}"
 
-          if [ "$RUNNER_OS" = "macOS" ]; then
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            binary="target/release/versatiles-studio.exe"
+            resources="target/release/resources"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
             app="target/release/bundle/macos/VersaTiles Studio.app"
             binary="$app/Contents/MacOS/versatiles-studio"
             resources="$app/Contents/Resources/resources"
@@ -198,7 +214,7 @@ jobs:
           # and a copy of our `sprites.tar.gz` and `glyphs.tar.gz`. A recursive search swept all four
           # into the release.
           find target/release/bundle -maxdepth 2 \
-            \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' \) \
+            \( -name '*.deb' -o -name '*.AppImage' -o -name '*.dmg' -o -name '*-setup.exe' \) \
             -exec cp {} upload/ \;
 
           # **The updater artefacts differ by platform, and not the way the docs suggest.**
@@ -219,6 +235,16 @@ jobs:
               ;;
             Linux)
               find target/release/bundle -maxdepth 2 -name '*.AppImage.sig' -exec cp {} upload/ \;
+              ;;
+            Windows)
+              # **Whatever it produced.** The plugin's own documentation says the Windows updater
+              # artefact is a `.zip` of the installer; its documentation also said Linux ships an
+              # `.AppImage.tar.gz`, and Linux ships a bare `.AppImage`. So this takes the zip if
+              # there is one and the signature either way, and `latest-json.ts` refuses anything it
+              # cannot account for — by name, rather than by dropping the platform silently.
+              find target/release/bundle -maxdepth 2 \
+                \( -name '*-setup.exe.zip' -o -name '*-setup.exe.zip.sig' -o -name '*-setup.exe.sig' \) \
+                -exec cp {} upload/ \;
               ;;
           esac
 

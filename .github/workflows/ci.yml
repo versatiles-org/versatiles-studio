@@ -152,6 +152,13 @@ jobs:
             runner: ubuntu-24.04-arm
           - label: macOS arm
             runner: macos-latest
+          # Windows is in CI before it is in a release, deliberately: GDAL is compiled from
+          # source and nobody on this project runs Windows, so this is the only thing that ever
+          # finds out whether it still builds.
+          - label: Windows x86_64
+            runner: windows-latest
+          - label: Windows arm64
+            runner: windows-11-arm
     runs-on: ${{ matrix.runner }}
     # Six minutes warm, about sixteen when the cache misses and GDAL is rebuilt from source.
     timeout-minutes: 45
@@ -191,7 +198,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "$RUNNER_OS" = "macOS" ]; then
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            binary="target/release/versatiles-studio.exe"
+            resources="target/release/resources"
+          elif [ "$RUNNER_OS" = "macOS" ]; then
             app="target/release/bundle/macos/VersaTiles Studio.app"
             binary="$app/Contents/MacOS/versatiles-studio"
             resources="$app/Contents/Resources/resources"
