@@ -4,10 +4,16 @@ description: Installs the Linux packages Tauri needs, from a cache of the downlo
 # Two jobs need these packages, and the recipe stopped being two lines the moment it had to be
 # cached. One copy here rather than two that must be kept in step.
 #
-# **What actually costs time.** The three packages named below pull 167 in total — 58.9 MB to
+# **What actually costs time.** The packages named below pull ~167 in total — around 59 MB to
 # download and 258 MB installed — and the runners fetch that from `azure.archive.ubuntu.com` at a
 # speed that varies wildly: 93 seconds in one job and over 300 in another, in the same run, for
 # byte-identical work. Unpacking is fast and predictable; only the download is not.
+#
+# **`xdg-utils` is a bundling dependency, not a build one.** The AppImage bundler copies the host's
+# `/usr/bin/xdg-open` into the bundle for `tauri-plugin-opener`, and fails outright when it is not
+# there. It is on the x86_64 runner image by chance and not on the arm64 one, so the arm bundle was
+# the only job that noticed — `--no-install-recommends` means nothing else drags it in. Removing it
+# breaks packaging on ARM Linux and nothing else, which is the worst shape a dependency can have.
 #
 # So the `.deb` files are cached and the network is taken out of the step. The cache is an
 # accelerator and never a source of truth: `apt-get install` still resolves against the real package
@@ -18,7 +24,7 @@ inputs:
   packages:
     description: Packages to install.
     required: false
-    default: libwebkit2gtk-4.1-dev librsvg2-dev patchelf
+    default: libwebkit2gtk-4.1-dev librsvg2-dev patchelf xdg-utils
 
 runs:
   using: composite
@@ -33,7 +39,7 @@ runs:
         # `runner.os == Linux`, so without it they would share one cache and each would restore the
         # other's `.deb` files — wrong-architecture archives that apt ignores and re-downloads,
         # which is the cache silently doing nothing.
-        key: apt-${{ runner.os }}-${{ runner.arch }}-tauri-v1
+        key: apt-${{ runner.os }}-${{ runner.arch }}-tauri-v2
         restore-keys: apt-${{ runner.os }}-${{ runner.arch }}-tauri-
 
     - name: Install
