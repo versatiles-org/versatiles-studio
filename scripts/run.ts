@@ -17,7 +17,7 @@
  * test, in the same shape as the rest of `scripts/`, is the cheaper answer.
  */
 
-import { spawnSync } from 'node:child_process';
+import { runInherited } from './spawn';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -50,8 +50,11 @@ function main(): void {
 	const failed: string[] = [];
 	for (const name of members) {
 		process.stdout.write(`\n\x1b[1m▸ ${name}\x1b[0m\n`);
-		const result = spawnSync('npm', ['run', '--silent', name], { cwd: ROOT, stdio: 'inherit', shell: false });
-		if (result.status !== 0) {
+		const problem = runInherited('npm', ['run', '--silent', name], ROOT);
+		if (problem) {
+			// Said here as well as in the summary: a spawn that never started prints nothing of its
+			// own, and "1 failed" with no reason is what made the Windows bundle a guessing game.
+			process.stderr.write(`\x1b[31m${problem}\x1b[0m\n`);
 			failed.push(name);
 			if (!keepGoing) break;
 		}

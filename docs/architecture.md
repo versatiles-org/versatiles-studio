@@ -225,9 +225,11 @@ versatiles-studio/
 │   ├── upgrade-deps.sh         · prune-build-dirs.sh — housekeeping
 │   ├── docs-pdf.sh             every planning document as one PDF
 │   ├── run.ts                  every `{action}:*` script, for one action
+│   ├── spawn.ts                starting a child process portably
 │   ├── release.ts              check, bump, tag, push, publish            (S5.6)
 │   ├── latest-json.ts          the manifest the updater reads           (S5.8)
-│   └── docs.test.ts            · guards.test.ts — what these documents promise
+│   ├── docs.test.ts            · guards.test.ts — what these documents promise
+│   └── spawn.test.ts           the Windows spawn rules, asserted from any platform
 ├── codecov.yml                 one flag per codebase, components within
 ├── .github/
 │   ├── workflows/              ci.yml, release.yml — Linux and macOS     (S0.7, S5.6)

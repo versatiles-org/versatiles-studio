@@ -449,3 +449,27 @@ function sources(dir: string): string[] {
 		return entry.name.endsWith('.ts') || entry.name.endsWith('.svelte') ? [path] : [];
 	});
 }
+
+/**
+ * Starting `npm` from a script, which has one correct spelling and a silent wrong one.
+ *
+ * On Windows `npm` is `npm.cmd`, and Node refuses to execute a `.cmd` without `shell: true`. A
+ * direct `spawnSync('npm', …)` therefore fails before the script runs — and because `spawnSync`
+ * reports that in `error` while leaving `status` as `null`, a caller testing only the status prints
+ * a failure with no reason. That combination took two CI rounds to read.
+ *
+ * `spawn.ts` knows both rules. This is what stops the next script from learning them again.
+ */
+describe('starting a child process', () => {
+	const root = fileURLToPath(new URL('../', import.meta.url));
+
+	it('goes through spawn.ts, never straight at npm', () => {
+		const offenders: string[] = [];
+		for (const file of readdirSync(join(root, 'scripts'))) {
+			if (!file.endsWith('.ts') || file === 'spawn.ts' || file.endsWith('.test.ts')) continue;
+			const text = readFileSync(join(root, 'scripts', file), 'utf8');
+			if (/(spawnSync|execFileSync|execFile|spawn)\(\s*['"`]npm/.test(text)) offenders.push(file);
+		}
+		expect(offenders, 'use runInherited from spawn.ts — npm needs a shell on Windows').toEqual([]);
+	});
+});

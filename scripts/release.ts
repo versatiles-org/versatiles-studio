@@ -20,10 +20,11 @@
  * the assets rather than being told about them.
  */
 
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { createInterface } from 'node:readline/promises';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { runInherited } from './spawn';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const CHANGELOG = `${ROOT}CHANGELOG.md`;
@@ -45,10 +46,8 @@ function capture(command: string, args: string[]): string {
 
 /** A command whose *output* is the point — inherited, so `npm run check` scrolls past as it runs. */
 function run(command: string, args: string[]): void {
-	const result = spawnSync(command, args, { cwd: ROOT, stdio: 'inherit' });
-	if (result.status !== 0) {
-		throw new Error(`${command} ${args.join(' ')} exited with ${result.status ?? 'a signal'}`);
-	}
+	const problem = runInherited(command, args, ROOT);
+	if (problem) throw new Error(problem);
 }
 
 function say(step: string): void {
