@@ -186,9 +186,10 @@ format, real zoom range and TileJSON (A6). It never shows global settings, or it
 drawer where every new feature lands. [Q38](decisions.md) is that rule being enforced twice over: the
 opener and the named views both left, and what remains needs no map and no file dialog.
 
-**A control that moves the camera lives on the map.** Typing a coordinate and picking a view you
-named are the same act — go there — so they share the bottom-left corner, while the controls for
-_looking_ at the result rather than moving through it (background, grid, reset) stay bottom-right.
+**A control that moves the camera lives on the map** ([Q38](decisions.md)), a corner each: named
+views (A7) top-left, where the list has room to open downward; the jump-to-coordinate box (A5)
+bottom-left; and the controls for _looking_ at the result rather than moving through it —
+background, grid, reset — bottom-right.
 
 ## Layouts
 
@@ -219,11 +220,11 @@ are back here — which is what used to be a whole Explore mode, and was never a
 ┌───────────────────────────────────────────────────────────┐
 │ ≡  MyProject                                              │
 ├─────────────────────────────────────────┬─────────────────┤
-│                                         │ INSPECTOR       │
+│ [Views ▾] (A7)                          │ INSPECTOR       │
 │                  MAP                    │ format, zooms   │
 │            grid overlay (A5)            │ TileJSON (A6)   │
 │            feature popup (A8)           │                 │
-│         views · z/x/y jump (A7, A5)     │                 │
+│ [z/x/y jump] (A5)         [grid][reset] │                 │
 ├─────────────────────────────────────────┴─────────────────┤
 │ $ versatiles probe osm.versatiles -d              [copy]  │
 └───────────────────────────────────────────────────────────┘

@@ -32,12 +32,16 @@ extensions the drop handler and the file dialog each repeated in their own words
 
 **A7's bookmarks are named camera positions, and they moved.** What they store is `lng`/`lat`/`zoom`
 /`bearing`/`pitch` and a name; clicking one jumps the map. That is the same act as A5's
-jump-to-coordinate box sitting in the opposite corner, and nothing to do with what an opened
-container turns out to be. `MapControls` already stated the rule this pane was breaking — what
-belongs on the map is _anything about looking at the result_ — and the coupling gave it away: the
-save button was disabled whenever there was no map. So they sit bottom-left beside the coordinate
-box, as one button that opens the list, rather than a form held permanently open for an act that is
-occasional.
+jump-to-coordinate box, and nothing to do with what an opened container turns out to be.
+`MapControls` already stated the rule this pane was breaking — what belongs on the map is _anything
+about looking at the result_ — and the coupling gave it away: the save button was disabled whenever
+there was no map. So it sits **top-left**, as one button that opens the list, rather than a form
+held permanently open for an act that is occasional.
+
+**A corner each, rather than a camera cluster.** The obvious move was to put it beside the
+coordinate box, the other control that goes somewhere. It reads better apart: the view list is the
+one thing here that is used constantly and opens a panel, so it gets the empty corner and room to
+open downward, while the bottom edge stays with the controls that are typed into or toggled.
 
 **They are called views, not bookmarks.** Everywhere else a bookmark points at a _document_; this
 points at a position _inside_ one. The name invited the question "is this how I save a pipeline for
