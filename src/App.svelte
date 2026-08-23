@@ -33,6 +33,7 @@
 	import MapControls from './lib/map/MapControls.svelte';
 	import { buildBackground, isBackgroundId, type BackgroundId } from './lib/map/background';
 	import CoordinateJump from './lib/map/CoordinateJump.svelte';
+	import Views from './lib/map/Views.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { fitToBounds } from './lib/map/add-source';
 	import { deriveStyle, drawsAnything, renderStyle } from './lib/map/style';
@@ -989,7 +990,7 @@
 	{:else if id === 'output'}
 		<PipelineOutput preview={preview.last} />
 	{:else if id === 'inspector'}
-		<Inspector containers={preview.containers.map((c) => c.info)} {map} />
+		<Inspector containers={preview.containers.map((c) => c.info)} />
 	{/if}
 {/snippet}
 
@@ -1063,7 +1064,12 @@
 				}}
 			/>
 		{:else}
-			<CoordinateJump {map} />
+			<!-- The two ways to move the camera by hand, in one corner: type a coordinate, or pick a
+			     view you named ([Q38]). -->
+			<div class="jumps">
+				<CoordinateJump {map} />
+				<Views {map} />
+			</div>
 			<MapControls
 				{background}
 				{showGrid}
@@ -1105,6 +1111,16 @@
 <Help />
 
 <style>
+	.jumps {
+		position: absolute;
+		left: 0.5rem;
+		bottom: 0.5rem;
+		z-index: 4;
+		display: flex;
+		align-items: flex-start;
+		gap: var(--space-2);
+	}
+
 	/* The landing screen covers the map region entirely; the map keeps running behind it so that
 	   opening something does not have to build one. */
 	:global(.landing) {

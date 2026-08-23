@@ -28,16 +28,16 @@ takes a week and one that takes a quarter; details are in the
 
 The foundation. Everything else renders into this surface.
 
-| ID     | Stage       | Feature                                                                                                     | Basis                               |
-| ------ | ----------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------- |
-| **A1** | `1`         | Open local containers by drag & drop or dialog: `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories  | `versatiles_container`              |
-| **A2** | `1`         | Open remote sources over HTTPS and SFTP, with byte ranges so a planet file opens instantly                  | `versatiles_container`              |
-| ~~A3~~ | `dropped`   | ~~Multi-source workspace: layer stack with opacity, swipe comparison and split view~~ ([Q17](decisions.md)) | not pursued                         |
-| **A4** | `1 stretch` | **Raw MVT inspector**: layers → features → properties as a tree, with byte sizes and geometry preview       | `versatiles_geometry`, `probe -ddd` |
-| **A5** | `1`         | Tile grid overlay showing z/x/y, with a jump-to-coordinate box                                              | new                                 |
-| **A6** | `1`         | View and **edit** container metadata and TileJSON                                                           | `meta_update`                       |
-| **A7** | `1`         | Recent files and named view bookmarks, stored application-wide ([Q21](decisions.md))                        | new                                 |
-| **A8** | `1`         | Feature popup showing all attributes of the feature under the cursor                                        | MapLibre                            |
+| ID     | Stage       | Feature                                                                                                                 | Basis                               |
+| ------ | ----------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------- |
+| **A1** | `1`         | Open local containers by drag & drop or dialog: `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories              | `versatiles_container`              |
+| **A2** | `1`         | Open remote sources over HTTPS and SFTP, with byte ranges so a planet file opens instantly                              | `versatiles_container`              |
+| ~~A3~~ | `dropped`   | ~~Multi-source workspace: layer stack with opacity, swipe comparison and split view~~ ([Q17](decisions.md))             | not pursued                         |
+| **A4** | `1 stretch` | **Raw MVT inspector**: layers → features → properties as a tree, with byte sizes and geometry preview                   | `versatiles_geometry`, `probe -ddd` |
+| **A5** | `1`         | Tile grid overlay showing z/x/y, with a jump-to-coordinate box                                                          | new                                 |
+| **A6** | `1`         | View and **edit** container metadata and TileJSON                                                                       | `meta_update`                       |
+| **A7** | `1`         | Recent files and named views, stored application-wide ([Q21](decisions.md)). Called bookmarks until [Q38](decisions.md) | new                                 |
+| **A8** | `1`         | Feature popup showing all attributes of the feature under the cursor                                                    | MapLibre                            |
 
 ---
 

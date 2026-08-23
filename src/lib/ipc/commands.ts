@@ -255,12 +255,14 @@ export const forgetRecent = (source: string) => unwrap(commands.forgetRecent(sou
 export const inspectTile = (source: string, z: number, x: number, y: number) =>
 	unwrap(commands.inspectTile(source, z, x, y));
 
-// -- bookmarks -------------------------------------------------------------------------------
+// -- views -----------------------------------------------------------------------------------
 
-export const listBookmarks = () => unwrap(commands.listBookmarks());
-export const saveBookmark = (bookmark: Parameters<typeof commands.saveBookmark>[0]) =>
-	unwrap(commands.saveBookmark(bookmark));
-export const deleteBookmark = (name: string) => unwrap(commands.deleteBookmark(name));
+export const listViews = () => unwrap(commands.listViews());
+export const saveView = (view: Parameters<typeof commands.saveView>[0]) => unwrap(commands.saveView(view));
+export const deleteView = (name: string) => unwrap(commands.deleteView(name));
+
+/** Reorders by name and returns the order the core settled on, which is the one to render. */
+export const reorderViews = (order: string[]) => unwrap(commands.reorderViews(order));
 
 // -- layout ----------------------------------------------------------------------------------
 

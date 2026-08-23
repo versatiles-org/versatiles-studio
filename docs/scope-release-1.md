@@ -126,19 +126,19 @@ GEOS unlinked, which removes the LGPL obligation entirely.
 
 ### S1 · Open & explore → M1
 
-| Item        | Work                                                                                                                                                                                | Feature        |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| **S1.1**    | ~~Landing screen in an empty window: ways in plus recent files~~ — **done**                                                                                                         | A7             |
-| **S1.2**    | ~~Open local containers — `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories~~ — **done**                                                                                   | A1             |
-| **S1.3**    | ~~Open remote sources over HTTPS and SFTP with byte ranges~~ — **done**; a planet file opens in ~2 s from its index                                                                 | A2             |
-| **S1.4**    | ~~Map canvas and default render style; one `Map` instance, viewport owned by the core~~ — **done**, includes the MapLibre 6 worker build step ([Q18](decisions.md))                 | infrastructure |
-| **S1.5**    | ~~Inspector: container metadata and TileJSON~~ — **view done**; editing needs the pipeline's `meta_update` (S2)                                                                     | A6             |
-| **S1.6**    | ~~Feature popup on hover/click~~ — **done**                                                                                                                                         | A8             |
-| **S1.7**    | ~~Tile grid overlay with z/x/y and a jump-to-coordinate box~~ — **done**                                                                                                            | A5             |
-| **S1.8**    | ~~Named view bookmarks~~ — **done**, application-wide rather than in the project ([Q21](decisions.md))                                                                              | A7             |
-| **S1.9**    | ~~Command strip~~ — **dropped with G2**; the bottom bar is the status and job bar instead ([Q24](decisions.md))                                                                     | G2             |
-| **S1.10\*** | ~~Raw MVT inspector: layers → features → properties, with byte sizes~~ — **done**                                                                                                   | A4             |
-| **S1.11**   | ~~A user agent naming Studio on every remote request~~ — **done** in 4.9.1: `io::set_product` appends a second token rather than replacing, so a provider's log names both (vt#248) | infrastructure |
+| Item        | Work                                                                                                                                                                                    | Feature        |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| **S1.1**    | ~~Landing screen in an empty window: ways in plus recent files~~ — **done**                                                                                                             | A7             |
+| **S1.2**    | ~~Open local containers — `.mbtiles`, `.pmtiles`, `.versatiles`, `.tar`, directories~~ — **done**                                                                                       | A1             |
+| **S1.3**    | ~~Open remote sources over HTTPS and SFTP with byte ranges~~ — **done**; a planet file opens in ~2 s from its index                                                                     | A2             |
+| **S1.4**    | ~~Map canvas and default render style; one `Map` instance, viewport owned by the core~~ — **done**, includes the MapLibre 6 worker build step ([Q18](decisions.md))                     | infrastructure |
+| **S1.5**    | ~~Inspector: container metadata and TileJSON~~ — **view done**; editing needs the pipeline's `meta_update` (S2). [Q38](decisions.md) took the opener and the views back out of it       | A6             |
+| **S1.6**    | ~~Feature popup on hover/click~~ — **done**                                                                                                                                             | A8             |
+| **S1.7**    | ~~Tile grid overlay with z/x/y and a jump-to-coordinate box~~ — **done**                                                                                                                | A5             |
+| **S1.8**    | ~~Named view bookmarks~~ — **done**, application-wide rather than in the project ([Q21](decisions.md)); renamed **views** and moved onto the map, with ordering, by [Q38](decisions.md) | A7             |
+| **S1.9**    | ~~Command strip~~ — **dropped with G2**; the bottom bar is the status and job bar instead ([Q24](decisions.md))                                                                         | G2             |
+| **S1.10\*** | ~~Raw MVT inspector: layers → features → properties, with byte sizes~~ — **done**                                                                                                       | A4             |
+| **S1.11**   | ~~A user agent naming Studio on every remote request~~ — **done** in 4.9.1: `io::set_product` appends a second token rather than replacing, so a provider's log names both (vt#248)     | infrastructure |
 
 ### S2 · Pipeline editing → M4
 

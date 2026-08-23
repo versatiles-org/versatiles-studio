@@ -1,4 +1,4 @@
-//! Application state that outlives a window — recent sources and view bookmarks.
+//! Application state that outlives a window — recent sources and named views.
 //!
 //! Distinct from the project model on purpose: this is state about *Studio*, not about any one
 //! project, so it lives beside the application's data rather than inside a project folder
@@ -6,12 +6,11 @@
 //! reloaded or crashed window comes back with both lists intact.
 //!
 //! **Separate files, because their recovery policies differ.** Recents and pane layout are
-//! disposable and churn constantly, so a corrupt file silently resets. Bookmarks are user-created,
-//! so a corrupt file is an error the user hears about — silently discarding them would be data
-//! loss.
+//! disposable and churn constantly, so a corrupt file silently resets. Views are user-created, so a
+//! corrupt file is an error the user hears about — silently discarding them would be data loss.
 //!
 //! The core takes a **directory**, not file paths: the filenames are its own business, so a caller
-//! cannot put bookmarks in the recents file or write either somewhere unintended. Deciding *which*
+//! cannot put views in the recents file or write either somewhere unintended. Deciding *which*
 //! directory is the platform layer's job.
 //!
 //! [Q16]: ../../../docs/decisions.md
@@ -26,7 +25,10 @@ const RECENTS_CAPACITY: usize = 12;
 
 /// Filenames are internal — see the module note on why callers pass a directory.
 const RECENTS_FILE: &str = "recents.json";
-const BOOKMARKS_FILE: &str = "bookmarks.json";
+const VIEWS_FILE: &str = "views.json";
+/// What `views.json` was called before [Q38](../../docs/decisions.md) renamed it. Read, never
+/// written.
+const LEGACY_VIEWS_FILE: &str = "bookmarks.json";
 const LAYOUT_FILE: &str = "layout.json";
 
 // ---------------------------------------------------------------------------------------------
@@ -96,7 +98,7 @@ impl Recents {
 	/// Reads the list, treating any problem as "no recents".
 	///
 	/// Deliberately infallible: losing a most-recently-used list costs a user nothing, and refusing
-	/// to start over it costs them everything. Bookmarks take the opposite policy.
+	/// to start over it costs them everything. Views take the opposite policy.
 	#[must_use]
 	pub fn load(dir: &Path) -> Self {
 		std::fs::read_to_string(dir.join(RECENTS_FILE))
@@ -224,8 +226,12 @@ pub struct Camera {
 	pub lat: f64,
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub zoom: f64,
+	/// Defaulted, because a [`View`] file written before views had an angle has neither key, and a
+	/// missing angle is a flat north-up view rather than a reason to refuse the whole file.
+	#[serde(default)]
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub bearing: f64,
+	#[serde(default)]
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub pitch: f64,
 }
@@ -395,87 +401,115 @@ fn clamp_width(width: f64, fallback: f64) -> f64 {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Bookmarks
+// Views
 // ---------------------------------------------------------------------------------------------
 
-/// A named view: a name and where the camera was.
+/// A named view: a name, and where the camera was.
 ///
-/// **No source.** It carried one — "so a bookmark can offer to reopen it" — that nothing ever
-/// reopened, filled from whichever container happened to be mounted last. A view is a place, and a
-/// place does not belong to a file. Old `bookmarks.json` files keep their `source` key and load
-/// fine; serde ignores it.
+/// **Called a bookmark until [Q38]**, and it carried a `source` — "so a view can offer to reopen
+/// it" — that nothing ever reopened, filled from whichever container happened to be mounted last.
+/// A view is a place, and a place does not belong to a file. An old file's `source` key is ignored
+/// rather than rejected, so nobody loses their views to the rename.
+///
+/// The camera is [`Camera`] rather than five fields of its own: it is the same thing the layout
+/// restores a window to, and one type means one answer to what a camera is.
+///
+/// [Q38]: ../../docs/decisions.md
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
-pub struct Bookmark {
+pub struct View {
 	pub name: String,
-	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
-	pub lng: f64,
-	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
-	pub lat: f64,
-	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
-	pub zoom: f64,
-	#[serde(default)]
-	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
-	pub bearing: f64,
-	#[serde(default)]
-	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
-	pub pitch: f64,
+	/// Flattened, so the file stays one object per view rather than nesting a camera inside it —
+	/// and so a file written before the rename still reads.
+	#[serde(flatten)]
+	pub camera: Camera,
 	/// Seconds since the Unix epoch, emitted as a `number` — a double holds them exactly for the
 	/// next quarter of a million years, and `u32` would overflow in 2106.
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub created_at: u64,
 }
 
-/// Named view bookmarks (A7).
+/// Named views (A7), in the order the user put them.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct Bookmarks(Vec<Bookmark>);
+pub struct Views(Vec<View>);
 
-impl Bookmarks {
+impl Views {
 	/// Reads the list. **Fails loudly**, unlike [`Recents::load`].
 	///
 	/// A missing file is fine — that is a first run. A file that exists but will not parse is not:
 	/// these are user-created, and silently replacing them with an empty list is data loss wearing
 	/// the costume of a clean start.
+	///
+	/// An install that predates [Q38](../../docs/decisions.md) has `bookmarks.json` and no
+	/// `views.json`; it is read in place and **left where it is**. The next save writes the new
+	/// name, and the old file stays behind as a backup rather than being deleted on the user's
+	/// behalf — the one policy that cannot lose anything if the rename was a mistake.
 	pub fn load(dir: &Path) -> Result<Self> {
-		let path = dir.join(BOOKMARKS_FILE);
-		if !path.exists() {
-			return Ok(Self::default());
-		}
+		let current = dir.join(VIEWS_FILE);
+		let path = if current.exists() {
+			current
+		} else {
+			let legacy = dir.join(LEGACY_VIEWS_FILE);
+			if !legacy.exists() {
+				return Ok(Self::default());
+			}
+			legacy
+		};
 		let text = std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-		serde_json::from_str(&text).with_context(|| {
-			format!(
-				"{} is not valid bookmark data — it has not been touched",
-				path.display()
-			)
-		})
+		serde_json::from_str(&text)
+			.with_context(|| format!("{} is not valid view data — it has not been touched", path.display()))
 	}
 
 	pub fn save(&self, dir: &Path) -> Result<()> {
 		write_atomically(
-			&dir.join(BOOKMARKS_FILE),
-			&serde_json::to_string_pretty(self).context("serialising bookmarks")?,
+			&dir.join(VIEWS_FILE),
+			&serde_json::to_string_pretty(self).context("serialising views")?,
 		)
 	}
 
-	/// Adds a bookmark, replacing any with the same name.
-	pub fn add(&mut self, mut bookmark: Bookmark) {
-		bookmark.created_at = now();
-		self.0.retain(|b| b.name != bookmark.name);
-		self.0.push(bookmark);
-		self.0.sort_by(|a, b| a.name.cmp(&b.name));
+	/// Adds a view at the end, or replaces one of the same name **where it already sits**.
+	///
+	/// Appending rather than sorting by name is what makes [`reorder`](Self::reorder) mean
+	/// anything: a sort would silently undo the user's order every time they saved. Re-saving a
+	/// name keeps its place because that is the same view with the camera moved, not a new one —
+	/// and moving it to the end would shuffle the list under whoever was using it.
+	pub fn add(&mut self, mut view: View) {
+		view.created_at = now();
+		match self.0.iter_mut().find(|held| held.name == view.name) {
+			Some(held) => *held = view,
+			None => self.0.push(view),
+		}
 	}
 
 	#[must_use]
-	pub fn entries(&self) -> &[Bookmark] {
+	pub fn entries(&self) -> &[View] {
 		&self.0
 	}
 
 	pub fn remove(&mut self, name: &str) -> bool {
 		let before = self.0.len();
-		self.0.retain(|b| b.name != name);
+		self.0.retain(|v| v.name != name);
 		self.0.len() != before
+	}
+
+	/// Puts the views in the order named.
+	///
+	/// Takes the **whole order** rather than a move-this-one-up command: the webview sends the list
+	/// it is showing, so the two sides never have to agree on what an index meant. A name it does
+	/// not hold is ignored, and a view the caller left out keeps its relative place at the end —
+	/// so a reorder racing with a save from another window cannot drop anybody.
+	pub fn reorder(&mut self, order: &[String]) {
+		let mut left = std::mem::take(&mut self.0);
+		let mut sorted = Vec::with_capacity(left.len());
+		for name in order {
+			if let Some(at) = left.iter().position(|held| &held.name == name) {
+				sorted.push(left.remove(at));
+			}
+		}
+		sorted.append(&mut left);
+		self.0 = sorted;
 	}
 }
 
@@ -539,9 +573,9 @@ mod tests {
 	fn the_two_lists_do_not_share_a_file() -> Result<()> {
 		let dir = crate::testing::dir("two-files");
 		Recents::default().save(&dir)?;
-		Bookmarks::default().save(&dir)?;
+		Views::default().save(&dir)?;
 		assert!(dir.join("recents.json").is_file());
-		assert!(dir.join("bookmarks.json").is_file());
+		assert!(dir.join("views.json").is_file());
 		Ok(())
 	}
 
@@ -839,12 +873,12 @@ mod tests {
 
 	/// The opposite policy: these are user-created, so silence would be data loss.
 	#[test]
-	fn corrupt_bookmarks_are_an_error_and_the_file_is_left_alone() {
-		let dir = crate::testing::dir("corrupt-bookmarks");
-		let path = dir.join("bookmarks.json");
+	fn corrupt_views_are_an_error_and_the_file_is_left_alone() {
+		let dir = crate::testing::dir("corrupt-views");
+		let path = dir.join("views.json");
 		std::fs::write(&path, "{ not json").unwrap();
 
-		let error = Bookmarks::load(&dir).unwrap_err();
+		let error = Views::load(&dir).unwrap_err();
 		assert!(format!("{error:#}").contains("has not been touched"));
 		assert_eq!(
 			std::fs::read_to_string(&path).unwrap(),
@@ -854,59 +888,166 @@ mod tests {
 	}
 
 	#[test]
-	fn a_missing_bookmarks_file_is_a_first_run_not_an_error() -> Result<()> {
+	fn a_missing_views_file_is_a_first_run_not_an_error() -> Result<()> {
 		let dir = crate::testing::dir("first-run");
-		assert!(Bookmarks::load(&dir)?.entries().is_empty());
+		assert!(Views::load(&dir)?.entries().is_empty());
 		Ok(())
 	}
 
-	#[test]
-	fn bookmarks_replace_by_name_and_stay_sorted() {
-		let mut marks = Bookmarks::default();
-		for name in ["zebra", "alpha"] {
-			marks.add(Bookmark {
-				name: name.into(),
+	/// A view for tests, at a camera distinctive enough to tell entries apart by.
+	fn view(name: &str, zoom: f64) -> View {
+		View {
+			name: name.into(),
+			camera: Camera {
 				lng: 0.0,
 				lat: 0.0,
-				zoom: 4.0,
+				zoom,
 				bearing: 0.0,
 				pitch: 0.0,
-				created_at: 0,
-			});
-		}
-		marks.add(Bookmark {
-			name: "alpha".into(),
-			lng: 13.4,
-			lat: 52.5,
-			zoom: 12.0,
-			bearing: 0.0,
-			pitch: 0.0,
+			},
 			created_at: 0,
-		});
+		}
+	}
 
-		let names: Vec<_> = marks.entries().iter().map(|b| b.name.as_str()).collect();
-		assert_eq!(names, ["alpha", "zebra"], "sorted, and no duplicate alpha");
-		assert_eq!(marks.entries()[0].zoom, 12.0, "the newer alpha replaced the older");
+	fn names(views: &Views) -> Vec<&str> {
+		views.entries().iter().map(|v| v.name.as_str()).collect()
+	}
+
+	/// The order is the user's, so saving must never rearrange it — the bug an alphabetical sort
+	/// would reintroduce the moment `reorder` shipped.
+	#[test]
+	fn a_new_view_is_appended_and_the_order_is_left_alone() {
+		let mut views = Views::default();
+		for name in ["zebra", "alpha", "mango"] {
+			views.add(view(name, 4.0));
+		}
+		assert_eq!(names(&views), ["zebra", "alpha", "mango"], "added in order, not sorted");
 	}
 
 	#[test]
-	fn bookmarks_survive_a_round_trip() -> Result<()> {
+	fn re_saving_a_name_replaces_it_where_it_already_sits() {
+		let mut views = Views::default();
+		for name in ["zebra", "alpha", "mango"] {
+			views.add(view(name, 4.0));
+		}
+		views.add(view("alpha", 12.0));
+
+		assert_eq!(
+			names(&views),
+			["zebra", "alpha", "mango"],
+			"no duplicate, and it stayed put"
+		);
+		assert_eq!(
+			views.entries()[1].camera.zoom,
+			12.0,
+			"the newer alpha replaced the older"
+		);
+	}
+
+	#[test]
+	fn reorder_follows_the_order_it_is_given() {
+		let mut views = Views::default();
+		for name in ["one", "two", "three"] {
+			views.add(view(name, 4.0));
+		}
+		views.reorder(&["three".into(), "one".into(), "two".into()]);
+		assert_eq!(names(&views), ["three", "one", "two"]);
+	}
+
+	/// A reorder sent from a window that had not seen the newest view must not delete it.
+	#[test]
+	fn reorder_ignores_names_it_does_not_hold_and_keeps_the_ones_left_out() {
+		let mut views = Views::default();
+		for name in ["one", "two", "three"] {
+			views.add(view(name, 4.0));
+		}
+		views.reorder(&["three".into(), "ghost".into()]);
+		assert_eq!(
+			names(&views),
+			["three", "one", "two"],
+			"named first, the rest in place behind"
+		);
+	}
+
+	#[test]
+	fn views_survive_a_round_trip() -> Result<()> {
 		let dir = crate::testing::dir("roundtrip");
-		let mut marks = Bookmarks::default();
-		marks.add(Bookmark {
+		let mut views = Views::default();
+		views.add(View {
 			name: "Berlin".into(),
-			lng: 13.405,
-			lat: 52.52,
-			zoom: 11.0,
-			bearing: 15.0,
-			pitch: 30.0,
+			camera: Camera {
+				lng: 13.405,
+				lat: 52.52,
+				zoom: 11.0,
+				bearing: 15.0,
+				pitch: 30.0,
+			},
 			created_at: 0,
 		});
-		marks.save(&dir)?;
+		views.save(&dir)?;
 
-		let loaded = Bookmarks::load(&dir)?;
+		let loaded = Views::load(&dir)?;
 		assert_eq!(loaded.entries()[0].name, "Berlin");
-		assert_eq!(loaded.entries()[0].bearing, 15.0);
+		assert_eq!(
+			loaded.entries()[0].camera.bearing,
+			15.0,
+			"the angle is part of the view"
+		);
+		assert_eq!(loaded.entries()[0].camera.pitch, 30.0);
+		Ok(())
+	}
+
+	/// The camera is flattened, so a view is one flat object — which is what lets a file written
+	/// before the rename still read.
+	#[test]
+	fn a_view_is_stored_as_one_flat_object() -> Result<()> {
+		let dir = crate::testing::dir("flat");
+		let mut views = Views::default();
+		views.add(view("Berlin", 11.0));
+		views.save(&dir)?;
+
+		let text = std::fs::read_to_string(dir.join("views.json"))?;
+		assert!(text.contains("\"zoom\""), "the camera's keys sit beside the name");
+		assert!(!text.contains("\"camera\""), "and are not nested under one");
+		Ok(())
+	}
+
+	/// Q38 renamed the file. An install that predates it must come back with its views, and must
+	/// still have the old file afterwards in case the rename was the mistake.
+	#[test]
+	fn views_saved_as_bookmarks_are_read_and_their_file_is_left_alone() -> Result<()> {
+		let dir = crate::testing::dir("legacy-bookmarks");
+		std::fs::write(
+			dir.join("bookmarks.json"),
+			r#"[{"name":"Berlin","source":"/berlin.versatiles","lng":13.4,"lat":52.5,"zoom":11.0,"createdAt":1}]"#,
+		)?;
+
+		let loaded = Views::load(&dir)?;
+		assert_eq!(names(&loaded), ["Berlin"], "read under the old name");
+		assert_eq!(
+			loaded.entries()[0].camera.bearing,
+			0.0,
+			"an absent angle is flat, not a refusal"
+		);
+		assert!(dir.join("bookmarks.json").is_file(), "the old file is not deleted");
+		assert!(!dir.join("views.json").exists(), "and nothing is written until a save");
+		Ok(())
+	}
+
+	/// `views.json` wins: once saved under the new name, an old file left behind is a backup and
+	/// must not shadow it.
+	#[test]
+	fn the_new_file_wins_over_the_one_left_behind() -> Result<()> {
+		let dir = crate::testing::dir("both-files");
+		std::fs::write(
+			dir.join("bookmarks.json"),
+			r#"[{"name":"old","lng":0,"lat":0,"zoom":1,"createdAt":1}]"#,
+		)?;
+		let mut views = Views::default();
+		views.add(view("new", 4.0));
+		views.save(&dir)?;
+
+		assert_eq!(names(&Views::load(&dir)?), ["new"]);
 		Ok(())
 	}
 
@@ -914,8 +1055,8 @@ mod tests {
 	#[test]
 	fn an_atomic_write_leaves_no_temporary_file_behind() -> Result<()> {
 		let dir = crate::testing::dir("atomic");
-		Bookmarks::default().save(&dir)?;
-		let path = dir.join("bookmarks.json");
+		Views::default().save(&dir)?;
+		let path = dir.join("views.json");
 		assert!(path.exists());
 		assert!(
 			!path.with_extension("tmp").exists(),

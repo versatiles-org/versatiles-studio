@@ -16,6 +16,59 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q38 — Views are named camera positions, they live on the map, and the inspector holds neither them nor a way in
+
+**Decided 2026-08-23.** Three S1-era surfaces in the right pane outlived the decisions that gave
+them a home, and they go together because they fail the same test.
+
+**The inspector had its own way in.** An "Open a tile container…" button and a remote-URL form, from
+S1 when opening a container was all Studio did. [Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)
+made a graph _a_ source, so opening a file means creating a graph — and `PipelinePane` had already
+recorded the consequence when it merged "+ Add source" into "＋ new graph…": two doors to the same
+room, one door kept, next to where graphs live. The inspector's copy was the other half of that
+merge, never done. It called `pick()` with no filter, so despite its label it accepted CSVs and
+`.vpl` documents too, while the landing screen had already dropped exactly this card for naming
+extensions the drop handler and the file dialog each repeated in their own words.
+
+**A7's bookmarks are named camera positions, and they moved.** What they store is `lng`/`lat`/`zoom`
+/`bearing`/`pitch` and a name; clicking one jumps the map. That is the same act as A5's
+jump-to-coordinate box sitting in the opposite corner, and nothing to do with what an opened
+container turns out to be. `MapControls` already stated the rule this pane was breaking — what
+belongs on the map is _anything about looking at the result_ — and the coupling gave it away: the
+save button was disabled whenever there was no map. So they sit bottom-left beside the coordinate
+box, as one button that opens the list, rather than a form held permanently open for an act that is
+occasional.
+
+**They are called views, not bookmarks.** Everywhere else a bookmark points at a _document_; this
+points at a position _inside_ one. The name invited the question "is this how I save a pipeline for
+later?" — which is what a graph and the recents list are for, and recents already occupy the
+"things I opened and want back" slot. Two names for that idea in one application is one too many.
+
+**The `source` field went with the rename.** It was documented "so a bookmark can offer to reopen
+it", nothing ever reopened it, it reached the UI only as a tooltip, and it was filled from
+whichever container happened to be mounted last — arbitrary once more than one was open. A view is
+a place, and a place does not belong to a file.
+
+**The order is the user's.** `add` sorted alphabetically, which is defensible only while there is no
+other order to destroy; a new view is now appended and `reorder` takes the whole list of names, so
+the core has the last word on what an index meant and a reorder racing with a save from another
+window cannot drop anybody. Re-saving a name replaces that view **where it already sits**: it is the
+same view with the camera moved, not a new one.
+
+**Jumping, not flying.** These get used to compare one place at two zooms or two angles, and an
+animation between them is time spent watching the subject slide past. The list marks the view you
+are on, so drifting off one is visible rather than guessed at.
+
+**`bookmarks.json` became `views.json`, and the old file is read and left alone.** An install that
+predates this comes back with its views; the next save writes the new name and the old file stays
+behind as a backup rather than being deleted on the user's behalf — the one policy that loses
+nothing if the rename was a mistake. This does not reopen [Q21](#q21--recents-and-bookmarks-are-application-state-in-json-files-not-project-state):
+the file is renamed, its recovery policy is not.
+
+_Amends A7 twice — Q21 already corrected where it is stored; this corrects what it is called and
+where it appears. Amends [Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)'s
+right-pane rule by enforcing it: what is left in the inspector needs no map and no file dialog._
+
 ### Q37 — D3's expression editor edits filters, because that is where the expressions are
 
 **Decided 2026-08-23.** [S4.5](scope-release-1.md) delivered the layer tree and recorded its
@@ -822,6 +875,11 @@ scoped for those inside one.
 
 **Revisit** if this store grows to hold [Q4](#q4--analysis-statistics-live-in-memory-keyed-by-container-identity)'s content-addressed analysis cache, or if
 multiple application instances ever become possible. Either would make files the wrong choice.
+
+**Amended 2026-08-23 by [Q38](#q38--views-are-named-camera-positions-they-live-on-the-map-and-the-inspector-holds-neither-them-nor-a-way-in).**
+Bookmarks are now called **views** and `bookmarks.json` is `views.json`, read under its old name
+where an install predates the rename. The split by recovery policy, the file format and the
+directory are all unchanged — only the words are.
 
 ### Q20 — GDAL is raster-only in release 1; GeoPackage is not supported
 

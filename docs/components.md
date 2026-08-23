@@ -35,9 +35,9 @@ import; kind is a judgement, and judgements drift.
 ```text
 lib/shell/            the frame: AppShell · Sidebar · Pane · PaneResizer · StatusBar · JobsPanel
 lib/panes/pipeline/   PipelinePane and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor
-lib/panes/inspector/  Inspector · Bookmarks
+lib/panes/inspector/  Inspector
 lib/panes/output/     PipelineOutput
-lib/map/              MapCanvas · MapControls · TileGrid · CoordinateJump · FeaturePopup
+lib/map/              MapCanvas · MapControls · TileGrid · CoordinateJump · Views · FeaturePopup
 lib/common/           used by more than one owner: Help · HelpTrigger · Picker · JsonTree · ImportCards · LandingScreen
 ```
 
@@ -84,13 +84,14 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 
 One `Map` instance for the whole window, owned by the core ([Q16](decisions.md)).
 
-| Component        | Does                                                                    | Stage |
-| ---------------- | ----------------------------------------------------------------------- | ----- |
-| `MapCanvas`      | Wraps MapLibre; viewport restored from the core, never from local state | S1.4  |
-| `TileGrid`       | z/x/y grid (A5)                                                         | S1.7  |
-| `CoordinateJump` | Jump-to-coordinate box (A5)                                             | S1.7  |
-| `FeaturePopup`   | All attributes of the feature under the cursor (A8)                     | S1.6  |
-| `CropOverlay`    | The crop: everything outside it dimmed, and a drag draws a new one (F2) | S5.2  |
+| Component        | Does                                                                               | Stage |
+| ---------------- | ---------------------------------------------------------------------------------- | ----- |
+| `MapCanvas`      | Wraps MapLibre; viewport restored from the core, never from local state            | S1.4  |
+| `TileGrid`       | z/x/y grid (A5)                                                                    | S1.7  |
+| `CoordinateJump` | Jump-to-coordinate box (A5)                                                        | S1.7  |
+| `Views`          | Named views (A7): the list, and saving the camera you are on ([Q38](decisions.md)) | S1.8  |
+| `FeaturePopup`   | All attributes of the feature under the cursor (A8)                                | S1.6  |
+| `CropOverlay`    | The crop: everything outside it dimmed, and a drag draws a new one (F2)            | S5.2  |
 
 ## Left pane — the chain
 
@@ -129,7 +130,9 @@ another node — are the one control with no counterpart in any existing repo.
 | Component   | Does                                                        | Stage |
 | ----------- | ----------------------------------------------------------- | ----- |
 | `Inspector` | Container metadata and TileJSON, viewable and editable (A6) | S1.5  |
-| `Bookmarks` | Saved views of the map (A7)                                 | S1.8  |
+
+`Bookmarks` was here until [Q38](decisions.md) renamed it `Views` and moved it onto the map: it moved
+the camera, which is nothing this pane is for, and it was the only reason the pane took a `map`.
 
 ## Cross-cutting
 

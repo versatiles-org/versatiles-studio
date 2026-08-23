@@ -17,7 +17,7 @@ use std::path::PathBuf;
 use studio_core::{
 	history::History,
 	server::ServerManager,
-	store::{Bookmarks, Layout, Recents},
+	store::{Layout, Recents, Views},
 	style::Recipe,
 };
 use tokio::sync::Mutex;
@@ -44,9 +44,10 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::sources::recent_sources,
 		commands::sources::forget_recent,
 		commands::sources::inspect_tile,
-		commands::bookmarks::list_bookmarks,
-		commands::bookmarks::save_bookmark,
-		commands::bookmarks::delete_bookmark,
+		commands::views::list_views,
+		commands::views::save_view,
+		commands::views::delete_view,
+		commands::views::reorder_views,
 		commands::style::style,
 		commands::style::set_style_preset,
 		commands::style::set_style_recolor,
@@ -125,8 +126,8 @@ pub fn run() {
 			let data_dir = tauri::Manager::path(app)
 				.app_data_dir()
 				.unwrap_or_else(|_| std::path::PathBuf::from("."));
-			// Recents reset silently when unreadable; bookmarks do not, because they are the user's
-			// own work. A broken bookmarks file is surfaced and left untouched rather than replaced.
+			// Recents reset silently when unreadable; views do not, because they are the user's own
+			// work. A broken views file is surfaced and left untouched rather than replaced.
 			// Installed families, after the bundled tier so they extend it rather than shadow it
 			// (G7, S4.1). Failing to mount one is not worth refusing to start over: the map falls
 			// back to the Latin subset, which is what it had before the family was installed.
@@ -136,11 +137,11 @@ pub fn run() {
 			}
 			let recents = Recents::load(&data_dir);
 			let layout = Layout::load(&data_dir);
-			let bookmarks = match Bookmarks::load(&data_dir) {
+			let views = match Views::load(&data_dir) {
 				Ok(loaded) => loaded,
 				Err(error) => {
-					eprintln!("bookmarks could not be read and were left alone: {error:#}");
-					Bookmarks::default()
+					eprintln!("views could not be read and were left alone: {error:#}");
+					Views::default()
 				}
 			};
 
@@ -152,7 +153,7 @@ pub fn run() {
 				AppState {
 					server: Mutex::new(server),
 					recents: Mutex::new(recents),
-					bookmarks: Mutex::new(bookmarks),
+					views: Mutex::new(views),
 					layout: Mutex::new(layout),
 					graphs: Mutex::new(studio_core::graphs::Graphs::new()),
 					style: Mutex::new(Recipe::default()),

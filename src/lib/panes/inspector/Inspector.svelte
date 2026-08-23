@@ -1,8 +1,6 @@
 <script lang="ts">
-	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import type { ContainerInfo } from '../../ipc/commands';
 	import JsonTree from '../../common/JsonTree.svelte';
-	import Bookmarks from './Bookmarks.svelte';
 
 	// A6 — the right pane shows what things turn out to be, never global settings and never a way in.
 	//
@@ -11,13 +9,10 @@
 	// becoming a graph: the one door is "＋ new graph…" next to where graphs live, the same door the
 	// landing screen, drag & drop and the recents list go through. Two doors to the same room is
 	// what `PipelinePane` already removed once; this is the other half of it.
-	let {
-		containers,
-		map
-	}: {
-		containers: ContainerInfo[];
-		map: MaplibreMap | undefined;
-	} = $props();
+	//
+	// Named views left too ([Q38]): they move the camera, so they belong on the map, and holding
+	// them here was what made this pane need a `map` at all.
+	let { containers }: { containers: ContainerInfo[] } = $props();
 
 	function extent(bbox: ContainerInfo['bbox']): string {
 		if (!bbox) return '—';
@@ -48,8 +43,6 @@
 			<JsonTree value={info.tileJson} name="TileJSON" open={false} />
 		</section>
 	{/each}
-
-	<Bookmarks {map} />
 </div>
 
 <style>

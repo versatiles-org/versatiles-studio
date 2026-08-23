@@ -15,7 +15,7 @@ use studio_core::{
 	history::History,
 	jobs::Jobs,
 	server::ServerManager,
-	store::{Bookmarks, Layout, Recents},
+	store::{Layout, Recents, Views},
 	style::Recipe,
 };
 
@@ -31,9 +31,9 @@ use tokio::sync::Mutex;
 pub struct AppState {
 	/// One embedded server for the whole application; projects are named mounts on it.
 	pub server: Mutex<ServerManager>,
-	/// Recent sources and bookmarks. The core owns the lists; this layer owns where they live.
+	/// Recent sources and named views. The core owns the lists; this layer owns where they live.
 	pub recents: Mutex<Recents>,
-	pub bookmarks: Mutex<Bookmarks>,
+	pub views: Mutex<Views>,
 	/// Which left-pane sections are open, and how wide the pane is (S2.2, [Q22]).
 	pub layout: Mutex<Layout>,
 	/// **The project's graphs** — several named VPL documents, each producing one named tile
@@ -63,7 +63,7 @@ pub struct AppState {
 	pub jobs: Jobs,
 	/// Where these files live. `app_data_dir`, not `app_config_dir`: these are user *data*, not
 	/// configuration. Invisible on macOS — both land in Application Support — but on Linux it is
-	/// `~/.local/share` versus `~/.config`, and bookmarks belong in the former. The store owns the
+	/// `~/.local/share` versus `~/.config`, and views belong in the former. The store owns the
 	/// filenames inside it.
 	pub data_dir: PathBuf,
 	/// Where installed font families live (G7, S4.1).

@@ -5,13 +5,13 @@
 //! docs warn that is slow for large payloads (Q3).
 
 pub mod assets;
-pub mod bookmarks;
 pub mod export;
 pub mod jobs;
 pub mod layout;
 pub mod project;
 pub mod sources;
 pub mod style;
+pub mod views;
 pub mod vpl;
 
 use crate::state::AppState;

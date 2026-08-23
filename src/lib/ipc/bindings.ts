@@ -123,10 +123,18 @@ export const commands = {
 	storedBytes: number,
 	layers: LayerInspection[],
 } | null, string>(__TAURI_INVOKE("inspect_tile", { source, z, x, y })),
-	listBookmarks: () => typedError<Bookmark[], string>(__TAURI_INVOKE("list_bookmarks")),
-	/**  Saves a bookmark, replacing any with the same name. */
-	saveBookmark: (bookmark: Bookmark) => typedError<null, string>(__TAURI_INVOKE("save_bookmark", { bookmark })),
-	deleteBookmark: (name: string) => typedError<boolean, string>(__TAURI_INVOKE("delete_bookmark", { name })),
+	listViews: () => typedError<View[], string>(__TAURI_INVOKE("list_views")),
+	/**  Saves a view, replacing any of the same name. */
+	saveView: (view: View) => typedError<null, string>(__TAURI_INVOKE("save_view", { view })),
+	deleteView: (name: string) => typedError<boolean, string>(__TAURI_INVOKE("delete_view", { name })),
+	/**
+	 *  Puts the views in the order given, and returns what that came to.
+	 * 
+	 *  Returns the list rather than nothing because the core has the last word on it — a name the
+	 *  caller does not hold is ignored, and one it left out keeps its place — so the webview renders
+	 *  what was actually stored instead of what it hoped had been.
+	 */
+	reorderViews: (order: string[]) => typedError<View[], string>(__TAURI_INVOKE("reorder_views", { order })),
 	/**  The recipe as it stands. */
 	style: () => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("style")),
 	/**  Switches which style the project starts from (D1). */
@@ -525,21 +533,6 @@ export const commands = {
 };
 
 /* Types */
-/**  A named view: where the camera was, and what it was looking at. */
-export type Bookmark = {
-	name: string,
-	lng: number,
-	lat: number,
-	zoom: number,
-	bearing?: number,
-	pitch?: number,
-	/**
-	 *  Seconds since the Unix epoch, emitted as a `number` — a double holds them exactly for the
-	 *  next quarter of a million years, and `u32` would overflow in 2106.
-	 */
-	createdAt: number,
-};
-
 /**
  *  Whether Studio will offer to write this path.
  * 
@@ -571,8 +564,12 @@ export type Camera = {
 	lng: number,
 	lat: number,
 	zoom: number,
-	bearing: number,
-	pitch: number,
+	/**
+	 *  Defaulted, because a [`View`] file written before views had an angle has neither key, and a
+	 *  missing angle is a flat north-up view rather than a reason to refuse the whole file.
+	 */
+	bearing?: number,
+	pitch?: number,
 };
 
 /**  A file the bundle will carry, and where it will land. */
@@ -1438,6 +1435,28 @@ export type TokenKind =
 export type Value = {
 	kind: "single",
 } & Str | { kind: "array"; items: Str[]; span: Span };
+
+/**
+ *  A named view: a name, and where the camera was.
+ * 
+ *  **Called a bookmark until [Q38]**, and it carried a `source` — "so a view can offer to reopen
+ *  it" — that nothing ever reopened, filled from whichever container happened to be mounted last.
+ *  A view is a place, and a place does not belong to a file. An old file's `source` key is ignored
+ *  rather than rejected, so nobody loses their views to the rename.
+ * 
+ *  The camera is [`Camera`] rather than five fields of its own: it is the same thing the layout
+ *  restores a window to, and one type means one answer to what a camera is.
+ * 
+ *  [Q38]: ../../docs/decisions.md
+ */
+export type View = {
+	name: string,
+	/**
+	 *  Seconds since the Unix epoch, emitted as a `number` — a double holds them exactly for the
+	 *  next quarter of a million years, and `u32` would overflow in 2106.
+	 */
+	createdAt: number,
+} & Camera;
 
 /**  A parse failure the editor can place, rather than a rendered string it would have to read. */
 export type VplError = {

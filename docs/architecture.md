@@ -126,7 +126,7 @@ written from scratch rather than imported from `@versatiles/svelte` ([Q18](decis
 
 - _Project model_ — sources, pipeline, style, views; a directory with a `project.yaml` manifest
   beside real `.vpl` and `style.json` files (G1, [Q6](decisions.md))
-- _App store_ — recent sources, view bookmarks (A7), and the window's own layout: pane widths, which
+- _App store_ — recent sources, named views (A7), and the window's own layout: pane widths, which
   panes are open, the background choice and the map camera. Application state, not project state, so
   it lives beside the app's data, split across JSON files **by recovery policy** rather than by
   subject ([Q21](decisions.md)) — precious data is never silently replaced with an empty one. The
@@ -183,7 +183,7 @@ versatiles-studio/
 │           ├── suggest.rs      values a field could take                 (E2)
 │           ├── analysis.rs     probe stats, in-memory per container      (Q4)
 │           ├── assets.rs       install, pin, verify; glyph generation    (G7, D9)
-│           ├── store.rs        recents and bookmarks, outliving a window (A7, Q21)
+│           ├── store.rs        recents and named views, outliving a window (A7, Q21)
 │           └── server.rs       embedded server lifecycle, named mounts   (Q16)
 │
 ├── src-tauri/                  deliberately thin

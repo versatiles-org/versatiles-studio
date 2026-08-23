@@ -60,12 +60,12 @@ True everywhere. These matter more than the arrangement.
 Three regions, always present — **left pane, map, right pane** — over the status and job bar, with
 the mode bar arriving above them at S4.
 
-| Region         | Holds                                                                                                                                                  |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Mode bar**   | **Map** (default) · **Assets** (G7, from S4). Locally generated glyphs (D9) are a feature of the asset manager, not a third mode ([Q22](decisions.md)) |
-| **Left pane**  | The chain, as collapsible sections: **Pipeline · Style · Export**                                                                                      |
-| **Map**        | The subject, the preview, and an input device for the crop rectangle (F2)                                                                              |
-| **Right pane** | What things turn out to be — the pipeline's output, and an opened container's own metadata. Not parameters ([Q32](decisions.md))                       |
+| Region         | Holds                                                                                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Mode bar**   | **Map** (default) · **Assets** (G7, from S4). Locally generated glyphs (D9) are a feature of the asset manager, not a third mode ([Q22](decisions.md))                   |
+| **Left pane**  | The chain, as collapsible sections: **Pipeline · Style · Export**                                                                                                        |
+| **Map**        | The subject, the preview, an input device for the crop rectangle (F2), and the controls that move the camera — coordinate jump and named views (A7, [Q38](decisions.md)) |
+| **Right pane** | What things turn out to be — the pipeline's output, and an opened container's own metadata. Not parameters ([Q32](decisions.md))                                         |
 
 **The left pane is the chain from data to pixels.** Sources feed the pipeline, the pipeline produces
 tiles, the style renders them, export writes them out — steps that used to be a mode switch apart,
@@ -91,7 +91,7 @@ D8 came to have no home at all under [Q22](decisions.md).
 | **Pipeline**  | A list of graphs, then the selected graph's chain with Graph / VPL tabs ([Q15](decisions.md)), C1 and C4. Each graph saves, renames and exports on its own ([Q32](decisions.md))         | S2      |
 | **Style**     | Preset and the adjustments over it (D1) today; the layer tree (D3) and its own export (D8) follow. The core owns the **recipe** it is rendered from, not the style ([Q36](decisions.md)) | S4      |
 | **Produces**  | What the pinned graph turns out to be: format, zoom, layers, property keys                                                                                                               | S3      |
-| **Inspector** | An opened container's own metadata and TileJSON (A6), and bookmarks (A7)                                                                                                                 | S1      |
+| **Inspector** | An opened container's own metadata and TileJSON (A6). Nothing else — no way in, and no named views ([Q38](decisions.md))                                                                 | S1      |
 
 There is **no Parameters pane**: every node carries its own arguments in the chain ([Q32](decisions.md)). A parameter's documentation opens beside the sidebar rather than inside the node, and required parameters are shown empty rather than marked with a symbol ([Q33](decisions.md)).
 
@@ -183,7 +183,12 @@ a layer name, nothing — rather than the limitation it started as.
 **The right pane shows what things turn out to be**, not what you set — since [Q32](decisions.md#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)
 the parameters live in the node. What is left is the pipeline's output and an opened container's own
 format, real zoom range and TileJSON (A6). It never shows global settings, or it becomes the junk
-drawer where every new feature lands.
+drawer where every new feature lands. [Q38](decisions.md) is that rule being enforced twice over: the
+opener and the named views both left, and what remains needs no map and no file dialog.
+
+**A control that moves the camera lives on the map.** Typing a coordinate and picking a view you
+named are the same act — go there — so they share the bottom-left corner, while the controls for
+_looking_ at the result rather than moving through it (background, grid, reset) stay bottom-right.
 
 ## Layouts
 
@@ -217,7 +222,8 @@ are back here — which is what used to be a whole Explore mode, and was never a
 │                                         │ INSPECTOR       │
 │                  MAP                    │ format, zooms   │
 │            grid overlay (A5)            │ TileJSON (A6)   │
-│            feature popup (A8)           │ bookmarks (A7)  │
+│            feature popup (A8)           │                 │
+│         views · z/x/y jump (A7, A5)     │                 │
 ├─────────────────────────────────────────┴─────────────────┤
 │ $ versatiles probe osm.versatiles -d              [copy]  │
 └───────────────────────────────────────────────────────────┘
