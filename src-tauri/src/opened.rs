@@ -10,6 +10,19 @@
 //!
 //! Both end up in the same queue. The webview drains it when it is ready and again whenever it is
 //! told something arrived, so a file that landed before the window existed is not lost.
+//!
+//! **The MIME types are ours, because nobody else has one.** None of the four formats is registered
+//! with IANA, and freedesktop's `shared-mime-info` knows none of them — not `.mbtiles`, `.pmtiles`
+//! or even GeoPackage — so there is no convention to match and each association declares a
+//! `vnd.` string of its own. `x-` would be the older habit and RFC 6648 deprecates it for new types.
+//!
+//! `.mbtiles` said `application/vnd.mapbox-vector-tile` until 2026-08-23, which was wrong twice
+//! over: that type is the *tile* payload, and an MBTiles file is a SQLite container that as often
+//! holds PNG or WebP. It is `application/vnd.mbtiles`, matching its two neighbours. The one thing
+//! this cannot express is that it is a SQLite database — freedesktop would say
+//! `sub-class-of application/vnd.sqlite3`, the way it does for Kexi, and Tauri's association takes
+//! a single string. Claiming `application/vnd.sqlite3` outright is the trap to avoid: Studio would
+//! offer to open every SQLite file on the machine.
 
 use std::path::PathBuf;
 use std::sync::Mutex;

@@ -50,7 +50,7 @@
 				"name": "MBTiles container",
 				"description": "MBTiles tile container",
 				"role": "Editor",
-				"mimeType": "application/vnd.mapbox-vector-tile",
+				"mimeType": "application/vnd.mbtiles",
 				"exportedType": {
 					"identifier": "org.versatiles.mbtiles",
 					"conformsTo": ["public.database"]
