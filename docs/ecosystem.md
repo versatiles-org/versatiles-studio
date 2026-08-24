@@ -133,6 +133,131 @@ comments ([vt#249](https://github.com/versatiles-org/versatiles-rs/issues/249)).
 test as the ten before them — they are about _tiles_ rather than about Studio's interface, and the
 CLI and `versatiles_node` want them too. Both landed the next day, in 4.9.1.
 
+### A field's type is not its meaning
+
+The forms generate themselves, which is finding 1 above and the reason an operation added upstream
+appears in Studio with no work here. This is the limit of that, and the decision it forced.
+
+`VPLFieldMeta` carries `name`, `rust_type`, `is_required`, `is_sources`, `doc`, `enum_variants`,
+`accepts` and `default`. There is no slot for what a value _is_. `control_for` therefore reads
+`rust_type` and nothing else — which is right, and which is why a zoom level renders as a spinner
+that goes to 255.
+
+Read against 4.10.0's `all_operation_metadata()`, the operation set holds these:
+
+| What it means                  | Fields                                                                                                                                                                                                                     | Type today                  | What the form gives                           |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | --------------------------------------------- |
+| **A file on disk** — 15        | `filename` ×7, `meta_update.tilejson_file` / `tilejson_update_file` / `vector_layers_file`, `raster_mask.geojson`, `vector_update_properties.data_source_path`, `cutline` ×2, `from_container.ssh_identity`                | `String`                    | a text box to type a path into                |
+| **A URL**                      | `from_tilejson.url`; `from_container.filename` takes a path _or_ `http`/`https`/`sftp`                                                                                                                                     | `String`                    | the same text box                             |
+| **A rectangle on the map** — 6 | `bbox` on `from_csv`, `from_geo`, `from_grid`, `from_h3`, `filter`; `meta_update.bounds`                                                                                                                                   | `[f64;4]` `[w,s,e,n]` WGS84 | four number boxes                             |
+| **A point on the map**         | `meta_update.center`                                                                                                                                                                                                       | `[f64;3]` `[lon,lat,zoom]`  | three number boxes                            |
+| **A zoom level** — 19          | `min_zoom`, `max_zoom`, `level_min`, `level_max`, `level`, `level_base`, `fillzoom` across ten operations                                                                                                                  | `u8`                        | a spinner from 0 to 255                       |
+| **A bounded number**           | `from_h3.resolution` (0–15), `raster_format.effort` (0–100), `raster_levels.brightness` (±255), `contrast` and `gamma` (above 0), `dem_quantize.elevation_error`                                                           | `u8` / `f32` / `f64`        | the type's range, not the field's             |
+| **`256` or `512`**             | `tile_size` ×4, `from_color.size`                                                                                                                                                                                          | `u16` / `u32`               | a spinner over 65,535 values                  |
+| **A colour**                   | `from_color.color` (hex `RRGGBB`), `raster_flatten.color` (`[u8;3]`)                                                                                                                                                       | `String` / `[u8;3]`         | a text box and three number boxes             |
+| **An EPSG code**               | `from_grid.epsg`, `from_gdal_raster.crs`                                                                                                                                                                                   | `u32`                       | a spinner over four billion values            |
+| **A name out of the data**     | `from_csv`'s five column fields, `from_geo.properties_include` / `_exclude`, `vector_update_properties`'s `layer_name` / `id_field_tiles` / `id_field_data`, `vector_filter_features.layer`, `vector_filter_layers.filter` | `String` / `Vec<String>`    | a text box; `from_csv` alone gets suggestions |
+| **Code**                       | `vector_filter_features.expr` (CEL), `vector_filter_properties.regex`, `meta_update`'s three JSON strings, `from_grid.id_template`                                                                                         | `String`                    | a single-line text box                        |
+| **One character**              | `from_csv.delimiter`, `vector_update_properties.field_separator` / `decimal_separator`                                                                                                                                     | `String`                    | a text box of any length                      |
+
+**Two of these Studio already knew about, in its own comments.** `suggest.rs` hardcodes
+`CSV_COLUMN_FIELDS` and says "nothing in `field_meta` marks a `String` as 'a column name'; adding
+that upstream is the better fix, and is worth an issue once there is a second operation that wants
+it" — and `vector_update_properties.id_field_data` is that second operation, with `from_geo`'s two
+property fields making a third and fourth. `import.rs` carries a table of extensions per import kind
+for the same reason and refuses to parse them out of the prose, which is the right call: `cutline`'s
+documentation reads "GeoJSON polygon outside which pixels become nodata" and it is a path
+(`from_gdal/raster/raster_source.rs:129`).
+
+#### Studio owns the field semantics, and asks upstream only for the parser
+
+Four asks were drafted off this table: an `accepts` probe for unenumerated types, a numeric range, a
+marker on path-valued fields with the formats each takes, and a marker on the fields that name a
+column or layer. **One was filed and three were withdrawn**, on an argument worth keeping.
+
+**Only Studio profits from most of it, and the vocabulary is large.** Twelve kinds of meaning across
+roughly eighty fields is a substantial thing to ask operation authors to learn and maintain, and the
+benefit outside a generated form is thin. A per-field extension list is worse than that: it has to be
+kept in step forever, and the release it falls behind is the release it starts lying. These three
+fail the test the rest of this section applies — that an ask is about _tiles_ rather than about
+Studio's interface, and that the CLI and `versatiles_node` want it too.
+
+**One of them is not an ask at all.** `check_pipeline`'s own documentation says an empty result still
+permits "a value [with] the right name but the wrong format (`color=red` is not hex, and no parser in
+the metadata says so)", and there is a test recording `from_color color=red` as clean. That is
+upstream describing a hole in the contract of a library function whose entire purpose is finding
+problems without building. The cause is one string comparison: the derive emits `accepts` only when a
+field's mapping is `property_enum_option`, so every path, colour, EPSG code, bbox and delimiter gets
+`None` — while the derive's own comment calls `parsed_type` "a superset of `enum_type`". No new
+vocabulary, nothing for operation authors to learn. Filed as
+[vt#257](https://github.com/versatiles-org/versatiles-rs/issues/257).
+
+**The line is where the logic lives.** Validation has to sit next to the parser; presentation can sit
+next to the presentation. Studio _could_ check a hex colour itself in twenty lines — the cost is not
+capability but owning a second parser that has to keep agreeing with upstream's, which this
+repository has already priced twice and refused: the hand-written CSV separator sniffer deleted after
+[vt#238](https://github.com/versatiles-org/versatiles-rs/issues/238), and `validate.rs` giving up
+deciding enum values for itself after [vt#224](https://github.com/versatiles-org/versatiles-rs/issues/224)
+and [vt#252](https://github.com/versatiles-org/versatiles-rs/issues/252). A _role_, by contrast, is
+not logic. "This field is a zoom level" is a static fact, and a static fact cannot drift out of
+agreement with a parser because it is not one. Same for a numeric range: two numbers, no behaviour.
+
+So Studio carries the roles, in `vpl::semantics` — a table keyed by `(operation, field)`, merged into
+`operations()` where `control_for` runs. It consolidates the two miniature versions already in
+`suggest.rs` and `import.rs` rather than becoming a third.
+
+**What keeps it from rotting is two tests, and the second is the important one.**
+
+1. Every entry still names a real `(operation, field, rust_type)` triple in
+   `all_operation_metadata()` — so a rename, a removal or a type change upstream fails the build here
+   rather than silently falling back.
+2. **No unclassified field of a known shape**: every `[f64;4]` has a role, every `u8` whose name
+   matches `zoom|level` has one, every `String` named `*file*` has one. This is the half that catches
+   what upstream _adds_.
+
+Only the first is the obvious test to write, and on its own it would be the vt#229 mistake again — a
+tripwire that names one acceptable outcome and stays silent when a different one arrives. The second
+asserts the claim the table rests on rather than the shape of any fix.
+
+**What this costs, stated plainly.** It partially gives up "an operation added upstream appears with
+no work here". Not entirely: a new operation still appears and still works, it just appears with
+plain controls until someone adds roles. Generated for correctness, curated for polish — a tier
+rather than a loss, and the failure direction is degradation to exactly today's behaviour.
+
+**And it is the better way to earn the upstream ask.** After a release of carrying the table we will
+know which roles paid for themselves, which churned, and how often the tests caught an upstream
+addition. Five roles stable across two releases is a far stronger issue than the speculative enum
+drafted here; constant churn means the ask was wrong and it cost one file. The withdrawn drafts are
+kept rather than deleted, to be re-offered with that evidence or dropped.
+
+#### What Studio builds, and in what order
+
+A file dialog on the path fields is the most work saved per line written — the dialog and the
+extension lists both exist already. Drawing a bbox reuses `CropOverlay`, which does exactly this for
+export. Zoom as a slider is nineteen fields and the smallest change. Extending `suggest.rs` past
+`from_csv` needs no new machinery; `analysis::probe_layers` already knows a source's layers. A colour
+picker is two fields.
+
+Deferred, as low harm for real cost: an EPSG picker needs a CRS database, and byte-size units and a
+delimiter picker are conveniences on parameters few people set.
+
+#### Not worth asking for, and not worth a role either
+
+**Conditional units.** `from_csv.point_reduction_value` is tile-pixels under `min_distance` and a
+keep-fraction under `drop_rate`; `from_grid.size` is meters, or degrees when `epsg=4326`. A field
+whose unit depends on a sibling is a large vocabulary for two cases, and both doc strings already say
+it. Rendering the documentation beside the field is the whole fix.
+
+**An expression language on `expr` and `regex`.** Worth having only if Studio builds an editor for
+CEL, which nothing in release 1 asks for. A syntax-highlighted box is Studio's business until then.
+
+**Cross-field constraints** — `properties_include` XOR `properties_exclude` (twice), `filter`'s
+`bbox_border` requiring `bbox`, `from_grid.id_template` overriding `id_preset`, `meta_update`'s four
+tilejson spellings, and every `min ≤ max` pair. Real, and `check_pipeline` could decide all of them
+without I/O — this one is genuinely upstream's, since it is logic rather than a fact. Held rather
+than dropped: each is one documented line today, and vt#257 is the ask with the better argument
+behind it.
+
 ### Filed, and what came back
 
 What has actually been asked for, and what each one buys back here. Most workarounds are things
