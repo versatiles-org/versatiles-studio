@@ -312,7 +312,7 @@
 
 		{#if kind === 'rasterDem'}
 			<h2 class="section-label">
-				Relief
+				Hillshade
 				{#if shaded}
 					<button type="button" class="reset" onclick={() => void style.setHillshade({})}>reset</button>
 				{/if}

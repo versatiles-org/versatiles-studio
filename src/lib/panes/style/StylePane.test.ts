@@ -84,8 +84,10 @@ describe('what the pane offers for each kind of tileset', () => {
 			tileSchema: 'dem/mapbox'
 		});
 
-		// Twice on purpose in the current markup — the section heading and the slider share the word.
-		expect(screen.getAllByText('Relief').length).toBeGreaterThan(0);
+		expect(screen.getByText('Hillshade')).toBeTruthy();
+		// The section names the technique, the slider names what it does — so `Relief` is the one
+		// control, not an echo of the heading above it.
+		expect(screen.getByText('Relief')).toBeTruthy();
 		expect(screen.getByText('Light from')).toBeTruthy();
 		expect(screen.queryByText('Opacity')).toBeNull();
 	});
