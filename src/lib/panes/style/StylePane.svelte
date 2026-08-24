@@ -2,6 +2,7 @@
 	import { style } from '../../state/style.svelte';
 	import type { Preset, Recolor, SourceKind } from '../../ipc/commands';
 	import { KIND_LABELS, isVector, sourceKind } from '../../map/source-kind';
+	import type { StyleBasis } from '../../map/style';
 	import type { StyleSpecification } from 'maplibre-gl';
 	import LayerTree from './LayerTree.svelte';
 	import { save } from '@tauri-apps/plugin-dialog';
@@ -24,10 +25,15 @@
 		rendered = null,
 		/** What the previewed source turned out to be, for reading its kind (S6.1). `null` before
 		 *  anything is open, which is when this pane has nothing to say at all. */
-		source = null
+		source = null,
+		/** Which route produced `rendered` (S6.2). A preset that could not draw these tiles is
+		 *  replaced by derived layers, and the person who picked it should be told rather than left
+		 *  to notice the map does not match the preset they chose. */
+		basis = 'none'
 	}: {
 		rendered?: StyleSpecification | null;
 		source?: { tileFormat: string; tileSchema: string | null; layers: string[] } | null;
+		basis?: StyleBasis;
 	} = $props();
 
 	const PRESETS: { id: Preset; label: string; note: string }[] = [
@@ -194,6 +200,13 @@
 			</p>
 		{:else}
 			<h2 class="section-label">Preset</h2>
+			{#if basis === 'fallback'}
+				<!-- S6.2: the preset is still what the recipe says, and it is not what the map is
+				     showing. Saying so here is cheaper than leaving someone to compare the two. -->
+				<p class="note substituted">
+					These tiles have none of the layers this preset draws, so they are drawn from what the tiles actually contain.
+				</p>
+			{/if}
 			<div class="presets">
 				{#each PRESETS as preset (preset.id)}
 					<button
@@ -386,6 +399,13 @@
 
 	/* The reason a section is absent, which is a different thing from a hint about one that is
 	   present — so it reads as a statement rather than as small print under a control. */
+	/* A statement about what the map is showing, not a hint about a control — so it sits above the
+	   presets rather than under them, and reads before the thing it is explaining. */
+	.substituted {
+		border-left: 2px solid var(--rule);
+		padding-left: var(--space-2);
+	}
+
 	.unavailable {
 		padding: var(--space-2) 0;
 	}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveStyle, drawsAnything, renderStyle } from './style';
+import { deriveStyle, drawsAnything, renderStyle, styleFor } from './style';
 import type { Recipe } from '../ipc/commands';
 
 const BASE = 'http://127.0.0.1:8080';
@@ -187,5 +187,57 @@ describe('deriveStyle', () => {
 	it('has nothing to derive from nothing', () => {
 		expect(deriveStyle([], SOURCES, BASE)).toBeNull();
 		expect(deriveStyle(LAYERS, [], BASE)).toBeNull();
+	});
+});
+
+describe('styleFor', () => {
+	const SHORTBREAD = ['water_polygons', 'street_polygons', 'boundaries'];
+	const PLACES = [{ name: 'places', geometry: 'point' }];
+
+	it('uses the preset when it draws these tiles', () => {
+		const { style, basis } = styleFor(recipe(), 'mvt', PLACES, SOURCES, BASE, SHORTBREAD);
+		expect(basis).toBe('preset');
+		expect(style!.layers.length).toBeGreaterThan(50);
+	});
+
+	// S6.2's whole point. Before this, a preset that matched no layer produced `null`, and the map
+	// showed a bare background — for the most common thing the pipeline pane produces.
+	it('derives when the preset would draw nothing', () => {
+		const { style, basis } = styleFor(recipe(), 'mvt', PLACES, SOURCES, BASE, ['places']);
+		expect(basis).toBe('fallback');
+		expect(style).not.toBeNull();
+		expect(style!.layers.some((layer) => 'source-layer' in layer && layer['source-layer'] === 'places')).toBe(true);
+	});
+
+	it('keeps `derived` distinct from falling back to it', () => {
+		const chosen = styleFor(recipe({ preset: 'derived' } as Partial<Recipe>), 'mvt', PLACES, SOURCES, BASE, ['places']);
+		expect(chosen.basis).toBe('derived');
+	});
+
+	// Raster has no vector layers to derive from, and inventing something to draw would be worse
+	// than the honest background. S6.3 and S6.6 are what fill this in.
+	it('draws nothing when there are no layers to derive from', () => {
+		const { style, basis } = styleFor(recipe(), 'mvt', [], SOURCES, BASE, []);
+		expect(basis).toBe('none');
+		expect(style).toBeNull();
+	});
+
+	it('reports `none` for a derived preset with nothing to derive', () => {
+		const { basis } = styleFor(recipe({ preset: 'derived' } as Partial<Recipe>), 'mvt', [], SOURCES, BASE, []);
+		expect(basis).toBe('none');
+	});
+});
+
+describe('styleFor and formats the map cannot read as vector', () => {
+	const PLACES = [{ name: 'places', geometry: 'point' }];
+
+	it('draws nothing for raster, whatever the probe found', () => {
+		expect(styleFor(recipe(), 'png', PLACES, SOURCES, BASE, ['places']).basis).toBe('none');
+	});
+
+	// `bin` is the default variant upstream, so a container whose format could not be determined
+	// lands there. Deriving over it would point a vector source at tiles MapLibre cannot decode.
+	it('refuses to derive over an undetermined format', () => {
+		expect(styleFor(recipe(), 'bin', PLACES, SOURCES, BASE, ['places'])).toEqual({ style: null, basis: 'none' });
 	});
 });

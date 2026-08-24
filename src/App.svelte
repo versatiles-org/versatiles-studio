@@ -35,7 +35,7 @@
 	import Views from './lib/map/Views.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { fitToBounds } from './lib/map/add-source';
-	import { deriveStyle, drawsAnything, renderStyle } from './lib/map/style';
+	import { styleFor } from './lib/map/style';
 	import { forExport } from './lib/map/style-code';
 	import {
 		forgetRecent,
@@ -587,26 +587,22 @@
 			.catch(fail);
 	});
 
-	/// The style the recipe describes, or `null` when it would draw nothing (S4.3).
+	/// The style to draw, and which route produced it (S4.3, S6.2).
 	///
-	/// **Null is a real answer, not a failure.** The six presets are written against Shortbread's
-	/// layer names; a container that names its layers something else gets a background and no
-	/// features, which reads as a broken map rather than as an unstyled one. Deriving a style from
-	/// the layers a container actually has is S4.4 — until then the hairlines stay, and this says
-	/// which of the two the map is showing.
-	const styled = $derived.by(() => {
+	/// **Null is still a real answer, but a much rarer one now.** It used to mean "the preset matched
+	/// no layer in these tiles", which is the usual case for anything the pipeline builds — and the
+	/// map answered with a bare background. `styleFor` derives from the probed layers instead, so
+	/// null is left meaning what it should: there is nothing here a style can be made of, which is
+	/// raster until S6.3 and S6.6.
+	const composed = $derived.by(() => {
 		const recipe = styleRecipe.current;
 		const source = preview.last;
-		if (!recipe || !source || !serverUrl) return null;
+		if (!recipe || !source || !serverUrl) return { style: null, basis: 'none' as const };
 		const sources = [{ name: source.name, tileUrl: source.tileUrl }];
-
-		// Built from what the tiles have rather than from what a schema expects (S4.4). The probe
-		// already reports each layer's geometry, so nothing extra is read to draw them.
-		if (recipe.preset === 'derived') return deriveStyle(source.layers, sources, serverUrl);
-
-		const rendered = renderStyle(recipe, sources, serverUrl);
-		return rendered && drawsAnything(rendered, preview.mountedLayers) ? rendered : null;
+		return styleFor(recipe, source.info.tileFormat, source.layers, sources, serverUrl, preview.mountedLayers);
 	});
+
+	const styled = $derived(composed.style);
 
 	// **One owner for the map's style.** The recipe and the background both want to set it, and two
 	// effects assigning it in whatever order they happen to run is how a map ends up showing the
@@ -954,6 +950,7 @@
 	{:else if id === 'style'}
 		<StylePane
 			rendered={styled}
+			basis={composed.basis}
 			source={preview.last
 				? {
 						tileFormat: preview.last.info.tileFormat,

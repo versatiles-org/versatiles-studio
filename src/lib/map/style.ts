@@ -19,6 +19,7 @@ import { colorful, eclipse, graybeard, neutrino, satellite, shadow } from '@vers
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
 import type { LayerOverride, Recipe } from '../ipc/commands';
 import { throughQueue } from './tile-queue';
+import { renderableAs } from './tile-format';
 
 /** The six builders, by the name the core stores. */
 const BUILDERS = { colorful, eclipse, graybeard, neutrino, satellite, shadow } as const;
@@ -99,6 +100,62 @@ function applyOverride(layer: LayerSpecification, patch: LayerOverride | undefin
 	}
 
 	return next as LayerSpecification;
+}
+
+/**
+ * Which route produced the style on the map ([S6.2](../../../docs/scope-release-2.md)).
+ *
+ * The pane says which, because "your preset is not what you are looking at" is not something to
+ * leave someone to work out from the map.
+ */
+export type StyleBasis =
+	/** The chosen preset draws these tiles. */
+	| 'preset'
+	/** `derived` was chosen, and it drew. */
+	| 'derived'
+	/** A preset was chosen, could not draw these tiles, and derived layers stood in for it. */
+	| 'fallback'
+	/** Nothing draws — raster tiles, or a container with no layers to derive from. */
+	| 'none';
+
+/**
+ * The style to draw, and how it was arrived at ([S6.2](../../../docs/scope-release-2.md)).
+ *
+ * **A preset that draws nothing is not an answer.** The six are written against Shortbread's layer
+ * names, so pointing one at a `from_csv` result matched no `source-layer` and the map fell back to a
+ * bare background — the most common thing the pipeline pane produces, rendered as though the style
+ * pane were broken. Deriving from the layers the probe actually found is the answer that was already
+ * written and already tested; it was just not reachable unless someone picked it by hand.
+ *
+ * Raster still returns `none`: `deriveStyle` has no vector layers to work from, and inventing
+ * something to draw would be worse than the honest background. S6.3 and S6.6 are what fill that in.
+ */
+export function styleFor(
+	recipe: Recipe,
+	tileFormat: string,
+	layers: DerivableLayer[],
+	sources: StyleSource[],
+	serverBaseUrl: string,
+	mountedLayers: string[]
+): { style: StyleSpecification | null; basis: StyleBasis } {
+	// **Nothing vector-shaped over tiles the map cannot read as vector.** A container whose format
+	// could not be determined lands on `bin`, and a style pointing a vector source at those produces
+	// one `createImageBitmap` failure per tile and a blank map with nothing to say why — the bug
+	// `tile-format.ts` was written for. Refusing here also makes raster's `none` deliberate rather
+	// than a side effect of there being no layers to derive from.
+	if (renderableAs(tileFormat) !== 'vector') return { style: null, basis: 'none' };
+
+	// Built from what the tiles have rather than from what a schema expects (S4.4).
+	if (recipe.preset === 'derived') {
+		const derived = deriveStyle(layers, sources, serverBaseUrl);
+		return derived ? { style: derived, basis: 'derived' } : { style: null, basis: 'none' };
+	}
+
+	const rendered = renderStyle(recipe, sources, serverBaseUrl);
+	if (rendered && drawsAnything(rendered, mountedLayers)) return { style: rendered, basis: 'preset' };
+
+	const derived = deriveStyle(layers, sources, serverBaseUrl);
+	return derived ? { style: derived, basis: 'fallback' } : { style: null, basis: 'none' };
 }
 
 /**
