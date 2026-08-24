@@ -11,7 +11,9 @@
  * half-added pane should be a heading that looks wrong, not a box that silently is not there.
  */
 export const PANE_TITLES: Record<string, string> = {
-	pipeline: 'Pipeline',
+	// Named for what it holds rather than for the file format behind it: each row is a source of
+	// tiles, and the style pane names the same things (S6.5).
+	pipeline: 'Sources',
 	style: 'Style',
 	inspector: 'Inspector'
 };

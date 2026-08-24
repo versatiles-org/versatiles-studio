@@ -42,7 +42,7 @@ lib/common/           used by more than one owner: Help · HelpTrigger · Picker
 
 A pane's folder is named for the pane, so "what uses `NodeArgument`?" is answered by its path before
 anyone opens a file. `ImportCards` and `LandingScreen` sit in `common/` because they genuinely have
-two owners — the landing screen and the Pipeline pane show the same cards from the same catalogue,
+two owners — the landing screen and the Sources pane show the same cards from the same catalogue,
 which is the whole point of [S3.2](scope-release-1.md).
 
 **A name is unique across the application**, even though the folder already scopes it. The folder

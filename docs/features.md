@@ -123,7 +123,7 @@ than it looks ([Q12](decisions.md)).
 | **F7** | `later`   | Offline package: tiles + style + fonts in one folder for field work                          | `versatiles-frontend`                       |
 
 **F2 lands twice.** Writing a container is required for M3, so the export itself is stage 3 (S3.6).
-The crop rectangle is a map gesture belonging to the Pipeline pane's export, which arrives at stage 5 ([Q31](decisions.md)).
+The crop rectangle is a map gesture belonging to the Sources pane's export, which arrives at stage 5 ([Q31](decisions.md)).
 
 **F1 was dropped.** A LAN URL and a QR code are only worth anything if the phone that scans them
 shows a map, and the embedded server serves tiles — not a viewer. Giving it one means bundling
