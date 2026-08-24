@@ -207,6 +207,25 @@
 		void style.setRaster({});
 	}
 
+	/// Clears one recolour field, leaving the rest alone.
+	///
+	/// **`undefined`, not the neutral number.** The recipe stores only what was changed, so a field
+	/// set back to its neutral value must leave no trace — otherwise an untouched style and a reset
+	/// one compare unequal, and the exported code carries settings nobody chose.
+	function clearRecolor(key: string): void {
+		style.previewRecolor({ ...(vectorAppearance?.recolor ?? {}), [key]: undefined } as Recolor);
+		void style.commitRecolor();
+	}
+
+	function clearRaster(key: RasterKey): void {
+		rasterPending = null;
+		void style.setRaster({ ...rasterNow, [key]: undefined });
+	}
+
+	function clearShade(key: keyof Hillshade): void {
+		setShade({ [key]: undefined });
+	}
+
 	const KIND_OPTIONS: SourceKind[] = ['vectorShortbread', 'vectorOther', 'rasterImage', 'rasterDem'];
 
 	/** Picking the reading Studio already made means clearing the override, not recording it. */
@@ -301,10 +320,25 @@
 	const adjusted = $derived(Object.values(vectorAppearance?.recolor ?? {}).some((v) => v !== undefined && v !== null));
 </script>
 
+{#snippet clearer(changed: boolean, clear: () => void, what: string)}
+	<!-- Always rendered, hidden when there is nothing to clear: a button that appears and disappears
+	     moves every row beside it, and these sit in a column. -->
+	<button
+		type="button"
+		class="clear"
+		class:idle={!changed}
+		tabindex={changed ? 0 : -1}
+		aria-hidden={!changed}
+		aria-label="Reset {what}"
+		title="Reset"
+		onclick={clear}>↺</button
+	>
+{/snippet}
+
 {#if recipe}
 	<section class="style-pane">
 		{#if rows.length > 1}
-			<h2 class="section-label">Sources</h2>
+			<h2 class="section-label">Draw order</h2>
 			<!-- Up and down rather than drag: it is reachable from a keyboard, it cannot drop a source
 			     somewhere nobody meant, and the order is short enough that two clicks is not a chore. -->
 			<ul class="stack">
@@ -379,6 +413,7 @@
 							onchange={(event) => setShade({ [slider.key]: Number(event.currentTarget.value) })}
 						/>
 						<span class="amount">{shadeValue(slider.key)}{slider.unit}</span>
+						{@render clearer(shade[slider.key] != null, () => clearShade(slider.key), slider.label)}
 					</label>
 				{/each}
 
@@ -390,6 +425,7 @@
 							value={shade[swatch.key] ?? token(swatch.token)}
 							onchange={(event) => setShade({ [swatch.key]: event.currentTarget.value })}
 						/>
+						{@render clearer(shade[swatch.key] != null, () => clearShade(swatch.key), swatch.label)}
 					</label>
 				{/each}
 			{/if}
@@ -415,6 +451,7 @@
 						onpointercancel={() => (rasterPending = null)}
 					/>
 					<span class="amount">{rasterValue(slider.key)}{slider.unit}</span>
+					{@render clearer(rasterAdjust[slider.key] != null, () => clearRaster(slider.key), slider.label)}
 				</label>
 			{/each}
 
@@ -488,6 +525,7 @@
 						onpointercancel={() => style.cancelRecolor()}
 					/>
 					<span class="amount">{value(slider.key)}{slider.unit}</span>
+					{@render clearer(value(slider.key) !== slider.neutral, () => clearRecolor(slider.key), slider.label)}
 				</label>
 			{/each}
 
@@ -601,7 +639,7 @@
 
 	.slider {
 		display: grid;
-		grid-template-columns: 5.5rem 1fr 3rem;
+		grid-template-columns: 5.5rem 1fr 3rem auto;
 		align-items: center;
 		gap: var(--space-2);
 		color: var(--ink-2);
@@ -646,6 +684,21 @@
 	   present — so it reads as a statement rather than as small print under a control. */
 	/* A statement about what the map is showing, not a hint about a control — so it sits above the
 	   presets rather than under them, and reads before the thing it is explaining. */
+	/* A per-field reset, quiet until the field has something to reset. `visibility` rather than
+	   `display`, so the column keeps its width and no row shifts as values change. */
+	.clear {
+		background: none;
+		border: none;
+		padding: 0 var(--space-1);
+		color: var(--ink-2);
+		cursor: pointer;
+		line-height: 1;
+
+		&.idle {
+			visibility: hidden;
+		}
+	}
+
 	.stack {
 		list-style: none;
 		margin: 0;
