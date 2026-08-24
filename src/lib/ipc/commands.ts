@@ -53,6 +53,8 @@ export type {
 	RasterAdjust_Serialize as RasterAdjust,
 	Resampling,
 	SourceKind,
+	SourceStyle_Serialize as SourceStyle,
+	Appearance_Serialize as Appearance,
 	LayerOverride_Serialize as LayerOverride,
 	Reference as FileReference,
 	Node as VplNode,
@@ -208,7 +210,7 @@ export const removeFont = (id: string) => unwrap(commands.removeFont(id));
 export const style = () => unwrap(commands.style());
 
 /** Switches which style the project starts from (D1). Returns the recipe as it now stands. */
-export const setStylePreset = (preset: Preset) => unwrap(commands.setStylePreset(preset));
+export const setStylePreset = (graph: number, preset: Preset) => unwrap(commands.setStylePreset(graph, preset));
 
 /**
  * Corrects what the source's tiles are being read as (S6.1).
@@ -217,10 +219,10 @@ export const setStylePreset = (preset: Preset) => unwrap(commands.setStylePreset
  * the *correction* rather than the answer, so a container that later gains a `tile_schema` is read
  * better rather than being stuck with what was cached about it.
  */
-export const setStyleKind = (kind: SourceKind | null) => unwrap(commands.setStyleKind(kind));
+export const setStyleKind = (graph: number, kind: SourceKind | null) => unwrap(commands.setStyleKind(graph, kind));
 
 /** Sets the whole raster adjustment at once (S6.3, D11). Same gesture rule as `setStyleRecolor`. */
-export const setStyleRaster = (raster: RasterAdjust) => unwrap(commands.setStyleRaster(raster));
+export const setStyleRaster = (graph: number, raster: RasterAdjust) => unwrap(commands.setStyleRaster(graph, raster));
 
 /**
  * Sets the whole global recolouring at once (D1, D5).
@@ -228,7 +230,7 @@ export const setStyleRaster = (raster: RasterAdjust) => unwrap(commands.setStyle
  * Call this when a gesture *ends*, not while it runs: the core records an undo entry per call, and
  * a colour drag that called it per frame would bury the stack. Preview locally in between.
  */
-export const setStyleRecolor = (recolor: Recolor) => unwrap(commands.setStyleRecolor(recolor));
+export const setStyleRecolor = (graph: number, recolor: Recolor) => unwrap(commands.setStyleRecolor(graph, recolor));
 
 /** What Studio can write a style as — the save dialog's filters come from here. */
 export const styleFormats = () => commands.styleFormats();
@@ -251,8 +253,8 @@ export const exportStyleBundle = (target: string, zip: boolean, contents: string
 	unwrap(commands.exportStyleBundle(target, zip, contents, fonts));
 
 /** Changes one layer, or resets it by passing an empty patch (D3). */
-export const setLayerOverride = (layer: string, patch: LayerOverride) =>
-	unwrap(commands.setLayerOverride(layer, patch));
+export const setLayerOverride = (graph: number, layer: string, patch: LayerOverride) =>
+	unwrap(commands.setLayerOverride(graph, layer, patch));
 
 // -- sources ---------------------------------------------------------------------------------
 

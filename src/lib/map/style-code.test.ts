@@ -8,10 +8,11 @@ import {
 	styleCode,
 	TILE_URL_PLACEHOLDER
 } from './style-code';
-import type { Recipe } from '../ipc/commands';
+import type { Appearance } from '../ipc/commands';
+import type { VectorAppearance } from './style';
 
-const recipe = (over: Partial<Recipe> = {}): Recipe =>
-	({ preset: 'colorful', recolor: {}, overrides: {}, ...over }) as Recipe;
+const recipe = (over: Record<string, unknown> = {}): VectorAppearance =>
+	({ type: 'vector', preset: 'colorful', recolor: {}, overrides: {}, ...over }) as VectorAppearance;
 
 describe('styleCode', () => {
 	it('names the preset it started from, in an import that resolves', () => {
@@ -40,7 +41,7 @@ describe('styleCode', () => {
 		const code = styleCode(
 			recipe({
 				overrides: { water: { visible: false }, roads: { paint: { 'line-color': '#123456' } } }
-			} as Partial<Recipe>)
+			} as Partial<Appearance>)
 		)!;
 		expect(code).toContain('// Layer changes made in Studio.');
 		expect(code).toContain('for (const layer of style.layers)');
@@ -59,8 +60,8 @@ describe('styleCode', () => {
 	// A derived style is assembled from whatever the tiles turned out to contain, so there is no
 	// builder to name — and style.json is the honest form for a style with no shorter description.
 	it('has no code for a style that was derived rather than chosen', () => {
-		expect(canGenerateCode(recipe({ preset: 'derived' } as Partial<Recipe>))).toBe(false);
-		expect(styleCode(recipe({ preset: 'derived' } as Partial<Recipe>))).toBeNull();
+		expect(canGenerateCode(recipe({ preset: 'derived' } as Partial<Appearance>))).toBe(false);
+		expect(styleCode(recipe({ preset: 'derived' } as Partial<Appearance>))).toBeNull();
 	});
 });
 

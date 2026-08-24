@@ -21,7 +21,8 @@
 
 	const all = $derived(rows(rendered));
 	const groups = $derived(grouped(matching(all, query)));
-	const overrides = $derived(style.current?.overrides ?? {});
+	const appearance = $derived(style.source.appearance);
+	const overrides = $derived(appearance.type === 'vector' ? appearance.overrides : {});
 
 	const spec = (id: string): LayerSpecification | undefined => rendered?.layers.find((layer) => layer.id === id);
 

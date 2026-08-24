@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { deriveStyle, drawsAnything, rasterPaint, renderStyle, styleFor } from './style';
-import type { Recipe } from '../ipc/commands';
+import type { Appearance } from '../ipc/commands';
+import type { VectorAppearance } from './style';
 
 const BASE = 'http://127.0.0.1:8080';
 const SOURCES = [{ name: 'berlin', tileUrl: `${BASE}/tiles/berlin/{z}/{x}/{y}` }];
 
-function recipe(over: Partial<Recipe> = {}): Recipe {
-	return { preset: 'colorful', recolor: {}, overrides: {}, raster: {}, ...over } as Recipe;
+function recipe(over: Record<string, unknown> = {}): VectorAppearance {
+	return { type: 'vector', preset: 'colorful', recolor: {}, overrides: {}, ...over } as VectorAppearance;
+}
+
+/** The raster half of the union, for the cases that are about imagery. */
+function raster(adjust: Record<string, unknown> = {}): Appearance {
+	return { type: 'raster', adjust } as Appearance;
 }
 
 describe('renderStyle', () => {
@@ -37,7 +43,7 @@ describe('renderStyle', () => {
 
 	it('has nothing to render for a preset that does not exist yet', () => {
 		// `derived` is S4.4. Until it exists, no style is the honest answer.
-		expect(renderStyle(recipe({ preset: 'derived' } as Partial<Recipe>), SOURCES, BASE)).toBeNull();
+		expect(renderStyle(recipe({ preset: 'derived' }), SOURCES, BASE)).toBeNull();
 	});
 
 	it('applies the recolouring rather than ignoring it', () => {
@@ -50,7 +56,7 @@ describe('renderStyle', () => {
 	// presence, so `{ gamma: undefined }` is not the same as `{}`.
 	it('an explicitly undefined adjustment changes nothing', () => {
 		const plain = renderStyle(recipe(), SOURCES, BASE)!;
-		const same = renderStyle(recipe({ recolor: { gamma: undefined, rotate: null } as never }), SOURCES, BASE)!;
+		const same = renderStyle(recipe({ recolor: { gamma: undefined, rotate: null } }), SOURCES, BASE)!;
 		expect(JSON.stringify(same.layers)).toEqual(JSON.stringify(plain.layers));
 	});
 });
@@ -221,7 +227,7 @@ describe('styleFor', () => {
 
 	it('keeps `derived` distinct from falling back to it', () => {
 		const chosen = styleFor(
-			recipe({ preset: 'derived' } as Partial<Recipe>),
+			recipe({ preset: 'derived' }),
 			{ kind: 'vectorShortbread', tileFormat: 'mvt', layers: PLACES, mountedLayers: ['places'] },
 			SOURCES,
 			BASE
@@ -244,7 +250,7 @@ describe('styleFor', () => {
 
 	it('reports `none` for a derived preset with nothing to derive', () => {
 		const { basis } = styleFor(
-			recipe({ preset: 'derived' } as Partial<Recipe>),
+			recipe({ preset: 'derived' }),
 			{ kind: 'vectorShortbread', tileFormat: 'mvt', layers: [], mountedLayers: [] },
 			SOURCES,
 			BASE
@@ -273,7 +279,7 @@ describe('styleFor and formats the map cannot read as vector', () => {
 	// added — a raster style over it would claim to be adjusting something it does not understand.
 	it('leaves elevation alone', () => {
 		expect(
-			styleFor(recipe(), { kind: 'rasterDem', tileFormat: 'png', layers: [], mountedLayers: [] }, SOURCES, BASE).basis
+			styleFor(raster(), { kind: 'rasterDem', tileFormat: 'png', layers: [], mountedLayers: [] }, SOURCES, BASE).basis
 		).toBe('none');
 	});
 
@@ -281,7 +287,7 @@ describe('styleFor and formats the map cannot read as vector', () => {
 	// as an image, so the format overrules it.
 	it('refuses imagery over vector tiles', () => {
 		expect(
-			styleFor(recipe(), { kind: 'rasterImage', tileFormat: 'mvt', layers: [], mountedLayers: [] }, SOURCES, BASE).basis
+			styleFor(raster(), { kind: 'rasterImage', tileFormat: 'mvt', layers: [], mountedLayers: [] }, SOURCES, BASE).basis
 		).toBe('none');
 	});
 

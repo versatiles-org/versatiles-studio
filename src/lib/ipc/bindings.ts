@@ -137,16 +137,17 @@ export const commands = {
 	reorderViews: (order: string[]) => typedError<View[], string>(__TAURI_INVOKE("reorder_views", { order })),
 	/**  The recipe as it stands. */
 	style: () => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("style")),
-	/**  Switches which style the project starts from (D1). */
-	setStylePreset: (preset: Preset) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_preset", { preset })),
+	/**  Switches which style a source starts from (D1). */
+	setStylePreset: (graph: number, preset: Preset) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_preset", { graph, preset })),
 	/**
-	 *  Corrects what the source's tiles are being read as ([S6.1](../../../docs/scope-release-2.md)).
+	 *  Corrects what a source's tiles are being read as (S6.1).
 	 * 
-	 *  `None` hands the question back to the webview's own reading, which is where it starts. The
-	 *  override exists because a container written before `tile_schema` did carries no answer, and a
-	 *  DEM and a photograph are the same PNG until somebody says which.
+	 *  `None` hands the question back to the webview's own reading. Changing the kind across the
+	 *  vector/raster line replaces the appearance, because the old one describes something this source
+	 *  is no longer being drawn as — and keeping it would mean a recipe carrying two answers again,
+	 *  which is what S6.4 removed.
 	 */
-	setStyleKind: (kind: 
+	setStyleKind: (graph: number, kind: 
 /**  Vector tiles using Shortbread's layer names, which the six presets are written against. */
 "vectorShortbread" | 
 /**  Vector tiles of anything else. Styled from the layers actually present (D2). */
@@ -160,7 +161,7 @@ export const commands = {
  *  Nothing draws a DEM until S6.6, and that is the step that has to decide whether the encoding
  *  belongs on this enum or is re-read from `tile_schema` at the point of use.
  */
-"rasterDem" | null) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_kind", { kind })),
+"rasterDem" | null) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_kind", { graph, kind })),
 	/**
 	 *  Sets the raster adjustment — the imagery equivalent of `set_style_recolor` (S6.3, D11).
 	 * 
@@ -168,7 +169,7 @@ export const commands = {
 	 *  field would let the two ends disagree about which of them the recipe currently has. Called when
 	 *  a gesture ends, so a drag is one undo entry rather than sixty.
 	 */
-	setStyleRaster: (raster: RasterAdjust_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_raster", { raster })),
+	setStyleRaster: (graph: number, raster: RasterAdjust_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_raster", { graph, raster })),
 	/**
 	 *  Sets the global recolouring — hue, saturation, brightness, contrast and the rest (D1, D5).
 	 * 
@@ -176,14 +177,9 @@ export const commands = {
 	 *  holds them together, and ten commands would let the two ends disagree about which of them the
 	 *  recipe currently has.
 	 */
-	setStyleRecolor: (recolor: Recolor_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_recolor", { recolor })),
-	/**
-	 *  Changes one layer, or resets it (D3).
-	 * 
-	 *  An override that says nothing removes the layer from the recipe rather than storing an empty
-	 *  patch, so "reset" and "never touched" are the same state — see `Recipe::set_override`.
-	 */
-	setLayerOverride: (layer: string, patch: LayerOverride_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_layer_override", { layer, patch })),
+	setStyleRecolor: (graph: number, recolor: Recolor_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_recolor", { graph, recolor })),
+	/**  Changes one layer of a vector source (D3, S4.5). */
+	setLayerOverride: (graph: number, layer: string, patch: LayerOverride_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_layer_override", { graph, layer, patch })),
 	/**
 	 *  Writes a style someone chose a destination for (S4.6, D8).
 	 * 
@@ -213,7 +209,7 @@ export const commands = {
 	 *  **On a blocking thread**: this reads two tar archives and writes a few hundred files.
 	 */
 	exportStyleBundle: (target: string, zip: boolean, contents: string, fonts: string[]) => typedError<string[], string>(__TAURI_INVOKE("export_style_bundle", { target, zip, contents, fonts })),
-	/**  What Studio can write a style as — the file dialog's filters come from here. */
+	/**  What Studio can write a style as/// What Studio can write a style as — the file dialog's filters come from here. */
 	styleFormats: () => __TAURI_INVOKE<string[]>("style_formats"),
 	/**
 	 *  Writes every graph, the style recipe, and the rendered style.
@@ -436,8 +432,13 @@ export const commands = {
 	 *  Renames a graph, and reports the name it actually took.
 	 * 
 	 *  The name is the mount, the source name in `style.json` and the `.vpl` filename at once ([Q32]),
-	 *  so this remounts under the new name. **Rewriting the style's references is the other half**, and
-	 *  lands with the style itself at S4 — there is nothing referencing a graph yet.
+	 *  so this remounts under the new name — and since [S6.4](../../../docs/scope-release-2.md) the
+	 *  recipe files each source's style under that name too, so the style moves with it.
+	 * 
+	 *  **Without this a rename silently resets the style.** The entry would stay under the old name,
+	 *  referenced by nothing, and the source would come back with defaults as though it had never been
+	 *  touched. It is not recorded as a style edit: renaming a graph is not a restyling, and ⌘Z after
+	 *  one should undo the rename rather than half of it.
 	 */
 	renameGraph: (id: number, name: string) => typedError<string, string>(__TAURI_INVOKE("rename_graph", { id, name })),
 	/**
@@ -556,6 +557,51 @@ export const commands = {
 };
 
 /* Types */
+/**
+ *  How one source is drawn ([S6.4](../../../docs/scope-release-2.md)).
+ * 
+ *  **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
+ *  recolour, a layer-override map *and* a raster adjustment, and at least half of that was
+ *  meaningless for any given source — a preset means nothing over a photograph, and a
+ *  `raster-saturation` means nothing over vector tiles. Adding hillshade (S6.6) to a flat struct
+ *  would have made it two thirds.
+ */
+export type Appearance = Appearance_Serialize | Appearance_Deserialize;
+
+/**
+ *  How one source is drawn ([S6.4](../../../docs/scope-release-2.md)).
+ * 
+ *  **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
+ *  recolour, a layer-override map *and* a raster adjustment, and at least half of that was
+ *  meaningless for any given source — a preset means nothing over a photograph, and a
+ *  `raster-saturation` means nothing over vector tiles. Adding hillshade (S6.6) to a flat struct
+ *  would have made it two thirds.
+ */
+export type Appearance_Deserialize = 
+/**  Vector tiles: a preset, the adjustments over it, and whatever layers were changed by hand. */
+({ type: "vector"; preset: Preset; recolor: Recolor_Deserialize; 
+/**  By layer id. Empty for a style nobody has edited by hand. */
+overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never } | 
+/**  Raster tiles drawn as an image, adjusted (D11). */
+({ type: "raster"; adjust: RasterAdjust_Deserialize }) & { overrides?: never; preset?: never; recolor?: never };
+
+/**
+ *  How one source is drawn ([S6.4](../../../docs/scope-release-2.md)).
+ * 
+ *  **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
+ *  recolour, a layer-override map *and* a raster adjustment, and at least half of that was
+ *  meaningless for any given source — a preset means nothing over a photograph, and a
+ *  `raster-saturation` means nothing over vector tiles. Adding hillshade (S6.6) to a flat struct
+ *  would have made it two thirds.
+ */
+export type Appearance_Serialize = 
+/**  Vector tiles: a preset, the adjustments over it, and whatever layers were changed by hand. */
+({ type: "vector"; preset: Preset; recolor: Recolor_Serialize; 
+/**  By layer id. Empty for a style nobody has edited by hand. */
+overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never } | 
+/**  Raster tiles drawn as an image, adjusted (D11). */
+({ type: "raster"; adjust: RasterAdjust_Serialize }) & { overrides?: never; preset?: never; recolor?: never };
+
 /**
  *  Whether Studio will offer to write this path.
  * 
@@ -1311,79 +1357,52 @@ export type RecentEntry = {
 /**
  *  The whole style, as the core holds it.
  * 
- *  Ordered by layer id (`BTreeMap`, not `HashMap`) so that the text this serialises to depends only
- *  on its contents. The undo stack compares snapshots to decide whether anything changed, and a map
- *  that iterated differently between two identical states would record an edit every time the style
- *  was touched.
+ *  **One entry per source, keyed by the graph's name.** The name is what a MapLibre style calls a
+ *  source and what `project.yaml` already lists graphs by, so persisting under it means the manifest
+ *  and the style agree without a translation table. It is *not* how the running application refers
+ *  to a graph — that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives — so a
+ *  rename has to move the entry, which is [`Recipe::rename_source`]'s whole job.
+ * 
+ *  Ordered (`BTreeMap`, not `HashMap`) so the text this serialises to depends only on its contents.
+ *  The undo stack compares snapshots to decide whether anything changed, and a map that iterated
+ *  differently between two identical states would record an edit every time the style was touched.
  */
 export type Recipe = Recipe_Serialize | Recipe_Deserialize;
 
 /**
  *  The whole style, as the core holds it.
  * 
- *  Ordered by layer id (`BTreeMap`, not `HashMap`) so that the text this serialises to depends only
- *  on its contents. The undo stack compares snapshots to decide whether anything changed, and a map
- *  that iterated differently between two identical states would record an edit every time the style
- *  was touched.
+ *  **One entry per source, keyed by the graph's name.** The name is what a MapLibre style calls a
+ *  source and what `project.yaml` already lists graphs by, so persisting under it means the manifest
+ *  and the style agree without a translation table. It is *not* how the running application refers
+ *  to a graph — that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives — so a
+ *  rename has to move the entry, which is [`Recipe::rename_source`]'s whole job.
+ * 
+ *  Ordered (`BTreeMap`, not `HashMap`) so the text this serialises to depends only on its contents.
+ *  The undo stack compares snapshots to decide whether anything changed, and a map that iterated
+ *  differently between two identical states would record an edit every time the style was touched.
  */
 export type Recipe_Deserialize = {
-	preset?: Preset,
-	recolor?: Recolor_Deserialize,
-	/**  By layer id. Empty for a style nobody has edited by hand. */
-	overrides?: { [key in string]: LayerOverride_Deserialize },
-	/**
-	 *  How imagery is adjusted, used when the source is drawn as raster (S6.3, D11).
-	 * 
-	 *  Carried beside `recolor` rather than replacing it: a project can hold a vector graph and a
-	 *  raster one, and only one of the two adjustments applies to each. [S6.4] is where the pair
-	 *  becomes one tagged union and this stops being a field that is meaningless half the time.
-	 * 
-	 *  [S6.4]: ../../../docs/scope-release-2.md
-	 */
-	raster?: RasterAdjust_Deserialize,
-	/**
-	 *  What the source is being drawn as, when someone has said so explicitly.
-	 * 
-	 *  `None` — the usual case — means the webview's own reading stands. Storing only the
-	 *  *correction* rather than the answer is what keeps a project honest when a container is
-	 *  rewritten with a schema it previously lacked: the derived answer improves, and a recipe that
-	 *  had cached it would keep the old one forever.
-	 */
-	kind?: SourceKind | null,
+	/**  By graph name. One entry today; S6.5 is where more than one is drawn at once. */
+	sources?: { [key in string]: SourceStyle_Deserialize },
 };
 
 /**
  *  The whole style, as the core holds it.
  * 
- *  Ordered by layer id (`BTreeMap`, not `HashMap`) so that the text this serialises to depends only
- *  on its contents. The undo stack compares snapshots to decide whether anything changed, and a map
- *  that iterated differently between two identical states would record an edit every time the style
- *  was touched.
+ *  **One entry per source, keyed by the graph's name.** The name is what a MapLibre style calls a
+ *  source and what `project.yaml` already lists graphs by, so persisting under it means the manifest
+ *  and the style agree without a translation table. It is *not* how the running application refers
+ *  to a graph — that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives — so a
+ *  rename has to move the entry, which is [`Recipe::rename_source`]'s whole job.
+ * 
+ *  Ordered (`BTreeMap`, not `HashMap`) so the text this serialises to depends only on its contents.
+ *  The undo stack compares snapshots to decide whether anything changed, and a map that iterated
+ *  differently between two identical states would record an edit every time the style was touched.
  */
 export type Recipe_Serialize = {
-	preset: Preset,
-	recolor: Recolor_Serialize,
-	/**  By layer id. Empty for a style nobody has edited by hand. */
-	overrides: { [key in string]: LayerOverride_Serialize },
-	/**
-	 *  How imagery is adjusted, used when the source is drawn as raster (S6.3, D11).
-	 * 
-	 *  Carried beside `recolor` rather than replacing it: a project can hold a vector graph and a
-	 *  raster one, and only one of the two adjustments applies to each. [S6.4] is where the pair
-	 *  becomes one tagged union and this stops being a field that is meaningless half the time.
-	 * 
-	 *  [S6.4]: ../../../docs/scope-release-2.md
-	 */
-	raster: RasterAdjust_Serialize,
-	/**
-	 *  What the source is being drawn as, when someone has said so explicitly.
-	 * 
-	 *  `None` — the usual case — means the webview's own reading stands. Storing only the
-	 *  *correction* rather than the answer is what keeps a project honest when a container is
-	 *  rewritten with a schema it previously lacked: the derived answer improves, and a recipe that
-	 *  had cached it would keep the old one forever.
-	 */
-	kind: SourceKind | null,
+	/**  By graph name. One entry today; S6.5 is where more than one is drawn at once. */
+	sources: { [key in string]: SourceStyle_Serialize },
 };
 
 /**
@@ -1562,6 +1581,23 @@ export type SourceKind =
  *  belongs on this enum or is re-read from `tile_schema` at the point of use.
  */
 "rasterDem";
+
+/**  One source's style: what it is, and how it is drawn. */
+export type SourceStyle = SourceStyle_Serialize | SourceStyle_Deserialize;
+
+/**  One source's style: what it is, and how it is drawn. */
+export type SourceStyle_Deserialize = {
+	/**  What someone said these tiles are, when the derived reading was wrong (S6.1). */
+	kind?: SourceKind | null,
+	appearance?: Appearance_Deserialize,
+};
+
+/**  One source's style: what it is, and how it is drawn. */
+export type SourceStyle_Serialize = {
+	/**  What someone said these tiles are, when the derived reading was wrong (S6.1). */
+	kind: SourceKind | null,
+	appearance: Appearance_Serialize,
+};
 
 /**
  *  A byte range in the document, `start..end`.

@@ -17,9 +17,17 @@
 
 import { colorful, eclipse, graybeard, neutrino, satellite, shadow } from '@versatiles/style';
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
-import type { LayerOverride, RasterAdjust, Recipe, SourceKind } from '../ipc/commands';
+import type { Appearance, LayerOverride, RasterAdjust, SourceKind, SourceStyle } from '../ipc/commands';
 import { throughQueue } from './tile-queue';
 import { renderableAs } from './tile-format';
+
+/** The vector half of [`Appearance`], which is what a preset and a layer tree need. */
+export type VectorAppearance = Extract<Appearance, { type: 'vector' }>;
+
+/** A source's style, or the default appearance when it has never been styled. */
+export function appearanceOf(source: SourceStyle | null | undefined): Appearance {
+	return source?.appearance ?? { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} };
+}
 
 /** The six builders, by the name the core stores. */
 const BUILDERS = { colorful, eclipse, graybeard, neutrino, satellite, shadow } as const;
@@ -33,13 +41,17 @@ export interface StyleSource {
 }
 
 /**
- * Builds the style a recipe describes over the given sources.
+ * Builds the style a vector appearance describes over the given sources.
  *
  * Returns `null` for a recipe with no builder — `derived` is S4.4's, and until that exists there is
  * nothing to render rather than something wrong to render.
  */
-export function renderStyle(recipe: Recipe, sources: StyleSource[], serverBaseUrl: string): StyleSpecification | null {
-	const build = BUILDERS[recipe.preset as keyof typeof BUILDERS];
+export function renderStyle(
+	appearance: VectorAppearance,
+	sources: StyleSource[],
+	serverBaseUrl: string
+): StyleSpecification | null {
+	const build = BUILDERS[appearance.preset as keyof typeof BUILDERS];
 	if (!build) return null;
 
 	// The builders are overloaded: they return a promise when asked for terrain or hillshade, which
@@ -51,12 +63,12 @@ export function renderStyle(recipe: Recipe, sources: StyleSource[], serverBaseUr
 		tiles: sources.length > 0 ? [throughQueue(sources[0].tileUrl)] : [],
 		glyphs: `${serverBaseUrl}/assets/glyphs/{fontstack}/{range}.pbf`,
 		sprite: `${serverBaseUrl}/assets/sprites/basics/sprites`,
-		recolor: cleaned(recipe.recolor)
+		recolor: cleaned(appearance.recolor)
 	}) as StyleSpecification;
 
 	return {
 		...style,
-		layers: style.layers.map((layer) => applyOverride(layer, recipe.overrides[layer.id]))
+		layers: style.layers.map((layer) => applyOverride(layer, appearance.overrides[layer.id]))
 	};
 }
 
@@ -67,7 +79,7 @@ export function renderStyle(recipe: Recipe, sources: StyleSource[], serverBaseUr
  * `undefined`s — and `{ gamma: undefined }` is not the same to the builder as `{}` for any option
  * it tests for presence rather than for value.
  */
-function cleaned(recolor: Recipe['recolor']): Record<string, unknown> {
+function cleaned(recolor: VectorAppearance['recolor']): Record<string, unknown> {
 	return Object.fromEntries(Object.entries(recolor).filter(([, value]) => value !== undefined && value !== null));
 }
 
@@ -190,7 +202,7 @@ export type StyleBasis =
  * something to draw would be worse than the honest background. S6.3 and S6.6 are what fill that in.
  */
 export function styleFor(
-	recipe: Recipe,
+	appearance: Appearance,
 	target: { kind: SourceKind; tileFormat: string; layers: DerivableLayer[]; mountedLayers: string[] },
 	sources: StyleSource[],
 	serverBaseUrl: string
@@ -205,7 +217,8 @@ export function styleFor(
 	if (renderable === null) return { style: null, basis: 'none' };
 
 	if (kind === 'rasterImage' && renderable === 'raster') {
-		return { style: rasterStyle(recipe.raster, sources, serverBaseUrl), basis: 'raster' };
+		const adjust = appearance.type === 'raster' ? appearance.adjust : {};
+		return { style: rasterStyle(adjust, sources, serverBaseUrl), basis: 'raster' };
 	}
 
 	// Elevation is drawn as flat colour until S6.6 gives it hillshade. Returning `none` leaves the
@@ -213,13 +226,19 @@ export function styleFor(
 	// that claims to be an adjustment of something it does not understand.
 	if (!isVectorKind(kind) || renderable !== 'vector') return { style: null, basis: 'none' };
 
-	// Built from what the tiles have rather than from what a schema expects (S4.4).
-	if (recipe.preset === 'derived') {
+	// A raster appearance on a vector source has nothing to say; derive rather than draw nothing.
+	if (appearance.type !== 'vector') {
 		const derived = deriveStyle(layers, sources, serverBaseUrl);
 		return derived ? { style: derived, basis: 'derived' } : { style: null, basis: 'none' };
 	}
 
-	const rendered = renderStyle(recipe, sources, serverBaseUrl);
+	// Built from what the tiles have rather than from what a schema expects (S4.4).
+	if (appearance.preset === 'derived') {
+		const derived = deriveStyle(layers, sources, serverBaseUrl);
+		return derived ? { style: derived, basis: 'derived' } : { style: null, basis: 'none' };
+	}
+
+	const rendered = renderStyle(appearance, sources, serverBaseUrl);
 	if (rendered && drawsAnything(rendered, mountedLayers)) return { style: rendered, basis: 'preset' };
 
 	const derived = deriveStyle(layers, sources, serverBaseUrl);

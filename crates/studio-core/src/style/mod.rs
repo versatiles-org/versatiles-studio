@@ -237,35 +237,87 @@ pub enum Resampling {
 	Nearest,
 }
 
+/// How one source is drawn ([S6.4](../../../docs/scope-release-2.md)).
+///
+/// **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
+/// recolour, a layer-override map *and* a raster adjustment, and at least half of that was
+/// meaningless for any given source — a preset means nothing over a photograph, and a
+/// `raster-saturation` means nothing over vector tiles. Adding hillshade (S6.6) to a flat struct
+/// would have made it two thirds.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub enum Appearance {
+	/// Vector tiles: a preset, the adjustments over it, and whatever layers were changed by hand.
+	Vector {
+		preset: Preset,
+		recolor: Recolor,
+		/// By layer id. Empty for a style nobody has edited by hand.
+		overrides: BTreeMap<String, LayerOverride>,
+	},
+	/// Raster tiles drawn as an image, adjusted (D11).
+	Raster { adjust: RasterAdjust },
+}
+
+impl Default for Appearance {
+	fn default() -> Self {
+		Self::Vector {
+			preset: Preset::default(),
+			recolor: Recolor::default(),
+			overrides: BTreeMap::new(),
+		}
+	}
+}
+
+impl Appearance {
+	/// The appearance a source of this kind starts with.
+	///
+	/// Elevation gets the raster variant too: nothing draws a DEM until S6.6, and giving it a preset
+	/// it cannot use would be the old mistake in a new place.
+	#[must_use]
+	pub fn for_kind(kind: Option<SourceKind>) -> Self {
+		match kind {
+			Some(SourceKind::RasterImage | SourceKind::RasterDem) => Self::Raster {
+				adjust: RasterAdjust::default(),
+			},
+			_ => Self::default(),
+		}
+	}
+
+	/// Whether this appearance describes vector tiles, which is what a preset and a tree need.
+	#[must_use]
+	pub fn is_vector(&self) -> bool {
+		matches!(self, Self::Vector { .. })
+	}
+}
+
+/// One source's style: what it is, and how it is drawn.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct SourceStyle {
+	/// What someone said these tiles are, when the derived reading was wrong (S6.1).
+	pub kind: Option<SourceKind>,
+	pub appearance: Appearance,
+}
+
 /// The whole style, as the core holds it.
 ///
-/// Ordered by layer id (`BTreeMap`, not `HashMap`) so that the text this serialises to depends only
-/// on its contents. The undo stack compares snapshots to decide whether anything changed, and a map
-/// that iterated differently between two identical states would record an edit every time the style
-/// was touched.
+/// **One entry per source, keyed by the graph's name.** The name is what a MapLibre style calls a
+/// source and what `project.yaml` already lists graphs by, so persisting under it means the manifest
+/// and the style agree without a translation table. It is *not* how the running application refers
+/// to a graph — that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives — so a
+/// rename has to move the entry, which is [`Recipe::rename_source`]'s whole job.
+///
+/// Ordered (`BTreeMap`, not `HashMap`) so the text this serialises to depends only on its contents.
+/// The undo stack compares snapshots to decide whether anything changed, and a map that iterated
+/// differently between two identical states would record an edit every time the style was touched.
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Recipe {
-	pub preset: Preset,
-	pub recolor: Recolor,
-	/// By layer id. Empty for a style nobody has edited by hand.
-	pub overrides: BTreeMap<String, LayerOverride>,
-	/// How imagery is adjusted, used when the source is drawn as raster (S6.3, D11).
-	///
-	/// Carried beside `recolor` rather than replacing it: a project can hold a vector graph and a
-	/// raster one, and only one of the two adjustments applies to each. [S6.4] is where the pair
-	/// becomes one tagged union and this stops being a field that is meaningless half the time.
-	///
-	/// [S6.4]: ../../../docs/scope-release-2.md
-	pub raster: RasterAdjust,
-	/// What the source is being drawn as, when someone has said so explicitly.
-	///
-	/// `None` — the usual case — means the webview's own reading stands. Storing only the
-	/// *correction* rather than the answer is what keeps a project honest when a container is
-	/// rewritten with a schema it previously lacked: the derived answer improves, and a recipe that
-	/// had cached it would keep the old one forever.
-	pub kind: Option<SourceKind>,
+	/// By graph name. One entry today; S6.5 is where more than one is drawn at once.
+	pub sources: BTreeMap<String, SourceStyle>,
 }
 
 impl Recipe {
@@ -284,17 +336,59 @@ impl Recipe {
 		serde_json::from_str(text).context("reading the style")
 	}
 
-	/// Replaces one layer's override, or clears it when there is nothing left to say.
+	/// One source's style, as it stands. `None` for a source nobody has styled.
+	#[must_use]
+	pub fn source(&self, name: &str) -> Option<&SourceStyle> {
+		self.sources.get(name)
+	}
+
+	/// One source's style, created from `kind` if this is the first time it is touched.
+	///
+	/// The kind is taken only on creation. Afterwards the entry owns its own answer, so a later
+	/// reading that disagrees cannot silently rewrite a choice someone already made.
+	pub fn source_mut(&mut self, name: &str, kind: Option<SourceKind>) -> &mut SourceStyle {
+		self.sources.entry(name.to_string()).or_insert_with(|| SourceStyle {
+			kind: None,
+			appearance: Appearance::for_kind(kind),
+		})
+	}
+
+	/// Moves a source's style when its graph is renamed.
+	///
+	/// **The one place the name-keyed store meets the id-keyed application.** Without it a rename
+	/// silently resets the style to defaults, and the previous settings sit in the file forever
+	/// under a name nothing refers to. Renaming onto a name that already has a style replaces it,
+	/// which matches `graphs::rename` refusing a clash before this is ever called.
+	pub fn rename_source(&mut self, from: &str, to: &str) {
+		if from == to {
+			return;
+		}
+		if let Some(style) = self.sources.remove(from) {
+			self.sources.insert(to.to_string(), style);
+		}
+	}
+
+	/// Replaces one layer's override on a vector source, or clears it when nothing is left to say.
 	///
 	/// Clearing rather than storing an empty patch keeps "reset this layer" and "never touched this
 	/// layer" the same state — otherwise a style could export a list of layers that override
 	/// nothing, and a user who undid every change would still see the layer marked as edited.
-	pub fn set_override(&mut self, layer: impl Into<String>, patch: LayerOverride) {
+	///
+	/// Does nothing for a raster source: there are no layers to override, and creating a vector
+	/// appearance to hold the patch would silently change what the source is.
+	pub fn set_override(&mut self, source: &str, layer: impl Into<String>, patch: LayerOverride) {
+		let Some(SourceStyle {
+			appearance: Appearance::Vector { overrides, .. },
+			..
+		}) = self.sources.get_mut(source)
+		else {
+			return;
+		};
 		let layer = layer.into();
 		if patch.is_empty() {
-			self.overrides.remove(&layer);
+			overrides.remove(&layer);
 		} else {
-			self.overrides.insert(layer, patch);
+			overrides.insert(layer, patch);
 		}
 	}
 }
@@ -303,25 +397,40 @@ impl Recipe {
 mod tests {
 	use super::*;
 
+	const GRAPH: &str = "basemap";
+
 	fn edited() -> Recipe {
-		let mut recipe = Recipe {
-			preset: Preset::Graybeard,
-			recolor: Recolor {
-				invert_brightness: Some(true),
-				rotate: Some(35.0),
-				..Recolor::default()
+		let mut recipe = Recipe::default();
+		recipe.sources.insert(
+			GRAPH.to_string(),
+			SourceStyle {
+				kind: None,
+				appearance: Appearance::Vector {
+					preset: Preset::Graybeard,
+					recolor: Recolor {
+						invert_brightness: Some(true),
+						rotate: Some(35.0),
+						..Recolor::default()
+					},
+					overrides: BTreeMap::new(),
+				},
 			},
-			overrides: BTreeMap::new(),
-			raster: RasterAdjust::default(),
-			kind: None,
-		};
+		);
 		recipe.set_override(
+			GRAPH,
 			"water",
 			LayerOverride {
 				paint: Some(serde_json::json!({ "fill-color": "#204080" })),
 				..LayerOverride::default()
 			},
 		);
+		recipe
+	}
+
+	/// Every source starts styled, so a test that means to edit one says so once.
+	fn with_source() -> Recipe {
+		let mut recipe = Recipe::default();
+		recipe.source_mut(GRAPH, None);
 		recipe
 	}
 
@@ -350,20 +459,21 @@ mod tests {
 	/// produce equal text — which is why the overrides are a `BTreeMap`.
 	#[test]
 	fn equal_recipes_produce_equal_text() {
-		let mut one = Recipe::default();
-		let mut two = Recipe::default();
+		let mut one = with_source();
+		let mut two = with_source();
 		for layer in ["water", "roads", "buildings", "labels"] {
 			let patch = LayerOverride {
 				visible: Some(false),
 				..LayerOverride::default()
 			};
-			one.set_override(layer, patch.clone());
-			two.set_override(layer, patch);
+			one.set_override(GRAPH, layer, patch.clone());
+			two.set_override(GRAPH, layer, patch);
 		}
 		// Inserted in one order here and the reverse there; the text must not know.
-		let mut three = Recipe::default();
+		let mut three = with_source();
 		for layer in ["labels", "buildings", "roads", "water"] {
 			three.set_override(
+				GRAPH,
 				layer,
 				LayerOverride {
 					visible: Some(false),
@@ -379,19 +489,57 @@ mod tests {
 	/// export overrides that override nothing.
 	#[test]
 	fn an_override_that_says_nothing_is_removed() {
-		let mut recipe = Recipe::default();
+		let mut recipe = with_source();
+		let baseline = recipe.text();
 		recipe.set_override(
+			GRAPH,
 			"water",
 			LayerOverride {
 				visible: Some(false),
 				..LayerOverride::default()
 			},
 		);
-		assert_eq!(recipe.overrides.len(), 1);
+		assert_eq!(overrides_of(&recipe).len(), 1);
 
-		recipe.set_override("water", LayerOverride::default());
-		assert!(recipe.overrides.is_empty(), "a reset layer is not a stored layer");
-		assert_eq!(recipe.text(), Recipe::default().text());
+		recipe.set_override(GRAPH, "water", LayerOverride::default());
+		assert!(overrides_of(&recipe).is_empty(), "a reset layer is not a stored layer");
+		assert_eq!(recipe.text(), baseline);
+	}
+
+	/// A raster source has no layers to override, and inventing a vector appearance to hold a patch
+	/// would silently change what the source is.
+	#[test]
+	fn an_override_on_a_raster_source_is_ignored() {
+		let mut recipe = Recipe::default();
+		recipe.source_mut(GRAPH, Some(SourceKind::RasterImage));
+		let before = recipe.text();
+		recipe.set_override(
+			GRAPH,
+			"water",
+			LayerOverride {
+				visible: Some(false),
+				..LayerOverride::default()
+			},
+		);
+		assert_eq!(recipe.text(), before);
+	}
+
+	/// A rename must carry the style with it — otherwise renaming a graph silently resets its style
+	/// and leaves the old settings in the file under a name nothing refers to.
+	#[test]
+	fn a_rename_carries_the_style_over() {
+		let recipe = edited();
+		let mut renamed = recipe.clone();
+		renamed.rename_source(GRAPH, "streets");
+		assert!(renamed.source(GRAPH).is_none());
+		assert_eq!(renamed.source("streets"), recipe.source(GRAPH));
+	}
+
+	fn overrides_of(recipe: &Recipe) -> &BTreeMap<String, LayerOverride> {
+		match &recipe.source(GRAPH).expect("the source is styled").appearance {
+			Appearance::Vector { overrides, .. } => overrides,
+			Appearance::Raster { .. } => panic!("expected a vector appearance"),
+		}
 	}
 
 	/// An untouched recolour is "leave everything alone", not a list of identity values — otherwise

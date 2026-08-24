@@ -186,6 +186,64 @@ pub const MANIFEST_FILE: &str = "project.yaml";
 /// The style Studio writes beside it — an output, never read back.
 pub const STYLE_FILE: &str = "style.json";
 
+/// What [`save`] writes, and the highest [`load`] understands.
+///
+/// **2 since [S6.4](../../docs/scope-release-2.md)**, when the style stopped being one preset over
+/// the whole project and became one entry per source. A version-1 file still opens: [`migrate_v1`]
+/// reads its recipe and files it under the first graph, which is the only graph a version-1 project
+/// could have been styling.
+pub const MANIFEST_VERSION: u32 = 2;
+
+/// A version-1 `style:` block, as it was written before S6.4.
+///
+/// Kept as its own type rather than as leftover `Option` fields on [`Recipe`]: the old shape is
+/// finished and will not gain anything, and a migration that reads a dedicated struct cannot be
+/// confused with the current one by someone skimming.
+#[derive(Debug, Default, serde::Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+struct RecipeV1 {
+	preset: crate::style::Preset,
+	recolor: crate::style::Recolor,
+	overrides: std::collections::BTreeMap<String, crate::style::LayerOverride>,
+	/// Present only in files written between S6.3 and S6.4, which is a narrow window but a real one.
+	raster: crate::style::RasterAdjust,
+	kind: Option<crate::style::SourceKind>,
+}
+
+/// Turns a version-1 recipe into a version-2 one, filed under the graph it must have been about.
+///
+/// **The first graph, because a version-1 project had one style and no way to say which graph it
+/// was for.** Any other choice would be a guess dressed up as a rule; this one is at least the graph
+/// the project opens on. A project with no graphs migrates to an empty recipe, which is what it was.
+fn migrate_v1(old: RecipeV1, graphs: &[GraphRef]) -> crate::style::Recipe {
+	use crate::style::{Appearance, Recipe, SourceKind, SourceStyle};
+
+	let mut recipe = Recipe::default();
+	let Some(first) = graphs.first() else {
+		return recipe;
+	};
+
+	// The raster half only ever applied when the source was raster, and the vector half only when it
+	// was not — which is exactly the ambiguity this version bump removes.
+	let appearance = match old.kind {
+		Some(SourceKind::RasterImage | SourceKind::RasterDem) => Appearance::Raster { adjust: old.raster },
+		_ => Appearance::Vector {
+			preset: old.preset,
+			recolor: old.recolor,
+			overrides: old.overrides,
+		},
+	};
+
+	recipe.sources.insert(
+		first.name.clone(),
+		SourceStyle {
+			kind: old.kind,
+			appearance,
+		},
+	);
+	recipe
+}
+
 /// A project read from disk: the manifest, and each graph.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Loaded {
@@ -228,7 +286,7 @@ pub fn save(dir: &Path, graphs: &[SavedGraph], recipe: &crate::style::Recipe, st
 /// rather than in a file, and the two manifests have to be the same manifest.
 pub fn manifest_text(graphs: &[SavedGraph], recipe: &crate::style::Recipe) -> Result<String> {
 	let manifest = Manifest {
-		version: 1,
+		version: MANIFEST_VERSION,
 		graphs: graphs
 			.iter()
 			.map(|graph| GraphRef {
@@ -262,14 +320,50 @@ pub fn check_name(name: &str) -> Result<()> {
 pub fn load(dir: &Path) -> Result<Loaded> {
 	let path = dir.join(MANIFEST_FILE);
 	let text = std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
-	let manifest: Manifest = serde_yaml_ng::from_str(&text).with_context(|| format!("reading {}", path.display()))?;
+	// **Parsed loosely first, so the version can be read before the shape is trusted.** Deserialising
+	// straight into `Manifest` would fail on a version-1 `style:` block before reaching the check
+	// that explains why — and "invalid type: map" is a worse answer than "this is an older project".
+	let raw: serde_yaml_ng::Value =
+		serde_yaml_ng::from_str(&text).with_context(|| format!("reading {}", path.display()))?;
+	let version = raw.get("version").and_then(serde_yaml_ng::Value::as_u64).unwrap_or(1) as u32;
 
 	anyhow::ensure!(
-		manifest.version <= 1,
+		version <= MANIFEST_VERSION,
 		"{} was written by a later version of Studio (manifest version {})",
 		path.display(),
-		manifest.version
+		version
 	);
+
+	let mut manifest: Manifest = if version >= 2 {
+		serde_yaml_ng::from_value(raw).with_context(|| format!("reading {}", path.display()))?
+	} else {
+		// Version 1: everything but the style has the same shape, so only the style is read apart.
+		#[derive(serde::Deserialize)]
+		#[serde(rename_all = "camelCase", default)]
+		struct ManifestV1 {
+			version: u32,
+			graphs: Vec<GraphRef>,
+			style: RecipeV1,
+		}
+		impl Default for ManifestV1 {
+			fn default() -> Self {
+				Self {
+					version: 1,
+					graphs: Vec::new(),
+					style: RecipeV1::default(),
+				}
+			}
+		}
+
+		let old: ManifestV1 = serde_yaml_ng::from_value(raw).with_context(|| format!("reading {}", path.display()))?;
+		let style = migrate_v1(old.style, &old.graphs);
+		Manifest {
+			version: MANIFEST_VERSION,
+			graphs: old.graphs,
+			style,
+		}
+	};
+	manifest.version = MANIFEST_VERSION;
 
 	let mut graphs = Vec::with_capacity(manifest.graphs.len());
 	for graph in &manifest.graphs {
@@ -299,14 +393,22 @@ mod project_tests {
 	use crate::style::{Preset, Recipe, Recolor};
 
 	fn recipe() -> Recipe {
-		Recipe {
-			preset: Preset::Graybeard,
-			recolor: Recolor {
-				invert_brightness: Some(true),
-				..Recolor::default()
+		let mut recipe = Recipe::default();
+		recipe.sources.insert(
+			"basemap".to_string(),
+			crate::style::SourceStyle {
+				kind: None,
+				appearance: crate::style::Appearance::Vector {
+					preset: Preset::Graybeard,
+					recolor: Recolor {
+						invert_brightness: Some(true),
+						..Recolor::default()
+					},
+					overrides: std::collections::BTreeMap::new(),
+				},
 			},
-			..Recipe::default()
-		}
+		);
+		recipe
 	}
 
 	fn graphs() -> Vec<SavedGraph> {
@@ -340,7 +442,7 @@ mod project_tests {
 			recipe(),
 			"the recipe is what comes back, not the style"
 		);
-		assert_eq!(loaded.manifest.version, 1);
+		assert_eq!(loaded.manifest.version, MANIFEST_VERSION);
 	}
 
 	/// A crop is set by looking at the map, and it should still be there tomorrow (F2, S5.2).
@@ -357,6 +459,83 @@ mod project_tests {
 		let text = std::fs::read_to_string(dir.join(MANIFEST_FILE)).unwrap();
 		let basemap = text.split("- name: hillshade").next().unwrap();
 		assert!(!basemap.contains("crop"), "{basemap}");
+	}
+
+	/// **The one thing S6.4 could get wrong quietly.** A version-1 project must keep opening, and its
+	/// style must land on the graph it was about rather than being silently reset to defaults.
+	#[test]
+	fn a_version_1_style_migrates_onto_the_first_graph() {
+		use crate::style::{Appearance, Preset};
+
+		let dir = crate::testing::dir("project-migrate-v1");
+		std::fs::create_dir_all(&dir).unwrap();
+		std::fs::write(dir.join("basemap.vpl"), "from_debug format=png").unwrap();
+		std::fs::write(
+			dir.join(MANIFEST_FILE),
+			"version: 1\ngraphs:\n  - name: basemap\n    file: basemap.vpl\nstyle:\n  preset: graybeard\n  recolor:\n    rotate: 35.0\n",
+		)
+		.unwrap();
+
+		let loaded = load(&dir).unwrap();
+		assert_eq!(
+			loaded.manifest.version, MANIFEST_VERSION,
+			"it is a version-2 manifest now"
+		);
+
+		let style = loaded
+			.manifest
+			.style
+			.source("basemap")
+			.expect("the style moved onto the graph");
+		match &style.appearance {
+			Appearance::Vector { preset, recolor, .. } => {
+				assert_eq!(*preset, Preset::Graybeard, "the preset survived");
+				assert_eq!(recolor.rotate, Some(35.0), "so did the recolour");
+			}
+			Appearance::Raster { .. } => panic!("a version-1 vector style became a raster one"),
+		}
+	}
+
+	/// A version-1 file written between S6.3 and S6.4 could say its source was raster. The raster
+	/// half of the old recipe is the half that mattered, and the preset never applied to it.
+	#[test]
+	fn a_version_1_raster_style_migrates_to_the_raster_appearance() {
+		use crate::style::Appearance;
+
+		let dir = crate::testing::dir("project-migrate-v1-raster");
+		std::fs::create_dir_all(&dir).unwrap();
+		std::fs::write(dir.join("photo.vpl"), "from_debug format=png").unwrap();
+		std::fs::write(
+			dir.join(MANIFEST_FILE),
+			"version: 1\ngraphs:\n  - name: photo\n    file: photo.vpl\nstyle:\n  kind: rasterImage\n  raster:\n    opacity: 0.5\n",
+		)
+		.unwrap();
+
+		let loaded = load(&dir).unwrap();
+		let style = loaded
+			.manifest
+			.style
+			.source("photo")
+			.expect("the style moved onto the graph");
+		match &style.appearance {
+			Appearance::Raster { adjust } => assert_eq!(adjust.opacity, Some(0.5)),
+			Appearance::Vector { .. } => panic!("a raster source got a preset"),
+		}
+	}
+
+	/// A file from a later Studio is refused rather than half-read.
+	#[test]
+	fn a_newer_manifest_is_refused_by_name() {
+		let dir = crate::testing::dir("project-newer");
+		std::fs::create_dir_all(&dir).unwrap();
+		std::fs::write(
+			dir.join(MANIFEST_FILE),
+			"version: 99\ngraphs: []\nstyle:\n  sources: {}\n",
+		)
+		.unwrap();
+
+		let error = load(&dir).unwrap_err().to_string();
+		assert!(error.contains("later version"), "{error}");
 	}
 
 	/// The field is new; every project saved before it exists without one.

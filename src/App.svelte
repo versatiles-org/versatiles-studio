@@ -116,6 +116,15 @@
 	let pipeline = $state<DocumentView | null>(null);
 	/// Which graph `pipeline` is. Every command that touches a document takes it.
 	const currentGraph = $derived(pipeline?.graph ?? null);
+
+	// **The style pane follows the selected graph** (S6.4). The recipe files each source's style
+	// under the graph's name while commands take its id, so the state module is told both once here
+	// rather than every consumer working it out.
+	$effect(() => {
+		const id = currentGraph;
+		const name = graphs.find((graph) => graph.id === id)?.name ?? null;
+		styleRecipe.focus(id !== null && name !== null ? { id, name } : null);
+	});
 	/// Every graph in the project, for the list at the top of the Pipeline pane ([Q32]).
 	let graphs = $state<GraphInfo[]>([]);
 	/// Where the map is looking. **Not the selection** — you can edit one node while watching
@@ -600,10 +609,11 @@
 		const source = preview.last;
 		if (!recipe || !source || !serverUrl) return { style: null, basis: 'none' as const };
 		const sources = [{ name: source.name, tileUrl: source.tileUrl }];
+		const style = styleRecipe.source;
 		return styleFor(
-			recipe,
+			style.appearance,
 			{
-				kind: sourceKind(source.info.tileFormat, source.info.tileSchema, preview.mountedLayers, recipe.kind).kind,
+				kind: sourceKind(source.info.tileFormat, source.info.tileSchema, preview.mountedLayers, style.kind).kind,
 				tileFormat: source.info.tileFormat,
 				layers: source.layers,
 				mountedLayers: preview.mountedLayers

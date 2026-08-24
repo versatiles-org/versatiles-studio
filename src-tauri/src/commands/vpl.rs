@@ -159,8 +159,13 @@ pub async fn remove_graph(state: State<'_, AppState>, id: GraphId) -> Result<boo
 /// Renames a graph, and reports the name it actually took.
 ///
 /// The name is the mount, the source name in `style.json` and the `.vpl` filename at once ([Q32]),
-/// so this remounts under the new name. **Rewriting the style's references is the other half**, and
-/// lands with the style itself at S4 — there is nothing referencing a graph yet.
+/// so this remounts under the new name — and since [S6.4](../../../docs/scope-release-2.md) the
+/// recipe files each source's style under that name too, so the style moves with it.
+///
+/// **Without this a rename silently resets the style.** The entry would stay under the old name,
+/// referenced by nothing, and the source would come back with defaults as though it had never been
+/// touched. It is not recorded as a style edit: renaming a graph is not a restyling, and ⌘Z after
+/// one should undo the rename rather than half of it.
 #[tauri::command]
 #[specta::specta]
 pub async fn rename_graph(state: State<'_, AppState>, id: GraphId, name: String) -> Result<String, String> {
@@ -169,6 +174,10 @@ pub async fn rename_graph(state: State<'_, AppState>, id: GraphId, name: String)
 	let renamed = graphs.rename(id, &name).map_err(|error| format!("{error:#}"))?;
 
 	if let Some(old) = old.filter(|old| old != &renamed) {
+		// Graphs first, then style — the same order `commands::style::edit` takes them in, so the
+		// two paths cannot deadlock against each other.
+		state.style.lock().await.rename_source(&old, &renamed);
+
 		let mut server = state.server.lock().await;
 		if let Err(error) = server.unmount(&old) {
 			eprintln!("could not unmount {old}: {error:#}");

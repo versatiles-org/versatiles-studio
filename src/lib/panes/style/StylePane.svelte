@@ -63,11 +63,19 @@
 
 	const recipe = $derived(style.current);
 
+	// **The pane edits one source, not the whole recipe** (S6.4). `style.source` is the focused
+	// graph's entry with any in-flight gesture applied, so every control below reads the same view
+	// the map is drawing from.
+	const sourceStyle = $derived(style.source);
+	const appearance = $derived(sourceStyle.appearance);
+	const vectorAppearance = $derived(appearance.type === 'vector' ? appearance : null);
+	const rasterAdjust = $derived(appearance.type === 'raster' ? appearance.adjust : {});
+
 	// **What these tiles are, and how confidently** (S6.1). Everything below is gated on it, because
 	// a preset aimed at raster tiles is not a control that does something subtle — it is a control
 	// that does nothing, and one that looks identical to a working one is worse than none.
 	const reading = $derived(
-		source ? sourceKind(source.tileFormat, source.tileSchema, source.layers, recipe?.kind) : null
+		source ? sourceKind(source.tileFormat, source.tileSchema, source.layers, sourceStyle.kind) : null
 	);
 	const kind = $derived(reading?.kind ?? null);
 	const vector = $derived(kind === null || isVector(kind));
@@ -97,13 +105,14 @@
 
 	/// Every raster slider's neutral is `0` except opacity, whose is `1` — the same asymmetry the
 	/// vector sliders have, for the same reason: a multiplier's identity is not zero.
-	const rasterValue = (key: RasterKey): number => recipe?.raster?.[key] ?? (key === 'opacity' ? 1 : 0);
+	const rasterValue = (key: RasterKey): number =>
+		(rasterAdjust as Record<string, number | undefined>)[key] ?? (key === 'opacity' ? 1 : 0);
 
-	const rasterAdjusted = $derived(Object.values(recipe?.raster ?? {}).some((value) => value != null));
+	const rasterAdjusted = $derived(Object.values(rasterAdjust).some((value) => value != null));
 
 	/// Previewed locally and committed once, exactly as the recolour gesture is.
 	let rasterPending = $state<RasterAdjust | null>(null);
-	const rasterNow = $derived(rasterPending ?? recipe?.raster ?? {});
+	const rasterNow = $derived(rasterPending ?? rasterAdjust);
 
 	function previewRaster(key: RasterKey, raw: string): void {
 		rasterPending = { ...rasterNow, [key]: Number(raw) };
@@ -134,7 +143,7 @@
 	/// What the sliders show. Read from the recipe, written by dragging, committed on release.
 	const value = (key: string): number => {
 		const slider = SLIDERS.find((s) => s.key === key)!;
-		const held = (recipe?.recolor as Record<string, number | null | undefined>)?.[key];
+		const held = (vectorAppearance?.recolor as Record<string, number | null | undefined>)?.[key];
 		return held ?? slider.neutral;
 	};
 
@@ -143,7 +152,7 @@
 		const slider = SLIDERS.find((s) => s.key === key)!;
 		const next = Number(raw);
 		style.previewRecolor({
-			...(recipe?.recolor ?? {}),
+			...(vectorAppearance?.recolor ?? {}),
 			// Back to "unset" at the neutral value, so a slider returned to the middle leaves no
 			// trace in the recipe and none in the exported code.
 			[key]: next === slider.neutral ? undefined : next
@@ -151,7 +160,7 @@
 	}
 
 	function invert(on: boolean) {
-		style.previewRecolor({ ...(recipe?.recolor ?? {}), invertBrightness: on || undefined } as Recolor);
+		style.previewRecolor({ ...(vectorAppearance?.recolor ?? {}), invertBrightness: on || undefined } as Recolor);
 		void style.commitRecolor();
 	}
 
@@ -168,7 +177,7 @@
 
 	async function exportAs(kind: 'json' | 'ts') {
 		if (!recipe || !rendered) return;
-		const code = kind === 'ts' ? styleCode(recipe) : null;
+		const code = kind === 'ts' ? styleCode(appearance) : null;
 		if (kind === 'ts' && code === null) return;
 		// The tile URL is swapped for a placeholder in both forms: what the map reads from is an
 		// ephemeral local port, and a file carrying it away would work once.
@@ -214,7 +223,7 @@
 		}
 	}
 
-	const adjusted = $derived(Object.values(recipe?.recolor ?? {}).some((v) => v !== undefined && v !== null));
+	const adjusted = $derived(Object.values(vectorAppearance?.recolor ?? {}).some((v) => v !== undefined && v !== null));
 </script>
 
 {#if recipe}
@@ -260,7 +269,7 @@
 			<label class="kind">
 				<span class="name">Scaling</span>
 				<select
-					value={recipe.raster?.resampling ?? 'linear'}
+					value={rasterAdjust.resampling ?? 'linear'}
 					onchange={(event) => setResampling(event.currentTarget.value)}
 				>
 					<option value="linear">Smooth</option>
@@ -288,8 +297,8 @@
 					<button
 						type="button"
 						class="preset"
-						class:chosen={recipe.preset === preset.id}
-						aria-pressed={recipe.preset === preset.id}
+						class:chosen={vectorAppearance?.preset === preset.id}
+						aria-pressed={vectorAppearance?.preset === preset.id}
 						title={preset.note}
 						onclick={() => void style.setPreset(preset.id)}
 					>
@@ -308,7 +317,7 @@
 			<label class="toggle">
 				<input
 					type="checkbox"
-					checked={recipe.recolor.invertBrightness ?? false}
+					checked={(vectorAppearance?.recolor ?? {}).invertBrightness ?? false}
 					onchange={(event) => invert(event.currentTarget.checked)}
 				/>
 				Invert brightness
@@ -354,8 +363,8 @@
 			<button
 				type="button"
 				class="button"
-				disabled={!rendered || exporting !== null || !canGenerateCode(recipe)}
-				title={canGenerateCode(recipe)
+				disabled={!rendered || exporting !== null || !canGenerateCode(appearance)}
+				title={canGenerateCode(appearance)
 					? 'The preset and what was changed, as code'
 					: 'A derived style has no builder to call — export it as style.json'}
 				onclick={() => void exportAs('ts')}
