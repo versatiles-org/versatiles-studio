@@ -1,5 +1,16 @@
 <script lang="ts">
 	import type { FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../../ipc/commands';
+	import {
+		addableFields,
+		editFor,
+		fieldOf,
+		missingFields,
+		optionsFor,
+		requiredEdit,
+		summarise,
+		unsetFields,
+		valueText
+	} from './node-fields';
 	import HelpTrigger from '../../common/HelpTrigger.svelte';
 	import NodeArgument from './NodeArgument.svelte';
 	import Picker from '../../common/Picker.svelte';
@@ -61,12 +72,10 @@
 	} = $props();
 
 	const meta = $derived(operations.find((operation) => operation.name === node.name));
-	const fieldOf = (key: string): FieldInfo | undefined => meta?.fields.find((f) => f.name === key);
+	const field = (key: string): FieldInfo | undefined => fieldOf(meta?.fields ?? [], key);
 
 	/** Parameters the operation accepts and this node has not set. Sources are not parameters. */
-	const unset = $derived(
-		(meta?.fields ?? []).filter((f) => !f.sources && !node.properties.some((p) => p.key === f.name))
-	);
+	const unset = $derived(unsetFields(meta?.fields ?? [], node.properties));
 
 	/// Required parameters with no value yet — **always shown**, empty.
 	///
@@ -74,74 +83,25 @@
 	/// hunting for them. Shown and empty, "required" needs no symbol: the field is simply there, and
 	/// waiting. Most operations add no rows this way — 18 of 29 have no required parameter at all,
 	/// and only three have more than one.
-	const missing = $derived(unset.filter((field) => field.required));
+	const missing = $derived(missingFields(unset));
 	/// What `＋ parameter…` offers: the optional ones, since the required are already on screen.
-	const addable = $derived(unset.filter((field) => !field.required));
-
-	/// Writes a required parameter once it has a value. Empty stays empty — writing `lon_column=''`
-	/// produces VPL that parses and then fails when the pipeline builds.
-	function commitRequired(key: string, raw: string) {
-		const value = raw.trim();
-		if (value) onSet(node.nameSpan, key, control(key)?.kind === 'list' ? parts(value) : [value]);
-	}
-
-	function text(property: VplProperty): string {
-		return property.value.kind === 'single'
-			? property.value.value
-			: property.value.items.map((item) => item.value).join(', ');
-	}
-
-	const isArray = (property: VplProperty) => property.value.kind === 'array';
-	const parts = (raw: string) =>
-		raw
-			.split(',')
-			.map((part) => part.trim())
-			.filter(Boolean);
+	const addable = $derived(addableFields(unset));
 
 	/// What this field could be set to — whichever end of the pipeline could answer.
 	const options = (key: string, control: FieldInfo['control'] | undefined): string[] =>
-		suggestions[key] ?? (control?.kind === 'list' ? properties : []);
+		optionsFor(suggestions, properties, key, control);
 
 	function commit(property: VplProperty, raw: string) {
-		if (raw === text(property)) return;
-		const control = fieldOf(property.key)?.control;
-		if (raw.trim() === '') onRemove(property.span);
-		else if (control?.kind === 'list' || control?.kind === 'numbers' || isArray(property)) {
-			onSet(node.nameSpan, property.key, parts(raw));
-		} else onCommit(property.value.span, raw);
+		const edit = editFor(property, raw, field(property.key)?.control);
+		if (edit.kind === 'remove') onRemove(property.span);
+		else if (edit.kind === 'parts') onSet(node.nameSpan, property.key, edit.values);
+		else if (edit.kind === 'value') onCommit(property.value.span, edit.value);
 	}
 
-	/// What a parameter *is*, from `field_meta` — type, bounds, whether it is required.
-	///
-	/// Assembled here rather than in the popover, which stays ignorant of VPL: this is the one
-	/// place that knows a `Control` from a `FieldInfo`, and the style editor will want the same
-	/// popover for entirely different content.
-	function summarise(field: FieldInfo): string {
-		const control = field.control;
-		let type: string;
-		switch (control.kind) {
-			case 'number':
-				type = control.integer ? 'whole number' : 'number';
-				if (control.min !== null && control.max !== null) type += ` ${control.min}–${control.max}`;
-				else if (control.min !== null) type += ` from ${control.min}`;
-				else if (control.max !== null) type += ` up to ${control.max}`;
-				break;
-			case 'boolean':
-				type = 'true or false';
-				break;
-			case 'choice':
-				type = `one of ${control.options.join(', ')}`;
-				break;
-			case 'list':
-				type = 'a list, comma separated';
-				break;
-			case 'numbers':
-				type = `${control.count} numbers`;
-				break;
-			default:
-				type = 'text';
-		}
-		return `${type} · ${field.required ? 'required' : 'optional'}`;
+	/// Writes a required parameter once it has a value.
+	function commitRequired(key: string, raw: string) {
+		const values = requiredEdit(raw, control(key));
+		if (values) onSet(node.nameSpan, key, values);
 	}
 
 	/// Help for the operation itself.
@@ -174,7 +134,7 @@
 	/// A boolean has two values and a choice has a list, so picking one of those *is* the value.
 	/// Everything else needs typing, and until it is typed there is nothing worth recording.
 	function addParameter(key: string) {
-		const control = fieldOf(key)?.control;
+		const control = field(key)?.control;
 		if (control?.kind === 'boolean') onSet(node.nameSpan, key, ['true']);
 		else if (control?.kind === 'choice' && control.options.length > 0) onSet(node.nameSpan, key, [control.options[0]]);
 		else pending = key;
@@ -185,11 +145,11 @@
 		const key = pending;
 		pending = null;
 		if (!key) return;
-		const value = raw.trim();
-		if (value) onSet(node.nameSpan, key, control(key)?.kind === 'list' ? parts(value) : [value]);
+		const values = requiredEdit(raw, control(key));
+		if (values) onSet(node.nameSpan, key, values);
 	}
 
-	const control = (key: string) => fieldOf(key)?.control;
+	const control = (key: string) => field(key)?.control;
 </script>
 
 <div class="node">
@@ -248,11 +208,11 @@
 		<!-- Set parameters. A required one has no ×: you cannot remove what must exist, which is
 			     how that rule is said ([Q33]) — the same way the head node has no ×. -->
 		{#each node.properties as property (property.keySpan.start)}
-			{@const field = fieldOf(property.key)}
+			{@const field = fieldOf(meta?.fields ?? [], property.key)}
 			<NodeArgument
 				name={property.key}
 				{field}
-				value={text(property)}
+				value={valueText(property)}
 				help={field ? contentFor(property.key, field) : undefined}
 				suggestions={options(property.key, field?.control)}
 				onCommit={(raw) => commit(property, raw)}
@@ -278,7 +238,7 @@
 			     the document until there is something to record: `filename=''` parses and then fails
 			     when the pipeline is built. -->
 		{#if pending}
-			{@const field = fieldOf(pending)}
+			{@const field = fieldOf(meta?.fields ?? [], pending)}
 			<NodeArgument
 				name={pending}
 				{field}

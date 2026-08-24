@@ -4,6 +4,7 @@
 	import { token } from '../styles/tokens';
 	import { role } from './theme';
 	import { mapOverlay, NOTHING, type Overlay } from './overlay';
+	import { boxBetween, isRectangle, outside, rectangle, type BBox } from './crop-shape';
 
 	// The crop, on the map (F2, S5.2, S5.4).
 	//
@@ -31,80 +32,18 @@
 	}: {
 		map: MaplibreMap | undefined;
 		/** West, south, east, north — or `null` for no crop, when this draws nothing at all. */
-		bbox: [number, number, number, number] | null;
+		bbox: BBox | null;
 		/** Whether a drag on the map draws a new rectangle. */
 		drawing: boolean;
 		/** A rectangle was finished. The caller decides whether to leave drawing mode. */
-		onDrawn: (bbox: [number, number, number, number]) => void;
+		onDrawn: (bbox: BBox) => void;
 	} = $props();
 
 	const SOURCE = 'studio:crop';
 	const DRAFT = 'studio:crop-draft';
 
 	/// The rectangle being dragged right now, which is what gets drawn while a drag is in flight.
-	let dragged = $state<[number, number, number, number] | null>(null);
-
-	/// The rectangle itself, for the draft. The committed crop wants the opposite of this.
-	function rectangle(box: [number, number, number, number]) {
-		const [west, south, east, north] = box;
-		return {
-			type: 'FeatureCollection' as const,
-			features: [
-				{
-					type: 'Feature' as const,
-					properties: {},
-					geometry: {
-						type: 'Polygon' as const,
-						coordinates: [
-							[
-								[west, south],
-								[east, south],
-								[east, north],
-								[west, north],
-								[west, south]
-							]
-						]
-					}
-				}
-			]
-		};
-	}
-
-	/// The world, with the crop punched out of it — or nothing, when there is no crop.
-	///
-	/// The outer ring stops at the Web Mercator limit rather than at the pole: beyond it there is no
-	/// map to dim, and a polygon reaching ±90 projects to infinity.
-	function outside(box: [number, number, number, number]) {
-		const [west, south, east, north] = box;
-		return {
-			type: 'FeatureCollection' as const,
-			features: [
-				{
-					type: 'Feature' as const,
-					properties: {},
-					geometry: {
-						type: 'Polygon' as const,
-						coordinates: [
-							[
-								[-180, -85.05],
-								[180, -85.05],
-								[180, 85.05],
-								[-180, 85.05],
-								[-180, -85.05]
-							],
-							[
-								[west, south],
-								[east, south],
-								[east, north],
-								[west, north],
-								[west, south]
-							]
-						]
-					}
-				}
-			]
-		};
-	}
+	let dragged = $state<BBox | null>(null);
 
 	/// The two overlays, once the map exists. Held so the effect below redraws rather than rebuilds.
 	let committed = $state<Overlay | null>(null);
@@ -208,28 +147,19 @@
 
 		let from: LngLat | null = null;
 
-		const box = (a: LngLat, b: LngLat): [number, number, number, number] => [
-			Math.min(a.lng, b.lng),
-			Math.min(a.lat, b.lat),
-			Math.max(a.lng, b.lng),
-			Math.max(a.lat, b.lat)
-		];
-
 		const down = (event: MapMouseEvent) => {
 			from = event.lngLat;
 			dragged = null;
 		};
 		const move = (event: MapMouseEvent) => {
-			if (from) dragged = box(from, event.lngLat);
+			if (from) dragged = boxBetween(from, event.lngLat);
 		};
 		const up = (event: MapMouseEvent) => {
 			if (!from) return;
-			const finished = box(from, event.lngLat);
+			const finished = boxBetween(from, event.lngLat);
 			from = null;
 			dragged = null;
-			// A click rather than a drag: two identical corners are not a crop, and treating one as
-			// an empty selection would clear the crop someone was only trying to look at.
-			if (finished[0] === finished[2] || finished[1] === finished[3]) return;
+			if (!isRectangle(finished)) return;
 			onDrawn(finished);
 		};
 
