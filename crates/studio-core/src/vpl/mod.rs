@@ -21,6 +21,7 @@
 
 mod ast;
 mod operations;
+mod semantics;
 mod validate;
 mod view;
 
@@ -29,6 +30,7 @@ mod tests;
 
 pub use ast::{Comment, LineCol, Node, Pipeline, Property, Quote, Span, Str, Token, TokenKind, Value};
 pub use operations::{Control, FieldInfo, OperationInfo, operations};
+pub use semantics::{Lang, Names, Role, role_of};
 pub use validate::{Diagnostic, validate};
 
 use versatiles_pipeline::vpl::{CstFile, VPLPipeline, parse_cst};
