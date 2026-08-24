@@ -35,8 +35,15 @@
 	import Views from './lib/map/Views.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { fitToBounds } from './lib/map/add-source';
-	import { styleFor } from './lib/map/style';
+	import { composeStyle, type StackEntry } from './lib/map/style';
 	import { sourceKind } from './lib/map/source-kind';
+	import { layersIn } from './lib/state/preview.svelte';
+
+	/// What a source that has never been styled looks like — the same default the core would create.
+	const UNSTYLED_SOURCE = {
+		kind: null,
+		appearance: { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} }
+	} as const;
 	import { forExport } from './lib/map/style-code';
 	import {
 		forgetRecent,
@@ -79,6 +86,7 @@
 		type Bounds,
 		type Estimate,
 		type Preview,
+		type Recipe,
 		type CopyPlan,
 		type Camera,
 		type Layout,
@@ -229,6 +237,7 @@
 			// missing it, so after a reload the inspector had nothing to show about a container the
 			// pipeline was plainly using (A6, A4).
 			await syncContainersToPipeline();
+			await mountEveryGraph();
 		});
 		void getPinned().then((found) => (pinned = found));
 		void writableFormats().then((loaded) => (formats = loaded));
@@ -309,8 +318,14 @@
 	/// the name is the mount, the style's source name and the `.vpl` filename at once.
 	async function rename(id: number, name: string) {
 		try {
+			// The stack is keyed by name and the mount moves with it, so the old entry is stale the
+			// moment this returns. Dropped rather than moved: the core remounts under the new name,
+			// and `mountEveryGraph` below rebuilds it from that — one source of truth, not two.
+			const before = graphs.find((graph) => graph.id === id)?.name ?? null;
 			await renameGraph(id, name);
+			if (before) preview.forget(before);
 			await refreshGraphs();
+			await mountEveryGraph();
 			if (id === currentGraph) pipeline = await getGraph(id);
 			await refreshPreview();
 		} catch (e) {
@@ -425,7 +440,11 @@
 	/// so what is left for the webview is deciding what to look at next.
 	async function removeGraphById(id: number) {
 		try {
+			// Read before it is gone: the stack is keyed by name, and afterwards there is nothing left
+			// to look the name up with — so its tiles would stay on the map for the rest of the session.
+			const gone = graphs.find((graph) => graph.id === id)?.name ?? null;
 			await removeGraph(id);
+			if (gone) preview.forget(gone);
 			await refreshGraphs();
 			// The core may have dropped the pin; ask rather than assume which way it went.
 			pinned = await getPinned();
@@ -451,6 +470,19 @@
 
 	async function refreshGraphs() {
 		graphs = await listGraphs().catch(() => []);
+	}
+
+	/// Builds every graph the project has, so the style can draw the whole stack (S6.5).
+	///
+	/// **On open, not on every refresh.** A project's graphs are one build apiece, which is a cost a
+	/// person expects when opening something and would not forgive on every keystroke — so `refresh`
+	/// still rebuilds only the graph being edited, and this fills in the rest once.
+	///
+	/// Graphs already built are skipped by `mountAll`, so calling this after adding a graph costs
+	/// exactly the new one.
+	async function mountEveryGraph() {
+		const unbuilt = graphs.filter((graph) => !(graph.name in preview.built)).map((graph) => graph.id);
+		if (unbuilt.length > 0) await preview.mountAll(unbuilt);
 	}
 
 	/// Moves the map to a node, or clears the pin when it is already there.
@@ -495,6 +527,9 @@
 			if (graphs.length > 0) pipeline = await getGraph(graphs[0].id);
 			pipelineRevision += 1;
 			await syncContainersToPipeline();
+			// Every graph, not just the one that opens — a style names them all (S6.5), and this is
+			// the moment a person is already waiting.
+			await mountEveryGraph();
 			await refreshPreview();
 			status = { kind: 'idle' };
 		} catch (e) {
@@ -606,22 +641,39 @@
 	/// raster until S6.3 and S6.6.
 	const composed = $derived.by(() => {
 		const recipe = styleRecipe.current;
-		const source = preview.last;
-		if (!recipe || !source || !serverUrl) return { style: null, basis: 'none' as const };
-		const sources = [{ name: source.name, tileUrl: source.tileUrl }];
-		const style = styleRecipe.source;
-		return styleFor(
-			style.appearance,
-			{
-				kind: sourceKind(source.info.tileFormat, source.info.tileSchema, preview.mountedLayers, style.kind).kind,
-				tileFormat: source.info.tileFormat,
-				layers: source.layers,
-				mountedLayers: preview.mountedLayers
-			},
-			sources,
+		if (!recipe || !serverUrl) return { style: null, bases: [] };
+
+		// **Pinned means "look at this node alone."** The stack is what a project draws; a pin is a
+		// question about one step of one graph, and stacking a basemap under it would answer a
+		// different one.
+		if (pinned && preview.last) {
+			return composeStyle([entryFor(preview.last, recipe)], serverUrl);
+		}
+
+		const names = Object.keys(preview.built);
+		const order = recipe.order.filter((name) => names.includes(name));
+		for (const name of names.sort()) if (!order.includes(name)) order.push(name);
+
+		return composeStyle(
+			order.map((name) => entryFor(preview.built[name], recipe)),
 			serverUrl
 		);
 	});
+
+	/// One source's place in the stack, from what was built and how the recipe says to draw it.
+	function entryFor(built: Preview, recipe: Recipe): StackEntry {
+		const style = recipe.sources[built.name] ?? UNSTYLED_SOURCE;
+		const layers = layersIn(built);
+		return {
+			name: built.name,
+			tileUrl: built.tileUrl,
+			appearance: style.appearance,
+			kind: sourceKind(built.info.tileFormat, built.info.tileSchema, layers, style.kind).kind,
+			tileFormat: built.info.tileFormat,
+			layers: built.layers,
+			mountedLayers: layers
+		};
+	}
 
 	const styled = $derived(composed.style);
 
@@ -971,7 +1023,13 @@
 	{:else if id === 'style'}
 		<StylePane
 			rendered={styled}
-			basis={composed.basis}
+			basis={composed.bases.find((entry) => entry.name === preview.last?.name)?.basis ?? 'none'}
+			stack={composed.bases}
+			editing={graphs.find((graph) => graph.id === currentGraph)?.name ?? null}
+			onSelect={(name) => {
+				const found = graphs.find((graph) => graph.name === name);
+				if (found) void selectGraph(found.id);
+			}}
 			source={preview.last
 				? {
 						tileFormat: preview.last.info.tileFormat,

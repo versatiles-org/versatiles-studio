@@ -171,6 +171,17 @@ export const commands = {
 	 */
 	setStyleRaster: (graph: number, raster: RasterAdjust_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_raster", { graph, raster })),
 	/**
+	 *  Sets the draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
+	 * 
+	 *  The whole list, not a move: a reorder is one gesture with one result, and "move this one up"
+	 *  would need the two ends to agree about what the list was before it — which is the disagreement
+	 *  `set_style_recolor` avoids the same way.
+	 * 
+	 *  Names that no graph has are kept rather than filtered. `Recipe::draw_order` ignores them, and
+	 *  dropping them here would lose a position for a graph that is only temporarily absent.
+	 */
+	setStyleOrder: (order: string[]) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_order", { order })),
+	/**
 	 *  Sets the global recolouring — hue, saturation, brightness, contrast and the rest (D1, D5).
 	 * 
 	 *  Takes the whole of it rather than one field at a time. The controls move together, the webview

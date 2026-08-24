@@ -76,6 +76,16 @@ let containers = $state<OpenedContainer[]>([]);
 let last = $state<Preview | null>(null);
 
 /**
+ * Every graph built this session, by name ([S6.5](../../../docs/scope-release-2.md)).
+ *
+ * **What the stack is drawn from.** A style names several sources now, so the map needs every
+ * graph's tiles and not only the one being edited. Built once — [`mountAll`] does it when a project
+ * opens, where a person already expects to wait — and refreshed one at a time afterwards, so typing
+ * costs exactly what it costs today rather than a job per graph per keystroke.
+ */
+let built = $state<Record<string, Preview>>({});
+
+/**
  * The mount currently drawn on the map, or `null` when nothing is.
  *
  * Kept rather than derived, because taking a layer off again needs the name it went on under and
@@ -84,12 +94,15 @@ let last = $state<Preview | null>(null);
  */
 let mountedName = $state<string | null>(null);
 
-/** The layers the mounted tiles actually contain, for deciding whether a preset can draw them. */
-const mountedLayers = $derived(
-	((last?.info.tileJson?.vector_layers ?? []) as { id?: string }[])
+/** The vector layers a preview's tiles actually contain, for deciding whether a preset can draw. */
+export function layersIn(preview: Preview | null | undefined): string[] {
+	return ((preview?.info.tileJson?.vector_layers ?? []) as { id?: string }[])
 		.map((layer) => layer.id)
-		.filter((id): id is string => typeof id === 'string')
-);
+		.filter((id): id is string => typeof id === 'string');
+}
+
+/** The layers the mounted tiles actually contain, for deciding whether a preset can draw them. */
+const mountedLayers = $derived(layersIn(last));
 
 /**
  * Opens a container and remembers it.
@@ -114,6 +127,38 @@ export const preview = {
 
 	get mountedLayers(): string[] {
 		return mountedLayers;
+	},
+
+	/** Every graph built this session, by name — the stack a style is composed over (S6.5). */
+	get built(): Record<string, Preview> {
+		return built;
+	},
+
+	/**
+	 * Builds every graph that has not been built yet.
+	 *
+	 * **Called when a project opens, not on every refresh.** Building all of them each time the text
+	 * changed would be a job apiece for tiles nobody is editing, which is the cost
+	 * `refresh` deliberately avoided before anything drew more than one source.
+	 *
+	 * Failures are per graph and silent here: one graph that will not build must not stop the others
+	 * arriving, and the one being edited reports its own problems through `refresh`.
+	 */
+	async mountAll(ids: number[]): Promise<void> {
+		const results = await Promise.all(ids.map((id) => mountGraph(id).catch(() => null)));
+		const next = { ...built };
+		for (const result of results) {
+			if (result) next[result.name] = result;
+		}
+		built = next;
+	},
+
+	/** Forgets a graph's tiles — for one that has been removed. */
+	forget(name: string): void {
+		if (!(name in built)) return;
+		const next = { ...built };
+		delete next[name];
+		built = next;
 	},
 
 	/** Opens a container and remembers it. See `mount`. */
@@ -169,6 +214,9 @@ export const preview = {
 
 		const result = outcome.kind === 'ready' ? outcome : null;
 		last = result;
+		// The edited graph's entry in the stack follows what was just built, so the map shows the
+		// edit rather than what this graph looked like when the project opened.
+		if (result && !pinned) built = { ...built, [result.name]: result };
 		if (!result) return { kind: 'shown' };
 
 		mountedName = result.name;

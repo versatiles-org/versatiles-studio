@@ -35,7 +35,7 @@ interface stays still, and then the interface moves over a shape that already wo
 | **S6.2**   | ~~Derive a style where a preset would draw nothing, instead of drawing none~~ — **done**; `styleFor` owns the decision and reports which of four routes produced the style, so the pane says when a preset was substituted. It refuses to derive over a format the map cannot read as vector                                                                                           | D2             |
 | **S6.3**   | ~~The raster imagery editor~~ — **done**; `RasterAdjust` carries hue, saturation, brightness, contrast, opacity and resampling in MapLibre's own units, and `rasterStyle` emits only the properties that were touched. Not a second reading of `Recolor`: only two of the five share a parameterisation                                                                                | D11            |
 | **S6.4**   | ~~Split the recipe's appearance into a tagged union and migrate `project.yaml` to manifest version 2~~ — **done**; `Recipe` is now one `SourceStyle` per source, keyed by graph name, with `Appearance` as a `vector`/`raster` union. A version-1 recipe migrates onto the first graph. Renaming a graph carries its style with it, which `rename_graph` had been waiting for since S4 | infrastructure |
-| **S6.5**   | The source stack. **Renderer done**: `composeStyle` draws N sources bottom-first, renaming colliding layer _and source_ keys only when more than one draws, and `Recipe::order` carries the position through renames. **Still to do**: mounting every graph rather than only the previewed one, and the stack UI — see the note below                                                  | D1, D11        |
+| **S6.5**   | ~~The source stack: one style over several graphs, drawn bottom-up~~ — **done**; `composeStyle` draws N sources and renames colliding layer _and source_ keys only when more than one draws, `Recipe::order` carries positions through renames, and every graph is built when a project opens rather than on every keystroke. Reordering is up/down rather than drag                   | D1, D11        |
 | **S6.6**   | The DEM editor: a `raster-dem` source with the encoding the container declares, a `hillshade` layer, and controls for exaggeration, azimuth, altitude and the three colours                                                                                                                                                                                                            | D12            |
 | **S6.7\*** | Settle the override collision within a source — key overrides by preset, or prune them with a visible notice. Either beats today's silent rot                                                                                                                                                                                                                                          | infrastructure |
 
@@ -73,28 +73,19 @@ has hit the case.
 **Terrain.** D12 names 3-D terrain as in scope only if 3-D is; hillshade is the deliverable and stands
 on its own.
 
-## S6.5's open question: what gets mounted
+## What S6.5 settled: every graph is built when a project opens
 
-The renderer is done and tested; what it has nothing to draw is the rest of the stack. Today
-`preview.refresh` mounts **one** graph — whichever is selected — and `preview.svelte.ts` says why:
+`preview.refresh` used to mount one graph, and `preview.svelte.ts` said why — building all of them on
+every refresh is "a job apiece for tiles nobody draws". Something draws them now, so the cost had to
+land somewhere, and it lands **on open**: `mountAll` builds every graph a project has at the moment a
+person is already waiting for it, and `refresh` still rebuilds only the graph being edited. Typing
+costs exactly what it cost before.
 
-> [Q32] wants every graph mounted so a style can name them all. That arrives with the style at S4 —
-> until something renders them, building every graph on every refresh is a job apiece for tiles
-> nobody draws.
+Three paths keep the stack honest afterwards, each because it is keyed by name: adding a graph is
+covered by the refresh that follows it, removing one calls `preview.forget` **before** the name is
+gone, and renaming drops the old entry and rebuilds under the new one rather than moving it — the
+core remounts anyway, and two sources of truth for one mount is how they drift.
 
-Something renders them now, so the deferral has expired and the cost is real: every graph in a
-project is a pipeline to build. Three ways to pay it —
-
-**Mount every graph when a project opens, rebuild only the edited one on refresh.** The cost lands
-where a person already expects to wait, and steady-state editing is exactly as cheap as it is today.
-Recommended: it is the only option that makes a stack complete without making typing slower.
-
-**Mount lazily, compose over whatever has been visited.** Free, and already half true — a mount is
-keyed by name and nothing unmounts on a graph switch, so each graph visited stays served. But a
-freshly opened project shows only the graph it opens on, and a basemap appears when you click it,
-which reads as a bug.
-
-**Mount every graph on every refresh.** What the comment above warns against.
-
-The decision changes how long a project takes to open, so it wants making deliberately rather than
-falling out of an implementation.
+**Reordering is up/down, not drag.** It is reachable from a keyboard, it cannot drop a source
+somewhere nobody meant, and the list is short enough that two clicks is not a chore. Drag can be
+added later without changing anything below it: the command takes the whole order, not a move.

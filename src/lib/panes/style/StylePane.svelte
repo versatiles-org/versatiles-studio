@@ -29,12 +29,48 @@
 		/** Which route produced `rendered` (S6.2). A preset that could not draw these tiles is
 		 *  replaced by derived layers, and the person who picked it should be told rather than left
 		 *  to notice the map does not match the preset they chose. */
-		basis = 'none'
+		basis = 'none',
+		/** The stack, bottom first, and what each source is doing (S6.5). One entry until a project
+		 *  holds more than one graph, and then the reason a basemap can sit under data. */
+		stack = [],
+		/** Which source the pane is editing — the selected graph. */
+		editing = null,
+		/** Selects a graph from the stack. */
+		onSelect = undefined
 	}: {
 		rendered?: StyleSpecification | null;
 		source?: { tileFormat: string; tileSchema: string | null; layers: string[] } | null;
 		basis?: StyleBasis;
+		stack?: { name: string; basis: StyleBasis }[];
+		editing?: string | null;
+		onSelect?: (name: string) => void;
 	} = $props();
+
+	/// The stack reads top-down, which is the reverse of how it is drawn.
+	///
+	/// **Because that is how a map looks.** `Recipe.order` is bottom-first, since that is the order
+	/// layers are emitted in; a person reading a list of what is on top of what expects the top at
+	/// the top. Reversing here rather than storing it that way keeps the file matching the render.
+	const rows = $derived([...stack].reverse());
+
+	/// What a source is contributing, said plainly rather than as a term of art.
+	const DRAWN_AS: Record<StyleBasis, string> = {
+		preset: '',
+		derived: 'from its own layers',
+		fallback: 'from its own layers',
+		raster: 'as an image',
+		none: 'not drawn'
+	};
+
+	/// Moves one source up or down the stack, and records the whole list.
+	function move(name: string, by: number): void {
+		const order = stack.map((entry) => entry.name);
+		const at = order.indexOf(name);
+		const to = at + by;
+		if (at < 0 || to < 0 || to >= order.length) return;
+		[order[at], order[to]] = [order[to], order[at]];
+		void style.setOrder(order);
+	}
 
 	const PRESETS: { id: Preset; label: string; note: string }[] = [
 		{ id: 'colorful', label: 'Colorful', note: 'the default, full colour' },
@@ -228,6 +264,29 @@
 
 {#if recipe}
 	<section class="style-pane">
+		{#if rows.length > 1}
+			<h2 class="section-label">Sources</h2>
+			<!-- Up and down rather than drag: it is reachable from a keyboard, it cannot drop a source
+			     somewhere nobody meant, and the order is short enough that two clicks is not a chore. -->
+			<ul class="stack">
+				{#each rows as row (row.name)}
+					<li class:editing={row.name === editing}>
+						<button type="button" class="pick" onclick={() => onSelect?.(row.name)}>
+							<span class="label">{row.name}</span>
+							{#if DRAWN_AS[row.basis]}<span class="note">{DRAWN_AS[row.basis]}</span>{/if}
+						</button>
+						<button type="button" class="nudge" onclick={() => move(row.name, 1)} aria-label="Move {row.name} up"
+							>↑</button
+						>
+						<button type="button" class="nudge" onclick={() => move(row.name, -1)} aria-label="Move {row.name} down"
+							>↓</button
+						>
+					</li>
+				{/each}
+			</ul>
+			<p class="note">The top of this list draws on top of the map.</p>
+		{/if}
+
 		{#if reading}
 			<h2 class="section-label">These tiles</h2>
 			<label class="kind">
@@ -486,6 +545,54 @@
 	   present — so it reads as a statement rather than as small print under a control. */
 	/* A statement about what the map is showing, not a hint about a control — so it sits above the
 	   presets rather than under them, and reads before the thing it is explaining. */
+	.stack {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+
+		li {
+			display: flex;
+			align-items: center;
+			gap: var(--space-1);
+		}
+
+		li.editing .label {
+			font-weight: 600;
+		}
+
+		.pick {
+			flex: 1 1 auto;
+			min-width: 0;
+			display: flex;
+			align-items: baseline;
+			gap: var(--space-2);
+			text-align: left;
+			background: none;
+			border: none;
+			padding: var(--space-1) var(--space-2);
+			color: inherit;
+			cursor: pointer;
+		}
+
+		.label {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+
+		.nudge {
+			flex: 0 0 auto;
+			background: none;
+			border: none;
+			color: var(--ink-2);
+			cursor: pointer;
+			padding: var(--space-1);
+		}
+	}
+
 	.substituted {
 		border-left: 2px solid var(--rule);
 		padding-left: var(--space-2);

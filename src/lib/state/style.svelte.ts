@@ -19,6 +19,7 @@ import {
 	setStyleRecolor,
 	setStyleKind,
 	setStyleRaster,
+	setStyleOrder,
 	setLayerOverride,
 	type LayerOverride,
 	type Preset,
@@ -166,6 +167,11 @@ export const style = {
 	/** Abandons the preview, e.g. when a gesture is cancelled. */
 	cancelRecolor(): void {
 		pending = null;
+	},
+
+	/** Sets the draw order, bottom first (S6.5). */
+	async setOrder(order: string[]): Promise<void> {
+		recipe = await setStyleOrder(order);
 	},
 
 	async setLayer(layer: string, patch: LayerOverride): Promise<void> {

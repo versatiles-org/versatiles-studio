@@ -114,6 +114,22 @@ pub async fn set_style_raster(
 	.await
 }
 
+/// Sets the draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
+///
+/// The whole list, not a move: a reorder is one gesture with one result, and "move this one up"
+/// would need the two ends to agree about what the list was before it — which is the disagreement
+/// `set_style_recolor` avoids the same way.
+///
+/// Names that no graph has are kept rather than filtered. `Recipe::draw_order` ignores them, and
+/// dropping them here would lose a position for a graph that is only temporarily absent.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_style_order(state: State<'_, AppState>, order: Vec<String>) -> Result<Recipe, String> {
+	let mut recipe = state.style.lock().await.clone();
+	recipe.order = order;
+	Ok(record(&state, recipe).await)
+}
+
 /// Corrects what a source's tiles are being read as (S6.1).
 ///
 /// `None` hands the question back to the webview's own reading. Changing the kind across the

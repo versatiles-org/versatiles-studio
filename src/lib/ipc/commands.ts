@@ -224,6 +224,9 @@ export const setStyleKind = (graph: number, kind: SourceKind | null) => unwrap(c
 /** Sets the whole raster adjustment at once (S6.3, D11). Same gesture rule as `setStyleRecolor`. */
 export const setStyleRaster = (graph: number, raster: RasterAdjust) => unwrap(commands.setStyleRaster(graph, raster));
 
+/** Sets the draw order, bottom first (S6.5). The whole list, not a move. */
+export const setStyleOrder = (order: string[]) => unwrap(commands.setStyleOrder(order));
+
 /**
  * Sets the whole global recolouring at once (D1, D5).
  *
