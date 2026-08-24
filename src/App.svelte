@@ -13,6 +13,7 @@
 	import { style as styleRecipe } from './lib/state/style.svelte';
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
 	import { preview } from './lib/state/preview.svelte';
+	import { layout } from './lib/state/layout.svelte';
 	import { status } from './lib/state/status.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import LandingScreen from './lib/common/LandingScreen.svelte';
@@ -31,7 +32,7 @@
 	import TileActivity from './lib/map/TileActivity.svelte';
 	import CropOverlay from './lib/map/CropOverlay.svelte';
 	import MapControls from './lib/map/MapControls.svelte';
-	import { buildBackground, isBackgroundId, type BackgroundId } from './lib/map/background';
+	import { buildBackground } from './lib/map/background';
 	import CoordinateJump from './lib/map/CoordinateJump.svelte';
 	import Views from './lib/map/Views.svelte';
 	import { defaultStyle } from './lib/map/default-style';
@@ -43,7 +44,6 @@
 		forgetRecent,
 		takeOpened,
 		OPENED_EVENT,
-		getLayout,
 		listGraphs,
 		setPin,
 		getPinned,
@@ -62,7 +62,6 @@
 		redo as redoPipeline,
 		recentSources,
 		serverBaseUrl,
-		setLayout,
 		saveProject,
 		openProject,
 		isProject,
@@ -81,8 +80,6 @@
 		type Estimate,
 		type Preview,
 		type CopyPlan,
-		type Camera,
-		type Layout,
 		type OperationInfo,
 		type Span,
 		importKinds,
@@ -110,7 +107,6 @@
 
 	let style = $state<StyleSpecification | null>(null);
 	let map = $state<MaplibreMap | undefined>();
-	let layout = $state<Layout | null>(null);
 	/** This window's pipeline. The core owns it (Q25); this is a copy to render. */
 	/// The graph being edited. One document at a time on screen; the project holds several (Q32),
 	/// and the graph list that lets you switch between them is S2.13.
@@ -182,8 +178,7 @@
 	]);
 	let serverUrl = $state<string | null>(null);
 
-	/** A value from an older build is not trusted — the catalogue decides what exists. */
-	const background = $derived<BackgroundId>(isBackgroundId(layout?.background) ? layout.background : 'none');
+	const background = $derived(layout.background);
 
 	/// Which surface is open (Q22, S4.1). Core-owned, so a reloaded window comes back to it.
 	///
@@ -211,7 +206,7 @@
 		// starts.
 		void connectJobs();
 		void refreshRecents();
-		void getLayout().then((loaded) => (layout = loaded));
+		void layout.load();
 		void vplOperations().then((loaded) => (operations = loaded));
 		// The style survives a reload the way the graphs do — the core owns it ([Q36]).
 		void styleRecipe.load();
@@ -265,15 +260,6 @@
 		const name = newest ? (newest.split(/[/\\]/).pop() ?? newest) : null;
 		void getCurrentWindow().setTitle(name ? `${name} — VersaTiles Studio` : 'VersaTiles Studio');
 	});
-
-	// A drag repaints on every pointer move but only writes on release — otherwise a single resize
-	// would be a few hundred file writes.
-	function resizePane(side: 'left' | 'right', width: number, done: boolean) {
-		if (!layout) return;
-		const next = side === 'left' ? { ...layout, leftWidth: width } : { ...layout, rightWidth: width };
-		if (done) void changeLayout(next);
-		else layout = next;
-	}
 
 	// Applied locally first so a collapse paints without waiting on the round trip, then persisted.
 	// The core clamps, so what comes back is authoritative and replaces the optimistic copy.
@@ -562,40 +548,10 @@
 		}
 	}
 
-	async function changeLayout(next: Layout) {
-		layout = next;
-		layout = await setLayout(next).catch(() => next);
-	}
-
-	/**
-	 * Remembers where the camera came to rest, so a reloaded window is looking where it was (Q16).
-	 *
-	 * Coalesced for the same reason a pane drag only writes on release: one scroll-zoom settles
-	 * several times, and each would otherwise be its own atomic write. `layout` is read when the
-	 * timer fires rather than when it is set, so a collapse in between is not undone.
-	 */
-	let viewTimer: ReturnType<typeof setTimeout> | undefined;
-	function rememberView(view: Camera) {
-		clearTimeout(viewTimer);
-		viewTimer = setTimeout(() => {
-			if (layout) void changeLayout({ ...layout, view });
-		}, 400);
-	}
-
 	/// The panes belonging to one sidebar, in the order the layout remembers (Q31).
 	///
 	/// `panes` is optional in the generated type only because `Layout` carries serde's `default` for
 	/// the file it is read from — a command always returns the reconciled list.
-	const panesOn = (side: 'left' | 'right') => (layout?.panes ?? []).filter((pane) => pane.side === side);
-
-	/// Folding a pane is durable state, so it goes to the core like the widths do (Q16).
-	function togglePane(id: string, open: boolean) {
-		if (!layout) return;
-		void changeLayout({
-			...layout,
-			panes: layout.panes?.map((pane) => (pane.id === id ? { ...pane, open } : pane))
-		});
-	}
 
 	/// Returns the bar to quiet, without swallowing anything it still has to say.
 	///
@@ -1013,19 +969,19 @@
 {/snippet}
 
 {#snippet leftPaneContent()}
-	<Sidebar panes={panesOn('left')} onToggle={togglePane} content={paneContent} />
+	<Sidebar panes={layout.on('left')} onToggle={(id, open) => layout.toggle(id, open)} content={paneContent} />
 {/snippet}
 
 {#snippet rightPaneContent()}
-	<Sidebar panes={panesOn('right')} onToggle={togglePane} content={paneContent} />
+	<Sidebar panes={layout.on('right')} onToggle={(id, open) => layout.toggle(id, open)} content={paneContent} />
 {/snippet}
 
 <AppShell
-	leftPane={empty || !layout ? undefined : leftPaneContent}
-	leftWidth={layout?.leftWidth}
-	onLeftResize={(width, done) => resizePane('left', width, done)}
-	rightWidth={layout?.rightWidth}
-	onRightResize={(width, done) => resizePane('right', width, done)}
+	leftPane={empty || !layout.current ? undefined : leftPaneContent}
+	leftWidth={layout.current?.leftWidth}
+	onLeftResize={(width, done) => layout.resize('left', width, done)}
+	rightWidth={layout.current?.rightWidth}
+	onRightResize={(width, done) => layout.resize('right', width, done)}
 	rightPane={empty ? undefined : rightPaneContent}
 >
 	{#snippet appBar()}
@@ -1042,8 +998,8 @@
 			<MapCanvas
 				{style}
 				bind:map
-				initialView={layout?.view ?? null}
-				onMove={rememberView}
+				initialView={layout.current?.view ?? null}
+				onMove={(view) => layout.rememberView(view)}
 				onStyleLoad={() => preview.restore(map, previewDrawn)}
 			/>
 		{/if}
@@ -1087,7 +1043,7 @@
 				{background}
 				{showGrid}
 				canReset={Boolean(preview.last?.info.bbox)}
-				onBackground={(id) => layout && void changeLayout({ ...layout, background: id })}
+				onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
 				onToggleGrid={() => (showGrid = !showGrid)}
 				onReset={resetView}
 			/>
