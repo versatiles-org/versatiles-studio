@@ -237,6 +237,49 @@ pub enum Resampling {
 	Nearest,
 }
 
+/// How elevation is packed into a DEM's pixels.
+///
+/// **Two, because those are the two MapLibre can decode.** `versatiles_core` also names
+/// `dem/versatiles`, and nothing published says how to unpack it — a guess would render plausible
+/// hillshade of the wrong mountains, which is worse than saying so. The picker offers these and the
+/// pane says when a container declares something it cannot draw.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+#[serde(rename_all = "lowercase")]
+pub enum DemEncoding {
+	Mapbox,
+	Terrarium,
+}
+
+/// How elevation is drawn as relief ([S6.6](../../../docs/scope-release-2.md), D12).
+///
+/// **`None` is "leave it alone"**, as everywhere else here: an untouched setting serialises to
+/// nothing, so a fresh recipe and an untouched one compare equal and the undo stack stays quiet.
+#[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct Hillshade {
+	/// `None` takes the container's declared schema, which is right whenever there is one.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub encoding: Option<DemEncoding>,
+	/// `0` to `1`, how hard the relief is pushed.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub exaggeration: Option<f32>,
+	/// Where the light comes from, in degrees.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub direction: Option<f32>,
+	/// How high the light sits, `0` (horizon) to `90` (overhead).
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub altitude: Option<f32>,
+	/// Hex colours, as MapLibre takes them.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub shadow: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub highlight: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub accent: Option<String>,
+}
+
 /// How one source is drawn ([S6.4](../../../docs/scope-release-2.md)).
 ///
 /// **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
@@ -257,6 +300,8 @@ pub enum Appearance {
 	},
 	/// Raster tiles drawn as an image, adjusted (D11).
 	Raster { adjust: RasterAdjust },
+	/// Raster tiles holding elevation, drawn as relief (D12).
+	Hillshade { shade: Hillshade },
 }
 
 impl Default for Appearance {
@@ -272,13 +317,16 @@ impl Default for Appearance {
 impl Appearance {
 	/// The appearance a source of this kind starts with.
 	///
-	/// Elevation gets the raster variant too: nothing draws a DEM until S6.6, and giving it a preset
-	/// it cannot use would be the old mistake in a new place.
+	/// Each kind gets the appearance that can actually describe it — giving a DEM a preset it cannot
+	/// use would be the old mistake in a new place.
 	#[must_use]
 	pub fn for_kind(kind: Option<SourceKind>) -> Self {
 		match kind {
-			Some(SourceKind::RasterImage | SourceKind::RasterDem) => Self::Raster {
+			Some(SourceKind::RasterImage) => Self::Raster {
 				adjust: RasterAdjust::default(),
+			},
+			Some(SourceKind::RasterDem) => Self::Hillshade {
+				shade: Hillshade::default(),
 			},
 			_ => Self::default(),
 		}
@@ -603,7 +651,7 @@ mod tests {
 	fn overrides_of(recipe: &Recipe) -> &BTreeMap<String, LayerOverride> {
 		match &recipe.source(GRAPH).expect("the source is styled").appearance {
 			Appearance::Vector { overrides, .. } => overrides,
-			Appearance::Raster { .. } => panic!("expected a vector appearance"),
+			other => panic!("expected a vector appearance, got {other:?}"),
 		}
 	}
 

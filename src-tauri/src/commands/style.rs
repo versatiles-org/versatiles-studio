@@ -15,7 +15,7 @@
 use crate::state::AppState;
 use studio_core::graphs::GraphId;
 use studio_core::history::{EditKind, Target};
-use studio_core::style::{Appearance, LayerOverride, Preset, RasterAdjust, Recipe, Recolor, SourceKind};
+use studio_core::style::{Appearance, Hillshade, LayerOverride, Preset, RasterAdjust, Recipe, Recolor, SourceKind};
 use tauri::{AppHandle, State};
 
 /// The recipe as it stands.
@@ -114,6 +114,22 @@ pub async fn set_style_raster(
 	.await
 }
 
+/// Sets the hillshade settings for an elevation source ([S6.6](../../../docs/scope-release-2.md), D12).
+///
+/// Whole-struct, like the recolour and the raster adjustment above, and for the same reason.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_style_hillshade(
+	state: State<'_, AppState>,
+	graph: GraphId,
+	shade: Hillshade,
+) -> Result<Recipe, String> {
+	edit(&state, graph, Some(SourceKind::RasterDem), |style| {
+		style.appearance = Appearance::Hillshade { shade };
+	})
+	.await
+}
+
 /// Sets the draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
 ///
 /// The whole list, not a move: a reorder is one gesture with one result, and "move this one up"
@@ -144,9 +160,12 @@ pub async fn set_style_kind(
 	kind: Option<SourceKind>,
 ) -> Result<Recipe, String> {
 	edit(&state, graph, kind, |style| {
-		let wants_vector = !matches!(kind, Some(SourceKind::RasterImage | SourceKind::RasterDem));
-		if wants_vector != style.appearance.is_vector() {
-			style.appearance = Appearance::for_kind(kind);
+		// **Compared by variant, not by a vector/raster flag.** There are three appearances now, and
+		// imagery and elevation are as different from each other as either is from a preset — a
+		// boolean would have left a DEM holding raster adjustments it has no use for.
+		let wanted = Appearance::for_kind(kind);
+		if std::mem::discriminant(&style.appearance) != std::mem::discriminant(&wanted) {
+			style.appearance = wanted;
 		}
 		style.kind = kind;
 	})

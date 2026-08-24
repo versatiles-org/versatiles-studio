@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { composeStyle, deriveStyle, drawsAnything, rasterPaint, renderStyle, styleFor } from './style';
+import {
+	composeStyle,
+	demEncoding,
+	deriveStyle,
+	drawsAnything,
+	hillshadePaint,
+	hillshadeStyle,
+	rasterPaint,
+	renderStyle,
+	styleFor
+} from './style';
 import type { Appearance } from '../ipc/commands';
 import type { VectorAppearance } from './style';
 
@@ -403,5 +413,68 @@ describe('composeStyle', () => {
 
 	it('is empty for an empty stack', () => {
 		expect(composeStyle([], BASE)).toEqual({ style: null, bases: [] });
+	});
+});
+
+describe('hillshade', () => {
+	const shade = (over: Record<string, unknown> = {}) => ({ ...over }) as never;
+
+	it('reads the encoding the container declares', () => {
+		expect(demEncoding('dem/mapbox')).toBe('mapbox');
+		expect(demEncoding('dem/terrarium')).toBe('terrarium');
+	});
+
+	// Nothing published says how VersaTiles packs elevation, and MapLibre's `custom` needs three
+	// channel factors and a shift. A guess would draw convincing relief of the wrong mountains.
+	it('refuses an encoding it cannot decode', () => {
+		expect(demEncoding('dem/versatiles')).toBeNull();
+		expect(demEncoding(null)).toBeNull();
+		expect(demEncoding('rgb')).toBeNull();
+	});
+
+	it('draws relief from a declared encoding', () => {
+		const style = hillshadeStyle(shade(), 'dem/terrarium', SOURCES)!;
+		expect(style.layers[0].type).toBe('hillshade');
+		expect((style.sources.berlin as { type: string; encoding: string }).encoding).toBe('terrarium');
+	});
+
+	// The container may not say, or may say something unusable — so the recipe can.
+	it('lets the recipe settle an encoding the container does not', () => {
+		expect(hillshadeStyle(shade(), 'dem/versatiles', SOURCES)).toBeNull();
+		const chosen = hillshadeStyle(shade({ encoding: 'mapbox' }), 'dem/versatiles', SOURCES)!;
+		expect((chosen.sources.berlin as { encoding: string }).encoding).toBe('mapbox');
+	});
+
+	it('emits only the settings that were touched', () => {
+		expect(hillshadePaint(shade())).toEqual({});
+		expect(hillshadePaint(shade({ exaggeration: 0.8, direction: 200, shadow: '#102030' }))).toEqual({
+			'hillshade-exaggeration': 0.8,
+			'hillshade-illumination-direction': 200,
+			'hillshade-shadow-color': '#102030'
+		});
+	});
+
+	it('goes through styleFor when the source is elevation', () => {
+		const { style, basis } = styleFor(
+			{ type: 'hillshade', shade: {} } as never,
+			{ kind: 'rasterDem', tileFormat: 'png', tileSchema: 'dem/mapbox', layers: [], mountedLayers: [] },
+			SOURCES,
+			BASE
+		);
+		expect(basis).toBe('hillshade');
+		expect(style!.layers[0].type).toBe('hillshade');
+	});
+
+	// Without a usable encoding the container layer `preview` already added stays — the encoded
+	// colours, which are wrong as a map but honest as a picture.
+	it('draws nothing when the encoding is unknown', () => {
+		expect(
+			styleFor(
+				{ type: 'hillshade', shade: {} } as never,
+				{ kind: 'rasterDem', tileFormat: 'png', tileSchema: 'dem/versatiles', layers: [], mountedLayers: [] },
+				SOURCES,
+				BASE
+			).basis
+		).toBe('none');
 	});
 });

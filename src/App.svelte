@@ -670,6 +670,7 @@
 			appearance: style.appearance,
 			kind: sourceKind(built.info.tileFormat, built.info.tileSchema, layers, style.kind).kind,
 			tileFormat: built.info.tileFormat,
+			tileSchema: built.info.tileSchema,
 			layers: built.layers,
 			mountedLayers: layers
 		};

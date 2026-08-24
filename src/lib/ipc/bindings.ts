@@ -182,6 +182,12 @@ export const commands = {
 	 */
 	setStyleOrder: (order: string[]) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_order", { order })),
 	/**
+	 *  Sets the hillshade settings for an elevation source ([S6.6](../../../docs/scope-release-2.md), D12).
+	 * 
+	 *  Whole-struct, like the recolour and the raster adjustment above, and for the same reason.
+	 */
+	setStyleHillshade: (graph: number, shade: Hillshade_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_hillshade", { graph, shade })),
+	/**
 	 *  Sets the global recolouring — hue, saturation, brightness, contrast and the rest (D1, D5).
 	 * 
 	 *  Takes the whole of it rather than one field at a time. The controls move together, the webview
@@ -592,9 +598,11 @@ export type Appearance_Deserialize =
 /**  Vector tiles: a preset, the adjustments over it, and whatever layers were changed by hand. */
 ({ type: "vector"; preset: Preset; recolor: Recolor_Deserialize; 
 /**  By layer id. Empty for a style nobody has edited by hand. */
-overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never } | 
+overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never; shade?: never } | 
 /**  Raster tiles drawn as an image, adjusted (D11). */
-({ type: "raster"; adjust: RasterAdjust_Deserialize }) & { overrides?: never; preset?: never; recolor?: never };
+({ type: "raster"; adjust: RasterAdjust_Deserialize }) & { overrides?: never; preset?: never; recolor?: never; shade?: never } | 
+/**  Raster tiles holding elevation, drawn as relief (D12). */
+({ type: "hillshade"; shade: Hillshade_Deserialize }) & { adjust?: never; overrides?: never; preset?: never; recolor?: never };
 
 /**
  *  How one source is drawn ([S6.4](../../../docs/scope-release-2.md)).
@@ -609,9 +617,11 @@ export type Appearance_Serialize =
 /**  Vector tiles: a preset, the adjustments over it, and whatever layers were changed by hand. */
 ({ type: "vector"; preset: Preset; recolor: Recolor_Serialize; 
 /**  By layer id. Empty for a style nobody has edited by hand. */
-overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never } | 
+overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; shade?: never } | 
 /**  Raster tiles drawn as an image, adjusted (D11). */
-({ type: "raster"; adjust: RasterAdjust_Serialize }) & { overrides?: never; preset?: never; recolor?: never };
+({ type: "raster"; adjust: RasterAdjust_Serialize }) & { overrides?: never; preset?: never; recolor?: never; shade?: never } | 
+/**  Raster tiles holding elevation, drawn as relief (D12). */
+({ type: "hillshade"; shade: Hillshade_Serialize }) & { adjust?: never; overrides?: never; preset?: never; recolor?: never };
 
 /**
  *  Whether Studio will offer to write this path.
@@ -723,6 +733,16 @@ export type CopyPlan = {
 	 */
 	missing: Reference[],
 };
+
+/**
+ *  How elevation is packed into a DEM's pixels.
+ * 
+ *  **Two, because those are the two MapLibre can decode.** `versatiles_core` also names
+ *  `dem/versatiles`, and nothing published says how to unpack it — a guess would render plausible
+ *  hillshade of the wrong mountains, which is worse than saying so. The picker offers these and the
+ *  pane says when a container declares something it cannot draw.
+ */
+export type DemEncoding = "mapbox" | "terrarium";
 
 /**  A problem with a position, ready for the editor to underline. */
 export type Diagnostic = {
@@ -850,6 +870,56 @@ export type GraphInfo = {
 	dirty: boolean,
 	/**  What an export of this graph is narrowed to (F2, S5.2) — empty until someone sets one. */
 	crop: Bounds,
+};
+
+/**
+ *  How elevation is drawn as relief ([S6.6](../../../docs/scope-release-2.md), D12).
+ * 
+ *  **`None` is "leave it alone"**, as everywhere else here: an untouched setting serialises to
+ *  nothing, so a fresh recipe and an untouched one compare equal and the undo stack stays quiet.
+ */
+export type Hillshade = Hillshade_Serialize | Hillshade_Deserialize;
+
+/**
+ *  How elevation is drawn as relief ([S6.6](../../../docs/scope-release-2.md), D12).
+ * 
+ *  **`None` is "leave it alone"**, as everywhere else here: an untouched setting serialises to
+ *  nothing, so a fresh recipe and an untouched one compare equal and the undo stack stays quiet.
+ */
+export type Hillshade_Deserialize = {
+	/**  `None` takes the container's declared schema, which is right whenever there is one. */
+	encoding?: DemEncoding | null,
+	/**  `0` to `1`, how hard the relief is pushed. */
+	exaggeration?: number | null,
+	/**  Where the light comes from, in degrees. */
+	direction?: number | null,
+	/**  How high the light sits, `0` (horizon) to `90` (overhead). */
+	altitude?: number | null,
+	/**  Hex colours, as MapLibre takes them. */
+	shadow?: string | null,
+	highlight?: string | null,
+	accent?: string | null,
+};
+
+/**
+ *  How elevation is drawn as relief ([S6.6](../../../docs/scope-release-2.md), D12).
+ * 
+ *  **`None` is "leave it alone"**, as everywhere else here: an untouched setting serialises to
+ *  nothing, so a fresh recipe and an untouched one compare equal and the undo stack stays quiet.
+ */
+export type Hillshade_Serialize = {
+	/**  `None` takes the container's declared schema, which is right whenever there is one. */
+	encoding?: DemEncoding | null,
+	/**  `0` to `1`, how hard the relief is pushed. */
+	exaggeration?: number | null,
+	/**  Where the light comes from, in degrees. */
+	direction?: number | null,
+	/**  How high the light sits, `0` (horizon) to `90` (overhead). */
+	altitude?: number | null,
+	/**  Hex colours, as MapLibre takes them. */
+	shadow?: string | null,
+	highlight?: string | null,
+	accent?: string | null,
 };
 
 /**  One way of bringing data in. */

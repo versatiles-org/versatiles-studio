@@ -20,6 +20,7 @@ import {
 	setStyleKind,
 	setStyleRaster,
 	setStyleOrder,
+	setStyleHillshade,
 	setLayerOverride,
 	type LayerOverride,
 	type Preset,
@@ -27,7 +28,8 @@ import {
 	type Recolor,
 	type SourceKind,
 	type RasterAdjust,
-	type SourceStyle
+	type SourceStyle,
+	type Hillshade
 } from '../ipc/commands';
 
 /** The recipe as the core last reported it. `null` until the first read. */
@@ -167,6 +169,11 @@ export const style = {
 	/** Abandons the preview, e.g. when a gesture is cancelled. */
 	cancelRecolor(): void {
 		pending = null;
+	},
+
+	/** Records the hillshade settings as one undo entry (S6.6, D12). */
+	async setHillshade(shade: Hillshade): Promise<void> {
+		if (graph) recipe = await setStyleHillshade(graph.id, shade);
 	},
 
 	/** Sets the draw order, bottom first (S6.5). */

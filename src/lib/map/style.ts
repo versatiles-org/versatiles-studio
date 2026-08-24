@@ -17,7 +17,15 @@
 
 import { colorful, eclipse, graybeard, neutrino, satellite, shadow } from '@versatiles/style';
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
-import type { Appearance, LayerOverride, RasterAdjust, SourceKind, SourceStyle } from '../ipc/commands';
+import type {
+	Appearance,
+	DemEncoding,
+	Hillshade,
+	LayerOverride,
+	RasterAdjust,
+	SourceKind,
+	SourceStyle
+} from '../ipc/commands';
 import { throughQueue } from './tile-queue';
 import { renderableAs } from './tile-format';
 
@@ -172,6 +180,72 @@ export function rasterStyle(
 }
 
 /**
+ * The MapLibre encoding a container's schema means, or `null` when there is none it can decode.
+ *
+ * **`dem/versatiles` deliberately returns `null`.** MapLibre knows `mapbox`, `terrarium` and a
+ * `custom` unpacking defined by three channel factors and a shift — and nothing published says what
+ * those are for VersaTiles' own encoding. Guessing would draw convincing relief of the wrong
+ * mountains, which is worse than drawing none and saying why.
+ */
+export function demEncoding(tileSchema: string | null | undefined): DemEncoding | null {
+	switch (tileSchema?.toLowerCase()) {
+		case 'dem/mapbox':
+			return 'mapbox';
+		case 'dem/terrarium':
+			return 'terrarium';
+		default:
+			return null;
+	}
+}
+
+/**
+ * The paint a hillshade means, with everything untouched left out (S6.6, D12).
+ */
+export function hillshadePaint(shade: Hillshade): Record<string, unknown> {
+	const paint: Record<string, unknown> = {};
+	if (shade.exaggeration != null) paint['hillshade-exaggeration'] = shade.exaggeration;
+	if (shade.direction != null) paint['hillshade-illumination-direction'] = shade.direction;
+	if (shade.altitude != null) paint['hillshade-illumination-altitude'] = shade.altitude;
+	if (shade.shadow) paint['hillshade-shadow-color'] = shade.shadow;
+	if (shade.highlight) paint['hillshade-highlight-color'] = shade.highlight;
+	if (shade.accent) paint['hillshade-accent-color'] = shade.accent;
+	return paint;
+}
+
+/**
+ * A style that draws one elevation source as relief (S6.6, D12).
+ *
+ * Returns `null` when the encoding is unknown — the recipe may say, and otherwise the container's
+ * schema does. Neither saying anything is the case that has to draw nothing: a `raster-dem` source
+ * with the wrong encoding produces relief that looks right and is not.
+ */
+export function hillshadeStyle(
+	shade: Hillshade,
+	tileSchema: string | null | undefined,
+	sources: StyleSource[]
+): StyleSpecification | null {
+	const source = sources[0];
+	const encoding = shade.encoding ?? demEncoding(tileSchema);
+	if (!source || !encoding) return null;
+
+	const paint = hillshadePaint(shade);
+	return {
+		version: 8,
+		sources: {
+			[source.name]: { type: 'raster-dem', tiles: [throughQueue(source.tileUrl)], encoding }
+		},
+		layers: [
+			{
+				id: `${source.name}:hillshade`,
+				type: 'hillshade',
+				source: source.name,
+				...(Object.keys(paint).length > 0 ? { paint } : {})
+			}
+		]
+	} as StyleSpecification;
+}
+
+/**
  * Which route produced the style on the map ([S6.2](../../../docs/scope-release-2.md)).
  *
  * The pane says which, because "your preset is not what you are looking at" is not something to
@@ -186,7 +260,9 @@ export type StyleBasis =
 	| 'fallback'
 	/** Drawn as imagery, with whatever adjustment the recipe carries (S6.3). */
 	| 'raster'
-	/** Nothing draws — elevation until S6.6, or a container with no layers to derive from. */
+	/** Drawn as relief from elevation data (S6.6). */
+	| 'hillshade'
+	/** Nothing draws — an unknown DEM encoding, or a container with no layers to derive from. */
 	| 'none';
 
 /**
@@ -203,11 +279,17 @@ export type StyleBasis =
  */
 export function styleFor(
 	appearance: Appearance,
-	target: { kind: SourceKind; tileFormat: string; layers: DerivableLayer[]; mountedLayers: string[] },
+	target: {
+		kind: SourceKind;
+		tileFormat: string;
+		tileSchema?: string | null;
+		layers: DerivableLayer[];
+		mountedLayers: string[];
+	},
 	sources: StyleSource[],
 	serverBaseUrl: string
 ): { style: StyleSpecification | null; basis: StyleBasis } {
-	const { kind, tileFormat, layers, mountedLayers } = target;
+	const { kind, tileFormat, tileSchema, layers, mountedLayers } = target;
 
 	// **The format has the final say over the kind.** `kind` can be a guess, and it can be something
 	// a person set by hand; neither makes MapLibre able to decode the bytes. A container whose format
@@ -221,9 +303,14 @@ export function styleFor(
 		return { style: rasterStyle(adjust, sources, serverBaseUrl), basis: 'raster' };
 	}
 
-	// Elevation is drawn as flat colour until S6.6 gives it hillshade. Returning `none` leaves the
-	// container layer `preview` already added in place, rather than covering it with a raster style
-	// that claims to be an adjustment of something it does not understand.
+	if (kind === 'rasterDem' && renderable === 'raster') {
+		const shade = appearance.type === 'hillshade' ? appearance.shade : {};
+		const style = hillshadeStyle(shade, tileSchema, sources);
+		// `null` means no encoding anyone here can decode. The container layer `preview` already
+		// added stays, which shows the encoded colours — wrong as a map, honest as a picture.
+		return style ? { style, basis: 'hillshade' } : { style: null, basis: 'none' };
+	}
+
 	if (!isVectorKind(kind) || renderable !== 'vector') return { style: null, basis: 'none' };
 
 	// A raster appearance on a vector source has nothing to say; derive rather than draw nothing.
@@ -362,6 +449,8 @@ export interface StackEntry {
 	appearance: Appearance;
 	kind: SourceKind;
 	tileFormat: string;
+	/** What the container says its tiles hold, for reading a DEM's encoding (S6.6). */
+	tileSchema?: string | null;
 	layers: DerivableLayer[];
 	mountedLayers: string[];
 }
@@ -403,6 +492,7 @@ export function composeStyle(entries: StackEntry[], serverBaseUrl: string): Comp
 			{
 				kind: entry.kind,
 				tileFormat: entry.tileFormat,
+				tileSchema: entry.tileSchema,
 				layers: entry.layers,
 				mountedLayers: entry.mountedLayers
 			},

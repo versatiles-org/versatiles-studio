@@ -23,6 +23,7 @@ import type {
 	Preset,
 	SourceKind,
 	RasterAdjust_Serialize as RasterAdjust,
+	Hillshade_Serialize as Hillshade,
 	Recolor_Serialize as Recolor,
 	LayerOverride_Serialize as LayerOverride
 } from './bindings';
@@ -53,6 +54,8 @@ export type {
 	RasterAdjust_Serialize as RasterAdjust,
 	Resampling,
 	SourceKind,
+	Hillshade_Serialize as Hillshade,
+	DemEncoding,
 	SourceStyle_Serialize as SourceStyle,
 	Appearance_Serialize as Appearance,
 	LayerOverride_Serialize as LayerOverride,
@@ -226,6 +229,9 @@ export const setStyleRaster = (graph: number, raster: RasterAdjust) => unwrap(co
 
 /** Sets the draw order, bottom first (S6.5). The whole list, not a move. */
 export const setStyleOrder = (order: string[]) => unwrap(commands.setStyleOrder(order));
+
+/** Sets the hillshade settings for an elevation source (S6.6, D12). */
+export const setStyleHillshade = (graph: number, shade: Hillshade) => unwrap(commands.setStyleHillshade(graph, shade));
 
 /**
  * Sets the whole global recolouring at once (D1, D5).

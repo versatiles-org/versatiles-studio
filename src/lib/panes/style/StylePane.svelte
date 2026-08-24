@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { style } from '../../state/style.svelte';
-	import type { Preset, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
+	import type { DemEncoding, Hillshade, Preset, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
 	import { KIND_LABELS, isVector, sourceKind } from '../../map/source-kind';
-	import type { StyleBasis } from '../../map/style';
+	import { demEncoding, type StyleBasis } from '../../map/style';
+	import { token } from '../../styles/tokens';
 	import type { StyleSpecification } from 'maplibre-gl';
 	import LayerTree from './LayerTree.svelte';
 	import { save } from '@tauri-apps/plugin-dialog';
@@ -59,6 +60,7 @@
 		derived: 'from its own layers',
 		fallback: 'from its own layers',
 		raster: 'as an image',
+		hillshade: 'as relief',
 		none: 'not drawn'
 	};
 
@@ -106,6 +108,35 @@
 	const appearance = $derived(sourceStyle.appearance);
 	const vectorAppearance = $derived(appearance.type === 'vector' ? appearance : null);
 	const rasterAdjust = $derived(appearance.type === 'raster' ? appearance.adjust : {});
+	const shade = $derived<Hillshade>(appearance.type === 'hillshade' ? appearance.shade : {});
+
+	/// The encoding in force: what the recipe says, else what the container declared.
+	const encoding = $derived<DemEncoding | null>(shade.encoding ?? demEncoding(source?.tileSchema));
+
+	const HILLSHADE_SLIDERS = [
+		{ key: 'exaggeration', label: 'Relief', min: 0, max: 1, step: 0.05, neutral: 0.5, unit: '' },
+		{ key: 'direction', label: 'Light from', min: 0, max: 359, step: 1, neutral: 335, unit: '°' },
+		{ key: 'altitude', label: 'Light height', min: 0, max: 90, step: 1, neutral: 45, unit: '°' }
+	] as const;
+
+	/// The three lights, defaulting to tokens rather than to MapLibre's pure black and white — which
+	/// is heavy over a light basemap and invisible over a dark one, and cannot follow the theme.
+	const HILLSHADE_COLOURS = [
+		{ key: 'shadow', label: 'Shadow', token: '--map-shade-shadow' },
+		{ key: 'highlight', label: 'Highlight', token: '--map-shade-highlight' },
+		{ key: 'accent', label: 'Accent', token: '--map-shade-accent' }
+	] as const;
+
+	type ShadeKey = (typeof HILLSHADE_SLIDERS)[number]['key'];
+
+	const shadeValue = (key: ShadeKey): number =>
+		shade[key] ?? HILLSHADE_SLIDERS.find((slider) => slider.key === key)!.neutral;
+
+	const shaded = $derived(Object.values(shade).some((value) => value != null));
+
+	function setShade(patch: Partial<Hillshade>): void {
+		void style.setHillshade({ ...shade, ...patch });
+	}
 
 	// **What these tiles are, and how confidently** (S6.1). Everything below is gated on it, because
 	// a preset aimed at raster tiles is not a control that does something subtle — it is a control
@@ -300,7 +331,61 @@
 			<p class="note">{BASIS_NOTE[reading.basis]}.</p>
 		{/if}
 
-		{#if kind === 'rasterImage'}
+		{#if kind === 'rasterDem'}
+			<h2 class="section-label">
+				Relief
+				{#if shaded}
+					<button type="button" class="reset" onclick={() => void style.setHillshade({})}>reset</button>
+				{/if}
+			</h2>
+
+			<label class="kind">
+				<span class="name">Encoding</span>
+				<select
+					value={encoding ?? ''}
+					onchange={(event) => setShade({ encoding: (event.currentTarget.value || null) as DemEncoding | null })}
+				>
+					<option value="">Not set</option>
+					<option value="mapbox">Mapbox</option>
+					<option value="terrarium">Terrarium</option>
+				</select>
+			</label>
+
+			{#if !encoding}
+				<!-- Nothing published says how `dem/versatiles` packs elevation, and a guess would draw
+				     convincing relief of the wrong mountains. Better to ask than to invent. -->
+				<p class="note unavailable">
+					These tiles do not say how their elevation is packed, so nothing can be shaded yet. Pick the encoding if you
+					know it.
+				</p>
+			{:else}
+				{#each HILLSHADE_SLIDERS as slider (slider.key)}
+					<label class="slider">
+						<span class="name">{slider.label}</span>
+						<input
+							type="range"
+							min={slider.min}
+							max={slider.max}
+							step={slider.step}
+							value={shadeValue(slider.key)}
+							onchange={(event) => setShade({ [slider.key]: Number(event.currentTarget.value) })}
+						/>
+						<span class="amount">{shadeValue(slider.key)}{slider.unit}</span>
+					</label>
+				{/each}
+
+				{#each HILLSHADE_COLOURS as swatch (swatch.key)}
+					<label class="kind">
+						<span class="name">{swatch.label}</span>
+						<input
+							type="color"
+							value={shade[swatch.key] ?? token(swatch.token)}
+							onchange={(event) => setShade({ [swatch.key]: event.currentTarget.value })}
+						/>
+					</label>
+				{/each}
+			{/if}
+		{:else if kind === 'rasterImage'}
 			<h2 class="section-label">
 				Adjust
 				{#if rasterAdjusted}
@@ -338,11 +423,7 @@
 			<!-- `nearest` is what a scan of a printed map or any pixel art wants; smoothing those
 			     turns crisp edges into mush at every zoom that is not exactly native. -->
 			<p class="note">Smooth blends between pixels. Square keeps them as they are.</p>
-		{:else if !vector}
-			<p class="note unavailable">
-				Elevation tiles are drawn as they are for now. Hillshade controls are still to come.
-			</p>
-		{:else}
+		{:else if vector}
 			<h2 class="section-label">Preset</h2>
 			{#if basis === 'fallback'}
 				<!-- S6.2: the preset is still what the recipe says, and it is not what the map is

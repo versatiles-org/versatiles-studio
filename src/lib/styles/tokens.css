@@ -67,6 +67,12 @@
 	   than a grey — it has to darken any basemap without tinting it — and is drawn at partial
 	   opacity, so the token itself is opaque. The edge takes the accent, because a crop is a
 	   selection and that is what the accent means everywhere else in the window. */
+	/* Hillshade's three lights (S6.6, D12). MapLibre defaults to pure black and white, which is
+	   heavy over a light basemap and invisible over a dark one — so these are the defaults a swatch
+	   opens on, and they follow the theme like every other map colour. */
+	--map-shade-shadow: #2b3a45;
+	--map-shade-highlight: #ffffff;
+	--map-shade-accent: #1d2b33;
 	--map-crop-dim: #10161a;
 	--map-crop-edge: var(--accent);
 	/* Controls that float over the map need to stay legible against whatever is under them, so
@@ -160,6 +166,9 @@
 		/* The map is the one surface where dark is a real design decision rather than a palette
 		   swap: an unstyled basemap over a dark ground needs its grid and hairlines lifted or they
 		   disappear into it. */
+		--map-shade-shadow: #05090c;
+		--map-shade-highlight: #b9cdd8;
+		--map-shade-accent: #0b1418;
 		--map-bg: #1b1f22;
 		--map-grid: #45c3b3;
 		--map-grid-halo: #0d1113;

@@ -492,7 +492,7 @@ mod project_tests {
 				assert_eq!(*preset, Preset::Graybeard, "the preset survived");
 				assert_eq!(recolor.rotate, Some(35.0), "so did the recolour");
 			}
-			Appearance::Raster { .. } => panic!("a version-1 vector style became a raster one"),
+			other => panic!("a version-1 vector style became {other:?}"),
 		}
 	}
 
@@ -519,7 +519,7 @@ mod project_tests {
 			.expect("the style moved onto the graph");
 		match &style.appearance {
 			Appearance::Raster { adjust } => assert_eq!(adjust.opacity, Some(0.5)),
-			Appearance::Vector { .. } => panic!("a raster source got a preset"),
+			other => panic!("a raster source got {other:?}"),
 		}
 	}
 
