@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { deriveStyle, drawsAnything, renderStyle, styleFor } from './style';
+import { deriveStyle, drawsAnything, rasterPaint, renderStyle, styleFor } from './style';
 import type { Recipe } from '../ipc/commands';
 
 const BASE = 'http://127.0.0.1:8080';
 const SOURCES = [{ name: 'berlin', tileUrl: `${BASE}/tiles/berlin/{z}/{x}/{y}` }];
 
 function recipe(over: Partial<Recipe> = {}): Recipe {
-	return { preset: 'colorful', recolor: {}, overrides: {}, ...over } as Recipe;
+	return { preset: 'colorful', recolor: {}, overrides: {}, raster: {}, ...over } as Recipe;
 }
 
 describe('renderStyle', () => {
@@ -195,7 +195,12 @@ describe('styleFor', () => {
 	const PLACES = [{ name: 'places', geometry: 'point' }];
 
 	it('uses the preset when it draws these tiles', () => {
-		const { style, basis } = styleFor(recipe(), 'mvt', PLACES, SOURCES, BASE, SHORTBREAD);
+		const { style, basis } = styleFor(
+			recipe(),
+			{ kind: 'vectorShortbread', tileFormat: 'mvt', layers: PLACES, mountedLayers: SHORTBREAD },
+			SOURCES,
+			BASE
+		);
 		expect(basis).toBe('preset');
 		expect(style!.layers.length).toBeGreaterThan(50);
 	});
@@ -203,27 +208,47 @@ describe('styleFor', () => {
 	// S6.2's whole point. Before this, a preset that matched no layer produced `null`, and the map
 	// showed a bare background — for the most common thing the pipeline pane produces.
 	it('derives when the preset would draw nothing', () => {
-		const { style, basis } = styleFor(recipe(), 'mvt', PLACES, SOURCES, BASE, ['places']);
+		const { style, basis } = styleFor(
+			recipe(),
+			{ kind: 'vectorShortbread', tileFormat: 'mvt', layers: PLACES, mountedLayers: ['places'] },
+			SOURCES,
+			BASE
+		);
 		expect(basis).toBe('fallback');
 		expect(style).not.toBeNull();
 		expect(style!.layers.some((layer) => 'source-layer' in layer && layer['source-layer'] === 'places')).toBe(true);
 	});
 
 	it('keeps `derived` distinct from falling back to it', () => {
-		const chosen = styleFor(recipe({ preset: 'derived' } as Partial<Recipe>), 'mvt', PLACES, SOURCES, BASE, ['places']);
+		const chosen = styleFor(
+			recipe({ preset: 'derived' } as Partial<Recipe>),
+			{ kind: 'vectorShortbread', tileFormat: 'mvt', layers: PLACES, mountedLayers: ['places'] },
+			SOURCES,
+			BASE
+		);
 		expect(chosen.basis).toBe('derived');
 	});
 
 	// Raster has no vector layers to derive from, and inventing something to draw would be worse
 	// than the honest background. S6.3 and S6.6 are what fill this in.
 	it('draws nothing when there are no layers to derive from', () => {
-		const { style, basis } = styleFor(recipe(), 'mvt', [], SOURCES, BASE, []);
+		const { style, basis } = styleFor(
+			recipe(),
+			{ kind: 'vectorShortbread', tileFormat: 'mvt', layers: [], mountedLayers: [] },
+			SOURCES,
+			BASE
+		);
 		expect(basis).toBe('none');
 		expect(style).toBeNull();
 	});
 
 	it('reports `none` for a derived preset with nothing to derive', () => {
-		const { basis } = styleFor(recipe({ preset: 'derived' } as Partial<Recipe>), 'mvt', [], SOURCES, BASE, []);
+		const { basis } = styleFor(
+			recipe({ preset: 'derived' } as Partial<Recipe>),
+			{ kind: 'vectorShortbread', tileFormat: 'mvt', layers: [], mountedLayers: [] },
+			SOURCES,
+			BASE
+		);
 		expect(basis).toBe('none');
 	});
 });
@@ -231,13 +256,76 @@ describe('styleFor', () => {
 describe('styleFor and formats the map cannot read as vector', () => {
 	const PLACES = [{ name: 'places', geometry: 'point' }];
 
-	it('draws nothing for raster, whatever the probe found', () => {
-		expect(styleFor(recipe(), 'png', PLACES, SOURCES, BASE, ['places']).basis).toBe('none');
+	// S6.3 replaced this: raster used to be the case with no answer at all.
+	it('draws imagery as a raster layer', () => {
+		const { style, basis } = styleFor(
+			recipe(),
+			{ kind: 'rasterImage', tileFormat: 'png', layers: [], mountedLayers: [] },
+			SOURCES,
+			BASE
+		);
+		expect(basis).toBe('raster');
+		expect(style!.layers).toHaveLength(1);
+		expect(style!.layers[0].type).toBe('raster');
+	});
+
+	// Until S6.6 gives it hillshade, elevation is left to the container layer `preview` already
+	// added — a raster style over it would claim to be adjusting something it does not understand.
+	it('leaves elevation alone', () => {
+		expect(
+			styleFor(recipe(), { kind: 'rasterDem', tileFormat: 'png', layers: [], mountedLayers: [] }, SOURCES, BASE).basis
+		).toBe('none');
+	});
+
+	// The kind can be a guess or something set by hand; neither makes MapLibre able to decode `mvt`
+	// as an image, so the format overrules it.
+	it('refuses imagery over vector tiles', () => {
+		expect(
+			styleFor(recipe(), { kind: 'rasterImage', tileFormat: 'mvt', layers: [], mountedLayers: [] }, SOURCES, BASE).basis
+		).toBe('none');
 	});
 
 	// `bin` is the default variant upstream, so a container whose format could not be determined
 	// lands there. Deriving over it would point a vector source at tiles MapLibre cannot decode.
 	it('refuses to derive over an undetermined format', () => {
-		expect(styleFor(recipe(), 'bin', PLACES, SOURCES, BASE, ['places'])).toEqual({ style: null, basis: 'none' });
+		expect(
+			styleFor(
+				recipe(),
+				{ kind: 'rasterImage', tileFormat: 'bin', layers: PLACES, mountedLayers: ['places'] },
+				SOURCES,
+				BASE
+			)
+		).toEqual({ style: null, basis: 'none' });
+	});
+});
+
+describe('rasterPaint', () => {
+	it('says nothing when nothing was adjusted', () => {
+		expect(rasterPaint({})).toEqual({});
+	});
+
+	it('passes through the properties that share MapLibre’s units', () => {
+		expect(rasterPaint({ hue: 40, saturation: -0.5, contrast: 0.25, opacity: 0.8 })).toEqual({
+			'raster-hue-rotate': 40,
+			'raster-saturation': -0.5,
+			'raster-contrast': 0.25,
+			'raster-opacity': 0.8
+		});
+	});
+
+	// One control, two endpoints: brightening lifts the floor, darkening lowers the ceiling, and
+	// only the endpoint that moved is written.
+	it('turns one brightness control into the endpoint that moved', () => {
+		expect(rasterPaint({ brightness: 0.3 })).toEqual({ 'raster-brightness-min': 0.3 });
+		expect(rasterPaint({ brightness: -0.25 })).toEqual({ 'raster-brightness-max': 0.75 });
+		expect(rasterPaint({ brightness: 0 })).toEqual({});
+	});
+
+	it('clamps a brightness beyond the range rather than emitting it', () => {
+		expect(rasterPaint({ brightness: 5 })).toEqual({ 'raster-brightness-min': 1 });
+	});
+
+	it('carries resampling, which is the control a scan wants', () => {
+		expect(rasterPaint({ resampling: 'nearest' })).toEqual({ 'raster-resampling': 'nearest' });
 	});
 });

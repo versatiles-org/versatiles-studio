@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { style } from '../../state/style.svelte';
-	import type { Preset, Recolor, SourceKind } from '../../ipc/commands';
+	import type { Preset, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
 	import { KIND_LABELS, isVector, sourceKind } from '../../map/source-kind';
 	import type { StyleBasis } from '../../map/style';
 	import type { StyleSpecification } from 'maplibre-gl';
@@ -78,6 +78,50 @@
 		inferred: 'worked out from the tiles',
 		chosen: 'you set this'
 	} as const;
+
+	/// The raster controls, in MapLibre's own units.
+	///
+	/// Not the `SLIDERS` above under different labels: `rotate` and `saturate` happen to mean the
+	/// same thing, and contrast and brightness do not — `Recolor`'s are a multiplier and an offset
+	/// where MapLibre's are an offset and a pair of range endpoints. Two lists that look alike beat
+	/// one list with a conversion table nobody can read.
+	const RASTER_SLIDERS = [
+		{ key: 'hue', label: 'Hue', min: -180, max: 180, step: 1, unit: '°' },
+		{ key: 'saturation', label: 'Saturation', min: -1, max: 1, step: 0.05, unit: '' },
+		{ key: 'brightness', label: 'Brightness', min: -1, max: 1, step: 0.05, unit: '' },
+		{ key: 'contrast', label: 'Contrast', min: -1, max: 1, step: 0.05, unit: '' },
+		{ key: 'opacity', label: 'Opacity', min: 0, max: 1, step: 0.05, unit: '' }
+	] as const;
+
+	type RasterKey = (typeof RASTER_SLIDERS)[number]['key'];
+
+	/// Every raster slider's neutral is `0` except opacity, whose is `1` — the same asymmetry the
+	/// vector sliders have, for the same reason: a multiplier's identity is not zero.
+	const rasterValue = (key: RasterKey): number => recipe?.raster?.[key] ?? (key === 'opacity' ? 1 : 0);
+
+	const rasterAdjusted = $derived(Object.values(recipe?.raster ?? {}).some((value) => value != null));
+
+	/// Previewed locally and committed once, exactly as the recolour gesture is.
+	let rasterPending = $state<RasterAdjust | null>(null);
+	const rasterNow = $derived(rasterPending ?? recipe?.raster ?? {});
+
+	function previewRaster(key: RasterKey, raw: string): void {
+		rasterPending = { ...rasterNow, [key]: Number(raw) };
+	}
+
+	function commitRaster(): void {
+		if (rasterPending) void style.setRaster(rasterPending);
+		rasterPending = null;
+	}
+
+	function setResampling(value: string): void {
+		void style.setRaster({ ...rasterNow, resampling: value === 'linear' ? null : 'nearest' });
+	}
+
+	function resetRaster(): void {
+		rasterPending = null;
+		void style.setRaster({});
+	}
 
 	const KIND_OPTIONS: SourceKind[] = ['vectorShortbread', 'vectorOther', 'rasterImage', 'rasterDem'];
 
@@ -188,15 +232,47 @@
 			<p class="note">{BASIS_NOTE[reading.basis]}.</p>
 		{/if}
 
-		{#if !vector}
-			<!-- The honest empty state. The six presets and the layer tree are written against vector
-			     layers; against raster tiles every one of them is a no-op, and until S6.3 and S6.6
-			     there is nothing to put in their place. Saying so beats offering controls that move
-			     and change nothing. -->
+		{#if kind === 'rasterImage'}
+			<h2 class="section-label">
+				Adjust
+				{#if rasterAdjusted}
+					<button type="button" class="reset" onclick={resetRaster}>reset</button>
+				{/if}
+			</h2>
+
+			{#each RASTER_SLIDERS as slider (slider.key)}
+				<label class="slider">
+					<span class="name">{slider.label}</span>
+					<input
+						type="range"
+						min={slider.min}
+						max={slider.max}
+						step={slider.step}
+						value={rasterValue(slider.key)}
+						oninput={(event) => previewRaster(slider.key, event.currentTarget.value)}
+						onchange={commitRaster}
+						onpointercancel={() => (rasterPending = null)}
+					/>
+					<span class="amount">{rasterValue(slider.key)}{slider.unit}</span>
+				</label>
+			{/each}
+
+			<label class="kind">
+				<span class="name">Scaling</span>
+				<select
+					value={recipe.raster?.resampling ?? 'linear'}
+					onchange={(event) => setResampling(event.currentTarget.value)}
+				>
+					<option value="linear">Smooth</option>
+					<option value="nearest">Keep pixels square</option>
+				</select>
+			</label>
+			<!-- `nearest` is what a scan of a printed map or any pixel art wants; smoothing those
+			     turns crisp edges into mush at every zoom that is not exactly native. -->
+			<p class="note">Smooth blends between pixels. Square keeps them as they are.</p>
+		{:else if !vector}
 			<p class="note unavailable">
-				{kind === 'rasterDem'
-					? 'Elevation tiles are drawn as they are for now. Hillshade controls are still to come.'
-					: 'Image tiles are drawn as they are for now. Adjustments are still to come.'}
+				Elevation tiles are drawn as they are for now. Hillshade controls are still to come.
 			</p>
 		{:else}
 			<h2 class="section-label">Preset</h2>

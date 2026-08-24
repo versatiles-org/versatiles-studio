@@ -18,12 +18,14 @@ import {
 	setStylePreset,
 	setStyleRecolor,
 	setStyleKind,
+	setStyleRaster,
 	setLayerOverride,
 	type LayerOverride,
 	type Preset,
 	type Recipe,
 	type Recolor,
-	type SourceKind
+	type SourceKind,
+	type RasterAdjust
 } from '../ipc/commands';
 
 /** The recipe as the core last reported it. `null` until the first read. */
@@ -79,6 +81,11 @@ export const style = {
 	 */
 	async setKind(kind: SourceKind | null): Promise<void> {
 		recipe = await setStyleKind(kind);
+	},
+
+	/** Records the raster adjustment as one undo entry (S6.3, D11). */
+	async setRaster(raster: RasterAdjust): Promise<void> {
+		recipe = await setStyleRaster(raster);
 	},
 
 	/** Shows a recolouring without recording it. Ends with `commitRecolor` or `cancelRecolor`. */

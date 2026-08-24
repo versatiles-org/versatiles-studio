@@ -22,6 +22,7 @@ import type {
 	Bounds,
 	Preset,
 	SourceKind,
+	RasterAdjust_Serialize as RasterAdjust,
 	Recolor_Serialize as Recolor,
 	LayerOverride_Serialize as LayerOverride
 } from './bindings';
@@ -49,6 +50,9 @@ export type {
 	// the generator's, not the application's, so it stops here.
 	Recipe_Serialize as Recipe,
 	Recolor_Serialize as Recolor,
+	RasterAdjust_Serialize as RasterAdjust,
+	Resampling,
+	SourceKind,
 	LayerOverride_Serialize as LayerOverride,
 	Reference as FileReference,
 	Node as VplNode,
@@ -214,6 +218,9 @@ export const setStylePreset = (preset: Preset) => unwrap(commands.setStylePreset
  * better rather than being stuck with what was cached about it.
  */
 export const setStyleKind = (kind: SourceKind | null) => unwrap(commands.setStyleKind(kind));
+
+/** Sets the whole raster adjustment at once (S6.3, D11). Same gesture rule as `setStyleRecolor`. */
+export const setStyleRaster = (raster: RasterAdjust) => unwrap(commands.setStyleRaster(raster));
 
 /**
  * Sets the whole global recolouring at once (D1, D5).

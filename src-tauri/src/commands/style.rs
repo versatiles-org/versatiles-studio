@@ -14,7 +14,7 @@
 
 use crate::state::AppState;
 use studio_core::history::{EditKind, Target};
-use studio_core::style::{LayerOverride, Preset, Recipe, Recolor, SourceKind};
+use studio_core::style::{LayerOverride, Preset, RasterAdjust, Recipe, Recolor, SourceKind};
 use tauri::{AppHandle, State};
 
 /// The recipe as it stands.
@@ -46,6 +46,19 @@ async fn record(state: &State<'_, AppState>, recipe: Recipe) -> Recipe {
 pub async fn set_style_preset(state: State<'_, AppState>, preset: Preset) -> Result<Recipe, String> {
 	let mut recipe = state.style.lock().await.clone();
 	recipe.preset = preset;
+	Ok(record(&state, recipe).await)
+}
+
+/// Sets the raster adjustment — the imagery equivalent of `set_style_recolor` (S6.3, D11).
+///
+/// Whole-struct for the same reason that one is: the controls move together, and one command per
+/// field would let the two ends disagree about which of them the recipe currently has. Called when
+/// a gesture ends, so a drag is one undo entry rather than sixty.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_style_raster(state: State<'_, AppState>, raster: RasterAdjust) -> Result<Recipe, String> {
+	let mut recipe = state.style.lock().await.clone();
+	recipe.raster = raster;
 	Ok(record(&state, recipe).await)
 }
 

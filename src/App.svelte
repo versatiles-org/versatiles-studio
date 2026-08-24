@@ -36,6 +36,7 @@
 	import { defaultStyle } from './lib/map/default-style';
 	import { fitToBounds } from './lib/map/add-source';
 	import { styleFor } from './lib/map/style';
+	import { sourceKind } from './lib/map/source-kind';
 	import { forExport } from './lib/map/style-code';
 	import {
 		forgetRecent,
@@ -599,7 +600,17 @@
 		const source = preview.last;
 		if (!recipe || !source || !serverUrl) return { style: null, basis: 'none' as const };
 		const sources = [{ name: source.name, tileUrl: source.tileUrl }];
-		return styleFor(recipe, source.info.tileFormat, source.layers, sources, serverUrl, preview.mountedLayers);
+		return styleFor(
+			recipe,
+			{
+				kind: sourceKind(source.info.tileFormat, source.info.tileSchema, preview.mountedLayers, recipe.kind).kind,
+				tileFormat: source.info.tileFormat,
+				layers: source.layers,
+				mountedLayers: preview.mountedLayers
+			},
+			sources,
+			serverUrl
+		);
 	});
 
 	const styled = $derived(composed.style);

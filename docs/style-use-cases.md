@@ -73,10 +73,13 @@ that move and change nothing. The layer tree reads "Nothing is being drawn yet."
 generate code. Every control is live and every one is a no-op, which is indistinguishable from a
 broken pane.
 
-**The controls are already the right controls.** Four of the five sliders map one-to-one onto
-MapLibre's raster paint properties — `raster-hue-rotate`, `raster-saturation`,
-`raster-brightness-min`/`-max`, `raster-contrast` — and only gamma has no equivalent. They are wired
-exclusively into `@versatiles/style`'s vector recolour.
+**The controls are the right controls, but not the same numbers.** The five sliders name the same
+ideas MapLibre's `raster-*` paint properties do, and exactly two share a parameterisation: `rotate`
+is `raster-hue-rotate` and `saturate` is `raster-saturation`. `Recolor`'s contrast is a multiplier
+around `1` where MapLibre's is an offset around `0`, its brightness is an offset where MapLibre's is
+a pair of range endpoints, and gamma has no raster equivalent at all. So the raster editor reuses the
+slider _component_ and not the recipe field — S6.3 gives it `RasterAdjust`, in MapLibre's own units,
+rather than a conversion table nobody could read.
 
 **What the case wants:** those sliders driving the raster layer, plus opacity and resampling
 (`nearest` for pixel art, `linear` otherwise), and an optional label overlay above the imagery —

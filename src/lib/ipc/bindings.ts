@@ -162,6 +162,14 @@ export const commands = {
  */
 "rasterDem" | null) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_kind", { kind })),
 	/**
+	 *  Sets the raster adjustment — the imagery equivalent of `set_style_recolor` (S6.3, D11).
+	 * 
+	 *  Whole-struct for the same reason that one is: the controls move together, and one command per
+	 *  field would let the two ends disagree about which of them the recipe currently has. Called when
+	 *  a gesture ends, so a drag is one undo entry rather than sixty.
+	 */
+	setStyleRaster: (raster: RasterAdjust_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_raster", { raster })),
+	/**
 	 *  Sets the global recolouring — hue, saturation, brightness, contrast and the rest (D1, D5).
 	 * 
 	 *  Takes the whole of it rather than one field at a time. The controls move together, the webview
@@ -1198,6 +1206,98 @@ export type Quote =
 /**  `"…"` — `\\`, `\"`, `\n` and `\t` are unescaped. */
 "double";
 
+/**
+ *  How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/scope-release-2.md), D11).
+ * 
+ *  **Its own type rather than a second reading of [`Recolor`].** The two describe the same five
+ *  ideas and only two of them share a parameterisation: `rotate` and `saturate` mean what
+ *  `raster-hue-rotate` and `raster-saturation` mean, while `Recolor`'s contrast is a multiplier
+ *  around 1 and MapLibre's is an offset around 0, and `Recolor`'s brightness is an offset where
+ *  MapLibre's is a pair of range endpoints. Reusing the struct would have meant a conversion nobody
+ *  could read and two controls whose numbers lied about what they did.
+ * 
+ *  **`None` is "leave it alone", not a neutral value.** The same reason `Recolor` gives: an
+ *  untouched adjustment must serialise to nothing, or every project file would carry a list of
+ *  identity values and every recipe would compare unequal to a fresh one.
+ */
+export type RasterAdjust = RasterAdjust_Serialize | RasterAdjust_Deserialize;
+
+/**
+ *  How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/scope-release-2.md), D11).
+ * 
+ *  **Its own type rather than a second reading of [`Recolor`].** The two describe the same five
+ *  ideas and only two of them share a parameterisation: `rotate` and `saturate` mean what
+ *  `raster-hue-rotate` and `raster-saturation` mean, while `Recolor`'s contrast is a multiplier
+ *  around 1 and MapLibre's is an offset around 0, and `Recolor`'s brightness is an offset where
+ *  MapLibre's is a pair of range endpoints. Reusing the struct would have meant a conversion nobody
+ *  could read and two controls whose numbers lied about what they did.
+ * 
+ *  **`None` is "leave it alone", not a neutral value.** The same reason `Recolor` gives: an
+ *  untouched adjustment must serialise to nothing, or every project file would carry a list of
+ *  identity values and every recipe would compare unequal to a fresh one.
+ */
+export type RasterAdjust_Deserialize = {
+	/**  Degrees, `-180` to `180`. */
+	hue?: number | null,
+	/**  `-1` to `1`, where `0` leaves it alone. */
+	saturation?: number | null,
+	/**  `-1` to `1`, where `0` leaves it alone. */
+	contrast?: number | null,
+	/**
+	 *  `-1` to `1`, where `0` leaves it alone.
+	 * 
+	 *  Studio's own control, converted to `raster-brightness-min`/`-max` when the style is built:
+	 *  MapLibre remaps the input range onto those two endpoints, which is two numbers for something
+	 *  people reach for as one.
+	 */
+	brightness?: number | null,
+	/**  `0` to `1`. */
+	opacity?: number | null,
+	/**
+	 *  `linear` smooths between pixels, `nearest` keeps them square — which is what a scan of a
+	 *  printed map or any pixel art wants.
+	 */
+	resampling?: Resampling | null,
+};
+
+/**
+ *  How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/scope-release-2.md), D11).
+ * 
+ *  **Its own type rather than a second reading of [`Recolor`].** The two describe the same five
+ *  ideas and only two of them share a parameterisation: `rotate` and `saturate` mean what
+ *  `raster-hue-rotate` and `raster-saturation` mean, while `Recolor`'s contrast is a multiplier
+ *  around 1 and MapLibre's is an offset around 0, and `Recolor`'s brightness is an offset where
+ *  MapLibre's is a pair of range endpoints. Reusing the struct would have meant a conversion nobody
+ *  could read and two controls whose numbers lied about what they did.
+ * 
+ *  **`None` is "leave it alone", not a neutral value.** The same reason `Recolor` gives: an
+ *  untouched adjustment must serialise to nothing, or every project file would carry a list of
+ *  identity values and every recipe would compare unequal to a fresh one.
+ */
+export type RasterAdjust_Serialize = {
+	/**  Degrees, `-180` to `180`. */
+	hue?: number | null,
+	/**  `-1` to `1`, where `0` leaves it alone. */
+	saturation?: number | null,
+	/**  `-1` to `1`, where `0` leaves it alone. */
+	contrast?: number | null,
+	/**
+	 *  `-1` to `1`, where `0` leaves it alone.
+	 * 
+	 *  Studio's own control, converted to `raster-brightness-min`/`-max` when the style is built:
+	 *  MapLibre remaps the input range onto those two endpoints, which is two numbers for something
+	 *  people reach for as one.
+	 */
+	brightness?: number | null,
+	/**  `0` to `1`. */
+	opacity?: number | null,
+	/**
+	 *  `linear` smooths between pixels, `nearest` keeps them square — which is what a scan of a
+	 *  printed map or any pixel art wants.
+	 */
+	resampling?: Resampling | null,
+};
+
 export type RecentEntry = {
 	/**  The path or URL exactly as the user gave it. */
 	source: string,
@@ -1232,6 +1332,16 @@ export type Recipe_Deserialize = {
 	/**  By layer id. Empty for a style nobody has edited by hand. */
 	overrides?: { [key in string]: LayerOverride_Deserialize },
 	/**
+	 *  How imagery is adjusted, used when the source is drawn as raster (S6.3, D11).
+	 * 
+	 *  Carried beside `recolor` rather than replacing it: a project can hold a vector graph and a
+	 *  raster one, and only one of the two adjustments applies to each. [S6.4] is where the pair
+	 *  becomes one tagged union and this stops being a field that is meaningless half the time.
+	 * 
+	 *  [S6.4]: ../../../docs/scope-release-2.md
+	 */
+	raster?: RasterAdjust_Deserialize,
+	/**
 	 *  What the source is being drawn as, when someone has said so explicitly.
 	 * 
 	 *  `None` — the usual case — means the webview's own reading stands. Storing only the
@@ -1255,6 +1365,16 @@ export type Recipe_Serialize = {
 	recolor: Recolor_Serialize,
 	/**  By layer id. Empty for a style nobody has edited by hand. */
 	overrides: { [key in string]: LayerOverride_Serialize },
+	/**
+	 *  How imagery is adjusted, used when the source is drawn as raster (S6.3, D11).
+	 * 
+	 *  Carried beside `recolor` rather than replacing it: a project can hold a vector graph and a
+	 *  raster one, and only one of the two adjustments applies to each. [S6.4] is where the pair
+	 *  becomes one tagged union and this stops being a field that is meaningless half the time.
+	 * 
+	 *  [S6.4]: ../../../docs/scope-release-2.md
+	 */
+	raster: RasterAdjust_Serialize,
 	/**
 	 *  What the source is being drawn as, when someone has said so explicitly.
 	 * 
@@ -1358,6 +1478,9 @@ bytes: number } |
  *  bundle opened somewhere the file *does* exist still works.
  */
 { kind: "missing"; path: string };
+
+/**  How a raster is sampled when it is scaled. */
+export type Resampling = "linear" | "nearest";
 
 /**
  *  What a step back or forward restored.

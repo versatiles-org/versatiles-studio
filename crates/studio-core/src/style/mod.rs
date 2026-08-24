@@ -187,6 +187,56 @@ pub enum SourceKind {
 	RasterDem,
 }
 
+/// How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/scope-release-2.md), D11).
+///
+/// **Its own type rather than a second reading of [`Recolor`].** The two describe the same five
+/// ideas and only two of them share a parameterisation: `rotate` and `saturate` mean what
+/// `raster-hue-rotate` and `raster-saturation` mean, while `Recolor`'s contrast is a multiplier
+/// around 1 and MapLibre's is an offset around 0, and `Recolor`'s brightness is an offset where
+/// MapLibre's is a pair of range endpoints. Reusing the struct would have meant a conversion nobody
+/// could read and two controls whose numbers lied about what they did.
+///
+/// **`None` is "leave it alone", not a neutral value.** The same reason `Recolor` gives: an
+/// untouched adjustment must serialise to nothing, or every project file would carry a list of
+/// identity values and every recipe would compare unequal to a fresh one.
+#[derive(Debug, Clone, Copy, PartialEq, Default, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct RasterAdjust {
+	/// Degrees, `-180` to `180`.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub hue: Option<f32>,
+	/// `-1` to `1`, where `0` leaves it alone.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub saturation: Option<f32>,
+	/// `-1` to `1`, where `0` leaves it alone.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub contrast: Option<f32>,
+	/// `-1` to `1`, where `0` leaves it alone.
+	///
+	/// Studio's own control, converted to `raster-brightness-min`/`-max` when the style is built:
+	/// MapLibre remaps the input range onto those two endpoints, which is two numbers for something
+	/// people reach for as one.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub brightness: Option<f32>,
+	/// `0` to `1`.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub opacity: Option<f32>,
+	/// `linear` smooths between pixels, `nearest` keeps them square — which is what a scan of a
+	/// printed map or any pixel art wants.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub resampling: Option<Resampling>,
+}
+
+/// How a raster is sampled when it is scaled.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+#[serde(rename_all = "lowercase")]
+pub enum Resampling {
+	Linear,
+	Nearest,
+}
+
 /// The whole style, as the core holds it.
 ///
 /// Ordered by layer id (`BTreeMap`, not `HashMap`) so that the text this serialises to depends only
@@ -201,6 +251,14 @@ pub struct Recipe {
 	pub recolor: Recolor,
 	/// By layer id. Empty for a style nobody has edited by hand.
 	pub overrides: BTreeMap<String, LayerOverride>,
+	/// How imagery is adjusted, used when the source is drawn as raster (S6.3, D11).
+	///
+	/// Carried beside `recolor` rather than replacing it: a project can hold a vector graph and a
+	/// raster one, and only one of the two adjustments applies to each. [S6.4] is where the pair
+	/// becomes one tagged union and this stops being a field that is meaningless half the time.
+	///
+	/// [S6.4]: ../../../docs/scope-release-2.md
+	pub raster: RasterAdjust,
 	/// What the source is being drawn as, when someone has said so explicitly.
 	///
 	/// `None` — the usual case — means the webview's own reading stands. Storing only the
@@ -254,6 +312,7 @@ mod tests {
 				..Recolor::default()
 			},
 			overrides: BTreeMap::new(),
+			raster: RasterAdjust::default(),
 			kind: None,
 		};
 		recipe.set_override(

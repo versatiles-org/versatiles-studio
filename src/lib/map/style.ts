@@ -17,7 +17,7 @@
 
 import { colorful, eclipse, graybeard, neutrino, satellite, shadow } from '@versatiles/style';
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
-import type { LayerOverride, Recipe } from '../ipc/commands';
+import type { LayerOverride, RasterAdjust, Recipe, SourceKind } from '../ipc/commands';
 import { throughQueue } from './tile-queue';
 import { renderableAs } from './tile-format';
 
@@ -103,6 +103,63 @@ function applyOverride(layer: LayerSpecification, patch: LayerOverride | undefin
 }
 
 /**
+ * The paint an adjustment means, with everything untouched left out
+ * ([S6.3](../../../docs/scope-release-2.md), D11).
+ *
+ * **Omitted, not defaulted.** A property set to its own default renders identically but exports a
+ * style full of values nobody chose, and D8's output is meant to be a file someone can read.
+ */
+export function rasterPaint(adjust: RasterAdjust): Record<string, unknown> {
+	const paint: Record<string, unknown> = {};
+
+	if (adjust.hue != null) paint['raster-hue-rotate'] = adjust.hue;
+	if (adjust.saturation != null) paint['raster-saturation'] = adjust.saturation;
+	if (adjust.contrast != null) paint['raster-contrast'] = adjust.contrast;
+	if (adjust.opacity != null) paint['raster-opacity'] = adjust.opacity;
+	if (adjust.resampling != null) paint['raster-resampling'] = adjust.resampling;
+
+	// **One control, two endpoints.** MapLibre remaps the input range onto `brightness-min` and
+	// `-max`, so brightening means lifting the floor and darkening means lowering the ceiling.
+	// Writing only the endpoint that moved keeps the other at its default rather than restating it.
+	if (adjust.brightness != null && adjust.brightness !== 0) {
+		const amount = Math.max(-1, Math.min(1, adjust.brightness));
+		if (amount > 0) paint['raster-brightness-min'] = amount;
+		else paint['raster-brightness-max'] = 1 + amount;
+	}
+
+	return paint;
+}
+
+/**
+ * A style that draws one raster source, adjusted (S6.3, D11).
+ *
+ * No glyphs and no sprite: nothing here draws text or an icon, and naming assets a style never
+ * reaches for would put two more requests on every map that shows a photograph.
+ */
+export function rasterStyle(
+	adjust: RasterAdjust,
+	sources: StyleSource[],
+	_serverBaseUrl: string
+): StyleSpecification | null {
+	const source = sources[0];
+	if (!source) return null;
+
+	const paint = rasterPaint(adjust);
+	return {
+		version: 8,
+		sources: { [source.name]: { type: 'raster', tiles: [throughQueue(source.tileUrl)] } },
+		layers: [
+			{
+				id: `${source.name}:raster`,
+				type: 'raster',
+				source: source.name,
+				...(Object.keys(paint).length > 0 ? { paint } : {})
+			}
+		]
+	} as StyleSpecification;
+}
+
+/**
  * Which route produced the style on the map ([S6.2](../../../docs/scope-release-2.md)).
  *
  * The pane says which, because "your preset is not what you are looking at" is not something to
@@ -115,7 +172,9 @@ export type StyleBasis =
 	| 'derived'
 	/** A preset was chosen, could not draw these tiles, and derived layers stood in for it. */
 	| 'fallback'
-	/** Nothing draws — raster tiles, or a container with no layers to derive from. */
+	/** Drawn as imagery, with whatever adjustment the recipe carries (S6.3). */
+	| 'raster'
+	/** Nothing draws — elevation until S6.6, or a container with no layers to derive from. */
 	| 'none';
 
 /**
@@ -132,18 +191,27 @@ export type StyleBasis =
  */
 export function styleFor(
 	recipe: Recipe,
-	tileFormat: string,
-	layers: DerivableLayer[],
+	target: { kind: SourceKind; tileFormat: string; layers: DerivableLayer[]; mountedLayers: string[] },
 	sources: StyleSource[],
-	serverBaseUrl: string,
-	mountedLayers: string[]
+	serverBaseUrl: string
 ): { style: StyleSpecification | null; basis: StyleBasis } {
-	// **Nothing vector-shaped over tiles the map cannot read as vector.** A container whose format
-	// could not be determined lands on `bin`, and a style pointing a vector source at those produces
-	// one `createImageBitmap` failure per tile and a blank map with nothing to say why — the bug
-	// `tile-format.ts` was written for. Refusing here also makes raster's `none` deliberate rather
-	// than a side effect of there being no layers to derive from.
-	if (renderableAs(tileFormat) !== 'vector') return { style: null, basis: 'none' };
+	const { kind, tileFormat, layers, mountedLayers } = target;
+
+	// **The format has the final say over the kind.** `kind` can be a guess, and it can be something
+	// a person set by hand; neither makes MapLibre able to decode the bytes. A container whose format
+	// could not be determined lands on `bin`, and pointing any source at those produces one decode
+	// failure per tile and a blank map with nothing to say why — the bug `tile-format.ts` exists for.
+	const renderable = renderableAs(tileFormat);
+	if (renderable === null) return { style: null, basis: 'none' };
+
+	if (kind === 'rasterImage' && renderable === 'raster') {
+		return { style: rasterStyle(recipe.raster, sources, serverBaseUrl), basis: 'raster' };
+	}
+
+	// Elevation is drawn as flat colour until S6.6 gives it hillshade. Returning `none` leaves the
+	// container layer `preview` already added in place, rather than covering it with a raster style
+	// that claims to be an adjustment of something it does not understand.
+	if (!isVectorKind(kind) || renderable !== 'vector') return { style: null, basis: 'none' };
 
 	// Built from what the tiles have rather than from what a schema expects (S4.4).
 	if (recipe.preset === 'derived') {
@@ -260,4 +328,9 @@ function hue(name: string): string {
 	let hash = 0;
 	for (const character of name) hash = (hash * 31 + character.codePointAt(0)!) % 360;
 	return `hsl(${Math.round((hash * 137.508) % 360)}, 70%, 45%)`;
+}
+
+/** Whether a kind draws from vector tiles. Local to avoid a cycle with `source-kind`. */
+function isVectorKind(kind: SourceKind): boolean {
+	return kind === 'vectorShortbread' || kind === 'vectorOther';
 }
