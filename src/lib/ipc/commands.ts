@@ -18,6 +18,7 @@
  */
 
 import { commands } from './bindings';
+import { unwrap } from './unwrap';
 import type {
 	Bounds,
 	Preset,
@@ -67,18 +68,6 @@ export type {
 	Token as VplToken,
 	TokenKind as VplTokenKind
 } from './bindings';
-
-/**
- * Turns tauri-specta's result object back into a promise that rejects.
- *
- * The error is thrown as-is rather than wrapped, so a `VplError` still arrives at the `catch` with
- * its `message` and its `span` — which is the whole point of C4.
- */
-async function unwrap<T, E>(result: Promise<{ status: 'ok'; data: T } | { status: 'error'; error: E }>): Promise<T> {
-	const outcome = await result;
-	if (outcome.status === 'error') throw outcome.error;
-	return outcome.data;
-}
 
 /** The event that says the OS asked Studio to open something while it was already running. */
 export const OPENED_EVENT = 'studio://opened';
