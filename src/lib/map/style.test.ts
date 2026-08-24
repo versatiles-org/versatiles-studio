@@ -7,9 +7,11 @@ import {
 	hillshadePaint,
 	hillshadeStyle,
 	rasterPaint,
+	rasterStyle,
 	renderStyle,
 	styleFor
 } from './style';
+import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 import type { Appearance } from '../ipc/commands';
 import type { VectorAppearance } from './style';
 
@@ -522,5 +524,84 @@ describe('the background sits under the stack', () => {
 	it('changes nothing when there is none', () => {
 		const withNone = composeStyle([entry('places')], BASE, null);
 		expect(withNone.style!.layers.every((layer) => !layer.id.includes('/'))).toBe(true);
+	});
+});
+
+/**
+ * Every style Studio builds, checked against MapLibre's own specification.
+ *
+ * **The tests above assert what a style contains; this asserts that MapLibre would accept it.** They
+ * are different questions, and only the second catches a misspelled paint property, a layer pointing
+ * at a source that is not there, or a source missing a field — none of which a shape assertion sees,
+ * and all of which are a blank map at runtime.
+ *
+ * Worth having because `rasterStyle`, `hillshadeStyle` and `composeStyle`'s merging are hand-written
+ * against a specification, rather than produced by a builder that already knows it.
+ */
+describe('what MapLibre would accept', () => {
+	const valid = (style: unknown) => validateStyleMin(style as never).map((error) => error.message);
+
+	const entry = (name: string, over: Record<string, unknown> = {}) => ({
+		name,
+		tileUrl: `${BASE}/tiles/${name}/{z}/{x}/{y}`,
+		appearance: recipe(),
+		kind: 'vectorShortbread' as const,
+		tileFormat: 'mvt',
+		layers: [{ name: 'places', geometry: 'point' }],
+		mountedLayers: ['water_polygons', 'street_polygons', 'boundaries'],
+		...over
+	});
+
+	it('accepts a preset over its own tiles', () => {
+		expect(valid(renderStyle(recipe(), SOURCES, BASE))).toEqual([]);
+	});
+
+	it('accepts a derived style', () => {
+		expect(valid(deriveStyle([{ name: 'places', geometry: 'point' }], SOURCES, BASE))).toEqual([]);
+	});
+
+	it('accepts imagery, adjusted every way the pane can adjust it', () => {
+		const style = rasterStyle(
+			{ hue: 40, saturation: -0.5, contrast: 0.25, brightness: 0.3, opacity: 0.8, resampling: 'nearest' },
+			SOURCES,
+			BASE
+		);
+		expect(valid(style)).toEqual([]);
+	});
+
+	it('accepts hillshade, adjusted every way the pane can adjust it', () => {
+		const style = hillshadeStyle(
+			{
+				exaggeration: 0.8,
+				direction: 200,
+				altitude: 60,
+				shadow: '#102030',
+				highlight: '#ffffff',
+				accent: '#204060'
+			} as never,
+			'dem/terrarium',
+			SOURCES
+		);
+		expect(valid(style)).toEqual([]);
+	});
+
+	// The merge renames layer ids *and* source keys, and a rename that missed a layer's `source`
+	// would leave it pointing at a key that no longer exists — which is a blank map, not an error.
+	it('accepts a stack of several sources, whose renaming must stay consistent', () => {
+		const { style } = composeStyle(
+			[
+				entry('satellite', { appearance: raster(), kind: 'rasterImage', tileFormat: 'png', mountedLayers: [] }),
+				entry('basemap'),
+				entry('places', { mountedLayers: ['places'] })
+			],
+			BASE
+		);
+		expect(valid(style)).toEqual([]);
+	});
+
+	it('accepts a background composed under the stack', () => {
+		const background = renderStyle(recipe(), [{ name: 'osm', tileUrl: 'https://example/{z}/{x}/{y}' }], BASE);
+		const { style } = composeStyle([entry('places', { mountedLayers: ['places'] })], BASE, background);
+		expect(valid(style)).toEqual([]);
 	});
 });
