@@ -15,6 +15,9 @@
 	import { preview } from './lib/state/preview.svelte';
 	import { layout } from './lib/state/layout.svelte';
 	import { document } from './lib/state/document.svelte';
+	import { graphs } from './lib/state/graphs.svelte';
+	import { project } from './lib/state/project.svelte';
+	import { exporting } from './lib/state/export.svelte';
 	import { status } from './lib/state/status.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import LandingScreen from './lib/common/LandingScreen.svelte';
@@ -26,7 +29,6 @@
 	import AssetsDialog from './lib/shell/AssetsDialog.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import CopyDialog from './lib/panes/project/CopyDialog.svelte';
-	import { samePath } from './lib/vpl/node-at';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
 	import TileGrid from './lib/map/TileGrid.svelte';
@@ -45,15 +47,7 @@
 		forgetRecent,
 		takeOpened,
 		OPENED_EVENT,
-		listGraphs,
-		setPin,
-		getPinned,
-		removeGraph,
-		exportGraph,
-		estimateExport,
 		setCrop,
-		writableFormats,
-		renameGraph,
 		addGraph,
 		setGraph,
 		formatGraph,
@@ -63,11 +57,6 @@
 		redo as redoPipeline,
 		recentSources,
 		serverBaseUrl,
-		saveProject,
-		openProject,
-		isProject,
-		copyPlan,
-		saveProjectCopy,
 		vplRemoveProperty,
 		vplInsertNode,
 		vplRemoveNode,
@@ -75,12 +64,8 @@
 		vplSetProperty,
 		vplOperations,
 		getGraph,
-		mountGraph,
 		type DocumentView,
 		type Bounds,
-		type Estimate,
-		type Preview,
-		type CopyPlan,
 		type OperationInfo,
 		type Span,
 		importKinds,
@@ -88,7 +73,6 @@
 		importReadNode,
 		fieldSuggestions,
 		type EditKind,
-		type GraphInfo,
 		type ImportKind,
 		type RecentEntry
 	} from './lib/ipc/commands';
@@ -114,19 +98,6 @@
 	/// Which graph `pipeline` is. Every command that touches a document takes it.
 	const currentGraph = $derived(document.graph);
 
-	// **The style pane follows the selected graph** (S6.4). The recipe files each source's style
-	// under the graph's name while commands take its id, so the state module is told both once here
-	// rather than every consumer working it out.
-	$effect(() => {
-		const id = currentGraph;
-		const name = graphs.find((graph) => graph.id === id)?.name ?? null;
-		styleRecipe.focus(id !== null && name !== null ? { id, name } : null);
-	});
-	/// Every graph in the project, for the list at the top of the Pipeline pane ([Q32]).
-	let graphs = $state<GraphInfo[]>([]);
-	/// Where the map is looking. **Not the selection** — you can edit one node while watching
-	/// another, in another graph ([Q32]). `null` is the ordinary state: the map shows every graph.
-	let pinned = $state<{ graph: number; path: number[] } | null>(null);
 	/** Build-time information about the binary, so it is fetched once and never refreshed. */
 	let operations = $state<OperationInfo[]>([]);
 
@@ -195,7 +166,7 @@
 	// no container at all, and a reloaded window has its graphs back from the core before it has
 	// opened anything, so both left the landing screen covering a loaded project with both panes
 	// hidden.
-	let empty = $derived(graphs.length === 0);
+	let empty = $derived(graphs.empty);
 
 	$effect(() => {
 		// Before anything else asks for work: a job started by the previous window — a conversion
@@ -211,17 +182,17 @@
 		// registered is a tile MapLibre does not know how to fetch (S2.16).
 		registerTileProtocol();
 		void importKinds().then((loaded) => (kinds = loaded));
-		void refreshGraphs().then(async () => {
-			if (graphs.length > 0) document.show(await getGraph(graphs[0].id));
+		void graphs.refresh().then(async () => {
+			if (graphs.first) document.show(await getGraph(graphs.first.id));
 			// The graph came back from the core; the containers it reads did not. Every other path
 			// that sets a pipeline syncs them — `applyDocument` and `load` — and this one was
 			// missing it, so after a reload the inspector had nothing to show about a container the
 			// pipeline was plainly using (A6, A4).
 			await syncContainersToPipeline();
-			await mountEveryGraph();
+			await graphs.mountAll();
 		});
-		void getPinned().then((found) => (pinned = found));
-		void writableFormats().then((loaded) => (formats = loaded));
+		void graphs.readPin();
+		void exporting.loadFormats();
 	});
 
 	// ⌘Z / ⇧⌘Z reach the document from anywhere, because there is one stack for every view (G6).
@@ -272,7 +243,7 @@
 	async function setPipelineText(text: string, kind: EditKind = 'structured', source: string | null = null) {
 		if (currentGraph === null) {
 			const created = await addGraph(source, text);
-			await refreshGraphs();
+			await graphs.refresh();
 			return created;
 		}
 		return await setGraph(currentGraph, text, kind);
@@ -289,14 +260,7 @@
 	/// the name is the mount, the style's source name and the `.vpl` filename at once.
 	async function rename(id: number, name: string) {
 		try {
-			// The stack is keyed by name and the mount moves with it, so the old entry is stale the
-			// moment this returns. Dropped rather than moved: the core remounts under the new name,
-			// and `mountEveryGraph` below rebuilds it from that — one source of truth, not two.
-			const before = graphs.find((graph) => graph.id === id)?.name ?? null;
-			await renameGraph(id, name);
-			if (before) preview.forget(before);
-			await refreshGraphs();
-			await mountEveryGraph();
+			await graphs.rename(id, name);
 			if (id === currentGraph) document.update(await getGraph(id));
 			await refreshPreview();
 		} catch (e) {
@@ -312,7 +276,7 @@
 	/// core, which is what makes it survive a reload and land in the project manifest; a copy here
 	/// would be a second answer to the same question.
 	const crop = $derived<Bounds>(
-		graphs.find((graph) => graph.id === currentGraph)?.crop ?? { bbox: null, minZoom: null, maxZoom: null }
+		graphs.list.find((graph) => graph.id === currentGraph)?.crop ?? { bbox: null, minZoom: null, maxZoom: null }
 	);
 
 	/// Whether a drag on the map draws a rectangle. Local: a mode you are halfway through is not
@@ -323,7 +287,7 @@
 		if (!document.current) return;
 		try {
 			await setCrop(document.current.graph, next);
-			await refreshGraphs();
+			await graphs.refresh();
 		} catch (e) {
 			status.fail(e);
 		}
@@ -341,67 +305,6 @@
 		});
 	}
 
-	/// Whether the export modal is up. For the graph being edited — exporting is per graph ([Q32]).
-	let exporting = $state(false);
-
-	/// What the graph turns out to produce, while the export dialog is open ([Q41]).
-	///
-	/// **Asked for by name, not taken from `preview.last`.** That one follows the pin ([Q32]), so
-	/// with a node pinned it describes an intermediate step — and the export writes the graph
-	/// regardless. Numbers about a different artefact, directly above the button that writes this
-	/// one, would be worse than no numbers.
-	///
-	/// Fetched on opening rather than kept in step, like the copy plan: it is a function of the
-	/// graph as it stands, and asking once, when someone is about to commit, cannot go stale.
-	let producing = $state<Preview | null>(null);
-
-	/// Runs the estimate the export dialog asks for.
-	///
-	/// A named function rather than a closure at the call site: the `{#if exporting && pipeline}`
-	/// around the dialog narrows `pipeline` for the markup, not for a callback that runs later.
-	function estimateForExport(): Promise<Estimate> {
-		if (!document.current) return Promise.reject(new Error('that graph is no longer open'));
-		return estimateExport(document.current.graph, crop);
-	}
-
-	async function showExport() {
-		exporting = true;
-		producing = null;
-		if (!document.current) return;
-		// A build that fails is not a reason to refuse the dialog: what it must say is what will be
-		// written and what that costs, and both come from elsewhere. This is confirmation.
-		producing = await mountGraph(document.current.graph).catch(() => null);
-	}
-	/// What Studio can write, for the modal's wording and the dialog's filters. Fetched once.
-	let formats = $state<string[]>([]);
-
-	/// Writes this graph to a container, as a job.
-	///
-	/// The crop is the pane's; this collects only the *destination*, because the extension chosen is
-	/// what decides the format — asking for a format in a form and then letting the filename
-	/// contradict it would be two answers to one question.
-	///
-	/// Returns once the job is submitted rather than once it is done: an export runs for minutes,
-	/// and the bar is where it is watched and cancelled (E7).
-	async function startExport() {
-		if (!document.current) return;
-		exporting = false;
-		try {
-			const target = await save({
-				title: `Export ${document.current.name}`,
-				defaultPath: `${document.current.name}.${formats[0] ?? 'versatiles'}`,
-				filters: [{ name: 'Tile containers', extensions: formats }]
-			});
-			if (!target) return; // cancelled
-			// No `status` message: the job *is* the status. The bar prefers a running job over a
-			// `status` line, so a message set here was invisible while the export ran and surfaced
-			// only once it had stopped — the one moment it was no longer true.
-			await exportGraph(document.current.graph, target, crop);
-		} catch (e) {
-			status.fail(e);
-		}
-	}
-
 	/// Removes a graph for good.
 	///
 	/// **Not undoable**, which the list says before doing it: the history restores text *into* a
@@ -411,20 +314,9 @@
 	/// so what is left for the webview is deciding what to look at next.
 	async function removeGraphById(id: number) {
 		try {
-			// Read before it is gone: the stack is keyed by name, and afterwards there is nothing left
-			// to look the name up with — so its tiles would stay on the map for the rest of the session.
-			const gone = graphs.find((graph) => graph.id === id)?.name ?? null;
-			await removeGraph(id);
-			if (gone) preview.forget(gone);
-			await refreshGraphs();
-			// The core may have dropped the pin; ask rather than assume which way it went.
-			pinned = await getPinned();
-
-			if (id === currentGraph) {
-				// Show the first remaining graph, or nothing at all when that was the last one.
-				const next = graphs[0]?.id ?? null;
-				document.show(next === null ? null : ((await getGraph(next)) ?? null));
-			}
+			const next = await graphs.remove(id);
+			// Show the first remaining graph, or nothing at all when that was the last one.
+			if (id === currentGraph) document.show(next === null ? null : ((await getGraph(next)) ?? null));
 
 			if (document.current) {
 				await refreshPreview();
@@ -438,103 +330,29 @@
 		}
 	}
 
-	async function refreshGraphs() {
-		graphs = await listGraphs().catch(() => []);
-	}
-
-	/// Builds every graph the project has, so the style can draw the whole stack (S6.5).
-	///
-	/// **On open, not on every refresh.** A project's graphs are one build apiece, which is a cost a
-	/// person expects when opening something and would not forgive on every keystroke — so `refresh`
-	/// still rebuilds only the graph being edited, and this fills in the rest once.
-	///
-	/// Graphs already built are skipped by `mountAll`, so calling this after adding a graph costs
-	/// exactly the new one.
-	async function mountEveryGraph() {
-		const unbuilt = graphs.filter((graph) => !(graph.name in preview.built)).map((graph) => graph.id);
-		if (unbuilt.length > 0) await preview.mountAll(unbuilt);
-	}
-
 	/// Moves the map to a node, or clears the pin when it is already there.
 	///
 	/// Clicking the pinned node again is what gets you back to seeing every graph — the same
 	/// gesture off as on, because a separate "clear" would be a control that only exists sometimes.
 	async function pin(path: number[]) {
 		if (currentGraph === null) return;
-		const same = pinned && pinned.graph === currentGraph && samePath(pinned.path, path);
-		pinned = await setPin(same ? null : { graph: currentGraph, path });
+		await graphs.togglePin(currentGraph, path);
 		await refreshPreview();
-	}
-
-	/// Writes the project into a directory someone chooses (G1, S5.1).
-	///
-	/// The rendered style goes with it: the core holds the recipe, and `style.json` is for the tools
-	/// that cannot render one ([Q36]).
-	async function saveProjectAs() {
-		try {
-			const dir = await open({ directory: true, title: 'Save project into…' });
-			if (typeof dir !== 'string') return;
-			status.busy('Saving the project…');
-			await saveProject(dir, styled ? JSON.stringify(forExport(styled), null, '\t') : null);
-			status.settle();
-		} catch (e) {
-			status.fail(e);
-		}
 	}
 
 	/// Opens a project directory, replacing what is open — a window is one project ([Q16]).
 	async function openProjectDir() {
 		try {
-			const dir = await open({ directory: true, title: 'Open project' });
-			if (typeof dir !== 'string') return;
-			if (!(await isProject(dir))) {
-				status.fail(`${dir} holds no project.yaml`);
-				return;
-			}
-			status.busy('Opening the project…');
-			styleRecipe.restored(await openProject(dir));
-			await refreshGraphs();
-			if (graphs.length > 0) document.show(await getGraph(graphs[0].id));
+			const recipe = await project.open();
+			if (!recipe) return;
+			styleRecipe.restored(recipe);
+			await graphs.refresh();
+			if (graphs.first) document.show(await getGraph(graphs.first.id));
 			await syncContainersToPipeline();
 			// Every graph, not just the one that opens — a style names them all (S6.5), and this is
 			// the moment a person is already waiting.
-			await mountEveryGraph();
+			await graphs.mountAll();
 			await refreshPreview();
-			status.settle();
-		} catch (e) {
-			status.fail(e);
-		}
-	}
-
-	/// What a copy would carry, while the dialog asking about it is open (S5.1).
-	///
-	/// Fetched on opening rather than kept in step, and the write plans again on the other side: what
-	/// lands is what the project is then, rather than what it was when this dialog appeared.
-	let copying = $state<CopyPlan | null>(null);
-
-	async function showCopy() {
-		try {
-			copying = await copyPlan();
-		} catch (e) {
-			status.fail(e);
-		}
-	}
-
-	/// Asks where, then writes it. A zip is one file and a folder is a directory, so the two take
-	/// different pickers.
-	async function writeCopy(zip: boolean) {
-		copying = null;
-		try {
-			const target = zip
-				? await save({
-						title: 'Save a copy as',
-						defaultPath: 'project.zip',
-						filters: [{ name: 'Zip archive', extensions: ['zip'] }]
-					})
-				: await open({ directory: true, title: 'Save a copy into…' });
-			if (typeof target !== 'string') return;
-			status.busy('Copying the project…');
-			await saveProjectCopy(target, zip, styled ? JSON.stringify(forExport(styled), null, '\t') : null);
 			status.settle();
 		} catch (e) {
 			status.fail(e);
@@ -594,13 +412,16 @@
 		stackFor({
 			recipe: styleRecipe.current,
 			built: preview.built,
-			pinned: pinned ? preview.last : null,
+			pinned: graphs.pinned ? preview.last : null,
 			serverUrl,
 			background: backgroundStyle
 		})
 	);
 
 	const styled = $derived(composed.style);
+
+	/// The `style.json` a project writes beside its manifest, or `null` when nothing draws.
+	const styleText = () => (styled ? JSON.stringify(forExport(styled), null, '\t') : null);
 	const previewDrawn = $derived(drawn(composed, preview.last?.name));
 
 	// **One owner for the map's style**, and it composes rather than chooses.
@@ -672,7 +493,12 @@
 	/// it is bound to, and the one status bar the outcome has to be reported in.
 	async function refreshPreview() {
 		try {
-			const done = await preview.refresh({ map, pipeline: document.current, pinned, styled: () => previewDrawn });
+			const done = await preview.refresh({
+				map,
+				pipeline: document.current,
+				pinned: graphs.pinned,
+				styled: () => previewDrawn
+			});
 			switch (done.kind) {
 				// A newer build owns the map and is still working; the bar is its to set, not ours.
 				case 'superseded':
@@ -725,7 +551,7 @@
 		document.show(next);
 		// The list shows the name, the pin and the unsaved dot — the last of which changes on every
 		// edit, so refreshing here rather than only when a graph is added or removed.
-		await refreshGraphs();
+		await graphs.refresh();
 		await syncContainersToPipeline();
 		await refreshPreview();
 	}
@@ -796,7 +622,7 @@
 			document.update(await saveVpl(document.current.graph, target));
 			status.busy(`Saved ${filename(target)}`);
 			// The other half of the dot: saving is what clears it, and the list has to be told.
-			await refreshGraphs();
+			await graphs.refresh();
 			await refreshRecents();
 			status.settle();
 		} catch (e) {
@@ -887,13 +713,13 @@
 		<PipelinePane
 			{kinds}
 			{operations}
-			{graphs}
+			graphs={graphs.list}
 			pipeline={document.current}
 			pipelineRevision={document.revision}
 			properties={producedProperties}
 			fits={preview.last?.fits ?? []}
 			{suggestions}
-			pinned={pinned && pinned.graph === currentGraph ? pinned.path : null}
+			pinned={graphs.pinned && graphs.pinned.graph === currentGraph ? graphs.pinned.path : null}
 			crop={document.current ? { bounds: crop, drawing } : null}
 			cropActions={{
 				set: (bounds) => void changeCrop(bounds),
@@ -926,14 +752,14 @@
 						// cycle, so a round trip per character to be told nothing changed is a poor trade.
 						const flipped = document.current?.dirty !== next.dirty;
 						document.update(next);
-						if (flipped) void refreshGraphs();
+						if (flipped) void graphs.refresh();
 						void refreshPreview();
 					}),
 				undo: () => void stepHistory(true),
 				redo: () => void stepHistory(false),
 				format: () => void formatPipeline(),
 				save: (chooseFile) => void savePipeline(chooseFile),
-				export: () => void showExport()
+				export: () => void exporting.show(currentGraph)
 			}}
 		/>
 	{:else if id === 'style'}
@@ -941,9 +767,9 @@
 			rendered={styled}
 			basis={composed.bases.find((entry) => entry.name === preview.last?.name)?.basis ?? 'none'}
 			stack={composed.bases}
-			editing={graphs.find((graph) => graph.id === currentGraph)?.name ?? null}
+			editing={graphs.nameOf(currentGraph ?? -1)}
 			onSelect={(name) => {
-				const found = graphs.find((graph) => graph.name === name);
+				const found = graphs.list.find((graph) => graph.name === name);
 				if (found) void selectGraph(found.id);
 			}}
 			source={preview.last
@@ -979,9 +805,9 @@
 		<AppBar
 			onOpenAssets={() => (assets = true)}
 			onOpenProject={() => void openProjectDir()}
-			onSaveProject={() => void saveProjectAs()}
-			onSaveCopy={() => void showCopy()}
-			hasProject={graphs.length > 0}
+			onSaveProject={() => void project.saveAs(styleText)}
+			onSaveCopy={() => void project.showCopy()}
+			hasProject={!graphs.empty}
 		/>
 	{/snippet}
 	{#snippet mapPane()}
@@ -1047,20 +873,24 @@
 
 <!-- Outside the shell on purpose: the sidebars scroll and clip, and this has to sit over the
      map beside them ([Q33]). -->
-{#if exporting && document.current}
+{#if exporting.open && document.current}
 	<ExportDialog
 		name={document.current.name}
-		{formats}
+		formats={exporting.formats}
 		{crop}
-		onEstimate={estimateForExport}
-		onCancel={() => (exporting = false)}
-		produces={producing}
-		onExport={() => void startExport()}
+		onEstimate={() => exporting.estimate(currentGraph, crop)}
+		onCancel={() => exporting.close()}
+		produces={exporting.producing}
+		onExport={() => void exporting.start(currentGraph, document.current?.name ?? '', crop)}
 	/>
 {/if}
 
-{#if copying}
-	<CopyDialog plan={copying} onCancel={() => (copying = null)} onWrite={(zip) => void writeCopy(zip)} />
+{#if project.copying}
+	<CopyDialog
+		plan={project.copying}
+		onCancel={() => project.cancelCopy()}
+		onWrite={(zip) => void project.writeCopy(zip, styleText)}
+	/>
 {/if}
 
 <!-- Outside the map region, like every other modal: the map keeps running behind it rather than
