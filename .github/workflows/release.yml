@@ -37,9 +37,12 @@ jobs:
   # What is being released
   # -------------------------------------------------------------------------------------------
   version:
-    name: Version
+    name: Version and draft
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      # Opens the draft, so the bundles below have somewhere to upload to.
+      contents: write
     outputs:
       version: ${{ steps.read.outputs.version }}
     steps:
@@ -64,6 +67,61 @@ jobs:
               echo "::error::tag v$tag does not match version $version — bump the version files, or retag" >&2
               exit 1
             fi
+          fi
+
+      # **Every cheap precondition belongs in this job, which is the point of this job.** v0.2.0
+      # spent five builds and about two hours of runner time before a `cat` of a file the checkout
+      # had not fetched took the release down. Nothing below costs more than a second, and all of it
+      # can fail before a single compiler starts.
+      #
+      # A `workflow_dispatch` run assembles the notes too and then stops. That is deliberate: it is
+      # how a change to the notes gets tested without spending a version number.
+      - name: Assemble the notes
+        run: |
+          set -euo pipefail
+          version="${{ steps.read.outputs.version }}"
+
+          awk -v v="## v$version " 'index($0, v) == 1 { on = 1; next } on && /^## / { exit } on' \
+            CHANGELOG.md >notes.md
+          if [ ! -s notes.md ]; then
+            echo "::error::CHANGELOG.md has no section for v$version" >&2
+            exit 1
+          fi
+
+          # The standing text lives in a file rather than a heredoc: a heredoc inside a YAML block
+          # keeps its indentation, and ten spaces in front of every line turns markdown into a code
+          # block.
+          printf '\n' >>notes.md
+          cat .github/release-install.md >>notes.md
+
+          cat notes.md
+
+      # **Opened here, filled by the bundles, published at the end.** A draft is invisible to anyone
+      # without push access and to `releases/latest/download`, so it reaches nobody until the last
+      # job flips it — while giving each bundle somewhere to put its installers as it finishes, and
+      # giving a re-run of one failed platform somewhere to put just that platform's.
+      #
+      # Idempotent because a re-run must land on the release that already exists rather than failing
+      # on it. The body is rewritten each time so an edited CHANGELOG reaches the page on a re-run.
+      - name: Open the draft release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v${{ steps.read.outputs.version }}"
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            if [ "$(gh release view "$tag" --json isDraft --jq .isDraft)" != "true" ]; then
+              echo "::error::$tag is already published — retagging cannot rewrite a release people have" >&2
+              exit 1
+            fi
+            echo "draft $tag already exists; updating its notes"
+            gh release edit "$tag" --notes-file notes.md
+          else
+            gh release create "$tag" --draft \
+              --title "VersaTiles Studio ${{ steps.read.outputs.version }}" \
+              --notes-file notes.md
           fi
 
   # -------------------------------------------------------------------------------------------
@@ -105,13 +163,17 @@ jobs:
           # **x86_64 only.** `gdal-sys` has no prebuilt bindings for `aarch64 + windows` and
           # generates none in a bundled build, so that target cannot be built at all from here
           # (S5.9). Windows on ARM runs this installer under emulation.
-          - label: Windows (x86_64)
+          - label: Windows x86
             runner: windows-latest
             artefact: windows-x86_64
             platform: windows-x86_64
     runs-on: ${{ matrix.runner }}
     # A cold cache rebuilds GDAL from source, which is most of the time here (Q19, Q20).
     timeout-minutes: 60
+    permissions:
+      # Each bundle uploads its own installers into the draft the job above opened, so the assets
+      # arrive as they are built rather than waiting for the slowest platform and being copied twice.
+      contents: write
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -268,17 +330,34 @@ jobs:
           fi
           ls -lh upload
 
+      # **Straight into the draft, and `--clobber` because a re-run must replace rather than refuse.**
+      # Uploading per platform is what makes one failed leg recoverable on its own: re-running this
+      # job replaces its own assets and leaves the other four alone.
+      #
+      # Concurrent uploads are safe — each asset is its own API call, and nothing here reads and
+      # rewrites the release object. Only the job above and the job below do that, and neither runs
+      # while these do.
+      - name: Upload into the draft release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: gh release upload "v${{ needs.version.outputs.version }}" upload/* --clobber
+
+      # The `workflow_dispatch` path has no release to upload to, which is the whole point of it.
+      # The artefacts are how a packaging change is inspected without spending a version number.
       - uses: actions/upload-artifact@v7
+        if: github.event_name != 'push'
         with:
           name: installers-${{ matrix.artefact }}
           path: upload/*
           if-no-files-found: error
 
   # -------------------------------------------------------------------------------------------
-  # The draft
+  # Publishing
   # -------------------------------------------------------------------------------------------
-  release:
-    name: Draft release
+  publish:
+    name: Verify and publish
     # Only for a tag. `workflow_dispatch` stops at the artefacts above, which is the whole point of
     # being able to run this on a branch.
     if: github.event_name == 'push'
@@ -286,105 +365,71 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      # The one job that writes. Everything above inherits the workflow's read-only default.
       contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: v${{ needs.version.outputs.version }}
     steps:
+      # **A full checkout, not a sparse one.** The sparse list here fetched two of the three files
+      # this job read, and the third was missing for a whole release. Fetching this repository costs
+      # a couple of seconds; naming paths correctly forever costs more than that eventually.
       - uses: actions/checkout@v7
-        with:
-          sparse-checkout: |
-            scripts/latest-json.ts
-            CHANGELOG.md
-          sparse-checkout-cone-mode: false
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: installers-*
-          merge-multiple: true
-          path: installers
-      - run: ls -lh installers
 
-      # The manifest the updater reads. Built from what was actually produced rather than from a
-      # template, so a platform whose build failed is absent from it — an updater that offers a
-      # download that is not there is worse than one that offers nothing.
-      #
-      # `releases/latest/download/latest.json` resolves to the newest **published** release, so a
-      # draft is invisible to every installed copy until someone presses publish. That is the same
-      # property the draft gives the installers, applied to the thing that reaches people
-      # automatically.
-      # **The whole body is assembled here.** `append_body` appends to an *existing release's*
-      # body when updating one; it does not combine `body` with `body_path`, and `body_path` wins —
-      # so the install instructions were silently dropped from v0.1.0's page, which is the one place
-      # a macOS user finds out why the application refuses to open (Q10 calls that text the
-      # deliverable). One file, passed as `body_path`, has no such ambiguity.
-      - name: Assemble the notes
+      # **The names come from the release, the signatures from disk.** GitHub is the authority on
+      # what an asset ended up being called — it rewrites characters it dislikes — so a manifest
+      # built from anything else is a manifest of URLs that may not resolve. The `.sig` files are a
+      # few hundred bytes each and are the one thing the manifest needs the *contents* of.
+      - name: Collect what was uploaded
         run: |
           set -euo pipefail
-          version="${{ needs.version.outputs.version }}"
+          gh release view "$TAG" --json assets --jq '.assets[].name' | sort >names.txt
+          echo "$(wc -l <names.txt) assets on the draft:"
+          sed 's/^/  /' names.txt
 
-          if [ -f CHANGELOG.md ]; then
-            awk -v v="## v$version " 'index($0, v) == 1 { on = 1; next } on && /^## / { exit } on' \
-              CHANGELOG.md >notes.md
-          fi
-          if [ ! -s notes.md ]; then
-            echo "::warning::CHANGELOG.md has no section for v$version"
-            : >notes.md
-          fi
+          mkdir -p sigs
+          gh release download "$TAG" --pattern '*.sig' --dir sigs
+          echo "$(ls -1 sigs | wc -l) signatures downloaded"
 
-          # The standing text lives in a file rather than a heredoc: a heredoc inside a YAML block
-          # keeps its indentation, and ten spaces in front of every line turns markdown into a code
-          # block.
-          printf '\n' >>notes.md
-          cat .github/release-install.md >>notes.md
-
-          cat notes.md
-
+      # Every guard in here reads the complete set at once: a platform with no signature, a
+      # signature no platform claims, two files matching one suffix, a name GitHub would rewrite.
+      # None of them can be checked one bundle at a time, which is why this is not in the matrix.
       - name: Build latest.json
-        run: node --experimental-strip-types scripts/latest-json.ts installers ${{ needs.version.outputs.version }} > installers/latest.json
-      - run: cat installers/latest.json
-
-      - uses: softprops/action-gh-release@v3
-        with:
-          # Published by the step below, once the manifest has been checked — not here.
-          draft: true
-          name: VersaTiles Studio ${{ needs.version.outputs.version }}
-          files: installers/*
-          # macOS is unsigned until Q10 is revisited, so every download from this page meets
-          # Gatekeeper. Saying so on the page beats letting someone find out at first launch.
-          body_path: notes.md
+        run: |
+          set -euo pipefail
+          node --experimental-strip-types scripts/latest-json.ts \
+            sigs "${{ needs.version.outputs.version }}" names.txt >latest.json
+          cat latest.json
+          gh release upload "$TAG" latest.json --clobber
 
       # **Does every URL in the manifest point at an asset that exists?**
       #
-      # Asked after the upload, because that is when it can be wrong: GitHub rewrites characters it
-      # dislikes in an asset name, so a file uploaded as `A B.AppImage` is stored as `A.B.AppImage`
-      # and the manifest still names the first. v0.1.0 shipped exactly that — a draft whose Linux
-      # entries 404'd — and nothing noticed, because a 404 only surfaces on someone else's machine
-      # weeks later when they check for an update.
-      #
-      # The draft stays; the job fails, so it is not published.
+      # Both sides now come from the same API listing, so this can no longer catch a name GitHub
+      # rewrote — `latest-json.ts` refuses those before they are ever uploaded. What it still catches
+      # is an asset that never arrived: a bundle job that was skipped, cancelled, or re-run against
+      # the wrong tag leaves the manifest naming a file the release does not have.
       - name: Verify the manifest
         run: |
           set -euo pipefail
-          gh release view "v${{ needs.version.outputs.version }}" --json assets --jq '.assets[].name' | sort >uploaded.txt
+          gh release view "$TAG" --json assets --jq '.assets[].name' | sort >uploaded.txt
 
           missing=0
           while IFS= read -r wanted; do
             if grep -qxF "$wanted" uploaded.txt; then
               echo "  ok       $wanted"
             else
-              echo "::error::latest.json points at $wanted, which was not uploaded under that name"
+              echo "::error::latest.json points at $wanted, which is not on the release"
               missing=1
             fi
           done < <(node -e '
-            const m = require("./installers/latest.json");
+            const m = require("./latest.json");
             for (const p of Object.values(m.platforms)) {
               console.log(decodeURIComponent(p.url.split("/").pop()));
             }
           ')
           exit "$missing"
-        env:
-          GH_TOKEN: ${{ github.token }}
 
       # **`--latest` is not decoration.** The updater fetches
       # `releases/latest/download/latest.json`, so a release that is published without being marked
@@ -392,10 +437,8 @@ jobs:
       # anywhere reports an error.
       - name: Publish
         run: |
-          gh release edit "v${{ needs.version.outputs.version }}" --draft=false --latest
-          echo "published https://github.com/${{ github.repository }}/releases/tag/v${{ needs.version.outputs.version }}"
-        env:
-          GH_TOKEN: ${{ github.token }}
+          gh release edit "$TAG" --draft=false --latest
+          echo "published https://github.com/${{ github.repository }}/releases/tag/$TAG"
 
       # **The tap pulls; this only tells it to.** `bin/make_cask.sh` over there reads the release
       # that was just published and finds its assets by suffix, so a renamed `.dmg` cannot leave the
@@ -408,3 +451,20 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: gh workflow run update_cask.yml --repo versatiles-org/homebrew-versatiles --ref main
+
+  # -------------------------------------------------------------------------------------------
+  # **Why a failed run leaves its draft behind.**
+  #
+  # An abandoned draft looks like litter, and deleting it was the obvious tidy-up — but it would
+  # throw away the reason the draft is opened early. `fail-fast: false` means one broken platform
+  # leaves the other four built and uploaded; re-running that one job then fills the gap in about
+  # twenty minutes instead of rebuilding everything for two hours. Deleting the draft on failure
+  # would turn every partial failure back into a full rebuild.
+  #
+  # The draft costs nothing while it waits: invisible without push access, invisible to
+  # `releases/latest/download`, and reachable by no installed copy.
+  #
+  # A stale asset is the one risk — retag the same version onto a different commit and an asset
+  # whose *name* changed is not replaced by `--clobber`, it is joined. `latest-json.ts` refuses that
+  # loudly rather than shipping it: an orphan `.sig` no platform claims is an error, and two files
+  # matching one platform's suffix is another. To start clean, `gh release delete "$TAG"` by hand.

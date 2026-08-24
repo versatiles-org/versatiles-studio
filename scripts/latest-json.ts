@@ -1,7 +1,7 @@
 /**
  * The manifest the auto-updater reads (G4, S5.8).
  *
- *   node --experimental-strip-types scripts/latest-json.ts <dir> <version> > latest.json
+ *   node --experimental-strip-types scripts/latest-json.ts <sig-dir> <version> [names-file] > latest.json
  *
  * **Built from what was produced, not from a template.** A platform whose build failed is simply
  * absent from the result — an updater that offers a download that is not there is worse than one
@@ -107,17 +107,39 @@ export function platformsFor(names: string[], version: string, read: (name: stri
 	return platforms;
 }
 
+/**
+ * The asset names to build the manifest from.
+ *
+ * **Two sources, because the release is the truth about names and the disk is the truth about
+ * signatures.** Every bundle job uploads straight into the draft, so by the time this runs the
+ * only complete list of what exists is GitHub's own — and it is GitHub's list that matters, since
+ * it rewrites characters it dislikes in an asset name. Reading `readdirSync` instead would build a
+ * manifest from names nobody serves.
+ *
+ * Without `namesFile` the directory answers both questions, which is how this is run by hand
+ * against a folder of downloaded installers.
+ */
+function assetNames(dir: string, namesFile?: string): string[] {
+	if (!namesFile) return readdirSync(dir);
+	const names = readFileSync(namesFile, 'utf8')
+		.split('\n')
+		.map((line) => line.trim())
+		.filter(Boolean);
+	if (names.length === 0) throw new Error(`${namesFile} lists no assets`);
+	return names;
+}
+
 function main(): void {
-	const [dir, version] = process.argv.slice(2);
+	const [dir, version, namesFile] = process.argv.slice(2);
 	if (!dir || !version) {
-		throw new Error('usage: latest-json.ts <dir> <version>');
+		throw new Error('usage: latest-json.ts <signature-dir> <version> [asset-names-file]');
 	}
 
-	const names = readdirSync(dir);
+	const names = assetNames(dir, namesFile);
 	const platforms = platformsFor(names, version, (name) => readFileSync(join(dir, name), 'utf8'));
 
 	if (Object.keys(platforms).length === 0) {
-		throw new Error(`no updater bundles in ${dir} — found: ${names.join(', ')}`);
+		throw new Error(`no updater bundles among ${names.length} assets — found: ${names.join(', ')}`);
 	}
 
 	process.stdout.write(

@@ -15,6 +15,12 @@
  * human has read the notes, because a tag is cheap to make and expensive to retract: an installed
  * copy that has seen `latest.json` cannot be told to forget it.
  *
+ * **The notes this writes are the notes that ship.** `release.yml`'s first job reads this
+ * `CHANGELOG.md` section straight off the tagged commit, appends `.github/release-install.md`, and
+ * opens the draft with the result — before a single build starts. So the section written here is
+ * the top of the release page, and a missing one fails the run in about five seconds rather than
+ * after two hours of building.
+ *
  * **What it does not do.** Write the Homebrew cask. The tap generates its own from the published
  * release, triggered by the release workflow — one place that knows what a cask looks like, reading
  * the assets rather than being told about them.
@@ -378,7 +384,23 @@ async function watch(runId: string): Promise<void> {
 		drawn = lines.length;
 
 		if (status === 'completed') {
-			if (conclusion !== 'success') throw new Error(`the release build ${conclusion} — see the run above`);
+			if (conclusion !== 'success') {
+				// **What failed is recoverable per job, and saying so is the difference between a
+				// twenty-minute fix and a two-hour one.** Every bundle uploads into the draft as it
+				// finishes, so a run that lost one platform still has the other four sitting on the
+				// release; re-running the failed job alone fills the gap. The draft is deliberately
+				// left behind for exactly this — see the note at the end of `release.yml`.
+				const failed = jobs.filter((job) => job.conclusion && job.conclusion !== 'success');
+				throw new Error(
+					[
+						`the release build ${conclusion} — ${failed.map((job) => job.name).join(', ') || 'see the run above'}`,
+						'',
+						'  The draft release holds whatever did succeed, and is invisible until published.',
+						`  Re-run just the failed jobs:  gh run rerun ${runId} --failed`,
+						'  Or start clean:               gh release delete <tag>'
+					].join('\n')
+				);
+			}
 			return;
 		}
 		await new Promise((resolve) => setTimeout(resolve, 15_000));
@@ -475,8 +497,9 @@ async function main(): Promise<void> {
 	process.stdout.write(
 		[
 			`  push       ${BRANCH} and ${tag} to origin`,
+			`  draft      a hidden release, carrying the notes you just wrote`,
 			`  build      .deb, AppImage and two .dmgs, signed for the updater`,
-			`  publish    the release once the build verifies, which reaches every installed copy`,
+			`  publish    the draft once the manifest verifies, which reaches every installed copy`,
 			'',
 			'  Everything so far is local. `git reset --hard HEAD~1 && git tag -d ' + tag + '` undoes it.',
 			''
