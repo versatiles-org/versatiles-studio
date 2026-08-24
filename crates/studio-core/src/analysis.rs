@@ -31,6 +31,18 @@ pub struct ContainerInfo {
 	/// `[west, south, east, north]`, if the pyramid is non-empty.
 	#[cfg_attr(feature = "bindings", specta(type = Option<[specta_typescript::Number; 4]>))]
 	pub bbox: Option<[f64; 4]>,
+	/// What the container says its tiles *contain*, if it says — `shortbread@1.0`, `dem/mapbox`,
+	/// `rgb`, and the rest of `TileSchema`'s spellings ([S6.1](../../docs/scope-release-2.md)).
+	///
+	/// **Passed through as the container's own string rather than mirrored into an enum here.**
+	/// `TileSchema` is upstream's and can gain a variant; a copy of its list in Studio would be one
+	/// more thing to keep in step, and the failure mode of falling behind is silently misreading a
+	/// container as something it is not. [`SourceKind`](crate::style::SourceKind) is Studio's
+	/// vocabulary and is derived from this, which is a different question with a different answer.
+	///
+	/// `None` for every container written before the field existed, which is why nothing may depend
+	/// on it being present.
+	pub tile_schema: Option<String>,
 	/// TileJSON as published by the container, for the inspector to show and edit (A6).
 	///
 	/// Arbitrary JSON, so it is declared opaque: specta refuses `serde_json::Value` because a
@@ -84,6 +96,7 @@ pub async fn describe(reader: &SharedTileSource, label: &str) -> Result<Containe
 		min_zoom: pyramid.level_min().unwrap_or(0),
 		max_zoom: pyramid.level_max().unwrap_or(0),
 		bbox: pyramid.geo_bbox().map(|b| b.as_array()),
+		tile_schema: reader.tilejson().tile_schema.map(|schema| schema.to_string()),
 		// versatiles has its own JSON value type; round-tripping through the wire format is the
 		// cheapest honest conversion, and this runs once per open, not per tile.
 		tile_json: serde_json::from_str(&reader.tilejson().stringify()).context("parsing TileJSON")?,

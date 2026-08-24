@@ -21,6 +21,7 @@ import { commands } from './bindings';
 import type {
 	Bounds,
 	Preset,
+	SourceKind,
 	Recolor_Serialize as Recolor,
 	LayerOverride_Serialize as LayerOverride
 } from './bindings';
@@ -204,6 +205,15 @@ export const style = () => unwrap(commands.style());
 
 /** Switches which style the project starts from (D1). Returns the recipe as it now stands. */
 export const setStylePreset = (preset: Preset) => unwrap(commands.setStylePreset(preset));
+
+/**
+ * Corrects what the source's tiles are being read as (S6.1).
+ *
+ * `null` hands the question back to `sourceKind`'s own reading, which is where it starts. Stored as
+ * the *correction* rather than the answer, so a container that later gains a `tile_schema` is read
+ * better rather than being stuck with what was cached about it.
+ */
+export const setStyleKind = (kind: SourceKind | null) => unwrap(commands.setStyleKind(kind));
 
 /**
  * Sets the whole global recolouring at once (D1, D5).

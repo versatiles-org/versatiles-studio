@@ -158,6 +158,35 @@ impl LayerOverride {
 	}
 }
 
+/// What a source's tiles are, as far as drawing them is concerned ([S6.1](../../../docs/scope-release-2.md)).
+///
+/// **Studio's vocabulary, not the container's.** A container declares a `tile_schema` — upstream's
+/// list, which can grow — and this is the much smaller question the style pane actually switches on:
+/// which editor does this source get. Two schemas can land on one kind (`rgb` and `rgba` are both
+/// imagery) and a container with no schema at all still has to land somewhere.
+///
+/// **Derived, and overridable.** The webview works it out from the schema, falling back to the tile
+/// format and the layers the probe found. That answer is a guess whenever the schema is absent, so
+/// [`Recipe::kind`] exists to let someone correct it — a DEM written before `tile_schema` existed is
+/// otherwise indistinguishable from a photograph, and no amount of looking at the pixels decides it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+#[serde(rename_all = "camelCase")]
+pub enum SourceKind {
+	/// Vector tiles using Shortbread's layer names, which the six presets are written against.
+	VectorShortbread,
+	/// Vector tiles of anything else. Styled from the layers actually present (D2).
+	VectorOther,
+	/// Raster tiles meant to be looked at — imagery, a scan, a rendered map (D11).
+	RasterImage,
+	/// Raster tiles encoding elevation, to be drawn as hillshade rather than as colour (D12).
+	///
+	/// The encoding — `mapbox`, `terrarium`, `versatiles` — is deliberately not carried here yet.
+	/// Nothing draws a DEM until S6.6, and that is the step that has to decide whether the encoding
+	/// belongs on this enum or is re-read from `tile_schema` at the point of use.
+	RasterDem,
+}
+
 /// The whole style, as the core holds it.
 ///
 /// Ordered by layer id (`BTreeMap`, not `HashMap`) so that the text this serialises to depends only
@@ -172,6 +201,13 @@ pub struct Recipe {
 	pub recolor: Recolor,
 	/// By layer id. Empty for a style nobody has edited by hand.
 	pub overrides: BTreeMap<String, LayerOverride>,
+	/// What the source is being drawn as, when someone has said so explicitly.
+	///
+	/// `None` — the usual case — means the webview's own reading stands. Storing only the
+	/// *correction* rather than the answer is what keeps a project honest when a container is
+	/// rewritten with a schema it previously lacked: the derived answer improves, and a recipe that
+	/// had cached it would keep the old one forever.
+	pub kind: Option<SourceKind>,
 }
 
 impl Recipe {
@@ -218,6 +254,7 @@ mod tests {
 				..Recolor::default()
 			},
 			overrides: BTreeMap::new(),
+			kind: None,
 		};
 		recipe.set_override(
 			"water",

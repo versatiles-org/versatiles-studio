@@ -952,7 +952,16 @@
 			}}
 		/>
 	{:else if id === 'style'}
-		<StylePane rendered={styled} />
+		<StylePane
+			rendered={styled}
+			source={preview.last
+				? {
+						tileFormat: preview.last.info.tileFormat,
+						tileSchema: preview.last.info.tileSchema,
+						layers: preview.mountedLayers
+					}
+				: null}
+		/>
 	{:else if id === 'inspector'}
 		<Inspector containers={preview.containers.map((c) => c.info)} />
 	{/if}

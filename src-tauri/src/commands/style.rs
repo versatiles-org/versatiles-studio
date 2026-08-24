@@ -14,7 +14,7 @@
 
 use crate::state::AppState;
 use studio_core::history::{EditKind, Target};
-use studio_core::style::{LayerOverride, Preset, Recipe, Recolor};
+use studio_core::style::{LayerOverride, Preset, Recipe, Recolor, SourceKind};
 use tauri::{AppHandle, State};
 
 /// The recipe as it stands.
@@ -46,6 +46,19 @@ async fn record(state: &State<'_, AppState>, recipe: Recipe) -> Recipe {
 pub async fn set_style_preset(state: State<'_, AppState>, preset: Preset) -> Result<Recipe, String> {
 	let mut recipe = state.style.lock().await.clone();
 	recipe.preset = preset;
+	Ok(record(&state, recipe).await)
+}
+
+/// Corrects what the source's tiles are being read as ([S6.1](../../../docs/scope-release-2.md)).
+///
+/// `None` hands the question back to the webview's own reading, which is where it starts. The
+/// override exists because a container written before `tile_schema` did carries no answer, and a
+/// DEM and a photograph are the same PNG until somebody says which.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_style_kind(state: State<'_, AppState>, kind: Option<SourceKind>) -> Result<Recipe, String> {
+	let mut recipe = state.style.lock().await.clone();
+	recipe.kind = kind;
 	Ok(record(&state, recipe).await)
 }
 

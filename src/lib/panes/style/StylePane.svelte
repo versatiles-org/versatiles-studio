@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { style } from '../../state/style.svelte';
-	import type { Preset, Recolor } from '../../ipc/commands';
+	import type { Preset, Recolor, SourceKind } from '../../ipc/commands';
+	import { KIND_LABELS, isVector, sourceKind } from '../../map/source-kind';
 	import type { StyleSpecification } from 'maplibre-gl';
 	import LayerTree from './LayerTree.svelte';
 	import { save } from '@tauri-apps/plugin-dialog';
@@ -20,8 +21,14 @@
 	let {
 		/** The style on the map, whose layers the tree lists (S4.5). It is the *output* of the recipe,
 		 *  which is why it arrives as a prop rather than being read from the state module. */
-		rendered = null
-	}: { rendered?: StyleSpecification | null } = $props();
+		rendered = null,
+		/** What the previewed source turned out to be, for reading its kind (S6.1). `null` before
+		 *  anything is open, which is when this pane has nothing to say at all. */
+		source = null
+	}: {
+		rendered?: StyleSpecification | null;
+		source?: { tileFormat: string; tileSchema: string | null; layers: string[] } | null;
+	} = $props();
 
 	const PRESETS: { id: Preset; label: string; note: string }[] = [
 		{ id: 'colorful', label: 'Colorful', note: 'the default, full colour' },
@@ -49,6 +56,30 @@
 	] as const;
 
 	const recipe = $derived(style.current);
+
+	// **What these tiles are, and how confidently** (S6.1). Everything below is gated on it, because
+	// a preset aimed at raster tiles is not a control that does something subtle — it is a control
+	// that does nothing, and one that looks identical to a working one is worse than none.
+	const reading = $derived(
+		source ? sourceKind(source.tileFormat, source.tileSchema, source.layers, recipe?.kind) : null
+	);
+	const kind = $derived(reading?.kind ?? null);
+	const vector = $derived(kind === null || isVector(kind));
+
+	/** Why the pane is showing this reading, in words rather than as a term of art. */
+	const BASIS_NOTE = {
+		declared: 'the container says so',
+		inferred: 'worked out from the tiles',
+		chosen: 'you set this'
+	} as const;
+
+	const KIND_OPTIONS: SourceKind[] = ['vectorShortbread', 'vectorOther', 'rasterImage', 'rasterDem'];
+
+	/** Picking the reading Studio already made means clearing the override, not recording it. */
+	function chooseKind(next: string): void {
+		const derivedNow = source ? sourceKind(source.tileFormat, source.tileSchema, source.layers).kind : null;
+		void style.setKind(next === derivedNow ? null : (next as SourceKind));
+	}
 
 	/// What the sliders show. Read from the recipe, written by dragging, committed on release.
 	const value = (key: string): number => {
@@ -138,61 +169,86 @@
 
 {#if recipe}
 	<section class="style-pane">
-		<h2 class="section-label">Preset</h2>
-		<div class="presets">
-			{#each PRESETS as preset (preset.id)}
-				<button
-					type="button"
-					class="preset"
-					class:chosen={recipe.preset === preset.id}
-					aria-pressed={recipe.preset === preset.id}
-					title={preset.note}
-					onclick={() => void style.setPreset(preset.id)}
-				>
-					{preset.label}
-				</button>
-			{/each}
-		</div>
-
-		<h2 class="section-label">
-			Adjust
-			{#if adjusted}
-				<button type="button" class="reset" onclick={reset}>reset</button>
-			{/if}
-		</h2>
-
-		<label class="toggle">
-			<input
-				type="checkbox"
-				checked={recipe.recolor.invertBrightness ?? false}
-				onchange={(event) => invert(event.currentTarget.checked)}
-			/>
-			Invert brightness
-			<!-- D5's whole feature. Hues are kept, so a light style becomes a dark one rather than a
-			     photographic negative. -->
-			<span class="note">light ↔ dark</span>
-		</label>
-
-		{#each SLIDERS as slider (slider.key)}
-			<label class="slider">
-				<span class="name">{slider.label}</span>
-				<input
-					type="range"
-					min={slider.min}
-					max={slider.max}
-					step={slider.step}
-					value={value(slider.key)}
-					oninput={(event) => preview(slider.key, event.currentTarget.value)}
-					onchange={() => void style.commitRecolor()}
-					onpointercancel={() => style.cancelRecolor()}
-				/>
-				<span class="amount">{value(slider.key)}{slider.unit}</span>
+		{#if reading}
+			<h2 class="section-label">These tiles</h2>
+			<label class="kind">
+				<span class="name">Read as</span>
+				<select value={kind} onchange={(event) => chooseKind(event.currentTarget.value)}>
+					{#each KIND_OPTIONS as option (option)}
+						<option value={option}>{KIND_LABELS[option]}</option>
+					{/each}
+				</select>
 			</label>
-		{/each}
+			<p class="note">{BASIS_NOTE[reading.basis]}.</p>
+		{/if}
 
-		<p class="note">These apply to every colour in the style at once.</p>
+		{#if !vector}
+			<!-- The honest empty state. The six presets and the layer tree are written against vector
+			     layers; against raster tiles every one of them is a no-op, and until S6.3 and S6.6
+			     there is nothing to put in their place. Saying so beats offering controls that move
+			     and change nothing. -->
+			<p class="note unavailable">
+				{kind === 'rasterDem'
+					? 'Elevation tiles are drawn as they are for now. Hillshade controls are still to come.'
+					: 'Image tiles are drawn as they are for now. Adjustments are still to come.'}
+			</p>
+		{:else}
+			<h2 class="section-label">Preset</h2>
+			<div class="presets">
+				{#each PRESETS as preset (preset.id)}
+					<button
+						type="button"
+						class="preset"
+						class:chosen={recipe.preset === preset.id}
+						aria-pressed={recipe.preset === preset.id}
+						title={preset.note}
+						onclick={() => void style.setPreset(preset.id)}
+					>
+						{preset.label}
+					</button>
+				{/each}
+			</div>
 
-		<LayerTree {rendered} />
+			<h2 class="section-label">
+				Adjust
+				{#if adjusted}
+					<button type="button" class="reset" onclick={reset}>reset</button>
+				{/if}
+			</h2>
+
+			<label class="toggle">
+				<input
+					type="checkbox"
+					checked={recipe.recolor.invertBrightness ?? false}
+					onchange={(event) => invert(event.currentTarget.checked)}
+				/>
+				Invert brightness
+				<!-- D5's whole feature. Hues are kept, so a light style becomes a dark one rather than a
+			     photographic negative. -->
+				<span class="note">light ↔ dark</span>
+			</label>
+
+			{#each SLIDERS as slider (slider.key)}
+				<label class="slider">
+					<span class="name">{slider.label}</span>
+					<input
+						type="range"
+						min={slider.min}
+						max={slider.max}
+						step={slider.step}
+						value={value(slider.key)}
+						oninput={(event) => preview(slider.key, event.currentTarget.value)}
+						onchange={() => void style.commitRecolor()}
+						onpointercancel={() => style.cancelRecolor()}
+					/>
+					<span class="amount">{value(slider.key)}{slider.unit}</span>
+				</label>
+			{/each}
+
+			<p class="note">These apply to every colour in the style at once.</p>
+
+			<LayerTree {rendered} />
+		{/if}
 
 		<h2 class="section-label">Export</h2>
 		<div class="exports">
@@ -308,6 +364,30 @@
 		input {
 			min-width: 0;
 		}
+	}
+
+	.kind {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		color: var(--ink-2);
+		font-size: var(--text-xs);
+
+		.name {
+			flex: 0 0 auto;
+			white-space: nowrap;
+		}
+
+		select {
+			flex: 1 1 auto;
+			min-width: 0;
+		}
+	}
+
+	/* The reason a section is absent, which is a different thing from a hint about one that is
+	   present — so it reads as a statement rather than as small print under a control. */
+	.unavailable {
+		padding: var(--space-2) 0;
 	}
 
 	.note {

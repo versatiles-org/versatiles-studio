@@ -17,11 +17,13 @@ import {
 	style as fetchStyle,
 	setStylePreset,
 	setStyleRecolor,
+	setStyleKind,
 	setLayerOverride,
 	type LayerOverride,
 	type Preset,
 	type Recipe,
-	type Recolor
+	type Recolor,
+	type SourceKind
 } from '../ipc/commands';
 
 /** The recipe as the core last reported it. `null` until the first read. */
@@ -67,6 +69,16 @@ export const style = {
 
 	async setPreset(preset: Preset): Promise<void> {
 		recipe = await setStylePreset(preset);
+	},
+
+	/**
+	 * Corrects what the tiles are being read as, or hands the question back with `null` (S6.1).
+	 *
+	 * One call, not a preview-then-commit pair: this is a picker, and a picker's gesture is over the
+	 * moment it is made. The recolour dance above exists for controls that move continuously.
+	 */
+	async setKind(kind: SourceKind | null): Promise<void> {
+		recipe = await setStyleKind(kind);
 	},
 
 	/** Shows a recolouring without recording it. Ends with `commitRecolor` or `cancelRecolor`. */

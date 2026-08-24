@@ -140,6 +140,28 @@ export const commands = {
 	/**  Switches which style the project starts from (D1). */
 	setStylePreset: (preset: Preset) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_preset", { preset })),
 	/**
+	 *  Corrects what the source's tiles are being read as ([S6.1](../../../docs/scope-release-2.md)).
+	 * 
+	 *  `None` hands the question back to the webview's own reading, which is where it starts. The
+	 *  override exists because a container written before `tile_schema` did carries no answer, and a
+	 *  DEM and a photograph are the same PNG until somebody says which.
+	 */
+	setStyleKind: (kind: 
+/**  Vector tiles using Shortbread's layer names, which the six presets are written against. */
+"vectorShortbread" | 
+/**  Vector tiles of anything else. Styled from the layers actually present (D2). */
+"vectorOther" | 
+/**  Raster tiles meant to be looked at — imagery, a scan, a rendered map (D11). */
+"rasterImage" | 
+/**
+ *  Raster tiles encoding elevation, to be drawn as hillshade rather than as colour (D12).
+ * 
+ *  The encoding — `mapbox`, `terrarium`, `versatiles` — is deliberately not carried here yet.
+ *  Nothing draws a DEM until S6.6, and that is the step that has to decide whether the encoding
+ *  belongs on this enum or is re-read from `tile_schema` at the point of use.
+ */
+"rasterDem" | null) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_kind", { kind })),
+	/**
 	 *  Sets the global recolouring — hue, saturation, brightness, contrast and the rest (D1, D5).
 	 * 
 	 *  Takes the whole of it rather than one field at a time. The controls move together, the webview
@@ -592,6 +614,20 @@ export type ContainerInfo = {
 	maxZoom: number,
 	/**  `[west, south, east, north]`, if the pyramid is non-empty. */
 	bbox: [number, number, number, number] | null,
+	/**
+	 *  What the container says its tiles *contain*, if it says — `shortbread@1.0`, `dem/mapbox`,
+	 *  `rgb`, and the rest of `TileSchema`'s spellings ([S6.1](../../docs/scope-release-2.md)).
+	 * 
+	 *  **Passed through as the container's own string rather than mirrored into an enum here.**
+	 *  `TileSchema` is upstream's and can gain a variant; a copy of its list in Studio would be one
+	 *  more thing to keep in step, and the failure mode of falling behind is silently misreading a
+	 *  container as something it is not. [`SourceKind`](crate::style::SourceKind) is Studio's
+	 *  vocabulary and is derived from this, which is a different question with a different answer.
+	 * 
+	 *  `None` for every container written before the field existed, which is why nothing may depend
+	 *  on it being present.
+	 */
+	tileSchema: string | null,
 	/**
 	 *  TileJSON as published by the container, for the inspector to show and edit (A6).
 	 * 
@@ -1195,6 +1231,15 @@ export type Recipe_Deserialize = {
 	recolor?: Recolor_Deserialize,
 	/**  By layer id. Empty for a style nobody has edited by hand. */
 	overrides?: { [key in string]: LayerOverride_Deserialize },
+	/**
+	 *  What the source is being drawn as, when someone has said so explicitly.
+	 * 
+	 *  `None` — the usual case — means the webview's own reading stands. Storing only the
+	 *  *correction* rather than the answer is what keeps a project honest when a container is
+	 *  rewritten with a schema it previously lacked: the derived answer improves, and a recipe that
+	 *  had cached it would keep the old one forever.
+	 */
+	kind?: SourceKind | null,
 };
 
 /**
@@ -1210,6 +1255,15 @@ export type Recipe_Serialize = {
 	recolor: Recolor_Serialize,
 	/**  By layer id. Empty for a style nobody has edited by hand. */
 	overrides: { [key in string]: LayerOverride_Serialize },
+	/**
+	 *  What the source is being drawn as, when someone has said so explicitly.
+	 * 
+	 *  `None` — the usual case — means the webview's own reading stands. Storing only the
+	 *  *correction* rather than the answer is what keeps a project honest when a container is
+	 *  rewritten with a schema it previously lacked: the derived answer improves, and a recipe that
+	 *  had cached it would keep the old one forever.
+	 */
+	kind: SourceKind | null,
 };
 
 /**
@@ -1356,6 +1410,35 @@ export type Review = {
 
 /**  Which sidebar a pane sits in. */
 export type Side = "left" | "right";
+
+/**
+ *  What a source's tiles are, as far as drawing them is concerned ([S6.1](../../../docs/scope-release-2.md)).
+ * 
+ *  **Studio's vocabulary, not the container's.** A container declares a `tile_schema` — upstream's
+ *  list, which can grow — and this is the much smaller question the style pane actually switches on:
+ *  which editor does this source get. Two schemas can land on one kind (`rgb` and `rgba` are both
+ *  imagery) and a container with no schema at all still has to land somewhere.
+ * 
+ *  **Derived, and overridable.** The webview works it out from the schema, falling back to the tile
+ *  format and the layers the probe found. That answer is a guess whenever the schema is absent, so
+ *  [`Recipe::kind`] exists to let someone correct it — a DEM written before `tile_schema` existed is
+ *  otherwise indistinguishable from a photograph, and no amount of looking at the pixels decides it.
+ */
+export type SourceKind = 
+/**  Vector tiles using Shortbread's layer names, which the six presets are written against. */
+"vectorShortbread" | 
+/**  Vector tiles of anything else. Styled from the layers actually present (D2). */
+"vectorOther" | 
+/**  Raster tiles meant to be looked at — imagery, a scan, a rendered map (D11). */
+"rasterImage" | 
+/**
+ *  Raster tiles encoding elevation, to be drawn as hillshade rather than as colour (D12).
+ * 
+ *  The encoding — `mapbox`, `terrarium`, `versatiles` — is deliberately not carried here yet.
+ *  Nothing draws a DEM until S6.6, and that is the step that has to decide whether the encoding
+ *  belongs on this enum or is re-read from `tile_schema` at the point of use.
+ */
+"rasterDem";
 
 /**
  *  A byte range in the document, `start..end`.
