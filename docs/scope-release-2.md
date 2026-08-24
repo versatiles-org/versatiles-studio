@@ -64,11 +64,18 @@ it, so the old shape stays exercised after the new one exists.
 
 ## Not in this release
 
-**A bundled reference basemap.** S6.5 makes "a basemap under your data" possible by letting a second
-graph sit lower in the stack, which is enough when you have one. Shipping tiles to put there is a
-different question: it needs a reference tileset, and [G5](features.md) promises Studio works offline
-from first launch, so it would have to be bundled or explicitly optional. Worth deciding once someone
+**A bundled reference basemap.** Two things now put something under your data: a second graph lower
+in the stack, and the **background map**, which S6.5 turned into the stack's bottom entry rather than
+an alternative to it. What is still missing is tiles to draw when there is no network — the background
+fetches from versatiles.org, and [G5](features.md) promises Studio works offline from first launch, so
+a bundled reference set would have to be shipped or explicitly optional. Worth deciding once someone
 has hit the case.
+
+**A note on how the background got fixed.** It stopped being visible the moment S6.2 landed: the map's
+style effect chose between a styled recipe and the background, and S6.2 gave nearly every source
+something to draw, so the background branch became unreachable however it was set. The rule was
+correct when it was written and quietly wrong afterwards — which is the failure mode a composed stack
+does not have, because there is nothing to choose between.
 
 **Terrain.** D12 names 3-D terrain as in scope only if 3-D is; hillshade is the deliverable and stands
 on its own.

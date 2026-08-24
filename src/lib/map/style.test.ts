@@ -478,3 +478,49 @@ describe('hillshade', () => {
 		).toBe('none');
 	});
 });
+
+describe('the background sits under the stack', () => {
+	const entry = (name: string) => ({
+		name,
+		tileUrl: `${BASE}/tiles/${name}/{z}/{x}/{y}`,
+		appearance: recipe(),
+		kind: 'vectorShortbread' as const,
+		tileFormat: 'mvt',
+		layers: [],
+		mountedLayers: ['water_polygons', 'street_polygons', 'boundaries']
+	});
+
+	const background = () => renderStyle(recipe(), [{ name: 'osm', tileUrl: 'https://example/{z}/{x}/{y}' }], BASE)!;
+
+	// The regression this fixes: S6.2 gave nearly every source something to draw, so the old
+	// "a styled recipe wins" rule meant the background was never reachable.
+	it('draws under a stack that also draws', () => {
+		const { style } = composeStyle([entry('places')], BASE, background());
+		const bg = style!.layers.findIndex((layer) => layer.id.startsWith('background/'));
+		const data = style!.layers.findIndex((layer) => layer.id.startsWith('places/'));
+		expect(bg).toBeGreaterThanOrEqual(0);
+		expect(bg).toBeLessThan(data);
+	});
+
+	// Both come from the same builders, so their ids and source keys are identical — the reason it
+	// goes through the same prefixing as any other pair of sources rather than being merged by hand.
+	it('keeps its layers and source distinct from an identical preset', () => {
+		const { style } = composeStyle([entry('places')], BASE, background());
+		expect(new Set(style!.layers.map((l) => l.id)).size).toBe(style!.layers.length);
+		expect(Object.keys(style!.sources).sort()).toEqual(['background', 'places']);
+	});
+
+	// Alone it is a single source, so it keeps the builder's own key and ids — the same rule every
+	// other lone source follows, and the reason an exported single-source style is unchanged.
+	it('is the whole style when nothing else draws', () => {
+		const { style } = composeStyle([], BASE, background());
+		expect(Object.keys(style!.sources)).toHaveLength(1);
+		expect(style!.layers.length).toBeGreaterThan(50);
+		expect(style!.layers.every((layer) => !layer.id.includes('/'))).toBe(true);
+	});
+
+	it('changes nothing when there is none', () => {
+		const withNone = composeStyle([entry('places')], BASE, null);
+		expect(withNone.style!.layers.every((layer) => !layer.id.includes('/'))).toBe(true);
+	});
+});

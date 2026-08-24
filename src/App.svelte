@@ -639,15 +639,37 @@
 	/// map answered with a bare background. `styleFor` derives from the probed layers instead, so
 	/// null is left meaning what it should: there is nothing here a style can be made of, which is
 	/// raster until S6.3 and S6.6.
+	/// The background map, built when it is chosen and held so the stack can read it synchronously.
+	///
+	/// **Built here rather than inside `composed`** because `buildBackground` is async — `satellite`
+	/// resolves a raster source over the network — and a `$derived` cannot await.
+	let backgroundStyle = $state<StyleSpecification | null>(null);
+
+	$effect(() => {
+		const chosen = background;
+		const url = serverUrl;
+		if (!url) return;
+		void untrack(async () => {
+			try {
+				backgroundStyle = chosen === 'none' ? null : await buildBackground(chosen, url);
+			} catch (e) {
+				backgroundStyle = null;
+				fail(e);
+			}
+		});
+	});
+
 	const composed = $derived.by(() => {
 		const recipe = styleRecipe.current;
-		if (!recipe || !serverUrl) return { style: null, bases: [] };
+		if (!serverUrl) return { style: null, bases: [] };
+		// No recipe yet — the background alone is still a map worth drawing.
+		if (!recipe) return composeStyle([], '', backgroundStyle);
 
 		// **Pinned means "look at this node alone."** The stack is what a project draws; a pin is a
 		// question about one step of one graph, and stacking a basemap under it would answer a
 		// different one.
 		if (pinned && preview.last) {
-			return composeStyle([entryFor(preview.last, recipe)], serverUrl);
+			return composeStyle([entryFor(preview.last, recipe)], serverUrl, backgroundStyle);
 		}
 
 		const names = Object.keys(preview.built);
@@ -656,7 +678,8 @@
 
 		return composeStyle(
 			order.map((name) => entryFor(preview.built[name], recipe)),
-			serverUrl
+			serverUrl,
+			backgroundStyle
 		);
 	});
 
@@ -678,26 +701,27 @@
 
 	const styled = $derived(composed.style);
 
-	// **One owner for the map's style.** The recipe and the background both want to set it, and two
-	// effects assigning it in whatever order they happen to run is how a map ends up showing the
-	// wrong one after a reload. A styled recipe wins: a full basemap under it would be invisible,
-	// and the background exists to give *unstyled* pipeline output something to sit on (G5).
+	/// Whether the *pipeline's own* tiles are being drawn by a style.
+	///
+	/// **Not `styled !== null`, which the background alone now satisfies.** The hairlines exist to
+	/// show pipeline output that nothing else draws; suppressing them because a basemap is switched
+	/// on would leave the map showing everything except the thing being edited.
+	const previewDrawn = $derived(
+		composed.bases.some((entry) => entry.name === preview.last?.name && entry.basis !== 'none')
+	);
+
+	// **One owner for the map's style**, and it composes rather than chooses.
+	//
+	// It used to choose: a styled recipe won, and the background was what an *unstyled* pipeline sat
+	// on. That rule was written when `styled` was null for anything that was not Shortbread — which
+	// S6.2 ended by deriving a style for those instead, leaving the background unreachable however it
+	// was set. It is now the bottom entry of the stack (S6.5), which is where a basemap belonged all
+	// along.
 	$effect(() => {
 		const rendered = styled;
-		const chosen = background;
 		const url = serverUrl;
 		if (!url) return;
-		if (rendered) {
-			style = rendered;
-			return;
-		}
-		void untrack(async () => {
-			try {
-				style = (await buildBackground(chosen, url)) ?? defaultStyle(url);
-			} catch (e) {
-				fail(e);
-			}
-		});
+		style = rendered ?? defaultStyle(url);
 	});
 
 	/// Returns the camera to what is currently open.
@@ -755,7 +779,7 @@
 	/// it is bound to, and the one status bar the outcome has to be reported in.
 	async function refreshPreview() {
 		try {
-			const done = await preview.refresh({ map, pipeline, pinned, styled: () => styled !== null });
+			const done = await preview.refresh({ map, pipeline, pinned, styled: () => previewDrawn });
 			switch (done.kind) {
 				// A newer build owns the map and is still working; the bar is its to set, not ours.
 				case 'superseded':
@@ -1076,7 +1100,7 @@
 				bind:map
 				initialView={layout?.view ?? null}
 				onMove={rememberView}
-				onStyleLoad={() => preview.restore(map, styled !== null)}
+				onStyleLoad={() => preview.restore(map, previewDrawn)}
 			/>
 		{/if}
 		<!-- `mount` is what the click is allowed to hit: Studio's own tiles, never the background. -->
