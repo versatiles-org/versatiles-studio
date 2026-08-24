@@ -43,9 +43,18 @@ export const status = {
 	 *
 	 * Takes `unknown` because every caller is a `catch`, and narrowing at each of eighteen call sites
 	 * is eighteen chances to narrow it differently.
+	 *
+	 * **Unwraps `.message` here rather than at the call site.** `String({ message: 'no such file' })`
+	 * is `"[object Object]"`, which is what the bar said whenever an error arrived as an object — one
+	 * call site had learnt to unwrap it and the other seventeen had not. Deciding how an error
+	 * becomes text is this function's job, and there is one of it.
 	 */
-	fail(message: unknown): void {
-		current = { kind: 'error', message: String(message) };
+	fail(error: unknown): void {
+		const message =
+			typeof error === 'object' && error !== null && 'message' in error
+				? String((error as { message: unknown }).message)
+				: String(error);
+		current = { kind: 'error', message };
 	},
 
 	/** Clears whatever it is saying — the dismiss button, and nothing else. */

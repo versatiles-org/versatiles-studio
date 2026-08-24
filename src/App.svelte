@@ -103,14 +103,25 @@
 
 	/// Editing a parameter rewrites the document through the core, which owns
 	/// the quoting and refuses anything that would not parse.
-	async function editSelected(run: (text: string) => Promise<string>) {
-		if (!document.current) return;
+	/// Runs an edit that produces a new document, and applies it.
+	///
+	/// **The scaffolding, once.** Four functions had written out the same guard, the same `try` and
+	/// the same `catch`; what varies between them is a single expression, and it was the least
+	/// visible part of each.
+	async function edit(produce: (doc: DocumentView) => Promise<DocumentView>) {
+		const doc = document.current;
+		if (!doc) return;
 		try {
-			await applyDocument(await setPipelineText(await run(document.current.text), 'structured'));
+			await applyDocument(await produce(doc));
 		} catch (e) {
-			status.fail(typeof e === 'object' && e && 'message' in e ? (e as { message: unknown }).message : e);
+			status.fail(e);
 		}
 	}
+
+	/// Editing a parameter rewrites the document through the core, which owns the quoting and
+	/// refuses anything that would not parse.
+	const editSelected = (run: (text: string) => Promise<string>) =>
+		edit(async (doc) => setPipelineText(await run(doc.text), 'structured'));
 	let showGrid = $state(false);
 
 	/// What each node's fields could be set to, by the node's path (S3.4).
@@ -561,44 +572,22 @@
 	/// `applyDocument` because the text changes from outside the editor, which is what bumps the
 	/// revision the editor reloads on — without it the textarea would keep the old layout while the
 	/// document had the new one.
-	async function formatPipeline() {
-		if (!document.current) return;
-		try {
-			await applyDocument(await formatGraph(document.current.graph));
-		} catch (e) {
-			status.fail(e);
-		}
-	}
+	const formatPipeline = () => edit((doc) => formatGraph(doc.graph));
 
 	/// Adds a transform after the node whose name occupies `span`.
 	///
 	/// It used to select what it added, so the new node's form was showing — every node shows one
 	/// now, so the insertion is the whole of the work.
-	async function addOperation(afterNameSpan: Span, operation: string) {
-		if (!document.current) return;
-		try {
-			await applyDocument(
-				await setPipelineText(await vplInsertNode(document.current.text, afterNameSpan, operation), 'structured')
-			);
-		} catch (e) {
-			status.fail(e);
-		}
-	}
+	const addOperation = (afterNameSpan: Span, operation: string) =>
+		edit(async (doc) => setPipelineText(await vplInsertNode(doc.text, afterNameSpan, operation), 'structured'));
 
 	/// Removes a node.
 	///
 	/// Dropped here rather than left to `applyDocument`, which keeps a selection whose path still
 	/// resolves: removing the middle of a three-node chain leaves `[1]` naming whatever moved up
 	/// into it, so the form would quietly re-open on a node nobody chose.
-	async function removeNode(span: Span) {
-		if (!document.current) return;
-		try {
-			const next = await setPipelineText(await vplRemoveNode(document.current.text, span), 'structured');
-			await applyDocument(next);
-		} catch (e) {
-			status.fail(e);
-		}
-	}
+	const removeNode = (span: Span) =>
+		edit(async (doc) => setPipelineText(await vplRemoveNode(doc.text, span), 'structured'));
 
 	/// Writes the pipeline as a `.vpl`. Asks where when there is no file yet, or when asked to.
 	///
@@ -610,7 +599,7 @@
 			let target = chooseFile ? null : document.current.path;
 			if (!target) {
 				target = await save({
-					title: 'Save document.current',
+					title: 'Save pipeline',
 					// The graph's name supplies the filename ([Q35]) — the direction the binding runs.
 					// `pipeline.vpl` was a leftover from when a window held exactly one document, and
 					// it offered the same name for every graph in a project that now holds several.
