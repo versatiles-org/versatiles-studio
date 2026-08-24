@@ -1403,15 +1403,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
-name = "earcut"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88459a2a8e3a514b6e6de38cf3aaa9250a894cb098f74a932db77fcc8341b6d0"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "either"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1949,7 +1940,6 @@ version = "0.33.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30eb1fdc57c1e5cfd11826fe0caec4b9dc7901f3758263bb506228d88c8d9e9a"
 dependencies = [
- "earcut",
  "float_next_after",
  "geo-types",
  "geographiclib-rs",
@@ -1961,7 +1951,6 @@ dependencies = [
  "robust",
  "rstar 0.12.2",
  "sif-itree",
- "spade",
 ]
 
 [[package]]
@@ -1978,10 +1967,8 @@ checksum = "777d18aa0f12f8b285331cd867133ee14422b3f023f6d388034c47d43e28786a"
 dependencies = [
  "approx",
  "num-traits",
- "rayon",
  "rstar 0.12.2",
  "serde",
- "spade",
  "thiserror 2.0.20",
 ]
 
@@ -2273,8 +2260,6 @@ version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "841d1cc9bed7f9236f321df977030373f4a4163ae1a7dbfe1a51a2c1a51d9100"
 dependencies = [
- "allocator-api2",
- "equivalent",
  "foldhash",
 ]
 
@@ -2461,9 +2446,6 @@ name = "i_key_sort"
 version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d73d122b937fca067feb0ad74f62388920272b27c356d4df2d0cfdd59e044cf0"
-dependencies = [
- "rayon",
-]
 
 [[package]]
 name = "i_overlay"
@@ -2475,7 +2457,6 @@ dependencies = [
  "i_key_sort",
  "i_shape",
  "i_tree",
- "rayon",
 ]
 
 [[package]]
@@ -3158,9 +3139,9 @@ dependencies = [
 
 [[package]]
 name = "log"
-version = "0.4.33"
+version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
+checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
 
 [[package]]
 name = "loop9"
@@ -5285,18 +5266,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "spade"
-version = "2.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9699399fd9349b00b184f5635b074f9ec93afffef30c853f8c875b32c0f8c7fa"
-dependencies = [
- "hashbrown 0.16.1",
- "num-traits",
- "robust",
- "smallvec",
-]
-
-[[package]]
 name = "specta"
 version = "2.0.0-rc.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6552,9 +6521,9 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "uuid"
-version = "1.24.1"
+version = "1.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cefc03fd367c0c6d4305de1b312cf00248c4114f4a0418ce6a6af769e3b0bd9"
+checksum = "f053576934f05a761a402421fbbe3d425d9366f75f978806a037b3ca481abecc"
 dependencies = [
  "getrandom 0.4.3",
  "js-sys",
@@ -6582,9 +6551,9 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "versatiles"
-version = "4.9.1"
+version = "4.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c565752726aa767a30ed7c6ed5356464ef0df50ac37fbd5d7ac493f3a00528f2"
+checksum = "499c62feca314dba34cb2035fa63ea78763a0556e1acd00c428f26dedbf74a79"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6593,7 +6562,6 @@ dependencies = [
  "dashmap",
  "enumset",
  "futures",
- "glob",
  "log",
  "mime_guess",
  "regex",
@@ -6635,9 +6603,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_container"
-version = "4.9.1"
+version = "4.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "135ab815f043f78419b74beaf3b8fb4826dba19c15ecedf9cfdb3794e9b66dd7"
+checksum = "c2d6e69901afcdb36cd735a40fc560ef8efb0d94d90b04f965725f5619574cdb"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6669,9 +6637,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_core"
-version = "4.9.1"
+version = "4.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9a14aa90f93d0eb475372d1fe2c904cf570b2fe7480e22a672f794181b8fd4e"
+checksum = "b167f6302a79bc87b34ab832392771110524f6d3a96552518bfad0dfbe2a7152"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6699,9 +6667,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_derive"
-version = "4.9.1"
+version = "4.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b108e2e0abc99aefc04ae9359e04c8d4207a9d7e4a597a1403ce687c0c39af17"
+checksum = "39df3915d30da0fb7f01589527fe15fc9ee891ffc1150664209e51994507825d"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6710,9 +6678,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_geometry"
-version = "4.9.1"
+version = "4.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a9491c5eacec5764d2291e3f585131d9ee25fdfd0a7c505224716a1b68cfa5d4"
+checksum = "0024f59b15fe1e3cc7b8d538b47f2ae2a200fa5d4a3eb0411faf3806aaca3d0f"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -6732,9 +6700,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_image"
-version = "4.9.1"
+version = "4.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b28ab665f0621f2d7cd4fae45136c78bc11d32c6a4ade930b698ea4fe98543e"
+checksum = "67a1a7e04ba86d3d95acbeaa064c058b04a35a082db9d1f2193a8cb9350ac7d0"
 dependencies = [
  "anyhow",
  "fast_image_resize",
@@ -6747,9 +6715,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_pipeline"
-version = "4.9.1"
+version = "4.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc69bed9d1bbc2690bc71bcd3b0ab95a5bd5389991e7846a453ef120e1cb7432"
+checksum = "a3ac904e42ffb7fbc198745502dfb0f30ccb9c326430e40d581e57c999ab3467"
 dependencies = [
  "ab_glyph",
  "anyhow",

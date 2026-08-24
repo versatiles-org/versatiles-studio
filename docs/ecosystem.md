@@ -154,6 +154,28 @@ the same standard, and cannot be satisfied by a fix arriving in an unexpected fo
 | -------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link              | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
 | [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x — **a PR, not an issue** | The pinned fork above                                                                                                                                 |
+| [vt#254](https://github.com/versatiles-org/versatiles-rs/issues/254) | Drop the open-ended CORS origin patterns                   | Nothing — Studio binds loopback and takes the default `ServerConfig`, so no origin pattern of ours is at stake. Deferred upstream to the next major.  |
+
+#### Landed in 4.10.0
+
+Two, in a release that is otherwise a security pass over untrusted input. Both were read in the
+4.10.0 source rather than taken from the issue being closed, for the reason vt#229 gives above.
+
+| Issue                                                                | Landed as                                                                                       | What Studio does with it                                                                                                                                                                    |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [vt#255](https://github.com/versatiles-org/versatiles-rs/issues/255) | `from_geo`/`from_csv` refuse coordinates outside ±180/±90 and a `crs` member naming another CRS | **Nothing to change, and that is the win** — a projected shapefile used to fail several layers down; the message now names the problem, and `open_container` already forwards `{e:#}` whole |
+| [vt#256](https://github.com/versatiles-org/versatiles-rs/issues/256) | `bbox=` filters while reading and clips the pyramid                                             | **Nothing to change** — the parameter forms are generated from the metadata, so a control that always errored on submit now works, with no edit here (S2.6)                                 |
+
+**Neither needed adoption, which is twice the point of generating the forms and forwarding upstream's
+own wording.** vt#256 in particular had been a live trap: `bbox` was in `from_geo`'s metadata all
+along, so Studio drew the four number fields, and filling them in failed the preview with
+`from_geo: bbox= is not supported`. The fix arrived underneath the form.
+
+**One change does need watching rather than adopting.** SFTP connections now verify host keys on
+OpenSSH's `accept-new` policy — an unknown host is recorded in `~/.ssh/known_hosts`, a host whose key
+changed is refused. Studio passes `ssh://` URLs straight through ([S1.3](scope-release-1.md)) and has
+nothing to configure; a rebuilt server is a failed open with upstream's message in it, and
+`VERSATILES_SFTP_KNOWN_HOSTS` is the escape hatch to mention if anyone hits one.
 
 #### Landed in 4.9.1
 

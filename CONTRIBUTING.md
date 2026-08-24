@@ -9,7 +9,7 @@ in the [README](README.md); why it is built the way it is, in [`docs/`](docs/).
 
 |       |                                                                    |
 | ----- | ------------------------------------------------------------------ |
-| Rust  | 1.88 or newer (edition 2024, plus a patched `serde_with`)          |
+| Rust  | 1.94 or newer (edition 2024, and what `versatiles-rs` needs)       |
 | Node  | 24 or newer                                                        |
 | macOS | Xcode Command Line Tools                                           |
 | Linux | `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf` |
