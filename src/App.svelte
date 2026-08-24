@@ -6,13 +6,14 @@
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
 	import AppShell from './lib/shell/AppShell.svelte';
-	import StatusBar, { type Status } from './lib/shell/StatusBar.svelte';
+	import StatusBar from './lib/shell/StatusBar.svelte';
 	import Help from './lib/common/Help.svelte';
 	import { connectJobs } from './lib/state/jobs.svelte';
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
 	import { preview } from './lib/state/preview.svelte';
+	import { status } from './lib/state/status.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import LandingScreen from './lib/common/LandingScreen.svelte';
 	import Sidebar from './lib/shell/Sidebar.svelte';
@@ -35,15 +36,8 @@
 	import Views from './lib/map/Views.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { fitToBounds } from './lib/map/add-source';
-	import { composeStyle, type StackEntry } from './lib/map/style';
-	import { sourceKind } from './lib/map/source-kind';
-	import { layersIn } from './lib/state/preview.svelte';
+	import { drawn, stackFor } from './lib/map/stack';
 
-	/// What a source that has never been styled looks like — the same default the core would create.
-	const UNSTYLED_SOURCE = {
-		kind: null,
-		appearance: { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} }
-	} as const;
 	import { forExport } from './lib/map/style-code';
 	import {
 		forgetRecent,
@@ -86,7 +80,6 @@
 		type Bounds,
 		type Estimate,
 		type Preview,
-		type Recipe,
 		type CopyPlan,
 		type Camera,
 		type Layout,
@@ -151,12 +144,9 @@
 		try {
 			await applyDocument(await setPipelineText(await run(pipeline.text), 'structured'));
 		} catch (e) {
-			fail(typeof e === 'object' && e && 'message' in e ? (e as { message: unknown }).message : e);
+			status.fail(typeof e === 'object' && e && 'message' in e ? (e as { message: unknown }).message : e);
 		}
 	}
-	// What the application is doing, shown along the bottom (Q24). Errors live here too — an error
-	// is a state the application is in, and covering the map to say so was never a good trade.
-	let status = $state<Status>({ kind: 'idle' });
 	let showGrid = $state(false);
 
 	/// What each node's fields could be set to, by the node's path (S3.4).
@@ -329,7 +319,7 @@
 			if (id === currentGraph) pipeline = await getGraph(id);
 			await refreshPreview();
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -354,7 +344,7 @@
 			await setCrop(pipeline.graph, next);
 			await refreshGraphs();
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -427,7 +417,7 @@
 			// only once it had stopped — the one moment it was no longer true.
 			await exportGraph(pipeline.graph, target, crop);
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -464,7 +454,7 @@
 				preview.clear(map);
 			}
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -504,11 +494,11 @@
 		try {
 			const dir = await open({ directory: true, title: 'Save project into…' });
 			if (typeof dir !== 'string') return;
-			status = { kind: 'busy', message: 'Saving the project…' };
+			status.busy('Saving the project…');
 			await saveProject(dir, styled ? JSON.stringify(forExport(styled), null, '\t') : null);
-			status = { kind: 'idle' };
+			status.settle();
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -518,10 +508,10 @@
 			const dir = await open({ directory: true, title: 'Open project' });
 			if (typeof dir !== 'string') return;
 			if (!(await isProject(dir))) {
-				status = { kind: 'error', message: `${dir} holds no project.yaml` };
+				status.fail(`${dir} holds no project.yaml`);
 				return;
 			}
-			status = { kind: 'busy', message: 'Opening the project…' };
+			status.busy('Opening the project…');
 			styleRecipe.restored(await openProject(dir));
 			await refreshGraphs();
 			if (graphs.length > 0) pipeline = await getGraph(graphs[0].id);
@@ -531,9 +521,9 @@
 			// the moment a person is already waiting.
 			await mountEveryGraph();
 			await refreshPreview();
-			status = { kind: 'idle' };
+			status.settle();
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -547,7 +537,7 @@
 		try {
 			copying = await copyPlan();
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -564,11 +554,11 @@
 					})
 				: await open({ directory: true, title: 'Save a copy into…' });
 			if (typeof target !== 'string') return;
-			status = { kind: 'busy', message: 'Copying the project…' };
+			status.busy('Copying the project…');
 			await saveProjectCopy(target, zip, styled ? JSON.stringify(forExport(styled), null, '\t') : null);
-			status = { kind: 'idle' };
+			status.settle();
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -611,14 +601,6 @@
 	///
 	/// Only a `busy` message is cleared: an error is a state someone has to answer, and dropping it
 	/// because unrelated work finished would hide the thing that needs answering.
-	function settle() {
-		if (status.kind === 'busy') status = { kind: 'idle' };
-	}
-
-	function fail(message: unknown) {
-		status = { kind: 'error', message: String(message) };
-	}
-
 	async function refreshRecents() {
 		recents = await recentSources().catch(() => []);
 	}
@@ -629,7 +611,7 @@
 				serverUrl = url;
 				style = defaultStyle(url);
 			})
-			.catch(fail);
+			.catch((e) => status.fail(e));
 	});
 
 	/// The style to draw, and which route produced it (S4.3, S6.2).
@@ -641,7 +623,7 @@
 	/// raster until S6.3 and S6.6.
 	/// The background map, built when it is chosen and held so the stack can read it synchronously.
 	///
-	/// **Built here rather than inside `composed`** because `buildBackground` is async — `satellite`
+	/// **Built here rather than inside the stack** because `buildBackground` is async — `satellite`
 	/// resolves a raster source over the network — and a `$derived` cannot await.
 	let backgroundStyle = $state<StyleSpecification | null>(null);
 
@@ -654,61 +636,23 @@
 				backgroundStyle = chosen === 'none' ? null : await buildBackground(chosen, url);
 			} catch (e) {
 				backgroundStyle = null;
-				fail(e);
+				status.fail(e);
 			}
 		});
 	});
 
-	const composed = $derived.by(() => {
-		const recipe = styleRecipe.current;
-		if (!serverUrl) return { style: null, bases: [] };
-		// No recipe yet — the background alone is still a map worth drawing.
-		if (!recipe) return composeStyle([], '', backgroundStyle);
-
-		// **Pinned means "look at this node alone."** The stack is what a project draws; a pin is a
-		// question about one step of one graph, and stacking a basemap under it would answer a
-		// different one.
-		if (pinned && preview.last) {
-			return composeStyle([entryFor(preview.last, recipe)], serverUrl, backgroundStyle);
-		}
-
-		const names = Object.keys(preview.built);
-		const order = recipe.order.filter((name) => names.includes(name));
-		for (const name of names.sort()) if (!order.includes(name)) order.push(name);
-
-		return composeStyle(
-			order.map((name) => entryFor(preview.built[name], recipe)),
+	const composed = $derived(
+		stackFor({
+			recipe: styleRecipe.current,
+			built: preview.built,
+			pinned: pinned ? preview.last : null,
 			serverUrl,
-			backgroundStyle
-		);
-	});
-
-	/// One source's place in the stack, from what was built and how the recipe says to draw it.
-	function entryFor(built: Preview, recipe: Recipe): StackEntry {
-		const style = recipe.sources[built.name] ?? UNSTYLED_SOURCE;
-		const layers = layersIn(built);
-		return {
-			name: built.name,
-			tileUrl: built.tileUrl,
-			appearance: style.appearance,
-			kind: sourceKind(built.info.tileFormat, built.info.tileSchema, layers, style.kind).kind,
-			tileFormat: built.info.tileFormat,
-			tileSchema: built.info.tileSchema,
-			layers: built.layers,
-			mountedLayers: layers
-		};
-	}
+			background: backgroundStyle
+		})
+	);
 
 	const styled = $derived(composed.style);
-
-	/// Whether the *pipeline's own* tiles are being drawn by a style.
-	///
-	/// **Not `styled !== null`, which the background alone now satisfies.** The hairlines exist to
-	/// show pipeline output that nothing else draws; suppressing them because a basemap is switched
-	/// on would leave the map showing everything except the thing being edited.
-	const previewDrawn = $derived(
-		composed.bases.some((entry) => entry.name === preview.last?.name && entry.basis !== 'none')
-	);
+	const previewDrawn = $derived(drawn(composed, preview.last?.name));
 
 	// **One owner for the map's style**, and it composes rather than chooses.
 	//
@@ -786,20 +730,20 @@
 					return;
 				// Nothing was built, so nothing later will clear an "Opening …" the caller set.
 				case 'nothing':
-					settle();
+					status.settle();
 					return;
 				case 'unrenderable':
-					status = { kind: 'error', message: done.message };
+					status.fail(done.message);
 					return;
 				case 'shown':
-					status = { kind: 'idle' };
+					status.settle();
 					return;
 				// No map or no graph: nothing happened, and whatever the bar says still stands.
 				case 'unavailable':
 					return;
 			}
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -807,7 +751,7 @@
 	async function syncContainersToPipeline() {
 		if (!pipeline) return;
 		await preview.syncContainers(pipeline, (source) => {
-			status = { kind: 'busy', message: `Opening ${filename(source)}…` };
+			status.busy(`Opening ${filename(source)}…`);
 		});
 	}
 
@@ -848,7 +792,7 @@
 		try {
 			await applyDocument(await formatGraph(pipeline.graph));
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -863,7 +807,7 @@
 				await setPipelineText(await vplInsertNode(pipeline.text, afterNameSpan, operation), 'structured')
 			);
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -878,7 +822,7 @@
 			const next = await setPipelineText(await vplRemoveNode(pipeline.text, span), 'structured');
 			await applyDocument(next);
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -902,13 +846,13 @@
 				if (!target) return; // cancelled
 			}
 			pipeline = await saveVpl(pipeline.graph, target);
-			status = { kind: 'busy', message: `Saved ${filename(target)}` };
+			status.busy(`Saved ${filename(target)}`);
 			// The other half of the dot: saving is what clears it, and the list has to be told.
 			await refreshGraphs();
 			await refreshRecents();
-			status = { kind: 'idle' };
+			status.settle();
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -924,7 +868,7 @@
 			if (next.graph) await applyDocument(next.graph);
 			else if (next.style) styleRecipe.restored(next.style);
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -937,11 +881,11 @@
 	/// to inspect until the pipeline has built them, which the preview does.
 	async function load(source: string) {
 		// A remote container reads its index over the network, so this is not always instant.
-		status = { kind: 'busy', message: `Opening ${filename(source)}…` };
+		status.busy(`Opening ${filename(source)}…`);
 		try {
 			const kind = await importKindFor(source);
 			if (kind === null) {
-				status = { kind: 'error', message: `Studio has no way to open ${filename(source)}` };
+				status.fail(`Studio has no way to open ${filename(source)}`);
 				return;
 			}
 
@@ -969,7 +913,7 @@
 				// working. The form is showing whatever is still missing, and so is the diagnostic
 				// beside it (C2, C4); this only says so where the eye already is.
 				if (pipeline.diagnostics.length > 0) {
-					status = { kind: 'error', message: pipeline.diagnostics[0].message };
+					status.fail(pipeline.diagnostics[0].message);
 					await refreshRecents();
 					return;
 				}
@@ -977,7 +921,7 @@
 			await refreshRecents();
 			await refreshPreview();
 		} catch (e) {
-			fail(e);
+			status.fail(e);
 		}
 	}
 
@@ -1150,7 +1094,7 @@
 		{/if}
 	{/snippet}
 	{#snippet statusBar()}
-		<StatusBar {status} onDismiss={() => (status = { kind: 'idle' })} />
+		<StatusBar status={status.current} onDismiss={() => status.dismiss()} />
 	{/snippet}
 </AppShell>
 
