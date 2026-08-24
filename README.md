@@ -84,10 +84,12 @@ containers some tests want, and how a release is cut.
 | [Target Audiences](docs/audiences.md)      | Who we build for, and what each group needs                |
 | [Feature Catalogue](docs/features.md)      | The full idea pool, grouped and individually referenceable |
 | [Release 1 Scope](docs/scope-release-1.md) | Milestones, stages, and the work items in each             |
+| [Release 2 Scope](docs/scope-release-2.md) | Style modes: the four kinds of tileset people open         |
 | [Ecosystem Inventory](docs/ecosystem.md)   | What already exists in versatiles-org and can be reused    |
 | [Architecture](docs/architecture.md)       | How the pieces fit together                                |
 | [UI Concept](docs/ui.md)                   | How the features are organised on screen, stage by stage   |
 | [Styling](docs/styling.md)                 | Design tokens, and the rules that keep the CSS consistent  |
+| [Style Use Cases](docs/style-use-cases.md) | What people open, and what the style pane does about it    |
 | [Svelte Components](docs/components.md)    | The component inventory, and what to reuse as reference    |
 | [Decision Log](docs/decisions.md)          | Every question raised, and how it was settled              |
 | [Roadmap](docs/roadmap.md)                 | Release 1 at a glance, and what comes after                |
