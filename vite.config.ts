@@ -50,6 +50,11 @@ export default defineConfig({
 		}
 	},
 
+	// **Svelte's browser build under test, not its server one.** A component rendered from the SSR
+	// build has no lifecycle — `lifecycle_function_unavailable` — because there is no client to run
+	// it on. Guarded on `VITEST` so the dev server and the production build resolve as they did.
+	resolve: process.env.VITEST ? { conditions: ['browser'] } : undefined,
+
 	// Everything is bundled at build time — no Node runtime ships (Q5).
 	build: {
 		target: 'es2022',
