@@ -37,7 +37,7 @@
 	///
 	/// **Deleting a graph is the one thing here that ⌘Z cannot take back.** The history stack
 	/// restores text *into* a graph ([Q32]), so one that no longer exists has nothing to restore
-	/// into — the core says as much and makes the step a no-op. That makes a bare `✕` next to a
+	/// into — the core says as much and makes the step a no-op. That makes a bare `×` next to a
 	/// rename button the wrong shape: same size, same place, one undoable and one not.
 	///
 	/// Confirmed in the row rather than in a modal, for the same reason renaming happens here: the
@@ -116,7 +116,7 @@
 					title="Keep"
 					onclick={() => (removing = null)}
 				>
-					✕
+					×
 				</button>
 			{:else}
 				<button type="button" class="name truncate" title={graph.name} onclick={() => onSelect(graph.id)}>
@@ -133,7 +133,7 @@
 					aria-label="Delete {graph.name}"
 					onclick={() => (removing = graph.id)}
 				>
-					🗑
+					×
 				</button>
 			{/if}
 		</li>
