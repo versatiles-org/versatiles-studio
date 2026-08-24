@@ -18,7 +18,7 @@
 //! other kind twice — the hand-written CSV sniffer deleted after vt#238, and `validate` giving up
 //! deciding enum values after vt#224 — and nothing here reimplements a parser.
 //!
-//! **What keeps it honest is the two tests at the bottom, and the second is the important one.**
+//! **What keeps it honest are the two tripwires at the bottom, and the second is the important one.**
 //! [`every_role_names_a_field_that_exists`] catches what upstream renames, removes or retypes.
 //! [`no_unclassified_field_of_a_known_shape`] catches what upstream *adds* — and only the first is
 //! the obvious test to write. On its own it would be the vt#229 mistake again: a tripwire that names
@@ -114,180 +114,175 @@ mod formats {
 	pub const ANY: &[&str] = &[];
 }
 
-use Names::{ColumnOf, PropertyOf, TileLayer, TileProperty};
-use Role::{Char, Choice, Code, Color, Epsg, GeoBBox, GeoPoint, Path, Range, Url, Zoom};
+use Names::{TileLayer, TileProperty};
+use Role::{Char, Choice, Code, Color, Epsg, GeoBBox, GeoPoint, Range, Url, Zoom};
+use formats::{ANY, CONTAINER, CSV, GEO, GEOJSON, JSON, RASTER, TABULAR};
 
-const ZOOM: Role = Zoom;
+// Constructors rather than literals: a `Role::Path { formats: …, urls: … }` written out in the table
+// wraps over four lines under rustfmt, which buries seventy-odd one-line facts in punctuation.
+
+const fn path(formats: &'static [&'static str]) -> Role {
+	Role::Path { formats, urls: false }
+}
+
+/// The one field that also takes `http`, `https` or `sftp`.
+const fn path_or_url(formats: &'static [&'static str]) -> Role {
+	Role::Path { formats, urls: true }
+}
+
+const fn range(min: f64, max: f64) -> Role {
+	Range { min, max }
+}
+
+/// A column of the delimited file named by a sibling field.
+const fn column_of(field: &'static str) -> Role {
+	Role::Names(Names::ColumnOf(field))
+}
+
+/// A property of the features in the file named by a sibling field.
+const fn property_of(field: &'static str) -> Role {
+	Role::Names(Names::PropertyOf(field))
+}
+
 const TILE_SIZE: Role = Choice(&["256", "512"]);
-const GEOJSON_FILE: Role = Path {
-	formats: formats::GEOJSON,
-	urls: false,
-};
-const JSON_FILE: Role = Path {
-	formats: formats::JSON,
-	urls: false,
-};
+const LAYER: Role = Role::Names(TileLayer);
+const TILE_PROPERTY: Role = Role::Names(TileProperty);
 
-/// Every field that means more than its type says, keyed by `(operation, field)`.
+/// Every field that means more than its type says, by operation.
 ///
-/// Grouped by operation and in the order each operation declares its parameters, so this reads
-/// alongside `versatiles help pipeline` rather than against it.
-const ROLES: &[(&str, &str, Role)] = &[
+/// Keyed rather than flat so an operation is named once instead of once per field, and so its
+/// parameters read as the block they are. Within a block the order is the operation's own, so this
+/// reads alongside `versatiles help pipeline` rather than against it.
+///
+/// Nesting costs one failure mode a flat list did not have — the same operation could be opened
+/// twice, and the second block would be unreachable. [`no_operation_or_field_is_listed_twice`]
+/// covers it.
+const ROLES: &[(&str, &[(&str, Role)])] = &[
 	// ── read ────────────────────────────────────────────────────────────────────────────────────
-	("from_color", "color", Color),
-	("from_color", "size", TILE_SIZE),
+	("from_color", &[("color", Color), ("size", TILE_SIZE)]),
 	(
 		"from_container",
-		"filename",
-		Path {
-			formats: formats::CONTAINER,
-			urls: true,
-		},
-	),
-	(
-		"from_container",
-		"ssh_identity",
-		Path {
-			formats: formats::ANY,
-			urls: false,
-		},
+		&[("filename", path_or_url(CONTAINER)), ("ssh_identity", path(ANY))],
 	),
 	(
 		"from_csv",
-		"filename",
-		Path {
-			formats: formats::CSV,
-			urls: false,
-		},
+		&[
+			("filename", path(CSV)),
+			("lon_column", column_of("filename")),
+			("lat_column", column_of("filename")),
+			("id_column", column_of("filename")),
+			("delimiter", Char),
+			("min_zoom", Zoom),
+			("max_zoom", Zoom),
+			("bbox", GeoBBox),
+			("properties_include", column_of("filename")),
+			("properties_exclude", column_of("filename")),
+		],
 	),
-	("from_csv", "lon_column", Role::Names(ColumnOf("filename"))),
-	("from_csv", "lat_column", Role::Names(ColumnOf("filename"))),
-	("from_csv", "id_column", Role::Names(ColumnOf("filename"))),
-	("from_csv", "delimiter", Char),
-	("from_csv", "min_zoom", ZOOM),
-	("from_csv", "max_zoom", ZOOM),
-	("from_csv", "bbox", GeoBBox),
-	("from_csv", "properties_include", Role::Names(ColumnOf("filename"))),
-	("from_csv", "properties_exclude", Role::Names(ColumnOf("filename"))),
 	(
 		"from_gdal_dem",
-		"filename",
-		Path {
-			formats: formats::RASTER,
-			urls: false,
-		},
+		&[
+			("filename", path(RASTER)),
+			("tile_size", TILE_SIZE),
+			("level_max", Zoom),
+			("level_min", Zoom),
+			("cutline", path(GEOJSON)),
+		],
 	),
-	("from_gdal_dem", "tile_size", TILE_SIZE),
-	("from_gdal_dem", "level_max", ZOOM),
-	("from_gdal_dem", "level_min", ZOOM),
-	("from_gdal_dem", "cutline", GEOJSON_FILE),
 	(
 		"from_gdal_raster",
-		"filename",
-		Path {
-			formats: formats::RASTER,
-			urls: false,
-		},
+		&[
+			("filename", path(RASTER)),
+			("tile_size", TILE_SIZE),
+			("level_max", Zoom),
+			("level_min", Zoom),
+			("cutline", path(GEOJSON)),
+			("crs", Epsg),
+		],
 	),
-	("from_gdal_raster", "tile_size", TILE_SIZE),
-	("from_gdal_raster", "level_max", ZOOM),
-	("from_gdal_raster", "level_min", ZOOM),
-	("from_gdal_raster", "cutline", GEOJSON_FILE),
-	("from_gdal_raster", "crs", Epsg),
 	(
 		"from_geo",
-		"filename",
-		Path {
-			formats: formats::GEO,
-			urls: false,
-		},
+		&[
+			("filename", path(GEO)),
+			("min_zoom", Zoom),
+			("max_zoom", Zoom),
+			("bbox", GeoBBox),
+			("properties_include", property_of("filename")),
+			("properties_exclude", property_of("filename")),
+		],
 	),
-	("from_geo", "min_zoom", ZOOM),
-	("from_geo", "max_zoom", ZOOM),
-	("from_geo", "bbox", GeoBBox),
-	("from_geo", "properties_include", Role::Names(PropertyOf("filename"))),
-	("from_geo", "properties_exclude", Role::Names(PropertyOf("filename"))),
-	("from_grid", "epsg", Epsg),
-	("from_grid", "bbox", GeoBBox),
-	("from_grid", "max_zoom", ZOOM),
-	("from_grid", "id_template", Code(Lang::Template)),
-	("from_h3", "resolution", Range { min: 0.0, max: 15.0 }),
-	("from_h3", "bbox", GeoBBox),
-	("from_h3", "max_zoom", ZOOM),
 	(
-		"from_tile",
-		"filename",
-		Path {
-			formats: formats::ANY,
-			urls: false,
-		},
+		"from_grid",
+		&[
+			("epsg", Epsg),
+			("bbox", GeoBBox),
+			("max_zoom", Zoom),
+			("id_template", Code(Lang::Template)),
+		],
 	),
-	("from_tilejson", "url", Url),
+	(
+		"from_h3",
+		&[("resolution", range(0.0, 15.0)), ("bbox", GeoBBox), ("max_zoom", Zoom)],
+	),
+	("from_tile", &[("filename", path(ANY))]),
+	("from_tilejson", &[("url", Url)]),
 	// ── transform ───────────────────────────────────────────────────────────────────────────────
-	("dem_overview", "level", ZOOM),
-	("dem_tile_resize", "tile_size", TILE_SIZE),
-	("filter", "bbox", GeoBBox),
-	("filter", "level_min", ZOOM),
-	("filter", "level_max", ZOOM),
+	("dem_overview", &[("level", Zoom)]),
+	("dem_tile_resize", &[("tile_size", TILE_SIZE)]),
 	(
 		"filter",
-		"filename",
-		Path {
-			formats: formats::CONTAINER,
-			urls: false,
-		},
+		&[
+			("bbox", GeoBBox),
+			("level_min", Zoom),
+			("level_max", Zoom),
+			("filename", path(CONTAINER)),
+		],
 	),
-	("meta_update", "bounds", GeoBBox),
-	("meta_update", "center", GeoPoint),
-	("meta_update", "fillzoom", ZOOM),
-	("meta_update", "tilejson", Code(Lang::Json)),
-	("meta_update", "tilejson_file", JSON_FILE),
-	("meta_update", "tilejson_update", Code(Lang::Json)),
-	("meta_update", "tilejson_update_file", JSON_FILE),
-	("meta_update", "vector_layers", Code(Lang::Json)),
-	("meta_update", "vector_layers_file", JSON_FILE),
-	("raster_flatten", "color", Color),
-	// `quality` and `quality_translucent` are `String` upstream while documenting `0`–`100`; the
-	// role records the range the documentation gives, and the odd type is why it is worth recording.
-	("raster_format", "quality", Range { min: 0.0, max: 100.0 }),
-	("raster_format", "quality_translucent", Range { min: 0.0, max: 100.0 }),
-	("raster_format", "effort", Range { min: 0.0, max: 100.0 }),
 	(
-		"raster_levels",
-		"brightness",
-		Range {
-			min: -255.0,
-			max: 255.0,
-		},
+		"meta_update",
+		&[
+			("bounds", GeoBBox),
+			("center", GeoPoint),
+			("fillzoom", Zoom),
+			("tilejson", Code(Lang::Json)),
+			("tilejson_file", path(JSON)),
+			("tilejson_update", Code(Lang::Json)),
+			("tilejson_update_file", path(JSON)),
+			("vector_layers", Code(Lang::Json)),
+			("vector_layers_file", path(JSON)),
+		],
 	),
-	("raster_mask", "geojson", GEOJSON_FILE),
-	("raster_overscale", "level_base", ZOOM),
-	("raster_overscale", "level_max", ZOOM),
-	("raster_overview", "level", ZOOM),
-	("raster_tile_resize", "tile_size", TILE_SIZE),
-	("vector_filter_features", "layer", Role::Names(TileLayer)),
-	("vector_filter_features", "expr", Code(Lang::Cel)),
-	("vector_filter_layers", "filter", Role::Names(TileLayer)),
-	("vector_filter_properties", "regex", Code(Lang::Regex)),
-	("vector_overzoom", "level_base", ZOOM),
-	("vector_overzoom", "level_max", ZOOM),
+	("raster_flatten", &[("color", Color)]),
+	// `quality` and `quality_translucent` are `String` upstream while documenting `0`–`100`; the role
+	// records the range the documentation gives, and the odd type is why it is worth recording.
 	(
-		"vector_update_properties",
-		"data_source_path",
-		Path {
-			formats: formats::TABULAR,
-			urls: false,
-		},
+		"raster_format",
+		&[
+			("quality", range(0.0, 100.0)),
+			("quality_translucent", range(0.0, 100.0)),
+			("effort", range(0.0, 100.0)),
+		],
 	),
-	("vector_update_properties", "layer_name", Role::Names(TileLayer)),
-	("vector_update_properties", "id_field_tiles", Role::Names(TileProperty)),
+	("raster_levels", &[("brightness", range(-255.0, 255.0))]),
+	("raster_mask", &[("geojson", path(GEOJSON))]),
+	("raster_overscale", &[("level_base", Zoom), ("level_max", Zoom)]),
+	("raster_overview", &[("level", Zoom)]),
+	("raster_tile_resize", &[("tile_size", TILE_SIZE)]),
+	("vector_filter_features", &[("layer", LAYER), ("expr", Code(Lang::Cel))]),
+	("vector_filter_layers", &[("filter", LAYER)]),
+	("vector_filter_properties", &[("regex", Code(Lang::Regex))]),
+	("vector_overzoom", &[("level_base", Zoom), ("level_max", Zoom)]),
 	(
 		"vector_update_properties",
-		"id_field_data",
-		Role::Names(ColumnOf("data_source_path")),
+		&[
+			("data_source_path", path(TABULAR)),
+			("layer_name", LAYER),
+			("id_field_tiles", TILE_PROPERTY),
+			("id_field_data", column_of("data_source_path")),
+			("field_separator", Char),
+			("decimal_separator", Char),
+		],
 	),
-	("vector_update_properties", "field_separator", Char),
-	("vector_update_properties", "decimal_separator", Char),
 ];
 
 /// What a field means, or `None` when its type is the whole story.
@@ -295,8 +290,11 @@ const ROLES: &[(&str, &str, Role)] = &[
 pub fn role_of(operation: &str, field: &str) -> Option<Role> {
 	ROLES
 		.iter()
-		.find(|(op, name, _)| *op == operation && *name == field)
-		.map(|(_, _, role)| *role)
+		.find(|(name, _)| *name == operation)?
+		.1
+		.iter()
+		.find(|(name, _)| *name == field)
+		.map(|(_, role)| *role)
 }
 
 #[cfg(test)]
@@ -312,7 +310,7 @@ mod tests {
 	fn fits(role: &Role, rust_type: &str) -> bool {
 		let has = |needle: &str| rust_type.contains(needle);
 		match role {
-			Path { .. } | Url | Code(_) | Char => has("String"),
+			Role::Path { .. } | Url | Code(_) | Char => has("String"),
 			Role::Names(_) => has("String"),
 			GeoBBox => has("[f64;4]"),
 			GeoPoint => has("[f64;3]"),
@@ -329,7 +327,10 @@ mod tests {
 	#[test]
 	fn every_role_names_a_field_that_exists() {
 		let registry = registry();
-		for (operation, field, role) in ROLES {
+		for (operation, field, role) in ROLES
+			.iter()
+			.flat_map(|(op, fields)| fields.iter().map(move |(f, r)| (op, f, r)))
+		{
 			let meta = registry
 				.get(*operation)
 				.unwrap_or_else(|| panic!("`{operation}` is not an operation upstream registers"));
@@ -388,6 +389,23 @@ mod tests {
 			"upstream has fields with no role, so a form renders them plainly:\n  {}",
 			missing.join("\n  ")
 		);
+	}
+
+	/// The failure mode nesting introduced: a second block for an operation already listed is
+	/// unreachable, because `role_of` stops at the first. A flat list could not express it.
+	#[test]
+	fn no_operation_or_field_is_listed_twice() {
+		let mut seen = std::collections::HashSet::new();
+		for (operation, fields) in ROLES {
+			assert!(
+				seen.insert(*operation),
+				"`{operation}` opens a second block, which is unreachable"
+			);
+			let mut names = std::collections::HashSet::new();
+			for (field, _) in *fields {
+				assert!(names.insert(*field), "`{operation}.{field}` is listed twice");
+			}
+		}
 	}
 
 	#[test]
