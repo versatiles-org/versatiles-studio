@@ -25,7 +25,7 @@ const ipc = vi.hoisted(() => ({
 }));
 vi.mock('../ipc/commands', () => ipc);
 
-const { preview } = await import('./preview.svelte');
+const { preview, layersIn } = await import('./preview.svelte');
 
 /** A built preview under a given mount name. Only the fields this module reads are filled in. */
 function built(name: string) {
@@ -198,5 +198,129 @@ describe('the preview on the map', () => {
 		// And not a second time — the layer is already gone.
 		preview.clear(map);
 		expect(removed).toEqual(['only']);
+	});
+});
+
+/** A `from_container` read node pointing at `source`. */
+function readNode(source: string) {
+	return {
+		name: 'from_container',
+		sources: [],
+		properties: [{ key: 'filename', value: { kind: 'single', value: source } }]
+	};
+}
+
+const withNodes = (...nodes: unknown[]) => ({ graph: 1, diagnostics: [], pipeline: { nodes } }) as never;
+
+describe('the containers the document reads', () => {
+	beforeEach(() => {
+		ipc.openContainer.mockImplementation((source: string) => Promise.resolve({ info: { source } }));
+	});
+
+	// The read nodes *are* the sources (Q22), so editing one has to move the map with it — otherwise
+	// the document and the picture drift apart, which is what merging the modes was meant to prevent.
+	it('opens a container the document names', async () => {
+		const opening: string[] = [];
+		await preview.syncContainers(withNodes(readNode('berlin.mbtiles')), (s) => void opening.push(s));
+
+		expect(preview.containers.map((c) => c.info.source)).toEqual(['berlin.mbtiles']);
+		expect(opening).toEqual(['berlin.mbtiles']);
+	});
+
+	it('drops one the document no longer names', async () => {
+		await preview.syncContainers(withNodes(readNode('berlin.mbtiles')), () => {});
+		await preview.syncContainers(withNodes(readNode('paris.mbtiles')), () => {});
+		expect(preview.containers.map((c) => c.info.source)).toEqual(['paris.mbtiles']);
+	});
+
+	// Reading a container is not always instant — a remote one reads its index over the network — so
+	// one already open must not be read again on every keystroke.
+	it('does not re-read one it already has', async () => {
+		await preview.syncContainers(withNodes(readNode('berlin.mbtiles')), () => {});
+		ipc.openContainer.mockClear();
+		const opening: string[] = [];
+		await preview.syncContainers(withNodes(readNode('berlin.mbtiles')), (s) => void opening.push(s));
+		expect(ipc.openContainer).not.toHaveBeenCalled();
+		expect(opening).toEqual([]);
+	});
+
+	it('ignores nodes that are not containers, and containers with no filename yet', async () => {
+		await preview.syncContainers(
+			withNodes(
+				{ name: 'from_debug', sources: [], properties: [] },
+				{ name: 'from_container', sources: [], properties: [] }
+			),
+			() => {}
+		);
+		expect(preview.containers).toEqual([]);
+	});
+});
+
+describe('the stack of built graphs', () => {
+	it('builds each one and files it under its name', async () => {
+		ipc.mountGraph.mockImplementation((id: number) => Promise.resolve(built(`graph-${id}`)));
+		await preview.mountAll([1, 2]);
+		expect(Object.keys(preview.built).sort()).toEqual(['graph-1', 'graph-2']);
+	});
+
+	// One graph that will not build must not stop the others arriving; the one being edited reports
+	// its own problems through `refresh`.
+	it('keeps the graphs that did build when one fails', async () => {
+		ipc.mountGraph.mockImplementation((id: number) =>
+			id === 1 ? Promise.reject(new Error('no')) : Promise.resolve(built('places'))
+		);
+		await preview.mountAll([1, 2]);
+		expect(Object.keys(preview.built)).toEqual(['places']);
+	});
+
+	it('forgets a graph that has been removed', async () => {
+		ipc.mountGraph.mockResolvedValue(built('places'));
+		await preview.mountAll([1]);
+		preview.forget('places');
+		expect(preview.built).toEqual({});
+	});
+
+	it('ignores being asked to forget one it does not have', async () => {
+		preview.forget('never-existed');
+		expect(preview.built).toEqual({});
+	});
+});
+
+describe('putting the preview back after a style swap', () => {
+	// A style swap discards every layer added to the old style, so the preview has to go back on.
+	it('re-adds the hairlines when nothing else is drawing these tiles', async () => {
+		ipc.mountGraph.mockResolvedValue(built('berlin'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+		added.length = 0;
+
+		preview.restore(map, false);
+		expect(added).toHaveLength(1);
+	});
+
+	// They are the fallback for a preset that matches nothing; over a styled map they would put a
+	// line over every feature the style just drew.
+	it('leaves them off when a style is drawing them', async () => {
+		ipc.mountGraph.mockResolvedValue(built('berlin'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+		added.length = 0;
+
+		preview.restore(map, true);
+		expect(added).toEqual([]);
+	});
+
+	it('does nothing before there is a map', () => {
+		preview.restore(undefined, false);
+		expect(added).toEqual([]);
+	});
+});
+
+describe('what a preview’s tiles contain', () => {
+	it('reads the layer names out of its TileJSON', () => {
+		expect(layersIn(built('berlin') as never)).toEqual(['water']);
+	});
+
+	it('says nothing for a preview that has none, or none at all', () => {
+		expect(layersIn(null)).toEqual([]);
+		expect(layersIn({ info: {} } as never)).toEqual([]);
 	});
 });

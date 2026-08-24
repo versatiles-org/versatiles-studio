@@ -292,10 +292,17 @@ export const preview = {
 		mountedName = null;
 	},
 
-	/** Test seam: the module is a singleton, and state from one case must not reach the next. */
+	/**
+	 * Test seam: the module is a singleton, and state from one case must not reach the next.
+	 *
+	 * **Every field, or the seam lies.** `built` was added with the source stack (S6.5) and not added
+	 * here, so graphs mounted by one case were still in the stack for the next — which a test only
+	 * notices if it happens to assert on the whole of it.
+	 */
 	reset(): void {
 		containers = [];
 		last = null;
 		mountedName = null;
+		built = {};
 	}
 };
