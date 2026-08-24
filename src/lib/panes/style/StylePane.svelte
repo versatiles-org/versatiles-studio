@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { style } from '../../state/style.svelte';
-	import type { DemEncoding, Hillshade, Preset, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
+	import type { DemEncoding, Hillshade, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
 	import { KIND_LABELS, isVector, sourceKind } from '../../map/source-kind';
 	import { demEncoding, type StyleBasis } from '../../map/style';
 	import { token } from '../../styles/tokens';
@@ -9,6 +9,28 @@
 	import { save } from '@tauri-apps/plugin-dialog';
 	import { exportStyle, exportStyleBundle } from '../../ipc/commands';
 	import { canGenerateCode, forExport, fontsUsed, styleCode } from '../../map/style-code';
+	import {
+		BASIS_NOTE,
+		DRAWN_AS,
+		HILLSHADE_COLOURS,
+		HILLSHADE_SLIDERS,
+		KIND_OPTIONS,
+		PRESETS,
+		RASTER_SLIDERS,
+		RECOLOR_SLIDERS,
+		encodingChoice,
+		inertOverrides,
+		isAdjusted,
+		kindChoice,
+		reordered,
+		resamplingChoice,
+		sliderValue,
+		stackRows,
+		withSlider,
+		type RasterKey,
+		type RecolorKey,
+		type ShadeKey
+	} from './controls';
 
 	// The style, as the recipe it is made from (S4.2, D1, [Q36]).
 	//
@@ -52,52 +74,17 @@
 	/// **Because that is how a map looks.** `Recipe.order` is bottom-first, since that is the order
 	/// layers are emitted in; a person reading a list of what is on top of what expects the top at
 	/// the top. Reversing here rather than storing it that way keeps the file matching the render.
-	const rows = $derived([...stack].reverse());
-
-	/// What a source is contributing, said plainly rather than as a term of art.
-	const DRAWN_AS: Record<StyleBasis, string> = {
-		preset: '',
-		derived: 'from its own layers',
-		fallback: 'from its own layers',
-		raster: 'as an image',
-		hillshade: 'as relief',
-		none: 'not drawn'
-	};
+	const rows = $derived(stackRows(stack));
 
 	/// Moves one source up or down the stack, and records the whole list.
 	function move(name: string, by: number): void {
-		const order = stack.map((entry) => entry.name);
-		const at = order.indexOf(name);
-		const to = at + by;
-		if (at < 0 || to < 0 || to >= order.length) return;
-		[order[at], order[to]] = [order[to], order[at]];
-		void style.setOrder(order);
+		const next = reordered(
+			stack.map((entry) => entry.name),
+			name,
+			by
+		);
+		if (next) void style.setOrder(next);
 	}
-
-	const PRESETS: { id: Preset; label: string; note: string }[] = [
-		{ id: 'colorful', label: 'Colorful', note: 'the default, full colour' },
-		{ id: 'graybeard', label: 'Graybeard', note: 'muted greys' },
-		{ id: 'neutrino', label: 'Neutrino', note: 'minimal, few layers' },
-		{ id: 'shadow', label: 'Shadow', note: 'dark' },
-		{ id: 'eclipse', label: 'Eclipse', note: 'dark, high contrast' },
-		{ id: 'satellite', label: 'Satellite', note: 'for imagery underneath' },
-		// Not one of `@versatiles/style`'s six. The others know what `water_polygons` means; this one
-		// knows only what the tiles turn out to contain, which is the only thing that works when they
-		// are not Shortbread (S4.4, D2).
-		{ id: 'derived', label: 'From the data', note: 'every layer these tiles actually have' }
-	];
-
-	/// Each slider's range and the value that means "unchanged".
-	///
-	/// The neutral value is what a cleared control returns to, and it is not always zero — a
-	/// multiplier's identity is 1. Stored beside the range so the two cannot disagree.
-	const SLIDERS = [
-		{ key: 'rotate', label: 'Hue', min: -180, max: 180, step: 1, neutral: 0, unit: '°' },
-		{ key: 'saturate', label: 'Saturation', min: -1, max: 1, step: 0.05, neutral: 0, unit: '' },
-		{ key: 'brightness', label: 'Brightness', min: -1, max: 1, step: 0.05, neutral: 0, unit: '' },
-		{ key: 'contrast', label: 'Contrast', min: 0, max: 3, step: 0.05, neutral: 1, unit: '×' },
-		{ key: 'gamma', label: 'Gamma', min: 0.1, max: 3, step: 0.05, neutral: 1, unit: '×' }
-	] as const;
 
 	const recipe = $derived(style.current);
 
@@ -113,34 +100,16 @@
 	/// The encoding in force: what the recipe says, else what the container declared.
 	const encoding = $derived<DemEncoding | null>(shade.encoding ?? demEncoding(source?.tileSchema));
 
-	const HILLSHADE_SLIDERS = [
-		{ key: 'exaggeration', label: 'Relief', min: 0, max: 1, step: 0.05, neutral: 0.5, unit: '' },
-		{ key: 'direction', label: 'Light from', min: 0, max: 359, step: 1, neutral: 335, unit: '°' },
-		{ key: 'altitude', label: 'Light height', min: 0, max: 90, step: 1, neutral: 45, unit: '°' }
-	] as const;
-
-	/// The three lights, defaulting to tokens rather than to MapLibre's pure black and white — which
-	/// is heavy over a light basemap and invisible over a dark one, and cannot follow the theme.
-	const HILLSHADE_COLOURS = [
-		{ key: 'shadow', label: 'Shadow', token: '--map-shade-shadow' },
-		{ key: 'highlight', label: 'Highlight', token: '--map-shade-highlight' },
-		{ key: 'accent', label: 'Accent', token: '--map-shade-accent' }
-	] as const;
-
-	type ShadeKey = (typeof HILLSHADE_SLIDERS)[number]['key'];
-
 	const shadeValue = (key: ShadeKey): number =>
-		shade[key] ?? HILLSHADE_SLIDERS.find((slider) => slider.key === key)!.neutral;
+		sliderValue(HILLSHADE_SLIDERS, shade as Record<string, number | null>, key);
 
 	/// Layer ids the style on the map actually has, which is what an override can apply to.
 	const presentIds = $derived(rendered?.layers.map((layer) => layer.id) ?? []);
 
 	/// Overrides with no layer to land on — invisible in the tree, because it lists layers.
-	const inert = $derived(
-		vectorAppearance ? Object.keys(vectorAppearance.overrides).filter((id) => !presentIds.includes(id)) : []
-	);
+	const inert = $derived(inertOverrides(vectorAppearance?.overrides ?? {}, presentIds));
 
-	const shaded = $derived(Object.values(shade).some((value) => value != null));
+	const shaded = $derived(isAdjusted(shade));
 
 	function setShade(patch: Partial<Hillshade>): void {
 		void style.setHillshade({ ...shade, ...patch });
@@ -155,42 +124,19 @@
 	const kind = $derived(reading?.kind ?? null);
 	const vector = $derived(kind === null || isVector(kind));
 
-	/** Why the pane is showing this reading, in words rather than as a term of art. */
-	const BASIS_NOTE = {
-		declared: 'the container says so',
-		inferred: 'worked out from the tiles',
-		chosen: 'you set this'
-	} as const;
-
-	/// The raster controls, in MapLibre's own units.
-	///
-	/// Not the `SLIDERS` above under different labels: `rotate` and `saturate` happen to mean the
-	/// same thing, and contrast and brightness do not — `Recolor`'s are a multiplier and an offset
-	/// where MapLibre's are an offset and a pair of range endpoints. Two lists that look alike beat
-	/// one list with a conversion table nobody can read.
-	const RASTER_SLIDERS = [
-		{ key: 'hue', label: 'Hue', min: -180, max: 180, step: 1, unit: '°' },
-		{ key: 'saturation', label: 'Saturation', min: -1, max: 1, step: 0.05, unit: '' },
-		{ key: 'brightness', label: 'Brightness', min: -1, max: 1, step: 0.05, unit: '' },
-		{ key: 'contrast', label: 'Contrast', min: -1, max: 1, step: 0.05, unit: '' },
-		{ key: 'opacity', label: 'Opacity', min: 0, max: 1, step: 0.05, unit: '' }
-	] as const;
-
-	type RasterKey = (typeof RASTER_SLIDERS)[number]['key'];
-
 	/// Every raster slider's neutral is `0` except opacity, whose is `1` — the same asymmetry the
 	/// vector sliders have, for the same reason: a multiplier's identity is not zero.
 	const rasterValue = (key: RasterKey): number =>
-		(rasterAdjust as Record<string, number | undefined>)[key] ?? (key === 'opacity' ? 1 : 0);
+		sliderValue(RASTER_SLIDERS, rasterAdjust as Record<string, number | null>, key);
 
-	const rasterAdjusted = $derived(Object.values(rasterAdjust).some((value) => value != null));
+	const rasterAdjusted = $derived(isAdjusted(rasterAdjust));
 
 	/// Previewed locally and committed once, exactly as the recolour gesture is.
 	let rasterPending = $state<RasterAdjust | null>(null);
 	const rasterNow = $derived(rasterPending ?? rasterAdjust);
 
 	function previewRaster(key: RasterKey, raw: string): void {
-		rasterPending = { ...rasterNow, [key]: Number(raw) };
+		rasterPending = withSlider(RASTER_SLIDERS, rasterNow, key, raw);
 	}
 
 	function commitRaster(): void {
@@ -199,7 +145,7 @@
 	}
 
 	function setResampling(value: string): void {
-		void style.setRaster({ ...rasterNow, resampling: value === 'linear' ? null : 'nearest' });
+		void style.setRaster({ ...rasterNow, resampling: resamplingChoice(value) });
 	}
 
 	function resetRaster(): void {
@@ -226,31 +172,22 @@
 		setShade({ [key]: undefined });
 	}
 
-	const KIND_OPTIONS: SourceKind[] = ['vectorShortbread', 'vectorOther', 'rasterImage', 'rasterDem'];
-
 	/** Picking the reading Studio already made means clearing the override, not recording it. */
 	function chooseKind(next: string): void {
 		const derivedNow = source ? sourceKind(source.tileFormat, source.tileSchema, source.layers).kind : null;
-		void style.setKind(next === derivedNow ? null : (next as SourceKind));
+		void style.setKind(kindChoice(next as SourceKind, derivedNow));
 	}
 
 	/// What the sliders show. Read from the recipe, written by dragging, committed on release.
-	const value = (key: string): number => {
-		const slider = SLIDERS.find((s) => s.key === key)!;
-		const held = (vectorAppearance?.recolor as Record<string, number | null | undefined>)?.[key];
-		return held ?? slider.neutral;
-	};
+	const value = (key: RecolorKey): number =>
+		sliderValue(RECOLOR_SLIDERS, vectorAppearance?.recolor as Record<string, number | null>, key);
 
 	/// Applies one field of the recolouring without recording it.
-	function preview(key: string, raw: string) {
-		const slider = SLIDERS.find((s) => s.key === key)!;
-		const next = Number(raw);
-		style.previewRecolor({
-			...(vectorAppearance?.recolor ?? {}),
-			// Back to "unset" at the neutral value, so a slider returned to the middle leaves no
-			// trace in the recipe and none in the exported code.
-			[key]: next === slider.neutral ? undefined : next
-		} as Recolor);
+	///
+	/// `withSlider` is what puts the value back to "unset" at neutral, so a slider returned to the
+	/// middle leaves no trace in the recipe and none in the exported code.
+	function preview(key: RecolorKey, raw: string) {
+		style.previewRecolor(withSlider(RECOLOR_SLIDERS, vectorAppearance?.recolor ?? {}, key, raw) as Recolor);
 	}
 
 	function invert(on: boolean) {
@@ -385,7 +322,7 @@
 				<span class="name">Encoding</span>
 				<select
 					value={encoding ?? ''}
-					onchange={(event) => setShade({ encoding: (event.currentTarget.value || null) as DemEncoding | null })}
+					onchange={(event) => setShade({ encoding: encodingChoice(event.currentTarget.value) })}
 				>
 					<option value="">Not set</option>
 					<option value="mapbox">Mapbox</option>
@@ -511,7 +448,7 @@
 				<span class="note">light ↔ dark</span>
 			</label>
 
-			{#each SLIDERS as slider (slider.key)}
+			{#each RECOLOR_SLIDERS as slider (slider.key)}
 				<label class="slider">
 					<span class="name">{slider.label}</span>
 					<input
