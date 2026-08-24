@@ -143,3 +143,28 @@ describe('fontsUsed', () => {
 		expect(fontsUsed(style)).toEqual([]);
 	});
 });
+
+describe('overrides in generated code', () => {
+	const withOverrides = recipe({
+		overrides: { water: { visible: false }, 'site-school': { visible: false } }
+	});
+
+	it('emits every override when nothing says which layers exist', () => {
+		const code = styleCode(withOverrides)!;
+		expect(code).toContain('water');
+		expect(code).toContain('site-school');
+	});
+
+	// `neutrino`'s ids are a strict subset of `colorful`'s, so an override made under the larger
+	// preset is inert under the smaller. The recipe keeps it — it comes back on the way over — but a
+	// generated `neutrino` file setting a property on a layer it does not contain is dead code.
+	it('drops the ones the generated style has no layer for', () => {
+		const code = styleCode(withOverrides, ['water'])!;
+		expect(code).toContain('water');
+		expect(code).not.toContain('site-school');
+	});
+
+	it('writes no override block when none of them apply', () => {
+		expect(styleCode(withOverrides, [])).not.toContain('Layer changes made in Studio');
+	});
+});

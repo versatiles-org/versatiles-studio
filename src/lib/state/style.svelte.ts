@@ -21,6 +21,7 @@ import {
 	setStyleRaster,
 	setStyleOrder,
 	setStyleHillshade,
+	pruneStyleOverrides,
 	setLayerOverride,
 	type LayerOverride,
 	type Preset,
@@ -174,6 +175,11 @@ export const style = {
 	/** Records the hillshade settings as one undo entry (S6.6, D12). */
 	async setHillshade(shade: Hillshade): Promise<void> {
 		if (graph) recipe = await setStyleHillshade(graph.id, shade);
+	},
+
+	/** Clears overrides for layers the current style has no place for (S6.7). */
+	async pruneOverrides(present: string[]): Promise<void> {
+		if (graph) recipe = await pruneStyleOverrides(graph.id, present);
 	},
 
 	/** Sets the draw order, bottom first (S6.5). */

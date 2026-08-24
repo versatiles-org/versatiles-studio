@@ -54,6 +54,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::style::set_style_raster,
 		commands::style::set_style_order,
 		commands::style::set_style_hillshade,
+		commands::style::prune_style_overrides,
 		commands::style::set_style_recolor,
 		commands::style::set_layer_override,
 		commands::style::export_style,

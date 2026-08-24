@@ -132,6 +132,14 @@
 	const shadeValue = (key: ShadeKey): number =>
 		shade[key] ?? HILLSHADE_SLIDERS.find((slider) => slider.key === key)!.neutral;
 
+	/// Layer ids the style on the map actually has, which is what an override can apply to.
+	const presentIds = $derived(rendered?.layers.map((layer) => layer.id) ?? []);
+
+	/// Overrides with no layer to land on — invisible in the tree, because it lists layers.
+	const inert = $derived(
+		vectorAppearance ? Object.keys(vectorAppearance.overrides).filter((id) => !presentIds.includes(id)) : []
+	);
+
 	const shaded = $derived(Object.values(shade).some((value) => value != null));
 
 	function setShade(patch: Partial<Hillshade>): void {
@@ -244,7 +252,7 @@
 
 	async function exportAs(kind: 'json' | 'ts') {
 		if (!recipe || !rendered) return;
-		const code = kind === 'ts' ? styleCode(appearance) : null;
+		const code = kind === 'ts' ? styleCode(appearance, presentIds) : null;
 		if (kind === 'ts' && code === null) return;
 		// The tile URL is swapped for a placeholder in both forms: what the map reads from is an
 		// ephemeral local port, and a file carrying it away would work once.
@@ -484,6 +492,18 @@
 			{/each}
 
 			<p class="note">These apply to every colour in the style at once.</p>
+
+			{#if inert.length > 0}
+				<!-- S6.7: the tree lists layers, so an override whose layer this preset does not have is
+				     invisible. It is kept rather than dropped — the presets share a namespace, and it
+				     applies again under one that has the layer — so clearing is offered, never automatic. -->
+				<p class="note substituted">
+					{inert.length}
+					{inert.length === 1 ? 'change applies' : 'changes apply'} to layers this preset does not draw. They come back under
+					a preset that has them.
+					<button type="button" class="reset" onclick={() => void style.pruneOverrides(presentIds)}> clear </button>
+				</p>
+			{/if}
 
 			<LayerTree {rendered} />
 		{/if}

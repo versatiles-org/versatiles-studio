@@ -114,6 +114,29 @@ pub async fn set_style_raster(
 	.await
 }
 
+/// Drops a source's overrides for layers its style no longer has ([S6.7](../../../docs/scope-release-2.md)).
+///
+/// `present` is the ids the rendered style actually contains, which only the webview knows —
+/// `@versatiles/style` renders there ([Q36]), so the core cannot work out what a preset produced.
+///
+/// Returns the recipe, and the count goes to the pane through the difference it can see. Deliberate
+/// rather than automatic: an override that has gone quiet under one preset comes back under another,
+/// and clearing them on a switch would delete work someone was in the middle of comparing.
+#[tauri::command]
+#[specta::specta]
+pub async fn prune_style_overrides(
+	state: State<'_, AppState>,
+	graph: GraphId,
+	present: Vec<String>,
+) -> Result<Recipe, String> {
+	let name = source_name(&state, graph).await?;
+	let mut recipe = state.style.lock().await.clone();
+	if recipe.prune_overrides(&name, &present) == 0 {
+		return Ok(recipe);
+	}
+	Ok(record(&state, recipe).await)
+}
+
 /// Sets the hillshade settings for an elevation source ([S6.6](../../../docs/scope-release-2.md), D12).
 ///
 /// Whole-struct, like the recolour and the raster adjustment above, and for the same reason.

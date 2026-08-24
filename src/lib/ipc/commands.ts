@@ -233,6 +233,10 @@ export const setStyleOrder = (order: string[]) => unwrap(commands.setStyleOrder(
 /** Sets the hillshade settings for an elevation source (S6.6, D12). */
 export const setStyleHillshade = (graph: number, shade: Hillshade) => unwrap(commands.setStyleHillshade(graph, shade));
 
+/** Clears a source's overrides for layers its style no longer has (S6.7). */
+export const pruneStyleOverrides = (graph: number, present: string[]) =>
+	unwrap(commands.pruneStyleOverrides(graph, present));
+
 /**
  * Sets the whole global recolouring at once (D1, D5).
  *

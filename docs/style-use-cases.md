@@ -47,10 +47,17 @@ the right thing when the tiles are Shortbread and no thing at all when they are 
 **Today: this works.** It is the case the pane was designed for, and the only one of the four that
 needs nothing.
 
-**Gaps.** 324 rows behind a single filter box. And overrides are keyed by bare layer id with no
-scope and no pruning — `set_override` removes an entry only when it says nothing — so switching
-`colorful` → `neutrino` leaves overrides for layers that no longer exist, and they persist into
-`project.yaml` and would be emitted by D8's code export.
+**Gaps.** 324 rows behind a single filter box.
+
+**And a smaller one than it first looked.** Overrides are keyed by bare layer id, which reads like a
+collision waiting to happen — but the six presets share one namespace, and `neutrino`'s 207 ids are a
+strict _subset_ of `colorful`'s 324. So an override on `water` applies under both, and one on a layer
+only `colorful` draws goes quiet under `neutrino` and comes back on the way over. That is the right
+behaviour, not rot. `derived:` ids are namespaced apart, so they cannot collide either.
+
+Two real defects sit underneath it, and S6.7 is both: an override with no layer to land on is
+**invisible**, because the tree lists layers rather than overrides; and D8's code export emitted it
+anyway, producing a loop that sets a property on a layer the generated file does not contain.
 
 ---
 
@@ -241,12 +248,17 @@ preset builder becomes one branch rather than the whole function; `deriveStyle` 
 template for the others. `drawsAnything` demotes to a fallback for inferring kind where `tile_schema`
 is absent.
 
-## One decision left open
+## The override question, as it turned out
 
-Overrides still collide across **presets within a single source**. Keying them under the preset name
-is lossless — switch to compare, switch back, the edits survive — at some cost in recipe size.
-Pruning them with a visible notice is simpler. Either beats today's silent rot, and this document
-does not pick.
+This document originally posed it as a collision — key overrides under the preset, or prune them —
+and both answers were wrong because the premise was. The presets share a namespace on purpose, so
+overrides _should_ be shared, and one that goes quiet under a smaller preset _should_ come back under
+a larger one. Nothing needed re-keying.
+
+What was actually broken was narrower and both halves are fixed in S6.7: an inert override was
+invisible, and the code export emitted it into a file with no such layer. Clearing them is offered
+and never automatic — an override gone quiet under one preset is work someone may be in the middle of
+comparing.
 
 # Implementation plan
 

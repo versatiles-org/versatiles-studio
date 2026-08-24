@@ -430,6 +430,28 @@ impl Recipe {
 		})
 	}
 
+	/// Drops overrides for layers the current style has no place for
+	/// ([S6.7](../../../docs/scope-release-2.md)).
+	///
+	/// **Not something to do on a preset change.** The six presets share one namespace — neutrino's
+	/// 207 layer ids are a strict subset of colorful's 324 — so an override on `water` is meant to
+	/// survive a switch and apply again on the way back. Keeping them is the feature; what is wrong
+	/// is only that an override nothing can apply is invisible, since the tree lists layers rather
+	/// than overrides. This is the deliberate clear-out, and it returns how many went so a caller can
+	/// say so rather than silently changing the file.
+	pub fn prune_overrides(&mut self, source: &str, present: &[String]) -> usize {
+		let Some(SourceStyle {
+			appearance: Appearance::Vector { overrides, .. },
+			..
+		}) = self.sources.get_mut(source)
+		else {
+			return 0;
+		};
+		let before = overrides.len();
+		overrides.retain(|id, _| present.iter().any(|layer| layer == id));
+		before - overrides.len()
+	}
+
 	/// Moves a source's style when its graph is renamed.
 	///
 	/// **The one place the name-keyed store meets the id-keyed application.** Without it a rename
@@ -646,6 +668,35 @@ mod tests {
 		recipe.order = vec![GRAPH.into(), "other".into()];
 		recipe.rename_source(GRAPH, "streets");
 		assert_eq!(recipe.order, vec!["streets".to_string(), "other".to_string()]);
+	}
+
+	/// Overrides outlive a preset switch on purpose — the presets share a namespace, and one that
+	/// went inert must come back when the preset that has that layer does.
+	#[test]
+	fn pruning_keeps_what_the_style_still_has() {
+		let mut recipe = edited();
+		recipe.set_override(
+			GRAPH,
+			"gone",
+			LayerOverride {
+				visible: Some(false),
+				..LayerOverride::default()
+			},
+		);
+		assert_eq!(overrides_of(&recipe).len(), 2);
+
+		let dropped = recipe.prune_overrides(GRAPH, &["water".to_string()]);
+		assert_eq!(dropped, 1, "it says how many went");
+		assert_eq!(overrides_of(&recipe).keys().collect::<Vec<_>>(), vec!["water"]);
+	}
+
+	#[test]
+	fn pruning_a_source_with_no_overrides_changes_nothing() {
+		let mut recipe = Recipe::default();
+		recipe.source_mut(GRAPH, Some(SourceKind::RasterImage));
+		let before = recipe.text();
+		assert_eq!(recipe.prune_overrides(GRAPH, &[]), 0);
+		assert_eq!(recipe.text(), before);
 	}
 
 	fn overrides_of(recipe: &Recipe) -> &BTreeMap<String, LayerOverride> {

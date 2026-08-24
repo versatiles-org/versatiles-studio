@@ -188,6 +188,17 @@ export const commands = {
 	 */
 	setStyleHillshade: (graph: number, shade: Hillshade_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_hillshade", { graph, shade })),
 	/**
+	 *  Drops a source's overrides for layers its style no longer has ([S6.7](../../../docs/scope-release-2.md)).
+	 * 
+	 *  `present` is the ids the rendered style actually contains, which only the webview knows —
+	 *  `@versatiles/style` renders there ([Q36]), so the core cannot work out what a preset produced.
+	 * 
+	 *  Returns the recipe, and the count goes to the pane through the difference it can see. Deliberate
+	 *  rather than automatic: an override that has gone quiet under one preset comes back under another,
+	 *  and clearing them on a switch would delete work someone was in the middle of comparing.
+	 */
+	pruneStyleOverrides: (graph: number, present: string[]) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("prune_style_overrides", { graph, present })),
+	/**
 	 *  Sets the global recolouring — hue, saturation, brightness, contrast and the rest (D1, D5).
 	 * 
 	 *  Takes the whole of it rather than one field at a time. The controls move together, the webview

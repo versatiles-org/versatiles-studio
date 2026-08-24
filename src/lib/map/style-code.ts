@@ -99,7 +99,7 @@ export function canGenerateCode(appearance: Appearance): boolean {
  * turned out to have (S4.4), so there is nothing to name in an import. Those export as `style.json`,
  * which is the honest form for a style that has no shorter description than itself.
  */
-export function styleCode(appearance: Appearance): string | null {
+export function styleCode(appearance: Appearance, present?: string[]): string | null {
 	if (!canGenerateCode(appearance) || appearance.type !== 'vector') return null;
 
 	const options: string[] = [`\ttiles: ['${TILE_URL_PLACEHOLDER}']`];
@@ -119,7 +119,14 @@ export function styleCode(appearance: Appearance): string | null {
 		'});'
 	];
 
-	const overrides = Object.entries(appearance.overrides);
+	// **Only the overrides the generated style can apply** ([S6.7](../../../docs/scope-release-2.md)).
+	// The six presets share a namespace and a smaller one is a subset of a larger, so an override
+	// made under `colorful` sits inert under `neutrino` and comes back on the way over — which is
+	// why the recipe keeps it. Emitting it into a `neutrino` file is different: the loop would set a
+	// property on a layer that file does not contain, which is dead code someone has to work out.
+	const overrides = Object.entries(appearance.overrides).filter(
+		([id]) => present === undefined || present.includes(id)
+	);
 	if (overrides.length > 0) {
 		// Applied as a loop over the built style rather than folded into the call: these are changes
 		// to *layers*, and the builder takes no argument for them. Written out so the file runs
