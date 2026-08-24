@@ -101,21 +101,25 @@ describe('documentation links', () => {
 const schemes = [
 	{
 		name: 'decision',
-		definedIn: 'docs/decisions.md',
+		definedIn: ['docs/decisions.md'],
 		/** `### Q32 — A project holds several named graphs…` */
 		define: /^### (Q\d+) /gm,
 		refer: /(?<![\w.])(Q\d+)(?!\w)(?!\.\d)/g
 	},
 	{
 		name: 'work item',
-		definedIn: 'docs/scope-release-1.md',
+		// **A list, because a release gets its own scope document and the numbering carries on.**
+		// `S6.1` is defined in release 2's and referenced from release 1's neighbours; checking only
+		// one file would fail every reference to the other, and pointing at the newest would quietly
+		// stop checking the older items. Add the next release's document here when it exists.
+		definedIn: ['docs/scope-release-1.md', 'docs/scope-release-2.md'],
 		/** `| **S3.6** | …` and its stretch form `| **S4.10\*** | …` */
 		define: /^\|\s*\*\*(S\d+\.\d+)\\?\*?\*\*/gm,
 		refer: /(?<![\w.])(S\d+\.\d+)(?!\w)(?!\.\d)/g
 	},
 	{
 		name: 'feature',
-		definedIn: 'docs/features.md',
+		definedIn: ['docs/features.md'],
 		/**
 		 * `| **E1** | …`
 		 *
@@ -143,8 +147,8 @@ describe('documentation identifiers', () => {
 			// No unescaping: every capture group above is letters, digits and dots, so a backslash
 			// cannot reach one. There used to be a `.replace('\\', '')` here, defending against the
 			// `\*` that marks a stretch item — which the pattern already excludes from the group.
-			const defined = new Set([...read(definedIn).matchAll(define)].map((match) => match[1]));
-			expect(defined.size, `no ${name} definitions matched in ${definedIn}`).toBeGreaterThan(20);
+			const defined = new Set(definedIn.flatMap((file) => [...read(file).matchAll(define)].map((match) => match[1])));
+			expect(defined.size, `no ${name} definitions matched in ${definedIn.join(', ')}`).toBeGreaterThan(20);
 
 			const unknown = new Set<string>();
 			for (const path of docs) {
@@ -153,7 +157,7 @@ describe('documentation identifiers', () => {
 				}
 			}
 
-			expect([...unknown].sort(), `define it in ${definedIn}, or fix the reference`).toEqual([]);
+			expect([...unknown].sort(), `define it in ${definedIn.join(' or ')}, or fix the reference`).toEqual([]);
 		});
 	}
 });
