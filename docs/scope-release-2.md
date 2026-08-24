@@ -35,7 +35,7 @@ interface stays still, and then the interface moves over a shape that already wo
 | **S6.2**   | ~~Derive a style where a preset would draw nothing, instead of drawing none~~ — **done**; `styleFor` owns the decision and reports which of four routes produced the style, so the pane says when a preset was substituted. It refuses to derive over a format the map cannot read as vector                                                                                           | D2             |
 | **S6.3**   | ~~The raster imagery editor~~ — **done**; `RasterAdjust` carries hue, saturation, brightness, contrast, opacity and resampling in MapLibre's own units, and `rasterStyle` emits only the properties that were touched. Not a second reading of `Recolor`: only two of the five share a parameterisation                                                                                | D11            |
 | **S6.4**   | ~~Split the recipe's appearance into a tagged union and migrate `project.yaml` to manifest version 2~~ — **done**; `Recipe` is now one `SourceStyle` per source, keyed by graph name, with `Appearance` as a `vector`/`raster` union. A version-1 recipe migrates onto the first graph. Renaming a graph carries its style with it, which `rename_graph` had been waiting for since S4 | infrastructure |
-| **S6.5**   | The source stack: one style over several graphs, drawn bottom-up, drag to reorder. `composeStyle` replaces `renderStyle`'s `sources[0]`. This is where a basemap under your data becomes possible without a new concept                                                                                                                                                                | D1, D11        |
+| **S6.5**   | The source stack. **Renderer done**: `composeStyle` draws N sources bottom-first, renaming colliding layer _and source_ keys only when more than one draws, and `Recipe::order` carries the position through renames. **Still to do**: mounting every graph rather than only the previewed one, and the stack UI — see the note below                                                  | D1, D11        |
 | **S6.6**   | The DEM editor: a `raster-dem` source with the encoding the container declares, a `hillshade` layer, and controls for exaggeration, azimuth, altitude and the three colours                                                                                                                                                                                                            | D12            |
 | **S6.7\*** | Settle the override collision within a source — key overrides by preset, or prune them with a visible notice. Either beats today's silent rot                                                                                                                                                                                                                                          | infrastructure |
 
@@ -72,3 +72,29 @@ has hit the case.
 
 **Terrain.** D12 names 3-D terrain as in scope only if 3-D is; hillshade is the deliverable and stands
 on its own.
+
+## S6.5's open question: what gets mounted
+
+The renderer is done and tested; what it has nothing to draw is the rest of the stack. Today
+`preview.refresh` mounts **one** graph — whichever is selected — and `preview.svelte.ts` says why:
+
+> [Q32] wants every graph mounted so a style can name them all. That arrives with the style at S4 —
+> until something renders them, building every graph on every refresh is a job apiece for tiles
+> nobody draws.
+
+Something renders them now, so the deferral has expired and the cost is real: every graph in a
+project is a pipeline to build. Three ways to pay it —
+
+**Mount every graph when a project opens, rebuild only the edited one on refresh.** The cost lands
+where a person already expects to wait, and steady-state editing is exactly as cheap as it is today.
+Recommended: it is the only option that makes a stack complete without making typing slower.
+
+**Mount lazily, compose over whatever has been visited.** Free, and already half true — a mount is
+keyed by name and nothing unmounts on a graph switch, so each graph visited stays served. But a
+freshly opened project shows only the graph it opens on, and a basemap appears when you click it,
+which reads as a bug.
+
+**Mount every graph on every refresh.** What the comment above warns against.
+
+The decision changes how long a project takes to open, so it wants making deliberately rather than
+falling out of an implementation.

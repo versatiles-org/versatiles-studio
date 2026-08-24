@@ -316,8 +316,15 @@ pub struct SourceStyle {
 #[serde(rename_all = "camelCase", default)]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Recipe {
-	/// By graph name. One entry today; S6.5 is where more than one is drawn at once.
+	/// By graph name.
 	pub sources: BTreeMap<String, SourceStyle>,
+	/// Draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
+	///
+	/// **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
+	/// drag that has to renumber every sibling is how two entries end up claiming one position.
+	/// Names absent from it are drawn after those in it, in name order — so a source that arrives
+	/// while nobody is looking appears on top rather than vanishing.
+	pub order: Vec<String>,
 }
 
 impl Recipe {
@@ -334,6 +341,28 @@ impl Recipe {
 	/// Reads back what [`text`](Self::text) wrote.
 	pub fn parse(text: &str) -> Result<Self> {
 		serde_json::from_str(text).context("reading the style")
+	}
+
+	/// The sources to draw, bottom first.
+	///
+	/// Everything `order` names and still exists, then everything else in name order. Two rules,
+	/// because `order` is a preference rather than a register: a graph removed while a project was
+	/// closed must not leave a hole, and one added must not be invisible.
+	#[must_use]
+	pub fn draw_order<'a>(&self, present: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+		let present: std::collections::BTreeSet<&str> = present.into_iter().collect();
+		let mut out: Vec<String> = self
+			.order
+			.iter()
+			.filter(|name| present.contains(name.as_str()))
+			.cloned()
+			.collect();
+		for name in &present {
+			if !out.iter().any(|seen| seen == name) {
+				out.push((*name).to_string());
+			}
+		}
+		out
 	}
 
 	/// One source's style, as it stands. `None` for a source nobody has styled.
@@ -365,6 +394,11 @@ impl Recipe {
 		}
 		if let Some(style) = self.sources.remove(from) {
 			self.sources.insert(to.to_string(), style);
+		}
+		for name in &mut self.order {
+			if name == from {
+				*name = to.to_string();
+			}
 		}
 	}
 
@@ -533,6 +567,37 @@ mod tests {
 		renamed.rename_source(GRAPH, "streets");
 		assert!(renamed.source(GRAPH).is_none());
 		assert_eq!(renamed.source("streets"), recipe.source(GRAPH));
+	}
+
+	/// `order` is a preference, not a register: what it names must not be trusted to exist, and what
+	/// exists must not be invisible for being unnamed.
+	#[test]
+	fn the_draw_order_survives_sources_coming_and_going() {
+		let recipe = Recipe {
+			order: vec!["basemap".into(), "gone".into()],
+			..Recipe::default()
+		};
+
+		assert_eq!(
+			recipe.draw_order(["places", "basemap"]),
+			vec!["basemap".to_string(), "places".to_string()],
+			"ordered first, then the rest — and `gone` is not conjured up"
+		);
+		assert!(recipe.draw_order([]).is_empty());
+		assert_eq!(
+			recipe.draw_order(["zebra", "alpha"]),
+			vec!["alpha".to_string(), "zebra".to_string()],
+			"unordered sources fall back to a stable order rather than an arbitrary one"
+		);
+	}
+
+	/// A rename must move the position as well as the style, or renaming sends a source to the top.
+	#[test]
+	fn a_rename_carries_the_position_over() {
+		let mut recipe = edited();
+		recipe.order = vec![GRAPH.into(), "other".into()];
+		recipe.rename_source(GRAPH, "streets");
+		assert_eq!(recipe.order, vec!["streets".to_string(), "other".to_string()]);
 	}
 
 	fn overrides_of(recipe: &Recipe) -> &BTreeMap<String, LayerOverride> {

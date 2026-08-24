@@ -1383,8 +1383,17 @@ export type Recipe = Recipe_Serialize | Recipe_Deserialize;
  *  differently between two identical states would record an edit every time the style was touched.
  */
 export type Recipe_Deserialize = {
-	/**  By graph name. One entry today; S6.5 is where more than one is drawn at once. */
+	/**  By graph name. */
 	sources?: { [key in string]: SourceStyle_Deserialize },
+	/**
+	 *  Draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
+	 * 
+	 *  **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
+	 *  drag that has to renumber every sibling is how two entries end up claiming one position.
+	 *  Names absent from it are drawn after those in it, in name order — so a source that arrives
+	 *  while nobody is looking appears on top rather than vanishing.
+	 */
+	order?: string[],
 };
 
 /**
@@ -1401,8 +1410,17 @@ export type Recipe_Deserialize = {
  *  differently between two identical states would record an edit every time the style was touched.
  */
 export type Recipe_Serialize = {
-	/**  By graph name. One entry today; S6.5 is where more than one is drawn at once. */
+	/**  By graph name. */
 	sources: { [key in string]: SourceStyle_Serialize },
+	/**
+	 *  Draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
+	 * 
+	 *  **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
+	 *  drag that has to renumber every sibling is how two entries end up claiming one position.
+	 *  Names absent from it are drawn after those in it, in name order — so a source that arrives
+	 *  while nobody is looking appears on top rather than vanishing.
+	 */
+	order: string[],
 };
 
 /**

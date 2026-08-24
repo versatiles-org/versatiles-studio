@@ -353,3 +353,104 @@ function hue(name: string): string {
 function isVectorKind(kind: SourceKind): boolean {
 	return kind === 'vectorShortbread' || kind === 'vectorOther';
 }
+
+/** One source in the stack, with everything needed to draw it. */
+export interface StackEntry {
+	/** The graph's name — its mount, and what the style calls the source. */
+	name: string;
+	tileUrl: string;
+	appearance: Appearance;
+	kind: SourceKind;
+	tileFormat: string;
+	layers: DerivableLayer[];
+	mountedLayers: string[];
+}
+
+/** What a composed style drew, and from what. */
+export interface Composed {
+	style: StyleSpecification | null;
+	/** One per entry, in the order given, so the pane can say why a source is not on the map. */
+	bases: { name: string; basis: StyleBasis }[];
+}
+
+/**
+ * One style over several sources, drawn bottom-first
+ * ([S6.5](../../../docs/scope-release-2.md)).
+ *
+ * **This is what makes "a basemap under my data" a stack position rather than a feature.** Each
+ * entry is styled by exactly the rules a single source already had — `styleFor` decides per entry —
+ * and the results are concatenated in order. A source that draws nothing contributes nothing and
+ * says so in `bases`, rather than taking the whole style down with it.
+ *
+ * `entries` is bottom-first: the first drawn is the one everything else covers.
+ */
+export function composeStyle(entries: StackEntry[], serverBaseUrl: string): Composed {
+	const bases: { name: string; basis: StyleBasis }[] = [];
+	const sources: Record<string, unknown> = {};
+	const layers: LayerSpecification[] = [];
+	let glyphs: string | undefined;
+	let sprite: StyleSpecification['sprite'];
+
+	// **Ids are prefixed only when more than one source is drawn.** Two vector sources on the same
+	// preset produce identical layer ids, and MapLibre keeps the first — so the upper source would
+	// silently vanish. Prefixing unconditionally would instead rename every layer in the
+	// single-source case, which is the case every exported `style.json` and every override written
+	// before this was added already refers to.
+	const drawn: { name: string; style: StyleSpecification }[] = [];
+	for (const entry of entries) {
+		const { style, basis } = styleFor(
+			entry.appearance,
+			{
+				kind: entry.kind,
+				tileFormat: entry.tileFormat,
+				layers: entry.layers,
+				mountedLayers: entry.mountedLayers
+			},
+			[{ name: entry.name, tileUrl: entry.tileUrl }],
+			serverBaseUrl
+		);
+		bases.push({ name: entry.name, basis });
+		if (style) drawn.push({ name: entry.name, style });
+	}
+
+	const prefix = drawn.length > 1;
+
+	for (const { name, style } of drawn) {
+		glyphs ??= style.glyphs;
+		sprite ??= style.sprite;
+
+		// **The source key collides too, not just the layer ids.** `@versatiles/style`'s builders
+		// name their source `versatiles-shortbread` whatever they were pointed at, so two preset
+		// sources merge into one and the second silently replaces the first's tiles. Each built style
+		// has exactly one source — it was built from one — so renaming it to the entry is safe, and
+		// the layers that referred to it follow.
+		const [built] = Object.keys(style.sources);
+		const key = prefix ? name : built;
+		sources[key] = style.sources[built];
+
+		for (const layer of style.layers) {
+			if (!prefix) {
+				layers.push(layer);
+				continue;
+			}
+			layers.push({
+				...layer,
+				id: `${name}/${layer.id}`,
+				...('source' in layer ? { source: key } : {})
+			} as LayerSpecification);
+		}
+	}
+
+	if (drawn.length === 0) return { style: null, bases };
+
+	return {
+		style: {
+			version: 8,
+			...(glyphs ? { glyphs } : {}),
+			...(sprite ? { sprite } : {}),
+			sources,
+			layers
+		} as StyleSpecification,
+		bases
+	};
+}

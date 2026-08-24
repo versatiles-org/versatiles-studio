@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveStyle, drawsAnything, rasterPaint, renderStyle, styleFor } from './style';
+import { composeStyle, deriveStyle, drawsAnything, rasterPaint, renderStyle, styleFor } from './style';
 import type { Appearance } from '../ipc/commands';
 import type { VectorAppearance } from './style';
 
@@ -333,5 +333,75 @@ describe('rasterPaint', () => {
 
 	it('carries resampling, which is the control a scan wants', () => {
 		expect(rasterPaint({ resampling: 'nearest' })).toEqual({ 'raster-resampling': 'nearest' });
+	});
+});
+
+describe('composeStyle', () => {
+	const entry = (name: string, over: Record<string, unknown> = {}) => ({
+		name,
+		tileUrl: `${BASE}/tiles/${name}/{z}/{x}/{y}`,
+		appearance: recipe(),
+		kind: 'vectorShortbread' as const,
+		tileFormat: 'mvt',
+		layers: [{ name: 'places', geometry: 'point' }],
+		mountedLayers: ['water_polygons', 'street_polygons', 'boundaries'],
+		...over
+	});
+
+	it('draws one source exactly as it did before', () => {
+		const { style, bases } = composeStyle([entry('berlin')], BASE);
+		expect(bases).toEqual([{ name: 'berlin', basis: 'preset' }]);
+		// Unprefixed, because every exported style and every stored override refers to these ids.
+		expect(style!.layers.every((layer) => !layer.id.includes('/'))).toBe(true);
+	});
+
+	it('stacks two sources bottom-first', () => {
+		const { style } = composeStyle([entry('basemap'), entry('places')], BASE);
+		const first = style!.layers.findIndex((layer) => layer.id.startsWith('basemap/'));
+		const second = style!.layers.findIndex((layer) => layer.id.startsWith('places/'));
+		expect(first).toBeLessThan(second);
+		expect(Object.keys(style!.sources).sort()).toEqual(['basemap', 'places']);
+	});
+
+	// Two vector sources on one preset produce identical ids; MapLibre keeps the first, so without
+	// prefixing the upper source silently vanishes.
+	it('prefixes ids only when more than one source draws', () => {
+		const one = composeStyle([entry('solo')], BASE).style!;
+		const two = composeStyle([entry('a'), entry('b')], BASE).style!;
+		expect(two.layers.length).toBe(one.layers.length * 2);
+		expect(new Set(two.layers.map((layer) => layer.id)).size).toBe(two.layers.length);
+	});
+
+	it('mixes a raster basemap under vector data', () => {
+		const { style, bases } = composeStyle(
+			[
+				entry('satellite', { appearance: raster(), kind: 'rasterImage', tileFormat: 'png', mountedLayers: [] }),
+				entry('places', { mountedLayers: ['places'] })
+			],
+			BASE
+		);
+		expect(bases.map((b) => b.basis)).toEqual(['raster', 'fallback']);
+		expect(style!.layers[0].type).toBe('raster');
+	});
+
+	// A source that cannot draw must not take the stack down with it.
+	it('skips a source that draws nothing and says which', () => {
+		const { style, bases } = composeStyle(
+			[entry('broken', { tileFormat: 'bin' }), entry('places', { mountedLayers: ['places'] })],
+			BASE
+		);
+		expect(bases).toEqual([
+			{ name: 'broken', basis: 'none' },
+			{ name: 'places', basis: 'fallback' }
+		]);
+		expect(Object.keys(style!.sources)).toEqual(['places']);
+	});
+
+	it('has no style when nothing in the stack draws', () => {
+		expect(composeStyle([entry('broken', { tileFormat: 'bin' })], BASE).style).toBeNull();
+	});
+
+	it('is empty for an empty stack', () => {
+		expect(composeStyle([], BASE)).toEqual({ style: null, bases: [] });
 	});
 });
