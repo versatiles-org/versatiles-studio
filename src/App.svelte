@@ -14,6 +14,7 @@
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
 	import { preview } from './lib/state/preview.svelte';
 	import { layout } from './lib/state/layout.svelte';
+	import { document } from './lib/state/document.svelte';
 	import { status } from './lib/state/status.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import LandingScreen from './lib/common/LandingScreen.svelte';
@@ -107,12 +108,11 @@
 
 	let style = $state<StyleSpecification | null>(null);
 	let map = $state<MaplibreMap | undefined>();
-	/** This window's pipeline. The core owns it (Q25); this is a copy to render. */
+	/** This window's document.current. The core owns it (Q25); this is a copy to render. */
 	/// The graph being edited. One document at a time on screen; the project holds several (Q32),
 	/// and the graph list that lets you switch between them is S2.13.
-	let pipeline = $state<DocumentView | null>(null);
 	/// Which graph `pipeline` is. Every command that touches a document takes it.
-	const currentGraph = $derived(pipeline?.graph ?? null);
+	const currentGraph = $derived(document.graph);
 
 	// **The style pane follows the selected graph** (S6.4). The recipe files each source's style
 	// under the graph's name while commands take its id, so the state module is told both once here
@@ -127,18 +127,15 @@
 	/// Where the map is looking. **Not the selection** — you can edit one node while watching
 	/// another, in another graph ([Q32]). `null` is the ordinary state: the map shows every graph.
 	let pinned = $state<{ graph: number; path: number[] } | null>(null);
-	/** Bumped when the pipeline changes from somewhere other than the editor, so the editor knows
-	 *  to reload rather than being fought over its own buffer. */
-	let pipelineRevision = $state(0);
 	/** Build-time information about the binary, so it is fetched once and never refreshed. */
 	let operations = $state<OperationInfo[]>([]);
 
 	/// Editing a parameter rewrites the document through the core, which owns
 	/// the quoting and refuses anything that would not parse.
 	async function editSelected(run: (text: string) => Promise<string>) {
-		if (!pipeline) return;
+		if (!document.current) return;
 		try {
-			await applyDocument(await setPipelineText(await run(pipeline.text), 'structured'));
+			await applyDocument(await setPipelineText(await run(document.current.text), 'structured'));
 		} catch (e) {
 			status.fail(typeof e === 'object' && e && 'message' in e ? (e as { message: unknown }).message : e);
 		}
@@ -155,8 +152,8 @@
 	let suggestions = $state<Record<string, Record<string, string[]>>>({});
 	$effect(() => {
 		// Depend on the text too — editing `filename` changes which file is being asked about.
-		void pipeline?.text;
-		const graph = pipeline?.graph;
+		void document.current?.text;
+		const graph = document.current?.graph;
 		if (graph === undefined) {
 			suggestions = {};
 			return;
@@ -215,8 +212,7 @@
 		registerTileProtocol();
 		void importKinds().then((loaded) => (kinds = loaded));
 		void refreshGraphs().then(async () => {
-			if (graphs.length > 0) pipeline = await getGraph(graphs[0].id);
-			pipelineRevision += 1;
+			if (graphs.length > 0) document.show(await getGraph(graphs[0].id));
 			// The graph came back from the core; the containers it reads did not. Every other path
 			// that sets a pipeline syncs them — `applyDocument` and `load` — and this one was
 			// missing it, so after a reload the inspector had nothing to show about a container the
@@ -286,8 +282,7 @@
 	async function selectGraph(id: number) {
 		const found = await getGraph(id);
 		if (!found) return;
-		pipeline = found;
-		pipelineRevision += 1;
+		document.show(found);
 	}
 
 	/// Renames a graph. Refused by the core when the name is taken, and the reason is worth seeing —
@@ -302,7 +297,7 @@
 			if (before) preview.forget(before);
 			await refreshGraphs();
 			await mountEveryGraph();
-			if (id === currentGraph) pipeline = await getGraph(id);
+			if (id === currentGraph) document.update(await getGraph(id));
 			await refreshPreview();
 		} catch (e) {
 			status.fail(e);
@@ -325,9 +320,9 @@
 	let drawing = $state(false);
 
 	async function changeCrop(next: Bounds) {
-		if (!pipeline) return;
+		if (!document.current) return;
 		try {
-			await setCrop(pipeline.graph, next);
+			await setCrop(document.current.graph, next);
 			await refreshGraphs();
 		} catch (e) {
 			status.fail(e);
@@ -365,17 +360,17 @@
 	/// A named function rather than a closure at the call site: the `{#if exporting && pipeline}`
 	/// around the dialog narrows `pipeline` for the markup, not for a callback that runs later.
 	function estimateForExport(): Promise<Estimate> {
-		if (!pipeline) return Promise.reject(new Error('that graph is no longer open'));
-		return estimateExport(pipeline.graph, crop);
+		if (!document.current) return Promise.reject(new Error('that graph is no longer open'));
+		return estimateExport(document.current.graph, crop);
 	}
 
 	async function showExport() {
 		exporting = true;
 		producing = null;
-		if (!pipeline) return;
+		if (!document.current) return;
 		// A build that fails is not a reason to refuse the dialog: what it must say is what will be
 		// written and what that costs, and both come from elsewhere. This is confirmation.
-		producing = await mountGraph(pipeline.graph).catch(() => null);
+		producing = await mountGraph(document.current.graph).catch(() => null);
 	}
 	/// What Studio can write, for the modal's wording and the dialog's filters. Fetched once.
 	let formats = $state<string[]>([]);
@@ -389,19 +384,19 @@
 	/// Returns once the job is submitted rather than once it is done: an export runs for minutes,
 	/// and the bar is where it is watched and cancelled (E7).
 	async function startExport() {
-		if (!pipeline) return;
+		if (!document.current) return;
 		exporting = false;
 		try {
 			const target = await save({
-				title: `Export ${pipeline.name}`,
-				defaultPath: `${pipeline.name}.${formats[0] ?? 'versatiles'}`,
+				title: `Export ${document.current.name}`,
+				defaultPath: `${document.current.name}.${formats[0] ?? 'versatiles'}`,
 				filters: [{ name: 'Tile containers', extensions: formats }]
 			});
 			if (!target) return; // cancelled
 			// No `status` message: the job *is* the status. The bar prefers a running job over a
 			// `status` line, so a message set here was invisible while the export ran and surfaced
 			// only once it had stopped — the one moment it was no longer true.
-			await exportGraph(pipeline.graph, target, crop);
+			await exportGraph(document.current.graph, target, crop);
 		} catch (e) {
 			status.fail(e);
 		}
@@ -428,11 +423,10 @@
 			if (id === currentGraph) {
 				// Show the first remaining graph, or nothing at all when that was the last one.
 				const next = graphs[0]?.id ?? null;
-				pipeline = next === null ? null : ((await getGraph(next)) ?? null);
-				pipelineRevision += 1;
+				document.show(next === null ? null : ((await getGraph(next)) ?? null));
 			}
 
-			if (pipeline) {
+			if (document.current) {
 				await refreshPreview();
 			} else {
 				// `refresh` returns early with no graph, so the layer it drew would outlive the graph
@@ -500,8 +494,7 @@
 			status.busy('Opening the project…');
 			styleRecipe.restored(await openProject(dir));
 			await refreshGraphs();
-			if (graphs.length > 0) pipeline = await getGraph(graphs[0].id);
-			pipelineRevision += 1;
+			if (graphs.length > 0) document.show(await getGraph(graphs[0].id));
 			await syncContainersToPipeline();
 			// Every graph, not just the one that opens — a style names them all (S6.5), and this is
 			// the moment a person is already waiting.
@@ -679,7 +672,7 @@
 	/// it is bound to, and the one status bar the outcome has to be reported in.
 	async function refreshPreview() {
 		try {
-			const done = await preview.refresh({ map, pipeline, pinned, styled: () => previewDrawn });
+			const done = await preview.refresh({ map, pipeline: document.current, pinned, styled: () => previewDrawn });
 			switch (done.kind) {
 				// A newer build owns the map and is still working; the bar is its to set, not ours.
 				case 'superseded':
@@ -705,8 +698,8 @@
 
 	/// Opens whatever the pipeline now reads, naming each one in the bar as it goes.
 	async function syncContainersToPipeline() {
-		if (!pipeline) return;
-		await preview.syncContainers(pipeline, (source) => {
+		if (!document.current) return;
+		await preview.syncContainers(document.current, (source) => {
 			status.busy(`Opening ${filename(source)}…`);
 		});
 	}
@@ -717,7 +710,7 @@
 	$effect(() => {
 		if (!map) return;
 		untrack(() => {
-			if (pipeline) void refreshPreview();
+			if (document.current) void refreshPreview();
 		});
 	});
 
@@ -729,8 +722,7 @@
 		// A path taken from one graph does not name anything in another, and undo may hand back a
 		// graph other than the one on screen ([Q32]). The selection goes with it, exactly as it does
 		// when a graph is chosen from the list.
-		pipeline = next;
-		pipelineRevision += 1;
+		document.show(next);
 		// The list shows the name, the pin and the unsaved dot — the last of which changes on every
 		// edit, so refreshing here rather than only when a graph is added or removed.
 		await refreshGraphs();
@@ -744,9 +736,9 @@
 	/// revision the editor reloads on — without it the textarea would keep the old layout while the
 	/// document had the new one.
 	async function formatPipeline() {
-		if (!pipeline) return;
+		if (!document.current) return;
 		try {
-			await applyDocument(await formatGraph(pipeline.graph));
+			await applyDocument(await formatGraph(document.current.graph));
 		} catch (e) {
 			status.fail(e);
 		}
@@ -757,10 +749,10 @@
 	/// It used to select what it added, so the new node's form was showing — every node shows one
 	/// now, so the insertion is the whole of the work.
 	async function addOperation(afterNameSpan: Span, operation: string) {
-		if (!pipeline) return;
+		if (!document.current) return;
 		try {
 			await applyDocument(
-				await setPipelineText(await vplInsertNode(pipeline.text, afterNameSpan, operation), 'structured')
+				await setPipelineText(await vplInsertNode(document.current.text, afterNameSpan, operation), 'structured')
 			);
 		} catch (e) {
 			status.fail(e);
@@ -773,9 +765,9 @@
 	/// resolves: removing the middle of a three-node chain leaves `[1]` naming whatever moved up
 	/// into it, so the form would quietly re-open on a node nobody chose.
 	async function removeNode(span: Span) {
-		if (!pipeline) return;
+		if (!document.current) return;
 		try {
-			const next = await setPipelineText(await vplRemoveNode(pipeline.text, span), 'structured');
+			const next = await setPipelineText(await vplRemoveNode(document.current.text, span), 'structured');
 			await applyDocument(next);
 		} catch (e) {
 			status.fail(e);
@@ -787,21 +779,21 @@
 	/// Saving a *project* is a different command with a different scope (G1, S5.1) — this is the
 	/// pipeline as the file the CLI already reads.
 	async function savePipeline(chooseFile: boolean) {
-		if (!pipeline) return;
+		if (!document.current) return;
 		try {
-			let target = chooseFile ? null : pipeline.path;
+			let target = chooseFile ? null : document.current.path;
 			if (!target) {
 				target = await save({
-					title: 'Save pipeline',
+					title: 'Save document.current',
 					// The graph's name supplies the filename ([Q35]) — the direction the binding runs.
 					// `pipeline.vpl` was a leftover from when a window held exactly one document, and
 					// it offered the same name for every graph in a project that now holds several.
-					defaultPath: pipeline.path ?? `${pipeline.name}.${pipelineExtensions[0]}`,
+					defaultPath: document.current.path ?? `${document.current.name}.${pipelineExtensions[0]}`,
 					filters: [{ name: 'VPL pipelines', extensions: pipelineExtensions }]
 				});
 				if (!target) return; // cancelled
 			}
-			pipeline = await saveVpl(pipeline.graph, target);
+			document.update(await saveVpl(document.current.graph, target));
 			status.busy(`Saved ${filename(target)}`);
 			// The other half of the dot: saving is what clears it, and the list has to be told.
 			await refreshGraphs();
@@ -857,19 +849,18 @@
 				await applyDocument(await openVpl(source));
 			} else if (kind.id === 'container') {
 				const result = await preview.mount(source);
-				pipeline = await setPipelineText(result.vpl, 'replaced', source);
-				pipelineRevision += 1;
+				document.show(await setPipelineText(result.vpl, 'replaced', source));
 			} else {
-				pipeline = await setPipelineText(await importReadNode(kind.id, source), 'replaced', source);
-				pipelineRevision += 1;
+				const opened = await setPipelineText(await importReadNode(kind.id, source), 'replaced', source);
+				document.show(opened);
 				// Whether the node is complete is the *document's* answer, not the kind's. A CSV
 				// whose header named its coordinate columns arrives with them already set (S3.4),
 				// so asking the kind — which needs them for every CSV — would tell someone to fill
 				// in fields that are filled in, and skip the preview that would have shown it
 				// working. The form is showing whatever is still missing, and so is the diagnostic
 				// beside it (C2, C4); this only says so where the eye already is.
-				if (pipeline.diagnostics.length > 0) {
-					status.fail(pipeline.diagnostics[0].message);
+				if (opened.diagnostics.length > 0) {
+					status.fail(opened.diagnostics[0].message);
 					await refreshRecents();
 					return;
 				}
@@ -897,13 +888,13 @@
 			{kinds}
 			{operations}
 			{graphs}
-			{pipeline}
-			{pipelineRevision}
+			pipeline={document.current}
+			pipelineRevision={document.revision}
 			properties={producedProperties}
 			fits={preview.last?.fits ?? []}
 			{suggestions}
 			pinned={pinned && pinned.graph === currentGraph ? pinned.path : null}
-			crop={pipeline ? { bounds: crop, drawing } : null}
+			crop={document.current ? { bounds: crop, drawing } : null}
 			cropActions={{
 				set: (bounds) => void changeCrop(bounds),
 				draw: () => (drawing = !drawing),
@@ -933,8 +924,8 @@
 						//
 						// On the transition rather than on every keystroke: `dirty` flips once per save
 						// cycle, so a round trip per character to be told nothing changed is a poor trade.
-						const flipped = pipeline?.dirty !== next.dirty;
-						pipeline = next;
+						const flipped = document.current?.dirty !== next.dirty;
+						document.update(next);
 						if (flipped) void refreshGraphs();
 						void refreshPreview();
 					}),
@@ -1056,9 +1047,9 @@
 
 <!-- Outside the shell on purpose: the sidebars scroll and clip, and this has to sit over the
      map beside them ([Q33]). -->
-{#if exporting && pipeline}
+{#if exporting && document.current}
 	<ExportDialog
-		name={pipeline.name}
+		name={document.current.name}
 		{formats}
 		{crop}
 		onEstimate={estimateForExport}
