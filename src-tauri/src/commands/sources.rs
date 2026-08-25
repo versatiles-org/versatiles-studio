@@ -28,10 +28,13 @@ pub async fn open_container(
 	// `from_container filename="berlin.mbtiles"` in a `.vpl` means *beside that file*, not beside
 	// wherever Studio was started — and *that file* belongs to this window's project (S7.1).
 	// Absolute paths and URLs are left alone.
-	let resolved = {
-		let project = state.project(&window).await;
-		let dir = project.lock().await.dir.clone();
-		resolve(&source, &dir)
+	let (resolved, mount) = {
+		let held = state.project(&window).await;
+		let project = held.lock().await;
+		// **Mounted under this window's prefix** (S7.2), even though two windows opening the same
+		// file would serve identical tiles. Sharing one mount would be cheaper by one index read and
+		// would mean the first window to close pulls the tiles out from under the second.
+		(resolve(&source, &project.dir), project.mount(&mount_name(&source)))
 	};
 
 	let mut server = state.server.lock().await;
@@ -43,8 +46,7 @@ pub async fn open_container(
 	// Opening a container *is* adding a read node at the head of the pipeline (Q22). The core builds
 	// the VPL so the quoting rules stay next to the parser that defines them.
 	let vpl = studio_core::vpl::read_node("from_container", &source);
-	let name = mount_name(&source);
-	server.mount(&name, reader).await.map_err(|e| format!("{e:#}"))?;
+	server.mount(&mount, reader).await.map_err(|e| format!("{e:#}"))?;
 
 	// Only record what actually opened — a failed attempt is not a recent file.
 	{
@@ -57,9 +59,9 @@ pub async fn open_container(
 	}
 
 	Ok(OpenedContainer {
-		tile_url: server.tile_url(&name),
+		tile_url: server.tile_url(&mount),
 		vpl: vpl.clone(),
-		name,
+		name: mount,
 		info,
 	})
 }

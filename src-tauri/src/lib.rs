@@ -253,9 +253,16 @@ pub fn run() {
 				let label = label.clone();
 				tauri::async_runtime::spawn(async move {
 					let state = tauri::Manager::state::<AppState>(&app);
-					// What it had mounted on the shared server outlives this until S7.2 gives those
-					// mounts names of their own; there is nothing here that could name them yet.
-					state.projects.close(&label).await;
+					let Some(held) = state.projects.close(&label).await else {
+						return;
+					};
+					// **And what it was serving goes with it** (S7.2). One server serves the whole
+					// application, so a closed window's tiles would otherwise stay mounted and
+					// answering for the rest of the session.
+					let prefix = held.lock().await.mounts();
+					if let Err(error) = state.server.lock().await.unmount_prefix(&prefix) {
+						warn(&state.diagnostics, "Could not unmount a closed window's tiles", &error);
+					}
 				});
 			}
 			let _ = (app, event);

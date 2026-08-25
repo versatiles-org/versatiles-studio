@@ -108,6 +108,34 @@ impl ServerManager {
 			.with_context(|| format!("unmounting tile source {name:?}"))
 	}
 
+	/// Removes every mount whose name starts with `prefix`, and reports how many went.
+	///
+	/// **For a window that has closed** ([S7.2](../../../docs/scope-release-3.md)): one server serves
+	/// the whole application, so each window's mounts carry its own prefix, and what it had served is
+	/// exactly what shares that prefix. Asked for by prefix rather than tracked as a list, because a
+	/// list is a second account of the same fact and the two would disagree the first time a mount
+	/// failed halfway.
+	///
+	/// Names that were mounted and have since gone are attempted and ignored — `revisions` remembers
+	/// every name ever mounted, which is what keeps a re-mount from reusing a cached revision.
+	pub fn unmount_prefix(&mut self, prefix: &str) -> Result<usize> {
+		let names: Vec<String> = self
+			.revisions
+			.keys()
+			.filter(|name| name.starts_with(prefix))
+			.cloned()
+			.collect();
+
+		let mut removed = 0;
+		for name in names {
+			if self.unmount(&name)? {
+				removed += 1;
+			}
+			self.revisions.remove(&name);
+		}
+		Ok(removed)
+	}
+
 	/// Mounts a static archive under `url_prefix`, e.g. `glyphs.tar.gz` at `/assets/glyphs`.
 	///
 	/// The archive is served **as an archive** — `.tar`, `.tar.gz` and `.tar.br` are all read in
@@ -284,6 +312,43 @@ mod tests {
 
 		// And unmounting really removes it.
 		assert!(server.unmount("berlin")?);
+		server.stop().await;
+		Ok(())
+	}
+
+	/// What a closed window takes down with it ([S7.2](../../../docs/scope-release-3.md)).
+	///
+	/// One server serves the whole application, so each window's mounts carry its own prefix — and a
+	/// window that has gone must take exactly those and nothing belonging to a window still open.
+	///
+	/// **Built from `from_debug` rather than from a sample container**, so this one runs everywhere.
+	/// The collision it guards is the only one in S7 that nothing else catches — two windows serving
+	/// each other's tiles produces no error and no failed job — and a test that skips on most
+	/// machines is not much of a guard.
+	#[tokio::test]
+	async fn unmounting_a_prefix_takes_that_window_and_no_other() -> Result<()> {
+		let mut server = ServerManager::start().await?;
+		// The collision this whole scheme exists for: the same graph name in two windows.
+		for name in ["window-1.pipeline", "window-1.preview", "window-2.pipeline"] {
+			let pipeline = crate::vpl::Document::parse("from_debug")?.to_pipeline();
+			let source = crate::preview::build(server.runtime(), pipeline, Path::new(".")).await?;
+			server.mount(name, source).await?;
+		}
+
+		assert_eq!(server.unmount_prefix("window-1.")?, 2);
+		assert!(
+			server.unmount("window-2.pipeline")?,
+			"the other window is still being served"
+		);
+
+		server.stop().await;
+		Ok(())
+	}
+
+	#[tokio::test]
+	async fn unmounting_a_prefix_nothing_was_mounted_under_is_not_an_error() -> Result<()> {
+		let mut server = ServerManager::start().await?;
+		assert_eq!(server.unmount_prefix("window-9.")?, 0);
 		server.stop().await;
 		Ok(())
 	}

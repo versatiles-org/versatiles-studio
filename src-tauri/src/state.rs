@@ -49,8 +49,17 @@ use tokio::sync::Mutex;
 /// was an application-wide `Mutex` on [`AppState`] until [S7.1](../../docs/scope-release-3.md), and
 /// the giveaway that it should not have been is `history`: an undo stack shared between two projects
 /// steps one of them back into the other's edit.
-#[derive(Default)]
 pub struct Project {
+	/// What this project's mounts are named after on the shared server ([S7.2]).
+	///
+	/// The window's label, reduced to what a URL path segment can hold. One server serves the whole
+	/// application ([Q16]), so without this two windows each holding a graph called `pipeline` —
+	/// which is what a container import names its first graph — mount over each other, and each
+	/// window draws the other's tiles. No error, no failed job: plausible tiles from the wrong
+	/// project.
+	///
+	/// [S7.2]: ../../docs/scope-release-3.md
+	prefix: String,
 	/// **The project's graphs** — several named VPL documents, each producing one named tile
 	/// source ([Q32]). Owned here rather than in the webview ([Q16]); each carries its own file and
 	/// dirty state, which is why `pipeline_file` no longer exists beside this.
@@ -83,11 +92,34 @@ pub struct Project {
 
 impl Project {
 	/// A project with nothing in it, resolving relative paths against the working directory.
-	fn new() -> Self {
+	fn new(label: &str) -> Self {
 		Self {
+			prefix: label
+				.chars()
+				.map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' })
+				.collect(),
+			graphs: Graphs::new(),
+			style: Recipe::default(),
+			history: History::new(),
+			pinned: None,
 			dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
-			..Self::default()
+			root: None,
 		}
+	}
+
+	/// What `name` is mounted under on the shared server.
+	///
+	/// **A dot, because a mount name is one path segment** of `/tiles/{name}/{z}/{x}/{y}` — a slash
+	/// would change the shape of the URL rather than the name in it.
+	#[must_use]
+	pub fn mount(&self, name: &str) -> String {
+		format!("{}.{name}", self.prefix)
+	}
+
+	/// Everything this project has mounted, for taking it all down at once.
+	#[must_use]
+	pub fn mounts(&self) -> String {
+		format!("{}.", self.prefix)
 	}
 }
 
@@ -109,7 +141,7 @@ impl Projects {
 				.lock()
 				.await
 				.entry(label.to_string())
-				.or_insert_with(|| Arc::new(Mutex::new(Project::new()))),
+				.or_insert_with(|| Arc::new(Mutex::new(Project::new(label)))),
 		)
 	}
 
@@ -223,6 +255,64 @@ mod tests {
 		assert!(
 			projects.of("window-1").await.lock().await.graphs.list().is_empty(),
 			"a reused label is a fresh project, not the one that was closed"
+		);
+	}
+
+	/// The collision S7.2 exists for, and the one nothing else catches.
+	///
+	/// Two windows each holding a graph called `pipeline` — which is what a container import names
+	/// its first graph — mounted over each other on the one shared server. Each window then drew the
+	/// other's tiles: no error, no failed job, nothing in the problem log.
+	#[tokio::test]
+	async fn two_windows_do_not_serve_each_others_tiles() {
+		let projects = Projects::default();
+		let first = projects.of("window-1").await;
+		let second = projects.of("window-2").await;
+
+		let (a, b) = (
+			first.lock().await.mount("pipeline"),
+			second.lock().await.mount("pipeline"),
+		);
+		assert_ne!(a, b);
+		// The pinned preview was worse: every window's pin was the literal `preview` mount.
+		assert_ne!(
+			first.lock().await.mount("preview"),
+			second.lock().await.mount("preview")
+		);
+	}
+
+	/// Within one window a mount name still means one thing, so re-opening replaces rather than
+	/// accumulates — the rule `mount_name` was written for, now scoped rather than dropped.
+	#[tokio::test]
+	async fn one_window_mounts_one_name_one_way() {
+		let projects = Projects::default();
+		let held = projects.of("window-1").await;
+		let project = held.lock().await;
+		assert_eq!(project.mount("berlin"), project.mount("berlin"));
+	}
+
+	/// A mount name is one path segment of `/tiles/{name}/{z}/{x}/{y}`.
+	#[tokio::test]
+	async fn a_mount_name_stays_inside_its_path_segment() {
+		let projects = Projects::default();
+		let held = projects.of("window/1:odd").await;
+		let mounted = held.lock().await.mount("berlin");
+		assert!(!mounted.contains('/'), "{mounted}");
+		assert!(!mounted.contains(':'), "{mounted}");
+	}
+
+	/// What a closing window takes down with it — everything under its prefix and nothing else.
+	#[tokio::test]
+	async fn a_projects_mounts_are_recognisable_as_its_own() {
+		let projects = Projects::default();
+		let first = projects.of("window-1").await;
+		let second = projects.of("window-2").await;
+		let (prefix, theirs) = (first.lock().await.mounts(), second.lock().await.mount("pipeline"));
+
+		assert!(first.lock().await.mount("pipeline").starts_with(&prefix));
+		assert!(
+			!theirs.starts_with(&prefix),
+			"another window's mount is not ours to unmount"
 		);
 	}
 

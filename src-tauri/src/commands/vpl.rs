@@ -153,21 +153,22 @@ pub async fn add_graph(
 #[specta::specta]
 pub async fn remove_graph(window: tauri::Window, state: State<'_, AppState>, id: GraphId) -> Result<bool, String> {
 	let held = state.project(&window).await;
-	let name = {
+	let mount = {
 		let mut project = held.lock().await;
 		// A pin into a graph that is gone would leave the map showing something unreachable.
 		if project.pinned.as_ref().is_some_and(|p| p.graph == id) {
 			project.pinned = None;
 		}
-		project.graphs.get(id).map(|graph| graph.name.clone())
+		let name = project.graphs.get(id).map(|graph| graph.name.clone());
+		name.map(|name| project.mount(&name))
 	};
 
 	// The mount goes with it, or the style would keep resolving a source that no longer exists.
 	// The server is the application's, so it is taken after the project lock is released.
-	if let Some(name) = name {
+	if let Some(mount) = mount {
 		let mut server = state.server.lock().await;
-		if let Err(error) = server.unmount(&name) {
-			eprintln!("could not unmount {name}: {error:#}");
+		if let Err(error) = server.unmount(&mount) {
+			eprintln!("could not unmount {mount}: {error:#}");
 		}
 	}
 	let removed = held.lock().await.graphs.remove(id);
@@ -195,20 +196,23 @@ pub async fn rename_graph(
 	let held = state.project(&window).await;
 	// Graphs and style under one lock — they are one project now, which is also what retires the
 	// note that used to be here about taking two locks in a fixed order to avoid a deadlock.
-	let (old, renamed) = {
+	let (stale, renamed) = {
 		let mut project = held.lock().await;
 		let old = project.graphs.get(id).map(|graph| graph.name.clone());
 		let renamed = project.graphs.rename(id, &name).map_err(|error| format!("{error:#}"))?;
-		if let Some(old) = old.as_ref().filter(|old| *old != &renamed) {
-			project.style.rename_source(old, &renamed);
-		}
-		(old, renamed)
+		let stale = old.filter(|old| old != &renamed).map(|old| {
+			project.style.rename_source(&old, &renamed);
+			project.mount(&old)
+		});
+		(stale, renamed)
 	};
 
-	if let Some(old) = old.filter(|old| old != &renamed) {
+	// The mount the old name was served from. The new one is built on the next refresh, which the
+	// webview asks for as soon as this returns.
+	if let Some(stale) = stale {
 		let mut server = state.server.lock().await;
-		if let Err(error) = server.unmount(&old) {
-			eprintln!("could not unmount {old}: {error:#}");
+		if let Err(error) = server.unmount(&stale) {
+			eprintln!("could not unmount {stale}: {error:#}");
 		}
 	}
 	Ok(renamed)
@@ -495,12 +499,12 @@ pub async fn preview_pipeline(
 	// will not emit a 64-bit integer as a `number` (see `bindings.rs`).
 	let path: Vec<usize> = path.into_iter().map(|index| index as usize).collect();
 	let held = state.project(&window).await;
-	let (document, dir) = {
+	let (document, mount, dir) = {
 		let project = held.lock().await;
 		let Some(document) = project.graphs.get(graph).map(|g| g.document.clone()) else {
 			return Ok(PreviewOutcome::Nothing);
 		};
-		(document, project.dir.clone())
+		(document, project.mount("preview"), project.dir.clone())
 	};
 	// An empty path means the whole pipeline — what the map shows when nothing is selected.
 	let full = document.to_pipeline();
@@ -519,7 +523,7 @@ pub async fn preview_pipeline(
 	state
 		.jobs
 		.submit("Building preview", Lane::Latest, move |handle| async move {
-			let outcome = build_preview(&app, &handle, wanted, dir).await;
+			let outcome = build_preview(&app, &handle, wanted, mount, dir).await;
 			// Sent as a `Result`, so a failure reaches the caller's `catch` *and* is recorded as a
 			// failed job. Only supersession drops the sender, which is what makes that distinguishable
 			// from failing at the far end.
@@ -540,12 +544,21 @@ async fn build_preview(
 	app: &AppHandle,
 	handle: &JobHandle,
 	wanted: VPLPipeline,
+	mount: String,
 	dir: std::path::PathBuf,
 ) -> anyhow::Result<Preview> {
-	build_into(app, handle, wanted, "preview", dir).await
+	// `preview` is what the webview calls the pinned node's source; the mount it is served from
+	// carries the window, or every window's pin would be the same mount (S7.2).
+	build_into(app, handle, wanted, "preview", &mount, dir).await
 }
 
-/// Builds a pipeline and mounts it under `name`, replacing whatever was there.
+/// Builds a pipeline and mounts it, replacing whatever was there.
+///
+/// **`mount` and `name` are different things** ([S7.2](../../../docs/scope-release-3.md)). `mount`
+/// is where the tiles are served from, and carries the window's prefix so two projects with a graph
+/// of the same name do not serve each other's tiles. `name` is what the webview calls this source in
+/// the style it composes — the graph's own name, which a prefix would leak into every `style.json`
+/// Studio exports.
 ///
 /// **The directory comes in rather than being looked up.** The job outlives the command, and by the
 /// time it runs the window that asked may have opened a project somewhere else — so what a relative
@@ -555,6 +568,7 @@ async fn build_into(
 	handle: &JobHandle,
 	wanted: VPLPipeline,
 	name: &str,
+	mount: &str,
 	dir: std::path::PathBuf,
 ) -> anyhow::Result<Preview> {
 	// Fetched here rather than captured: the job outlives the command's borrow, and an `AppHandle`
@@ -571,10 +585,10 @@ async fn build_into(
 	let layers = studio_core::analysis::probe_layers(&source, &info).await;
 	let fits = studio_core::analysis::fitting(&source).await;
 
-	server.mount(name, source).await?;
+	server.mount(mount, source).await?;
 	Ok(Preview {
 		name: name.to_string(),
-		tile_url: server.tile_url(name),
+		tile_url: server.tile_url(mount),
 		info,
 		layers,
 		fits,
@@ -750,19 +764,20 @@ pub async fn mount_graph(
 	graph: GraphId,
 ) -> Result<Option<Preview>, String> {
 	let held = state.project(&window).await;
-	let (name, document, dir) = {
+	let (name, mount, document, dir) = {
 		let project = held.lock().await;
 		let Some((name, document)) = project.graphs.get(graph).map(|g| (g.name.clone(), g.document.clone())) else {
 			return Ok(None);
 		};
-		(name, document, project.dir.clone())
+		let mount = project.mount(&name);
+		(name, mount, document, project.dir.clone())
 	};
 
 	let (tx, rx) = tokio::sync::oneshot::channel();
 	let pipeline = document.to_pipeline();
 	let label = format!("Building {name}");
 	state.jobs.submit(label, Lane::Latest, move |handle| async move {
-		let outcome = build_into(&app, &handle, pipeline, &name, dir).await;
+		let outcome = build_into(&app, &handle, pipeline, &name, &mount, dir).await;
 		let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
 		outcome.map(|_| ())
 	});
