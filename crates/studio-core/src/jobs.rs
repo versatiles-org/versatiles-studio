@@ -13,12 +13,23 @@
 //! preview wants to be replaced the moment it is out of date. One FIFO queue serving both would
 //! make a preview wait behind a forty-minute export, which is the opposite of M4. See [`Lane`].
 //!
+//! **One runner, a list per project** ([S7.3](../../../docs/scope-release-3.md), [Q48]). Every job
+//! carries the scope that submitted it — a window — and three things follow from it: a window is
+//! shown its own project's work and not the machine's, [`Lane::Latest`] supersedes only within a
+//! scope, and history is pruned per scope so a busy project cannot age out a quiet one's.
+//!
+//! **[`Lane::Queued`] deliberately does not follow.** Its argument is about the machine: conversions
+//! compete for the same disk and the same cores, so two at once finish later than the same two in
+//! sequence — and that is as true across two projects as within one. It serialises application-wide.
+//!
+//! [Q48]: ../../../docs/decisions.md
+//!
 //! [Q3]: ../../../docs/decisions.md
 //! [Q24]: ../../../docs/decisions.md
 
 use anyhow::Result;
 use serde::Serialize;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::{
@@ -337,6 +348,9 @@ type Work = Box<dyn FnOnce(JobHandle) -> Pin<Box<dyn Future<Output = Result<()>>
 
 struct Entry {
 	job: Job,
+	/// Whose job this is — a window label. Not on [`Job`]: it decides who is *shown* the job and
+	/// what it can supersede, and a listener that is only ever sent its own has no use for it.
+	scope: String,
 	log: VecDeque<String>,
 	cancel: CancelToken,
 	/// Present while running, so cancelling can drop the work at its next await point rather than
@@ -409,12 +423,12 @@ pub struct Jobs {
 #[derive(Default)]
 struct Inner {
 	registry: Mutex<Registry>,
-	/// Installed by the boundary once the webview has a channel to receive on.
+	/// Where each scope's events go, installed by the boundary once that window has a channel.
 	///
-	/// `None` before that, and again after a reload kills the old channel: events for a job that
-	/// started before the window came back are dropped, and the list the webview asks for on
-	/// startup is what puts it back in the picture.
-	sink: Mutex<Option<EventSink>>,
+	/// Absent before that, and replaced when a reload brings a new channel: events for a job that
+	/// started before the window came back are dropped, and the list the webview asks for on startup
+	/// is what puts it back in the picture.
+	sinks: Mutex<HashMap<String, EventSink>>,
 }
 
 impl Jobs {
@@ -423,26 +437,41 @@ impl Jobs {
 		Self::default()
 	}
 
-	/// Points job events at a sink. Replaces any previous one — there is one webview.
-	pub fn set_sink(&self, sink: EventSink) {
-		*self.inner.sink.lock().unwrap() = Some(sink);
+	/// Points one scope's job events at a sink. Replaces that scope's previous one — a reload gets
+	/// a new channel for the same window.
+	pub fn set_sink(&self, scope: impl Into<String>, sink: EventSink) {
+		self.inner.sinks.lock().unwrap().insert(scope.into(), sink);
+	}
+
+	/// Stops delivering to a scope — for a window that has closed.
+	///
+	/// The jobs themselves are left alone. An export outlives the window that started it by design
+	/// ([Q16]), and cancelling someone's conversion because they closed a window is not this call's
+	/// decision to make.
+	pub fn forget(&self, scope: &str) {
+		self.inner.sinks.lock().unwrap().remove(scope);
 	}
 
 	/// Submits a job and returns its id immediately; the work runs in the background.
 	///
 	/// Needs a Tokio runtime, which is what actually runs the work.
-	pub fn submit<F, Fut>(&self, label: impl Into<String>, lane: Lane, work: F) -> JobId
+	pub fn submit<F, Fut>(&self, label: impl Into<String>, lane: Lane, scope: impl Into<String>, work: F) -> JobId
 	where
 		F: FnOnce(JobHandle) -> Fut + Send + 'static,
 		Fut: Future<Output = Result<()>> + Send + 'static,
 	{
 		let work: Work = Box::new(move |handle| Box::pin(work(handle)));
 		let label = label.into();
+		let scope = scope.into();
 
 		// `Latest` supersedes rather than queues, so the outgoing job is cancelled before the new
 		// one is even registered — otherwise a listener briefly sees two of them running.
+		//
+		// **Within this scope only** (S7.3). Across the application it meant a keystroke in one
+		// window cancelling another window's preview build, which is the same rule applied to two
+		// answers to two different questions.
 		if lane == Lane::Latest {
-			for id in self.active_in(lane) {
+			for id in self.active_in(lane, &scope) {
 				self.cancel(id);
 			}
 		}
@@ -467,6 +496,7 @@ impl Jobs {
 					message: String::new(),
 					log_lines: 0,
 				},
+				scope: scope.clone(),
 				log: VecDeque::new(),
 				cancel: CancelToken::new(),
 				task: None,
@@ -481,7 +511,7 @@ impl Jobs {
 				}
 				Some(work)
 			};
-			prune(&mut registry);
+			prune(&mut registry, &scope);
 			// Cloned out so the event goes out without the lock held — a sink that calls back in
 			// would deadlock, and the boundary's does not, but that is not a thing to rely on.
 			let job = registry.entry(id).expect("just pushed").job.clone();
@@ -526,9 +556,12 @@ impl Jobs {
 		}
 	}
 
-	/// Every job this session has run, oldest first.
+	/// Every job this scope has run, oldest first.
+	///
+	/// One project's work, not the machine's (S7.3): an export started in another window is not news
+	/// in this one, and a status bar that listed it would be reporting on a project you cannot see.
 	#[must_use]
-	pub fn list(&self) -> Vec<Job> {
+	pub fn list(&self, scope: &str) -> Vec<Job> {
 		self
 			.inner
 			.registry
@@ -536,6 +569,7 @@ impl Jobs {
 			.unwrap()
 			.entries
 			.iter()
+			.filter(|entry| entry.scope == scope)
 			.map(|entry| entry.job.clone())
 			.collect()
 	}
@@ -559,8 +593,8 @@ impl Jobs {
 			.unwrap_or_default()
 	}
 
-	/// Ids of the jobs in `lane` that could still do something.
-	fn active_in(&self, lane: Lane) -> Vec<JobId> {
+	/// Ids of the jobs in `lane` and `scope` that could still do something.
+	fn active_in(&self, lane: Lane, scope: &str) -> Vec<JobId> {
 		self
 			.inner
 			.registry
@@ -568,9 +602,14 @@ impl Jobs {
 			.unwrap()
 			.entries
 			.iter()
-			.filter(|entry| entry.job.lane == lane && entry.job.state.is_active())
+			.filter(|entry| entry.job.lane == lane && entry.scope == scope && entry.job.state.is_active())
 			.map(|entry| entry.job.id)
 			.collect()
+	}
+
+	/// Whose job this is, or `None` once it has aged out of the history.
+	fn scope_of(&self, id: JobId) -> Option<String> {
+		self.inner.registry.lock().unwrap().entry(id).map(|e| e.scope.clone())
 	}
 
 	/// Runs the work, and records how it ended.
@@ -697,25 +736,48 @@ impl Jobs {
 		event
 	}
 
+	/// Sends an event to the scope whose job it is about, and to no other.
+	///
+	/// **Routed by the event's own id** rather than by a scope passed down through every caller —
+	/// every event names the job it concerns, so the registry already knows the answer. A job that
+	/// has aged out has no scope and its event is dropped, which is what a listener would have done
+	/// with it anyway.
 	fn emit(&self, event: JobEvent) {
-		let sink = self.inner.sink.lock().unwrap().clone();
+		let id = match &event {
+			JobEvent::Added { job } => job.id,
+			JobEvent::Started { id }
+			| JobEvent::Progress { id, .. }
+			| JobEvent::Log { id, .. }
+			| JobEvent::Finished { id }
+			| JobEvent::Cancelled { id }
+			| JobEvent::Failed { id, .. } => *id,
+		};
+		let Some(scope) = self.scope_of(id) else { return };
+		let sink = self.inner.sinks.lock().unwrap().get(&scope).cloned();
 		if let Some(sink) = sink {
 			sink(event);
 		}
 	}
 }
 
-/// Drops the oldest finished jobs once there are more than [`HISTORY`] of them.
+/// Drops one scope's oldest finished jobs once it has more than [`HISTORY`] of them.
 ///
 /// Only finished ones: a queue of sixty conversions is not history, it is the work.
-fn prune(registry: &mut Registry) {
-	let finished = registry.entries.iter().filter(|e| !e.job.state.is_active()).count();
+///
+/// **Counted per scope** (S7.3), or a project that ran two hundred previews would age out the one
+/// finished export another project is still looking at.
+fn prune(registry: &mut Registry, scope: &str) {
+	let finished = registry
+		.entries
+		.iter()
+		.filter(|e| e.scope == scope && !e.job.state.is_active())
+		.count();
 	if finished <= HISTORY {
 		return;
 	}
 	let mut excess = finished - HISTORY;
 	registry.entries.retain(|entry| {
-		if excess > 0 && !entry.job.state.is_active() {
+		if excess > 0 && entry.scope == scope && !entry.job.state.is_active() {
 			excess -= 1;
 			return false;
 		}
@@ -726,6 +788,10 @@ fn prune(registry: &mut Registry) {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	/// The window every case below speaks for. Scopes are S7.3's; these cases are about the lanes,
+	/// the history and the reporting, and one window is what each of them is describing.
+	const WINDOW: &str = "window-1";
 	use std::sync::atomic::AtomicU32;
 	use std::time::Duration;
 	use tokio::sync::oneshot;
@@ -733,7 +799,7 @@ mod tests {
 	fn collector(jobs: &Jobs) -> Arc<Mutex<Vec<JobEvent>>> {
 		let events = Arc::new(Mutex::new(Vec::new()));
 		let sink_events = Arc::clone(&events);
-		jobs.set_sink(Arc::new(move |e| sink_events.lock().unwrap().push(e)));
+		jobs.set_sink(WINDOW, Arc::new(move |e| sink_events.lock().unwrap().push(e)));
 		events
 	}
 
@@ -773,7 +839,7 @@ mod tests {
 		let jobs = Jobs::new();
 		let events = collector(&jobs);
 
-		let id = jobs.submit("counting", Lane::Queued, |handle| async move {
+		let id = jobs.submit("counting", Lane::Queued, WINDOW, |handle| async move {
 			handle.progress(0.5, "halfway");
 			handle.log("wrote 1000 tiles");
 			Ok(())
@@ -795,9 +861,9 @@ mod tests {
 	#[tokio::test]
 	async fn a_job_that_returns_an_error_fails_with_it() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 
-		let id = jobs.submit("doomed", Lane::Queued, |_| async move {
+		let id = jobs.submit("doomed", Lane::Queued, WINDOW, |_| async move {
 			anyhow::bail!("no such file");
 		});
 
@@ -814,9 +880,9 @@ mod tests {
 	#[tokio::test]
 	async fn indeterminate_progress_stays_indeterminate() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 
-		let id = jobs.submit("thinking", Lane::Latest, |handle| async move {
+		let id = jobs.submit("thinking", Lane::Latest, WINDOW, |handle| async move {
 			handle.working("building the pipeline");
 			Ok(())
 		});
@@ -830,9 +896,9 @@ mod tests {
 	#[tokio::test]
 	async fn progress_is_clamped() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 
-		let id = jobs.submit("out of range", Lane::Queued, |handle| async move {
+		let id = jobs.submit("out of range", Lane::Queued, WINDOW, |handle| async move {
 			handle.progress(99.0, "past the end");
 			Ok(())
 		});
@@ -858,6 +924,7 @@ mod tests {
 				message: String::new(),
 				log_lines: 0,
 			},
+			scope: WINDOW.to_string(),
 			log: VecDeque::new(),
 			cancel: CancelToken::new(),
 			task: None,
@@ -917,9 +984,9 @@ mod tests {
 	#[tokio::test]
 	async fn counting_towards_an_unknown_total_is_reported_as_not_knowing() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 
-		let id = jobs.submit("unknown", Lane::Queued, |handle| async move {
+		let id = jobs.submit("unknown", Lane::Queued, WINDOW, |handle| async move {
 			handle.counted(0, 0, "counting what exactly");
 			Ok(())
 		});
@@ -934,9 +1001,9 @@ mod tests {
 	#[tokio::test]
 	async fn counted_progress_reaches_the_job_as_both_a_fraction_and_counts() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 
-		let id = jobs.submit("writing", Lane::Queued, |handle| async move {
+		let id = jobs.submit("writing", Lane::Queued, WINDOW, |handle| async move {
 			handle.counted(25, 100, "writing tiles");
 			Ok(())
 		});
@@ -951,7 +1018,7 @@ mod tests {
 	#[tokio::test]
 	async fn queued_jobs_run_one_at_a_time_in_order() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 		let concurrent = Arc::new(AtomicU32::new(0));
 		let peak = Arc::new(AtomicU32::new(0));
 		let order = Arc::new(Mutex::new(Vec::new()));
@@ -959,7 +1026,7 @@ mod tests {
 		let ids: Vec<_> = (0..4)
 			.map(|n| {
 				let (concurrent, peak, order) = (concurrent.clone(), peak.clone(), order.clone());
-				jobs.submit(format!("job {n}"), Lane::Queued, move |_| async move {
+				jobs.submit(format!("job {n}"), Lane::Queued, WINDOW, move |_| async move {
 					let now = concurrent.fetch_add(1, Ordering::SeqCst) + 1;
 					peak.fetch_max(now, Ordering::SeqCst);
 					order.lock().unwrap().push(n);
@@ -973,9 +1040,128 @@ mod tests {
 		// Only the first starts; the rest are visibly waiting rather than quietly running.
 		assert_eq!(jobs.job(ids[3]).unwrap().state, JobState::Queued);
 
-		until(|| jobs.list().iter().all(|job| !job.state.is_active())).await;
+		until(|| jobs.list(WINDOW).iter().all(|job| !job.state.is_active())).await;
 		assert_eq!(peak.load(Ordering::SeqCst), 1, "the lane holds one job");
 		assert_eq!(*order.lock().unwrap(), [0, 1, 2, 3], "and holds it in order");
+	}
+
+	// -- one runner, a list per project (S7.3) --------------------------------------------------
+
+	/// The bug S7.3 exists for.
+	///
+	/// `Latest` means "newest wins", which is right for a preview of a document that has since been
+	/// edited and catastrophic across projects: every keystroke in one window cancelled the other
+	/// window's build, and neither window could tell why its map had stopped updating.
+	#[tokio::test]
+	async fn a_latest_job_supersedes_only_within_its_own_scope() {
+		let jobs = Jobs::new();
+		let theirs = jobs.submit("preview", Lane::Latest, "window-2", |_| async move {
+			tokio::time::sleep(Duration::from_secs(30)).await;
+			Ok(())
+		});
+
+		let mine = jobs.submit("preview", Lane::Latest, "window-1", |_| async move { Ok(()) });
+		until(|| !jobs.job(mine).unwrap().state.is_active()).await;
+
+		assert_eq!(
+			jobs.job(theirs).unwrap().state,
+			JobState::Running,
+			"another window's build is not this window's to cancel"
+		);
+		jobs.cancel(theirs);
+	}
+
+	#[tokio::test]
+	async fn a_latest_job_still_supersedes_the_one_before_it_in_the_same_scope() {
+		let jobs = Jobs::new();
+		let first = jobs.submit("preview 1", Lane::Latest, WINDOW, |_| async move {
+			tokio::time::sleep(Duration::from_secs(30)).await;
+			Ok(())
+		});
+		jobs.submit("preview 2", Lane::Latest, WINDOW, |_| async move { Ok(()) });
+		assert_eq!(jobs.job(first).unwrap().state, JobState::Cancelled);
+	}
+
+	/// A status bar reports on the project in front of you, not on the machine.
+	#[tokio::test]
+	async fn a_window_is_listed_its_own_work_and_no_other() {
+		let jobs = Jobs::new();
+		jobs.submit("mine", Lane::Queued, "window-1", |_| async move { Ok(()) });
+		jobs.submit("theirs", Lane::Queued, "window-2", |_| async move { Ok(()) });
+
+		let mine: Vec<String> = jobs.list("window-1").into_iter().map(|job| job.label).collect();
+		assert_eq!(mine, ["mine"]);
+		let theirs: Vec<String> = jobs.list("window-2").into_iter().map(|job| job.label).collect();
+		assert_eq!(theirs, ["theirs"]);
+		assert!(jobs.list("window-3").is_empty());
+	}
+
+	/// Events follow the same rule as the list, or a window would hear about work it cannot see.
+	#[tokio::test]
+	async fn events_reach_only_the_window_whose_job_it_is() {
+		let jobs = Jobs::new();
+		let mine = Arc::new(Mutex::new(Vec::new()));
+		let theirs = Arc::new(Mutex::new(Vec::new()));
+		let (a, b) = (mine.clone(), theirs.clone());
+		jobs.set_sink("window-1", Arc::new(move |e| a.lock().unwrap().push(e)));
+		jobs.set_sink("window-2", Arc::new(move |e| b.lock().unwrap().push(e)));
+
+		let id = jobs.submit("mine", Lane::Queued, "window-1", |handle| async move {
+			handle.log("a line");
+			Ok(())
+		});
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+
+		assert!(!mine.lock().unwrap().is_empty());
+		assert!(
+			theirs.lock().unwrap().is_empty(),
+			"a window heard about a job belonging to a project it cannot see"
+		);
+	}
+
+	/// **The one thing that stays shared**, and deliberately: the argument for `Queued` is about the
+	/// machine — two conversions compete for the same disk and the same cores — which is as true
+	/// across two projects as within one.
+	#[tokio::test]
+	async fn queued_jobs_still_run_one_at_a_time_across_projects() {
+		let jobs = Jobs::new();
+		let first = jobs.submit("theirs", Lane::Queued, "window-2", |_| async move {
+			tokio::time::sleep(Duration::from_millis(50)).await;
+			Ok(())
+		});
+		let second = jobs.submit("mine", Lane::Queued, "window-1", |_| async move { Ok(()) });
+
+		assert_eq!(jobs.job(first).unwrap().state, JobState::Running);
+		assert_eq!(
+			jobs.job(second).unwrap().state,
+			JobState::Queued,
+			"a second project's conversion waits its turn like any other"
+		);
+		until(|| !jobs.job(second).unwrap().state.is_active()).await;
+	}
+
+	/// A closed window has nowhere to hear about its work — but the work is not cancelled by it.
+	#[tokio::test]
+	async fn forgetting_a_window_stops_the_reporting_and_not_the_job() {
+		let jobs = Jobs::new();
+		let heard = Arc::new(Mutex::new(Vec::new()));
+		let sink = heard.clone();
+		jobs.set_sink(WINDOW, Arc::new(move |e| sink.lock().unwrap().push(e)));
+
+		let id = jobs.submit("writing", Lane::Queued, WINDOW, |_| async move {
+			tokio::time::sleep(Duration::from_millis(20)).await;
+			Ok(())
+		});
+		jobs.forget(WINDOW);
+		let so_far = heard.lock().unwrap().len();
+
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+		assert_eq!(jobs.job(id).unwrap().state, JobState::Finished, "the export ran on");
+		assert_eq!(
+			heard.lock().unwrap().len(),
+			so_far,
+			"and nothing was sent to a window that is gone"
+		);
 	}
 
 	/// [`Lane::Latest`] is the preview's lane: an answer to a question that has been asked again is
@@ -983,14 +1169,14 @@ mod tests {
 	#[tokio::test]
 	async fn a_latest_job_supersedes_the_one_before_it() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 		let (tx, rx) = oneshot::channel();
 		let finished_anyway = Arc::new(AtomicBool::new(false));
 
 		let started = Started::default();
 
 		let (flag, mark) = (finished_anyway.clone(), started.clone());
-		let first = jobs.submit("preview 1", Lane::Latest, move |_| async move {
+		let first = jobs.submit("preview 1", Lane::Latest, WINDOW, move |_| async move {
 			mark.mark();
 			let _ = rx.await;
 			flag.store(true, Ordering::SeqCst);
@@ -998,7 +1184,7 @@ mod tests {
 		});
 		until(|| started.happened()).await;
 
-		let second = jobs.submit("preview 2", Lane::Latest, |_| async move { Ok(()) });
+		let second = jobs.submit("preview 2", Lane::Latest, WINDOW, |_| async move { Ok(()) });
 
 		assert_eq!(jobs.job(first).unwrap().state, JobState::Cancelled);
 		until(|| jobs.job(second).unwrap().state == JobState::Finished).await;
@@ -1017,20 +1203,20 @@ mod tests {
 	#[tokio::test]
 	async fn a_latest_job_does_not_wait_for_a_queued_one() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 		let (tx, rx) = oneshot::channel();
 
 		let started = Started::default();
 
 		let mark = started.clone();
-		let long = jobs.submit("export", Lane::Queued, move |_| async move {
+		let long = jobs.submit("export", Lane::Queued, WINDOW, move |_| async move {
 			mark.mark();
 			let _ = rx.await;
 			Ok(())
 		});
 		until(|| started.happened()).await;
 
-		let preview = jobs.submit("preview", Lane::Latest, |_| async move { Ok(()) });
+		let preview = jobs.submit("preview", Lane::Latest, WINDOW, |_| async move { Ok(()) });
 		until(|| jobs.job(preview).unwrap().state == JobState::Finished).await;
 		assert_eq!(
 			jobs.job(long).unwrap().state,
@@ -1045,14 +1231,14 @@ mod tests {
 	#[tokio::test]
 	async fn cancelling_a_queued_job_removes_it_without_running_it() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 		let ran = Arc::new(AtomicBool::new(false));
 		let (tx, rx) = oneshot::channel();
 
 		let started = Started::default();
 
 		let mark = started.clone();
-		let blocker = jobs.submit("blocker", Lane::Queued, move |_| async move {
+		let blocker = jobs.submit("blocker", Lane::Queued, WINDOW, move |_| async move {
 			mark.mark();
 			let _ = rx.await;
 			Ok(())
@@ -1060,7 +1246,7 @@ mod tests {
 		until(|| started.happened()).await;
 
 		let flag = ran.clone();
-		let waiting = jobs.submit("waiting", Lane::Queued, move |_| async move {
+		let waiting = jobs.submit("waiting", Lane::Queued, WINDOW, move |_| async move {
 			flag.store(true, Ordering::SeqCst);
 			Ok(())
 		});
@@ -1077,13 +1263,13 @@ mod tests {
 	#[tokio::test]
 	async fn a_blocking_job_can_poll_for_cancellation() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 		let noticed = Arc::new(AtomicBool::new(false));
 
 		let started = Started::default();
 
 		let (flag, mark) = (noticed.clone(), started.clone());
-		let id = jobs.submit("grinding", Lane::Queued, move |handle| async move {
+		let id = jobs.submit("grinding", Lane::Queued, WINDOW, move |handle| async move {
 			tokio::task::spawn_blocking(move || {
 				mark.mark();
 				while !handle.is_cancelled() {
@@ -1106,7 +1292,7 @@ mod tests {
 		let jobs = Jobs::new();
 		let events = collector(&jobs);
 
-		let id = jobs.submit("quick", Lane::Queued, |_| async move { Ok(()) });
+		let id = jobs.submit("quick", Lane::Queued, WINDOW, |_| async move { Ok(()) });
 		until(|| jobs.job(id).unwrap().state == JobState::Finished).await;
 
 		let before = events.lock().unwrap().len();
@@ -1121,7 +1307,7 @@ mod tests {
 		let jobs = Jobs::new();
 		let events = collector(&jobs);
 
-		let id = jobs.submit("chatty", Lane::Queued, |handle| async move {
+		let id = jobs.submit("chatty", Lane::Queued, WINDOW, |handle| async move {
 			for n in 0..LOG_LINES + 10 {
 				handle.log(format!("line {n}"));
 			}
@@ -1153,22 +1339,26 @@ mod tests {
 	#[tokio::test]
 	async fn finished_jobs_age_out_but_waiting_ones_do_not() {
 		let jobs = Jobs::new();
-		jobs.set_sink(Arc::new(|_| {}));
+		jobs.set_sink(WINDOW, Arc::new(|_| {}));
 
 		for _ in 0..HISTORY + 20 {
-			let id = jobs.submit("brief", Lane::Latest, |_| async move { Ok(()) });
+			let id = jobs.submit("brief", Lane::Latest, WINDOW, |_| async move { Ok(()) });
 			until(|| !jobs.job(id).unwrap().state.is_active()).await;
 		}
 		// One more submission is what triggers pruning, so ask after it.
-		let last = jobs.submit("brief", Lane::Latest, |_| async move { Ok(()) });
+		let last = jobs.submit("brief", Lane::Latest, WINDOW, |_| async move { Ok(()) });
 		until(|| !jobs.job(last).unwrap().state.is_active()).await;
-		assert!(jobs.list().len() <= HISTORY + 1, "got {}", jobs.list().len());
+		assert!(
+			jobs.list(WINDOW).len() <= HISTORY + 1,
+			"got {}",
+			jobs.list(WINDOW).len()
+		);
 	}
 
 	#[tokio::test]
 	async fn events_before_a_sink_is_installed_are_dropped_not_queued() {
 		let jobs = Jobs::new();
-		let id = jobs.submit("early", Lane::Queued, |handle| async move {
+		let id = jobs.submit("early", Lane::Queued, WINDOW, |handle| async move {
 			handle.log("said into the void");
 			Ok(())
 		});

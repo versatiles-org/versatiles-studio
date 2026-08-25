@@ -520,16 +520,19 @@ pub async fn preview_pipeline(
 	// The result travels back through a oneshot rather than the event stream: it is an answer to
 	// *this* call, not news for every listener, and it carries a mount URL the bar has no use for.
 	let (tx, rx) = tokio::sync::oneshot::channel();
-	state
-		.jobs
-		.submit("Building preview", Lane::Latest, move |handle| async move {
+	state.jobs.submit(
+		"Building preview",
+		Lane::Latest,
+		window.label(),
+		move |handle| async move {
 			let outcome = build_preview(&app, &handle, wanted, mount, dir).await;
 			// Sent as a `Result`, so a failure reaches the caller's `catch` *and* is recorded as a
 			// failed job. Only supersession drops the sender, which is what makes that distinguishable
 			// from failing at the far end.
 			let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
 			outcome.map(|_| ())
-		});
+		},
+	);
 
 	match rx.await {
 		Ok(Ok(preview)) => Ok(PreviewOutcome::Ready(Box::new(preview))),
@@ -776,11 +779,13 @@ pub async fn mount_graph(
 	let (tx, rx) = tokio::sync::oneshot::channel();
 	let pipeline = document.to_pipeline();
 	let label = format!("Building {name}");
-	state.jobs.submit(label, Lane::Latest, move |handle| async move {
-		let outcome = build_into(&app, &handle, pipeline, &name, &mount, dir).await;
-		let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
-		outcome.map(|_| ())
-	});
+	state
+		.jobs
+		.submit(label, Lane::Latest, window.label(), move |handle| async move {
+			let outcome = build_into(&app, &handle, pipeline, &name, &mount, dir).await;
+			let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
+			outcome.map(|_| ())
+		});
 
 	match rx.await {
 		Ok(Ok(preview)) => Ok(Some(preview)),

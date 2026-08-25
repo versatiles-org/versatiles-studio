@@ -27,18 +27,29 @@ pub async fn font_families(state: State<'_, AppState>) -> Result<Vec<Family>, St
 /// [Q27]: ../../../docs/decisions.md
 #[tauri::command]
 #[specta::specta]
-pub async fn install_font(app: AppHandle, state: State<'_, AppState>, id: String) -> Result<JobId, String> {
+pub async fn install_font(
+	app: AppHandle,
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	id: String,
+) -> Result<JobId, String> {
 	let dir = state.asset_dir.clone();
-	Ok(state
-		.jobs
-		.submit(format!("Installing {id}"), Lane::Queued, move |handle| async move {
+	// **Reported in the window that asked**, even though a font is the application's rather than any
+	// project's (S7.3): the bar that should say how the download is going is the one belonging to
+	// the dialog it was started from.
+	Ok(state.jobs.submit(
+		format!("Installing {id}"),
+		Lane::Queued,
+		window.label(),
+		move |handle| async move {
 			let archive = studio_core::assets::install(&handle, &id, &dir).await?;
 			let state = tauri::Manager::state::<AppState>(&app);
 			let mut server = state.server.lock().await;
 			server.mount_static(&archive, "/assets/glyphs").await?;
 			handle.log(format!("{id} is ready to use"));
 			Ok(())
-		}))
+		},
+	))
 }
 
 /// Removes a family. Reports whether one was there.

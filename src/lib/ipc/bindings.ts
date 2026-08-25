@@ -130,6 +130,9 @@ export const commands = {
 	 *  conversion is not tied to the window that asked for it. Returning the list in the same call is
 	 *  what closes the gap — subscribing and then listing separately leaves a window where an event
 	 *  lands between the two and is counted twice, or lands before the list is taken and is missed.
+	 * 
+	 *  **This window's work, not the machine's** ([S7.3](../../../docs/scope-release-3.md)): one runner
+	 *  still, but a list per project, so an export started next door does not appear in this bar.
 	 */
 	subscribeJobs: (channel: Channel<JobEvent>) => typedError<Job[], string>(__TAURI_INVOKE("subscribe_jobs", { channel })),
 	/**  One job's log, oldest line first. Fetched when a row is expanded, not streamed on connect. */

@@ -83,11 +83,12 @@ pub async fn export_graph(
 		|name| name.to_string_lossy().into_owned(),
 	);
 
-	Ok(state
-		.jobs
-		.submit(format!("Writing {name}"), Lane::Queued, move |handle| async move {
-			studio_core::export::write(&handle, pipeline, &dir, &target, bounds).await
-		}))
+	Ok(state.jobs.submit(
+		format!("Writing {name}"),
+		Lane::Queued,
+		window.label(),
+		move |handle| async move { studio_core::export::write(&handle, pipeline, &dir, &target, bounds).await },
+	))
 }
 
 /// What an export would cost, before one is started (S3.7, C6).
