@@ -128,4 +128,24 @@ describe('tile activity', () => {
 		expect([tiles.rendering, tiles.queued]).toEqual([0, 0]);
 		expect(tiles.message).toBeNull();
 	});
+
+	/**
+	 * The bug this pair exists for: a tile set is sparse, so a 404 is the server answering rather
+	 * than failing — and MapLibre only knows that if the error says so. It branches on `err.status`
+	 * twice, in the worker source and in the tile cache; without one, panning a Berlin extract
+	 * recorded a problem per empty tile and lost the fill from the parent tile as well.
+	 */
+	it('says 404 in a way MapLibre can read, so an empty tile is not a broken map', async () => {
+		vi.stubGlobal('fetch', async () => new Response(null, { status: 404, statusText: 'Not Found' }));
+
+		const failure = (await request(1).catch((error: unknown) => error)) as { status?: number };
+		expect(failure.status).toBe(404);
+	});
+
+	it('carries any other status too, rather than only the one it branches on', async () => {
+		vi.stubGlobal('fetch', async () => new Response('nope', { status: 500 }));
+
+		const failure = (await request(1).catch((error: unknown) => error)) as { status?: number };
+		expect(failure.status, 'a real failure is still a failure, and still says which').toBe(500);
+	});
 });

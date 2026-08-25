@@ -48,7 +48,12 @@ export function entryFor(built: Preview, recipe: Recipe): StackEntry {
 		tileFormat: built.info.tileFormat,
 		tileSchema: built.info.tileSchema,
 		layers: built.layers,
-		mountedLayers: layers
+		mountedLayers: layers,
+		// What the container says about itself, passed through so the composed style can tell
+		// MapLibre where to stop asking — see `extentOf`.
+		bbox: built.info.bbox,
+		minZoom: built.info.minZoom,
+		maxZoom: built.info.maxZoom
 	};
 }
 

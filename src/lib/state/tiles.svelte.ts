@@ -116,7 +116,31 @@ export function registerTileProtocol(): void {
 }
 
 /**
+ * What a tile request failed with, carrying the status MapLibre reads.
+ *
+ * **`status` is not decoration.** MapLibre branches on it twice — `if (err.status !== 404) throw` in
+ * the worker source, and `if (err.status !== 404) fire(ErrorEvent)` in the tile cache — so an error
+ * without one is a missing tile reported as a broken map. Its own `AJAXError` carries the same
+ * field; this is that shape, for a protocol handler that does its own fetching.
+ */
+class TileError extends Error {
+	readonly status: number;
+
+	constructor(response: Response, url: string) {
+		super(`${response.status} ${response.statusText} for ${url}`);
+		this.name = 'TileError';
+		this.status = response.status;
+	}
+}
+
+/**
  * Fetches one tile through the queue.
+ *
+ * **A 404 is an answer, not a failure.** A tile set is sparse by nature: a Berlin extract has
+ * nothing at `1/0/0`, and the server says so the way every tile server does. MapLibre knows this and
+ * fills the gap from a parent tile — but only if the error says `404`, which is why the throw below
+ * carries a status. Without it, panning a sparse source produced one recorded problem per empty
+ * tile, forty of them in a session, and the map lost its overzoom fill as well.
  *
  * Exported so the counting and the patience above can be driven from a test — this is the only way
  * into them, and a mechanism whose whole job is to describe a wait is worth being sure about
@@ -134,7 +158,7 @@ export const fetchTile: AddProtocolAction = async (params, controller) => {
 		return await queue.run(async () => {
 			if (key && coord) mark(key, coord, 'rendering');
 			const response = await fetch(url, { signal: controller.signal });
-			if (!response.ok) throw new Error(`${response.status} ${response.statusText} for ${url}`);
+			if (!response.ok) throw new TileError(response, url);
 			return {
 				data: await response.arrayBuffer(),
 				// Passed through rather than invented: the core puts a revision in the tile URL to

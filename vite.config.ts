@@ -76,8 +76,8 @@ export default defineConfig({
 		// as a build error.
 		rollupOptions: {
 			input: {
-				index: resolve(__dirname, 'index.html'),
-				landing: resolve(__dirname, 'landing.html')
+				index: resolve(import.meta.dirname, 'index.html'),
+				landing: resolve(import.meta.dirname, 'landing.html')
 			}
 		},
 		// MapLibre alone is ~800 kB. Code-splitting a desktop app that loads from disk buys nothing,

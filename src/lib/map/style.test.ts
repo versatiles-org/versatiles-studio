@@ -360,6 +360,44 @@ describe('composeStyle', () => {
 		...over
 	});
 
+	/**
+	 * The bug this pair exists for: every builder — Studio's own and `@versatiles/style`'s —
+	 * declares a source as a list of tile URLs and nothing else, so MapLibre asked for the whole
+	 * world at every zoom. A Berlin extract answered three of four requests at z1 with a 404, and
+	 * each of those took one of the tile queue's six slots ahead of a tile that exists.
+	 */
+	it('tells MapLibre where the tiles are, so it stops asking outside them', () => {
+		const { style } = composeStyle([entry('berlin', { bbox: [13, 52, 14, 53], minZoom: 4, maxZoom: 14 })], BASE);
+
+		const source = Object.values(style!.sources)[0] as Record<string, unknown>;
+		expect(source.bounds).toEqual([13, 52, 14, 53]);
+		expect([source.minzoom, source.maxzoom]).toEqual([4, 14]);
+		// The tiles are still the builder's; this only adds what it left off.
+		expect(source.tiles).toBeTruthy();
+	});
+
+	/**
+	 * `@versatiles/style` declares bounds of the whole world and `maxzoom: 14` — true of Shortbread
+	 * in general, false of any one extract. Overriding it is the point; inventing one where the
+	 * container said nothing would be replacing its guess with ours.
+	 */
+	it('leaves a source alone when the container said nothing about its extent', () => {
+		const { style } = composeStyle([entry('berlin')], BASE);
+		const source = Object.values(style!.sources)[0] as Record<string, unknown>;
+		expect(source.bounds).toEqual([-180, -85.0511287798066, 180, 85.0511287798066]);
+		expect([source.minzoom, source.maxzoom]).toEqual([0, 14]);
+	});
+
+	it('keeps each source to its own extent when several are stacked', () => {
+		const { style } = composeStyle(
+			[entry('basemap', { bbox: [-10, 35, 30, 60] }), entry('places', { bbox: [13, 52, 14, 53] })],
+			BASE
+		);
+		const sources = style!.sources as Record<string, Record<string, unknown>>;
+		expect(sources.basemap.bounds).toEqual([-10, 35, 30, 60]);
+		expect(sources.places.bounds).toEqual([13, 52, 14, 53]);
+	});
+
 	it('draws one source exactly as it did before', () => {
 		const { style, bases } = composeStyle([entry('berlin')], BASE);
 		expect(bases).toEqual([{ name: 'berlin', basis: 'preset' }]);

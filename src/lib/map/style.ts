@@ -453,6 +453,29 @@ export interface StackEntry {
 	tileSchema?: string | null;
 	layers: DerivableLayer[];
 	mountedLayers: string[];
+	/** Where the tiles are and which zooms they cover — see [`extentOf`]. */
+	bbox?: [number, number, number, number] | null;
+	minZoom?: number;
+	maxZoom?: number;
+}
+
+/** What a source declares about where its tiles are, in MapLibre's spelling. */
+type Extent = { bounds?: [number, number, number, number]; minzoom?: number; maxzoom?: number };
+
+/**
+ * Where a source's tiles are, for MapLibre to stop asking outside it.
+ *
+ * **Each field only if the container has one**, so a source Studio knows nothing about keeps
+ * whatever its builder declared rather than being overwritten with a guess. `bbox` is already what
+ * `fitToBounds` trusts, so this is not a new claim about the data — it is the same one, told to the
+ * one component that was making its own up.
+ */
+function extentOf(entry: StackEntry): Extent {
+	return {
+		...(entry.bbox ? { bounds: entry.bbox } : {}),
+		...(entry.minZoom === undefined ? {} : { minzoom: entry.minZoom }),
+		...(entry.maxZoom === undefined ? {} : { maxzoom: entry.maxZoom })
+	};
 }
 
 /** What a composed style drew, and from what. */
@@ -498,8 +521,9 @@ export function composeStyle(
 	// silently vanish. Prefixing unconditionally would instead rename every layer in the
 	// single-source case, which is the case every exported `style.json` and every override written
 	// before this was added already refers to.
-	const drawn: { name: string; style: StyleSpecification }[] = [];
-	if (background) drawn.push({ name: 'background', style: background });
+	const drawn: { name: string; style: StyleSpecification; extent: Extent }[] = [];
+	// The background is a whole-world basemap and declares its own extent, such as it is.
+	if (background) drawn.push({ name: 'background', style: background, extent: {} });
 
 	for (const entry of entries) {
 		const { style, basis } = styleFor(
@@ -515,12 +539,12 @@ export function composeStyle(
 			serverBaseUrl
 		);
 		bases.push({ name: entry.name, basis });
-		if (style) drawn.push({ name: entry.name, style });
+		if (style) drawn.push({ name: entry.name, style, extent: extentOf(entry) });
 	}
 
 	const prefix = drawn.length > 1;
 
-	for (const { name, style } of drawn) {
+	for (const { name, style, extent } of drawn) {
 		glyphs ??= style.glyphs;
 		sprite ??= style.sprite;
 
@@ -531,7 +555,13 @@ export function composeStyle(
 		// the layers that referred to it follow.
 		const [built] = Object.keys(style.sources);
 		const key = prefix ? name : built;
-		sources[key] = style.sources[built];
+		// **With what the container says about itself, over what the builder assumed.** Studio's own
+		// builders declare a source as a list of tile URLs and nothing else; `@versatiles/style`'s
+		// declares `bounds` of the whole world and `maxzoom: 14`, which is true of Shortbread in
+		// general and false of the extract in front of you. Either way MapLibre asks for tiles that
+		// cannot exist — a Berlin extract answers three of four requests at z1 with a 404, and each
+		// of those takes one of the tile queue's six slots ahead of a tile that does.
+		sources[key] = { ...style.sources[built], ...extent };
 
 		for (const layer of style.layers) {
 			if (!prefix) {
