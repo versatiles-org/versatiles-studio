@@ -79,6 +79,21 @@ pub fn open_in_new_window(app: AppHandle, window: tauri::Window, source: String)
 	window.close().map_err(|error| format!("{error:#}"))
 }
 
+/// Opens a project window with nothing in it, and closes the one that asked.
+///
+/// **The fourth way in, and the only one that opens nothing** (S7.5). The other three hand a path
+/// to the new window; this hands it no work, and the window it makes is the same window they make —
+/// an empty workbench, where the Sources pane's own "new graph" is the next step.
+///
+/// Closing last, for the reason [`open_in_new_window`] gives: a launcher that opened a window and
+/// stayed would be a launcher you have to dismiss.
+#[tauri::command]
+#[specta::specta]
+pub fn open_empty_window(app: AppHandle, window: tauri::Window) -> Result<(), String> {
+	crate::windows::open(&app, &crate::windows::next_label()).map_err(|error| format!("{error:#}"))?;
+	window.close().map_err(|error| format!("{error:#}"))
+}
+
 /// Opens the launcher, or focuses the one already open (S7.5).
 #[tauri::command]
 #[specta::specta]

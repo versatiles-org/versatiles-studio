@@ -108,6 +108,14 @@ export const serverBaseUrl = () => unwrap(commands.serverBaseUrl());
  */
 export const openInNewWindow = (source: string) => unwrap(commands.openInNewWindow(source));
 
+/**
+ * Opens an empty project window and closes the window that asked (S7.5).
+ *
+ * The launcher's fourth door, and the only one that hands the new window no work: what opens is an
+ * empty workbench, where adding a graph is the next step.
+ */
+export const openEmptyWindow = () => unwrap(commands.openEmptyWindow());
+
 /** Opens the launcher, or focuses the one already open (S7.5). */
 export const openLauncher = () => unwrap(commands.openLauncher());
 

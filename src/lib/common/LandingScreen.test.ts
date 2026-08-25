@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 
 /**
- * The launcher's three doors.
+ * The launcher's four doors, its recent list and its footer.
  *
- * It had seven controls and now has three, so what is worth asserting is that each door still leads
+ * It had seven controls and now has four, so what is worth asserting is that each door still leads
  * somewhere — and that the remote one, which is the only one with a state, opens rather than
  * needing two presses to do anything.
  */
@@ -28,13 +28,15 @@ function show(over: { kinds?: ImportKind[]; recents?: RecentEntry[] } = {}) {
 		onOpenFile: vi.fn(),
 		onOpenUrl: vi.fn(),
 		onOpenProject: vi.fn(),
-		onForget: vi.fn()
+		onNewProject: vi.fn(),
+		onForget: vi.fn(),
+		onOpenRepository: vi.fn()
 	};
-	render(LandingScreen, { kinds: KINDS, recents: [], ...over, ...calls });
+	render(LandingScreen, { kinds: KINDS, recents: [], version: '0.2.0', ...over, ...calls });
 	return calls;
 }
 
-describe('the three doors', () => {
+describe('the four doors', () => {
 	it('opens a local file', async () => {
 		const calls = show();
 		(await screen.findByRole('button', { name: /Open a local file/ })).click();
@@ -45,6 +47,13 @@ describe('the three doors', () => {
 		const calls = show();
 		(await screen.findByRole('button', { name: /Open a project folder/ })).click();
 		expect(calls.onOpenProject).toHaveBeenCalledTimes(1);
+	});
+
+	// The one that hands the new window no work at all, which is why it sits under a rule.
+	it('starts an empty project', async () => {
+		const calls = show();
+		(await screen.findByRole('button', { name: /New empty project/ })).click();
+		expect(calls.onNewProject).toHaveBeenCalledTimes(1);
 	});
 
 	/**
@@ -89,9 +98,12 @@ describe('what the build can read', () => {
 		expect(screen.queryByRole('button', { name: /^Tile container/ })).toBeNull();
 	});
 
-	it('says nothing when the catalogue is empty', () => {
+	// Asked of the door rather than of the window: the footer separates its own three items with the
+	// same character, and a build with no catalogue still has a version.
+	it('says nothing when the catalogue is empty', async () => {
 		show({ kinds: [] });
-		expect(screen.queryByText(/·/)).toBeNull();
+		const door = await screen.findByRole('button', { name: /Open a local file/ });
+		expect(door.textContent).not.toContain('·');
 	});
 });
 
@@ -106,8 +118,31 @@ describe('the recent list', () => {
 		expect(calls.onForget).toHaveBeenCalledWith('/data/berlin.versatiles');
 	});
 
-	it('is absent rather than empty when there is nothing to list', () => {
+	/**
+	 * **It stays, and says so.** The list used to be absent until there was something in it, which is
+	 * right for a column under the doors and wrong for a column beside them: half the window would
+	 * be blank with no explanation. What fills it is the one thing the doors cannot say — that none
+	 * of them are necessary.
+	 */
+	it('holds a place, and offers the drop, when there is nothing to list', () => {
 		show();
-		expect(screen.queryByText('Recent')).toBeNull();
+		expect(screen.getByText('Recent')).toBeTruthy();
+		expect(screen.getByText(/drop a file anywhere/)).toBeTruthy();
+	});
+});
+
+/**
+ * The footer, which is the only place the application says what it is.
+ *
+ * Version from the core rather than from `package.json`, and "alpha" beside it — the word is only
+ * useful next to somewhere to report things, which is what the link is for.
+ */
+describe('the footer', () => {
+	it('names the version, says alpha, and links to the repository', async () => {
+		const calls = show();
+		expect(screen.getByText(/VersaTiles Studio 0\.2\.0 · alpha/)).toBeTruthy();
+
+		(await screen.findByRole('button', { name: 'github' })).click();
+		expect(calls.onOpenRepository).toHaveBeenCalledTimes(1);
 	});
 });

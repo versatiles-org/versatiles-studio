@@ -78,6 +78,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::server_base_url,
 		commands::open_window,
 		commands::open_in_new_window,
+		commands::open_empty_window,
 		commands::open_launcher,
 		commands::refresh_menu,
 		commands::diagnostics::diagnostics,

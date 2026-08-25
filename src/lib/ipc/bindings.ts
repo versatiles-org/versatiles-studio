@@ -43,6 +43,17 @@ export const commands = {
 	 *  answers that question for a double-clicked file.
 	 */
 	openInNewWindow: (source: string) => typedError<null, string>(__TAURI_INVOKE("open_in_new_window", { source })),
+	/**
+	 *  Opens a project window with nothing in it, and closes the one that asked.
+	 * 
+	 *  **The fourth way in, and the only one that opens nothing** (S7.5). The other three hand a path
+	 *  to the new window; this hands it no work, and the window it makes is the same window they make —
+	 *  an empty workbench, where the Sources pane's own "new graph" is the next step.
+	 * 
+	 *  Closing last, for the reason [`open_in_new_window`] gives: a launcher that opened a window and
+	 *  stayed would be a launcher you have to dismiss.
+	 */
+	openEmptyWindow: () => typedError<null, string>(__TAURI_INVOKE("open_empty_window")),
 	/**  Opens the launcher, or focuses the one already open (S7.5). */
 	openLauncher: () => typedError<null, string>(__TAURI_INVOKE("open_launcher")),
 	/**

@@ -79,8 +79,11 @@ pub fn open_launcher(app: &AppHandle) -> Result<()> {
 
 	WebviewWindowBuilder::new(app, LAUNCHER, WebviewUrl::App("landing.html".into()))
 		.title("VersaTiles Studio")
-		.inner_size(760.0, 620.0)
-		.min_inner_size(560.0, 460.0)
+		// Two columns: the ways in on the left, what was open recently on the right. Wider than tall
+		// because the recent list is the returning half of this window and needs room to be a list
+		// rather than a preview of one.
+		.inner_size(880.0, 580.0)
+		.min_inner_size(720.0, 480.0)
 		.resizable(true)
 		.visible(!hidden())
 		.build()

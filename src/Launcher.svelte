@@ -5,8 +5,10 @@
 	import { askForProject, askForSource } from './lib/common/import';
 	import { REPOSITORY } from './lib/common/repository';
 	import {
+		appVersion,
 		forgetRecent,
 		importKinds,
+		openEmptyWindow,
 		openInNewWindow,
 		recentSources,
 		MENU_EVENT,
@@ -37,6 +39,8 @@
 
 	let kinds = $state<ImportKind[]>([]);
 	let recents = $state<RecentEntry[]>([]);
+	/// What the footer says. From the core, which reads it from the binary — the one copy (S0.5).
+	let version = $state('');
 
 	/// What went wrong, said here rather than in a status bar — this window has none, and a launcher
 	/// that silently does nothing when a directory holds no project is a launcher that looks broken.
@@ -49,6 +53,7 @@
 
 	$effect(() => {
 		void importKinds().then((loaded) => (kinds = loaded));
+		void appVersion().then((loaded) => (version = loaded));
 		void refreshRecents();
 		// So Help → Report a Problem from here carries the session's problems rather than a header
 		// and nothing else. There is no panel in this window; the list is only ever reported.
@@ -116,15 +121,33 @@
 		const picked = await askForProject();
 		if (picked) await open(picked);
 	}
+
+	/// A window with nothing in it, which is the one door that asks the core for nothing first.
+	async function startEmpty() {
+		try {
+			await openEmptyWindow();
+		} catch (error) {
+			problem = 'Could not open a window.';
+			record({
+				level: 'error',
+				origin: 'webview',
+				message: 'could not open an empty project window',
+				detail: String(error)
+			});
+		}
+	}
 </script>
 
 <main>
 	<LandingScreen
 		{kinds}
 		{recents}
+		{version}
 		onOpenFile={() => void choose()}
 		onOpenUrl={(source) => void open(source)}
 		onOpenProject={() => void chooseProject()}
+		onNewProject={() => void startEmpty()}
+		onOpenRepository={() => void openUrl(REPOSITORY).catch(() => (problem = 'Could not open a browser.'))}
 		onForget={async (source) => {
 			await forgetRecent(source);
 			await refreshRecents();

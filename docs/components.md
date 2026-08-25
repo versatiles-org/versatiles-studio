@@ -141,14 +141,14 @@ An errand you leave the window for and come back from ([Q39](decisions.md)).
 
 ## Used by more than one owner
 
-| Component       | Does                                                                                                                                 | Stage |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----- |
-| `LandingScreen` | The launcher's contents: three doors — local file, remote file, project folder — the recent list, and the mark ([Q48](decisions.md)) | S1.1  |
-| `ImportCards`   | One card per import kind, from the core's catalogue. In the pane, where choosing one becomes a `from_*` node (E1–E3)                 | S3.2  |
-| `Help`          | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md))                   | S2.13 |
-| `HelpTrigger`   | The `?` that opens it                                                                                                                | S2.13 |
-| `Picker`        | `＋ operation…` and `＋ parameter…`: a filterable list, grouped, with the full text beside its row                                   | S2.13 |
-| `JsonTree`      | Any JSON, collapsible — used by `Inspector` and by `FeaturePopup`                                                                    | S1.5  |
+| Component       | Does                                                                                                                        | Stage |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------- | ----- |
+| `LandingScreen` | The launcher's contents: four doors beside the recent list, the mark, and a footer naming the version ([Q48](decisions.md)) | S1.1  |
+| `ImportCards`   | One card per import kind, from the core's catalogue. In the pane, where choosing one becomes a `from_*` node (E1–E3)        | S3.2  |
+| `Help`          | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md))          | S2.13 |
+| `HelpTrigger`   | The `?` that opens it                                                                                                       | S2.13 |
+| `Picker`        | `＋ operation…` and `＋ parameter…`: a filterable list, grouped, with the full text beside its row                          | S2.13 |
+| `JsonTree`      | Any JSON, collapsible — used by `Inspector` and by `FeaturePopup`                                                           | S1.5  |
 
 ## Conventions
 

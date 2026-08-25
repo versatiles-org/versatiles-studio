@@ -216,26 +216,42 @@ It was an overlay inside a project window until [S7.9](scope-release-3.md), whic
 different things depending on whether it happened to hold any graphs. A project window between
 documents now says one quiet line — where the way in is — rather than becoming a launcher.
 
-**Three doors, by where the thing is** rather than by what kind of data it holds. It was seven
+**Two columns: the ways in, and the ways back.** They serve different people — the doors are for a
+first run, the recent list for every run after it — and stacked, the second waited behind the first.
+Beside each other, on an 880×580 window, the list is a list rather than a preview of one, and it
+scrolls without moving anything else.
+
+**Four doors, by where the thing is** rather than by what kind of data it holds. It was seven
 controls: a card per import kind, a project card and a URL form — but those five cards differed only
 in which extensions the file dialog would show, which is not a decision anyone arrives wanting to
 make. The catalogue still decides what the dialog offers and names it under the first door, so a
 build without GDAL neither offers a GeoTIFF nor claims to; choosing a kind up front is still a real
 decision inside the workbench, where it becomes a `from_*` node.
 
+"New empty project" sits under a rule and last: it is the only one that opens nothing, and the
+rarest way to start. With no history the second column holds its place and offers the drop instead —
+an empty half-window with a grey sentence in the corner reads as something that failed to load.
+
+The footer is the only place the application says what it is: name, version from the core, the word
+alpha, and the repository behind it — the word is only useful next to somewhere to report things.
+
 ```text
-┌───────────────────────────────────────────────────────────┐
-│              ◆  VersaTiles Studio                         │
-│  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐ │
-│  │ Open a local   │ │ Open a remote  │ │ Open a project │ │
-│  │ file       (A1)│ │ file       (A2)│ │ folder     (G1)│ │
-│  │ Tile container │ │ HTTPS or SFTP  │ │ pipelines,     │ │
-│  │ · Vector data… │ │                │ │ style, manifest│ │
-│  └────────────────┘ └────────────────┘ └────────────────┘ │
-│  Recent                                             (A7)  │
-│  · osm.versatiles          · MyProject/                   │
-│  …or drop a file anywhere in this window.                 │
-└───────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│  ◆  VersaTiles Studio                                      │
+│                                                            │
+│  START                      RECENT                         │
+│  Open a local file      (A1) osm.versatiles       2 h ago  │
+│  Tile container · Vector…    MyProject/          yesterday │
+│  Open a remote file     (A2) berlin.vpl           3 d ago  │
+│  HTTPS or SFTP               …                             │
+│  Open a project folder  (G1) …or drop a file anywhere in   │
+│  pipelines, style, manifest  this window.                  │
+│  ──────────────────────                                    │
+│  New empty project                                         │
+│  A window with nothing in it yet                           │
+│                                                            │
+│  VersaTiles Studio 0.2.0 · alpha · github                  │
+└────────────────────────────────────────────────────────────┘
 ```
 
 ### S1 — sections collapsed
