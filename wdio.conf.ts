@@ -103,11 +103,25 @@ function stopStudio(): void {
 	}
 }
 
-/** How every session finds and starts Studio. */
+/**
+ * Whether the windows stay off the screen.
+ *
+ * **Locally yes, in CI no**, which is not a compromise but the two places wanting opposite things. A
+ * run opens and closes a dozen windows: on the machine someone is working at that is a minute of
+ * stolen focus, and nobody is looking at them anyway. On a runner nobody is looking at all — and a
+ * window that never appears is never composited, so the screenshot `afterTest` keeps shows the panes
+ * and an empty square where the map is. The UI is captured either way; only the map is not.
+ *
+ * `STUDIO_SHOW=1 npm run e2e:run` puts them back on screen here, which is how to watch a story that
+ * only misbehaves when you are not watching.
+ */
+const HIDDEN = !process.env.CI && !process.env.STUDIO_SHOW;
+
+/** How every session finds and starts Studio. Both variables are read only by an `e2e` build. */
 const service = {
 	appBinaryPath: BINARY,
 	driverProvider: 'embedded',
-	env: { STUDIO_DATA_DIR: DATA }
+	env: HIDDEN ? { STUDIO_DATA_DIR: DATA, STUDIO_HIDDEN: '1' } : { STUDIO_DATA_DIR: DATA }
 } as const;
 
 export const config: WebdriverIO.Config = {

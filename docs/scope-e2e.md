@@ -26,6 +26,7 @@ the driver turned out not to be able to do.
 | Feature gate | `--features e2e`                             | The W3C server is compiled in only for tests                           |
 | Fixture      | `e2e/fixtures/debug.vpl`                     | `from_debug` needs no data on disk, so CI downloads nothing            |
 | Isolation    | `STUDIO_DATA_DIR`, wiped per run             | Recents and views are the tester's own, and a suite must not edit them |
+| Windows      | Hidden locally, shown in CI                  | A run opens a dozen; nobody should have to watch them steal focus      |
 
 **The embedded provider, not `tauri-driver`.** `tauri-driver` speaks to WebKitGTK and WebView2 and
 has nothing to attach to on macOS, so it would have meant a suite that runs on the Linux runner and
@@ -149,6 +150,19 @@ being true.
 ## Phase 4 — keeping it honest · done
 
 Three rules, two of them enforced by `guards.test.ts` rather than by intention.
+
+**The windows stay out of the way.** `STUDIO_HIDDEN` — another variable only an `e2e` build reads —
+opens every window invisible, so running the suite on the machine you are working at no longer means
+a minute of windows taking focus and flashing past. The driver reaches the webview rather than the
+screen, so a window it never shows is one it can still drive: all 22 stories pass hidden, WebGL
+included.
+
+**But not in CI**, and the reason is the next rule. A window that never appears is never composited,
+so a screenshot of one shows the panes and an empty square where the map is — the UI is captured,
+the map is not. Locally that costs nothing, because the person who can just run it again is sitting
+there. On a runner the picture is the only evidence there is, so CI shows the windows and Xvfb keeps
+them off anybody's screen. `STUDIO_SHOW=1 npm run e2e:run` puts them back here, for watching a story
+that only misbehaves when you are not.
 
 **A failure keeps its evidence.** `afterTest` writes a screenshot of the window and the
 application's own problem list at that moment into `target/e2e-logs`, which CI uploads for a week.

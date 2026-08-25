@@ -16,12 +16,32 @@ use tauri::{AppHandle, WebviewUrl, WebviewWindowBuilder};
 /// to a label outside it.
 pub const LAUNCHER: &str = "window-launcher";
 
+/// Whether windows should open without appearing.
+///
+/// **For the end-to-end suite, and only for it.** Every spec opens a window and closes it again, so
+/// running the suite on the machine you are working on means a minute of windows taking focus and
+/// flashing past. The driver reaches the webview rather than the screen — it finds elements and
+/// dispatches events inside the page — so a window it never shows is one it can still drive.
+///
+/// Compiled in only under `e2e`, like the data directory it sits beside: a shipped build has no
+/// environment variable that can make Studio start invisibly ([the plan](../../docs/scope-e2e.md)).
+#[cfg(feature = "e2e")]
+fn hidden() -> bool {
+	std::env::var_os("STUDIO_HIDDEN").is_some()
+}
+
+#[cfg(not(feature = "e2e"))]
+fn hidden() -> bool {
+	false
+}
+
 /// Opens a project window with the given label.
 pub fn open(app: &AppHandle, label: &str) -> Result<()> {
 	WebviewWindowBuilder::new(app, label, WebviewUrl::App("index.html".into()))
 		.title("VersaTiles Studio")
 		.inner_size(1280.0, 800.0)
 		.min_inner_size(900.0, 600.0)
+		.visible(!hidden())
 		// Drag and drop is on by default — `tauri.conf.json` said so explicitly and no longer
 		// describes a window at all (S7.7). The builder can only turn it *off*, which is what makes
 		// the default safe to rely on rather than something this has to restate.
@@ -49,7 +69,11 @@ pub fn next_label() -> String {
 /// [Q48]: ../../docs/decisions.md
 pub fn open_launcher(app: &AppHandle) -> Result<()> {
 	if let Some(existing) = tauri::Manager::get_webview_window(app, LAUNCHER) {
-		existing.set_focus().context("focusing the launcher")?;
+		// Focusing a window that was asked not to appear would put it on screen, which is the one
+		// thing the suite is asking not to happen.
+		if !hidden() {
+			existing.set_focus().context("focusing the launcher")?;
+		}
 		return Ok(());
 	}
 
@@ -58,6 +82,7 @@ pub fn open_launcher(app: &AppHandle) -> Result<()> {
 		.inner_size(760.0, 620.0)
 		.min_inner_size(560.0, 460.0)
 		.resizable(true)
+		.visible(!hidden())
 		.build()
 		.context("opening the launcher")?;
 	Ok(())
