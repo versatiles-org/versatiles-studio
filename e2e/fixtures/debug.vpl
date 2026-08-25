@@ -1,0 +1,6 @@
+# A source that needs no data on disk.
+#
+# `from_debug` draws its own tiles from the tile coordinates, so a test that opens this exercises
+# the whole path — read, serve, style, render — on a machine that has never downloaded a container.
+from_debug format=png
+  | raster_overview level=2

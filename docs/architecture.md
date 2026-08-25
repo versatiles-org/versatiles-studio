@@ -230,6 +230,10 @@ versatiles-studio/
 │   ├── latest-json.ts          the manifest the updater reads           (S5.8)
 │   ├── docs.test.ts            · guards.test.ts — what these documents promise
 │   └── spawn.test.ts           the Windows spawn rules, asserted from any platform
+├── e2e/                        stories, run against a real window
+│   ├── spike.e2e.ts            what the driver can do, asserted
+│   └── fixtures/               `from_debug`, so CI downloads nothing
+├── wdio.conf.ts                the embedded driver, and how it starts Studio
 ├── codecov.yml                 one flag per codebase, components within
 ├── .github/
 │   ├── workflows/              ci.yml, release.yml — Linux, macOS, Windows (S0.7, S5.6, S5.9)

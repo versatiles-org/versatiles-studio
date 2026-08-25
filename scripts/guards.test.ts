@@ -483,3 +483,43 @@ describe('starting a child process', () => {
 		expect(offenders, 'use runInherited from spawn.ts — npm needs a shell on Windows').toEqual([]);
 	});
 });
+
+/**
+ * The `e2e` feature compiles a WebDriver server into the binary so the end-to-end tests can drive
+ * it — including on macOS, which no external driver can reach.
+ *
+ * **A remote-control server must never ship.** Studio's pitch to public administrations is that it
+ * is local, accountless and auditable ([Q1](../docs/decisions.md)), and a listener inside a released
+ * binary would falsify that whatever the intent. The feature is off by default and nothing that
+ * builds a release turns it on; both halves are asserted here rather than remembered, because the
+ * failure mode is silent and only visible to somebody reading a shipped binary.
+ */
+describe('the e2e feature', () => {
+	const root = fileURLToPath(new URL('../', import.meta.url));
+	const manifest = readFileSync(join(root, 'src-tauri/Cargo.toml'), 'utf8');
+
+	it('exists, so the tests have something to enable', () => {
+		expect(manifest).toMatch(/^e2e = \[/m);
+	});
+
+	it('is not in the default feature set', () => {
+		const defaults = /^default = \[(.*)\]/m.exec(manifest);
+		expect(defaults?.[1] ?? '', 'a default `e2e` would put a WebDriver server in every build').not.toContain('e2e');
+	});
+
+	it('is not enabled by anything that builds a release', () => {
+		// The string is expected in `e2e:build`, which is what the tests run against and never ships.
+		// What must not carry it is anything producing an artefact somebody installs.
+		const feature = /--features[= ]\S*e2e/;
+		const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts as Record<string, string>;
+		const building = Object.entries(scripts).filter(([name]) => name.startsWith('bundle') || name === 'release');
+		expect(building.length, 'no release-building script found — has one been renamed?').toBeGreaterThan(0);
+
+		for (const [name, body] of building) {
+			expect(body, `\`${name}\` builds a release; it must not pass the e2e feature`).not.toMatch(feature);
+		}
+		for (const path of ['scripts/release.ts', 'scripts/bundle-local.ts', '.github/workflows/release.yml']) {
+			expect(readFileSync(join(root, path), 'utf8'), `${path} must not pass the e2e feature`).not.toMatch(feature);
+		}
+	});
+});

@@ -140,7 +140,17 @@ pub fn run() {
 	// Whether the last window to be destroyed was the launcher — see the exit handler below.
 	let launcher_closed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
-	tauri::Builder::default()
+	// **A WebDriver server inside the application, and only when asked for.** The embedded provider
+	// is the only one that can drive a WKWebView, which is what lets the end-to-end tests run on a
+	// developer's Mac as well as on a Linux runner. `e2e` is off by default and `guards.test.ts`
+	// asserts that nothing which builds a release turns it on: a remote-control listener in a
+	// shipped binary would falsify the one promise Studio makes about itself ([Q1]).
+	#[cfg(feature = "e2e")]
+	let shell = tauri::Builder::default().plugin(tauri_plugin_wdio_webdriver::init());
+	#[cfg(not(feature = "e2e"))]
+	let shell = tauri::Builder::default();
+
+	shell
 		.plugin(tauri_plugin_dialog::init())
 		// Auto-update (G4, S5.8). **Checked from the webview, never on its own**: an application
 		// that downloads and swaps itself out while someone is mid-export is worse than one that
