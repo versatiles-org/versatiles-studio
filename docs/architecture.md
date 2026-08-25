@@ -173,6 +173,7 @@ versatiles-studio/
 │           ├── graphs.rs       the set of graphs a project holds         (Q32)
 │           ├── history.rs      one undo stack across all of them         (G6)
 │           ├── jobs.rs         runner, progress, cancellation, log       (E7)
+│           ├── diagnostics.rs  what went wrong, for a user to copy out   (S6.8)
 │           ├── preview.rs      running a graph so the map can show it    (C3)
 │           ├── export.rs       writing the result to a container         (F2)
 │           ├── estimate.rs     what that write will cost, before it runs (C6)

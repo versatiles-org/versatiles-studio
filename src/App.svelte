@@ -9,6 +9,7 @@
 	import StatusBar from './lib/shell/StatusBar.svelte';
 	import Help from './lib/common/Help.svelte';
 	import { connectJobs } from './lib/state/jobs.svelte';
+	import { refresh as refreshProblems, watch as watchForProblems } from './lib/state/diagnostics.svelte';
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
@@ -178,6 +179,18 @@
 	// opened anything, so both left the landing screen covering a loaded project with both panes
 	// hidden.
 	let empty = $derived(graphs.empty);
+
+	// **First, and its own effect**, because everything below it can fail: an error thrown while the
+	// application is still starting is the one a user can least describe, and it is worth catching
+	// even if half the window never appears (S6.8). The teardown matters — a reload that left the
+	// previous handlers attached would report every problem twice.
+	$effect(() => {
+		const stop = watchForProblems();
+		// What the core already holds: a panic from the previous window, anything it warned about
+		// during start-up, and whatever this window reported before it was reloaded.
+		void refreshProblems();
+		return stop;
+	});
 
 	$effect(() => {
 		// Before anything else asks for work: a job started by the previous window — a conversion

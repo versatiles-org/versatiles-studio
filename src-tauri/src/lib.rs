@@ -15,6 +15,7 @@ mod windows;
 use state::AppState;
 use std::path::PathBuf;
 use studio_core::{
+	diagnostics::{Diagnostics, Level, NewProblem, Origin},
 	history::History,
 	server::ServerManager,
 	store::{Layout, Recents, Views},
@@ -33,6 +34,10 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::app_version,
 		commands::server_base_url,
 		commands::open_window,
+		commands::diagnostics::diagnostics,
+		commands::diagnostics::log_diagnostic,
+		commands::diagnostics::clear_diagnostics,
+		commands::diagnostics::environment,
 		commands::export::export_graph,
 		commands::export::estimate_export,
 		commands::export::set_crop,
@@ -101,9 +106,31 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 	])
 }
 
+/// Says a thing was given up on, in both places it has to be said.
+///
+/// **stderr *and* the panel.** A developer running `cargo tauri dev` reads the terminal, and a user
+/// with a bundled build has no terminal to read — the `.app` a double-click launches has nowhere for
+/// stderr to go. Neither audience is the other's fallback (S6.8).
+fn warn(diagnostics: &Diagnostics, what: &str, error: &anyhow::Error) {
+	eprintln!("{what}: {error:#}");
+	diagnostics.record(NewProblem {
+		level: Level::Warn,
+		origin: Origin::Core,
+		message: what.to_string(),
+		// `{:#}` keeps anyhow's context chain, which is the half that says which file and why.
+		detail: Some(format!("{error:#}")),
+	});
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
 	let builder = specta_builder();
+
+	// **Before anything that could fail, including the builder.** A panic during start-up is the one
+	// a user can least describe — the window never appears — and the hook is what turns it into a
+	// line the next launch can still show and copy (S6.8).
+	let diagnostics = Diagnostics::new();
+	studio_core::diagnostics::catch_panics(&diagnostics);
 
 	tauri::Builder::default()
 		.plugin(tauri_plugin_dialog::init())
@@ -118,11 +145,11 @@ pub fn run() {
 		// application would have no way back — and the capability scopes it to that one host, so
 		// this cannot become a general way out.
 		.plugin(tauri_plugin_opener::init())
-		.setup(|app| {
+		.setup(move |app| {
 			// Before anything can fetch: a remote container opened during start-up would otherwise
 			// go out as plain `versatiles/…` (vt#248).
 			if let Err(error) = studio_core::identify(env!("CARGO_PKG_VERSION")) {
-				eprintln!("could not name Studio in the User-Agent: {error:#}");
+				warn(&diagnostics, "Could not name Studio in the User-Agent", &error);
 			}
 			// The server is started once, for the whole application. Blocking here is deliberate:
 			// no window should exist before the data plane does.
@@ -142,14 +169,14 @@ pub fn run() {
 			// back to the Latin subset, which is what it had before the family was installed.
 			let asset_dir = data_dir.join("fonts");
 			if let Err(error) = tauri::async_runtime::block_on(assets::mount_fonts(&asset_dir, &mut server)) {
-				eprintln!("could not mount an installed font family: {error:#}");
+				warn(&diagnostics, "Could not mount an installed font family", &error);
 			}
 			let recents = Recents::load(&data_dir);
 			let layout = Layout::load(&data_dir);
 			let views = match Views::load(&data_dir) {
 				Ok(loaded) => loaded,
 				Err(error) => {
-					eprintln!("views could not be read and were left alone: {error:#}");
+					warn(&diagnostics, "Views could not be read and were left alone", &error);
 					Views::default()
 				}
 			};
@@ -160,6 +187,7 @@ pub fn run() {
 			tauri::Manager::manage(
 				app,
 				AppState {
+					diagnostics,
 					server: Mutex::new(server),
 					recents: Mutex::new(recents),
 					views: Mutex::new(views),

@@ -11,6 +11,7 @@
 
 use std::path::PathBuf;
 use studio_core::{
+	diagnostics::Diagnostics,
 	graphs::{GraphId, Graphs},
 	history::History,
 	jobs::Jobs,
@@ -56,6 +57,12 @@ pub struct AppState {
 	/// them, so opening one moves this. Before any is opened it is wherever Studio was started; it
 	/// becomes the project directory once [Q6] has one.
 	pub project_dir: Mutex<PathBuf>,
+	/// What has gone wrong this session, for the panel that lets a user copy it (S6.8).
+	///
+	/// Not behind a `Mutex` for the same reason `jobs` is not: it is `Clone` and locks its own ring.
+	/// It has to be, in fact — the panic hook holds a clone of this from before any window exists,
+	/// and a hook that had to reach through Tauri's state map could not run during start-up.
+	pub diagnostics: Diagnostics,
 	/// Long operations, their queue and their logs ([Q3], E7, S3.1).
 	///
 	/// Not behind a `Mutex`: the runner is `Clone` and locks its own registry, so a command that

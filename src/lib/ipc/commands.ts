@@ -21,6 +21,7 @@ import { commands } from './bindings';
 import { unwrap } from './unwrap';
 import type {
 	Bounds,
+	NewProblem,
 	Preset,
 	SourceKind,
 	RasterAdjust_Serialize as RasterAdjust,
@@ -81,6 +82,20 @@ export const serverBaseUrl = () => unwrap(commands.serverBaseUrl());
 
 /** Files the OS has asked Studio to open since the last call. Draining, so two windows cannot both. */
 export const takeOpened = () => commands.takeOpened();
+
+// -- diagnostics -----------------------------------------------------------------------------
+
+/** Everything that has gone wrong this session, oldest first (S6.7). */
+export const diagnostics = () => unwrap(commands.diagnostics());
+
+/** Records a problem the webview saw, and answers how many distinct ones there now are. */
+export const logDiagnostic = (report: NewProblem) => unwrap(commands.logDiagnostic(report));
+
+/** Forgets them all — for reproducing a problem cleanly before copying the report. */
+export const clearDiagnostics = () => unwrap(commands.clearDiagnostics());
+
+/** What is running this, for the header of a copied report. */
+export const environment = () => unwrap(commands.environment());
 
 // -- jobs ------------------------------------------------------------------------------------
 

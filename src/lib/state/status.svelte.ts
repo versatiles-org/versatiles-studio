@@ -14,6 +14,7 @@
  */
 
 import type { Status } from '../shell/StatusBar.svelte';
+import { describe, record } from './diagnostics.svelte';
 
 let current = $state<Status>({ kind: 'idle' });
 
@@ -48,13 +49,16 @@ export const status = {
 	 * is `"[object Object]"`, which is what the bar said whenever an error arrived as an object — one
 	 * call site had learnt to unwrap it and the other seventeen had not. Deciding how an error
 	 * becomes text is this function's job, and there is one of it.
+	 *
+	 * **And records it, for the same reason there is one of it.** Every `catch` in the application
+	 * already comes here, so this is where a failure can be kept without nineteen call sites each
+	 * remembering to keep it — and the bar shows one line and then loses it to the next failure,
+	 * which is no use to anybody writing an issue an hour later (S6.8).
 	 */
 	fail(error: unknown): void {
-		const message =
-			typeof error === 'object' && error !== null && 'message' in error
-				? String((error as { message: unknown }).message)
-				: String(error);
+		const { message, detail } = describe(error);
 		current = { kind: 'error', message };
+		record({ level: 'error', origin: 'webview', message, detail });
 	},
 
 	/** Clears whatever it is saying — the dismiss button, and nothing else. */

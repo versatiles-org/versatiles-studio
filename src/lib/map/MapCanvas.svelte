@@ -4,6 +4,7 @@
 	import * as maplibre from 'maplibre-gl';
 	import type { StyleSpecification } from 'maplibre-gl';
 	import { applyMapTheme } from './theme';
+	import { record } from '../state/diagnostics.svelte';
 	import { theme } from '../styles/theme.svelte';
 	import type { Camera } from '../ipc/commands';
 
@@ -127,6 +128,25 @@
 			});
 		};
 		instance.on('moveend', report);
+
+		// **MapLibre reports rather than throws.** A source it cannot load, a tile it cannot decode
+		// and a style it will not accept all arrive here as an event — nothing is thrown, so no
+		// `catch` in this application can ever see one, and until this listener existed they went to
+		// a console that a bundled build does not expose (S6.8). It is the class of failure that
+		// leaves a blank map and no explanation.
+		//
+		// Not shown in the status bar: these arrive per tile, and a bar that flickered an error for
+		// every one of a thousand would be unreadable. The core folds the repeats into a count.
+		instance.on('error', (event) => {
+			const error = (event as { error?: unknown }).error;
+			const message = error instanceof Error ? error.message : String(error ?? 'map error');
+			record({
+				level: 'error',
+				origin: 'map',
+				message,
+				detail: error instanceof Error ? (error.stack ?? null) : null
+			});
+		});
 
 		return () => {
 			// Destroyed, not hidden — WebGL evicts the oldest context silently, so a Map that is not

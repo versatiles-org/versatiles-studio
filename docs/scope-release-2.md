@@ -39,6 +39,8 @@ interface stays still, and then the interface moves over a shape that already wo
 | **S6.6** | ~~The DEM editor~~ — **done**; a `raster-dem` source with the encoding the container declares, a `hillshade` layer, and controls for relief, light direction and height, and the three colours. `dem/versatiles` draws nothing and says so rather than guessing an unpacking nothing documents                                                                                                               | D12            |
 | **S6.7** | ~~Settle the override collision within a source~~ — **done, and the premise was wrong**: the presets share one namespace (`neutrino`'s ids are a subset of `colorful`'s), so overrides are meant to be shared and to come back. What needed fixing was that an inert override is invisible, and that D8's export emitted it into a file with no such layer. Both fixed; clearing is offered, never automatic | infrastructure |
 
+| **S6.8** | ~~A problem log a user can copy~~ — **done**; the core keeps a folded ring of what went wrong, the webview reports what only it can see — an uncaught rejection, a MapLibre `error` event, every `status.fail` — and a panic hook catches the half that used to reach nobody. The status bar expands into the list, and one button puts a report on the clipboard with the build, the platform and the GPU, and the home directory redacted out | infrastructure |
+
 `*` was a stretch item: it landed after S6.4 and blocked nothing.
 
 **S6.6 is last because nothing waits on it.** It is the most new code and the least existing

@@ -27,6 +27,19 @@ export const commands = {
 	 *  [Q16]: ../../docs/decisions.md
 	 */
 	openWindow: (label: string) => typedError<null, string>(__TAURI_INVOKE("open_window", { label })),
+	/**  Everything that has gone wrong this session, oldest first. */
+	diagnostics: () => typedError<Problem[], string>(__TAURI_INVOKE("diagnostics")),
+	/**
+	 *  Records a problem the webview saw, and answers how many there now are.
+	 * 
+	 *  **The count comes back** so the bar's badge is a fact rather than a tally the window keeps: a
+	 *  reload, a second window and the core's own entries all have to agree on one number, and only the
+	 *  core can see all three.
+	 */
+	logDiagnostic: (report: NewProblem) => typedError<number, string>(__TAURI_INVOKE("log_diagnostic", { report })),
+	/**  Forgets them all — for reproducing a problem cleanly before copying the report. */
+	clearDiagnostics: () => typedError<null, string>(__TAURI_INVOKE("clear_diagnostics")),
+	environment: () => typedError<Environment, string>(__TAURI_INVOKE("environment")),
 	/**
 	 *  Starts an export and returns the job running it.
 	 * 
@@ -796,6 +809,25 @@ export type EditKind =
 /**  The document was replaced wholesale, e.g. by opening a file. */
 "replaced";
 
+/**
+ *  What is running this, for the header of a copied report.
+ * 
+ *  **Half of it can only be answered here.** The webview knows its own engine and its GPU; the
+ *  build number, the platform and where home is are the process's to say. `home` is not shown
+ *  anywhere — it is what the report redacts out of file paths before anybody pastes them into a
+ *  public issue.
+ */
+export type Environment = {
+	appVersion: string,
+	/**  `macos`, `windows`, `linux` — `std::env::consts`, so it is the target this was built for. */
+	os: string,
+	arch: string,
+	/**  The system webview's version, or `None` where it will not say. */
+	webview: string | null,
+	/**  The user's home directory, for redaction. `None` when the platform has no answer. */
+	home: string | null,
+};
+
 /**  What an export is expected to cost. */
 export type Estimate = {
 	/**  Tiles the export will write — a count, not an estimate. */
@@ -1196,6 +1228,27 @@ export type Layout = {
 	view?: Camera | null,
 };
 
+/**
+ *  How much attention an entry deserves.
+ * 
+ *  Two levels, not five. This is a list of *problems* — anything worth a level below "something did
+ *  not work" belongs in a job's log or in nothing at all, and a level nobody filters on is a column
+ *  nobody reads.
+ */
+export type Level = 
+/**  Something was given up on, and the application carried on without it. */
+"warn" | 
+/**  Something the user asked for did not happen. */
+"error";
+
+/**  A problem on its way in, before the ring gives it an id, a time and a count. */
+export type NewProblem = {
+	level: Level,
+	origin: Origin,
+	message: string,
+	detail: string | null,
+};
+
 /**  One operation, its parameters, and any nested pipelines feeding it. */
 export type Node = {
 	name: string,
@@ -1247,6 +1300,15 @@ export type OperationInfo = {
 	details: string,
 	fields: FieldInfo[],
 };
+
+/**
+ *  Which half of the application an entry came from.
+ * 
+ *  Worth keeping apart because it decides who reads it: `Core` is Rust, `Webview` is the window,
+ *  and `Map` is MapLibre reporting about tiles and styles — the one that is nobody's code and
+ *  therefore the easiest to misattribute.
+ */
+export type Origin = "core" | "webview" | "map";
 
 /**
  *  One pane's place in the layout.
@@ -1325,6 +1387,29 @@ export type PreviewOutcome = {
 { kind: "nothing" } | 
 /**  A newer preview replaced this one before it finished. Its answer is the current one. */
 { kind: "superseded" };
+
+/**  One problem, as the panel lists it and the report prints it. */
+export type Problem = {
+	id: number,
+	/**
+	 *  Whole seconds since the Unix epoch.
+	 * 
+	 *  A wall clock rather than an elapsed time, because the number that matters in an issue is
+	 *  "before or after the thing I was doing". Seconds rather than milliseconds because specta
+	 *  renders an `f64` as `number | null` — JSON cannot promise it a NaN — and a time that has to
+	 *  be null-checked at every use is a worse trade than a second of precision nobody reads. Ties
+	 *  are broken by `id`, which is monotonic.
+	 */
+	at: number,
+	level: Level,
+	origin: Origin,
+	/**  One line, and the thing repeats are matched on. */
+	message: string,
+	/**  The rest of it — a stack, an error chain, a panic's location. Often the whole answer. */
+	detail: string | null,
+	/**  How many times this happened. `1` for a problem that happened once. */
+	count: number,
+};
 
 /**  One `key=value` pair. */
 export type Property = {

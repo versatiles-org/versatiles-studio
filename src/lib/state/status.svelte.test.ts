@@ -1,5 +1,17 @@
-import { describe, expect, it } from 'vitest';
-import { status } from './status.svelte';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// The bar keeps a failure for as long as the next one takes to arrive; the log keeps it for the
+// session, which is what a person writing an issue an hour later has to work from (S6.8).
+const ipc = vi.hoisted(() => ({
+	logDiagnostic: vi.fn(async () => 1),
+	diagnostics: vi.fn(async () => []),
+	clearDiagnostics: vi.fn(async () => null)
+}));
+vi.mock('../ipc/commands', () => ipc);
+
+const { status } = await import('./status.svelte');
+
+beforeEach(() => vi.clearAllMocks());
 
 describe('what the bar says', () => {
 	it('reports a plain message as itself', () => {
@@ -30,6 +42,22 @@ describe('what the bar says', () => {
 		status.fail('it broke');
 		status.settle();
 		expect(status.current).toEqual({ kind: 'error', message: 'it broke' });
+	});
+
+	it('records every failure it shows, with the detail the bar has no room for', async () => {
+		status.fail(new Error('opening berlin.mbtiles'));
+
+		// Awaited, because reporting is queued: a bar that waited on the core before it could show a
+		// failure would put an IPC round trip in front of every error message.
+		await vi.waitFor(() => expect(ipc.logDiagnostic).toHaveBeenCalledTimes(1));
+		const [reported] = ipc.logDiagnostic.mock.calls[0] as unknown as [
+			{ level: string; origin: string; message: string; detail: string | null }
+		];
+		expect(reported.level).toBe('error');
+		expect(reported.origin).toBe('webview');
+		expect(reported.message).toBe('opening berlin.mbtiles');
+		// The stack is the half a status bar cannot show and a bug report cannot do without.
+		expect(reported.detail).toContain('opening berlin.mbtiles');
 	});
 
 	it('carries a fraction when there is one to show', () => {

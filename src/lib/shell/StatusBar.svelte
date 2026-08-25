@@ -14,7 +14,9 @@
 
 <script lang="ts">
 	import { jobs, cancelJob } from '../state/jobs.svelte';
+	import { problems } from '../state/diagnostics.svelte';
 	import JobsPanel from './JobsPanel.svelte';
+	import DiagnosticsPanel from './DiagnosticsPanel.svelte';
 	import { duration } from '../common/format';
 	import { tiles } from '../state/tiles.svelte';
 
@@ -40,7 +42,15 @@
 		return parts.length > 0 ? parts.join(' · ') : undefined;
 	}
 
-	let open = $state(false);
+	/// Which panel is expanded, if any.
+	///
+	/// **One at a time.** Both expand upward from the same strip, and two of them open would push the
+	/// map into a letterbox — and they answer different questions anyway: what ran, and what broke.
+	let open = $state<'jobs' | 'problems' | null>(null);
+
+	function toggle(which: 'jobs' | 'problems') {
+		open = open === which ? null : which;
+	}
 
 	/// The running job the bar reports on, if any. See `jobs.current` for why it is the newest.
 	const job = $derived(jobs.current);
@@ -74,8 +84,10 @@
 	const waiting = $derived(jobs.active.length);
 </script>
 
-{#if open}
+{#if open === 'jobs'}
 	<JobsPanel list={jobs.all} />
+{:else if open === 'problems'}
+	<DiagnosticsPanel />
 {/if}
 
 <!-- Always present, even when idle. A bar that appears and disappears moves everything else with
@@ -110,9 +122,23 @@
 		<button type="button" class="button action" onclick={onDismiss}>Dismiss</button>
 	{/if}
 
+	<!-- The way into what has gone wrong, and how a user gets a report to paste into an issue
+	     (S6.8). Beside Jobs because they are the same question at two scales: what ran, and what
+	     broke. Shown only once something has, so a clean session carries no invitation to worry. -->
+	{#if problems.count > 0}
+		<button
+			type="button"
+			class="action jobs problems"
+			aria-expanded={open === 'problems'}
+			onclick={() => toggle('problems')}
+		>
+			Problems ({problems.count})
+		</button>
+	{/if}
+
 	<!-- The way into the history, and the only thing here that is always visible. Its count is
 	     what is still running, which is the number worth knowing at a glance. -->
-	<button type="button" class="action jobs" aria-expanded={open} onclick={() => (open = !open)}>
+	<button type="button" class="action jobs" aria-expanded={open === 'jobs'} onclick={() => toggle('jobs')}>
 		Jobs{waiting > 0 ? ` (${waiting})` : ''}
 	</button>
 </div>
@@ -186,6 +212,12 @@
 		&[aria-expanded='true'] {
 			color: var(--ink);
 		}
+	}
+
+	/* Coloured, unlike Jobs: it is only there when something is wrong, so it is saying that rather
+	   than offering a place to look. */
+	.problems {
+		color: var(--error);
 	}
 
 	@keyframes sweep {
