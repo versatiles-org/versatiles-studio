@@ -5,7 +5,7 @@
  * sizes, four radii and three different reds for the same error state before anyone counted. These
  * tests fail on the pull request instead, with the file and the value named.
  *
- * They are deliberately narrow — colour, type, radius and the font stacks. Everything else stays a
+ * They are deliberately narrow - colour, type, radius and the font stacks. Everything else stays a
  * judgement call, because a rule nobody can justify is a rule people route around. See
  * docs/styling.md.
  */
@@ -62,7 +62,7 @@ describe('design tokens', () => {
 
 	/**
 	 * The `font` shorthand hid nine raw sizes from the check above, because it is neither
-	 * `font-size:` nor `font-family:`. `font: inherit` is fine — it carries no value of its own.
+	 * `font-size:` nor `font-family:`. `font: inherit` is fine - it carries no value of its own.
 	 */
 	it('are not bypassed by the font shorthand', () => {
 		const offenders = styled.flatMap((path) => {
@@ -89,7 +89,7 @@ describe('design tokens', () => {
 				const hits = withoutComments(styleBlocks(path)).match(/font-size:\s*var\(--text-md\)/g) ?? [];
 				return hits.map((hit) => `${path}: ${hit.trim()}`);
 			});
-		expect(offenders, 'delete it — --text-md is what body already gives you').toEqual([]);
+		expect(offenders, 'delete it - --text-md is what body already gives you').toEqual([]);
 	});
 
 	it('are the only place a corner radius is written', () => {
@@ -109,7 +109,7 @@ describe('design tokens', () => {
 	});
 
 	/**
-	 * A fallback is only reachable when the token is missing, which cannot happen — tokens.css is
+	 * A fallback is only reachable when the token is missing, which cannot happen - tokens.css is
 	 * imported before the application mounts. They are dead code that drifts: this codebase carried
 	 * `var(--ink-2, #667)` in one file and `var(--ink-2, #66716f)` in another.
 	 */
@@ -125,14 +125,14 @@ describe('design tokens', () => {
 	 * The root element must not carry a font size.
 	 *
 	 * A `rem` on `html` resolves against the browser's initial 16px, and every other `rem` in the
-	 * document then resolves against the result — so `html { font-size: 0.875rem }` silently
+	 * document then resolves against the result - so `html { font-size: 0.875rem }` silently
 	 * rescales every token by 0.875, which is how 13px text ended up rendering at 11.4px.
 	 */
 	it('leave the root font size alone', () => {
 		const base = readFileSync(join(SRC, 'lib/styles/base.css'), 'utf8');
 		const root = withoutComments(base).match(/(^|\})[^{}]*\bhtml\b[^{}]*\{[^{}]*\}/g) ?? [];
 		const offenders = root.filter((rule) => /font-size\s*:/.test(rule));
-		expect(offenders, 'set the base size on body — a rem on html rescales every other rem').toEqual([]);
+		expect(offenders, 'set the base size on body - a rem on html rescales every other rem').toEqual([]);
 	});
 
 	/** Focus is one decision, made once in base.css. Components may only adjust the offset. */
@@ -150,7 +150,7 @@ describe('design tokens', () => {
 	 * Every colour must exist in both themes.
 	 *
 	 * The failure this catches is quiet and easy to ship: add a colour to `:root`, forget the dark
-	 * block, and it keeps its light value on a dark ground — often still readable enough in a
+	 * block, and it keeps its light value on a dark ground - often still readable enough in a
 	 * screenshot to pass review, and wrong. Non-colour tokens are deliberately exempt; a spacing
 	 * step does not change with the theme.
 	 */
@@ -176,7 +176,7 @@ describe('design tokens', () => {
 		const offenders = sources()
 			// **Tests are exempt, and only tests.** The rule is about colours the application paints:
 			// one written into a component reaches MapLibre and cannot follow a theme. A colour in a
-			// fixture reaches a pure function and is never drawn — `layer-tree.test.ts` needs a style
+			// fixture reaches a pure function and is never drawn - `layer-tree.test.ts` needs a style
 			// with `fill-color` in it to have anything to read. Mangling fixtures to satisfy a guard
 			// is how a guard stops being believed.
 			.filter((path) => /\.(ts|svelte)$/.test(path) && !path.startsWith('lib/styles/') && !path.endsWith('.test.ts'))
@@ -194,7 +194,7 @@ describe('design tokens', () => {
 	/// stops that coming back: a component re-declaring the box is either duplicating `.button` or
 	/// fighting it, and both end with two definitions of what a button looks like.
 	///
-	/// A control that is *not* a button — a card, a chip, a popover — draws its own box freely, so
+	/// A control that is *not* a button - a card, a chip, a popover - draws its own box freely, so
 	/// this looks only at rules whose selector names `button`. It also looks only for `.button`'s own
 	/// face, `--chrome`: the map's controls float above the map on `--float-bg` with a shadow, which
 	/// is a different surface rather than a second copy of this one.
@@ -215,7 +215,7 @@ describe('design tokens', () => {
 	/// Rule 6: a rule that extends another is nested inside it.
 	///
 	/// Flat, everything about one element is spread over rules that can drift apart or be edited in
-	/// isolation. This catches the flat form returning — a top-level selector that another top-level
+	/// isolation. This catches the flat form returning - a top-level selector that another top-level
 	/// selector is a prefix of, which is exactly what `&` exists for.
 	///
 	/// Top level only: a nested rule's `&` prefix means the parser below never sees the compound
@@ -223,7 +223,7 @@ describe('design tokens', () => {
 	///
 	/// **Components only.** Svelte flattens nesting at build time, so a component's shipped CSS is
 	/// `.chip.svelte-hash.on` and there is no browser-support question. `base.css` ships as written,
-	/// where nesting would be a runtime dependency rather than a source convention — so it stays
+	/// where nesting would be a runtime dependency rather than a source convention - so it stays
 	/// flat, deliberately.
 	it('nest a rule that extends another', () => {
 		const flat: string[] = [];
@@ -240,14 +240,14 @@ describe('design tokens', () => {
 				}
 			}
 		}
-		expect([...new Set(flat)], 'nest it with `&` instead — see docs/styling.md rule 6').toEqual([]);
+		expect([...new Set(flat)], 'nest it with `&` instead - see docs/styling.md rule 6').toEqual([]);
 	});
 
 	/// Every `MapToken` is a token that exists.
 	///
 	/// `token()` is the one reader the compiler cannot help: the union in `tokens.ts` names what a
 	/// map layer may ask for, and nothing checked that `tokens.css` answers. `--map-label` was in
-	/// the union, read by two layers, and defined nowhere — so the pending overlay's `queued` and
+	/// the union, read by two layers, and defined nowhere - so the pending overlay's `queued` and
 	/// `rendering` labels drew in the magenta fallback for as long as they have existed, saying so
 	/// only in a console nobody had open.
 	it('define every colour a map layer can ask for', () => {
@@ -262,12 +262,12 @@ describe('design tokens', () => {
 
 	/// Rule 6, the other half: `&` means *this same element*.
 	///
-	/// A descendant is a different element, so it is written bare — `.message`, not `& .message`.
+	/// A descendant is a different element, so it is written bare - `.message`, not `& .message`.
 	/// With the redundant `&` gone, the character itself says which of the two a rule is, so this
 	/// catches the form that would blur the distinction again.
 	///
 	/// A combinator keeps its `&` (`& + li`), because it is not a descendant and `+ li` reads as a
-	/// typo — so only a space followed by a plain selector is an offence.
+	/// typo - so only a space followed by a plain selector is an offence.
 	it('drop `&` for a descendant', () => {
 		const offenders: string[] = [];
 		for (const path of styled.filter((p) => p.endsWith('.svelte'))) {
@@ -275,6 +275,6 @@ describe('design tokens', () => {
 				if (!/^& [>+~]/.test(sel)) offenders.push(`${path}: \`${sel.trim()}\``);
 			}
 		}
-		expect(offenders, 'write it bare — see docs/styling.md rule 6').toEqual([]);
+		expect(offenders, 'write it bare - see docs/styling.md rule 6').toEqual([]);
 	});
 });

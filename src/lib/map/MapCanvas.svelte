@@ -23,7 +23,7 @@
 		onStyleLoad
 	}: {
 		style: StyleSpecification;
-		/** The single `Map` instance for this window (Q16) — bound out so modes can reach it. */
+		/** The single `Map` instance for this window (Q16) - bound out so modes can reach it. */
 		map?: maplibre.Map;
 		/** Where the camera was when this window was last open; `null` on a first run, which leaves
 		 *  the map free to fit whatever is opened rather than starting at null island. */
@@ -39,7 +39,7 @@
 	let applied: StyleSpecification | undefined;
 
 	/**
-	 * Hands a style to the map when the map is ready for one — see `restyle.ts`.
+	 * Hands a style to the map when the map is ready for one - see `restyle.ts`.
 	 *
 	 * Built with the map, because it listens for `style.load` and has to hear the first one.
 	 */
@@ -56,7 +56,7 @@
 
 	let container: HTMLDivElement;
 
-	// The layout lost the race with the map. Jump rather than rebuild — one frame at the default
+	// The layout lost the race with the map. Jump rather than rebuild - one frame at the default
 	// view is cheaper than discarding a live map and every layer drawn on it.
 	$effect(() => {
 		const view = initialView;
@@ -71,12 +71,12 @@
 		});
 	});
 
-	// Swapping the background replaces the whole style, which is MapLibre's only way to do it —
+	// Swapping the background replaces the whole style, which is MapLibre's only way to do it -
 	// and takes every layer added to the previous one with it. `onStyleLoad` is how the caller
 	// hears that it needs to put its own layers back.
 	//
 	// **Applied rather than set**, because a style set while the current one is still loading cannot
-	// be diffed — MapLibre says so once, then rebuilds from scratch, refetching every source at the
+	// be diffed - MapLibre says so once, then rebuilds from scratch, refetching every source at the
 	// one moment a map has the most to fetch. On every launch, as it turned out. See `restyle.ts`.
 	$effect(() => {
 		const next = style;
@@ -86,12 +86,12 @@
 	});
 
 	// Paint values are copied into a layer when it is added, so the map does not follow the system
-	// theme the way the CSS does — it has to be told. Reading `theme.dark` is what subscribes this
+	// theme the way the CSS does - it has to be told. Reading `theme.dark` is what subscribes this
 	// effect; the value itself is not needed, since the tokens are re-read from the document.
 	//
 	// `untrack` around the map: reading it as a dependency would re-run the effect that creates it.
 	$effect(() => {
-		// Read for the dependency, not the value — `void` says so, and satisfies the lint rule that
+		// Read for the dependency, not the value - `void` says so, and satisfies the lint rule that
 		// would otherwise see a statement with no effect.
 		void theme.dark;
 		const instance = untrack(() => map);
@@ -100,7 +100,7 @@
 	});
 
 	// The effect must depend on `container` alone. Reading `map` here would make the effect
-	// re-run on its own write to it — `effect_update_depth_exceeded`, which is exactly what
+	// re-run on its own write to it - `effect_update_depth_exceeded`, which is exactly what
 	// happened the first time this was written.
 	$effect(() => {
 		if (!container) return;
@@ -144,7 +144,7 @@
 		instance.on('moveend', report);
 
 		// **MapLibre reports rather than throws.** A source it cannot load, a tile it cannot decode
-		// and a style it will not accept all arrive here as an event — nothing is thrown, so no
+		// and a style it will not accept all arrive here as an event - nothing is thrown, so no
 		// `catch` in this application can ever see one, and until this listener existed they went to
 		// a console that a bundled build does not expose (S6.8). It is the class of failure that
 		// leaves a blank map and no explanation.
@@ -163,7 +163,7 @@
 		});
 
 		return () => {
-			// Destroyed, not hidden — WebGL evicts the oldest context silently, so a Map that is not
+			// Destroyed, not hidden - WebGL evicts the oldest context silently, so a Map that is not
 			// on screen must not hold one (Q16).
 			instance.remove();
 			apply = undefined;
@@ -176,7 +176,7 @@
 
 <style>
 	/*
-	 * MapLibre's own controls, which ship light-only — on a dark map the attribution is a bright
+	 * MapLibre's own controls, which ship light-only - on a dark map the attribution is a bright
 	 * white pill in the corner. Scoped `:global` because these elements are MapLibre's, not ours.
 	 * The colours are tokens, so this follows the theme like everything else.
 	 */

@@ -44,7 +44,7 @@ describe('choosing how a source is drawn', () => {
 	it('restyles the map rather than breaking it', async () => {
 		await expect($('.maplibregl-canvas')).toBeExisting();
 		// MapLibre refuses a style it cannot parse and says so on the console, and every console
-		// error reaches this log — so a restyle that was quietly rejected fails here rather than
+		// error reaches this log - so a restyle that was quietly rejected fails here rather than
 		// turning up as a blank map later.
 		const problems = await invoke<{ message: string }[]>('diagnostics');
 		expect(problems.map((problem) => problem.message)).toEqual([]);

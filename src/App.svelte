@@ -84,7 +84,7 @@
 	} from './lib/ipc/commands';
 
 	/// Every way in this build has (S3.2). Build-time information about the binary, so it is fetched
-	/// once — and it is fetched rather than written here, because the dialog, the drop target and
+	/// once - and it is fetched rather than written here, because the dialog, the drop target and
 	/// the cards had each carried their own copy of the same list and had already fallen out of
 	/// step: none of them knew about `from_geo`, which the binary has had all along.
 	let kinds = $state<ImportKind[]>([]);
@@ -107,13 +107,13 @@
 
 	// **What the style pane edits** (S6.4).
 	//
-	// The pane holds one graph at a time, and until this existed nothing ever told it which — so
+	// The pane holds one graph at a time, and until this existed nothing ever told it which - so
 	// every control in it read the unstyled default and wrote nowhere. It looked right, because the
 	// default is what an untouched source shows, and it stayed wrong until an end-to-end test pressed
 	// a preset and asked the core what it had recorded ([the plan](docs/scope-e2e.md)).
 	//
 	// Name as well as id, because the recipe files a source's style under its name and a rename has
-	// to move the pane with it — `focus` ignores a repeat of what it already holds.
+	// to move the pane with it - `focus` ignores a repeat of what it already holds.
 	$effect(() => {
 		const id = currentGraph;
 		const name = id === null ? null : graphs.nameOf(id);
@@ -149,13 +149,13 @@
 	/// What each node's fields could be set to, by the node's path (S3.4).
 	///
 	/// **Per node, because every node is a form.** This used to be one node's answer, fetched for
-	/// whichever was selected — which was right while only the selected node had fields to fill in,
+	/// whichever was selected - which was right while only the selected node had fields to fill in,
 	/// and became "one file's columns offered for another file's node" the moment they all did.
 	///
 	/// Refetched whenever the document changes: the answer depends on each node's `filename`.
 	let suggestions = $state<Record<string, Record<string, string[]>>>({});
 	$effect(() => {
-		// Depend on the text too — editing `filename` changes which file is being asked about.
+		// Depend on the text too - editing `filename` changes which file is being asked about.
 		void document.current?.text;
 		const graph = document.current?.graph;
 		if (graph === undefined) {
@@ -183,19 +183,19 @@
 
 	/// Which surface is open (Q22, S4.1). Core-owned, so a reloaded window comes back to it.
 	///
-	/// A value this build does not know falls back to the map — the same rule `background` follows,
+	/// A value this build does not know falls back to the map - the same rule `background` follows,
 	/// and for the same reason: an old layout file must not be able to open a blank window.
 	/// Whether the fonts dialog is up. Local, not durable: a window is never restored onto a dialog
 	/// ([Q39]).
 	let assets = $state(false);
 
-	/// Whether the update dialog is up. Opening it is what asks — see `UpdateDialog`.
+	/// Whether the update dialog is up. Opening it is what asks - see `UpdateDialog`.
 	let updating = $state(false);
-	// The landing screen is what an *empty* window shows — it goes away for good once something is
+	// The landing screen is what an *empty* window shows - it goes away for good once something is
 	// open, and never gates anything (Q13).
 	//
 	// **A graph is what "something is open" means** ([Q32]). This asked `containers.length === 0`
-	// until now, which was right at S1.1 when a container was the only thing you could open — and
+	// until now, which was right at S1.1 when a container was the only thing you could open - and
 	// silently wrong afterwards. A CSV or GeoJSON import produces a `from_csv` / `from_geo` node and
 	// no container at all, and a reloaded window has its graphs back from the core before it has
 	// opened anything, so both left the landing screen covering a loaded project with both panes
@@ -204,7 +204,7 @@
 
 	// **First, and its own effect**, because everything below it can fail: an error thrown while the
 	// application is still starting is the one a user can least describe, and it is worth catching
-	// even if half the window never appears (S6.8). The teardown matters — a reload that left the
+	// even if half the window never appears (S6.8). The teardown matters - a reload that left the
 	// previous handlers attached would report every problem twice.
 	$effect(() => {
 		const stop = watchForProblems();
@@ -215,13 +215,13 @@
 	});
 
 	$effect(() => {
-		// Before anything else asks for work: a job started by the previous window — a conversion
-		// still running across a reload — has to appear in the bar, not only the ones this session
+		// Before anything else asks for work: a job started by the previous window - a conversion
+		// still running across a reload - has to appear in the bar, not only the ones this session
 		// starts.
 		void connectJobs();
 		void layout.load();
 		void vplOperations().then((loaded) => (operations = loaded));
-		// The style survives a reload the way the graphs do — the core owns it ([Q36]).
+		// The style survives a reload the way the graphs do - the core owns it ([Q36]).
 		void styleRecipe.load();
 		// Once, and before any source is added: a tile URL handed to MapLibre before its scheme is
 		// registered is a tile MapLibre does not know how to fetch (S2.16).
@@ -230,7 +230,7 @@
 		void graphs.refresh().then(async () => {
 			if (graphs.first) document.show(await getGraph(graphs.first.id));
 			// The graph came back from the core; the containers it reads did not. Every other path
-			// that sets a pipeline syncs them — `applyDocument` and `load` — and this one was
+			// that sets a pipeline syncs them - `applyDocument` and `load` - and this one was
 			// missing it, so after a reload the inspector had nothing to show about a container the
 			// pipeline was plainly using (A6, A4).
 			await syncContainersToPipeline();
@@ -244,7 +244,7 @@
 	//
 	// A focused `<input>` or `<select>` keeps its own undo: the user is mid-edit in a parameter
 	// field and has not committed anything yet, so the document has nothing to step back to. The VPL
-	// textarea is deliberately *not* excluded — its text is the document, and letting the browser
+	// textarea is deliberately *not* excluded - its text is the document, and letting the browser
 	// undo it locally would leave the two disagreeing until the next keystroke.
 	$effect(() => {
 		const onKey = (event: KeyboardEvent) => {
@@ -267,13 +267,13 @@
 		return () => window.removeEventListener('keydown', onKey);
 	});
 
-	// The window title says which container this window holds — the native equivalent of the in-app
+	// The window title says which container this window holds - the native equivalent of the in-app
 	// strip that used to repeat the application name back at the OS title bar. One window per
 	// project (Q16), so the window is the right place to name it.
 	$effect(() => {
 		const newest = preview.containers.at(-1)?.info.source;
 		const name = newest ? (newest.split(/[/\\]/).pop() ?? newest) : null;
-		void getCurrentWindow().setTitle(name ? `${name} — VersaTiles Studio` : 'VersaTiles Studio');
+		void getCurrentWindow().setTitle(name ? `${name} - VersaTiles Studio` : 'VersaTiles Studio');
 	});
 
 	// Applied locally first so a collapse paints without waiting on the round trip, then persisted.
@@ -284,7 +284,7 @@
 	/// site stay unaware that there is more than one ([Q32]).
 	///
 	/// **The name it creates with is a placeholder.** `add` sanitises and makes it unique, so
-	/// opening three files in a row yields `graph`, `graph-2`, `graph-3` — and under [Q32] that
+	/// opening three files in a row yields `graph`, `graph-2`, `graph-3` - and under [Q32] that
 	/// name is the server mount, the `style.json` source and the `.vpl` filename at once, so it is
 	/// the wrong name in three places rather than one. The callers know what they opened; this
 	/// signature does not carry it yet.
@@ -304,7 +304,7 @@
 		document.show(found);
 	}
 
-	/// Renames a graph. Refused by the core when the name is taken, and the reason is worth seeing —
+	/// Renames a graph. Refused by the core when the name is taken, and the reason is worth seeing -
 	/// the name is the mount, the style's source name and the `.vpl` filename at once.
 	async function rename(id: number, name: string) {
 		try {
@@ -341,8 +341,8 @@
 		}
 	}
 
-	/// Crops to what the map is showing, keeping the zoom range alone — the two are separate
-	/// decisions, and someone who set 4–12 did not mean to lose it by framing a city.
+	/// Crops to what the map is showing, keeping the zoom range alone - the two are separate
+	/// decisions, and someone who set 4-12 did not mean to lose it by framing a city.
 	function cropToView() {
 		if (!map) return;
 		const bounds = map.getBounds();
@@ -357,8 +357,8 @@
 	///
 	/// **Not undoable**, which the list says before doing it: the history restores text *into* a
 	/// graph ([Q32]), so one that is gone has nothing to restore into and the core reports the step
-	/// as a no-op. Everything else about the removal is the core's — it unmounts the graph so the
-	/// style stops resolving a source that no longer exists, and clears the pin if it pointed here —
+	/// as a no-op. Everything else about the removal is the core's - it unmounts the graph so the
+	/// style stops resolving a source that no longer exists, and clears the pin if it pointed here -
 	/// so what is left for the webview is deciding what to look at next.
 	async function removeGraphById(id: number) {
 		try {
@@ -370,7 +370,7 @@
 				await refreshPreview();
 			} else {
 				// `refresh` returns early with no graph, so the layer it drew would outlive the graph
-				// it came from — a map still showing tiles from a document that is gone.
+				// it came from - a map still showing tiles from a document that is gone.
 				preview.clear(map);
 			}
 		} catch (e) {
@@ -380,7 +380,7 @@
 
 	/// Moves the map to a node, or clears the pin when it is already there.
 	///
-	/// Clicking the pinned node again is what gets you back to seeing every graph — the same
+	/// Clicking the pinned node again is what gets you back to seeing every graph - the same
 	/// gesture off as on, because a separate "clear" would be a control that only exists sometimes.
 	async function pin(path: number[]) {
 		if (currentGraph === null) return;
@@ -388,7 +388,7 @@
 		await refreshPreview();
 	}
 
-	/// Opens a project directory, replacing what is open — a window is one project ([Q16]).
+	/// Opens a project directory, replacing what is open - a window is one project ([Q16]).
 	async function openProjectDir() {
 		await adopt(() => project.open());
 	}
@@ -396,7 +396,7 @@
 	/// What a window does once a project directory has been read, however it was chosen.
 	///
 	/// Shared by the menu, which asks for the directory, and by a path handed to this window by the
-	/// launcher — the two have to end in the same state, and the second used to end in an error.
+	/// launcher - the two have to end in the same state, and the second used to end in an error.
 	async function adopt(read: () => Promise<Recipe | null>) {
 		try {
 			const recipe = await read();
@@ -405,7 +405,7 @@
 			await graphs.refresh();
 			if (graphs.first) document.show(await getGraph(graphs.first.id));
 			await syncContainersToPipeline();
-			// Every graph, not just the one that opens — a style names them all (S6.5), and this is
+			// Every graph, not just the one that opens - a style names them all (S6.5), and this is
 			// the moment a person is already waiting.
 			await graphs.mountAll();
 			await refreshPreview();
@@ -418,7 +418,7 @@
 	/// The panes belonging to one sidebar, in the order the layout remembers (Q31).
 	///
 	/// `panes` is optional in the generated type only because `Layout` carries serde's `default` for
-	/// the file it is read from — a command always returns the reconciled list.
+	/// the file it is read from - a command always returns the reconciled list.
 
 	/// Returns the bar to quiet, without swallowing anything it still has to say.
 	///
@@ -436,14 +436,14 @@
 	/// The style to draw, and which route produced it (S4.3, S6.2).
 	///
 	/// **Null is still a real answer, but a much rarer one now.** It used to mean "the preset matched
-	/// no layer in these tiles", which is the usual case for anything the pipeline builds — and the
+	/// no layer in these tiles", which is the usual case for anything the pipeline builds - and the
 	/// map answered with a bare background. `styleFor` derives from the probed layers instead, so
 	/// null is left meaning what it should: there is nothing here a style can be made of, which is
 	/// raster until S6.3 and S6.6.
 	/// The background map, built when it is chosen and held so the stack can read it synchronously.
 	///
-	/// **Built here rather than inside the stack** because `buildBackground` is async — `satellite`
-	/// resolves a raster source over the network — and a `$derived` cannot await.
+	/// **Built here rather than inside the stack** because `buildBackground` is async - `satellite`
+	/// resolves a raster source over the network - and a `$derived` cannot await.
 	let backgroundStyle = $state<StyleSpecification | null>(null);
 
 	$effect(() => {
@@ -479,7 +479,7 @@
 	// **One owner for the map's style**, and it composes rather than chooses.
 	//
 	// It used to choose: a styled recipe won, and the background was what an *unstyled* pipeline sat
-	// on. That rule was written when `styled` was null for anything that was not Shortbread — which
+	// on. That rule was written when `styled` was null for anything that was not Shortbread - which
 	// S6.2 ended by deriving a style for those instead, leaving the background unreachable however it
 	// was set. It is now the bottom entry of the stack (S6.5), which is where a basemap belonged all
 	// along.
@@ -503,7 +503,7 @@
 	///
 	/// **The menu says which, and this says what.** Every one of these already existed as a button
 	/// or a shortcut; the switch is the whole of the wiring, and the actions stay where the state
-	/// they touch is. `new-window` is absent because the shell answers that one itself — no window
+	/// they touch is. `new-window` is absent because the shell answers that one itself - no window
 	/// is involved in opening a window.
 	$effect(() => {
 		const unlisten = listen<string>(MENU_EVENT, ({ payload }) => {
@@ -545,7 +545,7 @@
 
 	/// Keeps the menu's Save items in step with whether there is anything to save.
 	///
-	/// A native menu cannot read a `$derived`, so the moment the answer changes has to be *said* —
+	/// A native menu cannot read a `$derived`, so the moment the answer changes has to be *said* -
 	/// but not the answer itself, which the core already holds (S7.8). Failing is left to the problem
 	/// log rather than the status bar: a menu item that stays enabled is a message someone gets when
 	/// they use it, not something to interrupt them with now.
@@ -555,7 +555,7 @@
 	});
 
 	// A file double-clicked in Finder or passed on the command line. It can arrive before this
-	// window exists, so the queue is drained on start as well as on the event — the event alone
+	// window exists, so the queue is drained on start as well as on the event - the event alone
 	// would miss the launch case entirely.
 	$effect(() => {
 		void drainOpened();
@@ -587,7 +587,7 @@
 	/// Opens the file dialog, narrowed to one import kind when a card chose it.
 	///
 	/// The filters live in `common/import.ts` because the launcher offers the same ones from a page
-	/// that cannot reach this function — two copies of "what Studio can open" is the shape of bug
+	/// that cannot reach this function - two copies of "what Studio can open" is the shape of bug
 	/// where a launcher offers a format the workbench then refuses (S7.5).
 	async function pick(kind?: ImportKind) {
 		const picked = await askForSource(kinds, kind);
@@ -596,7 +596,7 @@
 
 	/// Builds the preview and says in the bar what came of it.
 	///
-	/// The rule itself is `preview.refresh` — this is the half that is about *this window*: the map
+	/// The rule itself is `preview.refresh` - this is the half that is about *this window*: the map
 	/// it is bound to, and the one status bar the outcome has to be reported in.
 	async function refreshPreview() {
 		try {
@@ -640,7 +640,7 @@
 		});
 	}
 
-	// The map is created by an effect, so it can appear after a pipeline has already been loaded —
+	// The map is created by an effect, so it can appear after a pipeline has already been loaded -
 	// on a reload, the document comes back from the core before there is anything to draw it on.
 	// `untrack` keeps this listening for the map alone; every other trigger calls in explicitly.
 	$effect(() => {
@@ -650,7 +650,7 @@
 		});
 	});
 
-	/// Applies a document the core has handed back — after an edit, an undo, or a reload.
+	/// Applies a document the core has handed back - after an edit, an undo, or a reload.
 	///
 	/// Every path that changes the pipeline ends here, so the map, the editor and the selection can
 	/// never be following different versions of it.
@@ -659,7 +659,7 @@
 		// graph other than the one on screen ([Q32]). The selection goes with it, exactly as it does
 		// when a graph is chosen from the list.
 		document.show(next);
-		// The list shows the name, the pin and the unsaved dot — the last of which changes on every
+		// The list shows the name, the pin and the unsaved dot - the last of which changes on every
 		// edit, so refreshing here rather than only when a graph is added or removed.
 		await graphs.refresh();
 		await syncContainersToPipeline();
@@ -669,13 +669,13 @@
 	/// Lays the current graph's VPL out again (S1.11).
 	///
 	/// `applyDocument` because the text changes from outside the editor, which is what bumps the
-	/// revision the editor reloads on — without it the textarea would keep the old layout while the
+	/// revision the editor reloads on - without it the textarea would keep the old layout while the
 	/// document had the new one.
 	const formatPipeline = () => edit((doc) => formatGraph(doc.graph));
 
 	/// Adds a transform after the node whose name occupies `span`.
 	///
-	/// It used to select what it added, so the new node's form was showing — every node shows one
+	/// It used to select what it added, so the new node's form was showing - every node shows one
 	/// now, so the insertion is the whole of the work.
 	const addOperation = (afterNameSpan: Span, operation: string) =>
 		edit(async (doc) => setPipelineText(await vplInsertNode(doc.text, afterNameSpan, operation), 'structured'));
@@ -690,7 +690,7 @@
 
 	/// Writes the pipeline as a `.vpl`. Asks where when there is no file yet, or when asked to.
 	///
-	/// Saving a *project* is a different command with a different scope (G1, S5.1) — this is the
+	/// Saving a *project* is a different command with a different scope (G1, S5.1) - this is the
 	/// pipeline as the file the CLI already reads.
 	async function savePipeline(chooseFile: boolean) {
 		if (!document.current) return;
@@ -699,7 +699,7 @@
 			if (!target) {
 				target = await save({
 					title: 'Save pipeline',
-					// The graph's name supplies the filename ([Q35]) — the direction the binding runs.
+					// The graph's name supplies the filename ([Q35]) - the direction the binding runs.
 					// `pipeline.vpl` was a leftover from when a window held exactly one document, and
 					// it offered the same name for every graph in a project that now holds several.
 					defaultPath: document.current.path ?? `${document.current.name}.${pipelineExtensions[0]}`,
@@ -752,12 +752,12 @@
 
 			if (kind.operation === null) {
 				// The whole document arrives at once, and the containers it names are opened by
-				// `applyDocument`'s sync — including relative ones, now resolved against the file.
+				// `applyDocument`'s sync - including relative ones, now resolved against the file.
 				//
 				// Through the funnel rather than assigning `pipeline` here: `open_vpl` creates the
 				// graph in the core, and a webview that only took the document back was left with a
 				// graph list that did not know about it. Everything downstream of "there is now a
-				// graph" then behaved as though there were none — including the landing screen,
+				// graph" then behaved as though there were none - including the landing screen,
 				// which stayed up over the pipeline it had just opened.
 				await applyDocument(await openVpl(source));
 			} else if (kind.id === 'container') {
@@ -768,7 +768,7 @@
 				document.show(opened);
 				// Whether the node is complete is the *document's* answer, not the kind's. A CSV
 				// whose header named its coordinate columns arrives with them already set (S3.4),
-				// so asking the kind — which needs them for every CSV — would tell someone to fill
+				// so asking the kind - which needs them for every CSV - would tell someone to fill
 				// in fields that are filled in, and skip the preview that would have shown it
 				// working. The form is showing whatever is still missing, and so is the diagnostic
 				// beside it (C2, C4); this only says so where the eye already is.
@@ -790,7 +790,7 @@
      snippet is always truthy once declared inline, which would leave the shell holding an empty
      column the width of a pane that has nothing in it. -->
 <!-- One snippet for both sidebars, keyed by pane id (Q31). Shared rather than one per side,
-     because which side a pane is on is data — a pane that moves must not need its markup moved
+     because which side a pane is on is data - a pane that moves must not need its markup moved
      with it. An id with no arm here renders nothing, which is how a pane can exist in the core
      before it exists in the webview. -->
 {#snippet paneContent(id: string)}
@@ -829,7 +829,7 @@
 				change: (text) =>
 					void setPipelineText(text, 'typing').then((next) => {
 						// The graph list's unsaved dot reads `graphs`, not `pipeline`, so it only moves when
-						// that list is refetched — and typing deliberately does not go through
+						// that list is refetched - and typing deliberately does not go through
 						// `applyDocument`, which is what refetches it. Without this the Save button lit up
 						// on the first keystroke while the dot beside the graph's name stayed clean.
 						//
@@ -925,7 +925,7 @@
 			{#if empty}
 				<!-- **Quiet, and not a launcher** (S7.9, [Q48]). The launcher is a window now; putting
 				     one inside a window that is already a project is what made a project window two
-				     different things depending on its contents. This is a window between documents —
+				     different things depending on its contents. This is a window between documents -
 				     it says where the way in is and gets out of the way. -->
 				<p class="nothing">
 					Nothing is open. <strong>File → Open…</strong> brings a container, a pipeline or a table into this window.
@@ -987,8 +987,8 @@
 <Help />
 
 <style>
-	/* A window between documents. Over the map rather than replacing it — the map keeps running, so
-	   opening something does not have to build one — and small enough to read as a note rather than
+	/* A window between documents. Over the map rather than replacing it - the map keeps running, so
+	   opening something does not have to build one - and small enough to read as a note rather than
 	   as a screen (S7.9). */
 	.nothing {
 		position: absolute;

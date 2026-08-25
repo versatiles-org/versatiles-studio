@@ -1,12 +1,12 @@
 //! What the operations are, in a shape a form can be built from (S2.6, C2).
 //!
-//! Upstream describes each parameter with a `rust_type` string — `Option<u8>`, `Option<[f64;4]>`,
-//! `Vec<String>` — which is exactly right for a code generator and no use to a webview. Reading it
+//! Upstream describes each parameter with a `rust_type` string - `Option<u8>`, `Option<[f64;4]>`,
+//! `Vec<String>` - which is exactly right for a code generator and no use to a webview. Reading it
 //! is a mapping decision, so it happens once here rather than in TypeScript: the browser receives a
 //! control to render and never sees a Rust type.
 //!
 //! Everything else comes straight from the metadata, including each field's documentation, so a new
-//! operation upstream appears in Studio's forms with no work here at all — which is the point of
+//! operation upstream appears in Studio's forms with no work here at all - which is the point of
 //! generating them ([architecture](../../../docs/architecture.md)).
 
 use serde::Serialize;
@@ -44,7 +44,7 @@ pub enum Control {
 	Choice {
 		options: Vec<String>,
 	},
-	/// `Vec<String>` — a list of values, written as a VPL array.
+	/// `Vec<String>` - a list of values, written as a VPL array.
 	List,
 	/// A fixed-size numeric array: a bbox is four, a colour or a centre three.
 	Numbers {
@@ -56,7 +56,7 @@ pub enum Control {
 /// Reads a `rust_type` into the control that fits it.
 ///
 /// Unknown types fall back to text rather than failing. A parameter upstream adds in a shape we do
-/// not recognise should still be editable — as the string it is written as, which is what VPL
+/// not recognise should still be editable - as the string it is written as, which is what VPL
 /// stores anyway.
 fn control_for(rust_type: &str, enum_variants: &[&'static str]) -> Control {
 	if !enum_variants.is_empty() {
@@ -140,7 +140,7 @@ pub struct FieldInfo {
 	/// should follow whatever the operation does next.
 	///
 	/// `None` is not "required": an optional parameter with no default is one whose absence *does*
-	/// something — `filter`'s `bbox` clips nothing at all when unset — and a form has nothing to
+	/// something - `filter`'s `bbox` clips nothing at all when unset - and a form has nothing to
 	/// say about those.
 	///
 	/// [vt#253]: https://github.com/versatiles-org/versatiles-rs/issues/253
@@ -153,11 +153,11 @@ pub struct FieldInfo {
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct OperationInfo {
 	pub name: String,
-	/// `read` or `transform` — which end of a pipeline it belongs at.
+	/// `read` or `transform` - which end of a pipeline it belongs at.
 	pub kind: String,
 	/// What it does, in a sentence.
 	pub summary: String,
-	/// Everything else upstream has to say, minus the parameter list — that is `fields`, and
+	/// Everything else upstream has to say, minus the parameter list - that is `fields`, and
 	/// sending it twice is what [vt#229] was about. Empty when the summary is the whole of it.
 	///
 	/// [vt#229]: https://github.com/versatiles-org/versatiles-rs/issues/229
@@ -297,7 +297,7 @@ mod tests {
 	}
 }
 
-/// The first paragraph of an operation's documentation — what it does, in a sentence.
+/// The first paragraph of an operation's documentation - what it does, in a sentence.
 ///
 #[cfg(test)]
 mod summary_tests {
@@ -308,7 +308,7 @@ mod summary_tests {
 	///
 	/// Studio used to split this out of `doc` itself, because upstream only offered the full
 	/// rustdoc. [vt#229](https://github.com/versatiles-org/versatiles-rs/issues/229) added
-	/// `summary` and `details`, so the splitter is gone — but the claim it rested on is still a
+	/// `summary` and `details`, so the splitter is gone - but the claim it rested on is still a
 	/// claim, and upstream's field can regress as easily as ours could.
 	#[test]
 	fn every_operation_has_a_short_usable_summary() {
@@ -359,7 +359,7 @@ mod default_tests {
 	}
 
 	/// The distinction the form rests on: an optional parameter with a literal default has something
-	/// to show, and a required one has nothing — the two used to look identical (vt#253).
+	/// to show, and a required one has nothing - the two used to look identical (vt#253).
 	#[test]
 	fn a_default_is_carried_when_there_is_one() {
 		let colour = field("from_color", "color");

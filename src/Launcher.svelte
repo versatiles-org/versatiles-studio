@@ -31,7 +31,7 @@
 	// has a mode.
 	//
 	// **It holds nothing.** Every gesture here ends in `openInNewWindow`, which creates a project
-	// window, hands it the path and closes this one — so there is no state here worth keeping and
+	// window, hands it the path and closes this one - so there is no state here worth keeping and
 	// nothing to lose by closing at the moment something opens.
 	//
 	// [Q48]: ../docs/decisions.md
@@ -39,10 +39,10 @@
 
 	let kinds = $state<ImportKind[]>([]);
 	let recents = $state<RecentEntry[]>([]);
-	/// What the footer says. From the core, which reads it from the binary — the one copy (S0.5).
+	/// What the footer says. From the core, which reads it from the binary - the one copy (S0.5).
 	let version = $state('');
 
-	/// What went wrong, said here rather than in a status bar — this window has none, and a launcher
+	/// What went wrong, said here rather than in a status bar - this window has none, and a launcher
 	/// that silently does nothing when a directory holds no project is a launcher that looks broken.
 	let problem = $state<string | null>(null);
 
@@ -92,7 +92,7 @@
 
 	/// Hands a path to a new project window, and closes this one.
 	///
-	/// The window it opens is what reports anything that goes wrong with the *contents* — this can
+	/// The window it opens is what reports anything that goes wrong with the *contents* - this can
 	/// only report failing to open a window at all, which is why the message here is short.
 	async function open(source: string) {
 		try {
@@ -108,7 +108,7 @@
 		}
 	}
 
-	/// One dialog offering everything this build can read — the catalogue supplies the filters, so a
+	/// One dialog offering everything this build can read - the catalogue supplies the filters, so a
 	/// build without GDAL neither offers a GeoTIFF nor claims to.
 	async function choose() {
 		problem = null;

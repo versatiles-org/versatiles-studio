@@ -1,15 +1,15 @@
 //! Scratch files and directories for this crate's tests.
 //!
 //! Four modules had grown their own near-identical version of this, differing mainly in the prefix
-//! they used to keep out of each other's way — `studio-project-tests`, `studio-store-tests`,
+//! they used to keep out of each other's way - `studio-project-tests`, `studio-store-tests`,
 //! `versatiles-studio-export-…`. That prefix was load-bearing: `project` and `store` both have
 //! tests called `roundtrip` and `atomic`, and they only avoided each other because each module
 //! spelled its temp path differently. A shared helper that kept labels alone would have made those
 //! collide, and tests run in threads of one process.
 //!
 //! **So uniqueness comes from a counter, not from the label.** The label stays for readability when
-//! looking at what a failing test left behind; the number is what guarantees no two calls — in one
-//! module or across four — are handed the same directory.
+//! looking at what a failing test left behind; the number is what guarantees no two calls - in one
+//! module or across four - are handed the same directory.
 //!
 //! It also means these are the only filesystem calls in the crate's tests, which is the other half
 //! of why they are here: everything else asks for a path and is given one.
@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 static SEQUENCE: AtomicU32 = AtomicU32::new(0);
 
-/// Everything the tests write, under one directory — emptied once per run.
+/// Everything the tests write, under one directory - emptied once per run.
 ///
 /// The numbered directories below never repeat, so nothing overwrites anything within a run; across
 /// runs they would simply pile up. Clearing the root on first use bounds that to one run's worth,
@@ -39,7 +39,7 @@ fn root() -> PathBuf {
 pub fn dir(label: &str) -> PathBuf {
 	let ordinal = SEQUENCE.fetch_add(1, Ordering::Relaxed);
 	let path = root().join(format!("{label}-{ordinal}"));
-	// Removed first in case a previous run was killed before it could clean up — the counter makes
+	// Removed first in case a previous run was killed before it could clean up - the counter makes
 	// a collision within one run impossible, but not one across two.
 	let _ = std::fs::remove_dir_all(&path);
 	std::fs::create_dir_all(&path).expect("creating a test directory");
@@ -61,7 +61,7 @@ pub fn file(name: &str, contents: &str) -> PathBuf {
 	path
 }
 
-/// The label a filename suggests — `berlin.versatiles` becomes `berlin`, so the directory left
+/// The label a filename suggests - `berlin.versatiles` becomes `berlin`, so the directory left
 /// behind says which test made it.
 fn stem(name: &str) -> &str {
 	Path::new(name)

@@ -9,7 +9,7 @@
 	// cannot say "Installing…", and it certainly cannot offer to restart.
 	//
 	// **A dialog is not a contradiction of "never interrupt".** What that rule is about is
-	// *unsolicited* announcements — an application that stops your work to mention a patch release is
+	// *unsolicited* announcements - an application that stops your work to mention a patch release is
 	// what people turn updaters off to escape. This opens because somebody just asked, and answering a
 	// direct question is the one time a modal is the polite form.
 	//

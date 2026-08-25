@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * Auto-update's state machine (G4, S5.8).
  *
  * Every branch here is a sentence the interface has to be able to say, and three of them are only
- * reachable when something has gone wrong — which is exactly when nobody is in a position to check
+ * reachable when something has gone wrong - which is exactly when nobody is in a position to check
  * by hand.
  */
 
@@ -16,7 +16,7 @@ vi.mock('@tauri-apps/plugin-process', () => process);
 
 const { updates } = await import('./updates.svelte');
 
-/** An update as the plugin hands one over — only the fields this module reads. */
+/** An update as the plugin hands one over - only the fields this module reads. */
 const available = (over: Record<string, unknown> = {}) => ({
 	version: '0.3.0',
 	body: 'Fixes the background map.',
@@ -69,7 +69,7 @@ describe('checking', () => {
 		await updates.check();
 		expect(updates.state).toEqual({
 			kind: 'failed',
-			message: 'Could not reach the update server — fetch failed'
+			message: 'Could not reach the update server - fetch failed'
 		});
 	});
 
@@ -79,7 +79,7 @@ describe('checking', () => {
 		expect(updates.state).toEqual({ kind: 'failed', message: 'signature did not verify' });
 	});
 
-	// The last answer is replaced, not appended — a second press must not leave a stale offer up.
+	// The last answer is replaced, not appended - a second press must not leave a stale offer up.
 	it('replaces the previous answer rather than keeping it', async () => {
 		updater.check.mockResolvedValue(available());
 		await updates.check();

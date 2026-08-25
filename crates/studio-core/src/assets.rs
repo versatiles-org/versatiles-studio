@@ -1,11 +1,11 @@
-//! Asset manager — install, pin, verify and remove font families (G7, S4.1, [Q9]).
+//! Asset manager - install, pin, verify and remove font families (G7, S4.1, [Q9]).
 //!
 //! Studio ships a small tier and installs the rest on demand: sprites and Latin glyphs are bundled
 //! so the first launch renders offline (S0.6), and a font family that covers Cyrillic or CJK is
-//! 8–48 MB that most projects never need.
+//! 8-48 MB that most projects never need.
 //!
 //! **Pinned, never `latest`.** The manifest names a release version and a digest for every archive,
-//! and it is compiled in rather than read from disk — a pinned version that a file beside the
+//! and it is compiled in rather than read from disk - a pinned version that a file beside the
 //! binary could change is not pinned. Moving one is `npm run assets:update`, deliberately.
 //!
 //! **Never unpacked.** An archive is served as it arrives: the embedded server reads `.tar.gz`
@@ -29,7 +29,7 @@ const MANIFEST: &str = include_str!("../../../assets/manifest.json");
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Family {
-	/// The name the archive and the font stack share — `noto_sans`.
+	/// The name the archive and the font stack share - `noto_sans`.
 	pub id: String,
 	/// Download size, so a 48 MB decision is made before it starts rather than during.
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
@@ -110,7 +110,7 @@ pub fn pinned() -> Result<Vec<Pinned>> {
 ///
 /// **The name is checked here, and it did not used to be.** The doc said it was; nothing did it.
 /// `remove` reached this with an id straight from the webview, so `../../../x` named `x.tar.gz`
-/// outside the asset directory — and `remove` deletes what it finds. A path built from data is the
+/// outside the asset directory - and `remove` deletes what it finds. A path built from data is the
 /// shape [architecture.md](../../docs/architecture.md) names as the one to be careful with, and this
 /// was the counter-example sitting inside the sentence claiming otherwise.
 pub fn archive_path(dir: &Path, id: &str) -> Result<PathBuf> {
@@ -122,12 +122,12 @@ pub fn archive_path(dir: &Path, id: &str) -> Result<PathBuf> {
 ///
 /// **Verified before it is installed, not after.** A truncated download and a substituted file look
 /// the same to a reader that has already mounted them, and a glyph archive is a file the map serves
-/// to itself — so the check is the point of the digest being in the manifest at all.
+/// to itself - so the check is the point of the digest being in the manifest at all.
 pub fn accept(dir: &Path, id: &str, bytes: &[u8], digest: &str) -> Result<PathBuf> {
 	let found = format!("sha256:{:x}", Sha256::digest(bytes));
 	anyhow::ensure!(
 		found == digest,
-		"{id} does not match what the manifest pins — expected {digest}, got {found}"
+		"{id} does not match what the manifest pins - expected {digest}, got {found}"
 	);
 
 	let path = archive_path(dir, id)?;
@@ -143,7 +143,7 @@ pub fn accept(dir: &Path, id: &str, bytes: &[u8], digest: &str) -> Result<PathBu
 /// Downloads a family and installs it, reporting to the job that asked for it.
 ///
 /// **Through `versatiles_core`'s HTTP reader rather than a client of its own.** Every other request
-/// Studio makes goes that way, so this one carries the same `User-Agent` — including the product
+/// Studio makes goes that way, so this one carries the same `User-Agent` - including the product
 /// token that [vt#248](https://github.com/versatiles-org/versatiles-rs/issues/248) will add. A
 /// second client would be a second thing to remember when that lands.
 ///
@@ -157,7 +157,7 @@ pub async fn install(handle: &crate::jobs::JobHandle, id: &str, dir: &Path) -> R
 		.find(|asset| asset.id == id)
 		.with_context(|| format!("{id} is not a family this build knows about"))?;
 
-	handle.log(format!("{} — {:.0} MB", asset.url, asset.bytes as f64 / 1_000_000.0));
+	handle.log(format!("{} - {:.0} MB", asset.url, asset.bytes as f64 / 1_000_000.0));
 	handle.working(format!("downloading {id}"));
 
 	let url = url::Url::parse(&asset.url).with_context(|| format!("parsing {}", asset.url))?;
@@ -201,7 +201,7 @@ pub fn installed(dir: &Path) -> Vec<PathBuf> {
 mod tests {
 	use super::*;
 
-	/// The manifest is compiled in, so a mistake in it is a mistake in the binary — this is the only
+	/// The manifest is compiled in, so a mistake in it is a mistake in the binary - this is the only
 	/// place that would notice.
 	#[test]
 	fn every_pinned_family_has_a_version_and_a_digest() {
@@ -287,7 +287,7 @@ mod traversal_tests {
 	use super::*;
 
 	/// **The bug this guard was added for.** `remove` takes an id straight from the webview, and
-	/// `archive_path` used to join it unchecked — so `../…` named, and `remove` deleted, a
+	/// `archive_path` used to join it unchecked - so `../…` named, and `remove` deleted, a
 	/// `.tar.gz` outside the asset directory.
 	///
 	/// The core is Tauri-free precisely so it can be exercised like this ([Q3]): no window, no IPC,

@@ -5,7 +5,7 @@
  *   tsx scripts/run.ts check --keep-going   all of them, even after one fails
  *
  * **So the list cannot drift.** `check` used to name its five members by hand, which meant adding a
- * sixth and forgetting to list it produced a check that silently never ran — the worst kind, because
+ * sixth and forgetting to list it produced a check that silently never ran - the worst kind, because
  * the green tick still appears. Here the group *is* whatever is named `check:…`, and
  * `guards.test.ts` holds the convention up.
  *
@@ -26,8 +26,8 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 /**
  * The scripts belonging to `action`, in declaration order.
  *
- * **Direct children only.** The tree is two deep where two toolchains differ — `check:lint` covers
- * `check:lint:web` and `check:lint:rust` — and matching every descendant would make `check` run the
+ * **Direct children only.** The tree is two deep where two toolchains differ - `check:lint` covers
+ * `check:lint:web` and `check:lint:rust` - and matching every descendant would make `check` run the
  * leaves once through their parent and once on its own.
  *
  * Exported for the tests: an action that silently matches nothing would report success having done

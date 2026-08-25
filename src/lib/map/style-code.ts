@@ -2,7 +2,7 @@
  * A recipe as `@versatiles/style` code (S4.6, D8).
  *
  * **This is what the recipe is for.** [Q36] keeps a preset, its adjustments and the layers someone
- * changed, rather than the 125 kB style they render to — and the reason given there was that a
+ * changed, rather than the 125 kB style they render to - and the reason given there was that a
  * design storing only the output could emit `style.json` and never the code. This is that half.
  *
  * The output is meant to be read as much as run: someone taking a style out of Studio and into a
@@ -19,7 +19,7 @@ import type { Appearance } from '../ipc/commands';
  * Where an exported style says its tiles are.
  *
  * **Not where Studio's are.** The map reads them from `studio://127.0.0.1:<an ephemeral port>`,
- * which is a URL that stops existing when the window closes — writing it into a file someone is
+ * which is a URL that stops existing when the window closes - writing it into a file someone is
  * taking away would be a style that works exactly once, on one machine, until it does not. A
  * placeholder is a thing to replace; a dead localhost URL is a thing to debug.
  */
@@ -33,7 +33,7 @@ export const TILE_URL_PLACEHOLDER = 'https://example.org/tiles/{z}/{x}/{y}';
  * same files, and these are the addresses `@versatiles/style` uses when nothing overrides them. An
  * exported style therefore draws as soon as its tiles are pointed somewhere real.
  *
- * Studio itself overrides both to the embedded server so the map works offline ([Q9]) — which is
+ * Studio itself overrides both to the embedded server so the map works offline ([Q9]) - which is
  * exactly why they have to be put back here. A file carrying `http://127.0.0.1:<ephemeral port>`
  * renders as a map with no labels and no icons, on someone else's machine, with nothing to say why.
  */
@@ -88,14 +88,14 @@ export function fontsUsed(style: StyleSpecification): string[] {
 /** A preset with no builder behind it cannot be written as a builder call. */
 export function canGenerateCode(appearance: Appearance): boolean {
 	// Raster and hillshade have no `@versatiles/style` builder at all, so there is no call to write
-	// — `style.json` is the honest form for those (S6.4).
+	// - `style.json` is the honest form for those (S6.4).
 	return appearance.type === 'vector' && appearance.preset !== 'derived';
 }
 
 /**
  * The code for a recipe, or `null` when there is none to write.
  *
- * `derived` has no `@versatiles/style` builder — it is assembled from whatever layers the tiles
+ * `derived` has no `@versatiles/style` builder - it is assembled from whatever layers the tiles
  * turned out to have (S4.4), so there is nothing to name in an import. Those export as `style.json`,
  * which is the honest form for a style that has no shorter description than itself.
  */
@@ -121,7 +121,7 @@ export function styleCode(appearance: Appearance, present?: string[]): string | 
 
 	// **Only the overrides the generated style can apply** ([S6.7](../../../docs/scope-release-2.md)).
 	// The six presets share a namespace and a smaller one is a subset of a larger, so an override
-	// made under `colorful` sits inert under `neutrino` and comes back on the way over — which is
+	// made under `colorful` sits inert under `neutrino` and comes back on the way over - which is
 	// why the recipe keeps it. Emitting it into a `neutrino` file is different: the loop would set a
 	// property on a layer that file does not contain, which is dead code someone has to work out.
 	const overrides = Object.entries(appearance.overrides).filter(

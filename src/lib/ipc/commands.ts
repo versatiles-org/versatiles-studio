@@ -1,7 +1,7 @@
 /**
  * The control plane, as the application uses it.
  *
- * **The types and the invoke calls are generated** — see `bindings.ts` and `src-tauri/src/
+ * **The types and the invoke calls are generated** - see `bindings.ts` and `src-tauri/src/
  * bindings.rs`. Every interface here used to be written twice, once in Rust and once in TypeScript,
  * and `svelte-check` cannot catch that drift: it flags a *use* of a missing field, not a missing
  * field, so adding one on the Rust side and forgetting this one failed nothing until somebody read
@@ -11,12 +11,12 @@
  *
  * * **The error convention.** `tauri-specta` returns `{ status: 'ok' | 'error' }` rather than
  *   throwing. Studio's call sites are `try`/`catch`, and a rejected promise carrying the error is
- *   what an editor wants — a parse failure with a span has to reach a `catch`, not be checked for.
+ *   what an editor wants - a parse failure with a span has to reach a `catch`, not be checked for.
  *   `unwrap` below converts one into the other, in one place.
  * * **Names that read at the call site**, where the generated one is shaped by the Rust function:
  *   `getPipeline` rather than `pipeline`, which would shadow the variable holding it everywhere.
  * * **Which command a failure came from**, which the core cannot say and the call site knows for
- *   exactly one line — see `failure.ts`.
+ *   exactly one line - see `failure.ts`.
  */
 
 import { commands as generated } from './bindings';
@@ -24,7 +24,7 @@ import { namingFailures } from './failure';
 import { unwrap } from './unwrap';
 
 /**
- * The generated commands, each naming itself when it fails — see `failure.ts`.
+ * The generated commands, each naming itself when it fails - see `failure.ts`.
  *
  * Here rather than at each wrapper below: the name a proxy reads off the key cannot be pasted
  * wrong, and a command added later is named without anyone remembering to.
@@ -88,7 +88,7 @@ export const OPENED_EVENT = 'studio://opened';
  * The event that says something was chosen from the native menu (S0.1). The payload is the item's id.
  *
  * The menu is declarative in Rust and the actions stay in the window, beside the state they already
- * touch — so what crosses the boundary is a name, not a behaviour. Same shape as `OPENED_EVENT`.
+ * touch - so what crosses the boundary is a name, not a behaviour. Same shape as `OPENED_EVENT`.
  */
 export const MENU_EVENT = 'studio://menu';
 
@@ -103,7 +103,7 @@ export const serverBaseUrl = () => unwrap(commands.serverBaseUrl());
  * Opens a project window for `source`, hands it that path, and closes the window that asked (S7.6).
  *
  * The launcher's whole gesture. The path is not inspected here or there: a file, a project
- * directory and a URL are all the same to it, and the window that receives it decides what it is —
+ * directory and a URL are all the same to it, and the window that receives it decides what it is -
  * through the same code that already answers that for a double-clicked file.
  */
 export const openInNewWindow = (source: string) => unwrap(commands.openInNewWindow(source));
@@ -138,13 +138,13 @@ export const previousProblems = () => unwrap(commands.previousProblems());
 /** Records a problem the webview saw, and answers how many distinct ones there now are. */
 export const logDiagnostic = (report: NewProblem) => unwrap(commands.logDiagnostic(report));
 
-/** Shows the problem log in the file manager, selected — for attaching it to something. */
+/** Shows the problem log in the file manager, selected - for attaching it to something. */
 export const showLog = () => unwrap(commands.showLog());
 
 /** Writes a problem report where the user asked for it. The path comes from a native save dialog. */
 export const saveReport = (path: string, text: string) => unwrap(commands.saveReport(path, text));
 
-/** Forgets them all — for reproducing a problem cleanly before copying the report. */
+/** Forgets them all - for reproducing a problem cleanly before copying the report. */
 export const clearDiagnostics = () => unwrap(commands.clearDiagnostics());
 
 /** What is running this, for the header of a copied report. */
@@ -167,18 +167,18 @@ export const subscribeJobs = (channel: Parameters<typeof commands.subscribeJobs>
 /** One job's log, oldest line first. Fetched when a row is expanded, not streamed on connect. */
 export const jobLog = (id: number) => unwrap(commands.jobLog(id));
 
-/** Asks a job to stop. Idempotent — a job that has already ended stays ended. */
+/** Asks a job to stop. Idempotent - a job that has already ended stays ended. */
 export const cancelJob = (id: number) => unwrap(commands.cancelJob(id));
 
 // -- export ----------------------------------------------------------------------------------
 
-/** What Studio can write — the file dialog's filters and the modal's wording come from here. */
+/** What Studio can write - the file dialog's filters and the modal's wording come from here. */
 export const writableFormats = () => commands.writableFormats();
 
 /**
  * Writes a graph's output to a container, and returns the job doing it (S3.6, F2).
  *
- * Resolves when the export has *started*, not when it has finished — a conversion runs for minutes,
+ * Resolves when the export has *started*, not when it has finished - a conversion runs for minutes,
  * and what happens to it afterwards arrives on the jobs channel, where the bar can show progress and
  * offer to cancel. A rejection here means it never started: a target Studio cannot write, or a graph
  * that has since been removed.
@@ -190,7 +190,7 @@ export const exportGraph = (graph: number, target: string, bounds: Bounds = {}) 
  * What that export would cost, before it is started (S3.7, C6).
  *
  * Unlike `exportGraph` this resolves with the answer, because there is an answer within a couple of
- * seconds by construction — the core samples under a fixed time budget. Rejects with the same words
+ * seconds by construction - the core samples under a fixed time budget. Rejects with the same words
  * the export would have failed with, which is the point of asking first.
  */
 export const estimateExport = (graph: number, bounds: Bounds = {}) => unwrap(commands.estimateExport(graph, bounds));
@@ -218,7 +218,7 @@ export const openProject = (dir: string) => unwrap(commands.openProject(dir));
 /**
  * Lays a graph's VPL out again, keeping its comments (S1.11, [vt#249]).
  *
- * Upstream's own formatter, applied to the tree that still has the comments — so Studio does not
+ * Upstream's own formatter, applied to the tree that still has the comments - so Studio does not
  * have to choose between tidying a file and keeping what its author wrote.
  *
  * [vt#249]: https://github.com/versatiles-org/versatiles-rs/issues/249
@@ -229,12 +229,12 @@ export const formatGraph = (id: number) => unwrap(commands.formatGraph(id));
  * Narrows what an export of this graph writes (F2, S5.2, S5.4).
  *
  * The crop lives on the graph in the core, so it survives a reload and goes into the project
- * manifest — and the estimate and the write both narrow to the same one.
+ * manifest - and the estimate and the write both narrow to the same one.
  */
 export const setCrop = (graph: number, crop: Bounds) => unwrap(commands.setCrop(graph, crop));
 
 /**
- * What a copy of this project would carry (S5.1) — asked before the destination is chosen, so the
+ * What a copy of this project would carry (S5.1) - asked before the destination is chosen, so the
  * dialog can say what it costs.
  */
 export const copyPlan = () => unwrap(commands.copyPlan());
@@ -317,7 +317,7 @@ export const pruneStyleOverrides = (graph: number, present: string[]) =>
  */
 export const setStyleRecolor = (graph: number, recolor: Recolor) => unwrap(commands.setStyleRecolor(graph, recolor));
 
-/** What Studio can write a style as — the save dialog's filters come from here. */
+/** What Studio can write a style as - the save dialog's filters come from here. */
 export const styleFormats = () => commands.styleFormats();
 
 /**
@@ -331,7 +331,7 @@ export const exportStyle = (path: string, contents: string) => unwrap(commands.e
 /**
  * Writes the style with the glyphs and sprites it names beside it (D8, S4.6).
  *
- * `contents` must already carry the bundle's relative asset URLs — `forExport(style, 'bundled')`.
+ * `contents` must already carry the bundle's relative asset URLs - `forExport(style, 'bundled')`.
  * Resolves to the font stacks nothing had, which is a thing to say rather than a failure.
  */
 export const exportStyleBundle = (target: string, zip: boolean, contents: string, fonts: string[]) =>
@@ -369,7 +369,7 @@ export const reorderViews = (order: string[]) => unwrap(commands.reorderViews(or
 /** The remembered pane layout. Durable state lives in the core, never the webview (Q16). */
 export const getLayout = () => unwrap(commands.layout());
 
-/** Persists the layout and returns what was actually stored — the core clamps the widths. */
+/** Persists the layout and returns what was actually stored - the core clamps the widths. */
 export const setLayout = (layout: Parameters<typeof commands.setLayout>[0]) => unwrap(commands.setLayout(layout));
 
 // -- VPL -------------------------------------------------------------------------------------
@@ -380,7 +380,7 @@ export const vplParse = (text: string) => unwrap(commands.vplParse(text));
 /**
  * Sets the value at `span`.
  *
- * The quoting is decided by the core, never here — a second implementation of VPL's quoting rules
+ * The quoting is decided by the core, never here - a second implementation of VPL's quoting rules
  * in TypeScript is exactly what would drift.
  */
 export const vplSetValue = (text: string, span: Parameters<typeof commands.vplSetValue>[1], value: string) =>
@@ -406,7 +406,7 @@ export const vplRemoveNode = (text: string, span: Parameters<typeof commands.vpl
 export const vplRemoveProperty = (text: string, span: Parameters<typeof commands.vplRemoveProperty>[1]) =>
 	unwrap(commands.vplRemoveProperty(text, span));
 
-/** How to paint the text and what is wrong with it — one parse, so the two cannot disagree. */
+/** How to paint the text and what is wrong with it - one parse, so the two cannot disagree. */
 export const vplReview = (text: string) => unwrap(commands.vplReview(text));
 
 /** Every operation and its parameters. Build-time information, so it is fetched once. */
@@ -421,7 +421,7 @@ export const importKinds = () => commands.importKinds();
 export const importKindFor = (path: string) => commands.importKindFor(path);
 
 /**
- * The read node a chosen file becomes, quoting included — and, for a CSV, its coordinate columns
+ * The read node a chosen file becomes, quoting included - and, for a CSV, its coordinate columns
  * already filled in when the header names them unambiguously (S3.4). Both are the core's decisions.
  */
 export const importReadNode = (kindId: string, path: string) => commands.importReadNode(kindId, path);
@@ -437,8 +437,8 @@ export const listGraphs = () => unwrap(commands.graphs());
 /** One graph in full, or null once it has been removed. */
 export const getGraph = (id: number) => unwrap(commands.graph(id));
 
-/** Creates a graph. `name` is a suggestion — the core makes it unique and URL-safe. */
-/** Creates a graph. The core names it after `source` — one rule for every way in ([Q35]). */
+/** Creates a graph. `name` is a suggestion - the core makes it unique and URL-safe. */
+/** Creates a graph. The core names it after `source` - one rule for every way in ([Q35]). */
 export const addGraph = (source: string | null, text: string) => unwrap(commands.addGraph(source, text));
 
 export const removeGraph = (id: number) => unwrap(commands.removeGraph(id));
@@ -446,7 +446,7 @@ export const removeGraph = (id: number) => unwrap(commands.removeGraph(id));
 /** Renames a graph and returns the name it took. Refused when another graph has it. */
 export const renameGraph = (id: number, name: string) => unwrap(commands.renameGraph(id, name));
 
-/** Replaces a graph's text. `kind` decides undo granularity — only the caller knows which this is. */
+/** Replaces a graph's text. `kind` decides undo granularity - only the caller knows which this is. */
 export const setGraph = (id: number, text: string, kind: Parameters<typeof commands.setGraph>[2] = 'structured') =>
 	unwrap(commands.setGraph(id, text, kind));
 
@@ -462,7 +462,7 @@ export const saveVpl = (graph: number, path: string) => unwrap(commands.saveVpl(
  */
 export const previewPipeline = (graph: number, path: number[]) => unwrap(commands.previewPipeline(graph, path));
 
-/** Builds a graph in full and mounts it under its own name — the ordinary view (Q32). */
+/** Builds a graph in full and mounts it under its own name - the ordinary view (Q32). */
 export const mountGraph = (graph: number) => unwrap(commands.mountGraph(graph));
 
 /** Where the map is looking, or null for the ordinary state. */
@@ -475,7 +475,7 @@ export const setPin = (pin: { graph: number; path: number[] } | null) => unwrap(
  * Steps back, or forward again. Null when there is nowhere to go.
  *
  * One stack across every graph (Q32), so what comes back may belong to a graph other than the one
- * being edited — which is why it returns the whole document rather than just its text.
+ * being edited - which is why it returns the whole document rather than just its text.
  */
 export const undo = () => unwrap(commands.undo());
 export const redo = () => unwrap(commands.redo());

@@ -4,7 +4,7 @@
 	// The project's graphs, one row each (S2.13, [Q32]).
 	//
 	// A list rather than a pane per graph: four graphs cost four rows here and four folded boxes
-	// there, and the list is where per-graph state — the pin, the unsaved dot, the name — has an
+	// there, and the list is where per-graph state - the pin, the unsaved dot, the name - has an
 	// obvious home. Renaming happens here for the same reason.
 	let {
 		graphs,
@@ -18,12 +18,12 @@
 		graphs: GraphInfo[];
 		/** The graph being edited. Its chain is what the pane shows below. */
 		current: number | null;
-		/** The graph holding the pinned node, if any — not necessarily the one being edited. */
+		/** The graph holding the pinned node, if any - not necessarily the one being edited. */
 		pinnedGraph: number | null;
 		onSelect: (id: number) => void;
 		/** Rejected by the core when another graph already has the name; the message comes back. */
 		onRename: (id: number, name: string) => void;
-		/** Removes the graph for good — see the confirmation below for why it is not one click. */
+		/** Removes the graph for good - see the confirmation below for why it is not one click. */
 		onRemove: (id: number) => void;
 		onNew: () => void;
 	} = $props();
@@ -37,7 +37,7 @@
 	///
 	/// **Deleting a graph is the one thing here that ⌘Z cannot take back.** The history stack
 	/// restores text *into* a graph ([Q32]), so one that no longer exists has nothing to restore
-	/// into — the core says as much and makes the step a no-op. That makes a bare `×` next to a
+	/// into - the core says as much and makes the step a no-op. That makes a bare `×` next to a
 	/// rename button the wrong shape: same size, same place, one undoable and one not.
 	///
 	/// Confirmed in the row rather than in a modal, for the same reason renaming happens here: the

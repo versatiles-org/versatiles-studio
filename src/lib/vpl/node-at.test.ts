@@ -61,7 +61,7 @@ describe('nodeAt', () => {
 });
 
 describe('walk', () => {
-	/** Sources come before the node they feed, and one level deeper — the order tiles move in. */
+	/** Sources come before the node they feed, and one level deeper - the order tiles move in. */
 	it('lists sources before the node they feed', () => {
 		expect(walk(nested).map((entry) => [entry.node.name, entry.depth])).toEqual([
 			['read', 1],
@@ -133,7 +133,7 @@ describe('selectionSurvives', () => {
 });
 
 describe('feedsPreview', () => {
-	it('is everything when nothing is pinned — the map draws the whole graph', () => {
+	it('is everything when nothing is pinned - the map draws the whole graph', () => {
 		expect(feedsPreview([0], null)).toBe(true);
 		expect(feedsPreview([4, 1, 2], null)).toBe(true);
 	});
@@ -152,7 +152,7 @@ describe('feedsPreview', () => {
 	});
 
 	// Pinning inside a block previews *that block's* chain, so the pipeline consuming it is not
-	// part of the answer — which is what `preview::up_to` does, and looks surprising until you
+	// part of the answer - which is what `preview::up_to` does, and looks surprising until you
 	// remember that the point of pinning a nested node is to see the data at that step.
 	it('leaves the outer pipeline out when the pin is nested', () => {
 		expect(feedsPreview([1, 0, 0], [1, 0, 1])).toBe(true);

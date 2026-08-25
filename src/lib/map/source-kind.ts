@@ -3,7 +3,7 @@
  *
  * The style pane has four editors and this is what picks between them. Four cases, and only one of
  * them worked before this existed: a preset was pointed at whatever the pipeline produced, and when
- * the layer names did not match — which is most of the time — the answer was to draw no style at
+ * the layer names did not match - which is most of the time - the answer was to draw no style at
  * all. See [Style Use Cases](../../../docs/style-use-cases.md).
  *
  * **The container's own answer first, a guess second, and the person last.** `tile_schema` is a
@@ -59,7 +59,7 @@ function looksLikeShortbread(layers: string[]): boolean {
 /**
  * What this source is, and how confidently.
  *
- * `override` is [`Recipe.kind`](../ipc/commands) — what someone said explicitly, which wins over
+ * `override` is [`Recipe.kind`](../ipc/commands) - what someone said explicitly, which wins over
  * both of the others.
  */
 export function sourceKind(
@@ -84,7 +84,7 @@ export function sourceKind(
 
 	// **Imagery rather than DEM, because guessing DEM is the expensive mistake.** Read a photograph
 	// as a DEM and the map shows hillshade of noise; read a DEM as a photograph and it shows the
-	// encoded colours — wrong, but recognisably a picture, and the picker is right there.
+	// encoded colours - wrong, but recognisably a picture, and the picker is right there.
 	return { kind: 'rasterImage', basis: 'inferred' };
 }
 

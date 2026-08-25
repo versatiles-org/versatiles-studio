@@ -1,7 +1,7 @@
 /**
  * Finding the node a caret is in, and the path that names it.
  *
- * This walks the *already parsed* tree the core hands over, so it duplicates no grammar — the
+ * This walks the *already parsed* tree the core hands over, so it duplicates no grammar - the
  * parsing, the spans and the validation all stay in Rust ([Q23](../../../docs/decisions.md)). It
  * lives here because a caret moves on every keystroke, and a round trip per keypress to walk ten
  * nodes would be a poor trade.
@@ -73,7 +73,7 @@ export function walk(pipeline: VplPipeline, path: number[] = [], depth = 0): (Lo
  * rule is expressed by the missing control rather than by an error afterwards ([Q32]).
  *
  * **Not "is a read node".** `walk` flattens a composite's sources into rows too, so
- * `from_stacked [ a, b ]` puts two `from_*` nodes on screen that are not the head — and testing
+ * `from_stacked [ a, b ]` puts two `from_*` nodes on screen that are not the head - and testing
  * the name instead of the position made both undeletable, which left no way to drop one source of
  * a stack outside the VPL tab. Removing one of those is fine: the core refuses only the *last*
  * node of any parent, which is a different and narrower rule.
@@ -87,7 +87,7 @@ export const isChainHead = (path: number[]): boolean => path.length === 1 && pat
  *
  * * **The document belongs to another graph.** Undo and redo run on one stack across every graph
  *   ([Q32]), so a step can hand back a graph other than the one on screen. A path means nothing
- *   outside the graph it was taken from — `[2]` is just "the third node" — and since the selected
+ *   outside the graph it was taken from - `[2]` is just "the third node" - and since the selected
  *   node *is* the form, carrying it over opens a form for a node nobody picked.
  * * **The path no longer resolves.** Undoing the insertion that created the selected node is the
  *   common case. A selection pointing at nothing is worth dropping rather than leaving to match
@@ -103,7 +103,7 @@ export const selectionSurvives = (
  * Whether a node's output reaches what the map is showing (C3).
  *
  * **The same rule `preview::up_to` walks**, in the webview, so the chain can draw it. Pinning a node
- * previews the pipeline *up to and including* it — and pinning one inside a `[ … ]` block previews
+ * previews the pipeline *up to and including* it - and pinning one inside a `[ … ]` block previews
  * that block's chain, not the pipeline consuming it. So a node feeds the preview when it sits in the
  * pinned node's own chain at or before it, or anywhere inside such a node.
  *
@@ -116,7 +116,7 @@ export function feedsPreview(path: number[], pinned: number[] | null): boolean {
 	const chain = pinned.slice(0, -1);
 	if (path.length < pinned.length) return false;
 	if (!chain.every((step, index) => path[index] === step)) return false;
-	// At or before the pin in that chain — and anything deeper than such a node is inside it, which
+	// At or before the pin in that chain - and anything deeper than such a node is inside it, which
 	// is how it got its own output.
 	return path[chain.length] <= pinned[pinned.length - 1];
 }

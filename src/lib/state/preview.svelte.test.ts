@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 /**
  * The three rules that used to live in the order of statements inside `App.svelte`.
  *
- * Each one fails silently in the running application — a layer that cannot be removed, a stale
- * build overwriting a newer one, a status bar stuck on "Opening …" — which is why they are worth a
+ * Each one fails silently in the running application - a layer that cannot be removed, a stale
+ * build overwriting a newer one, a status bar stuck on "Opening …" - which is why they are worth a
  * test apiece rather than a careful reading.
  */
 
@@ -142,7 +142,7 @@ describe('the preview on the map', () => {
 	 * What the console said, once per save: `Source "pipeline" cannot be removed while layer
 	 * "pipeline/pipeline:raster" is using it.`
 	 *
-	 * Nothing was mounted — the recipe drew those tiles and this module drew none of them — but the
+	 * Nothing was mounted - the recipe drew those tiles and this module drew none of them - but the
 	 * mount name was recorded anyway, so the next refresh tried to take the *style's* source off the
 	 * map. A mount's name is the style's source name too ([Q32]), which is what made the mistake
 	 * reach MapLibre instead of failing to find anything.
@@ -164,7 +164,7 @@ describe('the preview on the map', () => {
 
 	it('forgets the mount when the style it was drawn on is replaced', async () => {
 		// `restore` is called once the new style is in place. Setting a style discards every layer
-		// added to the old one, so a name kept across it points at layers that are already gone —
+		// added to the old one, so a name kept across it points at layers that are already gone -
 		// and quite possibly at a source the *new* style owns.
 		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
 		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled, restored: false });
@@ -192,7 +192,7 @@ describe('the preview on the map', () => {
 
 	it('asks about the style after the build, not before', async () => {
 		// `styled` is derived from the preview this call produces, so a value read up front is the
-		// previous build's answer — which puts hairlines over a styled map every other refresh.
+		// previous build's answer - which puts hairlines over a styled map every other refresh.
 		ipc.mountGraph.mockResolvedValueOnce(built('one'));
 		const seen: (string | null)[] = [];
 		await preview.refresh({
@@ -243,8 +243,8 @@ describe('the preview on the map', () => {
 	 * **Framing is not one of the things a recipe takes over.**
 	 *
 	 * This used to assert the opposite, and the opposite was the bug: the fit sat below the `styled`
-	 * early return, so a window whose tiles a style was drawing — since S6.2, very nearly every
-	 * window — opened at null island and stayed there until somebody pressed Reset view.
+	 * early return, so a window whose tiles a style was drawing - since S6.2, very nearly every
+	 * window - opened at null island and stayed there until somebody pressed Reset view.
 	 */
 	it('frames the data whoever is drawing it', async () => {
 		ipc.mountGraph.mockResolvedValueOnce(built('styled-two'));
@@ -256,7 +256,7 @@ describe('the preview on the map', () => {
 
 	/**
 	 * What a reload is for. The window's camera comes back from the core ([Q48], S7.4), and framing
-	 * the data over the top of it would undo the one thing a reload is supposed to preserve — a
+	 * the data over the top of it would undo the one thing a reload is supposed to preserve - a
 	 * window that came back exactly where it was, looking at the same place.
 	 */
 	it('does not frame over a camera the window already has', async () => {
@@ -268,7 +268,7 @@ describe('the preview on the map', () => {
 	});
 
 	it('leaves the camera alone when a style is switched off', async () => {
-		// The tiles were on screen the whole time — the recipe was drawing them — so the hairlines
+		// The tiles were on screen the whole time - the recipe was drawing them - so the hairlines
 		// taking over is not a first appearance. Asking "did *this module* mount anything" instead
 		// would throw the camera back to the data's extent on the way out of a style.
 		ipc.mountGraph.mockResolvedValueOnce(built('styled-three'));
@@ -286,7 +286,7 @@ describe('the preview on the map', () => {
 
 		preview.clear(map);
 		expect(removed).toEqual(['only']);
-		// And not a second time — the layer is already gone.
+		// And not a second time - the layer is already gone.
 		preview.clear(map);
 		expect(removed).toEqual(['only']);
 	});
@@ -308,7 +308,7 @@ describe('the containers the document reads', () => {
 		ipc.openContainer.mockImplementation((source: string) => Promise.resolve({ info: { source } }));
 	});
 
-	// The read nodes *are* the sources (Q22), so editing one has to move the map with it — otherwise
+	// The read nodes *are* the sources (Q22), so editing one has to move the map with it - otherwise
 	// the document and the picture drift apart, which is what merging the modes was meant to prevent.
 	it('opens a container the document names', async () => {
 		const opening: string[] = [];
@@ -324,7 +324,7 @@ describe('the containers the document reads', () => {
 		expect(preview.containers.map((c) => c.info.source)).toEqual(['paris.mbtiles']);
 	});
 
-	// Reading a container is not always instant — a remote one reads its index over the network — so
+	// Reading a container is not always instant - a remote one reads its index over the network - so
 	// one already open must not be read again on every keystroke.
 	it('does not re-read one it already has', async () => {
 		await preview.syncContainers(withNodes(readNode('berlin.mbtiles')), () => {});

@@ -2,7 +2,7 @@
 //!
 //! Two features wanted this and each grew its own: [`crate::bundle`] makes a *project* portable,
 //! [`crate::style::bundle`] makes a *style* self-contained. They are different features and should
-//! stay separate — but "write these entries, either way round" is not what makes them different,
+//! stay separate - but "write these entries, either way round" is not what makes them different,
 //! and having it twice produced two answers to a question with one:
 //!
 //! * the project bundle stored anything whose extension looked already-compressed and deflated the
@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 
 /// Where an entry's bytes come from.
 pub enum Content {
-	/// Already in memory — a rendered `style.json`, a glyph range read out of an archive.
+	/// Already in memory - a rendered `style.json`, a glyph range read out of an archive.
 	Bytes(Vec<u8>),
 	/// Still on disk, and copied or streamed rather than loaded. A `.versatiles` is gigabytes.
 	File(PathBuf),
@@ -30,7 +30,7 @@ pub enum Content {
 
 /// One file on its way into a bundle.
 pub struct Entry {
-	/// Its path inside the bundle, always relative — `data/berlin.mbtiles`, `style.json`.
+	/// Its path inside the bundle, always relative - `data/berlin.mbtiles`, `style.json`.
 	pub path: String,
 	pub content: Content,
 }
@@ -65,7 +65,7 @@ impl std::fmt::Debug for Entry {
 ///
 /// **One rule, and it is about the contents rather than the caller.** Tile containers hold tiles
 /// that are already gzip or webp, and a `.png` is a `.png` whichever bundle it is in; deflating any
-/// of them spends minutes to save nothing. Everything else — a manifest, a pipeline, a style — is
+/// of them spends minutes to save nothing. Everything else - a manifest, a pipeline, a style - is
 /// text and compresses well.
 fn is_compressed(path: &str) -> bool {
 	const ALREADY: [&str; 9] = [
@@ -87,8 +87,8 @@ fn is_compressed(path: &str) -> bool {
 
 /// Writes the entries into `dir`, creating the directories they need.
 ///
-/// Every path is checked against `dir` before anything is written: an entry may be named by data —
-/// an archive's own table of contents — and `../` in one of those is how a bundle writes outside
+/// Every path is checked against `dir` before anything is written: an entry may be named by data -
+/// an archive's own table of contents - and `../` in one of those is how a bundle writes outside
 /// the folder someone chose.
 pub fn write_directory(dir: &Path, entries: &[Entry]) -> Result<()> {
 	for entry in entries {
@@ -102,7 +102,7 @@ pub fn write_directory(dir: &Path, entries: &[Entry]) -> Result<()> {
 			}
 			Content::File(from) => {
 				// The destination is a directory someone chose, and it could be the one the source
-				// is already in — copying a file onto itself truncates it.
+				// is already in - copying a file onto itself truncates it.
 				anyhow::ensure!(
 					!same_file(from, &path),
 					"{} is already where the bundle would put it",
@@ -156,7 +156,7 @@ pub fn write_zip(path: &Path, entries: &[Entry]) -> Result<()> {
 /// Whether two paths are the same file, as far as can be told without opening them.
 ///
 /// `canonicalize` fails on a path that does not exist yet, which is the ordinary case for a
-/// destination — and two paths that cannot both be resolved cannot be the same file.
+/// destination - and two paths that cannot both be resolved cannot be the same file.
 fn same_file(a: &Path, b: &Path) -> bool {
 	match (a.canonicalize(), b.canonicalize()) {
 		(Ok(a), Ok(b)) => a == b,

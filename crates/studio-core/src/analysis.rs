@@ -1,4 +1,4 @@
-//! Analysis services — probe-derived statistics, cached in memory per container ([Q4]).
+//! Analysis services - probe-derived statistics, cached in memory per container ([Q4]).
 //!
 //! Only the cheapest tier exists so far: container metadata and the real zoom range, which is
 //! effectively free because `tile_pyramid()` reads the block index and is memoised. Tile sizes
@@ -17,21 +17,21 @@ use versatiles_container::{SharedTileSource, SourceType, TilesRuntime};
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct ContainerInfo {
-	/// How the user referred to it — a path or a URL.
+	/// How the user referred to it - a path or a URL.
 	pub source: String,
-	/// Container kind — just the name: `versatiles`, `mbtiles`, `pmtiles`, `tar`, `directory`.
+	/// Container kind - just the name: `versatiles`, `mbtiles`, `pmtiles`, `tar`, `directory`.
 	pub container: String,
 	/// Tile format, e.g. `mvt`, `png`, `webp`.
 	pub tile_format: String,
 	/// Tile compression, e.g. `gzip`, `brotli`, `none`.
 	pub tile_compression: String,
-	/// The zoom levels that actually contain tiles — not what the metadata claims.
+	/// The zoom levels that actually contain tiles - not what the metadata claims.
 	pub min_zoom: u8,
 	pub max_zoom: u8,
 	/// `[west, south, east, north]`, if the pyramid is non-empty.
 	#[cfg_attr(feature = "bindings", specta(type = Option<[specta_typescript::Number; 4]>))]
 	pub bbox: Option<[f64; 4]>,
-	/// What the container says its tiles *contain*, if it says — `shortbread@1.0`, `dem/mapbox`,
+	/// What the container says its tiles *contain*, if it says - `shortbread@1.0`, `dem/mapbox`,
 	/// `rgb`, and the rest of `TileSchema`'s spellings ([S6.1](../../docs/scope-release-2.md)).
 	///
 	/// **Passed through as the container's own string rather than mirrored into an enum here.**
@@ -53,7 +53,7 @@ pub struct ContainerInfo {
 
 /// The container kind, without the diagnostics around it.
 ///
-/// `SourceType`'s `Display` is written for error messages — a container renders as
+/// `SourceType`'s `Display` is written for error messages - a container renders as
 /// `container 'mbtiles' ('/path/to/file')`, which is useful in a log and wrong in a label. Studio
 /// showed that whole string, path and all, wherever it named a format.
 fn container_name(source_type: &SourceType) -> String {
@@ -86,7 +86,7 @@ pub async fn describe(reader: &SharedTileSource, label: &str) -> Result<Containe
 	let metadata = reader.metadata();
 	let pyramid = reader.tile_pyramid().await.context("reading the tile pyramid")?;
 
-	// The *real* zoom range and extent, derived from which levels actually hold tiles — container
+	// The *real* zoom range and extent, derived from which levels actually hold tiles - container
 	// metadata routinely overstates both, which is half of why A6 exists.
 	Ok(ContainerInfo {
 		source: label.to_string(),
@@ -111,7 +111,7 @@ pub(crate) mod tests {
 	/// Where the sample containers live.
 	///
 	/// They are not vendored: `berlin.versatiles` alone is 25 MB, and binaries in git age badly.
-	/// Set `STUDIO_TESTDATA`, or keep a `versatiles-rs` checkout beside this one — the layout every
+	/// Set `STUDIO_TESTDATA`, or keep a `versatiles-rs` checkout beside this one - the layout every
 	/// contributor already has. Absent both, the format tests skip rather than fail.
 	fn testdata_dir() -> Option<PathBuf> {
 		if let Ok(dir) = std::env::var("STUDIO_TESTDATA") {
@@ -161,7 +161,7 @@ pub(crate) mod tests {
 		Ok(())
 	}
 
-	/// A2 — remote over HTTPS with byte ranges. Ignored by default: it needs the network, and CI
+	/// A2 - remote over HTTPS with byte ranges. Ignored by default: it needs the network, and CI
 	/// should not depend on a third party being up. Run with `cargo test -- --ignored`.
 	#[tokio::test]
 	#[ignore = "requires network"]
@@ -183,7 +183,7 @@ pub(crate) mod tests {
 			info.max_zoom
 		);
 		eprintln!(
-			"opened in {:?}: z{}–{}",
+			"opened in {:?}: z{}-{}",
 			started.elapsed(),
 			info.min_zoom,
 			info.max_zoom
@@ -191,7 +191,7 @@ pub(crate) mod tests {
 		Ok(())
 	}
 
-	/// Web Mercator tile containing a point — enough to aim a test at real data.
+	/// Web Mercator tile containing a point - enough to aim a test at real data.
 	fn tile_for(lng: f64, lat: f64, z: u8) -> (u32, u32) {
 		let n = f64::from(2u32.pow(u32::from(z)));
 		let x = ((lng + 180.0) / 360.0 * n).floor();
@@ -200,7 +200,7 @@ pub(crate) mod tests {
 		(x as u32, y as u32)
 	}
 
-	/// A4 — decode a real tile and account for its layers.
+	/// A4 - decode a real tile and account for its layers.
 	#[tokio::test]
 	async fn inspects_a_tile_layer_by_layer() -> Result<()> {
 		let Some(path) = sample_container("berlin.versatiles") else {
@@ -211,7 +211,7 @@ pub(crate) mod tests {
 		let (source, info) = open(&runtime, path.to_str().unwrap()).await?;
 
 		// Aim at the middle of what the container actually covers. `min_zoom/0/0` is a valid
-		// coordinate but an empty tile — the first version of this test asserted against that and
+		// coordinate but an empty tile - the first version of this test asserted against that and
 		// failed, which is exactly the confusion A4 exists to remove.
 		let bbox = info.bbox.expect("berlin should report an extent");
 		let (lng, lat) = ((bbox[0] + bbox[2]) / 2.0, (bbox[1] + bbox[3]) / 2.0);
@@ -284,7 +284,7 @@ pub struct LayerInspection {
 	/// What this layer is made of: `point`, `line`, `polygon`, or `unknown` (S4.4, D2).
 	///
 	/// **The commonest of its features, not all of them.** A layer may mix geometries and MapLibre
-	/// draws one kind per layer, so a style deriving itself from this has to pick — and the majority
+	/// draws one kind per layer, so a style deriving itself from this has to pick - and the majority
 	/// is the pick that leaves the fewest features invisible. Free to compute: the type is a field on
 	/// every feature, already read by the time the tile has decoded.
 	pub geometry: String,
@@ -308,7 +308,7 @@ pub struct TileInspection {
 ///
 /// The per-layer size is computed here rather than reused: `layer_stats()` in versatiles-rs does
 /// exactly this, but `tools` is declared in `main.rs` rather than `lib.rs`, so it is binary-only
-/// and cannot be imported ([Q12]). This is the reachable subset — encoded size per layer, without
+/// and cannot be imported ([Q12]). This is the reachable subset - encoded size per layer, without
 /// the geometry/tag/property split that B2 will want.
 ///
 /// [Q12]: ../../../docs/decisions.md
@@ -321,7 +321,7 @@ pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> R
 	};
 
 	// `Tile` is lazy: ask for the blob and it encodes, ask for the vector and it decodes. The
-	// uncompressed length is what a user means by "how big is this tile" — the number they can
+	// uncompressed length is what a user means by "how big is this tile" - the number they can
 	// actually shrink.
 	let stored_bytes = tile
 		.as_blob(&TileCompression::Uncompressed)
@@ -342,7 +342,7 @@ pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> R
 		})
 		.collect();
 
-	// Biggest first — the question this answers is always "what is costing me".
+	// Biggest first - the question this answers is always "what is costing me".
 	layers.sort_by_key(|layer| std::cmp::Reverse(layer.encoded_bytes));
 
 	Ok(Some(TileInspection {
@@ -357,7 +357,7 @@ pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> R
 /// The layers a source produces, probed from one representative tile (S3.3, E1).
 ///
 /// This is how the parameter form learns what is actually in a file. `from_geo` accepts
-/// `properties_include` and `properties_exclude` — lists of property names — and the person filling
+/// `properties_include` and `properties_exclude` - lists of property names - and the person filling
 /// them in has no way to know what those names are without opening the file in something else.
 ///
 /// **Probed from the output rather than parsed from the input**, which is what makes one
@@ -366,7 +366,7 @@ pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> R
 ///
 /// One tile, not a survey. The tile chosen is the one at the lowest zoom that covers the middle of
 /// the source's own bounds, which for the small-to-middling files an import produces holds every
-/// feature. A property that appears only in a corner of a planet-sized extract will be missed —
+/// feature. A property that appears only in a corner of a planet-sized extract will be missed -
 /// this is a list of suggestions, and the field it feeds still accepts anything typed into it.
 ///
 /// Empty for raster sources, and for a pyramid with no tiles in it. Never an error: a probe that
@@ -383,7 +383,7 @@ pub async fn probe_layers(source: &SharedTileSource, info: &ContainerInfo) -> Ve
 
 	match inspect_tile(source, coord.level, coord.x, coord.y).await {
 		Ok(Some(tile)) => tile.layers,
-		// A raster tile does not decode as a vector, and that is not news — it is the answer.
+		// A raster tile does not decode as a vector, and that is not news - it is the answer.
 		Ok(None) | Err(_) => Vec::new(),
 	}
 }
@@ -431,7 +431,7 @@ mod probe_tests {
 		Ok(())
 	}
 
-	/// A probe that fails costs the caller its suggestions, not its import — so a raster source is
+	/// A probe that fails costs the caller its suggestions, not its import - so a raster source is
 	/// an empty list rather than an error.
 	#[tokio::test]
 	async fn a_raster_source_has_no_layers_and_does_not_fail() -> Result<()> {
@@ -477,7 +477,7 @@ fn commonest_geometry(layer: &versatiles_geometry::vector_tile::VectorTileLayer)
 pub struct Fit {
 	/// The operation's tag, as it would be written in VPL.
 	pub name: String,
-	/// Why it does not fit, in upstream's words — or `None` when nothing rules it out.
+	/// Why it does not fit, in upstream's words - or `None` when nothing rules it out.
 	///
 	/// The reason is the whole point of reporting the misfits at all: a picker that silently
 	/// dropped `raster_flatten` from a vector chain would leave someone looking for an operation
@@ -489,7 +489,7 @@ pub struct Fit {
 ///
 /// **Upstream's answer, not ours.** Studio asked for this as
 /// [vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) rather than reimplementing
-/// every operation's requirements here, because the operation is the thing that knows them — the
+/// every operation's requirements here, because the operation is the thing that knows them - the
 /// reverse test in [architecture.md](../../docs/architecture.md): when the knowledge lives
 /// upstream, so does the question.
 ///
@@ -520,7 +520,7 @@ mod fit_tests {
 
 	/// The whole point: a vector chain and a raster chain must not be offered the same operations.
 	///
-	/// Asserted as a *difference* rather than against a fixed list — the operation set grows with
+	/// Asserted as a *difference* rather than against a fixed list - the operation set grows with
 	/// every upstream release, and a test that named them would fail on the good news.
 	#[tokio::test]
 	async fn what_fits_depends_on_what_the_tiles_are() {
@@ -542,7 +542,7 @@ mod fit_tests {
 		}
 	}
 
-	/// A raster-only operation is refused for vector tiles and offered for raster ones — the
+	/// A raster-only operation is refused for vector tiles and offered for raster ones - the
 	/// concrete case from the issue that asked for this upstream.
 	#[tokio::test]
 	async fn a_raster_operation_is_not_offered_for_vector_tiles() {

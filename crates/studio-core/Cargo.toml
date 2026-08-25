@@ -1,6 +1,6 @@
 [package]
 name = "studio-core"
-description = "VersaTiles Studio core — project model, jobs, analysis, assets, server. No Tauri types."
+description = "VersaTiles Studio core - project model, jobs, analysis, assets, server. No Tauri types."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 
 [dependencies]
 anyhow.workspace = true
-# Not called directly — present so the static GDAL and its drivers are linked into the binary that
+# Not called directly - present so the static GDAL and its drivers are linked into the binary that
 # `versatiles/gdal` reads rasters with (Q19, S3.5).
 gdal-src.workspace = true
 gdal-sys.workspace = true
@@ -32,9 +32,9 @@ serde_yaml_ng = "0.10"
 url = "2"
 
 # Type reflection for the generated TypeScript bindings (S0.3). Optional, because the core has no
-# other reason to know the binding layer exists — `--features bindings` is only on when generating.
+# other reason to know the binding layer exists - `--features bindings` is only on when generating.
 specta = { version = "=2.0.0-rc.25", optional = true, features = ["derive", "serde_json"] }
-# Only for the `Any` marker, which is the sole way to say "arbitrary JSON" — specta itself has no
+# Only for the `Any` marker, which is the sole way to say "arbitrary JSON" - specta itself has no
 # opaque type. Gated with the rest of the generation tooling.
 specta-typescript = { version = "0.0.12", optional = true }
 zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib"] }

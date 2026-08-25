@@ -1,4 +1,4 @@
-// Generated from the Rust commands by `cargo test -p versatiles-studio` — do not edit.
+// Generated from the Rust commands by `cargo test -p versatiles-studio` - do not edit.
 //
 // Hand-written wrappers and the reasoning behind each command live in `commands.ts`, which
 // re-exports everything here. See src-tauri/src/bindings.rs.
@@ -19,7 +19,7 @@ export const commands = {
 	 */
 	serverBaseUrl: () => typedError<string, string>(__TAURI_INVOKE("server_base_url")),
 	/**
-	 *  Opens another window. One window per project ([Q16]) — this is what ⌘N does.
+	 *  Opens another window. One window per project ([Q16]) - this is what ⌘N does.
 	 * 
 	 *  Each window gets its own webview process, so a crash takes one project down rather than all of
 	 *  them. The label must be unique; the caller owns that.
@@ -36,7 +36,7 @@ export const commands = {
 	 *  application with no windows for as long as a webview takes to boot.
 	 * 
 	 *  **Queued before the window is built**, because a webview starts asynchronously and drains its
-	 *  queue when it is ready — pushing afterwards would be racing the thing being handed to.
+	 *  queue when it is ready - pushing afterwards would be racing the thing being handed to.
 	 * 
 	 *  The path is not inspected here. A file, a directory holding a project, or a URL are all the same
 	 *  to this: the window that receives it decides what it is, using the same code that already
@@ -47,7 +47,7 @@ export const commands = {
 	 *  Opens a project window with nothing in it, and closes the one that asked.
 	 * 
 	 *  **The fourth way in, and the only one that opens nothing** (S7.5). The other three hand a path
-	 *  to the new window; this hands it no work, and the window it makes is the same window they make —
+	 *  to the new window; this hands it no work, and the window it makes is the same window they make -
 	 *  an empty workbench, where the Sources pane's own "new graph" is the next step.
 	 * 
 	 *  Closing last, for the reason [`open_in_new_window`] gives: a launcher that opened a window and
@@ -59,21 +59,21 @@ export const commands = {
 	/**
 	 *  Redraws the menu for this window (S7.8).
 	 * 
-	 *  **Called when what the menu should offer changes** — the first graph appearing, the last one
-	 *  going — because a menu is not reactive and the moment Save becomes possible is not a moment the
+	 *  **Called when what the menu should offer changes** - the first graph appearing, the last one
+	 *  going - because a menu is not reactive and the moment Save becomes possible is not a moment the
 	 *  shell can see. What it *reads* is the core: this says "look again", not "here is the answer".
 	 */
 	refreshMenu: () => typedError<null, string>(__TAURI_INVOKE("refresh_menu")),
 	/**  Everything that has gone wrong this session, oldest first. */
 	diagnostics: () => typedError<Problem[], string>(__TAURI_INVOKE("diagnostics")),
 	/**
-	 *  What the run before this one left behind — the half a crash does not get to erase.
+	 *  What the run before this one left behind - the half a crash does not get to erase.
 	 * 
 	 *  **Read from the file, not from memory**, because there is no memory left: the session this
 	 *  describes is the one that was killed, ran out of memory, or aborted on a panic. Read on demand
 	 *  rather than at startup, since most launches follow an ordinary one and nobody opens the tab.
 	 * 
-	 *  Empty is the ordinary answer — a first launch, or a log directory that could not be written.
+	 *  Empty is the ordinary answer - a first launch, or a log directory that could not be written.
 	 */
 	previousProblems: () => typedError<Problem[], string>(__TAURI_INVOKE("previous_problems")),
 	/**
@@ -84,33 +84,33 @@ export const commands = {
 	 *  core can see all three.
 	 */
 	logDiagnostic: (report: NewProblem) => typedError<number, string>(__TAURI_INVOKE("log_diagnostic", { report })),
-	/**  Forgets them all — for reproducing a problem cleanly before copying the report. */
+	/**  Forgets them all - for reproducing a problem cleanly before copying the report. */
 	clearDiagnostics: () => typedError<null, string>(__TAURI_INVOKE("clear_diagnostics")),
 	/**
 	 *  Writes a problem report where the user asked for it.
 	 * 
 	 *  **The webview composes the text**, for the same reason `export_style` takes its contents: what a
-	 *  report says is a presentation decision, and the half of it that only the window can answer —
-	 *  the engine, the GPU — never crosses into the core at all.
+	 *  report says is a presentation decision, and the half of it that only the window can answer -
+	 *  the engine, the GPU - never crosses into the core at all.
 	 * 
 	 *  The path came from a native save dialog, which is the whole of the trust story.
 	 */
 	saveReport: (path: string, text: string) => typedError<null, string>(__TAURI_INVOKE("save_report", { path, text })),
-	/**  The same, for the panel's footer — the path is written there, and a path you can open is better. */
+	/**  The same, for the panel's footer - the path is written there, and a path you can open is better. */
 	showLog: () => typedError<null, string>(__TAURI_INVOKE("show_log")),
 	environment: () => typedError<Environment, string>(__TAURI_INVOKE("environment")),
 	/**
 	 *  Starts an export and returns the job running it.
 	 * 
 	 *  **Returns the job rather than the result.** A conversion is the long operation the runner exists
-	 *  for (E7) — minutes and gigabytes — so waiting for it here would hold a command open for the whole
+	 *  for (E7) - minutes and gigabytes - so waiting for it here would hold a command open for the whole
 	 *  write and leave the webview with nothing to show meanwhile. The job's progress, log and failure
 	 *  all arrive on the event channel the bar is already listening to, which is where a user can watch
 	 *  or cancel it.
 	 * 
 	 *  **`Queued`, not `Latest`** ([Q27]): two conversions compete for the same disk and cores and
 	 *  finish later than the same two in sequence, and a second export is a second thing you asked for
-	 *  rather than a correction of the first — unlike a preview, which stops mattering the moment the
+	 *  rather than a correction of the first - unlike a preview, which stops mattering the moment the
 	 *  pipeline changes.
 	 * 
 	 *  [Q27]: ../../../docs/decisions.md
@@ -122,7 +122,7 @@ export const commands = {
 	 *  **Awaited rather than run as a job**, unlike [`export_graph`]. A job is the right shape for
 	 *  something you start and walk away from; this is something a dialog is waiting on, and it is
 	 *  bounded by [`studio_core::estimate::BUDGET`] precisely so that waiting is reasonable. Putting a
-	 *  two-second measurement in the status bar would also announce it to a window that is not asking —
+	 *  two-second measurement in the status bar would also announce it to a window that is not asking -
 	 *  the bar is for work the user started.
 	 * 
 	 *  **The refusals are the same as the export's**, and arrive here first: an absurd pyramid and a
@@ -134,7 +134,7 @@ export const commands = {
 	 *  Narrows what an export of this graph writes (F2, S5.2, S5.4).
 	 * 
 	 *  **Kept on the graph rather than in the export dialog.** A crop is arrived at by looking at the
-	 *  map — dragging a rectangle over the city you mean — and the dialog is a modal that covers it. It
+	 *  map - dragging a rectangle over the city you mean - and the dialog is a modal that covers it. It
 	 *  is also worth keeping: it goes into the project manifest, so reopening a project tomorrow is
 	 *  still about the same place.
 	 * 
@@ -156,7 +156,7 @@ export const commands = {
 	 *  **Called once, at startup, and again after every reload.** The channel belongs to a webview, and
 	 *  a reload gets a new one; jobs started before it keep running, which is the whole reason a
 	 *  conversion is not tied to the window that asked for it. Returning the list in the same call is
-	 *  what closes the gap — subscribing and then listing separately leaves a window where an event
+	 *  what closes the gap - subscribing and then listing separately leaves a window where an event
 	 *  lands between the two and is counted twice, or lands before the list is taken and is missed.
 	 * 
 	 *  **This window's work, not the machine's** ([S7.3](../../../docs/scope-release-3.md)): one runner
@@ -165,7 +165,7 @@ export const commands = {
 	subscribeJobs: (channel: Channel<JobEvent>) => typedError<Job[], string>(__TAURI_INVOKE("subscribe_jobs", { channel })),
 	/**  One job's log, oldest line first. Fetched when a row is expanded, not streamed on connect. */
 	jobLog: (id: number) => typedError<string[], string>(__TAURI_INVOKE("job_log", { id })),
-	/**  Asks a job to stop. Idempotent — a job that has already ended stays ended. */
+	/**  Asks a job to stop. Idempotent - a job that has already ended stays ended. */
 	cancelJob: (id: number) => typedError<null, string>(__TAURI_INVOKE("cancel_job", { id })),
 	/**
 	 *  Opens a container, mounts it on the embedded server, and returns what is cheap to know.
@@ -176,14 +176,14 @@ export const commands = {
 	 *  can set the pipeline itself.
 	 * 
 	 *  The mount name is derived from the path so the webview can build tile URLs without a second
-	 *  round trip. Re-opening the same path replaces the mount rather than stacking duplicates — see
+	 *  round trip. Re-opening the same path replaces the mount rather than stacking duplicates - see
 	 *  [`ServerManager::mount`](studio_core::server::ServerManager::mount), which is where that is
 	 *  actually enforced.
 	 */
 	openContainer: (source: string) => typedError<OpenedContainer, string>(__TAURI_INVOKE("open_container", { source })),
 	/**  The recently opened sources, newest first (A7). */
 	recentSources: () => typedError<RecentEntry[], string>(__TAURI_INVOKE("recent_sources")),
-	/**  Drops one entry — for a path that has gone away, or that the user wants gone. */
+	/**  Drops one entry - for a path that has gone away, or that the user wants gone. */
 	forgetRecent: (source: string) => typedError<null, string>(__TAURI_INVOKE("forget_recent", { source })),
 	/**
 	 *  Decodes one tile of an open container, layer by layer (A4).
@@ -205,8 +205,8 @@ export const commands = {
 	/**
 	 *  Puts the views in the order given, and returns what that came to.
 	 * 
-	 *  Returns the list rather than nothing because the core has the last word on it — a name the
-	 *  caller does not hold is ignored, and one it left out keeps its place — so the webview renders
+	 *  Returns the list rather than nothing because the core has the last word on it - a name the
+	 *  caller does not hold is ignored, and one it left out keeps its place - so the webview renders
 	 *  what was actually stored instead of what it hoped had been.
 	 */
 	reorderViews: (order: string[]) => typedError<View[], string>(__TAURI_INVOKE("reorder_views", { order })),
@@ -219,7 +219,7 @@ export const commands = {
 	 * 
 	 *  `None` hands the question back to the webview's own reading. Changing the kind across the
 	 *  vector/raster line replaces the appearance, because the old one describes something this source
-	 *  is no longer being drawn as — and keeping it would mean a recipe carrying two answers again,
+	 *  is no longer being drawn as - and keeping it would mean a recipe carrying two answers again,
 	 *  which is what S6.4 removed.
 	 */
 	setStyleKind: (graph: number, kind: 
@@ -227,18 +227,18 @@ export const commands = {
 "vectorShortbread" | 
 /**  Vector tiles of anything else. Styled from the layers actually present (D2). */
 "vectorOther" | 
-/**  Raster tiles meant to be looked at — imagery, a scan, a rendered map (D11). */
+/**  Raster tiles meant to be looked at - imagery, a scan, a rendered map (D11). */
 "rasterImage" | 
 /**
  *  Raster tiles encoding elevation, to be drawn as hillshade rather than as colour (D12).
  * 
- *  The encoding — `mapbox`, `terrarium`, `versatiles` — is deliberately not carried here yet.
+ *  The encoding - `mapbox`, `terrarium`, `versatiles` - is deliberately not carried here yet.
  *  Nothing draws a DEM until S6.6, and that is the step that has to decide whether the encoding
  *  belongs on this enum or is re-read from `tile_schema` at the point of use.
  */
 "rasterDem" | null) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_kind", { graph, kind })),
 	/**
-	 *  Sets the raster adjustment — the imagery equivalent of `set_style_recolor` (S6.3, D11).
+	 *  Sets the raster adjustment - the imagery equivalent of `set_style_recolor` (S6.3, D11).
 	 * 
 	 *  Whole-struct for the same reason that one is: the controls move together, and one command per
 	 *  field would let the two ends disagree about which of them the recipe currently has. Called when
@@ -249,7 +249,7 @@ export const commands = {
 	 *  Sets the draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
 	 * 
 	 *  The whole list, not a move: a reorder is one gesture with one result, and "move this one up"
-	 *  would need the two ends to agree about what the list was before it — which is the disagreement
+	 *  would need the two ends to agree about what the list was before it - which is the disagreement
 	 *  `set_style_recolor` avoids the same way.
 	 * 
 	 *  Names that no graph has are kept rather than filtered. `Recipe::draw_order` ignores them, and
@@ -265,7 +265,7 @@ export const commands = {
 	/**
 	 *  Drops a source's overrides for layers its style no longer has ([S6.7](../../../docs/scope-release-2.md)).
 	 * 
-	 *  `present` is the ids the rendered style actually contains, which only the webview knows —
+	 *  `present` is the ids the rendered style actually contains, which only the webview knows -
 	 *  `@versatiles/style` renders there ([Q36]), so the core cannot work out what a preset produced.
 	 * 
 	 *  Returns the recipe, and the count goes to the pane through the difference it can see. Deliberate
@@ -274,7 +274,7 @@ export const commands = {
 	 */
 	pruneStyleOverrides: (graph: number, present: string[]) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("prune_style_overrides", { graph, present })),
 	/**
-	 *  Sets the global recolouring — hue, saturation, brightness, contrast and the rest (D1, D5).
+	 *  Sets the global recolouring - hue, saturation, brightness, contrast and the rest (D1, D5).
 	 * 
 	 *  Takes the whole of it rather than one field at a time. The controls move together, the webview
 	 *  holds them together, and ten commands would let the two ends disagree about which of them the
@@ -291,7 +291,7 @@ export const commands = {
 	 *  it produces ([Q36]). So this command is about the destination rather than the contents: it checks
 	 *  the extension and writes atomically, the way a `.vpl` is saved.
 	 * 
-	 *  The path came from a native save dialog, which is the whole of the trust story — see
+	 *  The path came from a native save dialog, which is the whole of the trust story - see
 	 *  [architecture.md](../../../docs/architecture.md)'s note on paths across the control plane.
 	 */
 	exportStyle: (path: string, contents: string) => typedError<null, string>(__TAURI_INVOKE("export_style", { path, contents })),
@@ -302,8 +302,8 @@ export const commands = {
 	 *  above takes its contents: `@versatiles/style` renders in JavaScript, and the fonts a style uses
 	 *  are read out of what it rendered to.
 	 * 
-	 *  The archives come from here, because only the app knows where a bundled resource lives — beside
-	 *  the binary when packaged, in the source tree in dev — and where installed families were put.
+	 *  The archives come from here, because only the app knows where a bundled resource lives - beside
+	 *  the binary when packaged, in the source tree in dev - and where installed families were put.
 	 *  Installed families are searched *after* the bundled tier, mirroring the mount order: the Latin
 	 *  subset answers first, and anything else is found in whichever family archive has it.
 	 * 
@@ -312,7 +312,7 @@ export const commands = {
 	 *  **On a blocking thread**: this reads two tar archives and writes a few hundred files.
 	 */
 	exportStyleBundle: (target: string, zip: boolean, contents: string, fonts: string[]) => typedError<string[], string>(__TAURI_INVOKE("export_style_bundle", { target, zip, contents, fonts })),
-	/**  What Studio can write a style as/// What Studio can write a style as — the file dialog's filters come from here. */
+	/**  What Studio can write a style as/// What Studio can write a style as - the file dialog's filters come from here. */
 	styleFormats: () => __TAURI_INVOKE<string[]>("style_formats"),
 	/**
 	 *  Writes every graph, the style recipe, and the rendered style.
@@ -323,7 +323,7 @@ export const commands = {
 	 *  error.
 	 * 
 	 *  Saving also moves what relative paths resolve against, because they are now relative to this
-	 *  directory — a `.vpl` reading `berlin.mbtiles` beside it must keep meaning that file.
+	 *  directory - a `.vpl` reading `berlin.mbtiles` beside it must keep meaning that file.
 	 * 
 	 *  [Q36]: ../../../docs/decisions.md
 	 */
@@ -334,13 +334,13 @@ export const commands = {
 	 *  **Replacing, not merging.** A window is one project ([Q16]); opening a second one beside the
 	 *  first would leave two sets of graphs sharing an undo stack and a style, which is not a project.
 	 * 
-	 *  Returns the recipe, because the webview has to render the style again — the manifest carries what
+	 *  Returns the recipe, because the webview has to render the style again - the manifest carries what
 	 *  it is made from, not the style itself.
 	 * 
 	 *  [Q16]: ../../../docs/decisions.md
 	 */
 	openProject: (dir: string) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("open_project", { dir })),
-	/**  Whether a directory holds a project — so the open dialog can say why one does not. */
+	/**  Whether a directory holds a project - so the open dialog can say why one does not. */
 	isProject: (dir: string) => __TAURI_INVOKE<boolean>("is_project", { dir }),
 	/**
 	 *  Where this project lives, or `None` if it has never been saved or opened.
@@ -352,20 +352,20 @@ export const commands = {
 	/**
 	 *  What copying this project elsewhere would carry, without writing anything.
 	 * 
-	 *  Asked before the destination is chosen, so the dialog can say what it costs — the same
+	 *  Asked before the destination is chosen, so the dialog can say what it costs - the same
 	 *  plan-then-write split `estimate` and `export` use.
 	 */
 	copyPlan: () => typedError<CopyPlan, string>(__TAURI_INVOKE("copy_plan")),
 	/**
-	 *  Writes a self-contained copy — a directory, or one `.zip`.
+	 *  Writes a self-contained copy - a directory, or one `.zip`.
 	 * 
 	 *  **Planned again here rather than carried over from [`copy_plan`].** The plan is a few `stat`
 	 *  calls, and recomputing it means what is written describes the project as it is now rather than as
 	 *  it was when a dialog opened.
 	 * 
 	 *  **On a blocking thread**, because this copies tile containers: `std::fs::copy` of twenty
-	 *  gigabytes must not be sitting on the async runtime. There is no progress to report — neither
-	 *  `fs::copy` nor the zip writer offers any — so the status bar says it is working and that is all
+	 *  gigabytes must not be sitting on the async runtime. There is no progress to report - neither
+	 *  `fs::copy` nor the zip writer offers any - so the status bar says it is working and that is all
 	 *  it can honestly say.
 	 */
 	saveProjectCopy: (target: string, zip: boolean, style: string | null) => typedError<null, string>(__TAURI_INVOKE("save_project_copy", { target, zip, style })),
@@ -388,7 +388,7 @@ export const commands = {
 	 *  Removes a family. Reports whether one was there.
 	 * 
 	 *  **The mount is not removed**, and cannot be: the server takes static sources and never gives them
-	 *  back. Until it does, a family removed mid-session keeps serving until the next start — which is
+	 *  back. Until it does, a family removed mid-session keeps serving until the next start - which is
 	 *  the harmless direction for this to be wrong in, and is said here rather than left to be noticed.
 	 */
 	removeFont: (id: string) => typedError<boolean, string>(__TAURI_INVOKE("remove_font", { id })),
@@ -414,7 +414,7 @@ export const commands = {
 	 *  Sets a parameter on the node whose *name* occupies `span`, adding it if it is not set.
 	 * 
 	 *  Takes the node rather than the property, because the generated form offers every parameter an
-	 *  operation accepts — including the ones the node has no span for yet.
+	 *  operation accepts - including the ones the node has no span for yet.
 	 */
 	vplSetProperty: (text: string, span: Span, key: string, values: string[]) => typedError<string, VplError>(__TAURI_INVOKE("vpl_set_property", { text, span, key, values })),
 	/**  Removes the property at `span`. This is what clearing a field means (see `NodeCard`). */
@@ -430,7 +430,7 @@ export const commands = {
 	/**
 	 *  Removes the node whose name occupies `span`, and the separator that joined it to the chain.
 	 * 
-	 *  Refused when it would empty the pipeline — see `Document::remove_node` for why that is a message
+	 *  Refused when it would empty the pipeline - see `Document::remove_node` for why that is a message
 	 *  rather than a parse failure.
 	 */
 	vplRemoveNode: (text: string, span: Span) => typedError<string, VplError>(__TAURI_INVOKE("vpl_remove_node", { text, span })),
@@ -445,7 +445,7 @@ export const commands = {
 	/**
 	 *  Every way this build can bring data in (S3.2).
 	 * 
-	 *  Build-time information about the binary, like [`vpl_operations`] — the catalogue is derived from
+	 *  Build-time information about the binary, like [`vpl_operations`] - the catalogue is derived from
 	 *  the operation registry, so it cannot offer something this build cannot do.
 	 */
 	importKinds: () => __TAURI_INVOKE<ImportKind[]>("import_kinds"),
@@ -453,7 +453,7 @@ export const commands = {
 	 *  Which kind a path belongs to, or `None` for a file Studio has no way in for.
 	 * 
 	 *  Asked here rather than matched in the webview so that one list of extensions serves the dialog,
-	 *  the drop target and the cards — three places that had already started to disagree.
+	 *  the drop target and the cards - three places that had already started to disagree.
 	 */
 	importKindFor: (path: string) => __TAURI_INVOKE<{
 	/**  Stable identifier, used by the caller to say which card was chosen. */
@@ -467,7 +467,7 @@ export const commands = {
 	/**
 	 *  The read operation a chosen file becomes.
 	 * 
-	 *  `None` for a `.vpl`, which is not a node — it is a whole document, and opening one replaces
+	 *  `None` for a `.vpl`, which is not a node - it is a whole document, and opening one replaces
 	 *  the pipeline rather than adding to it (C9).
 	 */
 	operation: string | null,
@@ -480,7 +480,7 @@ export const commands = {
 	needs: string[],
 } | null>("import_kind_for", { path }),
 	/**
-	 *  The read node a chosen file becomes — `from_geo filename='…'`, quoting included.
+	 *  The read node a chosen file becomes - `from_geo filename='…'`, quoting included.
 	 * 
 	 *  The quoting is the core's, for the reason [`vpl_set_value`] gives: a second implementation of
 	 *  VPL's quoting rules in TypeScript is exactly what would drift. So is the *filling in*: a CSV
@@ -492,7 +492,7 @@ export const commands = {
 	 *  What every node's fields could be set to, read from what each node points at (S3.4).
 	 * 
 	 *  **The whole graph, not the selected node.** Every node in the chain carries its own form, so
-	 *  every node needs its own answer — one `from_csv` reading `a.csv` has nothing to say about
+	 *  every node needs its own answer - one `from_csv` reading `a.csv` has nothing to say about
 	 *  another reading `b.csv`. It used to take a path, which was correct only while a single node had
 	 *  a form to fill in.
 	 * 
@@ -529,7 +529,7 @@ export const commands = {
 	 *  Creates a graph from VPL text, and returns it.
 	 * 
 	 *  Takes the **source** rather than a name, so the one rule that turns a file into a graph name
-	 *  lives here and not in each caller ([Q35]) — a webview that passed a whole path would have named
+	 *  lives here and not in each caller ([Q35]) - a webview that passed a whole path would have named
 	 *  a graph `users-me-data-berlin-mbtiles`. Two `places.geojson` files in different folders both want
 	 *  to be `places`, and the second becoming `places-2` beats a refusal or a silent overwrite.
 	 * 
@@ -542,7 +542,7 @@ export const commands = {
 	 *  Renames a graph, and reports the name it actually took.
 	 * 
 	 *  The name is the mount, the source name in `style.json` and the `.vpl` filename at once ([Q32]),
-	 *  so this remounts under the new name — and since [S6.4](../../../docs/scope-release-2.md) the
+	 *  so this remounts under the new name - and since [S6.4](../../../docs/scope-release-2.md) the
 	 *  recipe files each source's style under that name too, so the style moves with it.
 	 * 
 	 *  **Without this a rename silently resets the style.** The entry would stay under the old name,
@@ -561,7 +561,7 @@ export const commands = {
 /**  A keystroke in the VPL editor. Consecutive ones merge. */
 "typing" | 
 /**
- *  A parameter form or the graph — a deliberate, discrete change. The default, because it is
+ *  A parameter form or the graph - a deliberate, discrete change. The default, because it is
  *  the conservative one: a caller that says nothing gets its own undo step.
  */
 "structured" | 
@@ -571,26 +571,26 @@ export const commands = {
 	 *  Lays a graph's VPL out again, keeping its comments ([vt#249], S1.11).
 	 * 
 	 *  **Recorded as an edit, not a rewrite.** It goes on the undo stack like anything else, and the
-	 *  file behind it is kept — reformatting a `.vpl` is a change to it, not a replacement of it, so
+	 *  file behind it is kept - reformatting a `.vpl` is a change to it, not a replacement of it, so
 	 *  Save still writes where it came from.
 	 * 
 	 *  [vt#249]: https://github.com/versatiles-org/versatiles-rs/issues/249
 	 */
 	formatGraph: (id: number) => typedError<DocumentView, VplError>(__TAURI_INVOKE("format_graph", { id })),
 	/**
-	 *  Runs the pipeline up to `path` and mounts the result — as a cancellable job (S2.7, S3.1).
+	 *  Runs the pipeline up to `path` and mounts the result - as a cancellable job (S2.7, S3.1).
 	 * 
 	 *  Building opens the inputs, which on a large source is not instant, so this runs in the runner's
 	 *  [`Lane::Latest`]: **editing the pipeline again stops the build that is now out of date**, rather
 	 *  than leaving it to finish an answer nobody will look at. That is also why the caller no longer
-	 *  needs a token to discard stale replies — being superseded is something the runner knows, so it
+	 *  needs a token to discard stale replies - being superseded is something the runner knows, so it
 	 *  is something this can report.
 	 */
 	previewPipeline: (graph: number, path: number[]) => typedError<PreviewOutcome, string>(__TAURI_INVOKE("preview_pipeline", { graph, path })),
 	/**
 	 *  Builds a graph in full and mounts it under its own name ([Q32]).
 	 * 
-	 *  Every graph is served, because that is what a style names — this is the ordinary view, and the
+	 *  Every graph is served, because that is what a style names - this is the ordinary view, and the
 	 *  pin is the exception layered on top. Mounting by name rather than under one shared `preview`
 	 *  mount is what lets a style reference `basemap` and `hillshade` separately.
 	 */
@@ -612,7 +612,7 @@ export const commands = {
 	 * 
 	 *  Carried here for the same reason as `layers`, and it is the same kind of answer: what fits
 	 *  depends on what this build produces, so asking separately would race the next edit and offer
-	 *  operations chosen for a pipeline that no longer exists. It also costs nothing extra — the
+	 *  operations chosen for a pipeline that no longer exists. It also costs nothing extra - the
 	 *  source is already built and every check is a comparison against its declared tile type.
 	 */
 	fits: Fit[],
@@ -639,7 +639,7 @@ export const commands = {
 	 *  Steps back, or forward again. `None` when there is nowhere to go.
 	 * 
 	 *  **One stack across every graph** ([Q32], G6), so this may hand back a graph other than the one
-	 *  being edited — which is why it returns the whole document rather than just its text.
+	 *  being edited - which is why it returns the whole document rather than just its text.
 	 */
 	undo: () => typedError<({ graph: DocumentView }) & { style?: never } | ({ style: Recipe_Serialize }) & { graph?: never } | null, VplError>(__TAURI_INVOKE("undo")),
 	redo: () => typedError<({ graph: DocumentView }) & { style?: never } | ({ style: Recipe_Serialize }) & { graph?: never } | null, VplError>(__TAURI_INVOKE("redo")),
@@ -650,7 +650,7 @@ export const commands = {
 	 *  means "edit VPL Studio wrote" and the two tools cannot hand work to each other.
 	 * 
 	 *  **Relative paths in the file resolve against the file**, the way `versatiles convert` resolves
-	 *  them — `from_container filename="berlin.mbtiles"` beside the `.vpl` means exactly that — so
+	 *  them - `from_container filename="berlin.mbtiles"` beside the `.vpl` means exactly that - so
 	 *  opening one moves `project_dir`.
 	 */
 	openVpl: (path: string) => typedError<DocumentView, VplError>(__TAURI_INVOKE("open_vpl", { path })),
@@ -658,7 +658,7 @@ export const commands = {
 	 *  Writes the pipeline to a `.vpl` file and remembers it as the file this window is editing.
 	 * 
 	 *  The narrower half of saving: this writes the pipeline as the file the CLI already reads. Saving a
-	 *  *project* — the manifest, the style and the pipeline as a directory — is G1 at S5.1, and stays a
+	 *  *project* - the manifest, the style and the pipeline as a directory - is G1 at S5.1, and stays a
 	 *  separate command because it has a different scope.
 	 */
 	saveVpl: (graph: number, path: string) => typedError<DocumentView, VplError>(__TAURI_INVOKE("save_vpl", { graph, path })),
@@ -672,7 +672,7 @@ export const commands = {
  * 
  *  **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
  *  recolour, a layer-override map *and* a raster adjustment, and at least half of that was
- *  meaningless for any given source — a preset means nothing over a photograph, and a
+ *  meaningless for any given source - a preset means nothing over a photograph, and a
  *  `raster-saturation` means nothing over vector tiles. Adding hillshade (S6.6) to a flat struct
  *  would have made it two thirds.
  */
@@ -683,7 +683,7 @@ export type Appearance = Appearance_Serialize | Appearance_Deserialize;
  * 
  *  **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
  *  recolour, a layer-override map *and* a raster adjustment, and at least half of that was
- *  meaningless for any given source — a preset means nothing over a photograph, and a
+ *  meaningless for any given source - a preset means nothing over a photograph, and a
  *  `raster-saturation` means nothing over vector tiles. Adding hillshade (S6.6) to a flat struct
  *  would have made it two thirds.
  */
@@ -702,7 +702,7 @@ overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never;
  * 
  *  **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
  *  recolour, a layer-override map *and* a raster adjustment, and at least half of that was
- *  meaningless for any given source — a preset means nothing over a photograph, and a
+ *  meaningless for any given source - a preset means nothing over a photograph, and a
  *  `raster-saturation` means nothing over vector tiles. Adding hillshade (S6.6) to a flat struct
  *  would have made it two thirds.
  */
@@ -730,7 +730,7 @@ overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; s
  *  written.
  */
 export type Bounds = {
-	/**  West, south, east, north, in degrees — the four number fields [Q32] asks for. */
+	/**  West, south, east, north, in degrees - the four number fields [Q32] asks for. */
 	bbox?: [number, number, number, number] | null,
 	minZoom?: number | null,
 	maxZoom?: number | null,
@@ -769,21 +769,21 @@ export type Carried = {
  *  Serialisable so the control plane can hand it to the inspector (A6) verbatim.
  */
 export type ContainerInfo = {
-	/**  How the user referred to it — a path or a URL. */
+	/**  How the user referred to it - a path or a URL. */
 	source: string,
-	/**  Container kind — just the name: `versatiles`, `mbtiles`, `pmtiles`, `tar`, `directory`. */
+	/**  Container kind - just the name: `versatiles`, `mbtiles`, `pmtiles`, `tar`, `directory`. */
 	container: string,
 	/**  Tile format, e.g. `mvt`, `png`, `webp`. */
 	tileFormat: string,
 	/**  Tile compression, e.g. `gzip`, `brotli`, `none`. */
 	tileCompression: string,
-	/**  The zoom levels that actually contain tiles — not what the metadata claims. */
+	/**  The zoom levels that actually contain tiles - not what the metadata claims. */
 	minZoom: number,
 	maxZoom: number,
 	/**  `[west, south, east, north]`, if the pyramid is non-empty. */
 	bbox: [number, number, number, number] | null,
 	/**
-	 *  What the container says its tiles *contain*, if it says — `shortbread@1.0`, `dem/mapbox`,
+	 *  What the container says its tiles *contain*, if it says - `shortbread@1.0`, `dem/mapbox`,
 	 *  `rgb`, and the rest of `TileSchema`'s spellings ([S6.1](../../docs/scope-release-2.md)).
 	 * 
 	 *  **Passed through as the container's own string rather than mirrored into an enum here.**
@@ -811,7 +811,7 @@ export type Control = { kind: "text" } |
 { kind: "number"; integer: boolean; min: number | null; max: number | null } | { kind: "boolean" } | 
 /**  An enum, with every accepted spelling. */
 { kind: "choice"; options: string[] } | 
-/**  `Vec<String>` — a list of values, written as a VPL array. */
+/**  `Vec<String>` - a list of values, written as a VPL array. */
 { kind: "list" } | 
 /**  A fixed-size numeric array: a bbox is four, a colour or a centre three. */
 { kind: "numbers"; count: number };
@@ -821,7 +821,7 @@ export type CopyPlan = {
 	/**  The files that would come along, each once however many pipelines name it. */
 	carry: Carried[],
 	/**
-	 *  References naming a file that is not there — shown, because a copy missing one of these is
+	 *  References naming a file that is not there - shown, because a copy missing one of these is
 	 *  still worth making and the person making it should know.
 	 */
 	missing: Reference[],
@@ -831,7 +831,7 @@ export type CopyPlan = {
  *  How elevation is packed into a DEM's pixels.
  * 
  *  **Two, because those are the two MapLibre can decode.** `versatiles_core` also names
- *  `dem/versatiles`, and nothing published says how to unpack it — a guess would render plausible
+ *  `dem/versatiles`, and nothing published says how to unpack it - a guess would render plausible
  *  hillshade of the wrong mountains, which is worse than saying so. The picker offers these and the
  *  pane says when a container declares something it cannot draw.
  */
@@ -871,7 +871,7 @@ export type EditKind =
 /**  A keystroke in the VPL editor. Consecutive ones merge. */
 "typing" | 
 /**
- *  A parameter form or the graph — a deliberate, discrete change. The default, because it is
+ *  A parameter form or the graph - a deliberate, discrete change. The default, because it is
  *  the conservative one: a caller that says nothing gets its own undo step.
  */
 "structured" | 
@@ -883,12 +883,12 @@ export type EditKind =
  * 
  *  **Half of it can only be answered here.** The webview knows its own engine and its GPU; the
  *  build number, the platform and where home is are the process's to say. `home` is not shown
- *  anywhere — it is what the report redacts out of file paths before anybody pastes them into a
+ *  anywhere - it is what the report redacts out of file paths before anybody pastes them into a
  *  public issue.
  */
 export type Environment = {
 	appVersion: string,
-	/**  `macos`, `windows`, `linux` — `std::env::consts`, so it is the target this was built for. */
+	/**  `macos`, `windows`, `linux` - `std::env::consts`, so it is the target this was built for. */
 	os: string,
 	arch: string,
 	/**  The system webview's version, or `None` where it will not say. */
@@ -907,7 +907,7 @@ export type Environment = {
 
 /**  What an export is expected to cost. */
 export type Estimate = {
-	/**  Tiles the export will write — a count, not an estimate. */
+	/**  Tiles the export will write - a count, not an estimate. */
 	tiles: number,
 	/**  Bytes those tiles are expected to come to. */
 	bytes: number,
@@ -925,7 +925,7 @@ export type Estimate = {
 
 /**  A family someone can install, and whether they have. */
 export type Family = {
-	/**  The name the archive and the font stack share — `noto_sans`. */
+	/**  The name the archive and the font stack share - `noto_sans`. */
 	id: string,
 	/**  Download size, so a 48 MB decision is made before it starts rather than during. */
 	bytes: number,
@@ -952,7 +952,7 @@ export type FieldInfo = {
 	 *  should follow whatever the operation does next.
 	 * 
 	 *  `None` is not "required": an optional parameter with no default is one whose absence *does*
-	 *  something — `filter`'s `bbox` clips nothing at all when unset — and a form has nothing to
+	 *  something - `filter`'s `bbox` clips nothing at all when unset - and a form has nothing to
 	 *  say about those.
 	 * 
 	 *  [vt#253]: https://github.com/versatiles-org/versatiles-rs/issues/253
@@ -971,7 +971,7 @@ export type Fit = {
 	/**  The operation's tag, as it would be written in VPL. */
 	name: string,
 	/**
-	 *  Why it does not fit, in upstream's words — or `None` when nothing rules it out.
+	 *  Why it does not fit, in upstream's words - or `None` when nothing rules it out.
 	 * 
 	 *  The reason is the whole point of reporting the misfits at all: a picker that silently
 	 *  dropped `raster_flatten` from a vector chain would leave someone looking for an operation
@@ -988,7 +988,7 @@ export type GraphInfo = {
 	path: string | null,
 	/**  Whether the document differs from what is on disk. */
 	dirty: boolean,
-	/**  What an export of this graph is narrowed to (F2, S5.2) — empty until someone sets one. */
+	/**  What an export of this graph is narrowed to (F2, S5.2) - empty until someone sets one. */
 	crop: Bounds,
 };
 
@@ -1055,7 +1055,7 @@ export type ImportKind = {
 	/**
 	 *  The read operation a chosen file becomes.
 	 * 
-	 *  `None` for a `.vpl`, which is not a node — it is a whole document, and opening one replaces
+	 *  `None` for a `.vpl`, which is not a node - it is a whole document, and opening one replaces
 	 *  the pipeline rather than adding to it (C9).
 	 */
 	operation: string | null,
@@ -1077,18 +1077,18 @@ export type ImportKind = {
  */
 export type Job = {
 	id: number,
-	/**  What to call it in the bar — "Building preview", "Converting berlin.mbtiles". */
+	/**  What to call it in the bar - "Building preview", "Converting berlin.mbtiles". */
 	label: string,
 	lane: Lane,
 	state: JobState,
-	/**  `0.0..=1.0`, or `None` when the job cannot say — which is honest more often than not. */
+	/**  `0.0..=1.0`, or `None` when the job cannot say - which is honest more often than not. */
 	fraction: number | null,
 	/**
 	 *  How many units are done and how many there are, when the job counts in units at all.
 	 * 
 	 *  A fraction alone cannot say how *fast* anything is going: "43% per minute" is not a speed
 	 *  anybody recognises. These are what make "12,400 tiles/s" possible, and the runtime already
-	 *  reports them — they used to be divided into a fraction and thrown away.
+	 *  reports them - they used to be divided into a fraction and thrown away.
 	 */
 	done: number | null,
 	total: number | null,
@@ -1128,7 +1128,7 @@ export type JobEvent =
 { kind: "added"; job: Job } | 
 /**  It left the queue and started running. */
 { kind: "started"; id: number } | 
-/**  Fractional progress in `0.0..=1.0` — or `None`, plus what is happening right now. */
+/**  Fractional progress in `0.0..=1.0` - or `None`, plus what is happening right now. */
 { kind: "progress"; id: number; fraction: number | null; 
 /**
  *  Absolute counts when the job has them. The runner turns successive values into a rate
@@ -1136,12 +1136,12 @@ export type JobEvent =
  */
 done: number | null; total: number | null; message: string; 
 /**
- *  How fast it is going and how long is left — **filled in by the runner on the way out**,
+ *  How fast it is going and how long is left - **filled in by the runner on the way out**,
  *  the same as `log_lines` below.
  * 
  *  The reporter cannot know either: both are derived from this update *and the ones before
  *  it*, which only the registry has. Left off the event, they were computed on every update
- *  and never left the core — the list a window takes when it subscribes carried them, and
+ *  and never left the core - the list a window takes when it subscribes carried them, and
  *  nothing after that did, so a job that started while you were watching showed a bar and a
  *  message and never a speed.
  */
@@ -1149,7 +1149,7 @@ rate: number | null; etaSeconds: number | null } |
 /**  A line for the job log. Failures at minute forty have to be able to say why. */
 { kind: "log"; id: number; line: string; 
 /**
- *  How many lines the log holds *after* this one — filled in by the runner on the way out.
+ *  How many lines the log holds *after* this one - filled in by the runner on the way out.
  * 
  *  Carried rather than counted by the listener, because the log is capped: a mirror that
  *  incremented its own counter would keep climbing past [`LOG_LINES`] and claim a size the
@@ -1178,7 +1178,7 @@ export type Lane =
  */
 "queued" | 
 /**
- *  Newest wins — submitting cancels whatever this lane was already running.
+ *  Newest wins - submitting cancels whatever this lane was already running.
  * 
  *  For work whose answer stops mattering the moment it is asked again: a preview of a pipeline
  *  that has since been edited is not a result anybody will look at, it is a machine still
@@ -1198,7 +1198,7 @@ export type LayerInspection = {
 	 *  What this layer is made of: `point`, `line`, `polygon`, or `unknown` (S4.4, D2).
 	 * 
 	 *  **The commonest of its features, not all of them.** A layer may mix geometries and MapLibre
-	 *  draws one kind per layer, so a style deriving itself from this has to pick — and the majority
+	 *  draws one kind per layer, so a style deriving itself from this has to pick - and the majority
 	 *  is the pick that leaves the fewest features invisible. Free to compute: the type is a field on
 	 *  every feature, already read by the time the tile has decoded.
 	 */
@@ -1209,7 +1209,7 @@ export type LayerInspection = {
  *  What was changed about one layer by hand (D3).
  * 
  *  **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
- *  paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
+ *  paint, all of which are properties *of* a layer - none of them adds, removes or reorders one,
  *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
  *  accepted rather than overlooked.
  * 
@@ -1224,7 +1224,7 @@ export type LayerOverride = LayerOverride_Serialize | LayerOverride_Deserialize;
  *  What was changed about one layer by hand (D3).
  * 
  *  **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
- *  paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
+ *  paint, all of which are properties *of* a layer - none of them adds, removes or reorders one,
  *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
  *  accepted rather than overlooked.
  * 
@@ -1248,7 +1248,7 @@ export type LayerOverride_Deserialize = {
  *  What was changed about one layer by hand (D3).
  * 
  *  **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
- *  paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
+ *  paint, all of which are properties *of* a layer - none of them adds, removes or reorders one,
  *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
  *  accepted rather than overlooked.
  * 
@@ -1273,11 +1273,11 @@ export type LayerOverride_Serialize = {
  * 
  *  This lives in the core rather than the webview for the reason everything else here does ([Q16]):
  *  a reloaded window must come back looking the way the user left it. Q22 called independent,
- *  remembered collapse "load-bearing, not polish" — on the 13-inch laptop Q15 was protecting, a
+ *  remembered collapse "load-bearing, not polish" - on the 13-inch laptop Q15 was protecting, a
  *  pane that reopens everything on every reload makes the surface unusable.
  * 
  *  **A list of panes, not named fields** ([Q31]). Which panes exist is still a design decision
- *  rather than something the webview can invent — the catalogue below is code — but their *order*
+ *  rather than something the webview can invent - the catalogue below is code - but their *order*
  *  and *which sidebar they sit in* are data, so moving one is an edit rather than a refactor. The
  *  analysis cluster alone adds eight more of them.
  * 
@@ -1307,7 +1307,7 @@ export type Layout = {
 	 *  Where the camera was, or `None` if it has never been moved.
 	 * 
 	 *  Here rather than in a file of its own because it is window state with exactly this recovery
-	 *  policy — a camera that will not parse costs nothing to forget — and because `background`,
+	 *  policy - a camera that will not parse costs nothing to forget - and because `background`,
 	 *  also a map setting rather than a pane one, already lives here.
 	 * 
 	 *  `None` is not the same as a default camera: it means *nothing to restore*, so a first run
@@ -1319,7 +1319,7 @@ export type Layout = {
 /**
  *  How much attention an entry deserves.
  * 
- *  Two levels, not five. This is a list of *problems* — anything worth a level below "something did
+ *  Two levels, not five. This is a list of *problems* - anything worth a level below "something did
  *  not work" belongs in a job's log or in nothing at all, and a level nobody filters on is a column
  *  nobody reads.
  */
@@ -1375,12 +1375,12 @@ export type OpenedContainer = {
 /**  One operation, ready to render. */
 export type OperationInfo = {
 	name: string,
-	/**  `read` or `transform` — which end of a pipeline it belongs at. */
+	/**  `read` or `transform` - which end of a pipeline it belongs at. */
 	kind: string,
 	/**  What it does, in a sentence. */
 	summary: string,
 	/**
-	 *  Everything else upstream has to say, minus the parameter list — that is `fields`, and
+	 *  Everything else upstream has to say, minus the parameter list - that is `fields`, and
 	 *  sending it twice is what [vt#229] was about. Empty when the summary is the whole of it.
 	 * 
 	 *  [vt#229]: https://github.com/versatiles-org/versatiles-rs/issues/229
@@ -1393,7 +1393,7 @@ export type OperationInfo = {
  *  Which half of the application an entry came from.
  * 
  *  Worth keeping apart because it decides who reads it: `Core` is Rust, `Webview` is the window,
- *  and `Map` is MapLibre reporting about tiles and styles — the one that is nobody's code and
+ *  and `Map` is MapLibre reporting about tiles and styles - the one that is nobody's code and
  *  therefore the easiest to misattribute.
  */
 export type Origin = "core" | "webview" | "map";
@@ -1403,7 +1403,7 @@ export type Origin = "core" | "webview" | "map";
  * 
  *  The id is the whole contract with the webview: the core decides where a pane sits and whether it
  *  is open, the webview decides what it contains and what it is called. A title is presentation, so
- *  it is not stored — it would be one more thing to keep in step across a boundary for no gain.
+ *  it is not stored - it would be one more thing to keep in step across a boundary for no gain.
  */
 export type PaneState = {
 	id: string,
@@ -1427,7 +1427,7 @@ export type Pipeline = {
  *  Where a style starts before anything is adjusted.
  * 
  *  The six are `@versatiles/style`'s own builders, named as it names them so the webview needs no
- *  translation table — a mapping between two spellings of the same six things is a thing to keep in
+ *  translation table - a mapping between two spellings of the same six things is a thing to keep in
  *  step for no gain.
  */
 export type Preset = "colorful" | "eclipse" | "graybeard" | "neutrino" | "shadow" | "satellite" | 
@@ -1456,7 +1456,7 @@ export type Preview = {
 	 * 
 	 *  Carried here for the same reason as `layers`, and it is the same kind of answer: what fits
 	 *  depends on what this build produces, so asking separately would race the next edit and offer
-	 *  operations chosen for a pipeline that no longer exists. It also costs nothing extra — the
+	 *  operations chosen for a pipeline that no longer exists. It also costs nothing extra - the
 	 *  source is already built and every check is a comparison against its declared tile type.
 	 */
 	fits: Fit[],
@@ -1484,7 +1484,7 @@ export type Problem = {
 	 * 
 	 *  A wall clock rather than an elapsed time, because the number that matters in an issue is
 	 *  "before or after the thing I was doing". Seconds rather than milliseconds because specta
-	 *  renders an `f64` as `number | null` — JSON cannot promise it a NaN — and a time that has to
+	 *  renders an `f64` as `number | null` - JSON cannot promise it a NaN - and a time that has to
 	 *  be null-checked at every use is a worse trade than a second of precision nobody reads. Ties
 	 *  are broken by `id`, which is monotonic.
 	 */
@@ -1493,7 +1493,7 @@ export type Problem = {
 	origin: Origin,
 	/**  One line, and the thing repeats are matched on. */
 	message: string,
-	/**  The rest of it — a stack, an error chain, a panic's location. Often the whole answer. */
+	/**  The rest of it - a stack, an error chain, a panic's location. Often the whole answer. */
 	detail: string | null,
 	/**  How many times this happened. `1` for a problem that happened once. */
 	count: number,
@@ -1512,9 +1512,9 @@ export type Property = {
 export type Quote = 
 /**  Bare, e.g. `mvt` or `13.4`. */
 "none" | 
-/**  `'…'` — no escape processing. */
+/**  `'…'` - no escape processing. */
 "single" | 
-/**  `"…"` — `\\`, `\"`, `\n` and `\t` are unescaped. */
+/**  `"…"` - `\\`, `\"`, `\n` and `\t` are unescaped. */
 "double";
 
 /**
@@ -1565,7 +1565,7 @@ export type RasterAdjust_Deserialize = {
 	/**  `0` to `1`. */
 	opacity?: number | null,
 	/**
-	 *  `linear` smooths between pixels, `nearest` keeps them square — which is what a scan of a
+	 *  `linear` smooths between pixels, `nearest` keeps them square - which is what a scan of a
 	 *  printed map or any pixel art wants.
 	 */
 	resampling?: Resampling | null,
@@ -1603,7 +1603,7 @@ export type RasterAdjust_Serialize = {
 	/**  `0` to `1`. */
 	opacity?: number | null,
 	/**
-	 *  `linear` smooths between pixels, `nearest` keeps them square — which is what a scan of a
+	 *  `linear` smooths between pixels, `nearest` keeps them square - which is what a scan of a
 	 *  printed map or any pixel art wants.
 	 */
 	resampling?: Resampling | null,
@@ -1613,7 +1613,7 @@ export type RecentEntry = {
 	/**  The path or URL exactly as the user gave it. */
 	source: string,
 	/**
-	 *  Seconds since the Unix epoch, emitted as a `number` — a double holds them exactly for the
+	 *  Seconds since the Unix epoch, emitted as a `number` - a double holds them exactly for the
 	 *  next quarter of a million years, and `u32` would overflow in 2106.
 	 */
 	openedAt: number,
@@ -1625,7 +1625,7 @@ export type RecentEntry = {
  *  **One entry per source, keyed by the graph's name.** The name is what a MapLibre style calls a
  *  source and what `project.yaml` already lists graphs by, so persisting under it means the manifest
  *  and the style agree without a translation table. It is *not* how the running application refers
- *  to a graph — that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives — so a
+ *  to a graph - that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives - so a
  *  rename has to move the entry, which is [`Recipe::rename_source`]'s whole job.
  * 
  *  Ordered (`BTreeMap`, not `HashMap`) so the text this serialises to depends only on its contents.
@@ -1640,7 +1640,7 @@ export type Recipe = Recipe_Serialize | Recipe_Deserialize;
  *  **One entry per source, keyed by the graph's name.** The name is what a MapLibre style calls a
  *  source and what `project.yaml` already lists graphs by, so persisting under it means the manifest
  *  and the style agree without a translation table. It is *not* how the running application refers
- *  to a graph — that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives — so a
+ *  to a graph - that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives - so a
  *  rename has to move the entry, which is [`Recipe::rename_source`]'s whole job.
  * 
  *  Ordered (`BTreeMap`, not `HashMap`) so the text this serialises to depends only on its contents.
@@ -1655,7 +1655,7 @@ export type Recipe_Deserialize = {
 	 * 
 	 *  **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
 	 *  drag that has to renumber every sibling is how two entries end up claiming one position.
-	 *  Names absent from it are drawn after those in it, in name order — so a source that arrives
+	 *  Names absent from it are drawn after those in it, in name order - so a source that arrives
 	 *  while nobody is looking appears on top rather than vanishing.
 	 */
 	order?: string[],
@@ -1667,7 +1667,7 @@ export type Recipe_Deserialize = {
  *  **One entry per source, keyed by the graph's name.** The name is what a MapLibre style calls a
  *  source and what `project.yaml` already lists graphs by, so persisting under it means the manifest
  *  and the style agree without a translation table. It is *not* how the running application refers
- *  to a graph — that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives — so a
+ *  to a graph - that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives - so a
  *  rename has to move the entry, which is [`Recipe::rename_source`]'s whole job.
  * 
  *  Ordered (`BTreeMap`, not `HashMap`) so the text this serialises to depends only on its contents.
@@ -1682,7 +1682,7 @@ export type Recipe_Serialize = {
 	 * 
 	 *  **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
 	 *  drag that has to renumber every sibling is how two entries end up claiming one position.
-	 *  Names absent from it are drawn after those in it, in name order — so a source that arrives
+	 *  Names absent from it are drawn after those in it, in name order - so a source that arrives
 	 *  while nobody is looking appears on top rather than vanishing.
 	 */
 	order: string[],
@@ -1715,7 +1715,7 @@ export type Recolor = Recolor_Serialize | Recolor_Deserialize;
  *  configured.
  */
 export type Recolor_Deserialize = {
-	/**  Swap light for dark while keeping the hues — D5's whole feature, in one flag. */
+	/**  Swap light for dark while keeping the hues - D5's whole feature, in one flag. */
 	invertBrightness?: boolean | null,
 	/**  Hue rotation, in degrees. */
 	rotate?: number | null,
@@ -1742,7 +1742,7 @@ export type Recolor_Deserialize = {
  *  configured.
  */
 export type Recolor_Serialize = {
-	/**  Swap light for dark while keeping the hues — D5's whole feature, in one flag. */
+	/**  Swap light for dark while keeping the hues - D5's whole feature, in one flag. */
 	invertBrightness?: boolean | null,
 	/**  Hue rotation, in degrees. */
 	rotate?: number | null,
@@ -1760,7 +1760,7 @@ export type Recolor_Serialize = {
 export type Reference = {
 	/**  The graph it was found in. */
 	graph: string,
-	/**  The parameter, as written — `filename`, `data_source_path`, … */
+	/**  The parameter, as written - `filename`, `data_source_path`, … */
 	field: string,
 	/**  What it says, before any rewriting. */
 	value: string,
@@ -1820,14 +1820,14 @@ export type Restored_Serialize = ({ graph: DocumentView }) & { style?: never } |
 /**
  *  What the editor needs on every keystroke: how to paint the text, and what is wrong with it.
  * 
- *  One command rather than two, because they are answers to the same parse — asking separately
+ *  One command rather than two, because they are answers to the same parse - asking separately
  *  would parse the same text twice and let the highlighting and the diagnostics disagree about
  *  which version they describe.
  */
 export type Review = {
 	tokens: Token[],
 	/**
-	 *  Empty when the pipeline is sound. Parse failures come back as an `Err` instead — a document
+	 *  Empty when the pipeline is sound. Parse failures come back as an `Err` instead - a document
 	 *  that does not parse has no tree to validate.
 	 */
 	diagnostics: Diagnostic[],
@@ -1839,14 +1839,14 @@ export type Side = "left" | "right";
 /**
  *  What a source's tiles are, as far as drawing them is concerned ([S6.1](../../../docs/scope-release-2.md)).
  * 
- *  **Studio's vocabulary, not the container's.** A container declares a `tile_schema` — upstream's
- *  list, which can grow — and this is the much smaller question the style pane actually switches on:
+ *  **Studio's vocabulary, not the container's.** A container declares a `tile_schema` - upstream's
+ *  list, which can grow - and this is the much smaller question the style pane actually switches on:
  *  which editor does this source get. Two schemas can land on one kind (`rgb` and `rgba` are both
  *  imagery) and a container with no schema at all still has to land somewhere.
  * 
  *  **Derived, and overridable.** The webview works it out from the schema, falling back to the tile
  *  format and the layers the probe found. That answer is a guess whenever the schema is absent, so
- *  [`Recipe::kind`] exists to let someone correct it — a DEM written before `tile_schema` existed is
+ *  [`Recipe::kind`] exists to let someone correct it - a DEM written before `tile_schema` existed is
  *  otherwise indistinguishable from a photograph, and no amount of looking at the pixels decides it.
  */
 export type SourceKind = 
@@ -1854,12 +1854,12 @@ export type SourceKind =
 "vectorShortbread" | 
 /**  Vector tiles of anything else. Styled from the layers actually present (D2). */
 "vectorOther" | 
-/**  Raster tiles meant to be looked at — imagery, a scan, a rendered map (D11). */
+/**  Raster tiles meant to be looked at - imagery, a scan, a rendered map (D11). */
 "rasterImage" | 
 /**
  *  Raster tiles encoding elevation, to be drawn as hillshade rather than as colour (D12).
  * 
- *  The encoding — `mapbox`, `terrarium`, `versatiles` — is deliberately not carried here yet.
+ *  The encoding - `mapbox`, `terrarium`, `versatiles` - is deliberately not carried here yet.
  *  Nothing draws a DEM until S6.6, and that is the step that has to decide whether the encoding
  *  belongs on this enum or is re-read from `tile_schema` at the point of use.
  */
@@ -1896,7 +1896,7 @@ export type Span = {
 
 /**  One string literal: what it means, how it was written, and where it sits. */
 export type Str = {
-	/**  The decoded value — escapes resolved, quotes removed. */
+	/**  The decoded value - escapes resolved, quotes removed. */
 	value: string,
 	quote: Quote,
 	/**  Covers the quotes, where there are any. */
@@ -1938,8 +1938,8 @@ export type Value = {
 /**
  *  A named view: a name, and where the camera was.
  * 
- *  **Called a bookmark until [Q38]**, and it carried a `source` — "so a view can offer to reopen
- *  it" — that nothing ever reopened, filled from whichever container happened to be mounted last.
+ *  **Called a bookmark until [Q38]**, and it carried a `source` - "so a view can offer to reopen
+ *  it" - that nothing ever reopened, filled from whichever container happened to be mounted last.
  *  A view is a place, and a place does not belong to a file. An old file's `source` key is ignored
  *  rather than rejected, so nobody loses their views to the rename.
  * 
@@ -1951,7 +1951,7 @@ export type Value = {
 export type View = {
 	name: string,
 	/**
-	 *  Seconds since the Unix epoch, emitted as a `number` — a double holds them exactly for the
+	 *  Seconds since the Unix epoch, emitted as a `number` - a double holds them exactly for the
 	 *  next quarter of a million years, and `u32` would overflow in 2106.
 	 */
 	createdAt: number,

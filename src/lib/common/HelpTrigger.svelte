@@ -5,10 +5,10 @@
 	//
 	// The other half of `Help.svelte`: that one draws, this one triggers. They were two halves of a
 	// mechanism with only one of them a component, which left three copies of the same six handlers
-	// in `NodeCard` — one for the operation, one for a set parameter, one for a required-but-unset
+	// in `NodeCard` - one for the operation, one for a set parameter, one for a required-but-unset
 	// one.
 	//
-	// Hover or focus peeks, click pins, Escape closes while this still holds focus — which it does,
+	// Hover or focus peeks, click pins, Escape closes while this still holds focus - which it does,
 	// because opening the popover does not move it.
 	let { content }: { content: HelpContent } = $props();
 

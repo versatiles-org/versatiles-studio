@@ -2,7 +2,7 @@
  * Auto-update (G4, S5.8).
  *
  * **Checked when asked, never on a timer.** An application that downloads and swaps itself out while
- * someone is mid-export is worse than one that waits — and Studio's long operations are minutes
+ * someone is mid-export is worse than one that waits - and Studio's long operations are minutes
  * long, which is exactly the window a background updater would land in. So this is a button, and
  * every state it can be in has a sentence.
  *
@@ -32,7 +32,7 @@ class Updates {
 	state = $state<UpdateState>({ kind: 'idle' });
 
 	/// The update itself, held between the check and the install so the second does not repeat the
-	/// first — and kept out of `state`, which is what the UI reads and should stay plain data.
+	/// first - and kept out of `state`, which is what the UI reads and should stay plain data.
 	#pending: Update | null = null;
 
 	/// Looks for a newer version. Safe to call again; the last answer is replaced, not appended.
@@ -64,7 +64,7 @@ class Updates {
 		}
 	}
 
-	/// Restarts into the installed version. Nothing here asks about unsaved work — the caller does,
+	/// Restarts into the installed version. Nothing here asks about unsaved work - the caller does,
 	/// because only it knows what is open.
 	async restart(): Promise<void> {
 		await relaunch();
@@ -81,7 +81,7 @@ class Updates {
  */
 function message(error: unknown): string {
 	const text = error instanceof Error ? error.message : String(error);
-	return /network|fetch|dns|connect/i.test(text) ? `Could not reach the update server — ${text}` : text;
+	return /network|fetch|dns|connect/i.test(text) ? `Could not reach the update server - ${text}` : text;
 }
 
 export const updates = new Updates();

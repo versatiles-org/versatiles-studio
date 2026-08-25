@@ -1,6 +1,6 @@
 //! The shape the webview sees: a flat, span-carrying view of a pipeline.
 //!
-//! Upstream's `CstFile` is the real tree — it keeps every byte, and Studio no longer parses VPL
+//! Upstream's `CstFile` is the real tree - it keeps every byte, and Studio no longer parses VPL
 //! itself ([Q23](../../../docs/decisions.md)). What is here is the *view* the editor and the graph
 //! consume: the same information with the trivia flattened away and every span made unconditional,
 //! so the webview never has to reason about a token that has no position yet.
@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Span {
 	// `usize` in Rust, `number` in TypeScript. Specta refuses 64-bit integers by default, to avoid
-	// silent precision loss — but a byte offset into a pipeline is nowhere near that boundary, and
+	// silent precision loss - but a byte offset into a pipeline is nowhere near that boundary, and
 	// the alternative it offers is `bigint`, which would make every span arithmetic in the webview
 	// awkward for a risk that cannot occur. The same override appears on every `usize` that crosses.
 	#[cfg_attr(feature = "bindings", specta(type = u32))]
@@ -45,7 +45,7 @@ impl Span {
 	/// Whether `offset` falls inside the span, counting the end as inside.
 	///
 	/// Inclusive at the end because a caret sitting just after a token is still "in" it as far as a
-	/// user is concerned — click past the last character of a node name and you meant that node.
+	/// user is concerned - click past the last character of a node name and you meant that node.
 	#[must_use]
 	pub const fn contains(&self, offset: usize) -> bool {
 		self.start <= offset && offset <= self.end
@@ -65,9 +65,9 @@ impl From<std::ops::Range<usize>> for Span {
 pub enum Quote {
 	/// Bare, e.g. `mvt` or `13.4`.
 	None,
-	/// `'…'` — no escape processing.
+	/// `'…'` - no escape processing.
 	Single,
-	/// `"…"` — `\\`, `\"`, `\n` and `\t` are unescaped.
+	/// `"…"` - `\\`, `\"`, `\n` and `\t` are unescaped.
 	Double,
 }
 
@@ -76,7 +76,7 @@ pub enum Quote {
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Str {
-	/// The decoded value — escapes resolved, quotes removed.
+	/// The decoded value - escapes resolved, quotes removed.
 	pub value: String,
 	pub quote: Quote,
 	/// Covers the quotes, where there are any.
@@ -101,7 +101,7 @@ impl Value {
 		}
 	}
 
-	/// The values, flattened — the shape the pipeline runner wants.
+	/// The values, flattened - the shape the pipeline runner wants.
 	#[must_use]
 	pub fn strings(&self) -> Vec<String> {
 		match self {
@@ -146,7 +146,7 @@ impl Node {
 	/// Every value recorded for `key`, in source order.
 	///
 	/// Repeats are concatenated rather than overriding, matching what the semantic tree does when
-	/// it folds the property list into its map — `a=1 a=2` means `[1, 2]`, not `2`.
+	/// it folds the property list into its map - `a=1 a=2` means `[1, 2]`, not `2`.
 	#[must_use]
 	pub fn property(&self, key: &str) -> Vec<String> {
 		self
@@ -184,7 +184,7 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-	/// The node at `path` — a node index, then pairs of source and node index.
+	/// The node at `path` - a node index, then pairs of source and node index.
 	///
 	/// The inverse of what [`node_at`](Self::node_at) returns, and the same shape
 	/// [`preview::up_to`](crate::preview::up_to) walks: a selection is a path, and anything asked
@@ -201,8 +201,8 @@ impl Pipeline {
 
 	/// The pipeline that *contains* the node at `path`, and its index within it.
 	///
-	/// A node's siblings are what structural edits are about — inserting after one, removing one and
-	/// closing the gap — and for a node inside a `[ … ]` block those siblings are the nested chain,
+	/// A node's siblings are what structural edits are about - inserting after one, removing one and
+	/// closing the gap - and for a node inside a `[ … ]` block those siblings are the nested chain,
 	/// not the outer one.
 	#[must_use]
 	pub fn parent_of(&self, path: &[usize]) -> Option<(&Pipeline, usize)> {

@@ -1,11 +1,11 @@
-//! Server manager — lifecycle of the **single** embedded server.
+//! Server manager - lifecycle of the **single** embedded server.
 //!
 //! One server for the whole application ([Q16]). Each project and each previewed pipeline node is a
 //! named **mount**, not a server of its own: `add_tile_source` and `remove_tile_source` work on a
 //! running server, so reconfiguring a preview never restarts anything.
 //!
 //! Binds to loopback only. The data plane is HTTP because Tauri serialises command returns as JSON,
-//! which its own docs warn is slow for large payloads — so tile bytes must not travel over IPC
+//! which its own docs warn is slow for large payloads - so tile bytes must not travel over IPC
 //! ([Q3]).
 //!
 //! [Q16]: ../../../docs/decisions.md
@@ -68,14 +68,14 @@ impl ServerManager {
 	/// Mounts a tile source under `name`, replacing any mount already using it.
 	/// The tile URL template for a mount, including the revision that defeats caching.
 	///
-	/// **The embedded server sends `cache-control: public, max-age=2419200`** — 28 days, hardcoded
+	/// **The embedded server sends `cache-control: public, max-age=2419200`** - 28 days, hardcoded
 	/// in `versatiles`' handler with no way to turn it off. That is right for a public tile server
 	/// and wrong for an editing surface: mount names are stable, so re-opening a file that changed
 	/// on disk, or rebuilding a preview after an edit, asks for the same URL and the webview
 	/// answers from its cache. Tiles that are weeks old then look like the current ones.
 	///
 	/// A revision that changes on every mount makes each build a different URL, which no cache can
-	/// confuse — the webview's, or MapLibre's own. Per mount rather than global, so re-opening one
+	/// confuse - the webview's, or MapLibre's own. Per mount rather than global, so re-opening one
 	/// source does not force every other to be refetched.
 	#[must_use]
 	pub fn tile_url(&self, name: &str) -> String {
@@ -88,7 +88,7 @@ impl ServerManager {
 	/// Replacing rather than failing, because a name is derived from the source it came from: the
 	/// same name means the same container, so a second mount is a re-open, not a collision. The
 	/// underlying `add_tile_source` rejects a duplicate id, which surfaced as
-	/// `tile source '…' already exists` the second time a user opened the same file — an error about
+	/// `tile source '…' already exists` the second time a user opened the same file - an error about
 	/// Studio's internals for something the user is entitled to do.
 	pub async fn mount(&mut self, name: &str, source: Arc<Box<dyn TileSource>>) -> Result<()> {
 		self.unmount(name)?;
@@ -116,7 +116,7 @@ impl ServerManager {
 	/// list is a second account of the same fact and the two would disagree the first time a mount
 	/// failed halfway.
 	///
-	/// Names that were mounted and have since gone are attempted and ignored — `revisions` remembers
+	/// Names that were mounted and have since gone are attempted and ignored - `revisions` remembers
 	/// every name ever mounted, which is what keeps a re-mount from reusing a cached revision.
 	pub fn unmount_prefix(&mut self, prefix: &str) -> Result<usize> {
 		let names: Vec<String> = self
@@ -138,7 +138,7 @@ impl ServerManager {
 
 	/// Mounts a static archive under `url_prefix`, e.g. `glyphs.tar.gz` at `/assets/glyphs`.
 	///
-	/// The archive is served **as an archive** — `.tar`, `.tar.gz` and `.tar.br` are all read in
+	/// The archive is served **as an archive** - `.tar`, `.tar.gz` and `.tar.br` are all read in
 	/// place, so the 512 glyph files inside never touch the disk ([Q9]). Unpacking them would cost
 	/// nothing here and everything on Windows, and would make the asset non-atomic to replace.
 	///
@@ -151,7 +151,7 @@ impl ServerManager {
 			.with_context(|| format!("mounting {} at {url_prefix}", path.display()))
 	}
 
-	/// The runtime containers are opened with — shared so readers are reused across mounts.
+	/// The runtime containers are opened with - shared so readers are reused across mounts.
 	#[must_use]
 	pub fn runtime(&self) -> &TilesRuntime {
 		&self.runtime
@@ -214,7 +214,7 @@ mod tests {
 		Ok(())
 	}
 
-	/// Opening the same container twice is something a user does — from the file dialog, then from
+	/// Opening the same container twice is something a user does - from the file dialog, then from
 	/// the recents list, or by dropping the same file again. It used to fail with
 	/// `tile source '…' already exists`, because mount names are derived from the source and so
 	/// collide by design on a re-open.
@@ -236,7 +236,7 @@ mod tests {
 				.unwrap_or_else(|e| panic!("mount #{attempt} should succeed: {e:#}"));
 		}
 
-		// And the mount still works afterwards — replaced, not left in some half-removed state.
+		// And the mount still works afterwards - replaced, not left in some half-removed state.
 		assert!(server.unmount("berlin")?, "one mount should remain, not three");
 		assert!(!server.unmount("berlin")?, "and only one");
 
@@ -246,7 +246,7 @@ mod tests {
 
 	/// The bug this guards, which is invisible until a file changes on disk.
 	///
-	/// The embedded server sends `cache-control: public, max-age=2419200` — 28 days, hardcoded
+	/// The embedded server sends `cache-control: public, max-age=2419200` - 28 days, hardcoded
 	/// upstream. Mount names are stable by design, so without a revision the URL after an edit is
 	/// byte-for-byte the URL before it, and the webview answers from its cache: you change a
 	/// container, re-open it, and see the old tiles.
@@ -290,7 +290,7 @@ mod tests {
 		assert!(url.contains("?v="), "and the revision must survive them");
 	}
 
-	/// The whole S1.2 path: open a container, mount it, fetch a tile over HTTP — no Tauri anywhere.
+	/// The whole S1.2 path: open a container, mount it, fetch a tile over HTTP - no Tauri anywhere.
 	#[tokio::test]
 	async fn serves_tiles_from_a_mounted_container() -> Result<()> {
 		let Some(path) = crate::analysis::tests::sample_container("berlin.versatiles") else {
@@ -318,12 +318,12 @@ mod tests {
 
 	/// What a closed window takes down with it ([S7.2](../../../docs/scope-release-3.md)).
 	///
-	/// One server serves the whole application, so each window's mounts carry its own prefix — and a
+	/// One server serves the whole application, so each window's mounts carry its own prefix - and a
 	/// window that has gone must take exactly those and nothing belonging to a window still open.
 	///
 	/// **Built from `from_debug` rather than from a sample container**, so this one runs everywhere.
-	/// The collision it guards is the only one in S7 that nothing else catches — two windows serving
-	/// each other's tiles produces no error and no failed job — and a test that skips on most
+	/// The collision it guards is the only one in S7 that nothing else catches - two windows serving
+	/// each other's tiles produces no error and no failed job - and a test that skips on most
 	/// machines is not much of a guard.
 	#[tokio::test]
 	async fn unmounting_a_prefix_takes_that_window_and_no_other() -> Result<()> {

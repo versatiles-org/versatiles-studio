@@ -40,7 +40,7 @@ export function tileToLngLat(x: number, y: number, z: number): [number, number] 
  * The four corners of one tile, as a GeoJSON ring.
  *
  * Shared by the grid and by the pending overlay (S2.16), so the two cannot disagree about where a
- * tile is — a shaded square half a tile off its outline would be worse than no shading.
+ * tile is - a shaded square half a tile off its outline would be worse than no shading.
  */
 export function tileRing(x: number, y: number, z: number): [number, number][][] {
 	const [w, n] = tileToLngLat(x, y, z);

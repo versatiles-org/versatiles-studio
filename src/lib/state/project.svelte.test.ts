@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * Writing a project out and reading one back ([Q6], G1, S5.1).
  *
  * The interesting half is what it does *not* do: assign anything. Opening a project changes which
- * graphs exist and which document is on screen, both of which belong to other modules — so `open`
+ * graphs exist and which document is on screen, both of which belong to other modules - so `open`
  * returns and the caller sequences the rest, where the order can be read in one place.
  */
 
@@ -67,7 +67,7 @@ describe('opening a project', () => {
 	 * The launcher's third door, which never opens a picker of its own here (S7.5).
 	 *
 	 * It hands a directory to a *new* window, so the window has to be able to open one it was given
-	 * rather than one it asked for — and until an end-to-end story saved a project and opened it
+	 * rather than one it asked for - and until an end-to-end story saved a project and opened it
 	 * again, it could not: everything handed to a window went down the import path, where a
 	 * directory has no read node.
 	 */
@@ -101,7 +101,7 @@ describe('saving where it already lives', () => {
 	});
 
 	// A project that has never been saved has nowhere to be written back to, so the first ⌘S is a
-	// Save As — which is what every application does and nobody notices.
+	// Save As - which is what every application does and nobody notices.
 	it('asks the first time, because there is nowhere yet', async () => {
 		ipc.projectPath.mockResolvedValue(null);
 		await project.save(style);
@@ -134,7 +134,7 @@ describe('saving where it already lives', () => {
 });
 
 describe('saving', () => {
-	// The style is rendered in the webview, so the core cannot produce the `style.json` it writes —
+	// The style is rendered in the webview, so the core cannot produce the `style.json` it writes -
 	// and it is resolved when a directory is chosen rather than when the button was wired up.
 	it('hands over the style as it stands when the directory is chosen', async () => {
 		await project.saveAs(style);

@@ -2,7 +2,7 @@
 	import type { ContainerInfo } from '../../ipc/commands';
 	import JsonTree from '../../common/JsonTree.svelte';
 
-	// A6 — the right pane shows what things turn out to be, never global settings and never a way in.
+	// A6 - the right pane shows what things turn out to be, never global settings and never a way in.
 	//
 	// It used to carry its own "Open a tile container…" button and remote-URL form, from S1 when
 	// opening a container was all Studio did. [Q32] made a graph *a* source, so a file opens by
@@ -15,7 +15,7 @@
 	let { containers }: { containers: ContainerInfo[] } = $props();
 
 	function extent(bbox: ContainerInfo['bbox']): string {
-		if (!bbox) return '—';
+		if (!bbox) return '-';
 		return bbox.map((n) => n.toFixed(3)).join(', ');
 	}
 </script>
@@ -33,9 +33,9 @@
 				<dd>{info.container}</dd>
 				<dt>tiles</dt>
 				<dd>{info.tileFormat}{info.tileCompression === 'none' ? '' : ` · ${info.tileCompression}`}</dd>
-				<!-- The real range, from which levels hold tiles — containers routinely overstate it. -->
+				<!-- The real range, from which levels hold tiles - containers routinely overstate it. -->
 				<dt>zoom</dt>
-				<dd>{info.minZoom}–{info.maxZoom}</dd>
+				<dd>{info.minZoom}-{info.maxZoom}</dd>
 				<dt>extent</dt>
 				<dd class="wrap">{extent(info.bbox)}</dd>
 			</dl>

@@ -44,7 +44,7 @@ pub fn lower(file: &CstFile) -> (Pipeline, Vec<Comment>) {
 }
 
 /// Comments after the last token, which live in `CstFile::trailing` rather than in any token's
-/// leading trivia — so a `# note` at the end of a file is invisible to the walk above.
+/// leading trivia - so a `# note` at the end of a file is invisible to the walk above.
 fn trailing_comments(file: &CstFile, out: &mut Vec<Comment>) {
 	if !file.trailing.contains('#') {
 		return;
@@ -192,7 +192,7 @@ fn scan_comments(trivia: &str, start: usize, out: &mut Vec<Comment>) {
 // -- highlighting -------------------------------------------------------------------------------
 
 /// Every token, classified. Punctuation comes from the tree's own tokens rather than from the gaps
-/// between them — the concrete tree records the `=`, the brackets and the separators, so nothing
+/// between them - the concrete tree records the `=`, the brackets and the separators, so nothing
 /// has to be inferred.
 pub fn tokens(file: &CstFile) -> Vec<Token> {
 	let mut out = Vec::new();
@@ -317,8 +317,8 @@ pub fn remove_property_at(file: &mut CstFile, span: Span) -> bool {
 	})
 }
 
-/// Walks to the property matching `span` — by its whole extent when `by_property`, otherwise by its
-/// value — and applies `apply`.
+/// Walks to the property matching `span` - by its whole extent when `by_property`, otherwise by its
+/// value - and applies `apply`.
 fn with_property_at(
 	pipeline: &mut CstPipeline,
 	span: Span,

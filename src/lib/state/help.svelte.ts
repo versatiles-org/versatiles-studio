@@ -5,7 +5,7 @@
  * documentation runs to a median of 95 characters and a p90 of 262; in a 280px sidebar that is
  * three lines typically and seven at the p90, overlaying the form being filled in. Beside the
  * sidebar it is one and a half lines, and four. The sidebar also scrolls and clips, so a child of a
- * node cannot escape it — one fixed-position element driven from here sidesteps both.
+ * node cannot escape it - one fixed-position element driven from here sidesteps both.
  *
  * **Peek and pin are different needs**, so they are different gestures. Hovering or focusing the
  * trigger peeks: read it and move on, nothing to dismiss. Clicking pins: it stays, and the text
@@ -13,7 +13,7 @@
  */
 
 export interface HelpContent {
-	/** What is being explained — a parameter name. */
+	/** What is being explained - a parameter name. */
 	title: string;
 	/** The machine-readable half: type, bounds, whether it is required. Often the whole answer. */
 	summary: string;
@@ -52,7 +52,7 @@ export function peek(content: HelpContent, element: HTMLElement) {
 	shown = { content, ...place(element), pinned: false };
 }
 
-/** Hides a peek. A pinned popover stays — that is what pinning means. */
+/** Hides a peek. A pinned popover stays - that is what pinning means. */
 export function unpeek() {
 	if (!shown?.pinned) shown = null;
 }

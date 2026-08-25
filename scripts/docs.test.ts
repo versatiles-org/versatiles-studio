@@ -4,12 +4,12 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
- * The documentation cross-references itself heavily — around 270 relative links, and hundreds of
+ * The documentation cross-references itself heavily - around 270 relative links, and hundreds of
  * `Q`, `S` and feature references on top of those. A broken one is invisible in review: it renders
  * as an ordinary link that happens to land in the wrong place, or as an identifier that reads like
  * every other identifier and names nothing.
  *
- * Both failures below have already happened, in a single commit that rewrote forty links at once —
+ * Both failures below have already happened, in a single commit that rewrote forty links at once -
  * which is the shape of change this exists for. Editing prose by hand rarely breaks a reference;
  * rewriting references mechanically breaks them silently and in bulk.
  *
@@ -40,8 +40,8 @@ const withoutFences = (markdown: string) => markdown.replace(/```[\s\S]*?```/g, 
  * GitHub's heading slug: lowercase, drop everything that is not a word character, space or hyphen,
  * then spaces to hyphens.
  *
- * The subtlety is that a heading may contain a link — Q14's does, naming the decision that
- * superseded it — and GitHub slugs the text a reader *sees*, so the markup has to come off first.
+ * The subtlety is that a heading may contain a link - Q14's does, naming the decision that
+ * superseded it - and GitHub slugs the text a reader *sees*, so the markup has to come off first.
  * Slugging the raw heading instead is what produced `#q14--…-superseded-by-q22decisionsmd`, an
  * anchor four links pointed at and nothing answered to.
  */
@@ -71,14 +71,14 @@ describe('documentation links', () => {
 				// A bare `#fragment` points inside the file it is written in.
 				const file = target ? join(dirname(path), target).replaceAll('\\', '/') : path;
 
-				// Not every target is a markdown file we can read headings from — the README links
+				// Not every target is a markdown file we can read headings from - the README links
 				// `docs/`, a directory, which GitHub renders as a listing.
 				if (!existsSync(join(root, file))) {
-					broken.push(`${path}: [${text}](${url}) — no such file`);
+					broken.push(`${path}: [${text}](${url}) - no such file`);
 				} else if (fragment && anchors.has(file) && !anchors.get(file)?.has(fragment)) {
 					// The overwhelmingly likely cause: a same-file `#q32--…` for a heading that lives in
 					// another document, or a slug built from a heading's markup rather than its text.
-					broken.push(`${path}: [${text}](${url}) — no heading in ${file} slugs to that`);
+					broken.push(`${path}: [${text}](${url}) - no heading in ${file} slugs to that`);
 				}
 			}
 		}
@@ -94,7 +94,7 @@ describe('documentation links', () => {
  * them resolves.
  *
  * Each `refer` pattern ends `(?!\w)(?!\.\d)` rather than `(?![\w.\d])`. The latter also rejects a
- * following full stop, which quietly exempts every identifier that ends a sentence — the bug that
+ * following full stop, which quietly exempts every identifier that ends a sentence - the bug that
  * let a probe for an undefined `A9.` pass. This form still refuses to match part of something
  * longer: `S0.11` is one identifier, and `v4.8.0` is not one at all.
  */
@@ -102,7 +102,7 @@ const schemes = [
 	{
 		name: 'decision',
 		definedIn: ['docs/decisions.md'],
-		/** `### Q32 — A project holds several named graphs…` */
+		/** `### Q32 - A project holds several named graphs…` */
 		define: /^### (Q\d+) /gm,
 		refer: /(?<![\w.])(Q\d+)(?!\w)(?!\.\d)/g
 	},
@@ -123,10 +123,10 @@ const schemes = [
 		/**
 		 * `| **E1** | …`
 		 *
-		 * `A`–`L`, not `A`–`G`: the README reserves `H` onward for the next cluster and stops before
+		 * `A`-`L`, not `A`-`G`: the README reserves `H` onward for the next cluster and stops before
 		 * `M`, which is a milestone. Matching only the letters in use today would mean a new cluster
-		 * silently escapes this check on the day it is added — exactly when its references are most
-		 * likely to be wrong. Nothing in `H`–`L` is used yet, so the wider range costs nothing.
+		 * silently escapes this check on the day it is added - exactly when its references are most
+		 * likely to be wrong. Nothing in `H`-`L` is used yet, so the wider range costs nothing.
 		 */
 		define: /\*\*([A-L]\d{1,2})\*\*/g,
 		refer: /(?<![\w.])([A-L]\d{1,2})(?!\w)(?!\.\d)/g
@@ -146,7 +146,7 @@ describe('documentation identifiers', () => {
 		it(`name a ${name} that exists`, () => {
 			// No unescaping: every capture group above is letters, digits and dots, so a backslash
 			// cannot reach one. There used to be a `.replace('\\', '')` here, defending against the
-			// `\*` that marks a stretch item — which the pattern already excludes from the group.
+			// `\*` that marks a stretch item - which the pattern already excludes from the group.
 			const defined = new Set(definedIn.flatMap((file) => [...read(file).matchAll(define)].map((match) => match[1])));
 			expect(defined.size, `no ${name} definitions matched in ${definedIn.join(', ')}`).toBeGreaterThan(20);
 

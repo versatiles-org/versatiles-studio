@@ -51,14 +51,14 @@ describe('styleCode', () => {
 
 	it('leaves out the keys a patch never set', () => {
 		const code = styleCode(recipe({ overrides: { water: { visible: false, minZoom: null } } } as never))!;
-		// The emitted *data*, not the loop that reads it — the boilerplate names every key it can
+		// The emitted *data*, not the loop that reads it - the boilerplate names every key it can
 		// apply, which is what makes the file work for the ones that are there.
 		expect(code).not.toContain('"minZoom"');
 		expect(code).toContain('"visible": false');
 	});
 
 	// A derived style is assembled from whatever the tiles turned out to contain, so there is no
-	// builder to name — and style.json is the honest form for a style with no shorter description.
+	// builder to name - and style.json is the honest form for a style with no shorter description.
 	it('has no code for a style that was derived rather than chosen', () => {
 		expect(canGenerateCode(recipe({ preset: 'derived' } as Partial<Appearance>))).toBe(false);
 		expect(styleCode(recipe({ preset: 'derived' } as Partial<Appearance>))).toBeNull();
@@ -156,7 +156,7 @@ describe('overrides in generated code', () => {
 	});
 
 	// `neutrino`'s ids are a strict subset of `colorful`'s, so an override made under the larger
-	// preset is inert under the smaller. The recipe keeps it — it comes back on the way over — but a
+	// preset is inert under the smaller. The recipe keeps it - it comes back on the way over - but a
 	// generated `neutrino` file setting a property on a layer it does not contain is dead code.
 	it('drops the ones the generated style has no layer for', () => {
 		const code = styleCode(withOverrides, ['water'])!;

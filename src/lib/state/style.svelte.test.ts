@@ -5,7 +5,7 @@ import type { Recipe } from '../ipc/commands';
  * The style the pane edits, and the gesture rule that makes it usable.
  *
  * **A colour or a slider changes sixty times a second while it is being dragged**, and each commit
- * is an undo entry — so a gesture previews locally and commits once when it ends. Everything below
+ * is an undo entry - so a gesture previews locally and commits once when it ends. Everything below
  * is about that: what a consumer sees mid-drag, what reaches the core, and what happens when the
  * gesture is abandoned or the selection moves out from under it.
  */

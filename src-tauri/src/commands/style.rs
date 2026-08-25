@@ -7,7 +7,7 @@
 //!
 //! **Continuous edits commit once.** Dragging a colour or a slider changes the recipe sixty times a
 //! second, and sixty undo entries for one gesture is the same bug as an editor that undoes one
-//! character at a time. So the webview previews locally and calls these when the gesture *ends* —
+//! character at a time. So the webview previews locally and calls these when the gesture *ends* -
 //! which is why nothing here coalesces, unlike typing in the VPL editor.
 //!
 //! [Q36]: ../../../docs/decisions.md
@@ -50,7 +50,7 @@ fn source_name(project: &Project, graph: GraphId) -> Result<String, String> {
 /// Edits one source's style, creating its entry the first time it is touched.
 ///
 /// `kind` seeds a new entry so a raster source does not start life holding a preset it cannot use.
-/// It is ignored for an entry that already exists — the stored answer wins over a fresh reading, or
+/// It is ignored for an entry that already exists - the stored answer wins over a fresh reading, or
 /// a re-probe could quietly rewrite a choice someone made.
 fn edit(
 	project: &mut Project,
@@ -86,7 +86,7 @@ pub async fn set_style_preset(
 	let project = state.project(&window).await;
 	edit(&mut *project.lock().await, graph, None, |style| {
 		// A preset only means something on a vector appearance. Choosing one on a source currently
-		// drawn as raster says the person wants it drawn as vector, so the appearance follows —
+		// drawn as raster says the person wants it drawn as vector, so the appearance follows -
 		// rather than the click being silently ignored.
 		match &mut style.appearance {
 			Appearance::Vector { preset: current, .. } => *current = preset,
@@ -101,7 +101,7 @@ pub async fn set_style_preset(
 	})
 }
 
-/// Sets the raster adjustment — the imagery equivalent of `set_style_recolor` (S6.3, D11).
+/// Sets the raster adjustment - the imagery equivalent of `set_style_recolor` (S6.3, D11).
 ///
 /// Whole-struct for the same reason that one is: the controls move together, and one command per
 /// field would let the two ends disagree about which of them the recipe currently has. Called when
@@ -127,7 +127,7 @@ pub async fn set_style_raster(
 
 /// Drops a source's overrides for layers its style no longer has ([S6.7](../../../docs/scope-release-2.md)).
 ///
-/// `present` is the ids the rendered style actually contains, which only the webview knows —
+/// `present` is the ids the rendered style actually contains, which only the webview knows -
 /// `@versatiles/style` renders there ([Q36]), so the core cannot work out what a preset produced.
 ///
 /// Returns the recipe, and the count goes to the pane through the difference it can see. Deliberate
@@ -176,7 +176,7 @@ pub async fn set_style_hillshade(
 /// Sets the draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
 ///
 /// The whole list, not a move: a reorder is one gesture with one result, and "move this one up"
-/// would need the two ends to agree about what the list was before it — which is the disagreement
+/// would need the two ends to agree about what the list was before it - which is the disagreement
 /// `set_style_recolor` avoids the same way.
 ///
 /// Names that no graph has are kept rather than filtered. `Recipe::draw_order` ignores them, and
@@ -199,7 +199,7 @@ pub async fn set_style_order(
 ///
 /// `None` hands the question back to the webview's own reading. Changing the kind across the
 /// vector/raster line replaces the appearance, because the old one describes something this source
-/// is no longer being drawn as — and keeping it would mean a recipe carrying two answers again,
+/// is no longer being drawn as - and keeping it would mean a recipe carrying two answers again,
 /// which is what S6.4 removed.
 #[tauri::command]
 #[specta::specta]
@@ -212,7 +212,7 @@ pub async fn set_style_kind(
 	let project = state.project(&window).await;
 	edit(&mut *project.lock().await, graph, kind, |style| {
 		// **Compared by variant, not by a vector/raster flag.** There are three appearances now, and
-		// imagery and elevation are as different from each other as either is from a preset — a
+		// imagery and elevation are as different from each other as either is from a preset - a
 		// boolean would have left a DEM holding raster adjustments it has no use for.
 		let wanted = Appearance::for_kind(kind);
 		if std::mem::discriminant(&style.appearance) != std::mem::discriminant(&wanted) {
@@ -222,7 +222,7 @@ pub async fn set_style_kind(
 	})
 }
 
-/// Sets the global recolouring — hue, saturation, brightness, contrast and the rest (D1, D5).
+/// Sets the global recolouring - hue, saturation, brightness, contrast and the rest (D1, D5).
 ///
 /// Takes the whole of it rather than one field at a time. The controls move together, the webview
 /// holds them together, and ten commands would let the two ends disagree about which of them the
@@ -261,7 +261,7 @@ pub async fn set_layer_override(
 	Ok(record(&mut project, recipe))
 }
 
-/// What Studio can write a style as/// What Studio can write a style as — the file dialog's filters come from here.
+/// What Studio can write a style as/// What Studio can write a style as - the file dialog's filters come from here.
 #[tauri::command]
 #[specta::specta]
 pub fn style_formats() -> Vec<String> {
@@ -278,7 +278,7 @@ pub fn style_formats() -> Vec<String> {
 /// it produces ([Q36]). So this command is about the destination rather than the contents: it checks
 /// the extension and writes atomically, the way a `.vpl` is saved.
 ///
-/// The path came from a native save dialog, which is the whole of the trust story — see
+/// The path came from a native save dialog, which is the whole of the trust story - see
 /// [architecture.md](../../../docs/architecture.md)'s note on paths across the control plane.
 #[tauri::command]
 #[specta::specta]
@@ -300,8 +300,8 @@ pub async fn export_style(path: String, contents: String) -> Result<(), String> 
 /// above takes its contents: `@versatiles/style` renders in JavaScript, and the fonts a style uses
 /// are read out of what it rendered to.
 ///
-/// The archives come from here, because only the app knows where a bundled resource lives — beside
-/// the binary when packaged, in the source tree in dev — and where installed families were put.
+/// The archives come from here, because only the app knows where a bundled resource lives - beside
+/// the binary when packaged, in the source tree in dev - and where installed families were put.
 /// Installed families are searched *after* the bundled tier, mirroring the mount order: the Latin
 /// subset answers first, and anything else is found in whichever family archive has it.
 ///

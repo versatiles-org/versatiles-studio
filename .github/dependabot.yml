@@ -41,7 +41,7 @@ updates:
         patterns: ['*']
     ignore:
       # glib is pinned at 0.18 by gtk 0.18, which Tauri v2 needs because it targets GTK3 via
-      # webkit2gtk-4.1. The advisory is fixed in glib 0.20 — the GTK4 line — so there is nothing to
+      # webkit2gtk-4.1. The advisory is fixed in glib 0.20 - the GTK4 line - so there is nothing to
       # resolve to, and Dependabot fails the run with `security_update_not_possible` every time.
       # A permanently red job teaches people to ignore red jobs. Remove when Tauri moves to GTK4.
       - dependency-name: glib

@@ -5,7 +5,7 @@
 	//
 	// Gathered into one cluster because they had started to accumulate as loose buttons in the
 	// corner: what belongs here is anything about *looking* at the result, and nothing about what
-	// the result is — that is the left pane's business.
+	// the result is - that is the left pane's business.
 	let {
 		background,
 		showGrid,
@@ -37,7 +37,7 @@
 		<span class="visually-hidden">Background map</span>
 		<select
 			value={background}
-			title="Background map — the only part of Studio that fetches from the network"
+			title="Background map - the only part of Studio that fetches from the network"
 			onchange={(event) => onBackground(event.currentTarget.value as BackgroundId)}
 		>
 			{#each groups as group (group.label)}

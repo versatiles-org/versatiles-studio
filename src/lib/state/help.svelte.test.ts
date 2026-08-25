@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { dismiss, help, peek, pin, unpeek, type HelpContent } from './help.svelte';
 
 /**
- * Peek and pin are different needs, so they are different gestures — and the rules between them are
+ * Peek and pin are different needs, so they are different gestures - and the rules between them are
  * what keep the popover from fighting the pointer.
  *
  * Hovering peeks: read it and move on, nothing to dismiss. Clicking pins: it stays, and it stays put
@@ -61,7 +61,7 @@ describe('pinning', () => {
 		expect(help.current?.content.title).toBe('bbox');
 	});
 
-	// The same gesture off as on — clicking the trigger again is how you put it away.
+	// The same gesture off as on - clicking the trigger again is how you put it away.
 	it('toggles off when the same trigger is clicked again', () => {
 		pin(content('bbox'), trigger());
 		pin(content('bbox'), trigger());
@@ -90,7 +90,7 @@ describe('pinning', () => {
 
 describe('where it is measured against', () => {
 	// The sidebar scrolls and clips, so the popover is positioned against it rather than the trigger
-	// alone — and a trigger outside one still has to measure against something.
+	// alone - and a trigger outside one still has to measure against something.
 	it('falls back to the trigger when there is no sidebar', () => {
 		document.body.innerHTML = '<button id="loose">?</button>';
 		peek(content('bbox'), document.getElementById('loose')!);

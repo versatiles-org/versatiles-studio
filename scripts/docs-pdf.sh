@@ -4,12 +4,12 @@
 #
 # A helper for us, not part of the build: nothing in the application depends on it, and it is here
 # rather than in package.json because it drives two things that are installed on a machine rather
-# than in node_modules — pandoc and Chrome. There is no new dependency to add.
+# than in node_modules - pandoc and Chrome. There is no new dependency to add.
 #
 #   scripts/docs-pdf.sh [output.pdf]
 #
 # The order comes from the README's "Planning documents" table rather than from a list kept here.
-# That table is already curated — why, who, what, when, what exists, how, decisions, next — and two
+# That table is already curated - why, who, what, when, what exists, how, decisions, next - and two
 # lists would drift the first time a document was added to one of them. A document missing from the
 # table is an error rather than a document silently missing from the PDF.
 
@@ -21,7 +21,7 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 command -v pandoc >/dev/null || {
-	echo "pandoc is not installed — brew install pandoc" >&2
+	echo "pandoc is not installed - brew install pandoc" >&2
 	exit 1
 }
 
@@ -34,7 +34,7 @@ for candidate in \
 	[ -n "$candidate" ] && [ -x "$candidate" ] && chrome="$candidate" && break
 done
 [ -n "$chrome" ] || {
-	echo "no Chrome or Chromium found — it is what turns the HTML into a PDF" >&2
+	echo "no Chrome or Chromium found - it is what turns the HTML into a PDF" >&2
 	exit 1
 }
 
@@ -63,7 +63,7 @@ for file in "$root"/docs/*.md; do
 done
 [ -z "$missing" ] || {
 	echo "not listed in the README's Planning documents table:$missing" >&2
-	echo "add it there — that table is what decides this PDF's order" >&2
+	echo "add it there - that table is what decides this PDF's order" >&2
 	exit 1
 }
 
@@ -76,7 +76,7 @@ done
 # keeps that true rather than assumed.
 #
 # A link to a document with no fragment has nothing to aim at, so each one gets an explicit anchor
-# named after its file — `#doc-vision` — which avoids having to reproduce GitHub's slug rules for a
+# named after its file - `#doc-vision` - which avoids having to reproduce GitHub's slug rules for a
 # title in a shell script.
 combined="$work/all.md"
 : >"$combined"
@@ -107,7 +107,7 @@ pandoc \
 	--to html5 \
 	--standalone \
 	--toc --toc-depth=2 \
-	--metadata title="VersaTiles Studio — Planning Documents" \
+	--metadata title="VersaTiles Studio - Planning Documents" \
 	--include-in-header "$root/scripts/docs-pdf.head.html" \
 	--output "$html" \
 	"$combined"
@@ -128,7 +128,7 @@ cat >>"$html" <<'MERMAID'
 </script>
 MERMAID
 
-# Every fragment a link points at has to exist, or the PDF quietly loses its cross-references — the
+# Every fragment a link points at has to exist, or the PDF quietly loses its cross-references - the
 # failure a reader only finds by clicking. Checked here rather than trusted.
 python3 - "$html" <<'CHECK'
 import re, sys
@@ -160,4 +160,4 @@ CHECK
 	--print-to-pdf="$out" \
 	"file://$html" 2>/dev/null
 
-echo "  $(basename "$out") — $(du -h "$out" | cut -f1)"
+echo "  $(basename "$out") - $(du -h "$out" | cut -f1)"

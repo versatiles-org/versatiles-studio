@@ -119,7 +119,7 @@ describe('throughQueue', () => {
 		);
 	});
 
-	it('rewrites https too — a remote source mounted locally is still served locally', () => {
+	it('rewrites https too - a remote source mounted locally is still served locally', () => {
 		expect(throughQueue('https://127.0.0.1:8080/t/{z}')).toBe(`${SCHEME}://127.0.0.1:8080/t/{z}`);
 	});
 
@@ -142,7 +142,7 @@ describe('coordFromUrl', () => {
 	});
 
 	it('is not fooled by a URL that merely ends in numbers', () => {
-		// A sprite has two numeric segments, not three — the glyph and sprite URLs share this host.
+		// A sprite has two numeric segments, not three - the glyph and sprite URLs share this host.
 		expect(coordFromUrl('http://h/assets/sprites/basics/1/2')).toBeNull();
 		// Three numbers, but a zoom that cannot exist: a parse that happened to succeed on a date.
 		expect(coordFromUrl('http://h/v/2024/11/30')).toBeNull();

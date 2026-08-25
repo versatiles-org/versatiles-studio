@@ -1,8 +1,8 @@
 /**
  * Saving a project, and finding it again in a window that never knew about it.
  *
- * **The round trip is the point.** Each half has unit tests — the writer produces a directory, the
- * reader turns a directory back into graphs — and neither can tell whether the second understands
+ * **The round trip is the point.** Each half has unit tests - the writer produces a directory, the
+ * reader turns a directory back into graphs - and neither can tell whether the second understands
  * what the first wrote. Only a second window, started from nothing, can say that.
  */
 
@@ -43,13 +43,13 @@ describe('saving a project and opening it again', () => {
 	it('opens in a fresh window with its graph and its style intact', async () => {
 		await fire('open_launcher');
 		await switchTo(LAUNCHER);
-		// The handle exists as soon as the window does, which is before its page has loaded — and a
+		// The handle exists as soon as the window does, which is before its page has loaded - and a
 		// command fired into a page with no bridge yet goes nowhere and says nothing.
 		await $('h1').waitForExist({ timeout: 20_000, timeoutMsg: 'the launcher never finished loading' });
 
 		// Taken before, because the window that saved the project stays open: the reopened one is the
 		// handle that was not there a moment ago, and picking "the last one" quietly checked the old
-		// window instead — which passed while the new window was showing an error.
+		// window instead - which passed while the new window was showing an error.
 		const before = await browser.getWindowHandles();
 		await fire('open_in_new_window', { source: DIR });
 		await waitForGone(LAUNCHER);

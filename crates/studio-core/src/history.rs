@@ -2,12 +2,12 @@
 //!
 //! Undo belongs to the *document*, not to any one view of it ([Q11], [Q25]). The text editor, the
 //! parameter forms and the graph all change the same pipeline, so a stack per view would mean
-//! ⌘Z doing something different depending on where the focus happened to be — and no way at all to
+//! ⌘Z doing something different depending on where the focus happened to be - and no way at all to
 //! undo a form change from the text tab.
 //!
 //! **The style is on it too**, not on a second one ([Q36]). It is a different document, but it is
 //! not a different kind of thing: a small text that a user changes and expects ⌘Z to walk back. The
-//! only generalisation it needed was [`Target`] — every rule below already handled documents that
+//! only generalisation it needed was [`Target`] - every rule below already handled documents that
 //! interleave, because several graphs do.
 //!
 //! **Snapshots, not inverse edits.** A pipeline is a few hundred bytes, so a hundred of them costs
@@ -38,7 +38,7 @@ const LIMIT: usize = 200;
 pub enum EditKind {
 	/// A keystroke in the VPL editor. Consecutive ones merge.
 	Typing,
-	/// A parameter form or the graph — a deliberate, discrete change. The default, because it is
+	/// A parameter form or the graph - a deliberate, discrete change. The default, because it is
 	/// the conservative one: a caller that says nothing gets its own undo step.
 	#[default]
 	Structured,
@@ -51,7 +51,7 @@ pub enum EditKind {
 /// A project holds several graphs ([Q32](../../docs/decisions.md)) *and* one style recipe
 /// ([Q36](../../docs/decisions.md)), and G6 wants one ⌘Z across all of them. They are the same kind
 /// of thing as far as this module is concerned: a named document whose whole text is small enough to
-/// snapshot. Q36 is what makes the second half of that true — the core stores what the style is made
+/// snapshot. Q36 is what makes the second half of that true - the core stores what the style is made
 /// from, not the 125 kB it renders to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Target {
@@ -77,7 +77,7 @@ pub struct Step {
 	pub text: String,
 }
 
-/// The project's edit history — **one stack across every graph**.
+/// The project's edit history - **one stack across every graph**.
 ///
 /// [G6](../../docs/features.md) wants ⌘Z to undo the last thing you did, not the last thing you did
 /// *in this graph*; a stack per graph would make undo depend on which graph happens to be selected,
@@ -85,7 +85,7 @@ pub struct Step {
 ///
 /// That makes stepping back less obvious than it looks. An entry records only the graph that
 /// changed, so undoing it means restoring **that graph's previous entry**, not the entry before it
-/// in the stack — which may belong to a different graph entirely and must be left alone. Every graph
+/// in the stack - which may belong to a different graph entirely and must be left alone. Every graph
 /// therefore gets a baseline entry when it is added, so a predecessor always exists.
 #[derive(Debug, Default)]
 pub struct History {
@@ -102,7 +102,7 @@ impl History {
 
 	/// Records a new state, discarding anything that was redoable.
 	///
-	/// Editing after undoing abandons the branch that was undone — the usual and expected model:
+	/// Editing after undoing abandons the branch that was undone - the usual and expected model:
 	/// there is one past, and stepping off it forgets the future you stepped away from.
 	pub fn push(&mut self, target: Target, text: impl Into<String>, kind: EditKind) {
 		self.push_at(target, text, kind, Instant::now());
@@ -133,7 +133,7 @@ impl History {
 
 	/// A run of typing merges; anything else stands alone.
 	///
-	/// **In the same graph.** Typing here, then typing there, is two edits however fast it happened —
+	/// **In the same graph.** Typing here, then typing there, is two edits however fast it happened -
 	/// merging them would produce one undo step that changes two documents.
 	fn should_merge(&self, target: Target, kind: EditKind, at: Instant) -> bool {
 		if kind != EditKind::Typing || self.entries.is_empty() {
@@ -175,7 +175,7 @@ impl History {
 			return None;
 		}
 		let target = self.entries.get(self.cursor)?.target;
-		// The state to go back to is this graph's *previous* entry — not the stack's, which may
+		// The state to go back to is this graph's *previous* entry - not the stack's, which may
 		// belong to another graph and must be left where it is.
 		self.latest(target, self.cursor).map(|text| Step {
 			target,
@@ -284,7 +284,7 @@ mod tests {
 		assert_eq!(history.undo(), None, "the whole burst collapsed into the first state");
 	}
 
-	/// A pause is a boundary — one thought per undo step.
+	/// A pause is a boundary - one thought per undo step.
 	#[test]
 	fn a_pause_in_typing_starts_a_new_step() {
 		let mut history = History::new();
@@ -308,8 +308,8 @@ mod tests {
 		assert_eq!(history.undo().text(), Some("a"));
 	}
 
-	/// A re-render is not an edit. Without this, anything that reports the current text — a reload,
-	/// a preview rebuild — would fill the stack with duplicates and undo would appear to do nothing.
+	/// A re-render is not an edit. Without this, anything that reports the current text - a reload,
+	/// a preview rebuild - would fill the stack with duplicates and undo would appear to do nothing.
 	#[test]
 	fn recording_the_same_text_twice_changes_nothing() {
 		let mut history = History::new();
@@ -409,7 +409,7 @@ mod tests {
 		assert_eq!(history.redo(), None);
 	}
 
-	/// Typing in one graph and then in another is two edits however fast it happened — merging
+	/// Typing in one graph and then in another is two edits however fast it happened - merging
 	/// them would make one undo step change two documents.
 	#[test]
 	fn typing_does_not_merge_across_graphs() {
@@ -461,7 +461,7 @@ mod tests {
 	///
 	/// Interleaved deliberately. Undo after a style edit must restore the style and leave the graph
 	/// where it is, and the step after that must reach back past the style edit to the graph's own
-	/// previous state — which is the same rule that already governs two graphs, now that a style is
+	/// previous state - which is the same rule that already governs two graphs, now that a style is
 	/// just another target.
 	#[test]
 	fn the_style_and_the_graphs_share_one_stack() {
@@ -491,7 +491,7 @@ mod tests {
 	///
 	/// **The style is given a baseline first, and it has to be.** Undo restores a target's
 	/// *previous* entry, so a target whose first edit is also its first entry has nothing to go back
-	/// to — the same reason every graph is recorded when it is added. Writing this test without one
+	/// to - the same reason every graph is recorded when it is added. Writing this test without one
 	/// is what showed the style needs the same treatment.
 	#[test]
 	fn a_style_edit_never_merges_into_a_run_of_typing() {

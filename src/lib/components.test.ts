@@ -1,7 +1,7 @@
 /**
  * The two rules in [Svelte Components](../../docs/components.md), enforced rather than remembered.
  *
- * A component lives with what owns it, and its **name is unique across the application** — the
+ * A component lives with what owns it, and its **name is unique across the application** - the
  * folder scopes it when you are reading a path, and does nothing for you when you are fuzzy-finding
  * by filename or reading the inventory, which is how components are actually looked up.
  */
@@ -44,6 +44,6 @@ describe('component organisation', () => {
 		const stray = components('src')
 			.map(([, path]) => path)
 			.filter((path) => !allowed.test(path));
-		expect(stray, 'a component outside the documented folders — see docs/components.md').toEqual([]);
+		expect(stray, 'a component outside the documented folders - see docs/components.md').toEqual([]);
 	});
 });

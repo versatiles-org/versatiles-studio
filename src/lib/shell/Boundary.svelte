@@ -5,7 +5,7 @@
 	// One part of the window failing, instead of all of it (S6.8).
 	//
 	// **What this catches is the failure with no other route.** An error thrown while a component
-	// renders, or inside an `$effect`, is not a rejected promise and not a `window.onerror` — Svelte
+	// renders, or inside an `$effect`, is not a rejected promise and not a `window.onerror` - Svelte
 	// unmounts the tree that threw and, without a boundary, that tree is the whole application. A
 	// pane with a bad value in it took the map, the editor and the status bar down with it.
 	//
@@ -14,12 +14,12 @@
 	// listened for in `state/diagnostics.svelte.ts`. This is the third route, not a replacement.
 	//
 	// **Retry is offered because it usually works.** These failures are ordinarily a component
-	// meeting a shape it did not expect — a container whose format nothing has seen, a style with a
-	// field missing — and the next document, or the same one after an edit, renders fine. Reloading
+	// meeting a shape it did not expect - a container whose format nothing has seen, a style with a
+	// field missing - and the next document, or the same one after an edit, renders fine. Reloading
 	// the window to find that out would cost every other pane's state.
 
 	let {
-		/** What failed, in the words the surrounding interface already uses — a pane's own title. */
+		/** What failed, in the words the surrounding interface already uses - a pane's own title. */
 		label,
 		children
 	}: { label: string; children: Snippet } = $props();
@@ -37,7 +37,7 @@
 
 	{#snippet failed(error, reset)}
 		<!-- Deliberately small and in place: the rest of the window is still working, and a full-width
-		     apology would suggest otherwise. The message goes in the title rather than the body —
+		     apology would suggest otherwise. The message goes in the title rather than the body -
 		     what a person can act on is the retry, and the detail is in the problems panel. -->
 		<p class="failed" title={describe(error).message}>
 			<span>{label} stopped working.</span>

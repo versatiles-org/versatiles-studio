@@ -1,4 +1,4 @@
-//! Window management — one window per project ([Q16]).
+//! Window management - one window per project ([Q16]).
 //!
 //! Each `WebviewWindow` is its own OS process, which is where the crash isolation comes from. The
 //! core holds everything durable, so a window that dies can be reopened without losing work.
@@ -20,8 +20,8 @@ pub const LAUNCHER: &str = "window-launcher";
 ///
 /// **For the end-to-end suite, and only for it.** Every spec opens a window and closes it again, so
 /// running the suite on the machine you are working on means a minute of windows taking focus and
-/// flashing past. The driver reaches the webview rather than the screen — it finds elements and
-/// dispatches events inside the page — so a window it never shows is one it can still drive.
+/// flashing past. The driver reaches the webview rather than the screen - it finds elements and
+/// dispatches events inside the page - so a window it never shows is one it can still drive.
 ///
 /// Compiled in only under `e2e`, like the data directory it sits beside: a shipped build has no
 /// environment variable that can make Studio start invisibly ([the plan](../../docs/scope-e2e.md)).
@@ -42,7 +42,7 @@ pub fn open(app: &AppHandle, label: &str) -> Result<()> {
 		.inner_size(1280.0, 800.0)
 		.min_inner_size(900.0, 600.0)
 		.visible(!hidden())
-		// Drag and drop is on by default — `tauri.conf.json` said so explicitly and no longer
+		// Drag and drop is on by default - `tauri.conf.json` said so explicitly and no longer
 		// describes a window at all (S7.7). The builder can only turn it *off*, which is what makes
 		// the default safe to rely on rather than something this has to restate.
 		.build()
@@ -53,7 +53,7 @@ pub fn open(app: &AppHandle, label: &str) -> Result<()> {
 /// The label the next project window will have.
 ///
 /// Handed out before the window is built so a caller can queue what that window should open
-/// ([S7.6](../../docs/scope-release-3.md)) — a webview boots asynchronously, and a handoff that
+/// ([S7.6](../../docs/scope-release-3.md)) - a webview boots asynchronously, and a handoff that
 /// waited for it would be racing the thing it is handing off to.
 pub fn next_label() -> String {
 	static NEXT: AtomicU32 = AtomicU32::new(1);
@@ -91,7 +91,7 @@ pub fn open_launcher(app: &AppHandle) -> Result<()> {
 	Ok(())
 }
 
-/// Whether any window is holding a project — the launcher does not count.
+/// Whether any window is holding a project - the launcher does not count.
 ///
 /// What tells "there is somewhere to open this" from "Studio is showing nothing", which is the
 /// question both startup and a file arriving from the operating system have to answer
@@ -112,8 +112,8 @@ pub fn close_launcher(app: &AppHandle) {
 /// Opens `STUDIO_WINDOWS` extra windows at startup.
 ///
 /// A measurement affordance for S0.8, which found ~28 MB per window
-/// ([Q16](../../docs/decisions.md)). Kept because that figure came from an empty page — it has to be
-/// taken again at S1 with a real map on screen. Remove once S1 has re-measured — ⌘N now exists,
+/// ([Q16](../../docs/decisions.md)). Kept because that figure came from an empty page - it has to be
+/// taken again at S1 with a real map on screen. Remove once S1 has re-measured - ⌘N now exists,
 /// and these are named `window-…` for the same capability reason [`next_label`] explains.
 pub fn open_extra_from_env(app: &AppHandle) -> Result<()> {
 	let Ok(raw) = std::env::var("STUDIO_WINDOWS") else {

@@ -5,7 +5,7 @@
 // what is added here is what a typechecker cannot see: unused code, unsafe `any` flowing through a
 // boundary, promises nobody awaited.
 //
-// Deliberately narrow. Style is Prettier's job — anything about formatting belongs there, not in a
+// Deliberately narrow. Style is Prettier's job - anything about formatting belongs there, not in a
 // lint rule that would then disagree with it.
 
 import js from '@eslint/js';
@@ -16,7 +16,7 @@ import svelteConfig from './svelte.config.js';
 
 export default ts.config(
 	{
-		// Generated or vendored — the same set `.prettierignore` skips, for the same reason: the
+		// Generated or vendored - the same set `.prettierignore` skips, for the same reason: the
 		// bundled MapLibre worker is someone else's output, and everything under `target/` is a
 		// build artefact, including the JavaScript Tauri's codegen emits.
 		ignores: [
@@ -49,7 +49,7 @@ export default ts.config(
 	{
 		// Generated, and not ours to fix: tauri-specta emits `any` in its error-unwrapping helper and
 		// for opaque JSON. Linting a file nobody edits only produces noise a reader has to learn to
-		// ignore — the file's correctness is the generator's job, and the staleness test is what
+		// ignore - the file's correctness is the generator's job, and the staleness test is what
 		// guards it.
 		files: ['src/lib/ipc/bindings.ts'],
 		rules: { '@typescript-eslint/no-explicit-any': 'off' }

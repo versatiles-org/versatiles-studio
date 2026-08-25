@@ -2,7 +2,7 @@
  * Setting a style without asking MapLibre to diff one that has not loaded.
  *
  * The failure is quiet and expensive: MapLibre catches its own error, warns once, and rebuilds the
- * style from scratch — every source torn down and refetched. It happened on every launch, and the
+ * style from scratch - every source torn down and refetched. It happened on every launch, and the
  * only reason anyone knew was that the console is now collected (S6.8).
  */
 

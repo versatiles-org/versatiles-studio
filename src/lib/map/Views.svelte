@@ -5,8 +5,8 @@
 	// A7's named views, application-wide rather than project-scoped ([Q21]): a place you want to
 	// come back to is worth keeping whether or not a project exists.
 	//
-	// **On the map, not in a pane** ([Q38]). What this does is move the camera — the same job as the
-	// `CoordinateJump` box in the corner below — and nothing to do with what an opened container
+	// **On the map, not in a pane** ([Q38]). What this does is move the camera - the same job as the
+	// `CoordinateJump` box in the corner below - and nothing to do with what an opened container
 	// turns out to be, which is all the inspector it used to live in is for.
 	//
 	// Top-left, a corner to itself: it is the one map control that opens a panel, and it opens
@@ -56,8 +56,8 @@
 
 	/// How close counts as being on a view.
 	///
-	/// Generous enough to survive the round trip through MapLibre — a zoom can come back
-	/// constrained by the style's limits, a latitude nudged by the projection — and tight enough
+	/// Generous enough to survive the round trip through MapLibre - a zoom can come back
+	/// constrained by the style's limits, a latitude nudged by the projection - and tight enough
 	/// that two views of the same city do not both light up.
 	const NEAR = { degrees: 1e-4, zoom: 0.01, angle: 0.5 };
 
@@ -245,7 +245,7 @@
 		class="toggle"
 		class:on={open}
 		aria-expanded={open}
-		title="Saved views — jump back to a place you named"
+		title="Saved views - jump back to a place you named"
 		onclick={() => (open ? close() : (open = true))}
 	>
 		<!-- The name of the view you are on, so the button says where you are rather than only what

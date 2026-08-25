@@ -17,11 +17,11 @@
 
 	// One node in the chain (S2.13, [Q32]).
 	//
-	// **A node is its form.** One row per argument, and the arguments are the node — which is why
+	// **A node is its form.** One row per argument, and the arguments are the node - which is why
 	// there is no Parameters pane any more ([Q32]).
 	//
 	// **Nothing folds.** Every node shows its parameters, whether it is selected or not. The rule used
-	// to be that only the selected node did — six operations in the height four took — but the cost
+	// to be that only the selected node did - six operations in the height four took - but the cost
 	// was that clicking down a chain made every node in it change height, and a list that reshuffles
 	// under the pointer is harder to read than a long one. The pane scrolls; that is what it is for.
 	//
@@ -48,14 +48,14 @@
 		path: number[];
 		/** Whether the map is showing *this* node. Independent of selection ([Q32]). */
 		pinned: boolean;
-		/** Whether this is the node the chain starts with — the one node with no `×`, because a
+		/** Whether this is the node the chain starts with - the one node with no `×`, because a
 		 *  chain must begin with a `from_*` node ([Q32]). A read node nested in a composite is not
 		 *  this, and may be removed. */
 		isHead: boolean;
 		operations?: OperationInfo[];
 		/** Property names the pipeline produces, for list fields (S3.3). */
 		properties?: string[];
-		/** Per-field values read from what the node points at — a CSV's own columns (S3.4). */
+		/** Per-field values read from what the node points at - a CSV's own columns (S3.4). */
 		suggestions?: Record<string, string[]>;
 		onPin: (path: number[]) => void;
 		onCommit: (span: Span, value: string) => void;
@@ -77,17 +77,17 @@
 	/** Parameters the operation accepts and this node has not set. Sources are not parameters. */
 	const unset = $derived(unsetFields(meta?.fields ?? [], node.properties));
 
-	/// Required parameters with no value yet — **always shown**, empty.
+	/// Required parameters with no value yet - **always shown**, empty.
 	///
 	/// Hiding them in `＋ parameter…` made a form that conceals its own required fields and sends you
 	/// hunting for them. Shown and empty, "required" needs no symbol: the field is simply there, and
-	/// waiting. Most operations add no rows this way — 18 of 29 have no required parameter at all,
+	/// waiting. Most operations add no rows this way - 18 of 29 have no required parameter at all,
 	/// and only three have more than one.
 	const missing = $derived(missingFields(unset));
 	/// What `＋ parameter…` offers: the optional ones, since the required are already on screen.
 	const addable = $derived(addableFields(unset));
 
-	/// What this field could be set to — whichever end of the pipeline could answer.
+	/// What this field could be set to - whichever end of the pipeline could answer.
 	const options = (key: string, control: FieldInfo['control'] | undefined): string[] =>
 		optionsFor(suggestions, properties, key, control);
 
@@ -107,7 +107,7 @@
 	/// Help for the operation itself.
 	///
 	/// The summary, not the whole doc: four fifths of that is a prose copy of the parameter list,
-	/// which the rows below already are — and editable. The `kind` is worth saying because nothing
+	/// which the rows below already are - and editable. The `kind` is worth saying because nothing
 	/// else in the form does.
 	const operationHelp = (operation: OperationInfo) => ({
 		title: operation.name,
@@ -124,7 +124,7 @@
 	/// A parameter chosen from `＋ parameter…` that has no value yet.
 	///
 	/// **Not written to the document until it has one.** Writing `filename=''` produces VPL that
-	/// parses and then fails when the pipeline is built — a job error for something the user is
+	/// parses and then fails when the pipeline is built - a job error for something the user is
 	/// halfway through typing. So the row exists here and the document does not know about it until
 	/// there is something to know.
 	let pending = $state<string | null>(null);
@@ -180,13 +180,13 @@
 
 		<!-- A name, not a control. Clicking a node used to select it, and selection used to decide
 		     which node showed its form; now every node shows one and there is nothing left for the
-		     click to do. A button that does nothing still says it does something — the cursor, the
-		     focus ring, the press — so it stops being one. -->
+		     click to do. A button that does nothing still says it does something - the cursor, the
+		     focus ring, the press - so it stops being one. -->
 		<span class="nm truncate" title={meta?.summary || node.name}>{node.name}</span>
 
 		{#if meta}
 			<!-- The operation's own help. A `?` rather than the name, because the name's click is
-			     already selection — and hovering names would flash a popover per node while scanning a
+			     already selection - and hovering names would flash a popover per node while scanning a
 			     chain ([Q33]). -->
 			<HelpTrigger content={operationHelp(meta)} />
 		{/if}
@@ -206,7 +206,7 @@
 
 	<dl class="args">
 		<!-- Set parameters. A required one has no ×: you cannot remove what must exist, which is
-			     how that rule is said ([Q33]) — the same way the head node has no ×. -->
+			     how that rule is said ([Q33]) - the same way the head node has no ×. -->
 		{#each node.properties as property (property.keySpan.start)}
 			{@const field = fieldOf(meta?.fields ?? [], property.key)}
 			<NodeArgument
@@ -326,7 +326,7 @@
 
 	/* Only the head node has one, and only when collapsed. */
 
-	/* At the right edge, where the parameter rows put theirs — those sit in a grid column of their
+	/* At the right edge, where the parameter rows put theirs - those sit in a grid column of their
 	   own, so the two ×s do the same job one level apart and now read the same way. `margin-left`
 	   rather than a spacer, so it lands last whatever precedes it: a `?` when the operation has
 	   documentation, the name when it does not.

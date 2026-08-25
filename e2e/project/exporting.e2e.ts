@@ -35,7 +35,7 @@ describe('exporting a graph', () => {
 			graph: graph.id,
 			target: TARGET,
 			// Bounded on purpose, and not only to keep the test short. `from_debug` declares a complete
-			// pyramid to level 30, and an export that took it at its word would write 10^18 tiles — the
+			// pyramid to level 30, and an export that took it at its word would write 10^18 tiles - the
 			// bug that cost a machine, and the reason `Bounds` exists at all.
 			//
 			// The whole world to level 6 is five thousand tiles: long enough that the progress below is

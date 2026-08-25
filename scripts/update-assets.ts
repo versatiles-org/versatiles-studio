@@ -2,7 +2,7 @@
  * Checks or updates the pinned versions in `assets/manifest.json`.
  *
  * Q9 requires the map assets to be pinned per family with a checksum, rather than fetched as
- * "latest" — so this is the tool that moves a pin deliberately instead of by accident.
+ * "latest" - so this is the tool that moves a pin deliberately instead of by accident.
  *
  * GitHub returns a `digest` on every release asset, so both modes are metadata-only: nothing is
  * downloaded, even though the font archives total ~190 MB.
@@ -21,7 +21,7 @@ const MANIFEST = fileURLToPath(new URL('../assets/manifest.json', import.meta.ur
  *
  * The manifest is data, and data that reaches `fetch()` decides where a build machine connects. A
  * tampered `assets/manifest.json` in a pull request would otherwise make CI issue arbitrary outbound
- * requests — with `GITHUB_TOKEN` attached for the API calls.
+ * requests - with `GITHUB_TOKEN` attached for the API calls.
  *
  * `resolveRepo` matches the manifest value against this list and returns **the constant**, so the
  * string that ends up in a URL comes from this file rather than from the manifest. Validating and
@@ -50,7 +50,7 @@ export function assertSafeSegment(value: string, what: string): void {
 	if (!/^[\w.+-]+$/.test(value)) {
 		throw new Error(`manifest ${what} "${value}" contains characters that are unsafe in a URL path`);
 	}
-	// The character class above permits dots, so `..` passes it — which is the one input this
+	// The character class above permits dots, so `..` passes it - which is the one input this
 	// function exists to stop. A test caught that; the explicit check is the fix.
 	if (/^\.+$/.test(value)) {
 		throw new Error(`manifest ${what} "${value}" is a path traversal segment`);
@@ -67,7 +67,7 @@ interface PinnedAsset {
 
 interface Source {
 	repo: string;
-	/** Release tag, e.g. `v5.13.1`. Never "latest" — that is the whole point (Q9). */
+	/** Release tag, e.g. `v5.13.1`. Never "latest" - that is the whole point (Q9). */
 	version: string;
 	/** Why this source is pinned at all. */
 	purpose: string;
@@ -100,7 +100,7 @@ async function latestRelease(repo: string): Promise<{ tag: string; assets: GhAss
 function digestOf(assets: GhAsset[], file: string, repo: string): { digest: string; bytes: number } {
 	const asset = assets.find((a) => a.name === file);
 	if (!asset) throw new Error(`${repo} has no asset named ${file}`);
-	if (!asset.digest) throw new Error(`${repo}/${file} has no digest — pin it by hand`);
+	if (!asset.digest) throw new Error(`${repo}/${file} has no digest - pin it by hand`);
 	return { digest: asset.digest, bytes: asset.size };
 }
 
@@ -110,7 +110,7 @@ function digestOf(assets: GhAsset[], file: string, repo: string): { digest: stri
  * `guards.test.ts` imports the two pure helpers above, and a module that works at import time makes
  * that import do the work: the suite started reaching GitHub for every pinned source, and stopped
  * being able to load at all the first time the API answered 403. A unit test that needs the network
- * is not one — so the side effects live behind the entry-point check below.
+ * is not one - so the side effects live behind the entry-point check below.
  */
 async function main(): Promise<void> {
 	const manifest = JSON.parse(await readFile(MANIFEST, 'utf8')) as Manifest;
@@ -135,7 +135,7 @@ async function main(): Promise<void> {
 					pinned.digest = fresh.digest;
 					pinned.bytes = fresh.bytes;
 				} else if (tag === source.version) {
-					problems.push(`${name}.${key}: digest changed under the same tag ${tag} — release was re-uploaded`);
+					problems.push(`${name}.${key}: digest changed under the same tag ${tag} - release was re-uploaded`);
 				}
 			}
 		}
@@ -143,7 +143,7 @@ async function main(): Promise<void> {
 
 	if (update) {
 		await writeFile(MANIFEST, `${JSON.stringify(manifest, null, '\t')}\n`);
-		console.log(problems.length ? `Updated:\n  ${problems.join('\n  ')}` : 'Already current — nothing changed.');
+		console.log(problems.length ? `Updated:\n  ${problems.join('\n  ')}` : 'Already current - nothing changed.');
 	} else if (problems.length) {
 		console.error(`Pins are out of date:\n  ${problems.join('\n  ')}\n\nRun \`npm run assets:update\` to move them.`);
 		process.exit(1);

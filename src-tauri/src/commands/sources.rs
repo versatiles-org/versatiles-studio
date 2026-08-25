@@ -15,7 +15,7 @@ use tauri::State;
 /// can set the pipeline itself.
 ///
 /// The mount name is derived from the path so the webview can build tile URLs without a second
-/// round trip. Re-opening the same path replaces the mount rather than stacking duplicates — see
+/// round trip. Re-opening the same path replaces the mount rather than stacking duplicates - see
 /// [`ServerManager::mount`](studio_core::server::ServerManager::mount), which is where that is
 /// actually enforced.
 #[tauri::command]
@@ -26,7 +26,7 @@ pub async fn open_container(
 	source: String,
 ) -> Result<OpenedContainer, String> {
 	// `from_container filename="berlin.mbtiles"` in a `.vpl` means *beside that file*, not beside
-	// wherever Studio was started — and *that file* belongs to this window's project (S7.1).
+	// wherever Studio was started - and *that file* belongs to this window's project (S7.1).
 	// Absolute paths and URLs are left alone.
 	let (resolved, mount) = {
 		let held = state.project(&window).await;
@@ -48,7 +48,7 @@ pub async fn open_container(
 	let vpl = studio_core::vpl::read_node("from_container", &source);
 	server.mount(&mount, reader).await.map_err(|e| format!("{e:#}"))?;
 
-	// Only record what actually opened — a failed attempt is not a recent file.
+	// Only record what actually opened - a failed attempt is not a recent file.
 	{
 		let mut recents = state.recents.lock().await;
 		recents.record(&source);
@@ -93,7 +93,7 @@ fn resolve(source: &str, dir: &std::path::Path) -> String {
 
 /// A URL-safe mount name derived from the source.
 ///
-/// Stable for a given source, so re-opening replaces rather than accumulates — and **unique across
+/// Stable for a given source, so re-opening replaces rather than accumulates - and **unique across
 /// sources**, because the file stem alone is not: `https://a/osm.versatiles` and
 /// `https://b/osm.versatiles` would otherwise mount over each other, silently breaking whichever
 /// map layer resolved first. The hash suffix keeps the name readable while making it unique.
@@ -153,7 +153,7 @@ mod tests {
 		);
 	}
 	/// A `.vpl` file's paths are relative to *that file*, so a relative source has to be resolved
-	/// against the project directory before it is opened — otherwise
+	/// against the project directory before it is opened - otherwise
 	/// `from_container filename="berlin.mbtiles"` looks wherever Studio was started.
 	#[test]
 	fn relative_sources_resolve_against_the_project_directory() {
@@ -186,7 +186,7 @@ pub async fn recent_sources(state: State<'_, AppState>) -> Result<Vec<RecentEntr
 	Ok(state.recents.lock().await.entries().to_vec())
 }
 
-/// Drops one entry — for a path that has gone away, or that the user wants gone.
+/// Drops one entry - for a path that has gone away, or that the user wants gone.
 #[tauri::command]
 #[specta::specta]
 pub async fn forget_recent(state: State<'_, AppState>, source: String) -> Result<(), String> {

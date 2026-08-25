@@ -11,7 +11,7 @@
 	//
 	// **`＋ operation…` lives on the rail, outside the nodes** ([Q32]). `＋ parameter…` inside a node
 	// acts on the node; this acts on the chain, and drawing it where an insertion actually goes
-	// means the two never have to be told apart by weight or colour. Every rail carries one — it
+	// means the two never have to be told apart by weight or colour. Every rail carries one - it
 	// used to be only the selected node's, which is a distinction the chain no longer makes.
 	let {
 		pipeline,
@@ -68,7 +68,7 @@
 	const refusal = $derived(new Map(fits.map((fit) => [fit.name, fit.reason])));
 
 	/// **Unknown counts as fitting.** Before the first preview this map is empty, and an operation
-	/// the core did not mention is one nothing is known about — offering it is the honest default,
+	/// the core did not mention is one nothing is known about - offering it is the honest default,
 	/// and it is what the picker did before it could ask.
 	const reasonFor = (name: string): string | null => refusal.get(name) ?? null;
 
@@ -81,7 +81,7 @@
 
 	/// What the picker offers: the ones that fit, then the ones that do not with their reason.
 	///
-	/// Refused operations stay on the list rather than being dropped — an operation someone knows
+	/// Refused operations stay on the list rather than being dropped - an operation someone knows
 	/// exists, silently missing, is a worse answer than one shown with why it cannot go here.
 	const choices = $derived([
 		...fitting.map((operation) => ({
@@ -118,8 +118,8 @@
 
 		{#if index < rows.length - 1 || transforms.length > 0}
 			<!-- A connection is live when the node it arrives at is, because that is what makes it a
-			     connection. The last rail arrives nowhere — it is the invitation to add an operation,
-			     not a pipe carrying anything — so it is never live. `active[index + 1]` is `undefined`
+			     connection. The last rail arrives nowhere - it is the invitation to add an operation,
+			     not a pipe carrying anything - so it is never live. `active[index + 1]` is `undefined`
 			     there, which is exactly the answer. -->
 			<div class="rail" class:inactive={!active[index + 1]} style:--depth={row.depth}>
 				<span class="stem" aria-hidden="true"></span>
@@ -149,7 +149,7 @@
 	}
 
 	/* The rail's content box matches the row's, so a percentage inside it is a percentage of the
-	   node above — which is what lets the stem sit under the node's middle rather than near its
+	   node above - which is what lets the stem sit under the node's middle rather than near its
 	   left edge. */
 	.rail {
 		display: flex;
@@ -159,16 +159,16 @@
 		padding-left: calc(var(--depth) * var(--space-4));
 
 		/* One height, always. It used to grow only for the selected node's rail, which meant every
-		   click moved the rest of the chain — the same restlessness the folding had. */
+		   click moved the rest of the chain - the same restlessness the folding had. */
 		min-height: 1.5rem;
 	}
 
 	/* **The pipe, and the node's outline, are one object.** Same colour and same width, so a chain
-	   reads as something joined rather than as cards stacked near a hairline — which is what it
+	   reads as something joined rather than as cards stacked near a hairline - which is what it
 	   looked like when this was 1px of `--rule` and the nodes were bordered in the same grey as
 	   every other separator in the pane. */
 	/* **Only the part that reaches the map is the accent.** The eye decides what is previewed, and
-	   everything downstream of it is not being drawn — so it says so, in the colour a separator has
+	   everything downstream of it is not being drawn - so it says so, in the colour a separator has
 	   rather than the one the pipeline has. Without this the whole chain claimed to be live while
 	   half of it was not running at all. */
 	.inactive {

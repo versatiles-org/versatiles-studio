@@ -7,7 +7,7 @@
  * the one part of the window that ignored the system theme.
  *
  * Layers say what they are through `metadata['studio:role']` rather than being recognised by their
- * id. Ids encode where a layer came from — a container's mount name, the grid's source — and matching
+ * id. Ids encode where a layer came from - a container's mount name, the grid's source - and matching
  * on them would mean this file breaking whenever a naming scheme changed somewhere else.
  *
  * See docs/styling.md.
@@ -51,14 +51,14 @@ const PAINT: Record<LayerRole, [property: ColourProperty, token: MapToken][]> = 
 	// this table is typed against MapLibre's own names (S2.16).
 	'pending-fill': [['fill-color', '--map-pending']],
 	'pending-line': [['line-color', '--map-pending']],
-	// The halo token is named for the grid and is simply the map's halo — the colour a label needs
+	// The halo token is named for the grid and is simply the map's halo - the colour a label needs
 	// behind it to stay legible over arbitrary tiles. Two overlays want it now.
 	'pending-label': [['text-color', '--map-label']],
 	// The crop, for the same reason the pending overlay needs two: a fill and a line name their
 	// colour differently (S5.2).
 	'crop-dim': [['fill-color', '--map-crop-dim']],
 	'crop-edge': [['line-color', '--map-crop-edge']],
-	// The rectangle while it is being dragged, which is the crop's own colour on both — it is the
+	// The rectangle while it is being dragged, which is the crop's own colour on both - it is the
 	// same crop, one moment before it exists.
 	'crop-draft-fill': [['fill-color', '--map-crop-edge']],
 	'crop-draft-line': [['line-color', '--map-crop-edge']]
@@ -76,7 +76,7 @@ export function role(name: LayerRole): { 'studio:role': LayerRole } {
  * and deliberate act, not on every frame.
  */
 export function applyMapTheme(map: MaplibreMap): void {
-	// The style is not always loaded — a theme flip can land mid-load, and `getStyle` throws then.
+	// The style is not always loaded - a theme flip can land mid-load, and `getStyle` throws then.
 	if (!map.isStyleLoaded()) return;
 
 	for (const layer of map.getStyle().layers) {

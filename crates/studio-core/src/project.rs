@@ -1,13 +1,13 @@
-//! Project model — a directory holding a `project.yaml` manifest beside real `.vpl` and
+//! Project model - a directory holding a `project.yaml` manifest beside real `.vpl` and
 //! `style.json` files (G1, [Q6]).
 //!
 //! **Reference, do not embed** ([Q6]). Each graph is a real `.vpl` the CLI can run and the style is
-//! a real MapLibre style, with `project.yaml` naming them by relative path — the same shape
+//! a real MapLibre style, with `project.yaml` naming them by relative path - the same shape
 //! `versatiles serve --config` already uses. Embedding a text DSL in a structured file would mean
 //! escaped newlines and unreadable diffs.
 //!
-//! **The style is written and not read back** ([Q36]). What the manifest carries is the *recipe* —
-//! a preset, its adjustments, the layers someone changed — and `style.json` is rendered from it by
+//! **The style is written and not read back** ([Q36]). What the manifest carries is the *recipe* -
+//! a preset, its adjustments, the layers someone changed - and `style.json` is rendered from it by
 //! whoever has the generator. A project reopened from its own directory rebuilds the style; a
 //! `style.json` edited by hand is somebody else's file, and saying so is honest rather than
 //! pretending to round-trip it.
@@ -24,7 +24,7 @@ use std::path::Path;
 
 /// Writes a pipeline to a `.vpl` file, atomically.
 ///
-/// Saving a *project* — the manifest, the style and the pipeline as a directory — is G1 at S5.1.
+/// Saving a *project* - the manifest, the style and the pipeline as a directory - is G1 at S5.1.
 /// This is the narrower thing: the pipeline as the file the CLI already reads, which is what
 /// [C9](../../../docs/features.md) opens. They stay separate commands because they have different
 /// scopes: one writes a file, the other a folder.
@@ -52,7 +52,7 @@ pub fn save_vpl(path: &Path, text: &str) -> Result<()> {
 /// directory is routinely on another. A half-written file where a whole one used to be is the
 /// failure this exists to prevent.
 ///
-/// Shared by every text a project writes — a `.vpl`, and a style ([S4.6](../../docs/scope-release-1.md)).
+/// Shared by every text a project writes - a `.vpl`, and a style ([S4.6](../../docs/scope-release-1.md)).
 /// The guard about *what* may be written belongs to the caller; this one is about writing it safely.
 pub fn write_atomically(path: &Path, text: &str) -> Result<()> {
 	let dir = path.parent().context("target has no parent directory")?;
@@ -87,7 +87,7 @@ mod tests {
 		assert!(!dir.join("berlin.mbtiles").exists(), "nothing should have been written");
 	}
 
-	/// What is written has to be what opens again — including the comments and layout that make a
+	/// What is written has to be what opens again - including the comments and layout that make a
 	/// hand-written pipeline worth keeping.
 	#[test]
 	fn a_saved_pipeline_reopens_unchanged() -> Result<()> {
@@ -134,12 +134,12 @@ mod tests {
 
 /// One graph, as the manifest names it.
 ///
-/// `Default` only so that `#[serde(default)]` can fill in a field an older manifest predates — the
+/// `Default` only so that `#[serde(default)]` can fill in a field an older manifest predates - the
 /// crop being the first of those.
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct GraphRef {
-	/// The graph's name — its server mount, its source name in the style, and its filename ([Q32]).
+	/// The graph's name - its server mount, its source name in the style, and its filename ([Q32]).
 	pub name: String,
 	/// Where its VPL lives, relative to the manifest.
 	pub file: String,
@@ -153,14 +153,14 @@ pub struct GraphRef {
 	pub crop: crate::export::Bounds,
 }
 
-/// Whether these bounds narrow nothing — the manifest omits them when so.
+/// Whether these bounds narrow nothing - the manifest omits them when so.
 fn is_unset(bounds: &crate::export::Bounds) -> bool {
 	*bounds == crate::export::Bounds::default()
 }
 
 /// A graph as a project holds it: what it is called, its pipeline, and what an export narrows to.
 ///
-/// A tuple would do for two of these and stopped doing when the crop arrived — three positional
+/// A tuple would do for two of these and stopped doing when the crop arrived - three positional
 /// strings-and-a-struct at four call sites is where a name starts earning its keep.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct SavedGraph {
@@ -183,7 +183,7 @@ pub struct Manifest {
 /// The manifest's filename. Fixed, because a directory is a project by containing one.
 pub const MANIFEST_FILE: &str = "project.yaml";
 
-/// The style Studio writes beside it — an output, never read back.
+/// The style Studio writes beside it - an output, never read back.
 pub const STYLE_FILE: &str = "style.json";
 
 /// What [`save`] writes, and the highest [`load`] understands.
@@ -224,7 +224,7 @@ fn migrate_v1(old: RecipeV1, graphs: &[GraphRef]) -> crate::style::Recipe {
 	};
 
 	// The raster half only ever applied when the source was raster, and the vector half only when it
-	// was not — which is exactly the ambiguity this version bump removes.
+	// was not - which is exactly the ambiguity this version bump removes.
 	let appearance = match old.kind {
 		Some(SourceKind::RasterImage | SourceKind::RasterDem) => Appearance::Raster { adjust: old.raster },
 		_ => Appearance::Vector {
@@ -261,7 +261,7 @@ pub fn is_project(dir: &Path) -> bool {
 /// Writes a project: the manifest, one `.vpl` per graph, and the rendered style.
 ///
 /// **Every file is written before any is renamed into place.** A save interrupted halfway would
-/// otherwise leave a manifest naming a `.vpl` that is not there yet — and the manifest is what makes
+/// otherwise leave a manifest naming a `.vpl` that is not there yet - and the manifest is what makes
 /// the directory a project, so a torn one is worse than no save at all.
 ///
 /// `style` is the rendered MapLibre style, or `None` when there is nothing to draw yet. It is
@@ -300,7 +300,7 @@ pub fn manifest_text(graphs: &[SavedGraph], recipe: &crate::style::Recipe) -> Re
 
 	let yaml = serde_yaml_ng::to_string(&manifest).context("writing the project manifest")?;
 	let header = "# VersaTiles Studio project. The .vpl files beside this one are real pipelines\n\
-	              # and style.json is a real MapLibre style — both usable without Studio (Q6).\n";
+	              # and style.json is a real MapLibre style - both usable without Studio (Q6).\n";
 	Ok(format!("{header}{yaml}"))
 }
 
@@ -322,7 +322,7 @@ pub fn load(dir: &Path) -> Result<Loaded> {
 	let text = std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
 	// **Parsed loosely first, so the version can be read before the shape is trusted.** Deserialising
 	// straight into `Manifest` would fail on a version-1 `style:` block before reaching the check
-	// that explains why — and "invalid type: map" is a worse answer than "this is an older project".
+	// that explains why - and "invalid type: map" is a worse answer than "this is an older project".
 	let raw: serde_yaml_ng::Value =
 		serde_yaml_ng::from_str(&text).with_context(|| format!("reading {}", path.display()))?;
 	let version = raw.get("version").and_then(serde_yaml_ng::Value::as_u64).unwrap_or(1) as u32;
@@ -367,7 +367,7 @@ pub fn load(dir: &Path) -> Result<Loaded> {
 
 	let mut graphs = Vec::with_capacity(manifest.graphs.len());
 	for graph in &manifest.graphs {
-		// Relative to the manifest, the way `versatiles serve --config` resolves its own paths — and
+		// Relative to the manifest, the way `versatiles serve --config` resolves its own paths - and
 		// joined rather than concatenated, so a name is a name and not a way out of the directory.
 		let file = dir.join(&graph.file);
 		anyhow::ensure!(
@@ -601,7 +601,7 @@ mod project_tests {
 		assert!(format!("{error:#}").contains("outside the project"), "{error:#}");
 	}
 
-	/// A missing file is not a project with a hole in it — the manifest is the list of what this
+	/// A missing file is not a project with a hole in it - the manifest is the list of what this
 	/// project is, and opening three of four graphs would lose work silently.
 	#[test]
 	fn a_graph_the_manifest_names_and_the_directory_lacks_is_an_error() {

@@ -3,7 +3,7 @@
  *
  * **Two variables that are really one, and a rule about when they move together.** The document and
  * a revision counter lived side by side in `App.svelte`, written as a pair in six places and
- * deliberately *not* as a pair in four more — the difference being whether the text changed because
+ * deliberately *not* as a pair in four more - the difference being whether the text changed because
  * of the editor or in spite of it. That rule was enforced by remembering to write a second line.
  *
  * This does not own what *happens* when the document changes. Refetching the graph list, resyncing
@@ -20,8 +20,8 @@ let current = $state<DocumentView | null>(null);
 /**
  * Bumped whenever the editor must reload from the document rather than keep what it has.
  *
- * The textarea is uncontrolled while someone is typing in it — that is what makes typing feel like
- * typing — so it reloads on this changing and not on the text changing.
+ * The textarea is uncontrolled while someone is typing in it - that is what makes typing feel like
+ * typing - so it reloads on this changing and not on the text changing.
  */
 let revision = $state(0);
 
@@ -42,7 +42,7 @@ export const document = {
 	},
 
 	/**
-	 * The document changed from **outside** the editor — a different graph, an undo, a reformat, a
+	 * The document changed from **outside** the editor - a different graph, an undo, a reformat, a
 	 * reload. The editor reloads.
 	 *
 	 * Forgetting the bump is the bug this exists to make unspellable: the text would be new and the
@@ -54,7 +54,7 @@ export const document = {
 	},
 
 	/**
-	 * The document changed **because of** the editor — typing, or a save that only cleared the dirty
+	 * The document changed **because of** the editor - typing, or a save that only cleared the dirty
 	 * flag. The editor keeps what it has.
 	 *
 	 * Bumping here instead would reload the textarea on every keystroke, taking the caret with it.

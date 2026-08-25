@@ -1,15 +1,15 @@
 /**
- * Which layers draw from one source — worked out once per style, not once per event.
+ * Which layers draw from one source - worked out once per style, not once per event.
  *
  * Two bugs in one small function, both shipped:
  *
  * **Asking every layer.** `queryRenderedFeatures` with no filter queries the whole style, and the
- * background (D1) is an entire generated basemap — so a click anywhere returned OSM roads, landuse
+ * background (D1) is an entire generated basemap - so a click anywhere returned OSM roads, landuse
  * and place labels. A8 is about what is in *your* tiles.
  *
  * **Asking too often.** The first fix called `getStyle()` from a `mousemove` handler. That
  * serialises every layer and source the style has, per event, and MapLibre fires its listeners in
- * one ordered loop — so the handler registered after it, the one drawing the crop rectangle, never
+ * one ordered loop - so the handler registered after it, the one drawing the crop rectangle, never
  * got a usable turn. The answer only changes when the style does, so it is cached until it says so.
  *
  * Matched by **source** rather than by layer id or metadata, because that is the one thing true of
@@ -30,7 +30,7 @@ export interface SourceLayers {
 /**
  * A cached lookup of the layers on `source`.
  *
- * With no source it answers nothing — deliberately, and not the same as "no filter": handing an
+ * With no source it answers nothing - deliberately, and not the same as "no filter": handing an
  * empty list to `queryRenderedFeatures` would make it query everything, which is the first bug
  * above wearing the second's clothes. Callers check for empty before asking.
  */

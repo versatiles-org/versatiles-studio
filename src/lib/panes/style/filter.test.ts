@@ -53,7 +53,7 @@ describe('parsing what was typed', () => {
 
 	/**
 	 * `featureFilter` accepts all three without complaint, and none is a filter anyone meant to
-	 * write — they are what a half-finished edit looks like. Without these the map would silently
+	 * write - they are what a half-finished edit looks like. Without these the map would silently
 	 * start drawing every feature.
 	 */
 	it('refuses the shapes MapLibre would wave through', () => {

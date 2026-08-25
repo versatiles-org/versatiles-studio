@@ -7,7 +7,7 @@
 	// Font families, installed on demand (G7, S4.1, [Q9]).
 	//
 	// Studio bundles sprites and Latin glyphs so the first launch renders offline (S0.6). Everything
-	// beyond Latin is 8–48 MB that most projects never need, so it is fetched when asked for — and
+	// beyond Latin is 8-48 MB that most projects never need, so it is fetched when asked for - and
 	// the size is on the row, because 48 MB is a decision to make before it starts rather than
 	// during.
 	//
@@ -38,7 +38,7 @@
 	/// needs to know not to offer the button twice.
 	const installing = (id: string) => jobs.active.some((job) => job.label === `Installing ${id}`);
 
-	/// What "download all" would actually fetch — the ones neither installed nor already running.
+	/// What "download all" would actually fetch - the ones neither installed nor already running.
 	const missing = $derived(families.filter((family) => !family.installed && !installing(family.id)));
 	const missingBytes = $derived(missing.reduce((total, family) => total + family.bytes, 0));
 
@@ -56,7 +56,7 @@
 	/// Submitted together rather than chained, because each is a job the runner already queues and
 	/// reports; serialising them here would duplicate that and make the last one's arrival depend on
 	/// this dialog still being open. The total is on the button, so a third of a gigabyte is a
-	/// decision made before it starts rather than during — the same rule as the per-row size.
+	/// decision made before it starts rather than during - the same rule as the per-row size.
 	async function installAll() {
 		const wanted = missing.map((family) => family.id);
 		for (const id of wanted) await install(id);
@@ -81,7 +81,7 @@
 
 <Modal title="Fonts" width="34rem" {onClose}>
 	<p class="lead">
-		Studio ships Latin glyphs and the sprite set. A family here covers everything its script has — install one when a
+		Studio ships Latin glyphs and the sprite set. A family here covers everything its script has - install one when a
 		map needs text Studio cannot draw yet.
 	</p>
 
@@ -114,7 +114,7 @@
 		<!-- Disabled rather than hidden once everything is here: a button that vanishes leaves you
 		     wondering whether you imagined it, and "nothing left to fetch" is worth saying. -->
 		<button type="button" class="button bulk" disabled={missing.length === 0} onclick={() => void installAll()}>
-			{missing.length === 0 ? 'Everything installed' : `Download all — ${megabytes(missingBytes)}`}
+			{missing.length === 0 ? 'Everything installed' : `Download all - ${megabytes(missingBytes)}`}
 		</button>
 		<button type="button" class="button primary" onclick={onClose}>Done</button>
 	{/snippet}
@@ -141,7 +141,7 @@
 
 	.family {
 		display: grid;
-		/* Every row the same four tracks, and the sizes given a track of their own — each `li` is its
+		/* Every row the same four tracks, and the sizes given a track of their own - each `li` is its
 		   own grid, so a column only lines up if its width does not depend on the row. */
 		grid-template-columns: 1fr 5rem 5rem 5.5rem;
 		align-items: center;
@@ -155,7 +155,7 @@
 		}
 
 		/* Right-aligned and tabular, so a column of sizes can be compared down rather than read
-		   across. One unit for the whole column is the other half of that — see `megabytes`. */
+		   across. One unit for the whole column is the other half of that - see `megabytes`. */
 		.size {
 			color: var(--ink-2);
 			font-size: var(--text-xs);

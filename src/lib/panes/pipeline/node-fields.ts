@@ -26,7 +26,7 @@ export function unsetFields(fields: FieldInfo[], properties: { key: string }[]):
 }
 
 /**
- * Required parameters with no value yet — **always shown, empty** ([Q33]).
+ * Required parameters with no value yet - **always shown, empty** ([Q33]).
  *
  * Hiding them behind `＋ parameter…` made a form that conceals its own required fields and sends you
  * hunting. Shown and empty, "required" needs no symbol: the field is simply there, and waiting.
@@ -55,7 +55,7 @@ export function parts(raw: string): string[] {
 export const isArray = (property: VplProperty): boolean => property.value.kind === 'array';
 
 /**
- * What this field could be set to — whichever end of the pipeline can answer.
+ * What this field could be set to - whichever end of the pipeline can answer.
  *
  * A suggestion read from the data beats the generic list: `lon_column` has a handful of real answers
  * and every layer name is a poor guess at one.
@@ -72,7 +72,7 @@ export function optionsFor(
 /** What an edit to a property means: remove it, replace its parts, or replace its one value. */
 export type Edit =
 	| { kind: 'unchanged' }
-	/** Emptied — the parameter goes, rather than being written as an empty string. */
+	/** Emptied - the parameter goes, rather than being written as an empty string. */
 	| { kind: 'remove' }
 	/** A list or fixed-size array: the whole property is rewritten. */
 	| { kind: 'parts'; values: string[] }
@@ -106,7 +106,7 @@ export function requiredEdit(raw: string, control: FieldInfo['control'] | undefi
 }
 
 /**
- * What a parameter *is*, from `field_meta` — type, bounds, and whether it is required.
+ * What a parameter *is*, from `field_meta` - type, bounds, and whether it is required.
  *
  * Assembled here rather than in the popover, which stays ignorant of VPL: this is the one place
  * that knows a `Control` from a `FieldInfo`.
@@ -117,7 +117,7 @@ export function summarise(field: FieldInfo): string {
 	switch (control.kind) {
 		case 'number':
 			type = control.integer ? 'whole number' : 'number';
-			if (control.min !== null && control.max !== null) type += ` ${control.min}–${control.max}`;
+			if (control.min !== null && control.max !== null) type += ` ${control.min}-${control.max}`;
 			else if (control.min !== null) type += ` from ${control.min}`;
 			else if (control.max !== null) type += ` up to ${control.max}`;
 			break;

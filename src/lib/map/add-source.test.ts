@@ -2,10 +2,10 @@
  * Putting a mount on the map and taking it off again, against a map that records rather than draws.
  *
  * The case these exist for: **a mount's name is also the style's source name** ([Q32]), so as soon
- * as a recipe draws the same graph there are two sets of layers on one source — this module's
+ * as a recipe draws the same graph there are two sets of layers on one source - this module's
  * hairlines and the recipe's own. Removing "the mount" by matching layer ids therefore removed the
- * recipe's layer when the style drew one source, and when it drew several — where `composeStyle`
- * prefixes ids — it removed nothing and then asked MapLibre to remove a source still in use, which
+ * recipe's layer when the style drew one source, and when it drew several - where `composeStyle`
+ * prefixes ids - it removed nothing and then asked MapLibre to remove a source still in use, which
  * is refused with `Source "pipeline" cannot be removed while layer "pipeline/pipeline:raster" is
  * using it.` once per save.
  */
@@ -47,7 +47,7 @@ function fakeMap(layers: LayerSpecification[] = [], sources: string[] = []) {
 		removeSource: (id: string) => {
 			const user = style.find((layer) => 'source' in layer && layer.source === id);
 			// MapLibre reports this rather than throwing, which is why it only ever showed up in the
-			// console — the caller carries on believing the source is gone.
+			// console - the caller carries on believing the source is gone.
 			if (user) return void errors.push(`Source "${id}" cannot be removed while layer "${user.id}" is using it.`);
 			held.delete(id);
 		},
@@ -90,7 +90,7 @@ describe('addContainerToMap', () => {
 
 	it('sits on a source of that name it did not add rather than adding a second', () => {
 		// `addSource` throws on a name already taken, and the style's source holds the same graph's
-		// tiles — there is nothing to replace it with.
+		// tiles - there is nothing to replace it with.
 		const fake = fakeMap(COMPOSED, ['pipeline']);
 		expect(addContainerToMap(fake.map, raster('pipeline'))).toBe(true);
 		expect(fake.sourceIds()).toEqual(['pipeline']);

@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 
 /**
- * What the style pane shows for each kind of tileset (S6.1–S6.7).
+ * What the style pane shows for each kind of tileset (S6.1-S6.7).
  *
  * **The first test in this repository that renders a component.** Everything else asserts a pure
  * function, which is right for a decision and useless for the thing this pane kept getting wrong:
  * offering controls that do nothing. `controls.ts` can say what a slider's neutral is; only a render
  * can say whether the slider is on screen at all.
  *
- * The backend is stubbed — see `lib/testing/tauri.ts` for what that does and does not prove.
+ * The backend is stubbed - see `lib/testing/tauri.ts` for what that does and does not prove.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -60,7 +60,7 @@ describe('what the pane offers for each kind of tileset', () => {
 	});
 
 	// **The bug S6.3 fixed.** Every preset was selectable over a photograph and none of them did
-	// anything — a control that looks identical to a working one is worse than no control.
+	// anything - a control that looks identical to a working one is worse than no control.
 	it('offers no presets for imagery, and offers the raster adjustments instead', async () => {
 		await open({
 			kind: 'rasterImage',
@@ -85,7 +85,7 @@ describe('what the pane offers for each kind of tileset', () => {
 		});
 
 		expect(screen.getByText('Hillshade')).toBeTruthy();
-		// The section names the technique, the slider names what it does — so `Relief` is the one
+		// The section names the technique, the slider names what it does - so `Relief` is the one
 		// control, not an echo of the heading above it.
 		expect(screen.getByText('Relief')).toBeTruthy();
 		expect(screen.getByText('Light from')).toBeTruthy();

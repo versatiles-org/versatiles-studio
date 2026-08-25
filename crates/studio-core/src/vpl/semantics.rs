@@ -9,18 +9,18 @@
 //! carry the argument.** In short: twelve kinds of meaning across ~80 fields is a large vocabulary
 //! to ask operation authors to learn for a benefit that is mostly a generated form's, and a
 //! per-field format list upstream is one that starts lying the release it falls behind. What *did*
-//! go upstream is the half that is logic rather than fact —
+//! go upstream is the half that is logic rather than fact -
 //! [vt#257](https://github.com/versatiles-org/versatiles-rs/issues/257), so `check_pipeline` can see
 //! that `color=red` is not hex. Validation belongs next to the parser; presentation belongs here.
 //!
 //! A [`Role`] is a static fact, which is what makes holding it locally safe. "This field is a zoom
 //! level" cannot drift out of agreement with a parser, because it is not one. Studio has refused the
-//! other kind twice — the hand-written CSV sniffer deleted after vt#238, and `validate` giving up
-//! deciding enum values after vt#224 — and nothing here reimplements a parser.
+//! other kind twice - the hand-written CSV sniffer deleted after vt#238, and `validate` giving up
+//! deciding enum values after vt#224 - and nothing here reimplements a parser.
 //!
 //! **What keeps it honest are the two tripwires at the bottom, and the second is the important one.**
 //! [`every_role_names_a_field_that_exists`] catches what upstream renames, removes or retypes.
-//! [`no_unclassified_field_of_a_known_shape`] catches what upstream *adds* — and only the first is
+//! [`no_unclassified_field_of_a_known_shape`] catches what upstream *adds* - and only the first is
 //! the obvious test to write. On its own it would be the vt#229 mistake again: a tripwire that names
 //! one acceptable outcome and stays silent when a different one arrives.
 //!
@@ -53,7 +53,7 @@ pub enum Lang {
 
 /// What a field means.
 ///
-/// Absent for every field the type already describes fully — an enum, a `bool`, a free-text
+/// Absent for every field the type already describes fully - an enum, a `bool`, a free-text
 /// `attribution`. Absence is the common case and costs nothing: the form falls back to exactly what
 /// it renders today.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -66,9 +66,9 @@ pub enum Role {
 	},
 	/// An `http(s)` URL, never a path.
 	Url,
-	/// `[west, south, east, north]` in WGS84 degrees — a rectangle to draw on the map.
+	/// `[west, south, east, north]` in WGS84 degrees - a rectangle to draw on the map.
 	GeoBBox,
-	/// `[lon, lat, zoom]` — a point to click on the map.
+	/// `[lon, lat, zoom]` - a point to click on the map.
 	GeoPoint,
 	/// A zoom level. `u8` by type, `0..=30` by meaning.
 	Zoom,
@@ -77,10 +77,10 @@ pub enum Role {
 	/// Exclusive lower bounds do not fit and are left out rather than approximated:
 	/// `raster_levels.contrast` and `gamma` are both "above `0`", and they are the only two.
 	Range { min: f64, max: f64 },
-	/// A short set of accepted values on a numeric type — `tile_size` is "`256` or `512`", which is
+	/// A short set of accepted values on a numeric type - `tile_size` is "`256` or `512`", which is
 	/// a set and not a range, so `Range` would say `256..=512` and admit 400.
 	Choice(&'static [&'static str]),
-	/// A colour, however it is spelled — hex `String` on `from_color`, `[u8;3]` on `raster_flatten`.
+	/// A colour, however it is spelled - hex `String` on `from_color`, `[u8;3]` on `raster_flatten`.
 	Color,
 	/// An EPSG code, not any `u32`.
 	Epsg,
@@ -154,7 +154,7 @@ const TILE_PROPERTY: Role = Role::Names(TileProperty);
 /// parameters read as the block they are. Within a block the order is the operation's own, so this
 /// reads alongside `versatiles help pipeline` rather than against it.
 ///
-/// Nesting costs one failure mode a flat list did not have — the same operation could be opened
+/// Nesting costs one failure mode a flat list did not have - the same operation could be opened
 /// twice, and the second block would be unreachable. [`no_operation_or_field_is_listed_twice`]
 /// covers it.
 const ROLES: &[(&str, &[(&str, Role)])] = &[
@@ -253,7 +253,7 @@ const ROLES: &[(&str, &[(&str, Role)])] = &[
 		],
 	),
 	("raster_flatten", &[("color", Color)]),
-	// `quality` and `quality_translucent` are `String` upstream while documenting `0`–`100`; the role
+	// `quality` and `quality_translucent` are `String` upstream while documenting `0`-`100`; the role
 	// records the range the documentation gives, and the odd type is why it is worth recording.
 	(
 		"raster_format",
@@ -304,8 +304,8 @@ mod tests {
 
 	/// Whether a role can sit on a field of this Rust type.
 	///
-	/// Matched on the shape rather than on the exact string, so wrapping a field in `Option<>` — or
-	/// upstream widening a `u8` — does not churn the table, while a `String` that becomes a
+	/// Matched on the shape rather than on the exact string, so wrapping a field in `Option<>` - or
+	/// upstream widening a `u8` - does not churn the table, while a `String` that becomes a
 	/// `Vec<f64>` still fails.
 	fn fits(role: &Role, rust_type: &str) -> bool {
 		let has = |needle: &str| rust_type.contains(needle);
@@ -351,7 +351,7 @@ mod tests {
 	///
 	/// The half that matters. A table checked only against itself degrades silently the first time a
 	/// new operation arrives carrying a bbox, and a silent tripwire is worse than none because it is
-	/// trusted — which is what [vt#229] taught. Each rule below is a claim about a shape whose
+	/// trusted - which is what [vt#229] taught. Each rule below is a claim about a shape whose
 	/// meaning is never in doubt, so a new field of that shape is a gap and not a judgement call.
 	///
 	/// [vt#229]: https://github.com/versatiles-org/versatiles-rs/issues/229

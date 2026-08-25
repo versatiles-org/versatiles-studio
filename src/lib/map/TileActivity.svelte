@@ -9,7 +9,7 @@
 	// Which tiles the map is still waiting for (S2.16, C3).
 	//
 	// The status bar says how many; this says which. On a slow pipeline the two answer different
-	// questions — "is anything happening" and "is it the tile I am looking at" — and the second is
+	// questions - "is anything happening" and "is it the tile I am looking at" - and the second is
 	// the one that tells you whether panning somewhere else would help.
 	//
 	// **Drawn from the queue, not from MapLibre.** Studio fetches these tiles itself, so it knows a
@@ -35,7 +35,7 @@
 		// The source, the layers, putting them back after a restyle and lifting them above whatever
 		// was drawn later are all `mapOverlay`'s ([Q46]). This file had the most complete version of
 		// that logic and still carried the one mistake the others copied: gating on `isStyleLoaded()`,
-		// which is false while any tile is in flight — which, for an overlay about tiles in flight, is
+		// which is false while any tile is in flight - which, for an overlay about tiles in flight, is
 		// precisely when it is needed.
 		const mounted = mapOverlay(m, {
 			source: SOURCE,

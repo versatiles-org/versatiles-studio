@@ -9,13 +9,13 @@
  *
  * **Why not `bundle:local`.** The convention here is that `npm run x` runs every `x:*` script
  * ([S5.6](../docs/scope-release-1.md)), and `guards.test.ts` enforces it. Naming this `bundle:local`
- * would make it a member of the `bundle` group and oblige `npm run bundle` to run it — which is
+ * would make it a member of the `bundle` group and oblige `npm run bundle` to run it - which is
  * exactly what CI must not do. The hyphen says it is its own command, not part of that group.
  *
  * **Two differences from what CI runs**, both because this is for a person rather than a pipeline:
  *
  * * `createUpdaterArtifacts` is off. It is on in `tauri.conf.json` so that a release signs the
- *   updater bundles, which needs `TAURI_SIGNING_PRIVATE_KEY` — a secret that belongs to the release
+ *   updater bundles, which needs `TAURI_SIGNING_PRIVATE_KEY` - a secret that belongs to the release
  *   workflow and not to a laptop. Off, the build wants no key and the artefacts it skips are the
  *   ones only an update would use. This is the same override CI passes, for the same reason.
  * * No `--ci`, so the build stays interactive and prints what it normally prints.
@@ -36,7 +36,7 @@ const ASSETS = ['sprites.tar.gz', 'glyphs.tar.gz'];
  *
  * **`assets:fetch` re-downloads unconditionally**, which is right for CI on a clean runner and
  * wrong here: it would put a network round-trip in front of every local build, and make building
- * offline impossible — in an application whose whole point is that it works offline (G5). Ask for
+ * offline impossible - in an application whose whole point is that it works offline (G5). Ask for
  * `--refresh` to get the download anyway, which is what a changed `assets/manifest.json` needs.
  */
 function ensureAssets(refresh: boolean): string | null {
@@ -52,7 +52,7 @@ function ensureAssets(refresh: boolean): string | null {
 function main(): void {
 	const flags = process.argv.slice(2);
 	const unknown = flags.filter((flag) => flag !== '--refresh');
-	if (unknown.length > 0) throw new Error(`unknown option ${unknown.join(', ')} — usage: bundle-local [--refresh]`);
+	if (unknown.length > 0) throw new Error(`unknown option ${unknown.join(', ')} - usage: bundle-local [--refresh]`);
 
 	const assets = ensureAssets(flags.includes('--refresh'));
 	if (assets) throw new Error(assets);

@@ -1,7 +1,7 @@
 // Numbers as a person reads them, in the one place that decides how.
 //
 // Both of these round hard, and deliberately. A byte count and a duration are read to answer a
-// question — is this a coffee break or an overnight run, will this fit on the disk — and the digits
+// question - is this a coffee break or an overnight run, will this fit on the disk - and the digits
 // past the first two never change the answer while changing on every update, which reads as noise
 // pretending to be precision.
 
@@ -9,7 +9,7 @@
 /// average taken over the first minute is a guess, and "1:58:03" is the same guess pretending
 /// otherwise.
 ///
-/// Phrased without a subject so each caller can say what it is about — a job says "… left", an
+/// Phrased without a subject so each caller can say what it is about - a job says "… left", an
 /// estimate says "about …".
 export function duration(seconds: number): string {
 	if (seconds < 10) return 'a few seconds';
@@ -37,7 +37,7 @@ export function megabytes(count: number): string {
 	return `${(count / 1e6).toFixed(1)} MB`;
 }
 
-/// Thousands separated, for counts that are read rather than compared — "1,048,576 tiles".
+/// Thousands separated, for counts that are read rather than compared - "1,048,576 tiles".
 export function count(value: number): string {
 	return value.toLocaleString('en-US');
 }

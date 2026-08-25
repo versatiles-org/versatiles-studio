@@ -1,7 +1,7 @@
-//! What Studio can bring in, and what each of those becomes (S3.2, E1–E3).
+//! What Studio can bring in, and what each of those becomes (S3.2, E1-E3).
 //!
-//! Every way into the application — the landing screen, "+ Add source", the file dialog, a dropped
-//! file — asks this module rather than carrying its own list. The lists had already started to
+//! Every way into the application - the landing screen, "+ Add source", the file dialog, a dropped
+//! file - asks this module rather than carrying its own list. The lists had already started to
 //! disagree: the dialog offered four extensions, the drop handler filtered by the same four written
 //! out again, and neither knew about `from_geo`, which the binary has had all along.
 //!
@@ -9,7 +9,7 @@
 //! this build is dropped from the list, so an import card can never offer something that would fail
 //! on the first click. That matters for [E3](../../../docs/features.md): the GDAL raster path is a
 //! build-time decision ([Q19](../../../docs/decisions.md)), and its card should appear when GDAL is
-//! linked and not before — without a second flag somewhere in the webview to keep in step.
+//! linked and not before - without a second flag somewhere in the webview to keep in step.
 //!
 //! **Picking a file is not always the whole import.** `from_csv` cannot know which column holds the
 //! longitude, and no amount of looking at the filename will tell it. Those parameters are listed in
@@ -34,7 +34,7 @@ pub struct ImportKind {
 	pub extensions: Vec<String>,
 	/// The read operation a chosen file becomes.
 	///
-	/// `None` for a `.vpl`, which is not a node — it is a whole document, and opening one replaces
+	/// `None` for a `.vpl`, which is not a node - it is a whole document, and opening one replaces
 	/// the pipeline rather than adding to it (C9).
 	pub operation: Option<String>,
 	/// Required parameters a filename cannot supply, in the order the operation declares them.
@@ -56,7 +56,7 @@ struct Candidate {
 /// The catalogue, in the order it is offered.
 ///
 /// Containers first because that is the common case, then the two vector paths, then the pipeline
-/// file — which is last because it is a way of *reopening* work rather than of bringing data in.
+/// file - which is last because it is a way of *reopening* work rather than of bringing data in.
 ///
 /// The extensions are written here rather than parsed out of the operation's documentation, and a
 /// test checks each one against that documentation. Parsing prose to build a file dialog would be
@@ -74,7 +74,7 @@ const CANDIDATES: &[Candidate] = &[
 		label: "Vector data",
 		detail: "GeoJSON, line-delimited GeoJSON, or a shapefile",
 		// `.json` because `from_geo` reads a bare GeoJSON `FeatureCollection` under that name. It
-		// will collide with `style.json` at S4, and this list is where that gets resolved — by
+		// will collide with `style.json` at S4, and this list is where that gets resolved - by
 		// looking inside the file, which is the only thing that can actually tell them apart.
 		extensions: &[
 			"geojson",
@@ -101,7 +101,7 @@ const CANDIDATES: &[Candidate] = &[
 		label: "Raster image",
 		detail: "GeoTIFF or COG, a VRT mosaic, a scanned PNG or JPEG",
 		// Unverified against `from_gdal_raster`'s documentation, because the extension test only
-		// checks kinds this build has — and this build does not have GDAL (S3.5 is blocked, see
+		// checks kinds this build has - and this build does not have GDAL (S3.5 is blocked, see
 		// [Q19](../../../docs/decisions.md)). It will be checked the moment the operation appears,
 		// which is the point of writing the card now: linking GDAL is then a build change and not
 		// also a UI change.
@@ -152,7 +152,7 @@ pub fn kinds() -> Vec<ImportKind> {
 
 /// The kind an extension belongs to, or `None` for a file Studio has no way in for.
 ///
-/// First match wins, which is why `json` sits under `vector` — `from_geo` is what reads it, and no
+/// First match wins, which is why `json` sits under `vector` - `from_geo` is what reads it, and no
 /// other kind claims it.
 #[must_use]
 pub fn kind_for(path: &str) -> Option<ImportKind> {
@@ -162,7 +162,7 @@ pub fn kind_for(path: &str) -> Option<ImportKind> {
 		.find(|kind| kind.extensions.iter().any(|ext| lower.ends_with(&format!(".{ext}"))))
 }
 
-/// The extensions a pipeline file may have — one place, so a dialog's filter and a command's
+/// The extensions a pipeline file may have - one place, so a dialog's filter and a command's
 /// refusal cannot disagree about what a `.vpl` is.
 #[must_use]
 pub fn pipeline_extensions() -> &'static [&'static str] {
@@ -196,7 +196,7 @@ pub fn is_pipeline(path: &std::path::Path) -> bool {
 /// what goes in them: `lon_column` and `lat_column` are read from the header when the names are
 /// unambiguous, and the delimiter is recorded when it is not the default (S3.4, E2).
 ///
-/// **Never fails.** A header that cannot be read — a missing file, a binary one — leaves a node
+/// **Never fails.** A header that cannot be read - a missing file, a binary one - leaves a node
 /// with the parameters unset, which is exactly the state the import card said to expect. The
 /// failure is worth reporting when the pipeline runs, not instead of building it.
 #[must_use]
@@ -230,7 +230,7 @@ mod tests {
 	use super::*;
 
 	/// The command that saves a `.vpl` refuses a destination this does not name, so an empty list
-	/// would refuse *every* save — fail-closed, but silently, and only for whoever renamed the id.
+	/// would refuse *every* save - fail-closed, but silently, and only for whoever renamed the id.
 	#[test]
 	fn a_pipeline_still_knows_what_it_is_called() {
 		let extensions = pipeline_extensions();
@@ -254,7 +254,7 @@ mod tests {
 
 	/// The extensions are hand-written, so each is checked against the operation's own
 	/// documentation. This is what catches a format being added or dropped upstream while a card
-	/// still claims it — and it caught `.tsv`, which nothing upstream ever promised.
+	/// still claims it - and it caught `.tsv`, which nothing upstream ever promised.
 	///
 	/// Matched as a **word** rather than as `.ext`, because the operations do not describe
 	/// themselves consistently: `from_geo` lists `.geojson` / `.ndjson` / `.shp` literally, while
@@ -266,7 +266,7 @@ mod tests {
 		for kind in kinds() {
 			// `from_gdal_raster` documents itself as reading "a GDAL raster dataset" and gives one
 			// example filename; what it can actually open is decided by the drivers this build
-			// linked, not by its prose. Checked against those instead — see
+			// linked, not by its prose. Checked against those instead - see
 			// `gdal_reads_every_extension_the_raster_card_claims`.
 			if kind.id == "raster" {
 				continue;
@@ -312,7 +312,7 @@ mod tests {
 		);
 	}
 
-	/// A `.vpl` is a document, not a node — opening one replaces the pipeline (C9).
+	/// A `.vpl` is a document, not a node - opening one replaces the pipeline (C9).
 	#[test]
 	fn a_pipeline_file_is_not_a_read_operation() {
 		let pipeline = kinds().into_iter().find(|k| k.id == "pipeline").unwrap();
@@ -327,14 +327,14 @@ mod tests {
 		assert_eq!(kind_for("cities.csv").unwrap().id, "table");
 		assert_eq!(kind_for("berlin.vpl").unwrap().id, "pipeline");
 		assert!(kind_for("notes.txt").is_none());
-		// Not merely "contains" — a file *named* like an extension is not that extension.
+		// Not merely "contains" - a file *named* like an extension is not that extension.
 		assert!(kind_for("geojson").is_none());
 	}
 
 	/// The catalogue's actual promise: a file offered by a card can be opened, and produces tiles.
 	///
-	/// Every step the application takes is taken here — match the path to a kind, build the read
-	/// node, parse it, validate it, run it — because each of those is somewhere the chain could be
+	/// Every step the application takes is taken here - match the path to a kind, build the read
+	/// node, parse it, validate it, run it - because each of those is somewhere the chain could be
 	/// right in isolation and wrong together. A card claiming `.shp` while `from_geo` cannot open
 	/// one would pass every other test in this file.
 	#[tokio::test]
@@ -346,7 +346,7 @@ mod tests {
 		}
 		let runtime = versatiles::runtime::create_runtime();
 
-		// One file per offered kind, and for `from_geo` one of each format it detects — the
+		// One file per offered kind, and for `from_geo` one of each format it detects - the
 		// extension list is the claim, so a sample of it is what is checked.
 		for (file, extra) in [
 			("berlin.versatiles", ""),
@@ -355,7 +355,7 @@ mod tests {
 			("borders.geojson", ""),
 			("places.geojsonl", ""),
 			("admin.shp", ""),
-			// What `needs` names, supplied — which is exactly what the card says will be asked for.
+			// What `needs` names, supplied - which is exactly what the card says will be asked for.
 			("quakes.csv", " lon_column=longitude lat_column=latitude"),
 		] {
 			let path = dir.join(file);
@@ -397,7 +397,7 @@ mod tests {
 			"a comma is the default and needs no saying: {vpl}"
 		);
 
-		// Nothing required is missing, so this validates — which is what the import card's warning
+		// Nothing required is missing, so this validates - which is what the import card's warning
 		// was there to prepare for and no longer has to.
 		let document = crate::vpl::Document::parse(&vpl)?;
 		assert!(
@@ -433,7 +433,7 @@ mod tests {
 	}
 
 	/// A delimiter the format does not assume has to be written down, or the file reads as one
-	/// column — and it has to survive the quoting, which for a tab is not obvious.
+	/// column - and it has to survive the quoting, which for a tab is not obvious.
 	#[test]
 	fn an_unusual_delimiter_is_recorded_and_survives_the_round_trip() {
 		let path = std::env::temp_dir().join("versatiles-studio-import-semi.csv");
@@ -457,7 +457,7 @@ mod tests {
 
 	/// E3 end to end: a GeoTIFF chosen from the raster card becomes tiles.
 	///
-	/// The bbox matters as much as the tiles do — it is Web Mercator, which means a coordinate
+	/// The bbox matters as much as the tiles do - it is Web Mercator, which means a coordinate
 	/// transform ran, which means PROJ found its `proj.db`. That database is *embedded in libproj*
 	/// rather than on disk ([Q19](../../../docs/decisions.md)), and a self-contained binary is the
 	/// whole reason GDAL is statically bundled, so this is the assertion that premise rests on.
@@ -497,7 +497,7 @@ mod tests {
 	///
 	/// Checked over [`CANDIDATES`] rather than over [`kinds`]: a kind whose operation this build
 	/// lacks is filtered out of the latter, so a collision introduced alongside it would stay
-	/// invisible until the day that operation arrived — which is the worst moment to find out.
+	/// invisible until the day that operation arrived - which is the worst moment to find out.
 	#[test]
 	fn no_extension_belongs_to_two_kinds() {
 		let mut seen: Vec<(&str, &str)> = Vec::new();
@@ -515,7 +515,7 @@ mod tests {
 /// The raster card's claim, checked against the only thing that can settle it.
 ///
 /// `from_gdal_raster` reads whatever GDAL's registered drivers read, and which drivers those are is
-/// a decision *this repository* makes in `Cargo.toml` ([Q19](../../../docs/decisions.md), Q20) —
+/// a decision *this repository* makes in `Cargo.toml` ([Q19](../../../docs/decisions.md), Q20) -
 /// six `gdal-src` features, deliberately narrow. So the card and the driver list are two statements
 /// of the same choice, made in two files, and this is what keeps them one choice.
 ///
@@ -530,7 +530,7 @@ mod gdal_drivers {
 	///
 	/// **No `register_all()`.** `count()` and `get_driver()` register through the crate's own
 	/// `Once`; calling `register_all()` alongside them is a *second*, unguarded `GDALAllRegister`,
-	/// and GDAL aborts the process when a driver name is registered twice from two objects —
+	/// and GDAL aborts the process when a driver name is registered twice from two objects -
 	/// `CPLAssert(false)` in `gdaldrivermanager.cpp`. Two tests doing it concurrently is enough.
 	fn readable() -> Vec<String> {
 		(0..gdal::DriverManager::count())
@@ -543,7 +543,7 @@ mod gdal_drivers {
 	#[test]
 	fn gdal_reads_every_extension_the_raster_card_claims() {
 		let Some(kind) = kinds().into_iter().find(|kind| kind.id == "raster") else {
-			// No GDAL in this build, so no card — which is [Q28]'s promise, tested elsewhere.
+			// No GDAL in this build, so no card - which is [Q28]'s promise, tested elsewhere.
 			return;
 		};
 		let readable = readable();
@@ -555,7 +555,7 @@ mod gdal_drivers {
 		}
 	}
 
-	/// The drivers [Q19](../../../docs/decisions.md) settled on, and no others — a driver arriving
+	/// The drivers [Q19](../../../docs/decisions.md) settled on, and no others - a driver arriving
 	/// by accident is binary size nobody asked for.
 	#[test]
 	fn the_driver_set_is_the_one_that_was_chosen() {

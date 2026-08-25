@@ -1,7 +1,7 @@
 /**
  * Which layers a click is allowed to hit, and how often that is worked out.
  *
- * Both of these shipped. The first was visible — a popup full of OSM roads — and the second was
+ * Both of these shipped. The first was visible - a popup full of OSM roads - and the second was
  * not: it made the map feel broken during a drag, which is a symptom nobody attributes to a lookup.
  */
 
@@ -36,7 +36,7 @@ describe('sourceLayers', () => {
 	});
 
 	/// **Not the same as "no filter".** An empty list handed to `queryRenderedFeatures` makes it
-	/// query every layer, which is the bug this exists to prevent — so callers check for empty, and
+	/// query every layer, which is the bug this exists to prevent - so callers check for empty, and
 	/// this must return empty rather than something that looks permissive.
 	it('answers nothing when there is no source', () => {
 		const fake = fakeMap(STYLE);
@@ -45,7 +45,7 @@ describe('sourceLayers', () => {
 	});
 
 	/// The bug: this was called from a `mousemove` handler. `getStyle()` clones every layer and
-	/// source in the style — with a basemap loaded, hundreds — and MapLibre fires its listeners in
+	/// source in the style - with a basemap loaded, hundreds - and MapLibre fires its listeners in
 	/// one ordered loop, so the handler after it never got a usable turn.
 	it('serialises the style once, however often it is asked', () => {
 		const fake = fakeMap(STYLE);
@@ -67,7 +67,7 @@ describe('sourceLayers', () => {
 	});
 
 	/// `getStyle` throws when there is no style yet, which is ordinary at mount. Answering nothing is
-	/// right; caching that nothing, or letting it out, is not — this runs ahead of other listeners.
+	/// right; caching that nothing, or letting it out, is not - this runs ahead of other listeners.
 	it('answers nothing while there is no style, and tries again afterwards', () => {
 		const getStyle = vi.fn(() => {
 			throw new Error('no style');

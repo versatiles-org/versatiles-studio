@@ -5,10 +5,10 @@
 	import { role } from './theme';
 	import { mapOverlay } from './overlay';
 
-	// A5 — the grid follows the map's own integer zoom, so what it labels is what MapLibre requests.
+	// A5 - the grid follows the map's own integer zoom, so what it labels is what MapLibre requests.
 	//
 	// The source, the layers and putting them back are `mapOverlay`'s ([Q46]); what is left here is
-	// what the grid *is* — which tiles are on screen, and when to ask again.
+	// what the grid *is* - which tiles are on screen, and when to ask again.
 	let { map, visible }: { map: MaplibreMap | undefined; visible: boolean } = $props();
 
 	const SOURCE = 'studio:tile-grid';

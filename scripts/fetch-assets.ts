@@ -2,14 +2,14 @@
  * Materialises the bundled asset tier into `src-tauri/resources/` (S0.6).
  *
  * Two archives ship inside the installer, per Q9:
- *   sprites.tar.gz  — the sprite sheet, used verbatim
- *   glyphs.tar.gz   — repacked from frontend-tiny's `assets/glyphs`, the Latin-only subset
+ *   sprites.tar.gz  - the sprite sheet, used verbatim
+ *   glyphs.tar.gz   - repacked from frontend-tiny's `assets/glyphs`, the Latin-only subset
  *
  * They are **archives, not directories**. Q9 is emphatic: the embedded server reads `.tar.gz`
  * directly, so 47,360 loose files never touch the disk and each asset stays atomic to verify and
  * replace. Repacking only changes what is inside the archive, never that it is one.
  *
- * Outputs are gitignored — the manifest plus digests make them reproducible, so there is no reason
+ * Outputs are gitignored - the manifest plus digests make them reproducible, so there is no reason
  * to keep binaries in the repository.
  */
 
@@ -47,7 +47,7 @@ const manifest = JSON.parse(await readFile(join(root, 'assets', 'manifest.json')
  * `resolveRepo` returns an allow-listed **constant**, so the host and repository never come from the
  * manifest. The remaining segments are validated and then percent-encoded, so a tag or filename
  * cannot add path segments or a query. Without this a tampered `assets/manifest.json` in a pull
- * request would make CI issue arbitrary outbound requests — the digest check afterwards would stop a
+ * request would make CI issue arbitrary outbound requests - the digest check afterwards would stop a
  * bad file being *used*, but not the request being *made*.
  */
 function urlFor(source: Source, asset: PinnedAsset): string {

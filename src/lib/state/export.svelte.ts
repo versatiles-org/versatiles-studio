@@ -1,8 +1,8 @@
 /**
  * Exporting a graph to a container (F2, E7, [Q41]).
  *
- * The dialog's own state — whether it is up, what the graph turns out to produce, and the formats
- * Studio can write — plus the two things it does: estimate, and submit.
+ * The dialog's own state - whether it is up, what the graph turns out to produce, and the formats
+ * Studio can write - plus the two things it does: estimate, and submit.
  *
  * **The crop belongs to the pane, not to this.** It is arrived at by looking at the map, lives on
  * the graph in the core, and survives a reload ([Q43]); the export only narrows to it. So it arrives
@@ -25,14 +25,14 @@ import {
 } from '../ipc/commands';
 import { status } from './status.svelte';
 
-/** Whether the export modal is up. For the graph being edited — exporting is per graph ([Q32]). */
+/** Whether the export modal is up. For the graph being edited - exporting is per graph ([Q32]). */
 let open = $state(false);
 
 /**
  * What the graph turns out to produce, while the dialog is open ([Q41]).
  *
  * **Asked for by name, not taken from `preview.last`.** That one follows the pin, so with a node
- * pinned it describes an intermediate step — and the export writes the graph regardless. Numbers
+ * pinned it describes an intermediate step - and the export writes the graph regardless. Numbers
  * about a different artefact, directly above the button that writes this one, would be worse than
  * no numbers.
  *
@@ -92,12 +92,12 @@ export const exporting = {
 	 * for a format in a form and then letting the filename contradict it would be two answers to one
 	 * question.
 	 *
-	 * Returns once the job is submitted rather than once it is done — an export runs for minutes, and
+	 * Returns once the job is submitted rather than once it is done - an export runs for minutes, and
 	 * the bar is where it is watched and cancelled (E7).
 	 *
 	 * **No `status` message.** The job *is* the status: the bar prefers a running job over a status
 	 * line, so a message set here was invisible while the export ran and surfaced only once it had
-	 * stopped — the one moment it was no longer true.
+	 * stopped - the one moment it was no longer true.
 	 */
 	async start(graph: number | null, name: string, crop: Bounds): Promise<void> {
 		open = false;

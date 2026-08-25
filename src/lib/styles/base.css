@@ -1,5 +1,5 @@
 /*
- * Global base — the rules that must be the same everywhere, so no component has to remember them.
+ * Global base - the rules that must be the same everywhere, so no component has to remember them.
  * Everything here is deliberately generic; anything specific to one surface belongs in that
  * component's scoped block. See docs/styling.md.
  */
@@ -11,7 +11,7 @@
 }
 
 /*
- * The shell is sized to the viewport, so the document has nothing to scroll — but WKWebView still
+ * The shell is sized to the viewport, so the document has nothing to scroll - but WKWebView still
  * rubber-bands on a trackpad flick, which reads as the whole window coming loose. `overflow` removes
  * the scroll port; `overscroll-behavior` stops the bounce WebKit does regardless. Panes that do
  * scroll set `overscroll-behavior: contain` so reaching their end does not chain back up to here.
@@ -43,7 +43,7 @@ body {
 /*
  * One focus rule for the whole application.
  *
- * There were 21 focusable controls and 3 focus styles between them before this existed — most
+ * There were 21 focusable controls and 3 focus styles between them before this existed - most
  * elements had no visible focus at all, and the ones that did had each decided separately. A
  * component overrides `outline-offset` when its control sits flush against an edge; it should not
  * be redefining the colour or width.
@@ -57,7 +57,7 @@ body {
  * Controls inherit the surrounding text rather than the browser's own font.
  *
  * `font: inherit` rather than the three properties separately, because it also covers weight and
- * line-height — eleven components had written `font: inherit` themselves on top of the narrower
+ * line-height - eleven components had written `font: inherit` themselves on top of the narrower
  * reset that used to be here.
  */
 button,
@@ -72,7 +72,7 @@ textarea {
  * Text fields carry a surface of their own.
  *
  * `color: inherit` above makes them take the theme's text colour, which is only safe if the
- * background is ours too — three of the four inputs in the application set a border and no
+ * background is ours too - three of the four inputs in the application set a border and no
  * background, so they inherited light text onto the UA's white box. A component may override this
  * (a field floating over the map uses --float-bg); it may not leave it to the browser.
  */
@@ -89,12 +89,12 @@ textarea {
  * While a pane edge is being dragged.
  *
  * The whole document stops being selectable, because a pointer drag that started on the resizer
- * otherwise sweeps a text selection across whatever it passes over — which reads as text flickering
+ * otherwise sweeps a text selection across whatever it passes over - which reads as text flickering
  * blue for a few frames. The cursor is held to `col-resize` for the same reason: the pointer is
  * captured by the handle, so the cursor should not change just because it is over the map.
  *
  * Only ever set while a drag is in flight. Making the shell permanently unselectable would be a
- * far worse trade — the VPL text and every path in the inspector are meant to be copyable.
+ * far worse trade - the VPL text and every path in the inspector are meant to be copyable.
  */
 body.resizing,
 body.resizing * {
@@ -103,7 +103,7 @@ body.resizing * {
 }
 
 /*
- * Every list in Studio is a UI list — a stack of rows, never prose. None of the five wants markers
+ * Every list in Studio is a UI list - a stack of rows, never prose. None of the five wants markers
  * or the browser's indent, and all five were resetting them individually.
  */
 ul,
@@ -117,7 +117,7 @@ ol {
  * Buttons carry no box by default; `.button` is what asks for one.
  *
  * It used to be the other way round, and the count said it was wrong: seventeen rules began by
- * undoing the default — `border: 0; background: none` — before saying anything about themselves,
+ * undoing the default - `border: 0; background: none` - before saying anything about themselves,
  * while three genuinely wanted it. A default that is undone seventeen times is not a default.
  *
  * It also failed quietly in the wrong direction. A new icon button that forgot to opt out arrived
@@ -148,7 +148,7 @@ button:disabled {
  * both themes, in the same direction.
  *
  * **Padding is here, and it did not used to be.** The argument against it was that a global value
- * would inflate every small icon button that only wanted the appearance — but that was written when
+ * would inflate every small icon button that only wanted the appearance - but that was written when
  * the box was the default. Inverting it fixed that: the ×s, the eyes and the tab strips are plain
  * `button`s with their own class, and nothing that takes `.button` is an icon. What the omission
  * actually produced was nine buttons across the three dialogs and the style pane whose padding
@@ -156,7 +156,7 @@ button:disabled {
  * finish is not finished.
  *
  * Compact, because the panes are where most of them are and a pane is narrow. A dialog has room and
- * asks for more — see `Modal`, which owns the row its buttons sit in.
+ * asks for more - see `Modal`, which owns the row its buttons sit in.
  */
 .button {
 	background: var(--chrome);
@@ -175,7 +175,7 @@ button:disabled {
 
 /*
  * The one that commits. Three dialogs had written these three lines each, which is what `Modal` set
- * out to stop and did not reach — and a fourth had asked for `primary` without defining it, so its
+ * out to stop and did not reach - and a fourth had asked for `primary` without defining it, so its
  * confirm button was quietly not one.
  */
 .button.primary {
@@ -191,7 +191,7 @@ button:disabled {
 	opacity: 1;
 }
 
-/* Inline code, everywhere. The size is a font-metric correction, not a scale step — see the token. */
+/* Inline code, everywhere. The size is a font-metric correction, not a scale step - see the token. */
 code,
 kbd,
 samp {
@@ -200,7 +200,7 @@ samp {
 }
 
 /*
- * Utilities — kept to the handful of idioms that were genuinely repeated. This is not a utility
+ * Utilities - kept to the handful of idioms that were genuinely repeated. This is not a utility
  * framework, and it should not grow into one: if a rule is only true for one surface, it belongs in
  * that component.
  */
@@ -210,7 +210,7 @@ samp {
  *
  * Six identical declarations in two components, four of them repeated in a third. It is a class
  * rather than an `h2` rule because it is not tied to one element: two uses are headings, one is a
- * span inside a button, and Studio's other `h2` — the container name in the inspector — is a title
+ * span inside a button, and Studio's other `h2` - the container name in the inspector - is a title
  * rather than a label and must not pick this up.
  */
 .section-label {
@@ -226,7 +226,7 @@ samp {
  *
  * This is the only utility class, and the bar for a second one is high: a utility has to be
  * remembered in the markup, which is a second mechanism to keep in your head alongside scoped CSS.
- * `min-width: 0` was a candidate and did not make it — it is one declaration, it belongs with the
+ * `min-width: 0` was a candidate and did not make it - it is one declaration, it belongs with the
  * layout rules that make it necessary, and applying it through markup at every level of a nesting
  * chain would be easier to get wrong, not harder.
  */
@@ -236,7 +236,7 @@ samp {
 	white-space: nowrap;
 }
 
-/* Present for a screen reader and absent for everyone else — a stock utility with nothing
+/* Present for a screen reader and absent for everyone else - a stock utility with nothing
    component-specific in it, which is why three components had identical copies. */
 .visually-hidden {
 	position: absolute;

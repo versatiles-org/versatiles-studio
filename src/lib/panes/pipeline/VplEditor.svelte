@@ -4,14 +4,14 @@
 	// The VPL text editor (S2.3, C1).
 	//
 	// A transparent <textarea> over a <pre> that renders the same text, highlighted (Q25). The
-	// textarea keeps native selection, caret, IME and spellcheck behaviour — most of what a
-	// hand-rolled editor gets wrong — while every colour comes from the parser's own tokens, so the
+	// textarea keeps native selection, caret, IME and spellcheck behaviour - most of what a
+	// hand-rolled editor gets wrong - while every colour comes from the parser's own tokens, so the
 	// highlighting cannot disagree with what the parser understood.
 	//
 	// The two layers must agree on text metrics to the pixel, which is the one fragile part: they
 	// share a font and spacing through the same tokens, and scrolling is mirrored below.
 	// **The editor owns its buffer.** Echoing the text back down from the parent while the user is
-	// typing means a round trip can land after the next keystroke and revert it — the caret jumps
+	// typing means a round trip can land after the next keystroke and revert it - the caret jumps
 	// and characters vanish. So the text comes in once, at mount, and the parent remounts this
 	// component (with `{#key}`) when the document changes from somewhere else.
 	let {
@@ -28,7 +28,7 @@
 		tokens: VplToken[];
 		/** Marked inline, and listed above the editor (C4). Several at once is normal. */
 		problems?: { message: string; span: Span }[];
-		/** A span to reveal and select — how a graph selection lands in the text (Q15). */
+		/** A span to reveal and select - how a graph selection lands in the text (Q15). */
 		selection?: Span | null;
 		onInput: (text: string) => void;
 		/** Fired with the caret offset, so the graph can follow the text (Q15). */
@@ -174,7 +174,7 @@
 		resize: none;
 		overflow: auto;
 		background: transparent;
-		/* Transparent text, visible caret — the <pre> underneath is what you read. */
+		/* Transparent text, visible caret - the <pre> underneath is what you read. */
 		color: transparent;
 		caret-color: var(--ink);
 

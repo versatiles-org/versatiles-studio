@@ -6,7 +6,7 @@
 //! failure at run time, far from the character that caused them.
 //!
 //! **The rules are upstream's** ([vt#224]). Studio used to carry its own copy of them, verified
-//! against `PipelineFactory::operation_from_vpl` case by case and kept honest by a test — which
+//! against `PipelineFactory::operation_from_vpl` case by case and kept honest by a test - which
 //! worked, and was a second implementation of somebody else's language. `check_pipeline` needs no
 //! runtime and does no I/O, so it can run on every keystroke.
 //!
@@ -47,7 +47,7 @@ pub fn validate(document: &Document) -> Vec<Diagnostic> {
 
 /// The narrowest span a problem is about.
 ///
-/// The parameter's key when the problem names one, the operation's name otherwise — and the whole
+/// The parameter's key when the problem names one, the operation's name otherwise - and the whole
 /// document when the path names nothing, which happens for "pipeline is empty" and for a path this
 /// build cannot follow. An underline in the wrong place would be worse than one around everything.
 fn locate(pipeline: &Pipeline, path: &[usize], property: Option<&str>) -> Span {
@@ -66,7 +66,7 @@ fn locate(pipeline: &Pipeline, path: &[usize], property: Option<&str>) -> Span {
 
 /// Adds "did you mean `x`?" when a name is nearly one that exists.
 ///
-/// Upstream reports the fault and stops there, correctly — it has no reason to guess at intent. An
+/// Upstream reports the fault and stops there, correctly - it has no reason to guess at intent. An
 /// editor does: a typo is the common case, and the operation list is short enough that the nearest
 /// name is usually the one meant.
 fn suggest(message: &str) -> String {
@@ -75,7 +75,7 @@ fn suggest(message: &str) -> String {
 	};
 	let names: Vec<&str> = operations().keys().map(String::as_str).collect();
 	match nearest(&name, &names) {
-		Some(near) => format!("{message} — did you mean `{near}`?"),
+		Some(near) => format!("{message} - did you mean `{near}`?"),
 		None => message.to_string(),
 	}
 }
@@ -157,7 +157,7 @@ mod tests {
 		assert!(messages[0].contains("did you mean `from_container`"), "{messages:?}");
 	}
 
-	/// `vector_filter` is the name used throughout Studio's own early notes, and it does not exist —
+	/// `vector_filter` is the name used throughout Studio's own early notes, and it does not exist -
 	/// the real operations are `vector_filter_features`, `_layers` and `_properties`.
 	#[test]
 	fn a_plausible_but_absent_operation_is_caught() {
@@ -195,7 +195,7 @@ mod tests {
 	}
 
 	/// **An alias builds, so it must not be underlined.** `enum_variants` lists canonical names only,
-	/// while the parsers take aliases besides — so `format=pbf` and `format=jpeg` build and would be
+	/// while the parsers take aliases besides - so `format=pbf` and `format=jpeg` build and would be
 	/// reported as invalid by anything comparing against that list.
 	///
 	/// Studio did compare against it, and did report them. The cost of a second implementation was
@@ -218,7 +218,7 @@ mod tests {
 	/// Before [vt#252], upstream checked an enum value against the variant list too, and its answer
 	/// for an unknown value was the same as its answer for an alias: accept it, and fail when the
 	/// operation was built. Now the type's own parser decides, so a value that is neither a variant
-	/// nor an alias is refused — and because Studio asks `check_pipeline` rather than deciding for
+	/// nor an alias is refused - and because Studio asks `check_pipeline` rather than deciding for
 	/// itself, it is underlined while it is being typed rather than failing on the first tile.
 	///
 	/// [vt#252]: https://github.com/versatiles-org/versatiles-rs/issues/252
@@ -265,8 +265,8 @@ mod tests {
 	/// The known gap, written down rather than left to be discovered.
 	///
 	/// `VPLFieldMeta` describes a field's name, whether it is required, and its enum variants. It
-	/// does not describe the *format* of a free-form value, so `color=red` — which upstream rejects
-	/// for not being hex — passes here. Catching those would mean either parsing every `rust_type`
+	/// does not describe the *format* of a free-form value, so `color=red` - which upstream rejects
+	/// for not being hex - passes here. Catching those would mean either parsing every `rust_type`
 	/// Studio knows about, or building the operation for real, which is far too expensive to do on
 	/// a keystroke. They surface when the pipeline runs.
 	#[tokio::test]
@@ -281,7 +281,7 @@ mod tests {
 				.operation_from_vpl("from_color color=red")
 				.await
 				.is_err(),
-			"but upstream can, and does — if this ever passes, the gap has closed"
+			"but upstream can, and does - if this ever passes, the gap has closed"
 		);
 	}
 
@@ -290,7 +290,7 @@ mod tests {
 	/// Accepting something upstream refuses sends a user to a run-time failure; refusing something
 	/// upstream accepts makes Studio a stricter language than the tool it drives.
 	///
-	/// This is the last place that drift can happen. The *grammar* can no longer disagree — Studio
+	/// This is the last place that drift can happen. The *grammar* can no longer disagree - Studio
 	/// parses with upstream's `CstFile` since 4.8.0, and the differential test that used to guard two
 	/// parsers went with the second one ([Q23](../../../docs/decisions.md)). What is still Studio's
 	/// own, and so still worth pinning, is which pipelines it calls valid.
@@ -298,7 +298,7 @@ mod tests {
 	async fn what_studio_rejects_upstream_rejects_too() {
 		let factory = PipelineFactory::new_dummy();
 		// Only cases the metadata can actually decide. `operation_from_vpl` does not stop at the
-		// grammar — it constructs the operation, so it also fails on things no metadata describes:
+		// grammar - it constructs the operation, so it also fails on things no metadata describes:
 		// `from_container filename=a` fails on the missing file, and `from_color color=red` on `red`
 		// not being hex. Those are the boundary this validator sits on, and
 		// `value_formats_are_not_checked` records it.
@@ -306,7 +306,7 @@ mod tests {
 			"from_debug format=png",
 			"from_color",
 			"from_stacked [ from_debug format=png, from_debug format=png ]",
-			// Aliases. These build, and a validator comparing against `enum_variants` reports them —
+			// Aliases. These build, and a validator comparing against `enum_variants` reports them -
 			// which is the bug this test now exists to catch.
 			"from_debug format=pbf",
 			"from_debug format=jpeg",
@@ -328,7 +328,7 @@ mod tests {
 		let mut missed = Vec::new();
 		for vpl in cases {
 			let studio_ok = diagnose(vpl).is_empty();
-			// `from_container filename=a` opens no file here — the dummy factory builds the operation
+			// `from_container filename=a` opens no file here - the dummy factory builds the operation
 			// without reading, which is exactly the layer being checked.
 			let upstream_ok = factory.operation_from_vpl(vpl).await.is_ok();
 			if !studio_ok && upstream_ok {

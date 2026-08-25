@@ -5,7 +5,7 @@
 #   scripts/prune-build-dirs.sh [--delete] [profile...]
 #
 # A helper for us, not part of the build. Cargo gives every build script a directory named after a
-# fingerprint of its inputs, and starts a fresh one whenever those inputs change — a dependency
+# fingerprint of its inputs, and starts a fresh one whenever those inputs change - a dependency
 # bump, a feature, an environment variable in `.cargo/config.toml`. It never removes the old one.
 # Most are kilobytes and nobody notices. `gdal-src` is 1.4 GB each, and seven of them once filled
 # the disk mid-build.
@@ -57,7 +57,7 @@ for profile in "${profiles[@]}"; do
 	esac
 
 	build="target/$directory/build"
-	[ -d "$build" ] || { echo "$profile: no $build — nothing to prune"; continue; }
+	[ -d "$build" ] || { echo "$profile: no $build - nothing to prune"; continue; }
 
 	# A no-op when the profile is already built, and a full build when it is not. That is the price
 	# of asking, and it is why profiles are named explicitly rather than swept.
@@ -74,7 +74,7 @@ for line in sys.stdin:
         print(message["out_dir"])
 ' | sort -u >"$live"
 
-	# An empty live set means the query failed rather than that everything is stale — refusing here
+	# An empty live set means the query failed rather than that everything is stale - refusing here
 	# is the difference between pruning and `cargo clean`.
 	[ -s "$live" ] || {
 		echo "$profile: cargo reported no build scripts at all; refusing to prune" >&2
@@ -99,4 +99,4 @@ done
 
 verb=$($delete && echo freed || echo reclaimable)
 printf '%s: %s MB\n' "$verb" "$((total / 1024))"
-$delete || echo 'nothing was removed — re-run with --delete'
+$delete || echo 'nothing was removed - re-run with --delete'

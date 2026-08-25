@@ -4,7 +4,7 @@
 
 	// One surface, not four modes (Q22): the left pane holds the chain from data to pixels, the map
 	// sits in the middle, the right pane reports on the selection. Each region is optional and the
-	// grid rebuilds around whichever are present — with nothing open, that leaves the map full
+	// grid rebuilds around whichever are present - with nothing open, that leaves the map full
 	// width, which is what Explore used to be.
 	//
 	// There is no in-app title bar. The window has native decorations, so one would have repeated
@@ -62,7 +62,7 @@
 		grid-template-columns: 1fr;
 		/* Two rows: the work, and the status bar under it. There was a third above them for the
 		   application bar until [Q47](../../../docs/decisions.md) sent its contents to the native
-		   menu — the map is that much taller for it. */
+		   menu - the map is that much taller for it. */
 		grid-template-rows: 1fr auto;
 		grid-template-areas: 'map' 'status';
 		height: 100vh;
@@ -86,10 +86,10 @@
 	}
 
 	/* `clamp` mirrors the range the core enforces on save (`store::Layout`), which stays the
-	   authority — this only keeps a live drag from overshooting before it is stored. */
+	   authority - this only keeps a live drag from overshooting before it is stored. */
 
 	/* Both panes clip; their content scrolls. Keeping the scroll inside the content means a pane can
-	   hold a sticky header or a footer later without the aside fighting it — and it is one rule
+	   hold a sticky header or a footer later without the aside fighting it - and it is one rule
 	   rather than two arrangements that happen to look the same. */
 	.left,
 	.right {
@@ -106,7 +106,7 @@
 		grid-area: map;
 		position: relative;
 		min-width: 0;
-		/* Everything the map floats — controls, the view list, the feature popup — is positioned
+		/* Everything the map floats - controls, the view list, the feature popup - is positioned
 		   against this box, and nothing of it belongs over the panes beside it. The popup is the one
 		   that reached: it is anchored to a point that can sit at the very edge. */
 		overflow: hidden;
@@ -119,7 +119,7 @@
 	}
 
 	/* **Above everything.** The grid already reserves the row, so nothing can push the bar off
-	   screen — but a positioned child of the map can paint over it, and one did: the landing screen
+	   screen - but a positioned child of the map can paint over it, and one did: the landing screen
 	   sits at `z-index: 6` and used to spill its overflow across the bar. The bar carries what the
 	   application is doing, including the error a spilling element is often the cause of, so it wins
 	   against every other layer here: 4 map controls, 5 popups and resizers, 6 the landing screen,

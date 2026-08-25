@@ -25,14 +25,14 @@ pub fn writable_formats() -> Vec<String> {
 /// Starts an export and returns the job running it.
 ///
 /// **Returns the job rather than the result.** A conversion is the long operation the runner exists
-/// for (E7) — minutes and gigabytes — so waiting for it here would hold a command open for the whole
+/// for (E7) - minutes and gigabytes - so waiting for it here would hold a command open for the whole
 /// write and leave the webview with nothing to show meanwhile. The job's progress, log and failure
 /// all arrive on the event channel the bar is already listening to, which is where a user can watch
 /// or cancel it.
 ///
 /// **`Queued`, not `Latest`** ([Q27]): two conversions compete for the same disk and cores and
 /// finish later than the same two in sequence, and a second export is a second thing you asked for
-/// rather than a correction of the first — unlike a preview, which stops mattering the moment the
+/// rather than a correction of the first - unlike a preview, which stops mattering the moment the
 /// pipeline changes.
 ///
 /// [Q27]: ../../../docs/decisions.md
@@ -55,7 +55,7 @@ pub async fn export_graph(
 			return Err("that graph is no longer open".to_string());
 		};
 		// Relative paths in the VPL resolve against the project directory, exactly as they do for a
-		// preview — an export must not mean something different by `filename='berlin.mbtiles'`.
+		// preview - an export must not mean something different by `filename='berlin.mbtiles'`.
 		(pipeline, project.dir.clone())
 	};
 
@@ -96,7 +96,7 @@ pub async fn export_graph(
 /// **Awaited rather than run as a job**, unlike [`export_graph`]. A job is the right shape for
 /// something you start and walk away from; this is something a dialog is waiting on, and it is
 /// bounded by [`studio_core::estimate::BUDGET`] precisely so that waiting is reasonable. Putting a
-/// two-second measurement in the status bar would also announce it to a window that is not asking —
+/// two-second measurement in the status bar would also announce it to a window that is not asking -
 /// the bar is for work the user started.
 ///
 /// **The refusals are the same as the export's**, and arrive here first: an absurd pyramid and a
@@ -129,7 +129,7 @@ pub async fn estimate_export(
 /// Narrows what an export of this graph writes (F2, S5.2, S5.4).
 ///
 /// **Kept on the graph rather than in the export dialog.** A crop is arrived at by looking at the
-/// map — dragging a rectangle over the city you mean — and the dialog is a modal that covers it. It
+/// map - dragging a rectangle over the city you mean - and the dialog is a modal that covers it. It
 /// is also worth keeping: it goes into the project manifest, so reopening a project tomorrow is
 /// still about the same place.
 ///

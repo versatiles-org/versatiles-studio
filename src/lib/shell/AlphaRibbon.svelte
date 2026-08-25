@@ -7,7 +7,7 @@
 	// to read what that means and file what you found.
 	//
 	// **Opened in the system browser, not here.** A webview that navigated to GitHub would be a
-	// window with the application gone from it and no way back — there is no chrome, no back button
+	// window with the application gone from it and no way back - there is no chrome, no back button
 	// and no address bar. `tauri-plugin-opener` hands the URL to the OS instead, and the capability
 	// scopes it to this one host so it cannot become a general way out.
 	//
@@ -35,7 +35,7 @@
 	class="ribbon"
 	class:failed
 	onclick={() => void open()}
-	title={failed ? `Could not open a browser — ${REPO}` : `Alpha — read more at ${REPO}`}
+	title={failed ? `Could not open a browser - ${REPO}` : `Alpha - read more at ${REPO}`}
 >
 	alpha
 </button>
@@ -45,7 +45,7 @@
 	 * Across the top-right corner, over everything. `fixed` rather than absolute: it belongs to the
 	 * window, not to any pane, and the shell's grid has no cell for a thing that sits on a corner.
 	 *
-	 * The bar underneath keeps its buttons clear of this — see `AppBar`'s padding.
+	 * The bar underneath keeps its buttons clear of this - see `AppBar`'s padding.
 	 */
 	.ribbon {
 		position: fixed;

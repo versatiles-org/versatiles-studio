@@ -3,7 +3,7 @@
 
 	// The shell every modal in Studio shares.
 	//
-	// Three of them had grown their own — export, save-a-copy, and the since-removed deploy dialog —
+	// Three of them had grown their own - export, save-a-copy, and the since-removed deploy dialog -
 	// and the parts that differed
 	// were the title, the width and what goes inside. Everything else was the same code three times:
 	// `.actions` and `.primary` were byte-identical, `.body` in two of three, and each repeated the
@@ -11,7 +11,7 @@
 	//
 	// A native `<dialog>`, for the reasons each of them gave separately: modality, focus containment
 	// and Escape are the browser's, and the top layer puts it above every z-index in the application
-	// — including the status bar.
+	// - including the status bar.
 
 	let {
 		title,
@@ -77,7 +77,7 @@
 		justify-content: flex-end;
 		gap: var(--space-2);
 
-		/* A dialog has room the panes do not, and these are the buttons it is asking about — so they
+		/* A dialog has room the panes do not, and these are the buttons it is asking about - so they
 		   are bigger than `.button`'s compact default rather than the same size as a pane's export
 		   button. `:global` because the buttons come from the caller's snippet and carry its scope,
 		   not this one's; the `.actions` above it keeps that from reaching anything else. */

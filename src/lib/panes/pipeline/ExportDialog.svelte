@@ -6,7 +6,7 @@
 	// Writing one graph to a container (S3.6, F2, [Q32]).
 	//
 	// **What is left after the crop moved into the pane** (S5.2). This dialog used to carry the zoom
-	// range and four bbox fields as well — and it is a modal, so it covered the map those numbers are
+	// range and four bbox fields as well - and it is a modal, so it covered the map those numbers are
 	// about. Cropping is looking-and-adjusting work and belongs beside the graph; committing a run
 	// that takes minutes is a decision, and belongs behind a modal.
 	//
@@ -15,7 +15,7 @@
 	// moment to notice that the crop is not the one you meant.
 	//
 	// **What the graph produces is here too** ([Q41]), from the pane that used to hold it: format,
-	// zoom, extent and the layers with their property keys. The same argument — this is the last
+	// zoom, extent and the layers with their property keys. The same argument - this is the last
 	// moment to notice that the layer you meant is not in the list, and the file about to be written
 	// is the thing those numbers describe.
 	//
@@ -32,11 +32,11 @@
 	}: {
 		/** The graph being written. Named, because a project has several ([Q32]). */
 		name: string;
-		/** What Studio can write, from the core — the extensions the file dialog will offer. */
+		/** What Studio can write, from the core - the extensions the file dialog will offer. */
 		formats: string[];
 		/** What the graph is narrowed to. Set in the pane; read here.  */
 		crop: Bounds;
-		/** What the graph turns out to produce (S3.3), or null while it is being asked for — and on a
+		/** What the graph turns out to produce (S3.3), or null while it is being asked for - and on a
 		 *  document that will not build, which is not a reason to refuse to show the rest.
 		 *
 		 *  **The graph's, not the map's.** With a node pinned, the preview describes that node
@@ -50,11 +50,11 @@
 		onExport: () => void;
 	} = $props();
 
-	/// The crop in a sentence — "zoom 4–12, 13.0 −52.3 → 13.8 52.7" — or what it means to have none.
+	/// The crop in a sentence - "zoom 4-12, 13.0 −52.3 → 13.8 52.7" - or what it means to have none.
 	const narrowing = $derived.by(() => {
 		const parts: string[] = [];
 		if (crop.minZoom !== null || crop.maxZoom !== null) {
-			parts.push(`zoom ${crop.minZoom ?? 'min'}–${crop.maxZoom ?? 'max'}`);
+			parts.push(`zoom ${crop.minZoom ?? 'min'}-${crop.maxZoom ?? 'max'}`);
 		}
 		if (crop.bbox) {
 			const [west, south, east, north] = crop.bbox;
@@ -97,7 +97,7 @@
 	<dl>
 		{#if produces}
 			<dt>Produces</dt>
-			<dd>{produces.info.tileFormat} · zoom {produces.info.minZoom}–{produces.info.maxZoom}</dd>
+			<dd>{produces.info.tileFormat} · zoom {produces.info.minZoom}-{produces.info.maxZoom}</dd>
 			{#if produces.info.bbox}
 				<dt>Extent</dt>
 				<dd class="mono truncate" title={produces.info.bbox.join(', ')}>
@@ -116,7 +116,7 @@
 		<!-- `Container`, not `Format`: the row above already used that word for the tiles, and these
 		     are the boxes they go in. -->
 		<dt>Container</dt>
-		<dd>{formats.join(', ')} — the file you choose decides which.</dd>
+		<dd>{formats.join(', ')} - the file you choose decides which.</dd>
 	</dl>
 
 	{#if produces && produces.layers.length > 0}
@@ -154,7 +154,7 @@
 				{running ? 'Estimating…' : 'Estimate size and time'}
 			</button>
 		{:else if asked.tiles === 0}
-			Nothing to write — this crop selects no tiles.
+			Nothing to write - this crop selects no tiles.
 		{:else}
 			<strong>{cost}</strong>
 			<span class="basis">{count(asked.tiles)} tiles, from {asked.sampled} sampled</span>

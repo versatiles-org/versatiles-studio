@@ -7,7 +7,7 @@
 //! an issue.
 //!
 //! **In the core, not the webview**, for the reason [Q16] gives for everything else: a log that
-//! lives in the window is empty exactly when it is most wanted — after a reload or a webview crash.
+//! lives in the window is empty exactly when it is most wanted - after a reload or a webview crash.
 //! The webview reports *into* here and reads back out, the same shape as the job log.
 //!
 //! **Repeats are folded rather than listed.** A container of `bin` tiles produces one decode error
@@ -21,7 +21,7 @@
 //!
 //! The file is therefore **append-only, one line per occurrence**, and never rewritten in place: a
 //! process that dies mid-write loses at most the line it was writing, where a rewritten file could
-//! be lost whole. Folding happens again on the way back in — [`replay`] runs the same records
+//! be lost whole. Folding happens again on the way back in - [`replay`] runs the same records
 //! through the same ring, so a session read from disk is counted exactly as it was counted live.
 //!
 //! [Q16]: ../../../docs/decisions.md
@@ -38,7 +38,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// How many distinct entries are kept.
 ///
 /// The **oldest** go first, which is the opposite of the per-job log: a job explains its failure in
-/// its last lines, while a session explains itself from the first thing that went wrong — but an
+/// its last lines, while a session explains itself from the first thing that went wrong - but an
 /// unbounded list in a process that runs for days is a leak with a nicer name, and five hundred
 /// distinct problems is already far past the point where anyone reads them.
 const HISTORY: usize = 500;
@@ -52,7 +52,7 @@ const PREVIOUS: &str = "problems.previous.jsonl";
 
 /// How large the file is allowed to get before it stops being written.
 ///
-/// A flood is bounded in memory by the folding, but not on disk — the file takes a line per
+/// A flood is bounded in memory by the folding, but not on disk - the file takes a line per
 /// occurrence, which is what makes it survive a crash. Two megabytes is tens of thousands of lines,
 /// long past the point where anything new is being said, and small enough to sit in a log directory
 /// without anyone minding.
@@ -64,7 +64,7 @@ pub type ProblemId = u32;
 
 /// How much attention an entry deserves.
 ///
-/// Two levels, not five. This is a list of *problems* — anything worth a level below "something did
+/// Two levels, not five. This is a list of *problems* - anything worth a level below "something did
 /// not work" belongs in a job's log or in nothing at all, and a level nobody filters on is a column
 /// nobody reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -80,7 +80,7 @@ pub enum Level {
 /// Which half of the application an entry came from.
 ///
 /// Worth keeping apart because it decides who reads it: `Core` is Rust, `Webview` is the window,
-/// and `Map` is MapLibre reporting about tiles and styles — the one that is nobody's code and
+/// and `Map` is MapLibre reporting about tiles and styles - the one that is nobody's code and
 /// therefore the easiest to misattribute.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -101,7 +101,7 @@ pub struct Problem {
 	///
 	/// A wall clock rather than an elapsed time, because the number that matters in an issue is
 	/// "before or after the thing I was doing". Seconds rather than milliseconds because specta
-	/// renders an `f64` as `number | null` — JSON cannot promise it a NaN — and a time that has to
+	/// renders an `f64` as `number | null` - JSON cannot promise it a NaN - and a time that has to
 	/// be null-checked at every use is a worse trade than a second of precision nobody reads. Ties
 	/// are broken by `id`, which is monotonic.
 	pub at: u32,
@@ -109,7 +109,7 @@ pub struct Problem {
 	pub origin: Origin,
 	/// One line, and the thing repeats are matched on.
 	pub message: String,
-	/// The rest of it — a stack, an error chain, a panic's location. Often the whole answer.
+	/// The rest of it - a stack, an error chain, a panic's location. Often the whole answer.
 	pub detail: Option<String>,
 	/// How many times this happened. `1` for a problem that happened once.
 	pub count: u32,
@@ -128,7 +128,7 @@ pub struct NewProblem {
 
 /// One line of the file: a problem, and when it happened.
 ///
-/// **An occurrence, not an entry.** No id and no count — those are the ring's bookkeeping, and a
+/// **An occurrence, not an entry.** No id and no count - those are the ring's bookkeeping, and a
 /// file that carried them would have to be rewritten every time one changed. Each line says only
 /// that a thing happened at a time, which is a fact that never needs revising.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -153,7 +153,7 @@ struct Inner {
 	entries: VecDeque<Problem>,
 	next: ProblemId,
 	/// Where occurrences are appended, once a directory has been named. `None` before that, and
-	/// again after a write fails — see [`Inner::append`].
+	/// again after a write fails - see [`Inner::append`].
 	file: Option<File>,
 	/// What has been written, so the cap costs no call to the filesystem.
 	written: u64,
@@ -167,13 +167,13 @@ impl Diagnostics {
 
 	/// Records a problem, folding it into an identical one if this has happened before.
 	///
-	/// Returns how many distinct entries are now held — the number the status bar puts on its
+	/// Returns how many distinct entries are now held - the number the status bar puts on its
 	/// button, so that reporting one and asking for the count is a single call rather than two.
 	pub fn record(&self, report: NewProblem) -> u32 {
 		self.record_at(report, now())
 	}
 
-	/// Records a problem as having happened at a given time — how [`replay`] reads a file back.
+	/// Records a problem as having happened at a given time - how [`replay`] reads a file back.
 	fn record_at(&self, report: NewProblem, at: u32) -> u32 {
 		let mut inner = self.lock();
 		inner.append(&Occurrence {
@@ -221,7 +221,7 @@ impl Diagnostics {
 		count(&self.lock())
 	}
 
-	/// Forgets everything — for reproducing a problem cleanly before copying the report.
+	/// Forgets everything - for reproducing a problem cleanly before copying the report.
 	///
 	/// **The list, not the file.** What is on disk is the account of a session, and a session does
 	/// not stop having happened because somebody cleared a panel; the next launch rotates it away in
@@ -272,7 +272,7 @@ impl Inner {
 	///
 	/// **A failed write disables the sink.** A full disk or a directory that has gone away will fail
 	/// identically for every line after it, and a log that reported its own failure once per problem
-	/// would be a flood about a flood. The panel is unaffected either way — the file is the copy
+	/// would be a flood about a flood. The panel is unaffected either way - the file is the copy
 	/// that outlives the process, not the record itself.
 	///
 	/// Unbuffered on purpose: a `BufWriter` would hold the last lines in memory, which is precisely
@@ -306,7 +306,7 @@ impl Problem {
 /// The problems a file holds, folded exactly as the session that wrote it folded them.
 ///
 /// **A line that will not parse is skipped, not refused.** The last line of a file written by a
-/// process that was killed mid-write is half a line — and that is the case this whole file exists
+/// process that was killed mid-write is half a line - and that is the case this whole file exists
 /// for. Refusing to read the log because the crash damaged it would be a fine joke and no use.
 #[must_use]
 pub fn replay(text: &str) -> Vec<Problem> {
@@ -321,8 +321,8 @@ pub fn replay(text: &str) -> Vec<Problem> {
 
 /// What the run before this one left behind, or nothing when there was no such run.
 ///
-/// Missing is the ordinary case — a first launch, or a machine whose log directory could not be
-/// written — so it is not an error. An unreadable file is treated the same way: there is nothing a
+/// Missing is the ordinary case - a first launch, or a machine whose log directory could not be
+/// written - so it is not an error. An unreadable file is treated the same way: there is nothing a
 /// user could do about it, and it must not stand between them and this session's problems.
 #[must_use]
 pub fn previous(dir: &Path) -> Vec<Problem> {
@@ -355,7 +355,7 @@ fn now() -> u32 {
 /// keeps working. This only makes sure the one line that says what happened survives in a build
 /// where stderr goes nowhere.
 ///
-/// A release build is stripped, so there are no symbols to walk — but a panic's *location* is
+/// A release build is stripped, so there are no symbols to walk - but a panic's *location* is
 /// compiled in as data by the panic macro itself, and that is the half that usually names the bug.
 pub fn catch_panics(diagnostics: &Diagnostics) {
 	let sink = diagnostics.clone();
@@ -488,7 +488,7 @@ mod tests {
 
 		let written = std::fs::read_to_string(log_path(&dir)).expect("reading it back");
 		assert_eq!(written.lines().count(), 3);
-		// No id and no count — a line states that a thing happened, which never needs revising.
+		// No id and no count - a line states that a thing happened, which never needs revising.
 		assert!(!written.contains("\"id\""), "{written}");
 		assert!(!written.contains("\"count\""), "{written}");
 	}
@@ -529,7 +529,7 @@ mod tests {
 		first.record(error("what happened last time"));
 		drop(first);
 
-		// A launch is the only moment guaranteed to arrive — a run that crashed had no exit to
+		// A launch is the only moment guaranteed to arrive - a run that crashed had no exit to
 		// rotate at, which is exactly the run worth reading.
 		let second = Diagnostics::new();
 		second.open_log(&dir).expect("opening the log again");

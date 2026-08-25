@@ -44,7 +44,7 @@ describe('renderStyle', () => {
 	});
 
 	// G5 promises Studio works offline once its assets are installed, so nothing in a generated
-	// style may point at versatiles.org — the builders' own default.
+	// style may point at versatiles.org - the builders' own default.
 	it('serves glyphs and sprites from the embedded server, never the network', () => {
 		const style = renderStyle(recipe(), SOURCES, BASE)!;
 		expect(style.glyphs).toContain(BASE);
@@ -137,7 +137,7 @@ describe('drawsAnything', () => {
 });
 
 describe('deriveStyle', () => {
-	// Deliberately not Shortbread names — `buildings` is one, which is the whole difficulty this
+	// Deliberately not Shortbread names - `buildings` is one, which is the whole difficulty this
 	// function exists for: a container that shares a name or two with the schema still gets a nearly
 	// empty map from a preset.
 	const LAYERS = [
@@ -224,7 +224,7 @@ describe('styleFor', () => {
 	});
 
 	// S6.2's whole point. Before this, a preset that matched no layer produced `null`, and the map
-	// showed a bare background — for the most common thing the pipeline pane produces.
+	// showed a bare background - for the most common thing the pipeline pane produces.
 	it('derives when the preset would draw nothing', () => {
 		const { style, basis } = styleFor(
 			recipe(),
@@ -288,7 +288,7 @@ describe('styleFor and formats the map cannot read as vector', () => {
 	});
 
 	// Until S6.6 gives it hillshade, elevation is left to the container layer `preview` already
-	// added — a raster style over it would claim to be adjusting something it does not understand.
+	// added - a raster style over it would claim to be adjusting something it does not understand.
 	it('leaves elevation alone', () => {
 		expect(
 			styleFor(raster(), { kind: 'rasterDem', tileFormat: 'png', layers: [], mountedLayers: [] }, SOURCES, BASE).basis
@@ -361,7 +361,7 @@ describe('composeStyle', () => {
 	});
 
 	/**
-	 * The bug this pair exists for: every builder — Studio's own and `@versatiles/style`'s —
+	 * The bug this pair exists for: every builder - Studio's own and `@versatiles/style`'s -
 	 * declares a source as a list of tile URLs and nothing else, so MapLibre asked for the whole
 	 * world at every zoom. A Berlin extract answered three of four requests at z1 with a 404, and
 	 * each of those took one of the tile queue's six slots ahead of a tile that exists.
@@ -377,7 +377,7 @@ describe('composeStyle', () => {
 	});
 
 	/**
-	 * `@versatiles/style` declares bounds of the whole world and `maxzoom: 14` — true of Shortbread
+	 * `@versatiles/style` declares bounds of the whole world and `maxzoom: 14` - true of Shortbread
 	 * in general, false of any one extract. Overriding it is the point; inventing one where the
 	 * container said nothing would be replacing its guess with ours.
 	 */
@@ -478,7 +478,7 @@ describe('hillshade', () => {
 		expect((style.sources.berlin as { type: string; encoding: string }).encoding).toBe('terrarium');
 	});
 
-	// The container may not say, or may say something unusable — so the recipe can.
+	// The container may not say, or may say something unusable - so the recipe can.
 	it('lets the recipe settle an encoding the container does not', () => {
 		expect(hillshadeStyle(shade(), 'dem/versatiles', SOURCES)).toBeNull();
 		const chosen = hillshadeStyle(shade({ encoding: 'mapbox' }), 'dem/versatiles', SOURCES)!;
@@ -505,7 +505,7 @@ describe('hillshade', () => {
 		expect(style!.layers[0].type).toBe('hillshade');
 	});
 
-	// Without a usable encoding the container layer `preview` already added stays — the encoded
+	// Without a usable encoding the container layer `preview` already added stays - the encoded
 	// colours, which are wrong as a map but honest as a picture.
 	it('draws nothing when the encoding is unknown', () => {
 		expect(
@@ -542,7 +542,7 @@ describe('the background sits under the stack', () => {
 		expect(bg).toBeLessThan(data);
 	});
 
-	// Both come from the same builders, so their ids and source keys are identical — the reason it
+	// Both come from the same builders, so their ids and source keys are identical - the reason it
 	// goes through the same prefixing as any other pair of sources rather than being merged by hand.
 	it('keeps its layers and source distinct from an identical preset', () => {
 		const { style } = composeStyle([entry('places')], BASE, background());
@@ -550,7 +550,7 @@ describe('the background sits under the stack', () => {
 		expect(Object.keys(style!.sources).sort()).toEqual(['background', 'places']);
 	});
 
-	// Alone it is a single source, so it keeps the builder's own key and ids — the same rule every
+	// Alone it is a single source, so it keeps the builder's own key and ids - the same rule every
 	// other lone source follows, and the reason an exported single-source style is unchanged.
 	it('is the whole style when nothing else draws', () => {
 		const { style } = composeStyle([], BASE, background());
@@ -570,7 +570,7 @@ describe('the background sits under the stack', () => {
  *
  * **The tests above assert what a style contains; this asserts that MapLibre would accept it.** They
  * are different questions, and only the second catches a misspelled paint property, a layer pointing
- * at a source that is not there, or a source missing a field — none of which a shape assertion sees,
+ * at a source that is not there, or a source missing a field - none of which a shape assertion sees,
  * and all of which are a blank map at runtime.
  *
  * Worth having because `rasterStyle`, `hillshadeStyle` and `composeStyle`'s merging are hand-written
@@ -624,7 +624,7 @@ describe('what MapLibre would accept', () => {
 	});
 
 	// The merge renames layer ids *and* source keys, and a rename that missed a layer's `source`
-	// would leave it pointing at a key that no longer exists — which is a blank map, not an error.
+	// would leave it pointing at a key that no longer exists - which is a blank map, not an error.
 	it('accepts a stack of several sources, whose renaming must stay consistent', () => {
 		const { style } = composeStyle(
 			[

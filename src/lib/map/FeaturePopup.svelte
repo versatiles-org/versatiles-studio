@@ -5,7 +5,7 @@
 	import { sourceLayers } from './source-layers';
 	import { tileForLngLat } from './tile-grid';
 
-	// A8 — every attribute of the feature under the cursor. Deliberately shows all of them: the point
+	// A8 - every attribute of the feature under the cursor. Deliberately shows all of them: the point
 	// is answering "what is actually in this tile", which a curated subset would defeat.
 	let {
 		map,
@@ -16,7 +16,7 @@
 		map: MaplibreMap | undefined;
 		/** The container behind the tiles, for A4's per-tile breakdown. A path, not a mount name. */
 		source: string | null;
-		/** The MapLibre source Studio's own tiles are on — the graph's mount ([Q32]), or null. */
+		/** The MapLibre source Studio's own tiles are on - the graph's mount ([Q32]), or null. */
 		mount: string | null;
 		/** Whether a crop rectangle is being drawn, in which case this stays out of the way. */
 		drawing: boolean;
@@ -25,7 +25,7 @@
 	let anchor = $state<LngLat | null>(null);
 	let features = $state<MapGeoJSONFeature[]>([]);
 	let screen = $state<{ x: number; y: number } | null>(null);
-	// A4 — what tile did that click land in, and what is inside it?
+	// A4 - what tile did that click land in, and what is inside it?
 	let tile = $state<TileInspection | null>(null);
 
 	/// Measured, so the popup can flip below the point when there is no room above it.
@@ -36,12 +36,12 @@
 		// **Nothing at all while a crop is being drawn.** That gesture owns the map: it wants the
 		// crosshair this would overwrite on every move, and it wants its own `mousemove` to run. This
 		// component is mounted first, so a slow or throwing listener here is one the rectangle never
-		// recovers from — MapLibre fires listeners in order, in one loop.
+		// recovers from - MapLibre fires listeners in order, in one loop.
 		if (!map || drawing) return;
 		const m = map;
 
 		// Which layers a click may hit, and how often that is worked out, are `sourceLayers`'s
-		// ([Q46]) — including why it is matched by source and why it is cached.
+		// ([Q46]) - including why it is matched by source and why it is cached.
 		const only = sourceLayers(m, mount);
 
 		/// Never lets a query take the event loop down with it: a layer can leave the style between

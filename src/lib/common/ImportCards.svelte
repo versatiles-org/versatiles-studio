@@ -3,7 +3,7 @@
 
 	// The ways into the application, as cards (S3.2).
 	//
-	// One component in two places — the landing screen and "+ Add source" — because they ask the
+	// One component in two places - the landing screen and "+ Add source" - because they ask the
 	// same question and answering it differently in each would be the drift the catalogue exists to
 	// prevent. The list itself comes from the core, which derives it from the operations this build
 	// actually has: a card can never offer something that would fail on the first click.

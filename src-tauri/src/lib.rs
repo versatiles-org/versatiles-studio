@@ -1,6 +1,6 @@
 //! Tauri bindings over `studio-core`.
 //!
-//! Deliberately thin — native window, menus, dialogs, drag & drop, and the two planes that cross
+//! Deliberately thin - native window, menus, dialogs, drag & drop, and the two planes that cross
 //! the process boundary. The data plane is HTTP and needs no code here: the embedded server lives
 //! in the core (see `docs/architecture.md`).
 
@@ -26,7 +26,7 @@ use tokio::sync::Mutex;
 ///
 /// **The one path a test may move**, because there is only one and everything app-wide is under it.
 /// Without this the end-to-end suite reads and writes the recents of whoever is running it, and
-/// leaves them changed — a test that edits the tester's own data is a test people stop running.
+/// leaves them changed - a test that edits the tester's own data is a test people stop running.
 ///
 /// Compiled in only under `e2e`, so no shipped build has an environment variable that can relocate
 /// somebody's projects list ([the plan](../../docs/scope-e2e.md)).
@@ -160,7 +160,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 /// Says a thing was given up on, in both places it has to be said.
 ///
 /// **stderr *and* the panel.** A developer running `cargo tauri dev` reads the terminal, and a user
-/// with a bundled build has no terminal to read — the `.app` a double-click launches has nowhere for
+/// with a bundled build has no terminal to read - the `.app` a double-click launches has nowhere for
 /// stderr to go. Neither audience is the other's fallback (S6.8).
 fn warn(diagnostics: &Diagnostics, what: &str, error: &anyhow::Error) {
 	eprintln!("{what}: {error:#}");
@@ -178,12 +178,12 @@ pub fn run() {
 	let builder = specta_builder();
 
 	// **Before anything that could fail, including the builder.** A panic during start-up is the one
-	// a user can least describe — the window never appears — and the hook is what turns it into a
+	// a user can least describe - the window never appears - and the hook is what turns it into a
 	// line the next launch can still show and copy (S6.8).
 	let diagnostics = Diagnostics::new();
 	studio_core::diagnostics::catch_panics(&diagnostics);
 
-	// Whether the last window to be destroyed was the launcher — see the exit handler below.
+	// Whether the last window to be destroyed was the launcher - see the exit handler below.
 	let launcher_closed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
 
 	// **A WebDriver server inside the application, and only when asked for.** The embedded provider
@@ -200,13 +200,13 @@ pub fn run() {
 		.plugin(tauri_plugin_dialog::init())
 		// Auto-update (G4, S5.8). **Checked from the webview, never on its own**: an application
 		// that downloads and swaps itself out while someone is mid-export is worse than one that
-		// waits to be asked. `process` is the other half — an installed update takes effect on
+		// waits to be asked. `process` is the other half - an installed update takes effect on
 		// restart, and offering the restart is the difference between "installed" and "running".
 		.plugin(tauri_plugin_updater::Builder::new().build())
 		.plugin(tauri_plugin_process::init())
 		// Opening a URL in the *system* browser, which is the only kind of link Studio has: the
 		// alpha ribbon's, pointing at the repository. A webview that navigated away from the
-		// application would have no way back — and the capability scopes it to that one host, so
+		// application would have no way back - and the capability scopes it to that one host, so
 		// this cannot become a general way out.
 		.plugin(tauri_plugin_opener::init())
 		.setup(move |app| {
@@ -273,7 +273,7 @@ pub fn run() {
 				},
 			);
 
-			// Before any window opens, so the first one gets it on Windows and Linux — where the menu
+			// Before any window opens, so the first one gets it on Windows and Linux - where the menu
 			// belongs to a window rather than to the application (S0.1).
 			menu::install(app.handle())?;
 
@@ -308,7 +308,7 @@ pub fn run() {
 			}
 			// **Whichever window is in front decides what the menu offers** (S7.8). On macOS there is
 			// one menu for every window, so a focused launcher that left Save enabled would be
-			// offering to save a project it does not have — and one that disabled it would take it
+			// offering to save a project it does not have - and one that disabled it would take it
 			// away from the window behind it.
 			if let tauri::RunEvent::WindowEvent {
 				label,
@@ -355,13 +355,13 @@ pub fn run() {
 				});
 			}
 			// **The launcher comes back when the last project window closes**, on every platform
-			// ([Q48], S7.7) — an application that vanishes when you close a document is the behaviour
+			// ([Q48], S7.7) - an application that vanishes when you close a document is the behaviour
 			// being avoided, and one that lingers with no window is the behaviour nobody outside
 			// macOS expects.
 			//
 			// Decided here rather than on the close itself: this is the event that means *no windows
 			// are left*, and answering it there would be a guess about what the runtime is about to
-			// conclude. `code` is `None` only for the last window closing — ⌘Q and the updater's
+			// conclude. `code` is `None` only for the last window closing - ⌘Q and the updater's
 			// restart both set one, and neither is a request to reopen anything.
 			if let tauri::RunEvent::ExitRequested { code: None, api, .. } = &event
 				&& !launcher_closed.load(std::sync::atomic::Ordering::Relaxed)

@@ -9,7 +9,7 @@ describe('duration', () => {
 		expect(duration(7200)).toBe('2.0 h');
 	});
 
-	// The status bar appends " left" and an export dialog says "about" — neither works if the phrase
+	// The status bar appends " left" and an export dialog says "about" - neither works if the phrase
 	// carries its own subject.
 	it('is a phrase a caller can build a sentence from', () => {
 		expect(duration(600).startsWith('about')).toBe(false);
@@ -19,7 +19,7 @@ describe('duration', () => {
 
 describe('megabytes', () => {
 	// The point of the one unit: a column of these compares by eye, which a mixed-unit column does
-	// not — `900 kB` above `1.2 GB` reads as the bigger number on top.
+	// not - `900 kB` above `1.2 GB` reads as the bigger number on top.
 	it('holds the unit steady across the whole range', () => {
 		expect(megabytes(900_000)).toBe('0.9 MB');
 		expect(megabytes(2_300_000)).toBe('2.3 MB');

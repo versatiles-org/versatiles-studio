@@ -53,7 +53,7 @@ describe('drawOrder', () => {
 		expect(order).toEqual(['basemap', 'places']);
 	});
 
-	// `order` is a preference, not a register — the same two rules the core's `draw_order` applies.
+	// `order` is a preference, not a register - the same two rules the core's `draw_order` applies.
 	it('ignores a name nothing built, and never hides one that was', () => {
 		const order = drawOrder(recipe({ order: ['gone', 'basemap'] }), { basemap: built('basemap'), late: built('late') });
 		expect(order).toEqual(['basemap', 'late']);
@@ -101,7 +101,7 @@ describe('stackFor', () => {
 			serverUrl: BASE,
 			background
 		});
-		// `bases` is one row per *entry* — the background is context rather than a source anyone
+		// `bases` is one row per *entry* - the background is context rather than a source anyone
 		// lists or reorders, so it draws without appearing here.
 		expect(bases.map((entry) => entry.name)).toEqual(['a']);
 		expect(Object.keys(style!.sources)).toContain('background');
@@ -118,7 +118,7 @@ describe('drawn', () => {
 	});
 
 	// The hairlines exist to show pipeline output nothing else draws. With a background on, the map
-	// has a style while the source itself drew nothing — which is exactly when the hairlines are
+	// has a style while the source itself drew nothing - which is exactly when the hairlines are
 	// wanted, and exactly when `styled !== null` would have hidden them.
 	it('is false for a source that drew nothing, whatever else is on the map', () => {
 		const notDrawn = { style: {} as never, bases: [{ name: 'places', basis: 'none' as const }] };

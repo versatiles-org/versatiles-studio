@@ -23,7 +23,7 @@ describe('slider values', () => {
 	});
 
 	// A multiplier's identity is not zero, and neither is an opacity's. The neutral lives beside the
-	// range so the two cannot disagree — they did, while it was a literal in three places.
+	// range so the two cannot disagree - they did, while it was a literal in three places.
 	it('falls back to a neutral that is not always zero', () => {
 		expect(sliderValue(RECOLOR_SLIDERS, {}, 'rotate')).toBe(0);
 		expect(sliderValue(RECOLOR_SLIDERS, {}, 'contrast')).toBe(1);
@@ -84,7 +84,7 @@ describe('what counts as changed', () => {
 });
 
 describe('the pickers', () => {
-	// The recipe holds the correction, not the answer — so choosing what was derived anyway clears
+	// The recipe holds the correction, not the answer - so choosing what was derived anyway clears
 	// the override, and a container that later gains a `tile_schema` is read better rather than stuck.
 	it('clears the override when the derived reading is chosen', () => {
 		expect(kindChoice('rasterImage', 'rasterImage')).toBeNull();
@@ -92,7 +92,7 @@ describe('the pickers', () => {
 		expect(kindChoice('vectorOther', null)).toBe('vectorOther');
 	});
 
-	// `linear` is MapLibre's default, so it is absence rather than a value — the same rule the
+	// `linear` is MapLibre's default, so it is absence rather than a value - the same rule the
 	// sliders follow, and the reason an untouched style exports nothing about resampling.
 	it('stores resampling only when it is not the default', () => {
 		expect(resamplingChoice('linear')).toBeNull();
@@ -139,7 +139,7 @@ describe('what the pane says out loud', () => {
 		expect(Object.values(DRAWN_AS).every((phrase) => typeof phrase === 'string')).toBe(true);
 	});
 
-	// Kept rather than dropped, because the presets share a namespace — so they need saying out loud
+	// Kept rather than dropped, because the presets share a namespace - so they need saying out loud
 	// or they are invisible, since the tree lists layers rather than overrides.
 	it('names the overrides with no layer to land on', () => {
 		expect(inertOverrides({ water: {}, 'site-school': {} }, ['water'])).toEqual(['site-school']);

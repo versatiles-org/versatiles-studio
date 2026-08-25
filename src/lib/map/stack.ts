@@ -7,7 +7,7 @@
  * where a rule can be wrong for three releases without anything failing.
  *
  * **It has already happened once.** The map's style used to choose between a styled recipe and the
- * background map, and S6.2 gave nearly every source something to draw — so the background became
+ * background map, and S6.2 gave nearly every source something to draw - so the background became
  * unreachable however it was set, and nothing said so. The functions below are pure for that reason:
  * a rule about what the map shows should be something a test can ask about.
  */
@@ -50,7 +50,7 @@ export function entryFor(built: Preview, recipe: Recipe): StackEntry {
 		layers: built.layers,
 		mountedLayers: layers,
 		// What the container says about itself, passed through so the composed style can tell
-		// MapLibre where to stop asking — see `extentOf`.
+		// MapLibre where to stop asking - see `extentOf`.
 		bbox: built.info.bbox,
 		minZoom: built.info.minZoom,
 		maxZoom: built.info.maxZoom
@@ -61,7 +61,7 @@ export function entryFor(built: Preview, recipe: Recipe): StackEntry {
  * The sources to draw, bottom first.
  *
  * Everything `order` names and is actually built, then everything else by name. The core's
- * `Recipe::draw_order` applies the same two rules for the same reasons — `order` is a preference,
+ * `Recipe::draw_order` applies the same two rules for the same reasons - `order` is a preference,
  * not a register, so a graph it names but nobody built must not leave a hole, and one built but
  * unnamed must not be invisible.
  */
@@ -84,7 +84,7 @@ export function stackFor(input: {
 	const { recipe, built, pinned, serverUrl, background } = input;
 	if (!serverUrl) return { style: null, bases: [] };
 
-	// No recipe yet — the background alone is still a map worth drawing.
+	// No recipe yet - the background alone is still a map worth drawing.
 	if (!recipe) return composeStyle([], '', background);
 
 	// **Pinned means "look at this node alone."** The stack is what a project draws; a pin is a
@@ -103,7 +103,7 @@ export function stackFor(input: {
  * Whether a named source's own tiles are being drawn by a style.
  *
  * **Not "is there a style at all".** The hairlines exist to show pipeline output that nothing else
- * draws, and a background map produces a style without drawing any of it — so asking the wrong
+ * draws, and a background map produces a style without drawing any of it - so asking the wrong
  * question hides the one thing being edited the moment a basemap is switched on.
  */
 export function drawn(composed: Composed, name: string | null | undefined): boolean {

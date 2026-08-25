@@ -9,7 +9,7 @@
 	//
 	// Not the Popover API, which would give the top layer and light dismiss for free: it needs
 	// Safari 17+ and a recent WebKitGTK, and Linux versions vary. Not CSS anchor positioning either,
-	// which would delete the arithmetic below — worth revisiting later as a drop-in simplification.
+	// which would delete the arithmetic below - worth revisiting later as a drop-in simplification.
 
 	/** Wide enough that a p90 parameter is four lines rather than seven, capped so it never takes
 	 *  more than about a third of a small window. */
@@ -20,8 +20,8 @@
 
 	/// Beside the sidebar, level with the trigger.
 	///
-	/// Flipped when the pane is on the right — sides are data since [Q31], so that is a real case
-	/// rather than a hypothetical — and clamped so a row near the bottom of a long chain does not
+	/// Flipped when the pane is on the right - sides are data since [Q31], so that is a real case
+	/// rather than a hypothetical - and clamped so a row near the bottom of a long chain does not
 	/// push the popover off-screen.
 	const position = $derived.by(() => {
 		if (!shown) return null;
@@ -88,7 +88,7 @@
 		color: var(--ink);
 	}
 
-	/* The type, the bounds and whether it is required — often the whole answer, and the part the
+	/* The type, the bounds and whether it is required - often the whole answer, and the part the
 	   prose tends to bury. */
 	.summary {
 		flex: 1;

@@ -48,7 +48,7 @@ function problem(over: Partial<{ id: number; at: number; message: string }> = {}
 /**
  * Lets a report finish arriving.
  *
- * `record` releases its in-flight guard in a `finally`, which is a microtask — so a second report
+ * `record` releases its in-flight guard in a `finally`, which is a microtask - so a second report
  * issued in the same turn is dropped by design, and a case that means to test the *next* one has to
  * let the turn end first.
  */
@@ -74,7 +74,7 @@ describe('reporting a problem', () => {
 
 	it('does not throw when there is nothing to report to', () => {
 		// The generated binding calls `invoke` on the way to returning a promise, so a webview
-		// without one throws *synchronously* — inside `status.fail`, inside somebody's `catch`.
+		// without one throws *synchronously* - inside `status.fail`, inside somebody's `catch`.
 		ipc.logDiagnostic.mockImplementation(() => {
 			throw new Error('no IPC here');
 		});
@@ -124,7 +124,7 @@ describe('reporting a problem', () => {
 
 	/**
 	 * MapLibre reports one failure per tile, and a screen of them arrives faster than a round trip
-	 * can answer. The core folds them into one row — but the queue waiting to tell it so is this
+	 * can answer. The core folds them into one row - but the queue waiting to tell it so is this
 	 * side's problem, and an unbounded one is a leak.
 	 */
 	it('caps a flood, and says that it did', async () => {
@@ -138,7 +138,7 @@ describe('reporting a problem', () => {
 		settle(1);
 		await vi.waitFor(() => expect(ipc.logDiagnostic).toHaveBeenCalledTimes(101));
 
-		// A hundred sent, fifty turned away, and one entry saying so — rather than a report that
+		// A hundred sent, fifty turned away, and one entry saying so - rather than a report that
 		// reads as complete because the overflow vanished quietly.
 		const last = ipc.logDiagnostic.mock.calls.at(-1)?.[0] as { level: string; message: string };
 		expect(last.level).toBe('warn');
@@ -149,7 +149,7 @@ describe('reporting a problem', () => {
 describe('the list the panel draws', () => {
 	it('puts the newest first, and a repeat back at the top', async () => {
 		// A folded repeat carries the time it *last* happened, so something happening again rises
-		// rather than staying where it first appeared — which is the whole point of folding.
+		// rather than staying where it first appeared - which is the whole point of folding.
 		ipc.diagnostics.mockResolvedValueOnce([
 			problem({ id: 1, at: 300, message: 'oldest' }),
 			problem({ id: 2, at: 100, message: 'first seen long ago, still happening' }),
@@ -184,7 +184,7 @@ describe('the console, which is where code that never throws says so', () => {
 		ipc.logDiagnostic.mock.calls.map(([r]) => r as { level: string; message: string; detail: string | null });
 
 	it('copies an error into the log and still writes it to the console', async () => {
-		// MapLibre's style validation says exactly why a layer drew nothing, and says it here — to a
+		// MapLibre's style validation says exactly why a layer drew nothing, and says it here - to a
 		// console a bundled build gives nobody a way to open.
 		const written: unknown[][] = [];
 		const original = console.error;
@@ -253,7 +253,7 @@ describe('the console, which is where code that never throws says so', () => {
 	 * The loop this bounds: reporting fails, something logs that failure to the console, the tee
 	 * reports *that*, which fails.
 	 *
-	 * The reentrancy guard only covers the synchronous half — the failure comes back a turn later,
+	 * The reentrancy guard only covers the synchronous half - the failure comes back a turn later,
 	 * when the guard is long since down. What ends it is the circuit breaker, and what this asserts
 	 * is that it ends at all, quickly, rather than spinning for as long as the window is open.
 	 */
@@ -311,7 +311,7 @@ describe('the console, which is where code that never throws says so', () => {
 
 describe('the run before this one', () => {
 	it('is unread until something asks for it, and is not the same as empty', async () => {
-		// `null` is "nobody has looked", which the panel shows as "reading…" — a run that recorded
+		// `null` is "nobody has looked", which the panel shows as "reading…" - a run that recorded
 		// nothing is a different answer, and showing one as the other reads as a bug in the log.
 		expect(problems.earlier).toBeNull();
 		expect(ipc.previousProblems).not.toHaveBeenCalled();

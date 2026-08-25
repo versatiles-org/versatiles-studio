@@ -1,5 +1,5 @@
 /*
- * Design tokens — the only file in the application allowed to contain a raw colour, font size,
+ * Design tokens - the only file in the application allowed to contain a raw colour, font size,
  * spacing value or radius. See docs/styling.md.
  *
  * Every set here is deliberately small and closed. That is the whole mechanism: choosing from four
@@ -8,7 +8,7 @@
  * font sizes, four radii, and three different reddish colours for the same error state.
  *
  * Loaded from main.ts before the application mounts, so tokens are always defined. Nothing may
- * write `var(--token, fallback)` — a fallback is only reachable when the token is missing, which
+ * write `var(--token, fallback)` - a fallback is only reachable when the token is missing, which
  * cannot happen, and the two fallbacks this codebase used to carry had already drifted apart from
  * each other.
  */
@@ -17,7 +17,7 @@
 	/*
 	 * Declares that both themes are supported, so the browser renders the parts we cannot reach in
 	 * the matching one: scrollbars, the caret, autofill, and a form control's internal chrome. Set
-	 * once, and never overridden in the dark block — the value already names both.
+	 * once, and never overridden in the dark block - the value already names both.
 	 *
 	 * Without it, native controls stay in the UA's light palette while everything around them turns
 	 * dark, which is how three inputs ended up as white boxes in the middle of a dark pane.
@@ -43,7 +43,7 @@
 	--accent: #0e7c7b; /* focus, selection, the one emphatic colour */
 	--accent-ink: #ffffff; /* text on --accent */
 	/* Map colours. Read from JavaScript via styles/tokens.ts, because MapLibre paint takes strings
-	   rather than CSS. Deliberately separate from the chrome palette above — a grid over a dark
+	   rather than CSS. Deliberately separate from the chrome palette above - a grid over a dark
 	   basemap is a different decision from a focus ring, even where the value matches today. */
 	--map-bg: #f2f1ec; /* the map's background layer, and the element behind the canvas */
 	--map-grid: #0e7c7b; /* z/x/y grid lines and labels (A5) */
@@ -54,21 +54,21 @@
 	   at a glance from the grid and the features it overlays.
 	   
 	   Used mostly for a label and an outline rather than a wash. The first version filled each tile
-	   at 28% and read as dark red — which says *error*, the one thing this never means. */
+	   at 28% and read as dark red - which says *error*, the one thing this never means. */
 	--map-pending: #777777;
 	/* The `queued` / `rendering` word itself, over whatever tiles happen to be under it. Near-black
 	   rather than `--map-pending`: the fill and the outline can afford to be quiet, a word cannot,
 	   and it is drawn at half opacity already. **It was missing entirely** until a console error
-	   said so — the whole time, that label was the deliberately-hideous magenta `token()` falls back
+	   said so - the whole time, that label was the deliberately-hideous magenta `token()` falls back
 	   to. `tokens.test.ts` now checks that every `MapToken` is defined here. */
 	--map-label: #16201f;
 	/* The crop (F2, S5.2). Two tokens because the overlay does two things: it dims everything the
 	   export will not write, and traces the edge of what it will. The dim is a near-black rather
-	   than a grey — it has to darken any basemap without tinting it — and is drawn at partial
+	   than a grey - it has to darken any basemap without tinting it - and is drawn at partial
 	   opacity, so the token itself is opaque. The edge takes the accent, because a crop is a
 	   selection and that is what the accent means everywhere else in the window. */
 	/* Hillshade's three lights (S6.6, D12). MapLibre defaults to pure black and white, which is
-	   heavy over a light basemap and invisible over a dark one — so these are the defaults a swatch
+	   heavy over a light basemap and invisible over a dark one - so these are the defaults a swatch
 	   opens on, and they follow the theme like every other map colour. */
 	--map-shade-shadow: #2b3a45;
 	--map-shade-highlight: #ffffff;
@@ -79,11 +79,11 @@
 	   they sit on a near-opaque white rather than on --surface. */
 	--float-bg: rgb(255 255 255 / 0.94);
 	/* Behind a modal. Darker in the light theme than the dark one, because the job is to push the
-	   surface behind it *away* — and a dark theme's surface is already most of the way there. */
+	   surface behind it *away* - and a dark theme's surface is already most of the way there. */
 	--scrim: rgb(0 0 0 / 0.4);
 
 	/* Semantic. Invented three times over before they were named once. A border colour lived here
-	   too and went with the error box that used it — an error border now takes --error directly. */
+	   too and went with the error box that used it - an error border now takes --error directly. */
 	/* Syntax highlighting. Operation names take the accent; only values need a colour of their own. */
 	--vpl-value: #8a4b16;
 
@@ -92,12 +92,12 @@
 
 	/* -- Type ---------------------------------------------------------------------------------
 	 * Five steps. This is a dense professional tool, so the base is smaller than a document UI's
-	 * and the range is narrow — the sizes below are the whole vocabulary. */
-	--text-xs: 0.75rem; /* 12px — dense labels and counts in the left pane */
-	--text-sm: 0.8125rem; /* 13px — dense data displays: JSON, popups, metadata */
-	--text-md: 0.875rem; /* 14px — ordinary UI text. The default; most things inherit it */
-	--text-lg: 1.0625rem; /* 17px — emphasis inside a panel */
-	--text-xl: 1.375rem; /* 22px — the landing screen, and nothing else so far */
+	 * and the range is narrow - the sizes below are the whole vocabulary. */
+	--text-xs: 0.75rem; /* 12px - dense labels and counts in the left pane */
+	--text-sm: 0.8125rem; /* 13px - dense data displays: JSON, popups, metadata */
+	--text-md: 0.875rem; /* 14px - ordinary UI text. The default; most things inherit it */
+	--text-lg: 1.0625rem; /* 17px - emphasis inside a panel */
+	--text-xl: 1.375rem; /* 22px - the landing screen, and nothing else so far */
 	/* Not a step on the scale: monospace reads optically larger than the UI font at the same
 	   nominal size, so inline code is nudged down relative to whatever surrounds it. */
 	--text-mono-adjust: 0.9em;
@@ -140,7 +140,7 @@
  * with the system it runs on is the thing users complain about, and an override would need a
  * preference to store and a settings surface to put it in, neither of which exists yet.
  *
- * **Only tokens are redefined here.** No component rule belongs in this block — that is what makes
+ * **Only tokens are redefined here.** No component rule belongs in this block - that is what makes
  * the theme one edit rather than thirteen, and what stops the two themes drifting apart.
  *
  * Not an inversion. Dark surfaces make colours read lighter and less saturated, so the accent and

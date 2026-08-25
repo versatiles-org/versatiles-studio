@@ -1,7 +1,7 @@
 //! A project you can send somebody (G1, S5.1).
 //!
 //! [`project::save`](crate::project::save) writes a directory whose `.vpl` files are real pipelines
-//! — and whose `filename=` arguments point wherever the file was imported from, which on this
+//! - and whose `filename=` arguments point wherever the file was imported from, which on this
 //! machine is an absolute path under someone's home directory. Copy that directory to another
 //! machine and every pipeline in it names a file that is not there. The project is *readable*
 //! anywhere and *runnable* only here.
@@ -11,7 +11,7 @@
 //!
 //! **A plan, then the writing.** [`plan`] works out what would be carried and what it weighs
 //! without touching the destination, so a surface can say "carries 3 files, 240 MB" using the same
-//! computation that will do it — the split [`crate::estimate`] and [`crate::export`] already use for
+//! computation that will do it - the split [`crate::estimate`] and [`crate::export`] already use for
 //! the same reason.
 //!
 //! **What is left alone.** A `https://` source works from anywhere, so it is not carried and not
@@ -35,21 +35,21 @@ use std::path::{Path, PathBuf};
 ///
 /// A subdirectory rather than the project root: a graph called `cities` writes `cities.vpl`, and a
 /// CSV called `cities.csv` beside it reads as a pair when it is a coincidence. `data/` also makes
-/// the manifest, the pipelines and the style — the parts a person edits — the whole of what they see
+/// the manifest, the pipelines and the style - the parts a person edits - the whole of what they see
 /// when they open the folder.
 pub const DATA_DIR: &str = "data";
 
 /// Fields whose value names a file.
 ///
 /// **A list, because nothing in the metadata says so.** `field_meta` gives each parameter a
-/// `rust_type`, and every one of these is `String` — indistinguishable from `format` or
+/// `rust_type`, and every one of these is `String` - indistinguishable from `format` or
 /// `lon_column`. Nor are they consistently named: `filename` on six operations, and then
 /// `data_source_path`, `tilejson_file`, `vector_layers_file`, `tilejson_update_file`.
 ///
 /// Qualified by operation rather than matched by name, so a future `filename` meaning something else
 /// cannot silently join the list. Kept beside a test that fails when upstream adds an operation with
 /// a file-valued field that is not here, because the failure this list can have is being out of
-/// date — and a bundle that quietly leaves a source behind is the worst way to find that out.
+/// date - and a bundle that quietly leaves a source behind is the worst way to find that out.
 ///
 /// The better fix is upstream marking the field, the same way it marks enum variants; worth an issue
 /// now that there are twelve of these rather than one.
@@ -104,7 +104,7 @@ pub enum ReferenceKind {
 pub struct Reference {
 	/// The graph it was found in.
 	pub graph: String,
-	/// The parameter, as written — `filename`, `data_source_path`, …
+	/// The parameter, as written - `filename`, `data_source_path`, …
 	pub field: String,
 	/// What it says, before any rewriting.
 	pub value: String,
@@ -129,10 +129,10 @@ pub struct Carried {
 pub struct Plan {
 	/// The files to carry, each once however many pipelines name it.
 	pub carry: Vec<Carried>,
-	/// Every reference found, carried or not — what a surface shows to explain the number above.
+	/// Every reference found, carried or not - what a surface shows to explain the number above.
 	pub references: Vec<Reference>,
 	/// The graphs with the carried files renamed to where they will be, in the order given; a graph
-	/// naming nothing is unchanged, byte for byte. The crop comes along untouched — it is about
+	/// naming nothing is unchanged, byte for byte. The crop comes along untouched - it is about
 	/// which tiles, not about which files.
 	pub graphs: Vec<crate::project::SavedGraph>,
 }
@@ -158,7 +158,7 @@ impl Plan {
 /// One graph, as a bundle needs it: its name, its text, and where its relative names point.
 ///
 /// `dir` is the directory the graph's own `.vpl` sits in, which is what a relative `filename`
-/// resolves against when the pipeline runs — the same rule [`crate::suggest`] follows. A graph that
+/// resolves against when the pipeline runs - the same rule [`crate::suggest`] follows. A graph that
 /// has never been saved has no such directory, and a relative name in it resolves against nothing;
 /// it comes out [`ReferenceKind::Missing`], which is the truth.
 #[derive(Debug, Clone)]
@@ -340,7 +340,7 @@ fn is_url(value: &str) -> bool {
 /// reference is still the *n*-th reference.
 ///
 /// The quoting is the tree's, which is what makes this safe for a path with a space or an
-/// apostrophe in it — the same reason `Document::set_value` exists at all.
+/// apostrophe in it - the same reason `Document::set_value` exists at all.
 fn rewrite(source: &Source, rewrites: &[(usize, String)]) -> Result<String> {
 	if rewrites.is_empty() {
 		return Ok(source.text.to_string());
@@ -373,7 +373,7 @@ fn rewrite(source: &Source, rewrites: &[(usize, String)]) -> Result<String> {
 ///
 /// The destination is somewhere the user chose, so this must not be a project *and* the source of
 /// its own data: copying a file onto itself would truncate it. Guarded below rather than assumed.
-/// The files a bundle carries, as entries — the data, not the project's own three.
+/// The files a bundle carries, as entries - the data, not the project's own three.
 fn carried(plan: &Plan) -> Vec<crate::archive::Entry> {
 	plan
 		.carry
@@ -387,7 +387,7 @@ fn carried(plan: &Plan) -> Vec<crate::archive::Entry> {
 ///
 /// **The project's own files still go through [`crate::project::save`], and that is not an
 /// oversight.** It writes each one temp-then-rename, so an interrupted save cannot leave a manifest
-/// naming a `.vpl` that is not there — and it refuses a graph name that is a path. A bundle is
+/// naming a `.vpl` that is not there - and it refuses a graph name that is a path. A bundle is
 /// usually a fresh directory where neither matters, but it is a directory *someone chose*, and it
 /// may be a project already. The carried data has no such history and is written plainly.
 pub fn write_directory(dir: &Path, plan: &Plan, recipe: &crate::style::Recipe, style: Option<&str>) -> Result<()> {
@@ -465,7 +465,7 @@ mod tests {
 		);
 	}
 
-	/// A relative name means *beside the pipeline* — the same rule the pipeline itself follows.
+	/// A relative name means *beside the pipeline* - the same rule the pipeline itself follows.
 	#[test]
 	fn a_relative_name_resolves_against_the_graphs_own_directory() {
 		let data = crate::testing::file("quakes.csv", "lon,lat\n1,2\n");

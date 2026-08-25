@@ -2,7 +2,7 @@
  * What WebdriverIO can and cannot do with Studio ([phase 1](../../docs/scope-e2e.md)).
  *
  * **A spike, not a story.** It asserts the four things the rest of the suite depends on, so that a
- * suite built on a wrong assumption fails here — once, legibly — rather than later as a scattering
+ * suite built on a wrong assumption fails here - once, legibly - rather than later as a scattering
  * of timeouts. Everything it uses is plain WebDriver: `getWindowHandles`, `$`, and `execute`.
  */
 

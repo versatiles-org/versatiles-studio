@@ -1,7 +1,7 @@
 /**
  * Writing a project out, and reading one back ([Q6], G1, S5.1).
  *
- * A directory holding `project.yaml`, one `.vpl` per graph and a rendered `style.json` — files that
+ * A directory holding `project.yaml`, one `.vpl` per graph and a rendered `style.json` - files that
  * work without Studio, which is the whole of [Q6].
  *
  * **The style arrives as text rather than being fetched.** `@versatiles/style` renders in the
@@ -10,7 +10,7 @@
  * is derived from whatever is on the map at the moment someone chooses a directory.
  *
  * **What this does not own.** Opening a project changes which document is on screen and which
- * graphs exist — both other modules' — so `open` returns rather than assigning, and the caller
+ * graphs exist - both other modules' - so `open` returns rather than assigning, and the caller
  * sequences the rest.
  *
  * [Q6]: ../../../docs/decisions.md
@@ -57,7 +57,7 @@ export const project = {
 	 *
 	 * **The asking is what tells this from `saveAs`.** A Save that opened a directory picker every
 	 * time would be Save As under another name, and the shortcut on it would be a shortcut to a
-	 * dialog. Where the project lives is the core's to remember ([Q16]) — a window that kept it
+	 * dialog. Where the project lives is the core's to remember ([Q16]) - a window that kept it
 	 * would forget on reload, and forget differently from the window next to it.
 	 */
 	async save(styleText: () => string | null): Promise<void> {
@@ -114,10 +114,10 @@ export const project = {
 	},
 
 	/**
-	 * Opens a project directory, returning its style recipe — or `null` when nothing was opened.
+	 * Opens a project directory, returning its style recipe - or `null` when nothing was opened.
 	 *
-	 * **Returns rather than assigns.** What follows is a sequence across three other modules — the
-	 * graph list, the document, every graph mounted — and the order of it is the caller's to state,
+	 * **Returns rather than assigns.** What follows is a sequence across three other modules - the
+	 * graph list, the document, every graph mounted - and the order of it is the caller's to state,
 	 * where it can be read in one place.
 	 */
 	async open(): Promise<Recipe | null> {
@@ -130,7 +130,7 @@ export const project = {
 	 * The same, for a directory something else has already chosen.
 	 *
 	 * **The launcher's third door ends here** ([S7.5]). It hands a path to a new window, and that
-	 * window used to send everything it was handed down the file path — where a directory has no
+	 * window used to send everything it was handed down the file path - where a directory has no
 	 * read node, so opening a project folder opened an empty window and said Studio had no way to
 	 * open it. Found by the end-to-end story that saves a project and opens it again.
 	 *

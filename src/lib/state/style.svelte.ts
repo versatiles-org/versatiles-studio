@@ -1,8 +1,8 @@
 /**
  * The project's style, mirrored from the core (S4.2, [Q36]).
  *
- * The core owns the **recipe** — a preset, the adjustments over it, and whatever layers were
- * changed by hand — and this holds the copy the pane draws. What the map renders is generated from
+ * The core owns the **recipe** - a preset, the adjustments over it, and whatever layers were
+ * changed by hand - and this holds the copy the pane draws. What the map renders is generated from
  * it here, because `@versatiles/style` is a JavaScript library and the core is Rust.
  *
  * **Every edit goes to the core and comes back.** A command returns the recipe as it now stands, so
@@ -50,7 +50,7 @@ let graph = $state<{ id: number; name: string } | null>(null);
  * What is being previewed but has not been committed (D1).
  *
  * A colour or a slider changes sixty times a second while it is being dragged, and each commit is
- * an undo entry — so a gesture previews through this and commits once when it ends. Reading it
+ * an undo entry - so a gesture previews through this and commits once when it ends. Reading it
  * falls back to the committed value, which is what makes every consumer indifferent to whether a
  * gesture is in progress.
  */
@@ -118,7 +118,7 @@ export const style = {
 		recipe = await fetchStyle();
 	},
 
-	/** What ⌘Z restored — assigned, never merged, because the core is the one that stepped. */
+	/** What ⌘Z restored - assigned, never merged, because the core is the one that stepped. */
 	restored(next: Recipe): void {
 		pending = null;
 		pendingRaster = null;

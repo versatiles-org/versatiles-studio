@@ -40,7 +40,7 @@ const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8')) as {
 };
 const pinned = pkg.dependencies['maplibre-gl'];
 if (!/^\d/.test(pinned)) {
-	throw new Error(`maplibre-gl must be pinned exactly, found "${pinned}" — the worker must match the main thread`);
+	throw new Error(`maplibre-gl must be pinned exactly, found "${pinned}" - the worker must match the main thread`);
 }
 const installed = JSON.parse(
 	await readFile(join(dirname(require.resolve('maplibre-gl/package.json')), 'package.json'), 'utf8')

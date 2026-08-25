@@ -18,14 +18,14 @@
  * **Each piece is ensured on its own.** Guarding a whole overlay on its source is what made this
  * class of bug invisible: `addSource` succeeding and a later `addLayer` throwing left the source
  * present and the layers absent, and every call after that returned early on the source it had just
- * added — half-drawn for the life of the style, silently, because a layer that was never added
+ * added - half-drawn for the life of the style, silently, because a layer that was never added
  * throws nothing afterwards.
  *
  * **And it says when it failed.** Anything still missing once the map is `idle` is reported with the
  * error that stopped it. Every round of the bug above looked identical from the outside: nothing on
  * the map, nothing in the console. `idle` is the point at which "too early" stops being an answer.
  *
- * Not gated on `isStyleLoaded()`, which is the wrong question — `Style.loaded()` is false while
+ * Not gated on `isStyleLoaded()`, which is the wrong question - `Style.loaded()` is false while
  * *any* tile is still in flight, which with a background basemap is most of the time. `addSource`
  * throws only when there is no style at all, so this tries and lets the events bring it round.
  */
@@ -42,7 +42,7 @@ export interface OverlaySpec {
 	/**
 	 * The layers over it, in draw order, built **on demand**.
 	 *
-	 * A function rather than an array so `token()` is read when a layer is added — which is after a
+	 * A function rather than an array so `token()` is read when a layer is added - which is after a
 	 * theme change, not when this module loaded.
 	 */
 	layers: () => LayerSpecification[];
@@ -66,7 +66,7 @@ export interface Overlay {
  */
 export function mapOverlay(map: MaplibreMap, spec: OverlaySpec): Overlay {
 	const name = spec.label ?? spec.source;
-	/** What could not be added, and why — so the audit can say *why*, not only *that*. */
+	/** What could not be added, and why - so the audit can say *why*, not only *that*. */
 	const refused: Record<string, unknown> = {};
 	let complained = false;
 
@@ -104,7 +104,7 @@ export function mapOverlay(map: MaplibreMap, spec: OverlaySpec): Overlay {
 		source?.setData(spec.data());
 	}
 
-	/** Ensure, and redraw only if something had to be built — a no-op restore stays a no-op. */
+	/** Ensure, and redraw only if something had to be built - a no-op restore stays a no-op. */
 	function restore() {
 		if (ensure()) {
 			const source = map.getSource(spec.source) as GeoJSONSource | undefined;
@@ -123,7 +123,7 @@ export function mapOverlay(map: MaplibreMap, spec: OverlaySpec): Overlay {
 		}
 	}
 
-	// Attached *before* the first attempt, so a throw cannot cost us the recovery — the failure
+	// Attached *before* the first attempt, so a throw cannot cost us the recovery - the failure
 	// `TileActivity` was written to avoid and then reintroduced elsewhere twice.
 	map.on('styledata', restore);
 	map.on('load', restore);

@@ -2,7 +2,7 @@
  * What the application is doing, shown along the bottom ([Q24](../../../docs/decisions.md)).
  *
  * **Here rather than in `App.svelte` because eighteen places wrote it.** Every operation that takes
- * a moment says so, and every one that fails says that — so a status write is the one thing almost
+ * a moment says so, and every one that fails says that - so a status write is the one thing almost
  * every other module needs. Left in the component, each of those modules would have had to be handed
  * a callback to reach it; a module they can import instead is the difference between five clean
  * extractions and five with a constructor argument nobody wants.
@@ -32,7 +32,7 @@ export const status = {
 	 * Quiets a "busy" that has finished.
 	 *
 	 * **Only a busy one.** An error is a state somebody has to read and dismiss, and an operation
-	 * finishing after one has landed must not wipe it — the failure is the more important of the two
+	 * finishing after one has landed must not wipe it - the failure is the more important of the two
 	 * things the bar could be saying.
 	 */
 	settle(): void {
@@ -46,13 +46,13 @@ export const status = {
 	 * is eighteen chances to narrow it differently.
 	 *
 	 * **Unwraps `.message` here rather than at the call site.** `String({ message: 'no such file' })`
-	 * is `"[object Object]"`, which is what the bar said whenever an error arrived as an object — one
+	 * is `"[object Object]"`, which is what the bar said whenever an error arrived as an object - one
 	 * call site had learnt to unwrap it and the other seventeen had not. Deciding how an error
 	 * becomes text is this function's job, and there is one of it.
 	 *
 	 * **And records it, for the same reason there is one of it.** Every `catch` in the application
 	 * already comes here, so this is where a failure can be kept without nineteen call sites each
-	 * remembering to keep it — and the bar shows one line and then loses it to the next failure,
+	 * remembering to keep it - and the bar shows one line and then loses it to the next failure,
 	 * which is no use to anybody writing an issue an hour later (S6.8).
 	 */
 	fail(error: unknown): void {
@@ -61,7 +61,7 @@ export const status = {
 		record({ level: 'error', origin: 'webview', message, detail });
 	},
 
-	/** Clears whatever it is saying — the dismiss button, and nothing else. */
+	/** Clears whatever it is saying - the dismiss button, and nothing else. */
 	dismiss(): void {
 		current = { kind: 'idle' };
 	}

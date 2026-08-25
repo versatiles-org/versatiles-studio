@@ -1,10 +1,10 @@
 //! Application state owned by the Tauri process.
 //!
-//! Everything durable lives in the core, not the webview ([Q16]) — this struct is what the commands
+//! Everything durable lives in the core, not the webview ([Q16]) - this struct is what the commands
 //! reach through to get there.
 //!
 //! **Two scopes, and the split is the whole of [S7.1](../../docs/scope-release-3.md).** What belongs
-//! to the *application* — one embedded server, the job runner, the recent files, the problem log —
+//! to the *application* - one embedded server, the job runner, the recent files, the problem log -
 //! sits on [`AppState`]. What belongs to a *project* sits on [`Project`], and there is one of those
 //! per window ([Q48]).
 //!
@@ -38,7 +38,7 @@ use tauri::Window;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Pinned {
 	pub graph: GraphId,
-	/// The path `Pipeline::at_path` walks — a node index, then pairs of source and node index.
+	/// The path `Pipeline::at_path` walks - a node index, then pairs of source and node index.
 	pub path: Vec<usize>,
 }
 use tokio::sync::Mutex;
@@ -53,14 +53,14 @@ pub struct Project {
 	/// What this project's mounts are named after on the shared server ([S7.2]).
 	///
 	/// The window's label, reduced to what a URL path segment can hold. One server serves the whole
-	/// application ([Q16]), so without this two windows each holding a graph called `pipeline` —
-	/// which is what a container import names its first graph — mount over each other, and each
+	/// application ([Q16]), so without this two windows each holding a graph called `pipeline` -
+	/// which is what a container import names its first graph - mount over each other, and each
 	/// window draws the other's tiles. No error, no failed job: plausible tiles from the wrong
 	/// project.
 	///
 	/// [S7.2]: ../../docs/scope-release-3.md
 	prefix: String,
-	/// **The project's graphs** — several named VPL documents, each producing one named tile
+	/// **The project's graphs** - several named VPL documents, each producing one named tile
 	/// source ([Q32]). Owned here rather than in the webview ([Q16]); each carries its own file and
 	/// dirty state, which is why `pipeline_file` no longer exists beside this.
 	pub graphs: Graphs,
@@ -69,7 +69,7 @@ pub struct Project {
 	/// is where the generator is.
 	pub style: Recipe,
 	/// One undo stack across every graph *and* the style, whichever view an edit came from
-	/// ([Q11], [Q32], [Q36], G6) — and across this project only.
+	/// ([Q11], [Q32], [Q36], G6) - and across this project only.
 	pub history: History,
 	/// The node whose output the map is showing, overriding the style ([Q32]). `None` is the
 	/// ordinary state: the map draws every mounted graph.
@@ -82,14 +82,14 @@ pub struct Project {
 	pub dir: PathBuf,
 	/// Which panes are open, how wide they are, the background, and where the camera is looking.
 	///
-	/// **Per project** ([S7.4](../../docs/scope-release-3.md)) — it reads as pane state and is not:
+	/// **Per project** ([S7.4](../../docs/scope-release-3.md)) - it reads as pane state and is not:
 	/// `view` is the camera and `background` is a map setting, and two windows sharing them meant
 	/// panning one panned the other the next time either saved.
 	pub layout: Layout,
 	/// The directory this project was last saved to or opened from, if any.
 	///
 	/// **Not `dir` above**, which starts at the working directory and only ever answers "what do
-	/// relative paths mean". This answers a different question — *has this been saved, and where* —
+	/// relative paths mean". This answers a different question - *has this been saved, and where* -
 	/// and the two disagree for the whole of a project's life until someone saves. Without it,
 	/// "Save Project" would have to ask for a directory it already knows, which is what makes it
 	/// indistinguishable from "Save Project As…".
@@ -116,7 +116,7 @@ impl Project {
 
 	/// What `name` is mounted under on the shared server.
 	///
-	/// **A dot, because a mount name is one path segment** of `/tiles/{name}/{z}/{x}/{y}` — a slash
+	/// **A dot, because a mount name is one path segment** of `/tiles/{name}/{z}/{x}/{y}` - a slash
 	/// would change the shape of the URL rather than the name in it.
 	#[must_use]
 	pub fn mount(&self, name: &str) -> String {
@@ -133,7 +133,7 @@ impl Project {
 /// Every open project, by the label of the window showing it.
 ///
 /// **Keyed by window label** because that is the identity [Q16] describes, and because a reload
-/// keeps it — which is what lets a window that crashed come back to its work rather than to an empty
+/// keeps it - which is what lets a window that crashed come back to its work rather than to an empty
 /// one. Created when a window first asks for a project, so nothing has to know in advance which
 /// windows will exist.
 #[derive(Default)]
@@ -142,7 +142,7 @@ pub struct Projects(Mutex<HashMap<String, Arc<Mutex<Project>>>>);
 impl Projects {
 	/// This window's project, created empty if it has none yet.
 	///
-	/// A new one opens on `layout` — what the last window to change one left behind, which is how a
+	/// A new one opens on `layout` - what the last window to change one left behind, which is how a
 	/// second window gets the pane widths and the background someone has settled on rather than the
 	/// defaults they moved away from.
 	pub async fn of(&self, label: &str, layout: &Layout) -> Arc<Mutex<Project>> {
@@ -158,7 +158,7 @@ impl Projects {
 
 	/// This window's project **if it has one**, without creating it.
 	///
-	/// For asking about a window rather than acting in it — the menu, which is redrawn on focus and
+	/// For asking about a window rather than acting in it - the menu, which is redrawn on focus and
 	/// must not bring a project into existence by being looked at (S7.8).
 	pub async fn peek(&self, label: &str) -> Option<Arc<Mutex<Project>>> {
 		self.0.lock().await.get(label).map(Arc::clone)
@@ -166,7 +166,7 @@ impl Projects {
 
 	/// Forgets a window's project. Called when the window is destroyed, not when it reloads.
 	///
-	/// Returns what was held, so the caller can take down what it had running — the server mounts
+	/// Returns what was held, so the caller can take down what it had running - the server mounts
 	/// belonging to it, once [S7.2](../../docs/scope-release-3.md) gives them names of their own.
 	pub async fn close(&self, label: &str) -> Option<Arc<Mutex<Project>>> {
 		self.0.lock().await.remove(label)
@@ -181,7 +181,7 @@ pub struct AppState {
 	pub views: Mutex<Views>,
 	/// What a **new** project's layout starts as: the last one any window saved (S7.4).
 	///
-	/// Not the layout of anything. The live one belongs to a project — [`Project::layout`] — and this
+	/// Not the layout of anything. The live one belongs to a project - [`Project::layout`] - and this
 	/// is only what the next window inherits, which is also all that `layout.json` was ever able to
 	/// mean once there was more than one window.
 	pub layout: Mutex<Layout>,
@@ -190,7 +190,7 @@ pub struct AppState {
 	/// What has gone wrong this session, for the panel that lets a user copy it (S6.8).
 	///
 	/// Not behind a `Mutex` for the same reason `jobs` is not: it is `Clone` and locks its own ring.
-	/// It has to be, in fact — the panic hook holds a clone of this from before any window exists,
+	/// It has to be, in fact - the panic hook holds a clone of this from before any window exists,
 	/// and a hook that had to reach through Tauri's state map could not run during start-up.
 	pub diagnostics: Diagnostics,
 	/// Where the problem log is written, and where the previous run's is read from.
@@ -204,14 +204,14 @@ pub struct AppState {
 	/// only wants to submit a job never waits on one that is listing them.
 	pub jobs: Jobs,
 	/// Where these files live. `app_data_dir`, not `app_config_dir`: these are user *data*, not
-	/// configuration. Invisible on macOS — both land in Application Support — but on Linux it is
+	/// configuration. Invisible on macOS - both land in Application Support - but on Linux it is
 	/// `~/.local/share` versus `~/.config`, and views belong in the former. The store owns the
 	/// filenames inside it.
 	pub data_dir: PathBuf,
 	/// Where installed font families live (G7, S4.1).
 	///
 	/// A directory of its own inside `data_dir`, because these are archives the server mounts by
-	/// scanning the directory — and a scan that also found `recents.json` would try to serve it.
+	/// scanning the directory - and a scan that also found `recents.json` would try to serve it.
 	pub asset_dir: PathBuf,
 }
 
@@ -219,12 +219,12 @@ impl AppState {
 	/// The project belonging to the window a command was called from.
 	///
 	/// **Every command that touches a project takes the window it came from**, rather than reaching
-	/// for one global answer. Two lines at each of forty call sites, and the alternative — inferring
-	/// the "current" project — is a guess that is wrong whenever two windows are open, which is the
+	/// for one global answer. Two lines at each of forty call sites, and the alternative - inferring
+	/// the "current" project - is a guess that is wrong whenever two windows are open, which is the
 	/// entire point of S7.1.
 	pub async fn project(&self, window: &Window) -> Arc<Mutex<Project>> {
 		// **Without the camera.** Pane widths and a background are preferences worth carrying into a
-		// new window; where another project's map was looking is not — and `None` already means
+		// new window; where another project's map was looking is not - and `None` already means
 		// "nothing to restore", which leaves a new window free to frame whatever it opens.
 		let layout = Layout {
 			view: None,
@@ -278,7 +278,7 @@ mod tests {
 		);
 	}
 
-	/// Asking twice is asking about the same project — a window's work must not depend on which
+	/// Asking twice is asking about the same project - a window's work must not depend on which
 	/// command reached for it first.
 	#[tokio::test]
 	async fn the_same_window_gets_the_same_project() {
@@ -320,8 +320,8 @@ mod tests {
 
 	/// The collision S7.2 exists for, and the one nothing else catches.
 	///
-	/// Two windows each holding a graph called `pipeline` — which is what a container import names
-	/// its first graph — mounted over each other on the one shared server. Each window then drew the
+	/// Two windows each holding a graph called `pipeline` - which is what a container import names
+	/// its first graph - mounted over each other on the one shared server. Each window then drew the
 	/// other's tiles: no error, no failed job, nothing in the problem log.
 	#[tokio::test]
 	async fn two_windows_do_not_serve_each_others_tiles() {
@@ -342,7 +342,7 @@ mod tests {
 	}
 
 	/// Within one window a mount name still means one thing, so re-opening replaces rather than
-	/// accumulates — the rule `mount_name` was written for, now scoped rather than dropped.
+	/// accumulates - the rule `mount_name` was written for, now scoped rather than dropped.
 	#[tokio::test]
 	async fn one_window_mounts_one_name_one_way() {
 		let projects = Projects::default();
@@ -361,7 +361,7 @@ mod tests {
 		assert!(!mounted.contains(':'), "{mounted}");
 	}
 
-	/// What a closing window takes down with it — everything under its prefix and nothing else.
+	/// What a closing window takes down with it - everything under its prefix and nothing else.
 	#[tokio::test]
 	async fn a_projects_mounts_are_recognisable_as_its_own() {
 		let projects = Projects::default();
@@ -422,7 +422,7 @@ mod tests {
 		assert_eq!(project.layout.background, "graybeard");
 		assert!(
 			project.layout.view.is_none(),
-			"another project's camera means nothing here — `None` leaves this one free to frame what it opens"
+			"another project's camera means nothing here - `None` leaves this one free to frame what it opens"
 		);
 	}
 

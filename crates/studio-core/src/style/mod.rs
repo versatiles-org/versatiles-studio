@@ -1,7 +1,7 @@
 //! The style, stored as what it is made from (S4.2, S4.7, [Q36]).
 //!
 //! A project has one style ([Q32]) over every graph it serves. What lives here is **not** a MapLibre
-//! style: it is the recipe one is rendered from — a preset, the adjustments applied to it, and
+//! style: it is the recipe one is rendered from - a preset, the adjustments applied to it, and
 //! whatever individual layers were changed by hand.
 //!
 //! **Because the rendered style does not fit the stack it would have to live on.** Undo takes whole
@@ -10,7 +10,7 @@
 //! hundred bytes and rides the same mechanism ([Q36] has the measurement).
 //!
 //! **The generator stays in the webview**, where `@versatiles/style` already is. This module never
-//! produces a style — it describes one. That is also what makes D8's "export as `@versatiles/style`
+//! produces a style - it describes one. That is also what makes D8's "export as `@versatiles/style`
 //! code" possible at all: the code *is* the recipe, and a design that kept only the rendered output
 //! could not have got it back.
 //!
@@ -26,7 +26,7 @@ use std::path::Path;
 /// What a style may be written as (S4.6, D8).
 ///
 /// `.json` is the style itself, for anything that consumes a MapLibre style. `.ts` is the recipe as
-/// code — the thing [Q36] keeps the recipe *for*, and the reason a rendered style alone would not
+/// code - the thing [Q36] keeps the recipe *for*, and the reason a rendered style alone would not
 /// have been enough.
 pub const EXPORTABLE: [&str; 2] = ["json", "ts"];
 
@@ -46,7 +46,7 @@ pub fn is_exportable(path: &Path) -> bool {
 /// Where a style starts before anything is adjusted.
 ///
 /// The six are `@versatiles/style`'s own builders, named as it names them so the webview needs no
-/// translation table — a mapping between two spellings of the same six things is a thing to keep in
+/// translation table - a mapping between two spellings of the same six things is a thing to keep in
 /// step for no gain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
@@ -78,7 +78,7 @@ pub enum Preset {
 #[serde(rename_all = "camelCase", default)]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Recolor {
-	/// Swap light for dark while keeping the hues — D5's whole feature, in one flag.
+	/// Swap light for dark while keeping the hues - D5's whole feature, in one flag.
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub invert_brightness: Option<bool>,
 	/// Hue rotation, in degrees.
@@ -120,7 +120,7 @@ impl Recolor {
 /// What was changed about one layer by hand (D3).
 ///
 /// **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
-/// paint, all of which are properties *of* a layer — none of them adds, removes or reorders one,
+/// paint, all of which are properties *of* a layer - none of them adds, removes or reorders one,
 /// which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
 /// accepted rather than overlooked.
 ///
@@ -160,14 +160,14 @@ impl LayerOverride {
 
 /// What a source's tiles are, as far as drawing them is concerned ([S6.1](../../../docs/scope-release-2.md)).
 ///
-/// **Studio's vocabulary, not the container's.** A container declares a `tile_schema` — upstream's
-/// list, which can grow — and this is the much smaller question the style pane actually switches on:
+/// **Studio's vocabulary, not the container's.** A container declares a `tile_schema` - upstream's
+/// list, which can grow - and this is the much smaller question the style pane actually switches on:
 /// which editor does this source get. Two schemas can land on one kind (`rgb` and `rgba` are both
 /// imagery) and a container with no schema at all still has to land somewhere.
 ///
 /// **Derived, and overridable.** The webview works it out from the schema, falling back to the tile
 /// format and the layers the probe found. That answer is a guess whenever the schema is absent, so
-/// [`Recipe::kind`] exists to let someone correct it — a DEM written before `tile_schema` existed is
+/// [`Recipe::kind`] exists to let someone correct it - a DEM written before `tile_schema` existed is
 /// otherwise indistinguishable from a photograph, and no amount of looking at the pixels decides it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
@@ -177,11 +177,11 @@ pub enum SourceKind {
 	VectorShortbread,
 	/// Vector tiles of anything else. Styled from the layers actually present (D2).
 	VectorOther,
-	/// Raster tiles meant to be looked at — imagery, a scan, a rendered map (D11).
+	/// Raster tiles meant to be looked at - imagery, a scan, a rendered map (D11).
 	RasterImage,
 	/// Raster tiles encoding elevation, to be drawn as hillshade rather than as colour (D12).
 	///
-	/// The encoding — `mapbox`, `terrarium`, `versatiles` — is deliberately not carried here yet.
+	/// The encoding - `mapbox`, `terrarium`, `versatiles` - is deliberately not carried here yet.
 	/// Nothing draws a DEM until S6.6, and that is the step that has to decide whether the encoding
 	/// belongs on this enum or is re-read from `tile_schema` at the point of use.
 	RasterDem,
@@ -222,7 +222,7 @@ pub struct RasterAdjust {
 	/// `0` to `1`.
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub opacity: Option<f32>,
-	/// `linear` smooths between pixels, `nearest` keeps them square — which is what a scan of a
+	/// `linear` smooths between pixels, `nearest` keeps them square - which is what a scan of a
 	/// printed map or any pixel art wants.
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub resampling: Option<Resampling>,
@@ -240,7 +240,7 @@ pub enum Resampling {
 /// How elevation is packed into a DEM's pixels.
 ///
 /// **Two, because those are the two MapLibre can decode.** `versatiles_core` also names
-/// `dem/versatiles`, and nothing published says how to unpack it — a guess would render plausible
+/// `dem/versatiles`, and nothing published says how to unpack it - a guess would render plausible
 /// hillshade of the wrong mountains, which is worse than saying so. The picker offers these and the
 /// pane says when a container declares something it cannot draw.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -284,7 +284,7 @@ pub struct Hillshade {
 ///
 /// **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
 /// recolour, a layer-override map *and* a raster adjustment, and at least half of that was
-/// meaningless for any given source — a preset means nothing over a photograph, and a
+/// meaningless for any given source - a preset means nothing over a photograph, and a
 /// `raster-saturation` means nothing over vector tiles. Adding hillshade (S6.6) to a flat struct
 /// would have made it two thirds.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -317,7 +317,7 @@ impl Default for Appearance {
 impl Appearance {
 	/// The appearance a source of this kind starts with.
 	///
-	/// Each kind gets the appearance that can actually describe it — giving a DEM a preset it cannot
+	/// Each kind gets the appearance that can actually describe it - giving a DEM a preset it cannot
 	/// use would be the old mistake in a new place.
 	#[must_use]
 	pub fn for_kind(kind: Option<SourceKind>) -> Self {
@@ -354,7 +354,7 @@ pub struct SourceStyle {
 /// **One entry per source, keyed by the graph's name.** The name is what a MapLibre style calls a
 /// source and what `project.yaml` already lists graphs by, so persisting under it means the manifest
 /// and the style agree without a translation table. It is *not* how the running application refers
-/// to a graph — that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives — so a
+/// to a graph - that is [`GraphId`](crate::graphs::GraphId), for the reason `graphs.rs` gives - so a
 /// rename has to move the entry, which is [`Recipe::rename_source`]'s whole job.
 ///
 /// Ordered (`BTreeMap`, not `HashMap`) so the text this serialises to depends only on its contents.
@@ -370,7 +370,7 @@ pub struct Recipe {
 	///
 	/// **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
 	/// drag that has to renumber every sibling is how two entries end up claiming one position.
-	/// Names absent from it are drawn after those in it, in name order — so a source that arrives
+	/// Names absent from it are drawn after those in it, in name order - so a source that arrives
 	/// while nobody is looking appears on top rather than vanishing.
 	pub order: Vec<String>,
 }
@@ -433,8 +433,8 @@ impl Recipe {
 	/// Drops overrides for layers the current style has no place for
 	/// ([S6.7](../../../docs/scope-release-2.md)).
 	///
-	/// **Not something to do on a preset change.** The six presets share one namespace — neutrino's
-	/// 207 layer ids are a strict subset of colorful's 324 — so an override on `water` is meant to
+	/// **Not something to do on a preset change.** The six presets share one namespace - neutrino's
+	/// 207 layer ids are a strict subset of colorful's 324 - so an override on `water` is meant to
 	/// survive a switch and apply again on the way back. Keeping them is the feature; what is wrong
 	/// is only that an override nothing can apply is invisible, since the tree lists layers rather
 	/// than overrides. This is the deliberate clear-out, and it returns how many went so a caller can
@@ -475,7 +475,7 @@ impl Recipe {
 	/// Replaces one layer's override on a vector source, or clears it when nothing is left to say.
 	///
 	/// Clearing rather than storing an empty patch keeps "reset this layer" and "never touched this
-	/// layer" the same state — otherwise a style could export a list of layers that override
+	/// layer" the same state - otherwise a style could export a list of layers that override
 	/// nothing, and a user who undid every change would still see the layer marked as edited.
 	///
 	/// Does nothing for a raster source: there are no layers to override, and creating a vector
@@ -545,7 +545,7 @@ mod tests {
 	}
 
 	/// **The measurement [Q36] rests on.** A rendered `colorful` is 125 kB across 324 layers, which
-	/// is why the stack stores this instead. The number below is not a budget — it is three orders
+	/// is why the stack stores this instead. The number below is not a budget - it is three orders
 	/// of magnitude of headroom, and a change that ate it would mean the recipe had quietly become
 	/// the style.
 	#[test]
@@ -560,7 +560,7 @@ mod tests {
 	}
 
 	/// The undo stack decides whether anything changed by comparing text, so two equal recipes must
-	/// produce equal text — which is why the overrides are a `BTreeMap`.
+	/// produce equal text - which is why the overrides are a `BTreeMap`.
 	#[test]
 	fn equal_recipes_produce_equal_text() {
 		let mut one = with_source();
@@ -628,7 +628,7 @@ mod tests {
 		assert_eq!(recipe.text(), before);
 	}
 
-	/// A rename must carry the style with it — otherwise renaming a graph silently resets its style
+	/// A rename must carry the style with it - otherwise renaming a graph silently resets its style
 	/// and leaves the old settings in the file under a name nothing refers to.
 	#[test]
 	fn a_rename_carries_the_style_over() {
@@ -651,7 +651,7 @@ mod tests {
 		assert_eq!(
 			recipe.draw_order(["places", "basemap"]),
 			vec!["basemap".to_string(), "places".to_string()],
-			"ordered first, then the rest — and `gone` is not conjured up"
+			"ordered first, then the rest - and `gone` is not conjured up"
 		);
 		assert!(recipe.draw_order([]).is_empty());
 		assert_eq!(
@@ -670,7 +670,7 @@ mod tests {
 		assert_eq!(recipe.order, vec!["streets".to_string(), "other".to_string()]);
 	}
 
-	/// Overrides outlive a preset switch on purpose — the presets share a namespace, and one that
+	/// Overrides outlive a preset switch on purpose - the presets share a namespace, and one that
 	/// went inert must come back when the preset that has that layer does.
 	#[test]
 	fn pruning_keeps_what_the_style_still_has() {
@@ -706,7 +706,7 @@ mod tests {
 		}
 	}
 
-	/// An untouched recolour is "leave everything alone", not a list of identity values — otherwise
+	/// An untouched recolour is "leave everything alone", not a list of identity values - otherwise
 	/// the webview would hand the generator ten settings on a style nobody had adjusted.
 	#[test]
 	fn an_untouched_recolour_says_nothing() {

@@ -1,7 +1,7 @@
 //! A style with everything it needs beside it (D8, S4.6).
 //!
-//! A `style.json` on its own is a document full of URLs. Studio's point at the embedded server —
-//! `http://127.0.0.1:<an ephemeral port>` — so the exported one is rewritten to the public
+//! A `style.json` on its own is a document full of URLs. Studio's point at the embedded server -
+//! `http://127.0.0.1:<an ephemeral port>` - so the exported one is rewritten to the public
 //! versatiles.org addresses before it leaves, which works for anyone with a network.
 //!
 //! **This is the other answer: take the files too.** The bundle holds the style, the glyph ranges
@@ -28,7 +28,7 @@ pub const STYLE_FILE: &str = "style.json";
 
 /// The directories the style's relative URLs point at.
 ///
-/// They are not the paths the archives use — the glyph archive's entries are `noto_sans_regular/…`
+/// They are not the paths the archives use - the glyph archive's entries are `noto_sans_regular/…`
 /// with no prefix at all, and the sprite archive's are `basics/…`. Naming them here is what lets the
 /// style say `fonts/{fontstack}/{range}.pbf` regardless.
 pub const FONTS_DIR: &str = "fonts";
@@ -36,12 +36,12 @@ pub const SPRITES_DIR: &str = "sprites";
 
 /// Writes the bundle, as a directory or as one `.zip`.
 ///
-/// `style` is the finished `style.json` text — the webview renders it and rewrites its URLs, because
+/// `style` is the finished `style.json` text - the webview renders it and rewrites its URLs, because
 /// the generator lives there ([Q36]). `fonts` are the font stacks it names; each is looked for in
 /// `glyph_archives` in order, so an installed family (G7) is found as readily as the bundled tier.
 ///
 /// A font nothing has is skipped rather than fatal, and reported: a style naming a font that is not
-/// installed still bundles, and the alternative — refusing — would leave someone with nothing while
+/// installed still bundles, and the alternative - refusing - would leave someone with nothing while
 /// the missing piece is a label MapLibre falls back from anyway.
 ///
 /// [Q36]: ../../../../docs/decisions.md
@@ -110,7 +110,7 @@ fn take(archive: &Path, prefix: &str, into: &str) -> Result<Vec<Entry>> {
 		// **The archive decides this name, so the archive is not trusted with it.** `rest` is
 		// whatever the `.tar.gz` says, and a font family is downloaded from the network; an entry
 		// called `noto_sans_regular/../../../../.ssh/authorized_keys` would otherwise be written
-		// exactly there. Refused here, at the read, rather than at the write — the entry is already
+		// exactly there. Refused here, at the read, rather than at the write - the entry is already
 		// wrong, and the bundle should not be half-made before anyone notices.
 		let path = format!("{into}{rest}");
 		crate::paths::within(Path::new(""), &path)
@@ -262,7 +262,7 @@ mod traversal_tests {
 
 	/// A `.tar.gz` whose one entry is named `entry`, **built header-first**.
 	///
-	/// `tar::Builder::append_data` refuses a name containing `..` — the writer has its own guard —
+	/// `tar::Builder::append_data` refuses a name containing `..` - the writer has its own guard -
 	/// so a hostile archive cannot be produced with the ordinary API, and neither GNU nor BSD `tar`
 	/// will make one either. The bytes are therefore assembled by hand: a 512-byte header with the
 	/// name written straight into the field, the body padded to a block, and the two zero blocks
@@ -294,7 +294,7 @@ mod traversal_tests {
 		path
 	}
 
-	/// **The bug this guard was added for — zip slip.** `take` used to build each entry's
+	/// **The bug this guard was added for - zip slip.** `take` used to build each entry's
 	/// destination from the name inside the archive, so a font family downloaded from the network
 	/// could name `…/../../../..` and `write_directory` would write exactly there.
 	#[test]
@@ -311,7 +311,7 @@ mod traversal_tests {
 	}
 
 	// The matching test for the *writer* refusing an escaping entry lives in `crate::archive`,
-	// which now owns both writers — one guard, tested where it is.
+	// which now owns both writers - one guard, tested where it is.
 
 	/// The guard has to refuse the hostile entry without refusing the ordinary ones beside it.
 	#[test]

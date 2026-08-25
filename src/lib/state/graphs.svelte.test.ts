@@ -91,7 +91,7 @@ describe('removing a graph', () => {
 });
 
 describe('renaming a graph', () => {
-	// The mount moves with the name, so the old entry is stale the moment this returns — and a stale
+	// The mount moves with the name, so the old entry is stale the moment this returns - and a stale
 	// entry means the style resets itself to defaults on a rename.
 	it('forgets the old name and rebuilds under the new one', async () => {
 		ipc.listGraphs.mockResolvedValue([info(1, 'streets'), info(2, 'places')]);
@@ -107,7 +107,7 @@ describe('the pin', () => {
 		expect(graphs.pinned).toEqual({ graph: 1, path: [0, 2] });
 	});
 
-	// The same gesture off as on — a separate "clear" would be a control that only exists sometimes.
+	// The same gesture off as on - a separate "clear" would be a control that only exists sometimes.
 	it('clears when the node it names is already pinned', async () => {
 		await graphs.togglePin(1, [0, 2]);
 		await graphs.togglePin(1, [0, 2]);

@@ -39,7 +39,7 @@ describe('naming the command that failed', () => {
 		await expect(commands.writableFormats()).resolves.toEqual(['mbtiles']);
 	});
 
-	it('lets a rejection through untouched — a lost bridge is not a command failing', async () => {
+	it('lets a rejection through untouched - a lost bridge is not a command failing', async () => {
 		const lost = new Error('the webview lost the bridge');
 		const commands = namingFailures({ graphs: () => Promise.reject(lost) });
 		await expect(unwrap(commands.graphs())).rejects.toBe(lost);

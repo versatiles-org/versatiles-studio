@@ -6,21 +6,21 @@
 	// The launcher's contents (Q13, [Q48]). A **launcher, not a wizard**: everything on it is also
 	// reachable from inside the workbench, and nothing here gates anything.
 	//
-	// **Two columns: the ways in, and the ways back.** They serve different people — the doors are
-	// for a first run, the recent list is for every run after it — and stacking them made the second
+	// **Two columns: the ways in, and the ways back.** They serve different people - the doors are
+	// for a first run, the recent list is for every run after it - and stacking them made the second
 	// wait behind the first. On an 880×580 window the list is a list rather than a preview of one,
 	// and it scrolls without moving anything else.
 	//
-	// **Four doors, by where the thing is** — a local file, a remote one, a project folder, and
+	// **Four doors, by where the thing is** - a local file, a remote one, a project folder, and
 	// nothing at all. It was seven: one card per import kind, plus a project card, plus a URL form.
 	// Those five differed only in which extensions the file dialog would show, which is not a
-	// decision anyone arrives wanting to make — `importKindFor` reads the kind off the extension
+	// decision anyone arrives wanting to make - `importKindFor` reads the kind off the extension
 	// anyway. What is left differ in mechanism: a file dialog, a text field, a directory dialog, and
 	// a window with nothing in it. The last is under a rule because it is the only one that opens
 	// nothing, and it is last because it is the rarest way to start.
 	//
 	// **The catalogue did not go away, it changed job.** It still decides which extensions the
-	// dialog offers, and it names them under the first door — so a build without GDAL neither
+	// dialog offers, and it names them under the first door - so a build without GDAL neither
 	// offers a GeoTIFF nor claims to. Choosing a kind up front is still a real decision *inside* the
 	// workbench, where it becomes a `from_*` node; that is `ImportCards`, and it stayed there.
 	//
@@ -37,7 +37,7 @@
 		onForget,
 		onOpenRepository
 	}: {
-		/** Every way in this build has — named under the first door, and the dialog's filters. */
+		/** Every way in this build has - named under the first door, and the dialog's filters. */
 		kinds: ImportKind[];
 		recents: RecentEntry[];
 		/** What the footer says, from the core rather than from `package.json` (S0.5). */
@@ -59,7 +59,7 @@
 
 	async function askForUrl() {
 		asking = true;
-		// After the field exists — it is what the press was for, and a door that opens without
+		// After the field exists - it is what the press was for, and a door that opens without
 		// putting the caret in it asks for a second click to do nothing with.
 		await tick();
 		field?.focus();
@@ -113,7 +113,7 @@
 
 				<button type="button" class="door" aria-expanded={asking} onclick={() => void askForUrl()}>
 					<strong>Open a remote file</strong>
-					<span>HTTPS or SFTP — a planet file opens from its index</span>
+					<span>HTTPS or SFTP - a planet file opens from its index</span>
 				</button>
 
 				<!-- Under the door it belongs to rather than under all of them, so what it is for is
@@ -164,7 +164,7 @@
 			{:else}
 				<!-- The empty half of the window is where a first-timer is already looking, so it says
 				     what the column is for rather than leaving them to work it out from a heading. -->
-				<p class="nothing">Nothing yet — what you open will be listed here.</p>
+				<p class="nothing">Nothing yet - what you open will be listed here.</p>
 			{/if}
 		</section>
 	</div>
@@ -209,7 +209,7 @@
 	}
 
 	/* Half each. The doors were given only what they needed at first, which left the window looking
-	   like a narrow panel with a large empty area beside it — the two halves are equally the point,
+	   like a narrow panel with a large empty area beside it - the two halves are equally the point,
 	   so they are equally wide. Stacked on a narrow window rather than squeezed into two columns too
 	   thin for either. */
 	.columns {
@@ -341,7 +341,7 @@
 	}
 
 	/* No gap between the two: what separates the hint from the door is the door's own padding, which
-	   is less than the space to the next one — which is what makes it read as part of this one. */
+	   is less than the space to the next one - which is what makes it read as part of this one. */
 	.local {
 		display: flex;
 		flex-direction: column;

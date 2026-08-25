@@ -35,7 +35,7 @@ pub struct Columns {
 /// Names that mean longitude, most specific first. Matched case-insensitively and whole.
 ///
 /// **Not `x` and `y`.** They are longitude and latitude often enough to be tempting and something
-/// else — projected metres, a grid index, a plain unrelated column — often enough that guessing
+/// else - projected metres, a grid index, a plain unrelated column - often enough that guessing
 /// would sometimes silently produce a map of somewhere that does not exist. A guess here fills in a
 /// required field, so a wrong one is worse than none: it turns "Studio is asking me something" into
 /// "Studio is wrong and I have to work out why".
@@ -49,7 +49,7 @@ const LAT_NAMES: [&str; 5] = ["latitude", "lat", "lat_deg", "y_wgs84", "lattitud
 /// **The reading and the sniffing are upstream's** ([vt#237], [vt#238]). Studio used to do both,
 /// counting separators outside quotes rather than parsing them, because a wrong candidate panicked
 /// inside `read_csv_iter` instead of failing. Both are fixed, and `read_csv_header` uses the same
-/// parser `from_csv` will — which is the property that matters here, since a column this offers and
+/// parser `from_csv` will - which is the property that matters here, since a column this offers and
 /// a column that operation finds have to be the same column. What stays is the part that is Studio's
 /// own: guessing which of them hold the coordinates.
 ///
@@ -76,7 +76,7 @@ fn guess(names: &[String], candidates: &[&str]) -> Option<String> {
 		names
 			.iter()
 			// Trimmed for the comparison and **not** for the answer. `a, lon` has a column called
-			// ` lon`, and that is the name `from_csv` will look up — offering `lon` instead would
+			// ` lon`, and that is the name `from_csv` will look up - offering `lon` instead would
 			// name a column the operation cannot find. Matching has to be forgiving about the space
 			// so the guess still works; reporting must not be.
 			.find(|name| name.trim().to_lowercase() == *candidate)
@@ -156,7 +156,7 @@ mod tests {
 	}
 
 	/// **Matching is forgiving about space; reporting is not.** `a, lon` has a column called ` lon`,
-	/// and that is the name `from_csv` will look it up by — so the guess has to find it through the
+	/// and that is the name `from_csv` will look it up by - so the guess has to find it through the
 	/// space while still answering with the name the operation needs. Studio's own reader used to
 	/// trim, which offered a name that would not have been found.
 	#[test]

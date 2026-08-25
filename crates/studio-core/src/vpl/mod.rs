@@ -1,7 +1,7 @@
 //! VPL documents, over upstream's concrete syntax tree.
 //!
 //! Studio used to carry its own VPL parser, because `versatiles_pipeline` could parse but not print,
-//! kept no positions, and dropped comments and parameter order on the way in — none of which a
+//! kept no positions, and dropped comments and parameter order on the way in - none of which a
 //! wrapper could recover. That is no longer true: **4.8.0 ships `CstFile`**, a lossless tree with
 //! spans, trivia, a serialiser and structural edits, in response to
 //! [#216](https://github.com/versatiles-org/versatiles-rs/issues/216),
@@ -10,7 +10,7 @@
 //! the differential test that kept the two honest are all gone ([Q23]).
 //!
 //! What remains is Studio's own: a flat view of the tree for the webview ([`Pipeline`]), tokens for
-//! the editor to paint, `node_at` for selection sync, and [`validate`] — none of which upstream has
+//! the editor to paint, `node_at` for selection sync, and [`validate`] - none of which upstream has
 //! any reason to carry.
 //!
 //! **The tree is the document.** [`Document::text`] renders it rather than storing it, so an edit
@@ -160,7 +160,7 @@ impl Document {
 	///
 	/// The quoting is chosen by the tree rather than the caller, which is the point: a form field
 	/// hands over the string a user typed and `CstString` works out whether it needs bare, single or
-	/// double quotes — the same rules the serialiser uses, so the two cannot disagree.
+	/// double quotes - the same rules the serialiser uses, so the two cannot disagree.
 	pub fn set_value(&mut self, span: Span, value: &str) -> Result<(), ParseError> {
 		let mut cst = self.cst.clone();
 		if !view::set_value_at(&mut cst, span, value) {
@@ -175,7 +175,7 @@ impl Document {
 
 	/// Sets a parameter on the node whose *name* occupies `span`, adding it if it is not set.
 	///
-	/// Addressed by node rather than by property, because the parameter may not exist yet — which is
+	/// Addressed by node rather than by property, because the parameter may not exist yet - which is
 	/// the whole point: the generated form offers every parameter an operation accepts, not only the
 	/// ones already written down.
 	pub fn set_property(&mut self, span: Span, key: &str, values: &[String]) -> Result<(), ParseError> {
@@ -193,7 +193,7 @@ impl Document {
 	/// Lays the document out again, keeping every comment ([vt#249]).
 	///
 	/// **Upstream's formatter, on the tree that still has the comments.** `to_string_pretty`
-	/// formats the *semantic* pipeline, which has already forgotten them — so before 4.9.1, "format
+	/// formats the *semantic* pipeline, which has already forgotten them - so before 4.9.1, "format
 	/// this" and "keep what I wrote" were exclusive, and offering a Format command meant either
 	/// deleting someone's notes or growing a second formatter that would disagree with the first.
 	///
@@ -235,7 +235,7 @@ impl Document {
 	/// in that chain rather than the outer one.
 	///
 	/// A read operation inserted mid-chain parses and then fails validation, which is the right
-	/// place for it to fail — C4 already marks it, and refusing here would be a second copy of a
+	/// place for it to fail - C4 already marks it, and refusing here would be a second copy of a
 	/// rule `validate` owns.
 	pub fn insert_after(&mut self, span: Span, operation: &str) -> Result<(), ParseError> {
 		let at = self
@@ -253,7 +253,7 @@ impl Document {
 	///
 	/// **A comment between two nodes goes with the later one.** In a multi-line pipeline a comment
 	/// sits above the node it describes, so removing a node takes the text from the end of its
-	/// predecessor — comment included. Removing the *first* node instead takes up to the start of
+	/// predecessor - comment included. Removing the *first* node instead takes up to the start of
 	/// its successor, which is the one case where that rule cannot hold; there is no predecessor for
 	/// the comment to stay with.
 	///
@@ -290,7 +290,7 @@ impl Document {
 	}
 
 	/// The tree the pipeline runner wants. Parameter order and comments are dropped here, which is
-	/// correct — the runner has no use for either.
+	/// correct - the runner has no use for either.
 	#[must_use]
 	pub fn to_pipeline(&self) -> VPLPipeline {
 		self.cst.lower()
@@ -303,13 +303,13 @@ impl std::fmt::Display for Document {
 	}
 }
 
-/// The VPL that reads `source` with `operation` — the node an opened file corresponds to.
+/// The VPL that reads `source` with `operation` - the node an opened file corresponds to.
 ///
 /// Under [Q22](../../../docs/decisions.md) an opened file *is* a read node at the head of the
 /// pipeline; there is no separate list of sources. The quoting comes from the tree, so a path with
 /// spaces or apostrophes is written correctly without the caller thinking about it.
 ///
-/// Which operation to pass is [`import::kind_for`](crate::import::kind_for)'s answer — a container
+/// Which operation to pass is [`import::kind_for`](crate::import::kind_for)'s answer - a container
 /// becomes `from_container`, a GeoJSON `from_geo`, a CSV `from_csv` (S3.2).
 #[must_use]
 pub fn read_node(operation: &str, source: &str) -> String {

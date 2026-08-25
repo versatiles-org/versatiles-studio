@@ -9,7 +9,7 @@
  *
  * With the queue here, both halves are exact. `running` are tiles the server has and is rendering;
  * `queued` are tiles nobody has started. That holds only while [`LIMIT`] stays at or below the
- * browser's own cap — above it, our "running" would include tiles still waiting for a socket, and
+ * browser's own cap - above it, our "running" would include tiles still waiting for a socket, and
  * the number would quietly start lying.
  *
  * Plain logic rather than anything MapLibre-shaped, so the ordering and the counting can be tested
@@ -20,7 +20,7 @@
  * How many tiles may be in flight at once.
  *
  * Browsers allow six connections per origin over HTTP/1.1, which is what the embedded server speaks
- * — it is loopback and unencrypted, so there is no HTTP/2 to multiplex over. Six is therefore not a
+ * - it is loopback and unencrypted, so there is no HTTP/2 to multiplex over. Six is therefore not a
  * throttle: it is the number that makes "in flight" mean "actually being served" rather than
  * "somewhere between here and a socket".
  */
@@ -50,7 +50,7 @@ export interface TileCoord {
  * The `z/x/y` a resolved tile URL ends in, or `null` when it does not end in one.
  *
  * MapLibre substitutes the placeholders before handing the URL over, so the coordinates are there
- * to be read — which is what lets the queue's state be drawn on the map rather than only counted.
+ * to be read - which is what lets the queue's state be drawn on the map rather than only counted.
  * Anchored at the end and tolerant of an extension and a query, because the server's URLs carry a
  * cache-defeating revision.
  */
@@ -117,7 +117,7 @@ export class TileQueue {
 		return new Promise<void>((resolve, reject) => {
 			// **First in, first out.** A map aborts the tiles that leave the viewport, so the queue
 			// empties of stale work on its own and does not need a policy for preferring new
-			// requests over old ones — which would starve the edge of a viewport being panned along.
+			// requests over old ones - which would starve the edge of a viewport being panned along.
 			const waiter: Waiter = {
 				resolve,
 				reject,

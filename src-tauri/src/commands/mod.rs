@@ -1,6 +1,6 @@
-//! Control plane — `#[tauri::command]` bindings over `studio-core`.
+//! Control plane - `#[tauri::command]` bindings over `studio-core`.
 //!
-//! These stay thin: no application logic, only translation. Tile bytes never travel here — they go
+//! These stay thin: no application logic, only translation. Tile bytes never travel here - they go
 //! over the embedded server's HTTP, because Tauri serialises command returns as JSON and its own
 //! docs warn that is slow for large payloads (Q3).
 
@@ -38,8 +38,8 @@ pub async fn server_base_url(state: State<'_, AppState>) -> Result<String, Strin
 
 /// Redraws the menu for this window (S7.8).
 ///
-/// **Called when what the menu should offer changes** — the first graph appearing, the last one
-/// going — because a menu is not reactive and the moment Save becomes possible is not a moment the
+/// **Called when what the menu should offer changes** - the first graph appearing, the last one
+/// going - because a menu is not reactive and the moment Save becomes possible is not a moment the
 /// shell can see. What it *reads* is the core: this says "look again", not "here is the answer".
 #[tauri::command]
 #[specta::specta]
@@ -57,7 +57,7 @@ pub async fn refresh_menu(app: AppHandle, window: tauri::Window, state: State<'_
 /// application with no windows for as long as a webview takes to boot.
 ///
 /// **Queued before the window is built**, because a webview starts asynchronously and drains its
-/// queue when it is ready — pushing afterwards would be racing the thing being handed to.
+/// queue when it is ready - pushing afterwards would be racing the thing being handed to.
 ///
 /// The path is not inspected here. A file, a directory holding a project, or a URL are all the same
 /// to this: the window that receives it decides what it is, using the same code that already
@@ -82,7 +82,7 @@ pub fn open_in_new_window(app: AppHandle, window: tauri::Window, source: String)
 /// Opens a project window with nothing in it, and closes the one that asked.
 ///
 /// **The fourth way in, and the only one that opens nothing** (S7.5). The other three hand a path
-/// to the new window; this hands it no work, and the window it makes is the same window they make —
+/// to the new window; this hands it no work, and the window it makes is the same window they make -
 /// an empty workbench, where the Sources pane's own "new graph" is the next step.
 ///
 /// Closing last, for the reason [`open_in_new_window`] gives: a launcher that opened a window and
@@ -101,7 +101,7 @@ pub fn open_launcher(app: AppHandle) -> Result<(), String> {
 	crate::windows::open_launcher(&app).map_err(|error| format!("{error:#}"))
 }
 
-/// Opens another window. One window per project ([Q16]) — this is what ⌘N does.
+/// Opens another window. One window per project ([Q16]) - this is what ⌘N does.
 ///
 /// Each window gets its own webview process, so a crash takes one project down rather than all of
 /// them. The label must be unique; the caller owns that.

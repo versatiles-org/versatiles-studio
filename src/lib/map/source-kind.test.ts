@@ -46,7 +46,7 @@ describe('sourceKind', () => {
 			expect(sourceKind('mvt', null, ['places']).kind).toBe('vectorOther');
 		});
 
-		// One marker is not enough — plenty of tilesets have a `water` layer without being a basemap.
+		// One marker is not enough - plenty of tilesets have a `water` layer without being a basemap.
 		it('needs more than one marker', () => {
 			expect(sourceKind('mvt', null, ['water_polygons', 'places']).kind).toBe('vectorOther');
 		});
@@ -56,7 +56,7 @@ describe('sourceKind', () => {
 		});
 
 		// Reading a photograph as a DEM shows hillshade of noise; reading a DEM as a photograph shows
-		// its encoded colours — wrong, but recognisably a picture, next to the picker that fixes it.
+		// its encoded colours - wrong, but recognisably a picture, next to the picker that fixes it.
 		it('guesses imagery rather than elevation', () => {
 			expect(sourceKind('png', null, []).kind).toBe('rasterImage');
 		});

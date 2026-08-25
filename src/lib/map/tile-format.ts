@@ -3,7 +3,7 @@
  *
  * `TileFormat` upstream is `avif | bin | geojson | jpg | json | mvt | png | svg | topojson | webp`,
  * and only some of those are things a map can draw. Studio used to treat "not `mvt`" as "raster",
- * which put a raster layer over `bin`, `json`, `geojson`, `topojson` and `svg` alike — MapLibre then
+ * which put a raster layer over `bin`, `json`, `geojson`, `topojson` and `svg` alike - MapLibre then
  * fetched every tile and failed to decode it, one `createImageBitmap` error per tile, with a blank
  * map and nothing to say why.
  *

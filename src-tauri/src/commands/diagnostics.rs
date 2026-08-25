@@ -4,7 +4,7 @@
 //! `studio_core::diagnostics`, and this is where they meet a `#[tauri::command]`.
 //!
 //! **Fetched when the panel is opened, never streamed.** The same rule as the job log, for the same
-//! reason — a container of `bin` tiles reports one failure per tile, and pushing each of those to
+//! reason - a container of `bin` tiles reports one failure per tile, and pushing each of those to
 //! the webview would cost a thousand messages to draw a number nobody is looking at.
 
 use crate::state::AppState;
@@ -20,13 +20,13 @@ pub async fn diagnostics(state: State<'_, AppState>) -> Result<Vec<Problem>, Str
 	Ok(state.diagnostics.list())
 }
 
-/// What the run before this one left behind — the half a crash does not get to erase.
+/// What the run before this one left behind - the half a crash does not get to erase.
 ///
 /// **Read from the file, not from memory**, because there is no memory left: the session this
 /// describes is the one that was killed, ran out of memory, or aborted on a panic. Read on demand
 /// rather than at startup, since most launches follow an ordinary one and nobody opens the tab.
 ///
-/// Empty is the ordinary answer — a first launch, or a log directory that could not be written.
+/// Empty is the ordinary answer - a first launch, or a log directory that could not be written.
 #[tauri::command]
 #[specta::specta]
 pub async fn previous_problems(state: State<'_, AppState>) -> Result<Vec<Problem>, String> {
@@ -44,7 +44,7 @@ pub async fn log_diagnostic(state: State<'_, AppState>, report: NewProblem) -> R
 	Ok(state.diagnostics.record(report))
 }
 
-/// Forgets them all — for reproducing a problem cleanly before copying the report.
+/// Forgets them all - for reproducing a problem cleanly before copying the report.
 #[tauri::command]
 #[specta::specta]
 pub async fn clear_diagnostics(state: State<'_, AppState>) -> Result<(), String> {
@@ -55,8 +55,8 @@ pub async fn clear_diagnostics(state: State<'_, AppState>) -> Result<(), String>
 /// Writes a problem report where the user asked for it.
 ///
 /// **The webview composes the text**, for the same reason `export_style` takes its contents: what a
-/// report says is a presentation decision, and the half of it that only the window can answer —
-/// the engine, the GPU — never crosses into the core at all.
+/// report says is a presentation decision, and the half of it that only the window can answer -
+/// the engine, the GPU - never crosses into the core at all.
 ///
 /// The path came from a native save dialog, which is the whole of the trust story.
 #[tauri::command]
@@ -75,7 +75,7 @@ pub async fn save_report(path: String, text: String) -> Result<(), String> {
 pub fn reveal_log(app: &AppHandle) -> Result<()> {
 	let path = studio_core::diagnostics::log_path(&app.state::<AppState>().log_dir);
 	// A log directory that could not be written leaves nothing to show, and the failure to write it
-	// was already recorded at startup — so this says the plain thing rather than repeating that one.
+	// was already recorded at startup - so this says the plain thing rather than repeating that one.
 	if !path.exists() {
 		anyhow::bail!("there is no log file at {}", path.display());
 	}
@@ -84,7 +84,7 @@ pub fn reveal_log(app: &AppHandle) -> Result<()> {
 		.with_context(|| format!("revealing {}", path.display()))
 }
 
-/// The same, for the panel's footer — the path is written there, and a path you can open is better.
+/// The same, for the panel's footer - the path is written there, and a path you can open is better.
 #[tauri::command]
 #[specta::specta]
 pub async fn show_log(app: AppHandle) -> Result<(), String> {
@@ -95,13 +95,13 @@ pub async fn show_log(app: AppHandle) -> Result<(), String> {
 ///
 /// **Half of it can only be answered here.** The webview knows its own engine and its GPU; the
 /// build number, the platform and where home is are the process's to say. `home` is not shown
-/// anywhere — it is what the report redacts out of file paths before anybody pastes them into a
+/// anywhere - it is what the report redacts out of file paths before anybody pastes them into a
 /// public issue.
 #[derive(serde::Serialize, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Environment {
 	pub app_version: String,
-	/// `macos`, `windows`, `linux` — `std::env::consts`, so it is the target this was built for.
+	/// `macos`, `windows`, `linux` - `std::env::consts`, so it is the target this was built for.
 	pub os: String,
 	pub arch: String,
 	/// The system webview's version, or `None` where it will not say.

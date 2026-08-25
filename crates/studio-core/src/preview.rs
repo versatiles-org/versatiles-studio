@@ -1,7 +1,7 @@
 //! Running the pipeline so the map can show what it produces (S2.7, C3).
 //!
 //! This is the "instantly" half of M4. The map has been showing opened containers directly; from
-//! here it shows the *output of a node*, which is what makes an edit visible — tighten a filter and
+//! here it shows the *output of a node*, which is what makes an edit visible - tighten a filter and
 //! the tiles change, rather than a number changing in a form.
 //!
 //! Previewing a node means running the pipeline **up to and including it**. A node further down the
@@ -14,14 +14,14 @@ use std::sync::Arc;
 use versatiles_container::{SharedTileSource, TilesRuntime};
 use versatiles_pipeline::PipelineReader;
 // Re-exported so the command layer can name what `up_to` hands it without taking a dependency on
-// `versatiles_pipeline` of its own — the core is the layer that owns pipeline types.
+// `versatiles_pipeline` of its own - the core is the layer that owns pipeline types.
 pub use versatiles_pipeline::VPLPipeline;
 
 /// The pipeline truncated at `path`, or `None` if the path names nothing.
 ///
 /// Nesting recurses: previewing a node inside a `[ … ]` block means previewing that block's chain,
 /// truncated at the node, rather than the outer pipeline that consumes it. The path is the one
-/// [`Pipeline::node_at`](crate::vpl::Pipeline::node_at) produces — a node index, then pairs of
+/// [`Pipeline::node_at`](crate::vpl::Pipeline::node_at) produces - a node index, then pairs of
 /// source and node index.
 #[must_use]
 pub fn up_to(pipeline: VPLPipeline, path: &[usize]) -> Option<VPLPipeline> {
@@ -42,7 +42,7 @@ pub fn up_to(pipeline: VPLPipeline, path: &[usize]) -> Option<VPLPipeline> {
 
 /// Builds a pipeline into something the embedded server can mount.
 ///
-/// `dir` is what relative paths in the VPL resolve against — the project directory once
+/// `dir` is what relative paths in the VPL resolve against - the project directory once
 /// [Q6](../../docs/decisions.md) has one; until then, wherever Studio was started.
 pub async fn build(runtime: &TilesRuntime, pipeline: VPLPipeline, dir: &Path) -> Result<SharedTileSource> {
 	let reader = PipelineReader::from_pipeline(pipeline, "preview", dir, runtime.clone())
@@ -74,7 +74,7 @@ mod tests {
 		assert_eq!(truncate(vpl, &[2]).unwrap(), vpl);
 	}
 
-	/// Previewing a node inside a source block runs *that* chain, not the pipeline consuming it —
+	/// Previewing a node inside a source block runs *that* chain, not the pipeline consuming it -
 	/// which is the whole reason to select one.
 	#[test]
 	fn a_nested_node_previews_its_own_chain() {
@@ -99,7 +99,7 @@ mod tests {
 	/// C9 end to end: a pipeline someone wrote by hand, opened from disk.
 	///
 	/// `berlin.vpl` names `berlin.mbtiles` and `cities.csv` **relative to itself**, so this also
-	/// checks that the directory passed to `build` is the one that makes those resolve — the reason
+	/// checks that the directory passed to `build` is the one that makes those resolve - the reason
 	/// opening a `.vpl` moves `project_dir` rather than using the working directory.
 	#[tokio::test]
 	async fn a_pipeline_file_builds_with_paths_relative_to_itself() -> Result<()> {

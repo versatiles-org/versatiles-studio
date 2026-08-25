@@ -1,7 +1,7 @@
 //! VPL parsing and structured edits (S2.2, ahead of the editor at S2.3).
 //!
 //! The webview never assembles VPL itself. It sends the string a user typed into a field and gets
-//! back a whole document with the quoting already decided — because working out whether a value
+//! back a whole document with the quoting already decided - because working out whether a value
 //! needs bare, single or double quotes is the parser's business, and duplicating those rules in
 //! TypeScript is how the two drift apart.
 
@@ -119,7 +119,7 @@ pub async fn graph(
 /// Creates a graph from VPL text, and returns it.
 ///
 /// Takes the **source** rather than a name, so the one rule that turns a file into a graph name
-/// lives here and not in each caller ([Q35]) — a webview that passed a whole path would have named
+/// lives here and not in each caller ([Q35]) - a webview that passed a whole path would have named
 /// a graph `users-me-data-berlin-mbtiles`. Two `places.geojson` files in different folders both want
 /// to be `places`, and the second becoming `places-2` beats a refusal or a silent overwrite.
 ///
@@ -178,7 +178,7 @@ pub async fn remove_graph(window: tauri::Window, state: State<'_, AppState>, id:
 /// Renames a graph, and reports the name it actually took.
 ///
 /// The name is the mount, the source name in `style.json` and the `.vpl` filename at once ([Q32]),
-/// so this remounts under the new name — and since [S6.4](../../../docs/scope-release-2.md) the
+/// so this remounts under the new name - and since [S6.4](../../../docs/scope-release-2.md) the
 /// recipe files each source's style under that name too, so the style moves with it.
 ///
 /// **Without this a rename silently resets the style.** The entry would stay under the old name,
@@ -194,7 +194,7 @@ pub async fn rename_graph(
 	name: String,
 ) -> Result<String, String> {
 	let held = state.project(&window).await;
-	// Graphs and style under one lock — they are one project now, which is also what retires the
+	// Graphs and style under one lock - they are one project now, which is also what retires the
 	// note that used to be here about taking two locks in a fixed order to avoid a deadlock.
 	let (stale, renamed) = {
 		let mut project = held.lock().await;
@@ -259,7 +259,7 @@ pub async fn set_graph(
 /// Lays a graph's VPL out again, keeping its comments ([vt#249], S1.11).
 ///
 /// **Recorded as an edit, not a rewrite.** It goes on the undo stack like anything else, and the
-/// file behind it is kept — reformatting a `.vpl` is a change to it, not a replacement of it, so
+/// file behind it is kept - reformatting a `.vpl` is a change to it, not a replacement of it, so
 /// Save still writes where it came from.
 ///
 /// [vt#249]: https://github.com/versatiles-org/versatiles-rs/issues/249
@@ -292,7 +292,7 @@ pub async fn format_graph(
 /// Steps back, or forward again. `None` when there is nowhere to go.
 ///
 /// **One stack across every graph** ([Q32], G6), so this may hand back a graph other than the one
-/// being edited — which is why it returns the whole document rather than just its text.
+/// being edited - which is why it returns the whole document rather than just its text.
 #[tauri::command]
 #[specta::specta]
 pub async fn undo(window: tauri::Window, state: State<'_, AppState>) -> Result<Option<Restored>, VplError> {
@@ -332,7 +332,7 @@ async fn step(window: &tauri::Window, state: State<'_, AppState>, back: bool) ->
 
 	match step.target {
 		Target::Graph(id) => {
-			// Every state on the stack parsed when it was recorded, so this cannot fail — but it is
+			// Every state on the stack parsed when it was recorded, so this cannot fail - but it is
 			// parsed rather than assumed, because a panic here would take the window with it.
 			let document = Document::parse(step.text)?;
 			let Some(graph) = project.graphs.get_mut(id) else {
@@ -344,7 +344,7 @@ async fn step(window: &tauri::Window, state: State<'_, AppState>, back: bool) ->
 			Ok(Some(Restored::Graph(DocumentView::of(graph, &project.history))))
 		}
 		Target::Style => {
-			// Same reasoning: it serialised from a `Recipe`, so it reads back as one — and a
+			// Same reasoning: it serialised from a `Recipe`, so it reads back as one - and a
 			// corrupt entry loses the step rather than the window.
 			let Ok(recipe) = Recipe::parse(&step.text) else {
 				return Ok(None);
@@ -357,7 +357,7 @@ async fn step(window: &tauri::Window, state: State<'_, AppState>, back: bool) ->
 
 /// What the editor needs on every keystroke: how to paint the text, and what is wrong with it.
 ///
-/// One command rather than two, because they are answers to the same parse — asking separately
+/// One command rather than two, because they are answers to the same parse - asking separately
 /// would parse the same text twice and let the highlighting and the diagnostics disagree about
 /// which version they describe.
 #[derive(serde::Serialize)]
@@ -365,7 +365,7 @@ async fn step(window: &tauri::Window, state: State<'_, AppState>, back: bool) ->
 #[derive(specta::Type)]
 pub struct Review {
 	pub tokens: Vec<Token>,
-	/// Empty when the pipeline is sound. Parse failures come back as an `Err` instead — a document
+	/// Empty when the pipeline is sound. Parse failures come back as an `Err` instead - a document
 	/// that does not parse has no tree to validate.
 	pub diagnostics: Vec<Diagnostic>,
 }
@@ -395,7 +395,7 @@ pub fn vpl_set_value(text: String, span: Span, value: String) -> Result<String, 
 /// Sets a parameter on the node whose *name* occupies `span`, adding it if it is not set.
 ///
 /// Takes the node rather than the property, because the generated form offers every parameter an
-/// operation accepts — including the ones the node has no span for yet.
+/// operation accepts - including the ones the node has no span for yet.
 #[tauri::command]
 #[specta::specta]
 pub fn vpl_set_property(text: String, span: Span, key: String, values: Vec<String>) -> Result<String, VplError> {
@@ -419,7 +419,7 @@ pub fn vpl_insert_node(text: String, span: Span, operation: String) -> Result<St
 
 /// Removes the node whose name occupies `span`, and the separator that joined it to the chain.
 ///
-/// Refused when it would empty the pipeline — see `Document::remove_node` for why that is a message
+/// Refused when it would empty the pipeline - see `Document::remove_node` for why that is a message
 /// rather than a parse failure.
 #[tauri::command]
 #[specta::specta]
@@ -457,7 +457,7 @@ pub struct Preview {
 	///
 	/// Carried here for the same reason as `layers`, and it is the same kind of answer: what fits
 	/// depends on what this build produces, so asking separately would race the next edit and offer
-	/// operations chosen for a pipeline that no longer exists. It also costs nothing extra — the
+	/// operations chosen for a pipeline that no longer exists. It also costs nothing extra - the
 	/// source is already built and every check is a comparison against its declared tile type.
 	pub fits: Vec<studio_core::analysis::Fit>,
 }
@@ -470,7 +470,7 @@ pub struct Preview {
 #[serde(tag = "kind", rename_all = "camelCase")]
 #[derive(specta::Type)]
 pub enum PreviewOutcome {
-	// Boxed only to keep the variants a similar size — `Preview` carries a whole `ContainerInfo`,
+	// Boxed only to keep the variants a similar size - `Preview` carries a whole `ContainerInfo`,
 	// and the other two carry nothing. Transparent on the wire and in the generated types.
 	Ready(Box<Preview>),
 	/// The path names no node, or there is no pipeline yet.
@@ -479,12 +479,12 @@ pub enum PreviewOutcome {
 	Superseded,
 }
 
-/// Runs the pipeline up to `path` and mounts the result — as a cancellable job (S2.7, S3.1).
+/// Runs the pipeline up to `path` and mounts the result - as a cancellable job (S2.7, S3.1).
 ///
 /// Building opens the inputs, which on a large source is not instant, so this runs in the runner's
 /// [`Lane::Latest`]: **editing the pipeline again stops the build that is now out of date**, rather
 /// than leaving it to finish an answer nobody will look at. That is also why the caller no longer
-/// needs a token to discard stale replies — being superseded is something the runner knows, so it
+/// needs a token to discard stale replies - being superseded is something the runner knows, so it
 /// is something this can report.
 #[tauri::command]
 #[specta::specta]
@@ -506,7 +506,7 @@ pub async fn preview_pipeline(
 		};
 		(document, project.mount("preview"), project.dir.clone())
 	};
-	// An empty path means the whole pipeline — what the map shows when nothing is selected.
+	// An empty path means the whole pipeline - what the map shows when nothing is selected.
 	let full = document.to_pipeline();
 	let wanted = if path.is_empty() {
 		Some(full)
@@ -560,11 +560,11 @@ async fn build_preview(
 /// **`mount` and `name` are different things** ([S7.2](../../../docs/scope-release-3.md)). `mount`
 /// is where the tiles are served from, and carries the window's prefix so two projects with a graph
 /// of the same name do not serve each other's tiles. `name` is what the webview calls this source in
-/// the style it composes — the graph's own name, which a prefix would leak into every `style.json`
+/// the style it composes - the graph's own name, which a prefix would leak into every `style.json`
 /// Studio exports.
 ///
 /// **The directory comes in rather than being looked up.** The job outlives the command, and by the
-/// time it runs the window that asked may have opened a project somewhere else — so what a relative
+/// time it runs the window that asked may have opened a project somewhere else - so what a relative
 /// `filename` means is captured with the pipeline it belongs to, not read again later (S7.1).
 async fn build_into(
 	app: &AppHandle,
@@ -604,7 +604,7 @@ async fn build_into(
 /// means "edit VPL Studio wrote" and the two tools cannot hand work to each other.
 ///
 /// **Relative paths in the file resolve against the file**, the way `versatiles convert` resolves
-/// them — `from_container filename="berlin.mbtiles"` beside the `.vpl` means exactly that — so
+/// them - `from_container filename="berlin.mbtiles"` beside the `.vpl` means exactly that - so
 /// opening one moves `project_dir`.
 #[tauri::command]
 #[specta::specta]
@@ -621,7 +621,7 @@ pub async fn open_vpl(
 	let document = Document::parse(text)?;
 
 	let file = std::path::PathBuf::from(&path);
-	// The graph is named after the file it came from — which is also what it will be saved back as,
+	// The graph is named after the file it came from - which is also what it will be saved back as,
 	// and what the style will reference ([Q32]). Same rule as every other way in ([Q35]).
 	let stem = studio_core::graphs::name_for_source(&path);
 	let saved = (file, document.text().to_string());
@@ -653,7 +653,7 @@ pub async fn open_vpl(
 /// Writes the pipeline to a `.vpl` file and remembers it as the file this window is editing.
 ///
 /// The narrower half of saving: this writes the pipeline as the file the CLI already reads. Saving a
-/// *project* — the manifest, the style and the pipeline as a directory — is G1 at S5.1, and stays a
+/// *project* - the manifest, the style and the pipeline as a directory - is G1 at S5.1, and stays a
 /// separate command because it has a different scope.
 #[tauri::command]
 #[specta::specta]
@@ -672,7 +672,7 @@ pub async fn save_vpl(
 	};
 
 	// **The destination is checked, not trusted.** The `.vpl` filter lives in the file dialog, which
-	// is on the webview's side of the boundary — so it shapes what a person is offered and decides
+	// is on the webview's side of the boundary - so it shapes what a person is offered and decides
 	// nothing. `export_graph` refuses a target it cannot write for the same reason; this is the other
 	// command that takes a path, and it was the one not doing it.
 	if !studio_core::import::is_pipeline(std::path::Path::new(&path)) {
@@ -691,7 +691,7 @@ pub async fn save_vpl(
 	})?;
 
 	// Saving to a file makes that file's directory what relative paths mean, exactly as opening one
-	// does — otherwise a pipeline saved beside its inputs would stop finding them.
+	// does - otherwise a pipeline saved beside its inputs would stop finding them.
 	let file = std::path::PathBuf::from(&path);
 	let mut project = held.lock().await;
 	if let Some(parent) = file.parent() {
@@ -755,7 +755,7 @@ pub async fn set_pin(
 
 /// Builds a graph in full and mounts it under its own name ([Q32]).
 ///
-/// Every graph is served, because that is what a style names — this is the ordinary view, and the
+/// Every graph is served, because that is what a style names - this is the ordinary view, and the
 /// pin is the exception layered on top. Mounting by name rather than under one shared `preview`
 /// mount is what lets a style reference `basemap` and `hillshade` separately.
 #[tauri::command]
@@ -797,7 +797,7 @@ pub async fn mount_graph(
 
 /// Every way this build can bring data in (S3.2).
 ///
-/// Build-time information about the binary, like [`vpl_operations`] — the catalogue is derived from
+/// Build-time information about the binary, like [`vpl_operations`] - the catalogue is derived from
 /// the operation registry, so it cannot offer something this build cannot do.
 #[tauri::command]
 #[specta::specta]
@@ -808,14 +808,14 @@ pub fn import_kinds() -> Vec<studio_core::import::ImportKind> {
 /// Which kind a path belongs to, or `None` for a file Studio has no way in for.
 ///
 /// Asked here rather than matched in the webview so that one list of extensions serves the dialog,
-/// the drop target and the cards — three places that had already started to disagree.
+/// the drop target and the cards - three places that had already started to disagree.
 #[tauri::command]
 #[specta::specta]
 pub fn import_kind_for(path: String) -> Option<studio_core::import::ImportKind> {
 	studio_core::import::kind_for(&path)
 }
 
-/// The read node a chosen file becomes — `from_geo filename='…'`, quoting included.
+/// The read node a chosen file becomes - `from_geo filename='…'`, quoting included.
 ///
 /// The quoting is the core's, for the reason [`vpl_set_value`] gives: a second implementation of
 /// VPL's quoting rules in TypeScript is exactly what would drift. So is the *filling in*: a CSV
@@ -836,7 +836,7 @@ pub fn import_read_node(kind_id: String, path: String) -> String {
 /// What every node's fields could be set to, read from what each node points at (S3.4).
 ///
 /// **The whole graph, not the selected node.** Every node in the chain carries its own form, so
-/// every node needs its own answer — one `from_csv` reading `a.csv` has nothing to say about
+/// every node needs its own answer - one `from_csv` reading `a.csv` has nothing to say about
 /// another reading `b.csv`. It used to take a path, which was correct only while a single node had
 /// a form to fill in.
 ///

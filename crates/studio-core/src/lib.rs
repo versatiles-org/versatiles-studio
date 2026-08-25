@@ -8,7 +8,7 @@
 /// Names Studio in the `User-Agent` of every request the library makes ([vt#248]).
 ///
 /// Without it, every remote container Studio opens reaches a provider's log looking like
-/// `versatiles convert` — the library identifies itself and the application it is embedded in does
+/// `versatiles convert` - the library identifies itself and the application it is embedded in does
 /// not exist. Upstream appends rather than substitutes, so `versatiles/4.9.1 …` stays first and
 /// anything that recognises VersaTiles traffic keeps working.
 ///
@@ -50,7 +50,7 @@ pub mod vpl;
 #[cfg(test)]
 mod identity_tests {
 	/// The two literals above are the whole of what can be wrong here, and upstream refuses a name
-	/// with a space in it — which is what "VersaTiles Studio" would have been.
+	/// with a space in it - which is what "VersaTiles Studio" would have been.
 	#[test]
 	fn studio_names_itself_in_the_user_agent() {
 		super::identify("0.0.0").expect("the product token should be valid");

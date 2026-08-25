@@ -2,7 +2,7 @@
  * What the map is waiting for, for the status bar (S2.16, C3).
  *
  * Studio serves its own pipeline tiles through a MapLibre protocol handler rather than letting the
- * browser fetch them directly, which is what makes the two numbers below meaningful — see
+ * browser fetch them directly, which is what makes the two numbers below meaningful - see
  * `map/tile-queue.ts` for why neither is otherwise knowable.
  *
  * **Nothing is said about a fast pipeline.** Tiles that arrive promptly are the ordinary case and
@@ -31,8 +31,8 @@ let queued = $state(0);
 /**
  * Where the pending tiles are, so the map can show *which* ones are slow rather than only how many.
  *
- * Keyed by `z/x/y` because that is what a tile is: the same coordinate asked for twice — a repaint
- * after a style change, say — is one square on the map, not two stacked on each other.
+ * Keyed by `z/x/y` because that is what a tile is: the same coordinate asked for twice - a repaint
+ * after a style change, say - is one square on the map, not two stacked on each other.
  */
 let waiting = $state<Record<string, { coord: TileCoord; state: 'queued' | 'rendering' }>>({});
 
@@ -109,7 +109,7 @@ export const tiles = {
  * Points `studio://` at the embedded server, through the queue.
  *
  * Called once. The URL is the server's own with the scheme swapped, so nothing else has to know the
- * port — `tileUrl` from the core stays the single source of it.
+ * port - `tileUrl` from the core stays the single source of it.
  */
 export function registerTileProtocol(): void {
 	addProtocol(SCHEME, fetchTile);
@@ -118,8 +118,8 @@ export function registerTileProtocol(): void {
 /**
  * What a tile request failed with, carrying the status MapLibre reads.
  *
- * **`status` is not decoration.** MapLibre branches on it twice — `if (err.status !== 404) throw` in
- * the worker source, and `if (err.status !== 404) fire(ErrorEvent)` in the tile cache — so an error
+ * **`status` is not decoration.** MapLibre branches on it twice - `if (err.status !== 404) throw` in
+ * the worker source, and `if (err.status !== 404) fire(ErrorEvent)` in the tile cache - so an error
  * without one is a missing tile reported as a broken map. Its own `AJAXError` carries the same
  * field; this is that shape, for a protocol handler that does its own fetching.
  */
@@ -138,18 +138,18 @@ class TileError extends Error {
  *
  * **A 404 is an answer, not a failure.** A tile set is sparse by nature: a Berlin extract has
  * nothing at `1/0/0`, and the server says so the way every tile server does. MapLibre knows this and
- * fills the gap from a parent tile — but only if the error says `404`, which is why the throw below
+ * fills the gap from a parent tile - but only if the error says `404`, which is why the throw below
  * carries a status. Without it, panning a sparse source produced one recorded problem per empty
  * tile, forty of them in a session, and the map lost its overzoom fill as well.
  *
- * Exported so the counting and the patience above can be driven from a test — this is the only way
+ * Exported so the counting and the patience above can be driven from a test - this is the only way
  * into them, and a mechanism whose whole job is to describe a wait is worth being sure about
  * without having to sit and watch a map.
  */
 export const fetchTile: AddProtocolAction = async (params, controller) => {
 	const url = params.url.replace(`${SCHEME}://`, 'http://');
 	const coord = coordFromUrl(url);
-	// A URL with no coordinates in it is still queued and still counted — it just cannot be drawn.
+	// A URL with no coordinates in it is still queued and still counted - it just cannot be drawn.
 	// Nothing routed here should lack them, and inventing a square would be worse than the gap.
 	const key = coord && `${coord.z}/${coord.x}/${coord.y}`;
 	if (key && coord) mark(key, coord, 'queued');

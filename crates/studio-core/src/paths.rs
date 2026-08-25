@@ -1,7 +1,7 @@
 //! The one place a path built from **data** is checked.
 //!
-//! **Not every path needs this.** A container someone picked in a file dialog is their own choice —
-//! they could open it in any other program — so Studio opens what it is told to. The dangerous ones
+//! **Not every path needs this.** A container someone picked in a file dialog is their own choice -
+//! they could open it in any other program - so Studio opens what it is told to. The dangerous ones
 //! are paths assembled from *data*: a name in `project.yaml`, an id arriving over IPC, an entry in a
 //! `.tar.gz`. Those were written by whoever produced the data, and "whoever produced the data" is not
 //! always the person sitting in front of the application.
@@ -28,7 +28,7 @@ pub fn segment(name: &str) -> Result<()> {
 	ensure!(!name.is_empty(), "an empty name cannot be a filename");
 	ensure!(
 		!name.contains(['/', '\\', ':', '\0']),
-		"{name:?} cannot be a filename — it contains a path separator"
+		"{name:?} cannot be a filename - it contains a path separator"
 	);
 	ensure!(name != "." && name != "..", "{name:?} cannot be a filename");
 	Ok(())
@@ -41,7 +41,7 @@ pub fn segment(name: &str) -> Result<()> {
 /// starts with `dir` as text, and a legitimate sibling directory named `<dir>-backup` starts with
 /// `<dir>` too. Walking the components decides the question the check is actually asking.
 ///
-/// No `canonicalize`: the target usually does not exist yet — it is about to be written — and a
+/// No `canonicalize`: the target usually does not exist yet - it is about to be written - and a
 /// check that only works on existing files is a check that is absent exactly when it is needed. This
 /// therefore does not resolve symlinks; it stops a path from *naming* somewhere outside `dir`, which
 /// is the part an attacker controls when the string comes from data.

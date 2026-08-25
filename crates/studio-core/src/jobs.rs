@@ -1,4 +1,4 @@
-//! Job runner — long operations with progress, cancellation and a log (E7, S3.1).
+//! Job runner - long operations with progress, cancellation and a log (E7, S3.1).
 //!
 //! Conversions run for minutes to hours, so this exists before any export feature, not after. The
 //! status bar ([Q24]) is its face: what is running, how far along, and a log to expand when it
@@ -6,7 +6,7 @@
 //!
 //! The core knows nothing about Tauri Channels. It emits [`JobEvent`]s through a plain callback;
 //! `src-tauri` adapts that to a Channel at the boundary ([Q3]). That is what keeps the job runner
-//! testable with no Tauri runtime — and what would let a CLI or a test drive the same code.
+//! testable with no Tauri runtime - and what would let a CLI or a test drive the same code.
 //!
 //! **Two lanes, because "the queue" is two different questions.** A conversion and a preview want
 //! opposite things from a runner: the conversion wants to be left alone until it finishes, the
@@ -14,13 +14,13 @@
 //! make a preview wait behind a forty-minute export, which is the opposite of M4. See [`Lane`].
 //!
 //! **One runner, a list per project** ([S7.3](../../../docs/scope-release-3.md), [Q48]). Every job
-//! carries the scope that submitted it — a window — and three things follow from it: a window is
+//! carries the scope that submitted it - a window - and three things follow from it: a window is
 //! shown its own project's work and not the machine's, [`Lane::Latest`] supersedes only within a
 //! scope, and history is pruned per scope so a busy project cannot age out a quiet one's.
 //!
 //! **[`Lane::Queued`] deliberately does not follow.** Its argument is about the machine: conversions
 //! compete for the same disk and the same cores, so two at once finish later than the same two in
-//! sequence — and that is as true across two projects as within one. It serialises application-wide.
+//! sequence - and that is as true across two projects as within one. It serialises application-wide.
 //!
 //! [Q48]: ../../../docs/decisions.md
 //!
@@ -45,7 +45,7 @@ pub type JobId = u32;
 
 /// How many finished jobs are kept for the log panel to show.
 ///
-/// The list is history, not a record — a session that converts a hundred files does not need the
+/// The list is history, not a record - a session that converts a hundred files does not need the
 /// first one's progress messages, and an unbounded `Vec` in a process that runs for days is a leak
 /// with a nicer name.
 const HISTORY: usize = 50;
@@ -66,7 +66,7 @@ pub enum Lane {
 	/// Conversions compete for the same disk and the same cores; two at once finish later than the
 	/// same two in sequence, and report progress that means nothing while they do it.
 	Queued,
-	/// Newest wins — submitting cancels whatever this lane was already running.
+	/// Newest wins - submitting cancels whatever this lane was already running.
 	///
 	/// For work whose answer stops mattering the moment it is asked again: a preview of a pipeline
 	/// that has since been edited is not a result anybody will look at, it is a machine still
@@ -107,18 +107,18 @@ impl JobState {
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Job {
 	pub id: JobId,
-	/// What to call it in the bar — "Building preview", "Converting berlin.mbtiles".
+	/// What to call it in the bar - "Building preview", "Converting berlin.mbtiles".
 	pub label: String,
 	pub lane: Lane,
 	pub state: JobState,
-	/// `0.0..=1.0`, or `None` when the job cannot say — which is honest more often than not.
+	/// `0.0..=1.0`, or `None` when the job cannot say - which is honest more often than not.
 	#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
 	pub fraction: Option<f64>,
 	/// How many units are done and how many there are, when the job counts in units at all.
 	///
 	/// A fraction alone cannot say how *fast* anything is going: "43% per minute" is not a speed
 	/// anybody recognises. These are what make "12,400 tiles/s" possible, and the runtime already
-	/// reports them — they used to be divided into a fraction and thrown away.
+	/// reports them - they used to be divided into a fraction and thrown away.
 	#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
 	pub done: Option<u64>,
 	#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
@@ -157,7 +157,7 @@ pub enum JobEvent {
 	Added { job: Job },
 	/// It left the queue and started running.
 	Started { id: JobId },
-	/// Fractional progress in `0.0..=1.0` — or `None`, plus what is happening right now.
+	/// Fractional progress in `0.0..=1.0` - or `None`, plus what is happening right now.
 	Progress {
 		id: JobId,
 		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
@@ -169,12 +169,12 @@ pub enum JobEvent {
 		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
 		total: Option<u64>,
 		message: String,
-		/// How fast it is going and how long is left — **filled in by the runner on the way out**,
+		/// How fast it is going and how long is left - **filled in by the runner on the way out**,
 		/// the same as `log_lines` below.
 		///
 		/// The reporter cannot know either: both are derived from this update *and the ones before
 		/// it*, which only the registry has. Left off the event, they were computed on every update
-		/// and never left the core — the list a window takes when it subscribes carried them, and
+		/// and never left the core - the list a window takes when it subscribes carried them, and
 		/// nothing after that did, so a job that started while you were watching showed a bar and a
 		/// message and never a speed.
 		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
@@ -186,7 +186,7 @@ pub enum JobEvent {
 	Log {
 		id: JobId,
 		line: String,
-		/// How many lines the log holds *after* this one — filled in by the runner on the way out.
+		/// How many lines the log holds *after* this one - filled in by the runner on the way out.
 		///
 		/// Carried rather than counted by the listener, because the log is capped: a mirror that
 		/// incremented its own counter would keep climbing past [`LOG_LINES`] and claim a size the
@@ -231,7 +231,7 @@ impl CancelToken {
 /// The handle a running job uses to report back.
 ///
 /// It reports *progress*; it does not report that it ended. The runner owns the terminal
-/// transition, because a job that is aborted mid-await never gets to say anything — and a state
+/// transition, because a job that is aborted mid-await never gets to say anything - and a state
 /// machine where some endings are announced by the job and others by the runner has two places to
 /// be wrong.
 pub struct JobHandle {
@@ -242,8 +242,8 @@ pub struct JobHandle {
 /// The reporting half of a [`JobHandle`], on its own.
 ///
 /// A [`JobHandle`] is the job's, held for as long as the work runs. Some work wants to report from
-/// somewhere else — `versatiles_container`'s event bus takes a `Fn(&Event) + Send + Sync + 'static`
-/// callback, which cannot borrow the handle — so this is the part that can be cloned and handed
+/// somewhere else - `versatiles_container`'s event bus takes a `Fn(&Event) + Send + Sync + 'static`
+/// callback, which cannot borrow the handle - so this is the part that can be cloned and handed
 /// over. Cancellation deliberately stays behind: whether to stop is the job's decision, not a
 /// listener's.
 #[derive(Clone)]
@@ -274,7 +274,7 @@ impl JobHandle {
 
 	/// Whether the job has been asked to stop.
 	///
-	/// Work that spends its time inside `spawn_blocking` has to poll this — dropping a future does
+	/// Work that spends its time inside `spawn_blocking` has to poll this - dropping a future does
 	/// nothing to a thread that is busy encoding tiles.
 	#[must_use]
 	pub fn is_cancelled(&self) -> bool {
@@ -286,7 +286,7 @@ impl JobHandle {
 		self.reporter.progress(fraction, message);
 	}
 
-	/// Reports progress the job can count — what a speed and an ETA are made of.
+	/// Reports progress the job can count - what a speed and an ETA are made of.
 	pub fn counted(&self, done: u64, total: u64, message: impl Into<String>) {
 		self.reporter.counted(done, total, message);
 	}
@@ -364,7 +364,7 @@ type Work = Box<dyn FnOnce(JobHandle) -> Pin<Box<dyn Future<Output = Result<()>>
 
 struct Entry {
 	job: Job,
-	/// Whose job this is — a window label. Not on [`Job`]: it decides who is *shown* the job and
+	/// Whose job this is - a window label. Not on [`Job`]: it decides who is *shown* the job and
 	/// what it can supersede, and a listener that is only ever sent its own has no use for it.
 	scope: String,
 	log: VecDeque<String>,
@@ -372,7 +372,7 @@ struct Entry {
 	/// Present while running, so cancelling can drop the work at its next await point rather than
 	/// waiting for it to notice.
 	task: Option<tokio::task::JoinHandle<()>>,
-	/// When the job was first seen counting, and at what count — the origin every rate is measured
+	/// When the job was first seen counting, and at what count - the origin every rate is measured
 	/// from. Kept out of [`Job`] because it is bookkeeping rather than something to show, and an
 	/// `Instant` does not cross a serialisation boundary anyway.
 	anchor: Option<(Instant, u64)>,
@@ -383,7 +383,7 @@ impl Entry {
 	///
 	/// **Averaged from a fixed anchor**, not from the previous sample. A rate taken between two
 	/// consecutive updates swings with every slow tile and every fast one, and an ETA computed from
-	/// it alternates between two minutes and forty — which is less useful than saying nothing. The
+	/// it alternates between two minutes and forty - which is less useful than saying nothing. The
 	/// anchor is the *first* counted update rather than the moment of submission, so time spent
 	/// opening sources before a single tile moved is not averaged in as slow work.
 	///
@@ -430,7 +430,7 @@ impl Registry {
 	}
 }
 
-/// The runner. Cheap to clone — every clone is the same registry.
+/// The runner. Cheap to clone - every clone is the same registry.
 #[derive(Clone, Default)]
 pub struct Jobs {
 	inner: Arc<Inner>,
@@ -453,13 +453,13 @@ impl Jobs {
 		Self::default()
 	}
 
-	/// Points one scope's job events at a sink. Replaces that scope's previous one — a reload gets
+	/// Points one scope's job events at a sink. Replaces that scope's previous one - a reload gets
 	/// a new channel for the same window.
 	pub fn set_sink(&self, scope: impl Into<String>, sink: EventSink) {
 		self.inner.sinks.lock().unwrap().insert(scope.into(), sink);
 	}
 
-	/// Stops delivering to a scope — for a window that has closed.
+	/// Stops delivering to a scope - for a window that has closed.
 	///
 	/// The jobs themselves are left alone. An export outlives the window that started it by design
 	/// ([Q16]), and cancelling someone's conversion because they closed a window is not this call's
@@ -481,7 +481,7 @@ impl Jobs {
 		let scope = scope.into();
 
 		// `Latest` supersedes rather than queues, so the outgoing job is cancelled before the new
-		// one is even registered — otherwise a listener briefly sees two of them running.
+		// one is even registered - otherwise a listener briefly sees two of them running.
 		//
 		// **Within this scope only** (S7.3). Across the application it meant a keystroke in one
 		// window cancelling another window's preview build, which is the same rule applied to two
@@ -528,7 +528,7 @@ impl Jobs {
 				Some(work)
 			};
 			prune(&mut registry, &scope);
-			// Cloned out so the event goes out without the lock held — a sink that calls back in
+			// Cloned out so the event goes out without the lock held - a sink that calls back in
 			// would deadlock, and the boundary's does not, but that is not a thing to rely on.
 			let job = registry.entry(id).expect("just pushed").job.clone();
 			(id, job, start_now)
@@ -545,7 +545,7 @@ impl Jobs {
 	///
 	/// Two mechanisms, because neither covers everything: the task is aborted, which drops async
 	/// work at its next await point, and the token is set, which is the only thing a blocking
-	/// thread can see. A job doing neither — a tight CPU loop with no polling — runs to completion
+	/// thread can see. A job doing neither - a tight CPU loop with no polling - runs to completion
 	/// while reported as cancelled; that is a property of the work, not of this call.
 	pub fn cancel(&self, id: JobId) {
 		let mut registry = self.inner.registry.lock().unwrap();
@@ -642,7 +642,7 @@ impl Jobs {
 			jobs.complete(id, outcome);
 		});
 		// Between the spawn and here the job may already have been cancelled, in which case the
-		// entry is terminal and this handle is stale — abort rather than store it.
+		// entry is terminal and this handle is stale - abort rather than store it.
 		let mut registry = self.inner.registry.lock().unwrap();
 		match registry.entry(id) {
 			Some(entry) if entry.job.state.is_active() => entry.task = Some(task),
@@ -687,7 +687,7 @@ impl Jobs {
 			if registry.running_queued.is_some() {
 				return;
 			}
-			// Skip anything cancelled while it waited — `cancel` drops the work, so the id alone
+			// Skip anything cancelled while it waited - `cancel` drops the work, so the id alone
 			// could still be here in a future where the two get out of step.
 			loop {
 				let Some((id, work)) = registry.pending.pop_front() else {
@@ -738,7 +738,7 @@ impl Jobs {
 					entry.job.message.clone_from(message);
 					entry.rate_and_eta(Instant::now());
 					// Out again on the same event. The listener is not expected to keep a history of
-					// its own — and the one that tried would have to keep the runner's anchor rule
+					// its own - and the one that tried would have to keep the runner's anchor rule
 					// with it, which is the whole reason that rule lives in one place.
 					*rate = entry.job.rate;
 					*eta_seconds = entry.job.eta_seconds;
@@ -761,7 +761,7 @@ impl Jobs {
 
 	/// Sends an event to the scope whose job it is about, and to no other.
 	///
-	/// **Routed by the event's own id** rather than by a scope passed down through every caller —
+	/// **Routed by the event's own id** rather than by a scope passed down through every caller -
 	/// every event names the job it concerns, so the registry already knows the answer. A job that
 	/// has aged out has no scope and its event is dropped, which is what a listener would have done
 	/// with it anyway.
@@ -829,7 +829,7 @@ mod tests {
 	/// A flag a job sets when its body actually begins.
 	///
 	/// Necessary because [`JobState::Running`] is set *synchronously in `submit`*, before the task
-	/// has been polled even once — so waiting for `Running` and then cancelling would abort a job
+	/// has been polled even once - so waiting for `Running` and then cancelling would abort a job
 	/// that never ran, and prove nothing about cancelling one that did.
 	#[derive(Clone, Default)]
 	struct Started(Arc<AtomicBool>);
@@ -999,7 +999,7 @@ mod tests {
 
 		entry.rate_and_eta(start + Duration::from_secs(5));
 
-		assert_eq!(entry.job.rate, None, "nothing moved, so nothing can be said — not 0/s");
+		assert_eq!(entry.job.rate, None, "nothing moved, so nothing can be said - not 0/s");
 		assert_eq!(entry.job.eta_seconds, None, "and an infinite ETA is not an ETA");
 	}
 
@@ -1072,7 +1072,7 @@ mod tests {
 	/// the core.
 	///
 	/// The list a window takes when it subscribes carried them; nothing after that did. So an export
-	/// started while you were watching showed a bar and "processing tiles" and never a speed — and
+	/// started while you were watching showed a bar and "processing tiles" and never a speed - and
 	/// one already running when the window opened showed whatever it had at that instant, frozen.
 	#[tokio::test]
 	async fn a_progress_event_carries_the_speed_the_runner_worked_out() {
@@ -1211,7 +1211,7 @@ mod tests {
 	}
 
 	/// **The one thing that stays shared**, and deliberately: the argument for `Queued` is about the
-	/// machine — two conversions compete for the same disk and the same cores — which is as true
+	/// machine - two conversions compete for the same disk and the same cores - which is as true
 	/// across two projects as within one.
 	#[tokio::test]
 	async fn queued_jobs_still_run_one_at_a_time_across_projects() {
@@ -1231,7 +1231,7 @@ mod tests {
 		until(|| !jobs.job(second).unwrap().state.is_active()).await;
 	}
 
-	/// A closed window has nowhere to hear about its work — but the work is not cancelled by it.
+	/// A closed window has nowhere to hear about its work - but the work is not cancelled by it.
 	#[tokio::test]
 	async fn forgetting_a_window_stops_the_reporting_and_not_the_job() {
 		let jobs = Jobs::new();
@@ -1289,7 +1289,7 @@ mod tests {
 		);
 	}
 
-	/// A preview must not wait behind an export — the reason there are two lanes rather than one
+	/// A preview must not wait behind an export - the reason there are two lanes rather than one
 	/// queue.
 	#[tokio::test]
 	async fn a_latest_job_does_not_wait_for_a_queued_one() {
@@ -1317,7 +1317,7 @@ mod tests {
 		let _ = tx.send(());
 	}
 
-	/// Cancelling a job that has not started drops the work and frees nothing — the lane was never
+	/// Cancelling a job that has not started drops the work and frees nothing - the lane was never
 	/// its to hold.
 	#[tokio::test]
 	async fn cancelling_a_queued_job_removes_it_without_running_it() {
@@ -1411,7 +1411,7 @@ mod tests {
 		assert_eq!(log[0], "line 10", "the oldest were dropped, not the newest");
 		assert_eq!(jobs.job(id).unwrap().log_lines, LOG_LINES);
 
-		// The count the listener is told never exceeds what the log actually holds — a mirror that
+		// The count the listener is told never exceeds what the log actually holds - a mirror that
 		// counted for itself would be claiming a thousand and ten lines by now.
 		let events = events.lock().unwrap();
 		let counts: Vec<usize> = events
@@ -1426,7 +1426,7 @@ mod tests {
 		assert!(counts.iter().all(|&n| n <= LOG_LINES));
 	}
 
-	/// History is bounded, but only history — a long queue is work, not backlog.
+	/// History is bounded, but only history - a long queue is work, not backlog.
 	#[tokio::test]
 	async fn finished_jobs_age_out_but_waiting_ones_do_not() {
 		let jobs = Jobs::new();
@@ -1455,7 +1455,7 @@ mod tests {
 		});
 		until(|| !jobs.job(id).unwrap().state.is_active()).await;
 
-		// Dropped for the listener, kept for the list — which is what makes a reload recoverable.
+		// Dropped for the listener, kept for the list - which is what makes a reload recoverable.
 		assert_eq!(jobs.log(id), ["said into the void"]);
 		assert_eq!(jobs.job(id).unwrap().state, JobState::Finished);
 	}

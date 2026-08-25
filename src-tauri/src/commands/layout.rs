@@ -35,7 +35,7 @@ pub async fn set_layout(window: tauri::Window, state: State<'_, AppState>, layou
 
 	// **And written as the defaults for the next window**, which is what `layout.json` now means:
 	// last write wins, because "the widths you have settled on" is one answer however many windows
-	// are open, and a file per window would be a file per window label — an identity that means
+	// are open, and a file per window would be a file per window label - an identity that means
 	// nothing between two launches.
 	{
 		let mut defaults = state.layout.lock().await;

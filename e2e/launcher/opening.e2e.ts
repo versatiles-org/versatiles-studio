@@ -1,8 +1,8 @@
 /**
- * Opening a file — the seam between the launcher, a new window, and the map.
+ * Opening a file - the seam between the launcher, a new window, and the map.
  *
  * Nothing below the window is new here: the core reads containers under unit test all day. What is
- * only ever exercised by a person is *this* — a gesture in one window opening a different window
+ * only ever exercised by a person is *this* - a gesture in one window opening a different window
  * that then has to build a style, start a server and draw something.
  */
 

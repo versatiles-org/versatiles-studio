@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { needsShell, runInherited } from './spawn';
 
 /**
- * The Windows rules, tested from macOS and Linux — which is the whole point.
+ * The Windows rules, tested from macOS and Linux - which is the whole point.
  *
  * Both of these failed only on a Windows runner, and cost two CI rounds each because the failure
  * printed nothing. `process.platform` is stubbed so the rule can be asserted anywhere.
@@ -22,7 +22,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('which commands need a shell', () => {
 	it('gives one to npm on Windows, because npm there is npm.cmd', () => {
 		// Node has refused to execute a .cmd without `shell: true` since CVE-2024-27980, and there
-		// is no extensionless `npm` to fall back to — so this is the difference between the bundle
+		// is no extensionless `npm` to fall back to - so this is the difference between the bundle
 		// building and `beforeBuildCommand` dying before a single Rust file compiles.
 		on('win32', () => expect(needsShell('npm')).toBe(true));
 	});

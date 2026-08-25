@@ -66,7 +66,7 @@ function fakeMap(options: { refuse?: string[] } = {}) {
 		map: map as unknown as MaplibreMap,
 		layers,
 		allow,
-		/** What is on the source now — the thing a layer would actually draw. */
+		/** What is on the source now - the thing a layer would actually draw. */
 		data: (id = 'x') => sources.get(id)?.data,
 		has: (id = 'x') => sources.has(id),
 		/** Everything the map does to an overlay arrives as one of these. */
@@ -92,7 +92,7 @@ describe('mapOverlay', () => {
 	});
 
 	/// The bug: `addSource` succeeded, a later `addLayer` threw, and the next call returned early on
-	/// the source it had just added — so the layer that failed was never attempted again. Half-drawn
+	/// the source it had just added - so the layer that failed was never attempted again. Half-drawn
 	/// for the life of the style, and silent, because a layer that was never added throws nothing.
 	it('retries a layer that was refused, rather than being stopped by the source it added', () => {
 		const fake = fakeMap({ refuse: ['x:line'] });
@@ -101,13 +101,13 @@ describe('mapOverlay', () => {
 		expect(fake.has(), 'and the source it added is present, which is what used to end it').toBe(true);
 
 		// A refusal is a moment, not a verdict. Guarding the group on its source meant the next call
-		// found the source and returned — so the layer that failed was never attempted again.
+		// found the source and returned - so the layer that failed was never attempted again.
 		fake.allow('x:line');
 		fake.fire('styledata');
 		expect(fake.layers, 'the missing one heals on the same map').toEqual(['x:fill', 'x:line']);
 	});
 
-	/// One overlay failing must not cost another its turn — they were called in sequence inside one
+	/// One overlay failing must not cost another its turn - they were called in sequence inside one
 	/// `try`, so the first throw skipped the second entirely.
 	it('does not let one overlay stop another', () => {
 		const fake = fakeMap({ refuse: ['x:fill'] });
@@ -177,7 +177,7 @@ describe('mapOverlay', () => {
 		fake.fire('idle');
 		expect(complain).toHaveBeenCalledWith(expect.stringContaining('test overlay: x:line'), expect.anything());
 
-		// Once, not on every idle — the map fires this constantly.
+		// Once, not on every idle - the map fires this constantly.
 		complain.mockClear();
 		fake.fire('idle');
 		expect(complain).not.toHaveBeenCalled();
@@ -194,7 +194,7 @@ describe('mapOverlay', () => {
 	});
 
 	/// A source still carrying layers cannot be removed, and a listener left attached outlives the
-	/// component — both leave a map that behaves oddly long after the thing that broke it is gone.
+	/// component - both leave a map that behaves oddly long after the thing that broke it is gone.
 	it('takes its layers, its source and its listeners with it', () => {
 		const fake = fakeMap();
 		const overlay = mapOverlay(fake.map, spec());

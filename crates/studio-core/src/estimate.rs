@@ -11,7 +11,7 @@
 //! being right is that estimating takes time, which is what [`BUDGET`] bounds.
 //!
 //! **Stratified by zoom, because zoom is what the variance is about.** A level holds four times the
-//! tiles of the one above it, so the deepest level is most of any export — and its tiles are also
+//! tiles of the one above it, so the deepest level is most of any export - and its tiles are also
 //! the smallest, which is exactly the correlation that makes a single overall average wrong. Each
 //! level is sampled and multiplied by its own tile count.
 //!
@@ -31,7 +31,7 @@ use versatiles_pipeline::VPLPipeline;
 ///
 /// An estimate is something a dialog waits on, so its cost is a UI decision rather than a
 /// statistical one: two seconds is long enough to look like work and short enough not to feel
-/// broken. Running over budget would also be self-defeating — nobody waits a minute to be told a
+/// broken. Running over budget would also be self-defeating - nobody waits a minute to be told a
 /// job takes an hour.
 pub const BUDGET: Duration = Duration::from_secs(2);
 
@@ -47,7 +47,7 @@ pub const MAX_SAMPLES: u32 = 64;
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Estimate {
-	/// Tiles the export will write — a count, not an estimate.
+	/// Tiles the export will write - a count, not an estimate.
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub tiles: u64,
 	/// Bytes those tiles are expected to come to.
@@ -75,7 +75,7 @@ pub async fn estimate(pipeline: VPLPipeline, dir: &Path, bounds: Bounds) -> Resu
 ///
 /// **Split out for the tests, and the split is load-bearing.** Asserting anything exact about the
 /// arithmetic means knowing how many samples were taken, and under the shipped budget that is a
-/// question about how fast the machine was that day — the test that checks a complete sample
+/// question about how fast the machine was that day - the test that checks a complete sample
 /// against ground truth passed alone and failed under a loaded test run, which is the definition of
 /// a test that measures the wrong thing. Time is an input here, so it can be held still.
 async fn sample(
@@ -99,7 +99,7 @@ async fn sample(
 	let pyramid = source.tile_pyramid().await.context("reading the tile pyramid")?;
 	let tiles = export::writable_count(&pyramid)?;
 
-	// An empty selection is a real answer rather than a division by zero — a bounding box over open
+	// An empty selection is a real answer rather than a division by zero - a bounding box over open
 	// ocean, or a zoom range the source does not reach.
 	if tiles == 0 {
 		return Ok(Estimate {
@@ -174,7 +174,7 @@ async fn sample(
 				level.bytes as f64 / level.tiles as f64
 			} else {
 				// A level the budget never reached. Its own average is unknown, so it borrows the
-				// one across everything sampled — wrong in detail, and it is a level that holds a
+				// one across everything sampled - wrong in detail, and it is a level that holds a
 				// quarter of what the level below it does, three levels above where the budget ran
 				// out.
 				overall
@@ -194,7 +194,7 @@ async fn sample(
 /// What one tile costs, from the times it took to make the samples.
 ///
 /// **The first is thrown away when there is anything else.** A pipeline opens its sources lazily, so
-/// the first tile pays for reading a container's index — or an HTTP round trip to a remote one —
+/// the first tile pays for reading a container's index - or an HTTP round trip to a remote one -
 /// which the second and the millionth do not. Charging that to every tile in the export turns a
 /// remote source into an estimate of days.
 fn per_tile(durations: &[Duration]) -> Duration {
@@ -215,7 +215,7 @@ fn per_tile(durations: &[Duration]) -> Duration {
 /// So this walks the level in strides of roughly the golden ratio of its width. Choosing a stride
 /// **coprime with the count** is what makes it a permutation: every tile is visited exactly once
 /// before any is visited twice, and a level small enough to sample completely *is* sampled
-/// completely. The obvious alternative — the fractional part of `round × φ`, scaled — spreads just
+/// completely. The obvious alternative - the fractional part of `round × φ`, scaled - spreads just
 /// as evenly in the reals and collides once floored to an index: over four tiles it returns 0, 2, 0,
 /// 1, measuring one tile twice and another never.
 fn spread(round: u32, count: u64) -> u64 {
@@ -284,7 +284,7 @@ mod tests {
 		assert_eq!(first, again);
 	}
 
-	/// A bounding box that selects nothing is an answer, not a failure — and not a division by zero.
+	/// A bounding box that selects nothing is an answer, not a failure - and not a division by zero.
 	#[tokio::test]
 	async fn an_empty_selection_costs_nothing() {
 		let bounds = Bounds {
@@ -305,7 +305,7 @@ mod tests {
 	}
 
 	/// **The estimate is exact when it can afford to be.** Twenty-one tiles is inside
-	/// [`MAX_SAMPLES`], so every one of them is produced and the "estimate" is a measurement — which
+	/// [`MAX_SAMPLES`], so every one of them is produced and the "estimate" is a measurement - which
 	/// makes this a test of the extrapolation arithmetic against ground truth rather than a test
 	/// that some number came back.
 	#[tokio::test]
@@ -320,7 +320,7 @@ mod tests {
 		let expected_tiles = 21;
 
 		// A budget far past anything this needs, so the test is about the arithmetic rather than
-		// about how loaded the machine is — a debug build renders a debug PNG slowly enough that
+		// about how loaded the machine is - a debug build renders a debug PNG slowly enough that
 		// the shipped two seconds buys six tiles here, and six is not twenty-one.
 		let estimate = sample(pipeline(vpl), Path::new("."), bounds, Duration::from_secs(600), 64)
 			.await
@@ -346,7 +346,7 @@ mod tests {
 	}
 
 	/// **The budget is a promise to the dialog waiting on it.** A pipeline can be arbitrarily slow
-	/// per tile, so the guarantee cannot be about tiles — it has to be that sampling stops. An
+	/// per tile, so the guarantee cannot be about tiles - it has to be that sampling stops. An
 	/// unmeasurably small budget still yields an answer, from however little it managed.
 	#[tokio::test]
 	async fn a_spent_budget_still_answers() {
@@ -408,7 +408,7 @@ mod tests {
 		assert!(message.contains("Set a maximum zoom"), "{message}");
 	}
 
-	/// The measured duration is per tile, not per sample-run — a slow first tile is the pipeline
+	/// The measured duration is per tile, not per sample-run - a slow first tile is the pipeline
 	/// opening its sources and must not be charged to every tile in the export.
 	#[test]
 	fn the_first_tile_pays_for_opening_the_sources_and_the_rest_do_not() {

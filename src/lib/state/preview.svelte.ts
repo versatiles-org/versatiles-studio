@@ -3,7 +3,7 @@
  *
  * This is the rule that connects two things which otherwise do not know about each other: the
  * document being edited, and the tiles on screen. It lived in `App.svelte` as four functions two
- * hundred lines apart, and the rules below were enforced by the order of statements inside them —
+ * hundred lines apart, and the rules below were enforced by the order of statements inside them -
  * true, but not visible from any one call site, and not testable at all.
  *
  * Three of those rules are the reason this is a module:
@@ -13,12 +13,12 @@
  *   that nothing can remove afterwards.
  * * **A superseded build touches nothing.** Editing again cancels the build that is now out of
  *   date, and the cancelled one must not write its result over the newer one on its way out.
- * * **An invalid document is not built at all**, and still has to quiet the status bar — nothing
+ * * **An invalid document is not built at all**, and still has to quiet the status bar - nothing
  *   downstream will clear the "Opening …" the caller set.
  *
  * **What this does not own: the map, or the status bar.** The map is created by `MapCanvas` and
  * bound by `App`, so it arrives as an argument. The bar is told what happened rather than written
- * to, because "what the preview did" and "what the application is saying" are different questions —
+ * to, because "what the preview did" and "what the application is saying" are different questions -
  * and a function that returns its outcome can be tested, where one that sets a status cannot.
  *
  * [Q32]: ../../../docs/decisions.md
@@ -42,7 +42,7 @@ export type Refreshed =
 	/** On the map. The bar can go quiet. */
 	| { kind: 'shown' }
 	/**
-	 * There was nothing to build on — no map yet, or no graph. Nothing happened, so nothing is
+	 * There was nothing to build on - no map yet, or no graph. Nothing happened, so nothing is
 	 * said: this is the reload case, where the document is back from the core before the map
 	 * exists, and whatever the bar is reporting is still in progress.
 	 */
@@ -61,7 +61,7 @@ export interface Context {
 	/** Where the map is looking, or `null` to show the edited graph in full ([Q32]). */
 	pinned: { graph: number; path: number[] } | null;
 	/**
-	 * Whether a style recipe is drawing these tiles — asked as a function, not passed as a value.
+	 * Whether a style recipe is drawing these tiles - asked as a function, not passed as a value.
 	 *
 	 * It depends on the preview this call is about to produce, so the answer before the build is the
 	 * previous preview's and would put hairlines over a styled map every other refresh.
@@ -70,7 +70,7 @@ export interface Context {
 	/**
 	 * Whether this window already knows where it is looking.
 	 *
-	 * True when the core handed back a camera for this project — which is what a *reloaded* window
+	 * True when the core handed back a camera for this project - which is what a *reloaded* window
 	 * gets and a new one does not ([Q48](../../../docs/decisions.md), S7.4). Framing the data over
 	 * the top of it would undo the one thing a reload is supposed to preserve.
 	 */
@@ -87,8 +87,8 @@ let last = $state<Preview | null>(null);
  * Every graph built this session, by name ([S6.5](../../../docs/scope-release-2.md)).
  *
  * **What the stack is drawn from.** A style names several sources now, so the map needs every
- * graph's tiles and not only the one being edited. Built once — [`mountAll`] does it when a project
- * opens, where a person already expects to wait — and refreshed one at a time afterwards, so typing
+ * graph's tiles and not only the one being edited. Built once - [`mountAll`] does it when a project
+ * opens, where a person already expects to wait - and refreshed one at a time afterwards, so typing
  * costs exactly what it costs today rather than a job per graph per keystroke.
  */
 let built = $state<Record<string, Preview>>({});
@@ -101,7 +101,7 @@ let built = $state<Record<string, Preview>>({});
  * unpinned graph is mounted under the graph's own name ([Q32]).
  *
  * **Only ever set once the layers are actually on.** It used to be set as soon as a build succeeded,
- * hairlines drawn or not — so a styled map, which draws its own layers and gets no hairlines, left
+ * hairlines drawn or not - so a styled map, which draws its own layers and gets no hairlines, left
  * this pointing at a source the *recipe* owns. The next refresh then tried to remove that source,
  * which MapLibre refuses while the recipe's layers are drawing from it, once per save.
  */
@@ -129,7 +129,7 @@ const mountedLayers = $derived(layersIn(last));
 /**
  * Opens a container and remembers it.
  *
- * Does not put it on the map — the map shows what the *pipeline* produces (C3), and a container is
+ * Does not put it on the map - the map shows what the *pipeline* produces (C3), and a container is
  * only ever an input to that.
  */
 async function mount(source: string): Promise<OpenedContainer> {
@@ -151,7 +151,7 @@ export const preview = {
 		return mountedLayers;
 	},
 
-	/** Every graph built this session, by name — the stack a style is composed over (S6.5). */
+	/** Every graph built this session, by name - the stack a style is composed over (S6.5). */
 	get built(): Record<string, Preview> {
 		return built;
 	},
@@ -175,7 +175,7 @@ export const preview = {
 		built = next;
 	},
 
-	/** Forgets a graph's tiles — for one that has been removed. */
+	/** Forgets a graph's tiles - for one that has been removed. */
 	forget(name: string): void {
 		if (!(name in built)) return;
 		const next = { ...built };
@@ -190,7 +190,7 @@ export const preview = {
 	 * Builds what the map should show, and puts it there.
 	 *
 	 * This is what "instantly see the result" means (M4): changing the pipeline changes the tiles
-	 * rather than a number in a form. **Which** pipeline is the pin's to say ([Q32]) — a pinned node
+	 * rather than a number in a form. **Which** pipeline is the pin's to say ([Q32]) - a pinned node
 	 * shows the data as it is at that step, and with nothing pinned the map shows the graph's output
 	 * in full.
 	 */
@@ -198,8 +198,8 @@ export const preview = {
 		if (!map || !pipeline) return { kind: 'unavailable' };
 
 		// **A document that does not validate is not built.** `＋ operation…` inserts a node with its
-		// required parameters unset by design — [Q33] decided that "required" is said by the field
-		// being present and empty — so an invalid document is the ordinary state one second after
+		// required parameters unset by design - [Q33] decided that "required" is said by the field
+		// being present and empty - so an invalid document is the ordinary state one second after
 		// adding an operation, not an exceptional one. Building it anyway replaced a diagnostic that
 		// names the node and the missing parameter with whatever the builder happened to say on its
 		// way out, in the status bar, where it is furthest from the field that needs filling in.
@@ -214,7 +214,7 @@ export const preview = {
 		// that question in here could only ever disagree with it.
 		//
 		// [Q32] wants every graph mounted so a style can name them all. That arrives with the style
-		// at S4 — until something renders them, building every graph on every refresh is a job
+		// at S4 - until something renders them, building every graph on every refresh is a job
 		// apiece for tiles nobody draws. Half of it falls out already: a mount is keyed by name and
 		// nothing unmounts on a graph switch, so each graph visited stays served until it is removed.
 		const outcome = pinned
@@ -229,7 +229,7 @@ export const preview = {
 		// below, and two lines from now the answer is gone.
 		const wasShowing = showing;
 
-		// Off the map before the name is overwritten — afterwards there is nothing left to remove it
+		// Off the map before the name is overwritten - afterwards there is nothing left to remove it
 		// with, and the layer stays on the map for the rest of the session.
 		if (mountedName) removeContainerFromMap(map, mountedName);
 		mountedName = null;
@@ -244,13 +244,13 @@ export const preview = {
 
 		// **The camera moves when tiles first appear, and never again on its own.** Every edit to
 		// the VPL rebuilds the preview, so refitting here would drag the map back to the data's
-		// extent on every keystroke that parses — panning somewhere to look at a change and being
+		// extent on every keystroke that parses - panning somewhere to look at a change and being
 		// thrown out of it. Framing the data again is a deliberate act with a button of its own.
 		//
 		// **Before the question of who draws the tiles**, which this used to sit after. Framing is
 		// not one of the things a recipe takes over: whether the map is drawn by a style or by the
 		// hairlines below, the first sight of data is the moment to look at it. Sitting below the
-		// early return meant a window opened at null island and stayed there — and since S6.2
+		// early return meant a window opened at null island and stayed there - and since S6.2
 		// derives a style for very nearly everything, that was almost every window. "Reset view"
 		// worked, which is what made it look like a missing gesture rather than a missing camera.
 		//
@@ -262,12 +262,12 @@ export const preview = {
 		// its own layers draw them and a line over the top would be a second opinion (S4.3). Asked
 		// after the build, because the answer is about the preview the build just produced.
 		//
-		// Nothing is mounted in that case — the recipe's own source and layers are, and they are not
+		// Nothing is mounted in that case - the recipe's own source and layers are, and they are not
 		// this module's to take off again.
 		if (styled()) return { kind: 'shown' };
 
 		// A format the map cannot draw is a thing to say, not a blank map with errors in the console
-		// — which is what it used to be.
+		// - which is what it used to be.
 		if (!addContainerToMap(map, result)) {
 			return { kind: 'unrenderable', message: whyNotRenderable(result.info.tileFormat) };
 		}
@@ -279,8 +279,8 @@ export const preview = {
 	/**
 	 * Makes the containers match what the pipeline reads.
 	 *
-	 * The read nodes are the sources (Q22), so editing one — pointing `filename` somewhere else, or
-	 * deleting a node — has to move the map with it. Without this the document and the picture drift
+	 * The read nodes are the sources (Q22), so editing one - pointing `filename` somewhere else, or
+	 * deleting a node - has to move the map with it. Without this the document and the picture drift
 	 * apart, which is the one thing merging the modes was meant to prevent.
 	 *
 	 * `onOpening` is called before each container that has to be read, which is not always instant:
@@ -314,7 +314,7 @@ export const preview = {
 	 * the style just drew.
 	 */
 	restore(map: MaplibreMap | undefined, styled: boolean): void {
-		// Whatever was mounted went with the old style, so it is no longer this module's to remove —
+		// Whatever was mounted went with the old style, so it is no longer this module's to remove -
 		// and the new style may well own a source of that same name.
 		mountedName = null;
 		if (map && last && !styled && addContainerToMap(map, last)) mountedName = last.name;
@@ -324,7 +324,7 @@ export const preview = {
 	 * Takes the preview off the map and forgets it.
 	 *
 	 * For the case `refresh` cannot cover: with no graph left it returns early, so the layer it drew
-	 * would outlive the document it came from — a map still showing tiles from a graph that is gone.
+	 * would outlive the document it came from - a map still showing tiles from a graph that is gone.
 	 */
 	clear(map: MaplibreMap | undefined): void {
 		if (mountedName && map) removeContainerFromMap(map, mountedName);
@@ -336,7 +336,7 @@ export const preview = {
 	 * Test seam: the module is a singleton, and state from one case must not reach the next.
 	 *
 	 * **Every field, or the seam lies.** `built` was added with the source stack (S6.5) and not added
-	 * here, so graphs mounted by one case were still in the stack for the next — which a test only
+	 * here, so graphs mounted by one case were still in the stack for the next - which a test only
 	 * notices if it happens to assert on the whole of it.
 	 */
 	reset(): void {

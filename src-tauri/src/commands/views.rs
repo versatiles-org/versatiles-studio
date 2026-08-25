@@ -1,6 +1,6 @@
 //! Named views (A7, S1.8).
 //!
-//! Application-wide rather than project-scoped ([Q21]) — a view is a place you want to come back
+//! Application-wide rather than project-scoped ([Q21]) - a view is a place you want to come back
 //! to, whether or not a project exists. Called bookmarks until [Q38], which also moved them out of
 //! the inspector and onto the map.
 //!
@@ -38,8 +38,8 @@ pub async fn delete_view(state: State<'_, AppState>, name: String) -> Result<boo
 
 /// Puts the views in the order given, and returns what that came to.
 ///
-/// Returns the list rather than nothing because the core has the last word on it — a name the
-/// caller does not hold is ignored, and one it left out keeps its place — so the webview renders
+/// Returns the list rather than nothing because the core has the last word on it - a name the
+/// caller does not hold is ignored, and one it left out keeps its place - so the webview renders
 /// what was actually stored instead of what it hoped had been.
 #[tauri::command]
 #[specta::specta]

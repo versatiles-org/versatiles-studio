@@ -5,7 +5,7 @@
  * by polling. Two rules make that mirror trustworthy:
  *
  * * **One subscription, taken at startup**, whose reply is the list as it stood at that instant.
- *   Subscribing and listing as two calls leaves a gap where an event lands between them — counted
+ *   Subscribing and listing as two calls leaves a gap where an event lands between them - counted
  *   twice if the list came second, missed if it came first.
  * * **Every field the bar shows arrives in an event.** Nothing here is computed from a previous
  *   value, so a listener that reconnects mid-job is never subtly behind.
@@ -27,7 +27,7 @@ export const jobs = {
 		return all;
 	},
 
-	/** Jobs that could still do something — what the bar counts. */
+	/** Jobs that could still do something - what the bar counts. */
 	get active() {
 		return all.filter((job) => job.state.kind === 'queued' || job.state.kind === 'running');
 	},
@@ -50,7 +50,7 @@ export const jobs = {
 /**
  * Starts listening. Called once, from the shell's startup.
  *
- * Safe to call again after a reload — the core replaces the sink rather than adding one.
+ * Safe to call again after a reload - the core replaces the sink rather than adding one.
  */
 export async function connectJobs(): Promise<void> {
 	const channel = new Channel<JobEvent>();
@@ -72,7 +72,7 @@ export async function jobLog(id: number): Promise<string[]> {
  * Folds one event into the list.
  *
  * Events about a job that has aged out of the core's history are ignored rather than resurrecting
- * a partial row — the core decides what is worth remembering, and this follows it.
+ * a partial row - the core decides what is worth remembering, and this follows it.
  */
 function apply(event: JobEvent): void {
 	if (event.kind === 'added') {
@@ -88,7 +88,7 @@ function update(job: Job, event: JobEvent): Job {
 			return { ...job, state: { kind: 'running' } };
 		case 'progress':
 			// **All of it, not just the fraction.** The counts, the speed and the ETA arrive on the
-			// same event and were being dropped here — so a job that started while a window was
+			// same event and were being dropped here - so a job that started while a window was
 			// watching showed a bar and a message and never a speed, while one that was already
 			// running when the window subscribed showed the numbers it had at that instant, frozen.
 			return {

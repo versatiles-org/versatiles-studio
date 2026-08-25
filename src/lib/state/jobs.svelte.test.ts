@@ -6,7 +6,7 @@ import type { Job, JobEvent } from '../ipc/commands';
  *
  * **A reducer over a channel is the shape that rots quietly.** Every event arrives while something
  * else is on screen, so a case handled wrongly shows up as a progress bar stuck at 70% or a row that
- * never leaves — not as an error anybody sees.
+ * never leaves - not as an error anybody sees.
  */
 
 const ipc = vi.hoisted(() => ({
@@ -97,7 +97,7 @@ describe('folding events in', () => {
 	/**
 	 * The bug this exists for: only `fraction` and `message` were taken off the event, so the bar
 	 * showed a moving bar and "processing tiles" and never a speed. The counts, the rate and the ETA
-	 * were all on the event already — the runner works them out and sends them back on it.
+	 * were all on the event already - the runner works them out and sends them back on it.
 	 */
 	it('carries the counts and the pace with it, not only the fraction', async () => {
 		const send = await connect([job(1)]);

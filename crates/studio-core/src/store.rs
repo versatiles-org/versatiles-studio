@@ -1,13 +1,13 @@
-//! Application state that outlives a window — recent sources and named views.
+//! Application state that outlives a window - recent sources and named views.
 //!
 //! Distinct from the project model on purpose: this is state about *Studio*, not about any one
 //! project, so it lives beside the application's data rather than inside a project folder
-//! ([Q21]). It lives in the core because nothing durable may live in the webview ([Q16]) — a
+//! ([Q21]). It lives in the core because nothing durable may live in the webview ([Q16]) - a
 //! reloaded or crashed window comes back with both lists intact.
 //!
 //! **Separate files, because their recovery policies differ.** Recents and pane layout are
 //! disposable and churn constantly, so a corrupt file silently resets. Views are user-created, so a
-//! corrupt file is an error the user hears about — silently discarding them would be data loss.
+//! corrupt file is an error the user hears about - silently discarding them would be data loss.
 //!
 //! The core takes a **directory**, not file paths: the filenames are its own business, so a caller
 //! cannot put views in the recents file or write either somewhere unintended. Deciding *which*
@@ -23,7 +23,7 @@ use std::path::Path;
 /// How many recents to keep. Long enough to be useful, short enough to stay scannable.
 const RECENTS_CAPACITY: usize = 12;
 
-/// Filenames are internal — see the module note on why callers pass a directory.
+/// Filenames are internal - see the module note on why callers pass a directory.
 const RECENTS_FILE: &str = "recents.json";
 const VIEWS_FILE: &str = "views.json";
 /// What `views.json` was called before [Q38](../../docs/decisions.md) renamed it. Read, never
@@ -45,14 +45,14 @@ fn write_atomically(path: &Path, contents: &str) -> Result<()> {
 
 	anyhow::ensure!(
 		!path.is_dir(),
-		"{} is a directory — this wants the path of a file to write",
+		"{} is a directory - this wants the path of a file to write",
 		path.display()
 	);
 	let dir = path.parent().context("target has no parent directory")?;
 	std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
 
 	// Append rather than `with_extension`, which *replaces* the last extension: given a target of
-	// `org.versatiles.studio` that produced `org.versatiles.tmp` — a stray file in the shared
+	// `org.versatiles.studio` that produced `org.versatiles.tmp` - a stray file in the shared
 	// Application Support directory, next to other applications' data rather than inside ours.
 	let mut temp = path.as_os_str().to_owned();
 	temp.push(".tmp");
@@ -83,7 +83,7 @@ fn now() -> u64 {
 pub struct RecentEntry {
 	/// The path or URL exactly as the user gave it.
 	pub source: String,
-	/// Seconds since the Unix epoch, emitted as a `number` — a double holds them exactly for the
+	/// Seconds since the Unix epoch, emitted as a `number` - a double holds them exactly for the
 	/// next quarter of a million years, and `u32` would overflow in 2106.
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub opened_at: u64,
@@ -156,11 +156,11 @@ const DEFAULT_RIGHT_WIDTH: f64 = 304.0;
 ///
 /// This lives in the core rather than the webview for the reason everything else here does ([Q16]):
 /// a reloaded window must come back looking the way the user left it. Q22 called independent,
-/// remembered collapse "load-bearing, not polish" — on the 13-inch laptop Q15 was protecting, a
+/// remembered collapse "load-bearing, not polish" - on the 13-inch laptop Q15 was protecting, a
 /// pane that reopens everything on every reload makes the surface unusable.
 ///
 /// **A list of panes, not named fields** ([Q31]). Which panes exist is still a design decision
-/// rather than something the webview can invent — the catalogue below is code — but their *order*
+/// rather than something the webview can invent - the catalogue below is code - but their *order*
 /// and *which sidebar they sit in* are data, so moving one is an edit rather than a refactor. The
 /// analysis cluster alone adds eight more of them.
 ///
@@ -178,7 +178,7 @@ pub struct Layout {
 	/// Pane widths in CSS pixels. Both edges are draggable.
 	//
 	// Emitted as `number`, not `number | null`. Specta is right that JSON cannot hold `NaN` and that
-	// `serde_json` writes `null` instead — but every float that crosses this boundary is a camera
+	// `serde_json` writes `null` instead - but every float that crosses this boundary is a camera
 	// value, a clamped width or a computed fraction, all finite by construction. Admitting `null`
 	// would spread a check for an impossible case through every call site, which is a worse lie than
 	// the one it prevents. The same override is on every `f64` that crosses.
@@ -195,7 +195,7 @@ pub struct Layout {
 	/// Where the camera was, or `None` if it has never been moved.
 	///
 	/// Here rather than in a file of its own because it is window state with exactly this recovery
-	/// policy — a camera that will not parse costs nothing to forget — and because `background`,
+	/// policy - a camera that will not parse costs nothing to forget - and because `background`,
 	/// also a map setting rather than a pane one, already lives here.
 	///
 	/// `None` is not the same as a default camera: it means *nothing to restore*, so a first run
@@ -204,7 +204,7 @@ pub struct Layout {
 }
 
 // **There is no `mode`.** It held which surface the bar was on, `map` or `assets`, until
-// [Q39](../../docs/decisions.md) made the asset manager a dialog and left the bar with one mode —
+// [Q39](../../docs/decisions.md) made the asset manager a dialog and left the bar with one mode -
 // and a window is never restored onto a dialog. An old file's `mode` key is ignored rather than
 // rejected, like every other key this struct has stopped having.
 
@@ -238,7 +238,7 @@ impl Camera {
 	///
 	/// Non-finite is *dropped rather than clamped*: `NaN` here means the file is not describing a
 	/// camera at all, and inventing one from its fragments would restore a view the user never had.
-	/// Out-of-range but finite is a different thing — a hand-edited pitch of 90 is a real intent
+	/// Out-of-range but finite is a different thing - a hand-edited pitch of 90 is a real intent
 	/// expressed past the limit, so it is clamped to what MapLibre accepts.
 	#[must_use]
 	fn sanitised(self) -> Option<Self> {
@@ -282,7 +282,7 @@ pub enum Side {
 ///
 /// The id is the whole contract with the webview: the core decides where a pane sits and whether it
 /// is open, the webview decides what it contains and what it is called. A title is presentation, so
-/// it is not stored — it would be one more thing to keep in step across a boundary for no gain.
+/// it is not stored - it would be one more thing to keep in step across a boundary for no gain.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
@@ -304,22 +304,22 @@ impl From<&(&str, Side, bool)> for PaneState {
 
 /// The panes this build has, in the order a fresh install shows them.
 ///
-/// Adding one here is the whole cost of adding a pane to the application — that is the point of
+/// Adding one here is the whole cost of adding a pane to the application - that is the point of
 /// [Q31](../../docs/decisions.md). The webview supplies the title and the contents for each id and
 /// ignores any it does not recognise, so the two halves can also land in either order.
 const PANES: &[(&str, Side, bool)] = &[
 	// Left: the documents. Open, because at S2 it is the only pane with anything in it.
 	("pipeline", Side::Left, true),
-	// Below the pipeline, because it renders what the pipeline produces — the same order as the
+	// Below the pipeline, because it renders what the pipeline produces - the same order as the
 	// work ([Q22](../../docs/decisions.md)). Closed on a fresh install: a style has nothing to show
 	// until there are tiles under it.
 	("style", Side::Left, false),
-	// Right: what the pipeline turns out to be. **No `parameters` pane** — the selected node carries
+	// Right: what the pipeline turns out to be. **No `parameters` pane** - the selected node carries
 	// its own arguments in the chain ([Q32]), which is what moved [Q31]'s axis from
 	// document-versus-selection to what-you-are-building versus what-it-turns-out-to-be.
 	//
 	// **And no `output` pane.** It described what the graph produces, which [Q41] moved into the
-	// export dialog — the moment that description is about to matter. A layout naming it is
+	// export dialog - the moment that description is about to matter. A layout naming it is
 	// reconciled away by `reconcile_panes`, so an old file costs nothing.
 	("inspector", Side::Right, true),
 ];
@@ -348,7 +348,7 @@ impl Layout {
 	/// Makes any `Layout` a usable one: widths in range, camera in range, panes reconciled against
 	/// the catalogue.
 	///
-	/// The single normalisation point, called on load, on save and by `set_layout` — a caller
+	/// The single normalisation point, called on load, on save and by `set_layout` - a caller
 	/// holding a layout in memory needs the same value that would be written to disk, and
 	/// normalising only on save would let the two drift.
 	#[must_use]
@@ -365,7 +365,7 @@ impl Layout {
 ///
 /// Three things it fixes, all of which a real `layout.json` will eventually contain:
 ///
-/// * **A pane this build does not have** — from a newer version, or one that was removed — is
+/// * **A pane this build does not have** - from a newer version, or one that was removed - is
 ///   dropped. Rendering is by id, so an unknown one would be an empty box with a heading.
 /// * **A pane the file has never heard of** is appended, so upgrading gains the new pane rather
 ///   than hiding it until someone deletes their layout. Appended *last in its sidebar*, because a
@@ -388,7 +388,7 @@ fn reconcile_panes(stored: Vec<PaneState>) -> Vec<PaneState> {
 	panes
 }
 
-/// Forces a width into the usable range, including when it is `NaN` — which `f64::clamp`
+/// Forces a width into the usable range, including when it is `NaN` - which `f64::clamp`
 /// propagates rather than resolving, and which JSON can carry in from a hand-edited file.
 fn clamp_width(width: f64, fallback: f64) -> f64 {
 	if width.is_finite() {
@@ -404,8 +404,8 @@ fn clamp_width(width: f64, fallback: f64) -> f64 {
 
 /// A named view: a name, and where the camera was.
 ///
-/// **Called a bookmark until [Q38]**, and it carried a `source` — "so a view can offer to reopen
-/// it" — that nothing ever reopened, filled from whichever container happened to be mounted last.
+/// **Called a bookmark until [Q38]**, and it carried a `source` - "so a view can offer to reopen
+/// it" - that nothing ever reopened, filled from whichever container happened to be mounted last.
 /// A view is a place, and a place does not belong to a file. An old file's `source` key is ignored
 /// rather than rejected, so nobody loses their views to the rename.
 ///
@@ -418,11 +418,11 @@ fn clamp_width(width: f64, fallback: f64) -> f64 {
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct View {
 	pub name: String,
-	/// Flattened, so the file stays one object per view rather than nesting a camera inside it —
+	/// Flattened, so the file stays one object per view rather than nesting a camera inside it -
 	/// and so a file written before the rename still reads.
 	#[serde(flatten)]
 	pub camera: Camera,
-	/// Seconds since the Unix epoch, emitted as a `number` — a double holds them exactly for the
+	/// Seconds since the Unix epoch, emitted as a `number` - a double holds them exactly for the
 	/// next quarter of a million years, and `u32` would overflow in 2106.
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub created_at: u64,
@@ -436,14 +436,14 @@ pub struct Views(Vec<View>);
 impl Views {
 	/// Reads the list. **Fails loudly**, unlike [`Recents::load`].
 	///
-	/// A missing file is fine — that is a first run. A file that exists but will not parse is not:
+	/// A missing file is fine - that is a first run. A file that exists but will not parse is not:
 	/// these are user-created, and silently replacing them with an empty list is data loss wearing
 	/// the costume of a clean start.
 	///
 	/// An install that predates [Q38](../../docs/decisions.md) has `bookmarks.json` and no
 	/// `views.json`; it is read in place and **left where it is**. The next save writes the new
 	/// name, and the old file stays behind as a backup rather than being deleted on the user's
-	/// behalf — the one policy that cannot lose anything if the rename was a mistake.
+	/// behalf - the one policy that cannot lose anything if the rename was a mistake.
 	pub fn load(dir: &Path) -> Result<Self> {
 		let current = dir.join(VIEWS_FILE);
 		let path = if current.exists() {
@@ -457,7 +457,7 @@ impl Views {
 		};
 		let text = std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
 		serde_json::from_str(&text)
-			.with_context(|| format!("{} is not valid view data — it has not been touched", path.display()))
+			.with_context(|| format!("{} is not valid view data - it has not been touched", path.display()))
 	}
 
 	pub fn save(&self, dir: &Path) -> Result<()> {
@@ -471,7 +471,7 @@ impl Views {
 	///
 	/// Appending rather than sorting by name is what makes [`reorder`](Self::reorder) mean
 	/// anything: a sort would silently undo the user's order every time they saved. Re-saving a
-	/// name keeps its place because that is the same view with the camera moved, not a new one —
+	/// name keeps its place because that is the same view with the camera moved, not a new one -
 	/// and moving it to the end would shuffle the list under whoever was using it.
 	pub fn add(&mut self, mut view: View) {
 		view.created_at = now();
@@ -496,7 +496,7 @@ impl Views {
 	///
 	/// Takes the **whole order** rather than a move-this-one-up command: the webview sends the list
 	/// it is showing, so the two sides never have to agree on what an index meant. A name it does
-	/// not hold is ignored, and a view the caller left out keeps its relative place at the end —
+	/// not hold is ignored, and a view the caller left out keeps its relative place at the end -
 	/// so a reorder racing with a save from another window cannot drop anybody.
 	pub fn reorder(&mut self, order: &[String]) {
 		let mut left = std::mem::take(&mut self.0);
@@ -546,7 +546,7 @@ mod tests {
 
 	/// The gap that let a real bug through: every existing recents test worked on an in-memory
 	/// `Recents` and never wrote one to disk, so `save` taking a *file* path while every caller
-	/// passed a *directory* type-checked and shipped. Recents silently stopped persisting — the
+	/// passed a *directory* type-checked and shipped. Recents silently stopped persisting - the
 	/// failure went to stderr, because an MRU list is not worth failing an open over.
 	#[test]
 	fn recents_are_saved_into_the_directory_they_are_given() -> Result<()> {
@@ -625,7 +625,7 @@ mod tests {
 			background: "eclipse".to_string(),
 			..Layout::default()
 		};
-		// A moved, reordered and collapsed pane — the three things the list exists to remember.
+		// A moved, reordered and collapsed pane - the three things the list exists to remember.
 		layout.panes = vec![
 			pane("inspector", Side::Left, false),
 			pane("pipeline", Side::Left, true),
@@ -637,7 +637,7 @@ mod tests {
 	}
 
 	/// Q22 wants each pane to collapse independently, and [Q31] makes that per-pane state rather
-	/// than a flag per section — so collapsing one has to leave the others exactly as they were.
+	/// than a flag per section - so collapsing one has to leave the others exactly as they were.
 	#[test]
 	fn panes_collapse_independently() -> Result<()> {
 		let dir = crate::testing::dir("layout-independent");
@@ -700,7 +700,7 @@ mod tests {
 		assert_eq!(ids, ["inspector", "pipeline", "style"]);
 	}
 
-	/// Nothing produces a duplicate, but a hand-edited file can — and two panes with one id would
+	/// Nothing produces a duplicate, but a hand-edited file can - and two panes with one id would
 	/// render the same content twice and toggle together.
 	#[test]
 	fn a_duplicated_pane_keeps_its_first_appearance() {
@@ -717,7 +717,7 @@ mod tests {
 	}
 
 	/// A `layout.json` from before the pane list existed has no `panes` key at all. It must open at
-	/// the defaults rather than with no panes — which would be an application with no interface.
+	/// the defaults rather than with no panes - which would be an application with no interface.
 	#[test]
 	fn a_layout_file_from_before_the_pane_list_still_opens() {
 		let old =
@@ -768,7 +768,7 @@ mod tests {
 	}
 
 	/// The camera is the largest thing in the window, so a reload that forgets it is the most
-	/// visible way [Q16]'s invariant can be broken — and it was, until `view` existed.
+	/// visible way [Q16]'s invariant can be broken - and it was, until `view` existed.
 	#[test]
 	fn the_camera_survives_a_round_trip() -> Result<()> {
 		let dir = crate::testing::dir("layout-camera");
@@ -908,7 +908,7 @@ mod tests {
 		views.entries().iter().map(|v| v.name.as_str()).collect()
 	}
 
-	/// The order is the user's, so saving must never rearrange it — the bug an alphabetical sort
+	/// The order is the user's, so saving must never rearrange it - the bug an alphabetical sort
 	/// would reintroduce the moment `reorder` shipped.
 	#[test]
 	fn a_new_view_is_appended_and_the_order_is_left_alone() {
@@ -992,7 +992,7 @@ mod tests {
 		Ok(())
 	}
 
-	/// The camera is flattened, so a view is one flat object — which is what lets a file written
+	/// The camera is flattened, so a view is one flat object - which is what lets a file written
 	/// before the rename still read.
 	#[test]
 	fn a_view_is_stored_as_one_flat_object() -> Result<()> {

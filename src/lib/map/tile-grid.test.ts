@@ -17,7 +17,7 @@ describe('tileForLngLat', () => {
 	});
 
 	it('finds the known tile for Berlin at z14', () => {
-		// 52.52 N, 13.405 E — the canonical OSM slippy-map tile.
+		// 52.52 N, 13.405 E - the canonical OSM slippy-map tile.
 		expect(tileForLngLat(13.405, 52.52, 14)).toEqual({ x: 8802, y: 5373 });
 	});
 

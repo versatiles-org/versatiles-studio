@@ -1,7 +1,7 @@
 //! Generating `src/lib/ipc/bindings.ts` from the commands themselves (S0.3, [Q3]).
 //!
-//! Every type crossing the IPC boundary used to be written twice — once in Rust and once in
-//! TypeScript — and `svelte-check` cannot catch the drift, because it flags a *use* of a missing
+//! Every type crossing the IPC boundary used to be written twice - once in Rust and once in
+//! TypeScript - and `svelte-check` cannot catch the drift, because it flags a *use* of a missing
 //! field, not a missing field. Adding one in Rust and forgetting the other side failed nothing
 //! until somebody read it.
 //!
@@ -19,7 +19,7 @@ mod tests {
 	const OUTPUT: &str = "../src/lib/ipc/bindings.ts";
 
 	const HEADER: &str = "\
-// Generated from the Rust commands by `cargo test -p versatiles-studio` — do not edit.
+// Generated from the Rust commands by `cargo test -p versatiles-studio` - do not edit.
 //
 // Hand-written wrappers and the reasoning behind each command live in `commands.ts`, which
 // re-exports everything here. See src-tauri/src/bindings.rs.
@@ -27,7 +27,7 @@ mod tests {
 
 	/// `export` writes to a path, so generation goes to a scratch file and is read back. Comparing
 	/// text rather than writing in place is what lets the test *fail* on staleness instead of
-	/// silently fixing it — a check that repairs what it is checking reports nothing.
+	/// silently fixing it - a check that repairs what it is checking reports nothing.
 	fn generate() -> String {
 		let scratch = std::env::temp_dir().join("versatiles-studio-bindings.ts");
 		crate::specta_builder()
@@ -51,7 +51,7 @@ mod tests {
 			return;
 		}
 		panic!(
-			"{OUTPUT} is stale — a command or a type changed.\n\
+			"{OUTPUT} is stale - a command or a type changed.\n\
 			 Run `UPDATE_BINDINGS=1 cargo test -p versatiles-studio` and commit the result."
 		);
 	}

@@ -4,7 +4,7 @@
  * One part of the window failing instead of all of it.
  *
  * The bug this exists for takes the whole application down and leaves nothing to say so: a
- * component that throws while rendering has no `catch` above it, so Svelte unmounts the tree — and
+ * component that throws while rendering has no `catch` above it, so Svelte unmounts the tree - and
  * without a boundary that tree is the window, status bar included.
  *
  * Rendered rather than reasoned about, because what is being asserted is that Svelte's boundary
@@ -20,7 +20,7 @@ import Boundary from './Boundary.svelte';
 /**
  * Children that fail the way a real pane does: while rendering, before anything can catch it.
  *
- * A raw snippet rather than a fixture component, so this needs no `.svelte` file of its own — the
+ * A raw snippet rather than a fixture component, so this needs no `.svelte` file of its own - the
  * component scheme has no folder for one that exists only to break.
  */
 const throwing = createRawSnippet(() => ({
@@ -60,7 +60,7 @@ describe('a pane that fails', () => {
 		await screen.findByText(/Pipeline stopped working/);
 
 		// "Cannot read properties of undefined" says nothing about where it happened, and a release
-		// build's stack is minified — so the one word that locates it has to be added here.
+		// build's stack is minified - so the one word that locates it has to be added here.
 		const [only] = reported();
 		expect(only.message).toBe('Pipeline: this pane met a shape it did not expect');
 		expect(only.level).toBe('error');

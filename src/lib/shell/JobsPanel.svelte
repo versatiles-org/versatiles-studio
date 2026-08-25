@@ -10,7 +10,7 @@
 	// more than it is worth, and a separate window makes it something to go and find.
 	let { list }: { list: Job[] } = $props();
 
-	/// Which job's log is open, and the lines of it. One at a time — a stack of open logs is a
+	/// Which job's log is open, and the lines of it. One at a time - a stack of open logs is a
 	/// scroll problem rather than a feature.
 	let openId = $state<number | null>(null);
 	let lines = $state<string[]>([]);
@@ -26,7 +26,7 @@
 		lines = await jobLog(job.id);
 	}
 
-	/// Newest first here, the opposite of how the core keeps them — the interesting one is the last.
+	/// Newest first here, the opposite of how the core keeps them - the interesting one is the last.
 	const newestFirst = $derived([...list].reverse());
 
 	function describe(job: Job): string {

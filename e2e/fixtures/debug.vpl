@@ -1,7 +1,7 @@
 # A source that needs no data on disk.
 #
 # `from_debug` draws its own tiles from the tile coordinates, so a test that opens this exercises the
-# whole path — read, serve, style, render — on a machine that has never downloaded a container.
+# whole path - read, serve, style, render - on a machine that has never downloaded a container.
 #
 # Vector rather than raster, because that is the case Studio is mostly about: the style pane offers
 # presets for it, and a preset is a button a test can actually press.

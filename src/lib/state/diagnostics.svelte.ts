@@ -1,20 +1,20 @@
 /**
  * What has gone wrong this session, and the handlers that notice it (S6.8).
  *
- * **The problem this solves is not "log more".** Errors already had five sinks — the status bar,
- * the webview console, `eprintln!`, the job log, and a panic's nothing at all — and not one of them
+ * **The problem this solves is not "log more".** Errors already had five sinks - the status bar,
+ * the webview console, `eprintln!`, the job log, and a panic's nothing at all - and not one of them
  * survived to a place a user could copy from. A person hitting a bug could describe it from memory
  * or not at all.
  *
  * The list itself lives in the core (`studio_core::diagnostics`), for the reason [Q16] gives for
  * everything else: a log kept in the window is empty exactly when it is most wanted, which is after
- * the window has reloaded or crashed. This module is the *webview's* half — the handlers that catch
+ * the window has reloaded or crashed. This module is the *webview's* half - the handlers that catch
  * what only the webview can see, and the mirror the panel draws.
  *
  * **Three rules, each of which was a way to make things worse:**
  *
  * * **Reporting never throws, and never loses one.** Every catch point here runs inside somebody
- *   else's failure path, including `unhandledrejection` — so a rejection raised *while reporting a
+ *   else's failure path, including `unhandledrejection` - so a rejection raised *while reporting a
  *   rejection* is a loop that takes the window with it. Reports are therefore queued behind one
  *   another and every failure of the queue itself is swallowed.
  * * **The count comes from the core.** A window that counted its own would disagree with the core
@@ -43,14 +43,14 @@ import {
 /** What the panel draws, newest first. Empty until something asks for it. */
 let list = $state<Problem[]>([]);
 
-/** How many distinct problems the core holds — the number on the bar's button. */
+/** How many distinct problems the core holds - the number on the bar's button. */
 let count = $state(0);
 
 /**
  * What the run before this one left behind, once somebody has asked for it.
  *
- * **A separate list, not a longer one.** They answer different questions — "what is wrong with what
- * I am doing" and "what happened the time it died" — and a report has to say which of the two it
+ * **A separate list, not a longer one.** They answer different questions - "what is wrong with what
+ * I am doing" and "what happened the time it died" - and a report has to say which of the two it
  * is describing. `null` means nobody has asked yet, which is not the same as a run that left
  * nothing behind.
  */
@@ -61,7 +61,7 @@ let earlier = $state<Problem[] | null>(null);
  *
  * The flood this bounds is real: MapLibre reports one failure per tile, and a screen of them
  * arrives faster than a round trip can answer. The core folds them into one row with a count, so
- * the hundredth adds nothing the second did not — but an unbounded queue of promises waiting to
+ * the hundredth adds nothing the second did not - but an unbounded queue of promises waiting to
  * tell it so is a leak.
  */
 const QUEUE_LIMIT = 100;
@@ -77,7 +77,7 @@ let dropped = 0;
  * How many reports may fail in a row before this module stops trying.
  *
  * **A circuit breaker, and it earns its keep the moment the console is teed.** If the core has gone
- * away, every report fails — and anything that logs a failed report to the console comes straight
+ * away, every report fails - and anything that logs a failed report to the console comes straight
  * back through the tee as another problem to report. The queue's cap bounds one burst of that; this
  * ends it. Five in a row is a core that is gone, not a hiccup: one success resets the count.
  */
@@ -105,7 +105,7 @@ export const problems = {
  * Records a problem, and never fails doing it.
  *
  * Returns nothing on purpose. Every caller is a failure path that has something better to do than
- * wait for a log write, and the one thing a caller might want back — the count — is state the panel
+ * wait for a log write, and the one thing a caller might want back - the count - is state the panel
  * reads from here.
  */
 export function record(problem: NewProblem): void {
@@ -117,8 +117,8 @@ export function record(problem: NewProblem): void {
 	queued += 1;
 	// **Queued rather than fired**, so reports reach the core in the order they happened and only
 	// one is in flight at a time. Calling `logDiagnostic` inside the `then` also means a binding
-	// that throws *synchronously* — `invoke` is called on the way to returning its promise, so a
-	// webview without one throws before there is anything to catch — becomes a rejection this chain
+	// that throws *synchronously* - `invoke` is called on the way to returning its promise, so a
+	// webview without one throws before there is anything to catch - becomes a rejection this chain
 	// handles, rather than an exception thrown back into `status.fail` and out of somebody's catch.
 	pending = pending
 		.then(() => logDiagnostic(problem))
@@ -152,7 +152,7 @@ export function record(problem: NewProblem): void {
 /** Rereads the list from the core. Called when the panel opens, and once at startup. */
 export async function refresh(): Promise<void> {
 	// Newest first: the interesting problem is the last one, and a folded repeat carries the time it
-	// last happened — so a problem that is happening *again* rises rather than staying where it
+	// last happened - so a problem that is happening *again* rises rather than staying where it
 	// first appeared. `id` breaks a tie within the same second, and is monotonic.
 	const held = await diagnostics();
 	list = [...held].sort((a, b) => b.at - a.at || b.id - a.id);
@@ -183,8 +183,8 @@ export type Session = 'this' | 'previous';
 /**
  * The report as text.
  *
- * **Here rather than in the panel**, because two things now ask for it — the Copy button and the
- * Help menu — and a report that differed depending on which one you used would be the sort of bug
+ * **Here rather than in the panel**, because two things now ask for it - the Copy button and the
+ * Help menu - and a report that differed depending on which one you used would be the sort of bug
  * that only ever appears in someone else's issue.
  */
 export async function composeReport(session: Session): Promise<string> {
@@ -200,14 +200,14 @@ export async function composeReport(session: Session): Promise<string> {
 		environment: where,
 		local,
 		// A plain `Date`, not `SvelteDate`: it is read once, on the next line, and never held in
-		// `$state` — there is nothing for a reactive wrapper to do but cost a subscription.
+		// `$state` - there is nothing for a reactive wrapper to do but cost a subscription.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		at: new Date(),
 		session
 	});
 }
 
-/** Puts a report on the clipboard. `false` when the webview refused — the caller offers a fallback. */
+/** Puts a report on the clipboard. `false` when the webview refused - the caller offers a fallback. */
 export async function copyReport(session: Session): Promise<boolean> {
 	const text = await composeReport(session);
 	try {
@@ -223,7 +223,7 @@ export async function copyReport(session: Session): Promise<boolean> {
  * Opens a prefilled issue, with the whole report on the clipboard first.
  *
  * **Both, in that order.** A URL holds a few thousand characters and a report can be longer, so the
- * link carries what fits and says the rest is already copied — which is only true if the copying
+ * link carries what fits and says the rest is already copied - which is only true if the copying
  * happened first. Returns whether that copy worked, so a caller with somewhere to say so can.
  */
 export async function reportProblem(session: Session): Promise<boolean> {
@@ -249,7 +249,7 @@ export async function loadEarlier(): Promise<void> {
 	earlier = [...held].sort((a, b) => b.at - a.at || b.id - a.id);
 }
 
-/** Forgets everything — for reproducing a problem cleanly before copying the report. */
+/** Forgets everything - for reproducing a problem cleanly before copying the report. */
 export async function forgetAll(): Promise<void> {
 	await clearDiagnostics();
 	list = [];
@@ -265,8 +265,8 @@ export async function forgetAll(): Promise<void> {
  */
 export function describe(error: unknown): { message: string; detail: string | null } {
 	if (error instanceof CommandFailed) {
-		// **The one fact the core could not send.** Its errors are bare sentences — no stack, because
-		// it did not happen here — so without this a report says "no such file" and nothing about
+		// **The one fact the core could not send.** Its errors are bare sentences - no stack, because
+		// it did not happen here - so without this a report says "no such file" and nothing about
 		// what was being attempted. The stack is this side's and names `unwrap`, which helps nobody.
 		return { message: error.message, detail: `while calling ${error.command}` };
 	}
@@ -279,7 +279,7 @@ export function describe(error: unknown): { message: string; detail: string | nu
 	return { message: String(error), detail: null };
 }
 
-/** An object error's own fields, for the detail — a core error often carries a span or a path. */
+/** An object error's own fields, for the detail - a core error often carries a span or a path. */
 function json(value: object): string | null {
 	try {
 		const text = JSON.stringify(value);
@@ -294,7 +294,7 @@ function json(value: object): string | null {
  * The console methods that mean something went wrong, and the level each one means.
  *
  * Not `log` or `info`. Those are how a library narrates itself, and a panel that collected them
- * would be a transcript rather than a list of problems — with the one line that matters somewhere
+ * would be a transcript rather than a list of problems - with the one line that matters somewhere
  * in the middle of it.
  */
 const TEED = { error: 'error', warn: 'warn' } as const satisfies Record<string, NewProblem['level']>;
@@ -304,7 +304,7 @@ const TEED = { error: 'error', warn: 'warn' } as const satisfies Record<string, 
  *
  * **The synchronous half only.** A report that fails does so a turn later, with this long since
  * down, and anything that logs *that* to the console arrives back here as a new problem. What ends
- * that is the queue's cap and then [`GIVE_UP_AFTER`] — this only stops the tightest version of it.
+ * that is the queue's cap and then [`GIVE_UP_AFTER`] - this only stops the tightest version of it.
  */
 let teeing = false;
 
@@ -320,7 +320,7 @@ let teeing = false;
  * it in the usual order.
  */
 export function teeConsole(): () => void {
-	/** What was there before, and what this put in its place — both needed to undo it safely. */
+	/** What was there before, and what this put in its place - both needed to undo it safely. */
 	const swapped: { name: keyof typeof TEED; before: typeof console.error; patched: typeof console.error }[] = [];
 
 	for (const name of Object.keys(TEED) as (keyof typeof TEED)[]) {
@@ -328,8 +328,8 @@ export function teeConsole(): () => void {
 		const call = before.bind(console) as (...args: unknown[]) => void;
 		const patched = (...args: unknown[]) => {
 			call(...args);
-			// Reporting can itself write to the console — an IPC layer complaining that it has no
-			// window to talk to — and that would arrive back here as another thing to report.
+			// Reporting can itself write to the console - an IPC layer complaining that it has no
+			// window to talk to - and that would arrive back here as another thing to report.
 			if (teeing) return;
 			teeing = true;
 			try {
@@ -344,8 +344,8 @@ export function teeConsole(): () => void {
 
 	return () => {
 		for (const { name, before, patched } of swapped) {
-			// **Only if it is still ours.** Something else may have wrapped the console since — a
-			// devtools bridge, another copy of this — and restoring over it would tear out its work
+			// **Only if it is still ours.** Something else may have wrapped the console since - a
+			// devtools bridge, another copy of this - and restoring over it would tear out its work
 			// while leaving it holding a reference to this one.
 			if (console[name] === patched) console[name] = before;
 		}
@@ -378,7 +378,7 @@ function readable(value: unknown): string {
 /**
  * Starts listening for what only the webview can see. Called once, from the shell's startup.
  *
- * Returns the teardown, so a reload does not leave two of each handler on one `window` — or two
+ * Returns the teardown, so a reload does not leave two of each handler on one `window` - or two
  * layers of console wrapper, each calling the other.
  */
 export function watch(): () => void {

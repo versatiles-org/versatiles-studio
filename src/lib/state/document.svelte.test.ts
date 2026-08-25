@@ -6,7 +6,7 @@ import type { DocumentView } from '../ipc/commands';
  * The one rule this module exists for: **when the editor must reload, and when it must not**.
  *
  * It was two variables written as a pair in seven places and deliberately not as a pair in four
- * more. Getting it backwards is invisible in a type check and obvious in use — either the textarea
+ * more. Getting it backwards is invisible in a type check and obvious in use - either the textarea
  * keeps showing text that has been replaced, or the caret jumps on every keystroke.
  */
 
@@ -34,7 +34,7 @@ describe('what the editor reloads on', () => {
 		expect(document.current?.text).toBe('from_debug format=avif');
 	});
 
-	// A reload is a *step*, not a value — showing the same document twice must still reload, because
+	// A reload is a *step*, not a value - showing the same document twice must still reload, because
 	// undo can hand back text that happens to match what is already there.
 	it('reloads again even for an identical document', () => {
 		document.show(doc());

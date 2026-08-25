@@ -22,7 +22,7 @@ const { default: UpdateDialog } = await import('./UpdateDialog.svelte');
 const { updates } = await import('../state/updates.svelte');
 
 /**
- * jsdom has no `showModal` — a `<dialog>` there is an element with none of the behaviour.
+ * jsdom has no `showModal` - a `<dialog>` there is an element with none of the behaviour.
  *
  * Shimmed rather than worked around, because `Modal` calls it on mount and the alternative is a
  * component that cannot be rendered in a test at all. What it does not prove is the top layer, the
@@ -102,7 +102,7 @@ describe('installing one', () => {
 		// Restarting is its own press: only the window knows whether there is unsaved work in it.
 		expect(screen.getByRole('button', { name: 'Restart now' })).toBeTruthy();
 		expect(process.relaunch).not.toHaveBeenCalled();
-		// And closing is still offered — as "Later", because there is now something to come back to.
+		// And closing is still offered - as "Later", because there is now something to come back to.
 		expect(screen.getByRole('button', { name: 'Later' })).toBeTruthy();
 	});
 });

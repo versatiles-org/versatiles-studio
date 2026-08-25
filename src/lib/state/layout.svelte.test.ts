@@ -5,7 +5,7 @@ import type { Layout } from '../ipc/commands';
  * The window's furniture, and the one thing a module buys over four call sites: **every write goes
  * through one funnel**.
  *
- * The layout is read-modify-write on a single record — a pane drag reads it, a toggle reads it, the
+ * The layout is read-modify-write on a single record - a pane drag reads it, a toggle reads it, the
  * camera timer reads it. Four call sites each spreading `{ ...layout, … }` is four chances to spread
  * a stale one, and the bug that produces is invisible until two things happen at once.
  */

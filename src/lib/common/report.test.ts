@@ -2,7 +2,7 @@
  * What a copied report says.
  *
  * The redaction especially: this text is written to be pasted into a public issue tracker, and
- * every path Studio reports is a path somebody chose — on all three platforms the home directory
+ * every path Studio reports is a path somebody chose - on all three platforms the home directory
  * carries their account name. A test is the only thing standing between that and a paste.
  */
 
@@ -66,7 +66,7 @@ describe('the issue a report can open', () => {
 		const huge = 'x'.repeat(40_000);
 		const body = decodeURIComponent(issueUrl(REPO, huge).split('?body=')[1]);
 		// Silently dropping the tail would leave the reader concluding things from an absence this
-		// function invented — and not knowing the whole of it is already on the clipboard.
+		// function invented - and not knowing the whole of it is already on the clipboard.
 		expect(body).toContain('did not fit in a link');
 		expect(body).toContain('on your clipboard');
 	});
@@ -140,7 +140,7 @@ describe('the report a user pastes into an issue', () => {
 
 	/**
 	 * The two read identically and mean opposite things: a previous-session report describes a run
-	 * that is over — very likely the one that crashed — while the environment above it is this run's,
+	 * that is over - very likely the one that crashed - while the environment above it is this run's,
 	 * because that is the only one anybody can still ask.
 	 */
 	it('says when it is describing a run that is already over', () => {

@@ -6,7 +6,7 @@
 # VersaTiles Studio
 
 A cross-platform desktop application for working with map tiles: open them, inspect them, build
-processing pipelines, design styles, and produce new tile sets — without a terminal and without a
+processing pipelines, design styles, and produce new tile sets - without a terminal and without a
 full GIS.
 
 Built on [Tauri](https://tauri.app) and [versatiles-rs](https://github.com/versatiles-org/versatiles-rs).
@@ -22,12 +22,12 @@ brew tap versatiles-org/versatiles
 brew install --cask versatiles-studio
 ```
 
-Or download the `.dmg` — `aarch64` for Apple Silicon, `x64` for Intel.
+Or download the `.dmg` - `aarch64` for Apple Silicon, `x64` for Intel.
 
 **macOS will refuse to open it the first time.** This is not a broken download. Release 1 is
 deliberately not notarised: an Apple Developer identity costs $99 a year and, more to the point, has
 an approval lead time we chose to keep off the critical path ([Q10](docs/decisions.md)). Every build
-_is_ ad-hoc signed, which is the minimum a binary needs to run on Apple Silicon at all — what is
+_is_ ad-hoc signed, which is the minimum a binary needs to run on Apple Silicon at all - what is
 missing is Apple's counter-signature saying they have seen it.
 
 Open **System Settings → Privacy & Security**, find the line naming VersaTiles Studio and press
@@ -54,14 +54,14 @@ across distributions ([Q10](docs/decisions.md)).
 
 ### Windows
 
-Download the `x64` `-setup.exe`. There is no separate ARM build — Windows on ARM runs this one
+Download the `x64` `-setup.exe`. There is no separate ARM build - Windows on ARM runs this one
 under emulation ([S5.9](docs/scope-release-1.md)).
 
 **Windows will warn you on first run.** SmartScreen shows "Windows protected your PC" for anything
 it has not seen signed before; click **More info**, then **Run anyway**. Studio is not code-signed
 yet: a certificate is an annual cost with a procurement lead time, and after June 2023 it has to
 live on a hardware token or an HSM, which complicates CI ([Q10](docs/decisions.md)). The build
-itself is no longer deferred — only the signature.
+itself is no longer deferred - only the signature.
 
 ## Building
 
@@ -106,11 +106,11 @@ Five schemes, all single-letter-plus-number so they cannot be confused. Letters 
 
 | Prefix  | Means                              | Example                                      |
 | ------- | ---------------------------------- | -------------------------------------------- |
-| `A`–`G` | Feature clusters                   | `C1` — bidirectional node graph              |
-| `M`     | Funding milestones                 | `M4` — edit VPL and instantly see the result |
-| `P`     | Target audiences                   | `P1` — data journalists and NGOs             |
-| `Q`     | Questions/decisions                | `Q11` — the node graph is in release 1       |
-| `S`     | Stages, and work items within them | `S2.1` — lossless VPL syntax tree            |
+| `A`-`G` | Feature clusters                   | `C1` - bidirectional node graph              |
+| `M`     | Funding milestones                 | `M4` - edit VPL and instantly see the result |
+| `P`     | Target audiences                   | `P1` - data journalists and NGOs             |
+| `Q`     | Questions/decisions                | `Q11` - the node graph is in release 1       |
+| `S`     | Stages, and work items within them | `S2.1` - lossless VPL syntax tree            |
 
 Two rules that cost nothing now and save confusion later:
 
@@ -120,9 +120,9 @@ Two rules that cost nothing now and save confusion later:
   "A3", every old issue and commit message would silently lie.
 
 Milestone numbers are the funder's and are never renumbered. Work-item numbers are identity rather
-than order — `S2.1` is not necessarily done before `S2.2` — so inserting work never renumbers
+than order - `S2.1` is not necessarily done before `S2.2` - so inserting work never renumbers
 anything.
 
 ## License
 
-[MIT](LICENSE) — Copyright (c) 2024-2026 Michael Kreil
+[MIT](LICENSE) - Copyright (c) 2024-2026 Michael Kreil

@@ -4,8 +4,8 @@
 	// What an export of this graph is narrowed to, and what that will cost (F2, C6, S5.2, S5.4).
 	//
 	// **In the pane, not in the export dialog.** The dialog used to carry both, and it is a modal: it
-	// covers the map you are cropping against. A crop is arrived at by looking — drag a rectangle over
-	// the city you mean, watch the estimate fall from four hours to twelve minutes — and none of that
+	// covers the map you are cropping against. A crop is arrived at by looking - drag a rectangle over
+	// the city you mean, watch the estimate fall from four hours to twelve minutes - and none of that
 	// works behind a modal. What is left in the dialog is the file to write.
 	//
 	// **The numbers and the rectangle are one thing.** Dragging on the map fills these fields, and
@@ -29,11 +29,11 @@
 		onUseView: () => void;
 	} = $props();
 
-	/// Held as text, not numbers, because "empty" is a value here and `0` is a different one — a
+	/// Held as text, not numbers, because "empty" is a value here and `0` is a different one - a
 	/// `bind:value` on a number input turns a cleared field into `undefined` on some inputs and `NaN`
 	/// on others, and both would arrive as "no bound" when the user meant zero.
 	///
-	/// Seeded from the crop and re-seeded whenever it changes from outside — which is what a drag on
+	/// Seeded from the crop and re-seeded whenever it changes from outside - which is what a drag on
 	/// the map is.
 	///
 	/// `Bounds` reaches here with every field optional, so a missing one and an explicit `null` both
@@ -99,18 +99,18 @@
 	/// buttons and the estimate were four rows of chrome under every chain that is not being cropped.
 	///
 	/// **Local, not durable.** [Q16] keeps durable state in the core, and a *pane's* fold is durable
-	/// for that reason — but this is a disclosure inside one, in the class [Q35] put scroll position
+	/// for that reason - but this is a disclosure inside one, in the class [Q35] put scroll position
 	/// in: it costs a gesture to restore, not work. Local also means "closed by default" is true
 	/// every launch rather than only on a fresh install.
 	let open = $state(false);
 
 	/// What the crop comes to, for the header when it is closed. **A crop that is set has to be
-	/// visible while the section is not** — otherwise a graph narrowed to one city exports as one
+	/// visible while the section is not** - otherwise a graph narrowed to one city exports as one
 	/// city with nothing on screen saying so.
 	const summary = $derived.by(() => {
 		const parts: string[] = [];
 		if (crop.minZoom !== null || crop.maxZoom !== null) {
-			parts.push(`z${crop.minZoom ?? 'min'}–${crop.maxZoom ?? 'max'}`);
+			parts.push(`z${crop.minZoom ?? 'min'}-${crop.maxZoom ?? 'max'}`);
 		}
 		if (crop.bbox) parts.push('area');
 		return parts.join(' · ');

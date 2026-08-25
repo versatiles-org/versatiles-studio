@@ -5,7 +5,7 @@
 
 	// One argument of a node: its name, its help, its control, and whether it can be removed (C2).
 	//
-	// **One component for all three kinds of row** — a set parameter, a required one with no value
+	// **One component for all three kinds of row** - a set parameter, a required one with no value
 	// yet, and one chosen from `＋ parameter…` and not yet given a value. They were three copies of
 	// this markup, and they differ only in *data*: a name, a value, a placeholder, what committing
 	// does, and whether there is a button on the end. None of that is a mode, so none of it needs a
@@ -31,7 +31,7 @@
 		name: string;
 		/** What the operation says about it, or nothing for a parameter it does not declare. */
 		field?: FieldInfo;
-		/** The current value as one line — empty when the parameter is not set yet. */
+		/** The current value as one line - empty when the parameter is not set yet. */
 		value: string;
 		/** Shown behind the `?`. Omitted when there is nothing to say. */
 		help?: HelpContent;
@@ -39,9 +39,9 @@
 		suggestions?: string[];
 		/** What the empty box should say when the field has no default of its own to show. */
 		placeholder?: string;
-		/** In the pane and not yet in the document — tinted to say so. */
+		/** In the pane and not yet in the document - tinted to say so. */
 		tentative?: boolean;
-		/** Fired on blur, Enter or a choice — never per keystroke, which would reparse the document
+		/** Fired on blur, Enter or a choice - never per keystroke, which would reparse the document
 		 *  on every character and fight the caret. */
 		onCommit: (raw: string) => void;
 		/** Omitted when the argument cannot be removed, which is how "required" is said ([Q33]). */
@@ -54,7 +54,7 @@
 	/// What the empty box says.
 	///
 	/// **A default beats whatever the caller suggested** ([vt#253]). "a value" is a restatement of
-	/// the box; `000000` is what the operation will actually do if this is left alone — which is the
+	/// the box; `000000` is what the operation will actually do if this is left alone - which is the
 	/// difference between `from_color`'s `color`, whose absence is fine, and `from_csv`'s
 	/// `lon_column`, whose absence is a pipeline that will not build. They used to look identical.
 	///
@@ -145,7 +145,7 @@
 
 		{#if control?.kind === 'list' && suggestions.length > 0}
 			<!-- What the data actually contains. Chips rather than a multi-select: the set is small, the
-			     current value stays readable in the field above, and anything not listed can still be typed —
+			     current value stays readable in the field above, and anything not listed can still be typed -
 			     a property outside the probed tile is missing from here, not forbidden. -->
 			<div class="chips">
 				{#each suggestions as name (name)}

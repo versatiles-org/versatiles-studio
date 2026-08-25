@@ -22,7 +22,7 @@ describe('resolveRepo', () => {
 
 	it('returns the allow-listed constant, not the caller string', () => {
 		const input = ['versatiles-org', 'versatiles-style'].join('/');
-		// Same characters, different object — what comes back is our constant, so no manifest string
+		// Same characters, different object - what comes back is our constant, so no manifest string
 		// can reach a URL even if it happens to spell an allowed repo.
 		expect(resolveRepo(input)).toBe('versatiles-org/versatiles-style');
 	});
@@ -84,7 +84,7 @@ describe('the version', () => {
  *
  * Every failure here is silent from the outside: a platform missing from the manifest looks exactly
  * like being up to date, forever, for everyone on it. The names below are the ones a real release
- * run produced, not the ones the documentation describes — they differ.
+ * run produced, not the ones the documentation describes - they differ.
  */
 describe('latest.json', () => {
 	const sig = (name: string) => `signature-of-${name}\n`;
@@ -102,7 +102,7 @@ describe('latest.json', () => {
 		'darwin-aarch64.app.tar.gz.sig',
 		'darwin-x86_64.app.tar.gz',
 		'darwin-x86_64.app.tar.gz.sig',
-		// Linux signs the AppImage itself — there is no .AppImage.tar.gz.
+		// Linux signs the AppImage itself - there is no .AppImage.tar.gz.
 		'VersaTiles-Studio_0.1.0_amd64.AppImage.sig',
 		'VersaTiles-Studio_0.1.0_aarch64.AppImage.sig'
 	];
@@ -118,7 +118,7 @@ describe('latest.json', () => {
 	);
 
 	/**
-	 * Windows arm64 is not built — `gdal-sys` has no bindings for it (S5.9) — so an arm64 artefact
+	 * Windows arm64 is not built - `gdal-sys` has no bindings for it (S5.9) - so an arm64 artefact
 	 * turning up means the matrix gained a target that this file was not told about. The orphan
 	 * guard is what makes that loud: without it the platform would simply be missing from the
 	 * manifest, and every user of it would silently never see an update again.
@@ -220,7 +220,7 @@ describe('release', () => {
 			'fix: the URLs the plain export carried',
 			'chore: versatiles-rs 4.9.1'
 		]);
-		expect(section).toContain('## v0.2.0 — 2026-08-22');
+		expect(section).toContain('## v0.2.0 - 2026-08-22');
 		expect(section).toContain('### Features');
 		expect(section).toContain('- crop by rectangle');
 		expect(section).toContain('- a bundle');
@@ -244,7 +244,7 @@ describe('release', () => {
  * The shape of `package.json`'s scripts.
  *
  * **A convention nobody can check is a convention that decays.** This one is `{action}` or
- * `{action}:{context}`, and a bare `{action}` runs every `{action}:*` there is — which is only true
+ * `{action}:{context}`, and a bare `{action}` runs every `{action}:*` there is - which is only true
  * if it delegates to the runner rather than naming its members. The previous `check` named five by
  * hand, so a sixth could be added and silently never run: the tick still appears, and the check that
  * was added to catch something catches nothing.
@@ -301,8 +301,8 @@ describe('npm scripts', () => {
 /**
  * The runner's tree walk.
  *
- * Matching every descendant rather than the direct children would make `check` run each leaf twice —
- * once through its parent and once on its own — which is invisible except as a check that takes
+ * Matching every descendant rather than the direct children would make `check` run each leaf twice -
+ * once through its parent and once on its own - which is invisible except as a check that takes
  * twice as long as it should.
  */
 describe('scripts/run.ts', () => {
@@ -334,8 +334,8 @@ describe('scripts/run.ts', () => {
  *
  * `cargo metadata` used to do this and could not: it resolves every target and feature, so under
  * `--offline` it fails on the first crate an ordinary build never fetched, and without it a version
- * bump needs the network. The rule that replaces it — a workspace member is a `[[package]]` with no
- * `source` — has to touch our packages and no others, and there are 700 others.
+ * bump needs the network. The rule that replaces it - a workspace member is a `[[package]]` with no
+ * `source` - has to touch our packages and no others, and there are 700 others.
  */
 describe('Cargo.lock', () => {
 	const LOCK = [
@@ -390,8 +390,8 @@ describe('Cargo.lock', () => {
 /**
  * The macOS bundle name, wherever it is written down.
  *
- * `tauri.macos.conf.json` decides it, and six other places spell it out — two smoke tests, the
- * release notes and the README — and, in another repository, the tap's cask generator. They are literals on purpose:
+ * `tauri.macos.conf.json` decides it, and six other places spell it out - two smoke tests, the
+ * release notes and the README - and, in another repository, the tap's cask generator. They are literals on purpose:
  * a shell substitution reading the config is harder to read than the name it produces, and three of
  * the six are user-facing prose where a literal is the only option. What was missing was not
  * indirection but a check that they agree.
@@ -405,7 +405,7 @@ describe('the macOS bundle name', () => {
 	it('is what every file that names it says', () => {
 		const wrong: string[] = [];
 		for (const path of ['.github/workflows/ci.yml', '.github/workflows/release.yml', 'README.md']) {
-			// Preceded by a quote or a path separator, but not by `//` — otherwise the README's
+			// Preceded by a quote or a path separator, but not by `//` - otherwise the README's
 			// link to https://tauri.app reads as a bundle name.
 			for (const [, name] of read(path).matchAll(/(?<=["'/])(?<!\/\/)([A-Za-z][A-Za-z0-9 _.-]*\.app)\b/g)) {
 				if (name !== expected) wrong.push(`${path}: ${name}`);
@@ -426,10 +426,10 @@ describe('the macOS bundle name', () => {
  * `new URL(…).pathname` is the one everybody writes and it is wrong on Windows: it yields
  * `/D:/a/repo/`, and Node resolves that leading slash against the current drive, so reading
  * `${root}package.json` looks for `D:\D:\a\repo\package.json`. It is also wrong on any platform
- * when the path contains a character URLs escape — a checkout under `my repo` becomes `my%20repo`.
+ * when the path contains a character URLs escape - a checkout under `my repo` becomes `my%20repo`.
  *
  * Both failures are invisible where they are written: they need a Windows runner, or a space in the
- * checkout path. This cost a red `main` — every `npm run {action}:*` on Windows died in
+ * checkout path. This cost a red `main` - every `npm run {action}:*` on Windows died in
  * `beforeBuildCommand` before a single Rust file compiled, and the doubled drive letter in the
  * ENOENT was the only clue. `fileURLToPath` is correct on both counts and no longer to write.
  */
@@ -447,7 +447,7 @@ describe('turning a file URL into a path', () => {
 				}
 			}
 		}
-		expect(offenders, 'use fileURLToPath(new URL(…)) instead — .pathname breaks on Windows').toEqual([]);
+		expect(offenders, 'use fileURLToPath(new URL(…)) instead - .pathname breaks on Windows').toEqual([]);
 	});
 });
 
@@ -464,7 +464,7 @@ function sources(dir: string): string[] {
  * Starting `npm` from a script, which has one correct spelling and a silent wrong one.
  *
  * On Windows `npm` is `npm.cmd`, and Node refuses to execute a `.cmd` without `shell: true`. A
- * direct `spawnSync('npm', …)` therefore fails before the script runs — and because `spawnSync`
+ * direct `spawnSync('npm', …)` therefore fails before the script runs - and because `spawnSync`
  * reports that in `error` while leaving `status` as `null`, a caller testing only the status prints
  * a failure with no reason. That combination took two CI rounds to read.
  *
@@ -480,13 +480,13 @@ describe('starting a child process', () => {
 			const text = readFileSync(join(root, 'scripts', file), 'utf8');
 			if (/(spawnSync|execFileSync|execFile|spawn)\(\s*['"`]npm/.test(text)) offenders.push(file);
 		}
-		expect(offenders, 'use runInherited from spawn.ts — npm needs a shell on Windows').toEqual([]);
+		expect(offenders, 'use runInherited from spawn.ts - npm needs a shell on Windows').toEqual([]);
 	});
 });
 
 /**
  * The `e2e` feature compiles a WebDriver server into the binary so the end-to-end tests can drive
- * it — including on macOS, which no external driver can reach.
+ * it - including on macOS, which no external driver can reach.
  *
  * **A remote-control server must never ship.** Studio's pitch to public administrations is that it
  * is local, accountless and auditable ([Q1](../docs/decisions.md)), and a listener inside a released
@@ -498,7 +498,7 @@ describe('starting a child process', () => {
  * What keeps the end-to-end suite worth reading ([the plan](../docs/scope-e2e.md)).
  *
  * A suite this small has no room for a test nobody believes. Two rules carry most of that, and both
- * are the kind that erode quietly — a retry added while chasing one bad afternoon, a wait added
+ * are the kind that erode quietly - a retry added while chasing one bad afternoon, a wait added
  * without a message because the failure was obvious *at the time*.
  */
 describe('the end-to-end suite', () => {
@@ -513,7 +513,7 @@ describe('the end-to-end suite', () => {
 
 	/**
 	 * **Nothing is retried.** A story that passes on the second attempt is a story that has told you
-	 * something and been ignored — either the application is racy, which is a bug, or the story is,
+	 * something and been ignored - either the application is racy, which is a bug, or the story is,
 	 * which is a bug in the story. Retries turn both into noise, and the suite has one job that a
 	 * retry destroys: being believed.
 	 */
@@ -525,7 +525,7 @@ describe('the end-to-end suite', () => {
 
 	/**
 	 * **Every wait says what it was waiting for.** Without a message a timeout reports the wait's own
-	 * source, which names the helper and not the seam — "waitUntil condition timed out" is the same
+	 * source, which names the helper and not the seam - "waitUntil condition timed out" is the same
 	 * sentence whether the window never opened or the export never finished.
 	 */
 	it('says what each wait was for', () => {
@@ -572,7 +572,7 @@ describe('the e2e feature', () => {
 		const feature = /--features[= ]\S*e2e/;
 		const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts as Record<string, string>;
 		const building = Object.entries(scripts).filter(([name]) => name.startsWith('bundle') || name === 'release');
-		expect(building.length, 'no release-building script found — has one been renamed?').toBeGreaterThan(0);
+		expect(building.length, 'no release-building script found - has one been renamed?').toBeGreaterThan(0);
 
 		for (const [name, body] of building) {
 			expect(body, `\`${name}\` builds a release; it must not pass the e2e feature`).not.toMatch(feature);

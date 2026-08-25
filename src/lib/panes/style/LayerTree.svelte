@@ -8,7 +8,7 @@
 	// The layers of the style that is on the map (S4.5, D3).
 	//
 	// **The rendered style, not the recipe.** The recipe holds a preset and a handful of changes;
-	// what a person wants to look at is the layers those produce — `colorful` is 324 of them, and
+	// what a person wants to look at is the layers those produce - `colorful` is 324 of them, and
 	// none is named in the recipe until someone changes it.
 	//
 	// So this is a view of the output with the overrides applied on top, and every edit goes back
@@ -62,7 +62,7 @@
 	function openFilter(id: string) {
 		if (editing === id) {
 			// Commit before collapsing. The pause that batches typing is only 400 ms, but closing
-			// inside it would drop the edit without saying so — and a silently discarded change is
+			// inside it would drop the edit without saying so - and a silently discarded change is
 			// worse than an extra undo entry.
 			commit(id);
 			editing = null;
@@ -91,7 +91,7 @@
 	/// Applies the filter, live, once typing pauses.
 	///
 	/// **Live, because a filter is guesswork about data you cannot see** and the map is the only
-	/// thing that answers it — that is D3's "live preview". An invalid draft changes nothing and
+	/// thing that answers it - that is D3's "live preview". An invalid draft changes nothing and
 	/// says so; the map keeps the last filter that worked, the same rule the pipeline preview
 	/// follows.
 	///
@@ -103,7 +103,7 @@
 	$effect(() => {
 		const id = editing;
 		const text = draft;
-		// Opening an editor fills the box, and that is not an edit — without this, looking at a
+		// Opening an editor fills the box, and that is not an edit - without this, looking at a
 		// layer's filter would mark it as changed.
 		if (id === null || text === loaded) return;
 
@@ -121,7 +121,7 @@
 
 	/// Narrows the zooms a layer is drawn at.
 	///
-	/// Empty means "as the style says", which is not the same as 0 or 30 — a layer the style draws
+	/// Empty means "as the style says", which is not the same as 0 or 30 - a layer the style draws
 	/// from z6 and one someone pinned to z0 look identical at z10 and differ everywhere else.
 	function setZoom(id: string, edge: 'minZoom' | 'maxZoom', raw: string) {
 		const value = raw.trim() === '' ? undefined : Number(raw);
@@ -176,7 +176,7 @@
 						<span class="swatch none" title="{layer.type} layers have no colour of their own">·</span>
 					{/if}
 
-					<span class="name truncate" title="{layer.id} — {layer.type}">{layer.id}</span>
+					<span class="name truncate" title="{layer.id} - {layer.type}">{layer.id}</span>
 
 					<label class="zoom">
 						<span class="visually-hidden">Lowest zoom for {layer.id}</span>
@@ -184,7 +184,7 @@
 							type="number"
 							min="0"
 							max="30"
-							placeholder="–"
+							placeholder="-"
 							value={overrideOf(layer.id).minZoom ?? ''}
 							onchange={(event) => setZoom(layer.id, 'minZoom', event.currentTarget.value)}
 						/>
@@ -195,7 +195,7 @@
 							type="number"
 							min="0"
 							max="30"
-							placeholder="–"
+							placeholder="-"
 							value={overrideOf(layer.id).maxZoom ?? ''}
 							onchange={(event) => setZoom(layer.id, 'maxZoom', event.currentTarget.value)}
 						/>
@@ -207,7 +207,7 @@
 						class:set={isOverridden(overrideOf(layer.id))}
 						class:open={editing === layer.id}
 						title={filterOf(spec(layer.id), overrideOf(layer.id)) === null
-							? 'This layer has no filter — add one'
+							? 'This layer has no filter - add one'
 							: 'Edit which features this layer draws'}
 						aria-expanded={editing === layer.id}
 						onclick={() => openFilter(layer.id)}
@@ -239,7 +239,7 @@
 							{#if !parsed.ok}
 								<span class="problem">{parsed.problem}</span>
 							{:else if draft.trim() === ''}
-								No filter — this layer draws everything in {layer.source ?? 'its source'}.
+								No filter - this layer draws everything in {layer.source ?? 'its source'}.
 							{:else if settled}
 								<span class="fine">This is what the map is drawing.</span>
 							{:else}

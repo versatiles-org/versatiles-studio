@@ -36,7 +36,7 @@ jobs:
           cache: npm
       - run: npm ci
       # The `:web` half of each check. `npm run check:format` would also run `cargo fmt`, which
-      # this runner has no toolchain for — the two-level names exist so one job can take the Node
+      # this runner has no toolchain for - the two-level names exist so one job can take the Node
       # half and the job below the cargo half, with neither restating the command.
       #
       # Run granularly rather than through `npm run check`, so a failure names which check failed
@@ -73,11 +73,11 @@ jobs:
       - uses: actions/checkout@v7
       # Tauri needs WebKitGTK to build on Linux, even for `cargo test` of the shell crate.
       #
-      # `libappindicator3-dev` used to be here and is not needed: it is the Tauri *v1* package — v2
-      # calls it `libayatana-appindicator3-dev` — and it is only wanted for a tray icon, which this
+      # `libappindicator3-dev` used to be here and is not needed: it is the Tauri *v1* package - v2
+      # calls it `libayatana-appindicator3-dev` - and it is only wanted for a tray icon, which this
       # application does not have and does not compile in (`tauri` is taken with no features).
       - name: Install Tauri system dependencies
-        # A backstop only — the real bound is inside the action, because a `uses:` step's timeout
+        # A backstop only - the real bound is inside the action, because a `uses:` step's timeout
         # is not reliably enforced.
         timeout-minutes: 12
         uses: ./.github/actions/tauri-deps
@@ -88,7 +88,7 @@ jobs:
       # A prebuilt binary. Building it from source here would cost more than the coverage run.
       - uses: taiki-e/install-action@cargo-llvm-cov
       # **Save the cache even when the job fails.** The action does not by default, so a run that
-      # dies at clippy or at a test throws away every dependency it just compiled — and the next
+      # dies at clippy or at a test throws away every dependency it just compiled - and the next
       # push, usually the fix for that same failure, compiles them all again. A red build is exactly
       # when the wait is most expensive, because it is the one you are iterating on.
       - uses: Swatinem/rust-cache@v2
@@ -108,7 +108,7 @@ jobs:
       # this job's wall clock (Q19, Q20).
       #
       # Not `--summary-only`: that writes an lcov with per-file totals and no per-line records, so
-      # Codecov has nothing to colour a diff with — the patch status would be empty and nobody would
+      # Codecov has nothing to colour a diff with - the patch status would be empty and nobody would
       # know why.
       #
       # The core carries the logic and has no Tauri types, so it tests without a display server.
@@ -127,7 +127,7 @@ jobs:
     name: End-to-end
     runs-on: ubuntu-latest
     # **On pull requests, unlike `bundle`.** Bundling proves that packaging works, which is a
-    # question about the release machinery and hardly ever about the commit — so it waits for `main`.
+    # question about the release machinery and hardly ever about the commit - so it waits for `main`.
     # These stories prove that the change under review still opens a window, draws a map and writes a
     # file, which is a question about exactly this commit. Learning that after merging is most of the
     # value gone.
@@ -166,12 +166,12 @@ jobs:
           cache: npm
       - run: npm ci
       # Sprites and glyphs are mounted at start-up (Q9), and a window that could not mount them
-      # says so in its problem log — which several stories assert is empty.
+      # says so in its problem log - which several stories assert is empty.
       - run: npm run assets:fetch
       - run: npm run e2e:build
 
       # **`WEBKIT_DISABLE_DMABUF_RENDERER`, not `WEBKIT_DISABLE_COMPOSITING_MODE`.** The usual
-      # incantation for WebKitGTK in a container disables compositing, which takes WebGL with it —
+      # incantation for WebKitGTK in a container disables compositing, which takes WebGL with it -
       # and a suite that asserts the map draws would then be asserting it against a webview that
       # cannot draw one. Disabling only the dmabuf renderer keeps compositing, and Mesa's software
       # rasteriser supplies the GL.
@@ -202,7 +202,7 @@ jobs:
     # **Not on pull requests.** Bundling is six minutes a platform on a warm cache and fifteen on a
     # cold one, which is the whole critical path: `Frontend` answers in 30s and `Rust` in about two
     # minutes, and both already prove the code compiles. What a bundle proves on top of that is that
-    # *packaging* works on both release-1 targets ([Q10](../../docs/decisions.md)) — a question worth
+    # *packaging* works on both release-1 targets ([Q10](../../docs/decisions.md)) - a question worth
     # asking of what lands on `main`, and of a release, rather than of every commit on the way there.
     #
     # Reachable on demand: `workflow_dispatch` runs it against any branch when packaging is the thing
@@ -216,7 +216,7 @@ jobs:
             runner: ubuntu-latest
           # ARM Linux is here for a reason the others do not need: nobody on this project has an ARM
           # Linux machine to open the AppImage on, so the runner *is* the test. The smoke step below
-          # runs the arm64 binary it just built — which is the only evidence that target works.
+          # runs the arm64 binary it just built - which is the only evidence that target works.
           - label: Linux arm
             runner: ubuntu-24.04-arm
           - label: macOS arm
@@ -227,7 +227,7 @@ jobs:
           - label: Windows x86_64
             runner: windows-latest
           # **No Windows arm64.** `gdal-sys` ships prebuilt bindings for four targets and generates
-          # none at build time in a bundled build, and `aarch64 + windows` is not one of the four —
+          # none at build time in a bundled build, and `aarch64 + windows` is not one of the four -
           # so the bundle stops in its build script. Not something this repository can fix from
           # outside the crate; see S5.9. Windows on ARM runs the x64 installer under emulation.
     runs-on: ${{ matrix.runner }}
@@ -258,18 +258,18 @@ jobs:
       - run: npm ci
       - run: npm run assets:fetch
       # Proves the app actually bundles on both release-1 targets (Q10). Ad-hoc signing on macOS is
-      # not optional — on Apple Silicon a binary needs at least that to execute.
+      # not optional - on Apple Silicon a binary needs at least that to execute.
       #
       # **Without the updater artefacts.** `createUpdaterArtifacts` is on in `tauri.conf.json` so
       # that a release signs them, and `tauri build` then refuses to run anywhere the private key is
-      # absent — which is here, and rightly so: this job proves packaging works and its output is
+      # absent - which is here, and rightly so: this job proves packaging works and its output is
       # thrown away. Overriding the one key keeps the signing secret to the workflow that actually
       # publishes, rather than handing it to every push to main.
       - run: npm run bundle -- --ci --config '{"bundle":{"createUpdaterArtifacts":false}}'
 
       # The same question a release asks, asked on every push to main instead of once a version:
       # does the binary that was just bundled start, and did the bundled tier come with it (Q9)?
-      # No version comparison here — `main` carries whatever version it carries.
+      # No version comparison here - `main` carries whatever version it carries.
       - name: Smoke test
         shell: bash
         run: |
@@ -288,7 +288,7 @@ jobs:
           echo "  $("$binary" --version)"
           for asset in sprites.tar.gz glyphs.tar.gz; do
             [ -f "$resources/$asset" ] || {
-              echo "::error::$asset is missing from the bundle — the map would have no labels" >&2
+              echo "::error::$asset is missing from the bundle - the map would have no labels" >&2
               exit 1
             }
           done

@@ -20,7 +20,7 @@ describe('what the bar says', () => {
 	});
 
 	// `String({ message: 'x' })` is `"[object Object]"`, which is what the bar used to say whenever
-	// an error arrived as an object — one call site had learnt to unwrap it and seventeen had not.
+	// an error arrived as an object - one call site had learnt to unwrap it and seventeen had not.
 	it('unwraps an error object rather than stringifying it', () => {
 		status.fail(new Error('opening berlin.mbtiles'));
 		expect(status.current).toEqual({ kind: 'error', message: 'opening berlin.mbtiles' });
@@ -37,7 +37,7 @@ describe('what the bar says', () => {
 	});
 
 	// An error is a state somebody has to read. An operation finishing after one has landed must not
-	// wipe it — the failure is the more important of the two things the bar could be saying.
+	// wipe it - the failure is the more important of the two things the bar could be saying.
 	it('does not let a finishing operation wipe an error', () => {
 		status.fail('it broke');
 		status.settle();

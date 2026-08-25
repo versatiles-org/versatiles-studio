@@ -15,7 +15,7 @@
 	 * Which panel the bar has expanded, if any.
 	 *
 	 * **One at a time.** Both expand upward from the same strip, and two of them open would push the
-	 * map into a letterbox — and they answer different questions anyway: what ran, and what broke.
+	 * map into a letterbox - and they answer different questions anyway: what ran, and what broke.
 	 *
 	 * **Module state, because the bar is not the only thing that opens these.** Help → Problems… does
 	 * too, and the menu has no component to reach through. There is one status bar per window, so a
@@ -54,11 +54,11 @@
 		return `${Math.round(perSecond)}/s`;
 	}
 
-	/// The shared phrasing plus what it is about — see `common/format.ts` for why it rounds this
+	/// The shared phrasing plus what it is about - see `common/format.ts` for why it rounds this
 	/// hard. The export dialog reads the same numbers and says "about" instead.
 	const left = (seconds: number) => `${duration(seconds)} left`;
 
-	/// How fast, and how much longer — shown only once the job has said enough to mean it.
+	/// How fast, and how much longer - shown only once the job has said enough to mean it.
 	function pace(current: NonNullable<typeof job>): string | undefined {
 		const parts: string[] = [];
 		if (current.rate !== null) parts.push(rate(current.rate));
@@ -75,7 +75,7 @@
 	///
 	/// A job outranks a `status` message but not an error: the error is the thing that needs
 	/// answering, and burying it under a progress bar for a job that is still fine would be exactly
-	/// backwards. `fraction` is `undefined` — not zero — when nothing can say how far along it is;
+	/// backwards. `fraction` is `undefined` - not zero - when nothing can say how far along it is;
 	/// pretending to know is worse than admitting it.
 	const line = $derived.by(
 		(): { message: string; fraction?: number; pace?: string; error?: boolean; cancel?: number } => {

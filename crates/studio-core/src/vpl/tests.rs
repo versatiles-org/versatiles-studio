@@ -1,7 +1,7 @@
 //! What the syntax tree keeps that the semantic one throws away.
 //!
-//! There is no longer anything to agree *with*: 4.8.0's `CstFile` is the parser, and Studio's own —
-//! along with the differential test that kept the two honest — is deleted ([Q23]). These prove that
+//! There is no longer anything to agree *with*: 4.8.0's `CstFile` is the parser, and Studio's own -
+//! along with the differential test that kept the two honest - is deleted ([Q23]). These prove that
 //! what the lossless tree keeps survives a round trip through Studio's editing operations, which is
 //! the property the graph and the text editor both rest on.
 //!
@@ -52,7 +52,7 @@ fn parameter_order_is_the_authors_not_alphabetical() {
 		.collect();
 	assert_eq!(keys, ["zebra", "alpha", "middle"], "source order, not sorted");
 
-	// And upstream really would have sorted it — this is a live difference, not a hypothetical.
+	// And upstream really would have sorted it - this is a live difference, not a hypothetical.
 	let upstream: Vec<_> = document.to_pipeline().pipeline[0].properties.keys().cloned().collect();
 	assert_eq!(upstream, ["alpha", "middle", "zebra"]);
 }
@@ -151,7 +151,7 @@ fn line_and_column_are_one_based_and_counted_in_characters() {
 /// C4 wants the error under the right character.
 ///
 /// This used to be Studio's own work, because `parse_vpl` rendered a multi-line trace with no
-/// offsets. Since 4.8.0 the position comes from upstream — issue #217 — so what is checked here is
+/// offsets. Since 4.8.0 the position comes from upstream - issue #217 - so what is checked here is
 /// that Studio passes it through intact rather than that Studio computed it.
 #[test]
 fn errors_carry_the_position_of_the_problem() {
@@ -175,7 +175,7 @@ fn errors_carry_the_position_of_the_problem() {
 
 // -- editing ---------------------------------------------------------------------------------
 
-/// A structured edit rewrites one span, so everything around it — comments included — is untouched
+/// A structured edit rewrites one span, so everything around it - comments included - is untouched
 /// because it was never re-rendered.
 #[test]
 fn an_edit_touches_only_its_own_span() {
@@ -246,8 +246,8 @@ fn values_are_quoted_by_the_tree_with_the_least_punctuation_that_parses() {
 /// [#218](https://github.com/versatiles-org/versatiles-rs/issues/218).
 ///
 /// Studio reported this upstream, so the behaviour it now has to match is the one it asked for.
-/// Clearing a form field still *removes* the parameter (S2.6) — an empty filename is not a value
-/// anyone means — but that is now a decision about the interface rather than a limit of the syntax.
+/// Clearing a form field still *removes* the parameter (S2.6) - an empty filename is not a value
+/// anyone means - but that is now a decision about the interface rather than a limit of the syntax.
 #[test]
 fn an_empty_string_is_a_value_like_any_other() {
 	for text in ["node a=\"\"", "node a=''", r#"node a=["", x]"#] {
@@ -257,7 +257,7 @@ fn an_empty_string_is_a_value_like_any_other() {
 }
 
 /// Opening a container is the same thing as putting a read node at the head of the pipeline (Q22),
-/// so the node Studio shows has to be VPL that actually parses — including for the awkward paths
+/// so the node Studio shows has to be VPL that actually parses - including for the awkward paths
 /// people really have.
 #[test]
 fn an_opened_container_becomes_a_read_node() {
@@ -319,7 +319,7 @@ fn setting_a_value_quotes_it_for_the_caller() {
 	}
 }
 
-/// The neighbours, and the comments, are not re-rendered — they are never touched.
+/// The neighbours, and the comments, are not re-rendered - they are never touched.
 #[test]
 fn setting_a_value_leaves_the_rest_of_the_line_alone() {
 	let mut document = Document::parse("# note\nnode zebra=1 alpha=2 # trailing").unwrap();
@@ -332,7 +332,7 @@ fn setting_a_value_leaves_the_rest_of_the_line_alone() {
 
 #[test]
 fn removing_a_property_takes_its_separator_with_it() {
-	// middle, last and only — the three positions where a stray space could survive.
+	// middle, last and only - the three positions where a stray space could survive.
 	for (source, index, expected) in [
 		("node a=1 b=2 c=3", 1, "node a=1 c=3"),
 		("node a=1 b=2", 1, "node a=1"),
@@ -359,7 +359,7 @@ fn spans_from_before_an_edit_are_refused_not_obeyed() {
 
 // -- highlighting ------------------------------------------------------------------------------
 
-/// The editor paints from the tree, not from a second tokeniser (Q25) — so every token has to line
+/// The editor paints from the tree, not from a second tokeniser (Q25) - so every token has to line
 /// up with the text it claims, and nothing may be left unclassified but whitespace.
 #[test]
 fn tokens_cover_the_document_and_say_what_each_part_is() {
@@ -393,7 +393,7 @@ fn tokens_cover_the_document_and_say_what_each_part_is() {
 		]
 	);
 
-	// Everything the tokens skip must be whitespace — an unclassified character would render
+	// Everything the tokens skip must be whitespace - an unclassified character would render
 	// unstyled, which is how a highlighter quietly drifts from the parser.
 	let mut cursor = 0;
 	for token in &tokens {
@@ -429,7 +429,7 @@ fn tokens_survive_multibyte_text_and_nesting() {
 // -- setting parameters ------------------------------------------------------------------------
 
 /// What the generated form does when you pick a parameter the operation accepts but the node does
-/// not set — the case that cannot be addressed by the property's own span, because there isn't one.
+/// not set - the case that cannot be addressed by the property's own span, because there isn't one.
 #[test]
 fn a_parameter_can_be_added_to_a_node_that_does_not_have_it() {
 	let mut document = Document::parse("from_container filename=a").unwrap();
@@ -481,7 +481,7 @@ fn a_span_that_names_no_operation_is_refused() {
 	assert_eq!(document, before, "a refusal must not half-apply");
 }
 
-/// A selection is a path, so anything asked about the selection has to be able to follow one —
+/// A selection is a path, so anything asked about the selection has to be able to follow one -
 /// and it must agree with what `node_at` hands back from a caret offset (S3.4).
 #[test]
 fn a_path_reaches_the_node_that_produced_it() {
@@ -529,7 +529,7 @@ fn an_operation_can_be_appended_after_a_node() {
 
 	assert_eq!(document.text(), "from_container filename=a.versatiles | filter");
 	assert_eq!(document.pipeline().nodes.len(), 2);
-	// No invented parameters — the generated form is where those are set.
+	// No invented parameters - the generated form is where those are set.
 	assert!(document.pipeline().nodes[1].properties.is_empty());
 }
 
@@ -580,7 +580,7 @@ fn appending_keeps_the_comments_and_layout_around_it() {
 	assert_eq!(document.comments().len(), 2, "both comments survived");
 }
 
-/// A read operation in the middle parses and is then flagged — C4's job, not this one's.
+/// A read operation in the middle parses and is then flagged - C4's job, not this one's.
 #[test]
 fn a_read_operation_in_the_middle_is_a_diagnostic_not_a_refusal() {
 	let mut document = Document::parse("from_debug format=png").unwrap();

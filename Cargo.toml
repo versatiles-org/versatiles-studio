@@ -6,20 +6,20 @@ resolver = "3"
 version = "0.2.0"
 edition = "2024"
 # 1.85 is edition 2024's floor; 1.94 is what versatiles-rs 4.10 requires.
-# This is an application, not a library — we control the build toolchain, so tracking security
+# This is an application, not a library - we control the build toolchain, so tracking security
 # updates matters more than a low MSRV.
 rust-version = "1.94"
 license = "MIT"
 repository = "https://github.com/versatiles-org/versatiles-studio"
 
 [workspace.dependencies]
-# versatiles-rs — consumed as a library, never shelled out to (see docs/architecture.md)
+# versatiles-rs - consumed as a library, never shelled out to (see docs/architecture.md)
 versatiles_core = "4.10"
 versatiles_container = "4.10"
 versatiles_pipeline = "4.10"
 versatiles_geometry = "4.10"
 # `server` for the data plane, `codegen` for `all_operation_metadata()` (C2), `ssh2` for remote
-# sources (A2). Explicitly not `cli` — that pulls clap, env_logger and termimad into a GUI app.
+# sources (A2). Explicitly not `cli` - that pulls clap, env_logger and termimad into a GUI app.
 versatiles = { version = "4.10", default-features = false, features = ["server", "codegen", "ssh2", "gdal"] }
 
 # GDAL compiled from source and linked statically, with a deliberately narrow driver set (Q19, Q20).
@@ -51,7 +51,7 @@ strip = true
 #
 # `proj-sys` 0.27 requires `libsqlite3-sys >=0.28,<0.36`; `versatiles_container` reaches `^0.38`
 # through `r2d2_sqlite`. Both are non-optional and `libsqlite3-sys` declares `links = "sqlite3"`, so
-# cargo permits exactly one copy and the graph does not resolve — which is what kept GDAL, and
+# cargo permits exactly one copy and the graph does not resolve - which is what kept GDAL, and
 # therefore E3, out of Studio entirely ([Q19](docs/decisions.md)).
 #
 # The fork widens that ceiling to any 0.x and changes nothing else. Upstream as
@@ -59,7 +59,7 @@ strip = true
 # the conflict is [versatiles-rs#226](https://github.com/versatiles-org/versatiles-rs/issues/226).
 #
 # Pinned to a commit rather than a branch, so a rebase on the fork cannot silently change what this
-# builds. **Drop this block** as soon as either lands and reaches a release — it is the only thing
+# builds. **Drop this block** as soon as either lands and reaches a release - it is the only thing
 # here that depends on a repository we control rather than on a published crate.
 [patch.crates-io]
 proj-sys = { git = "https://github.com/MichaelKreil/proj", rev = "7add234c30862750cdfb8b73bd969f95c199e3ff" }

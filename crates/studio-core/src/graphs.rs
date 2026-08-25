@@ -1,14 +1,14 @@
 //! The set of VPL graphs a project holds (S2.12, [Q32]).
 //!
 //! [Q25] said one pipeline document per window, and answered "several sources" with a composite
-//! node — `from_stacked [ a, b ]`. That merges inputs into **one** tile source. A map style needs
+//! node - `from_stacked [ a, b ]`. That merges inputs into **one** tile source. A map style needs
 //! several *independently addressable* ones, because a style is vector tiles plus hillshade plus
 //! terrain, each named separately in its `sources`. `from_stacked` stays; it answers a different
 //! question.
 //!
 //! **A graph is a named VPL document producing one named tile source.** The name is the identity in
-//! three places at once — the server mount, the source name in `style.json`, and the `.vpl`
-//! filename — which is what makes renaming one a real operation rather than a label change.
+//! three places at once - the server mount, the source name in `style.json`, and the `.vpl`
+//! filename - which is what makes renaming one a real operation rather than a label change.
 //!
 //! **Identity is the id, not the name.** A rename would otherwise invalidate every reference the
 //! webview is holding mid-edit; the id survives it, and the name is what the outside world sees.
@@ -44,7 +44,7 @@ pub struct GraphInfo {
 	pub path: Option<String>,
 	/// Whether the document differs from what is on disk.
 	pub dirty: bool,
-	/// What an export of this graph is narrowed to (F2, S5.2) — empty until someone sets one.
+	/// What an export of this graph is narrowed to (F2, S5.2) - empty until someone sets one.
 	pub crop: Bounds,
 }
 
@@ -60,7 +60,7 @@ pub struct Graph {
 	/// The bbox and zoom range an export of this graph is narrowed to (F2, S5.2).
 	///
 	/// **On the graph, not on the export dialog.** A crop is something you arrive at by looking at
-	/// the map and adjusting — the dialog is a modal that covers it — and it is worth keeping: a
+	/// the map and adjusting - the dialog is a modal that covers it - and it is worth keeping: a
 	/// project reopened tomorrow should still be about the same city. It is saved in the manifest
 	/// for that reason, and it is what the export and its estimate both narrow to, so the number
 	/// shown and the tiles written cannot disagree.
@@ -149,7 +149,7 @@ impl Graphs {
 	/// Narrows what an export of this graph writes. `false` when there is no such graph.
 	///
 	/// Checked here rather than at the write, so an inside-out box is refused while the field that
-	/// caused it is still on screen — the reason [`Bounds::check`] exists.
+	/// caused it is still on screen - the reason [`Bounds::check`] exists.
 	pub fn set_crop(&mut self, id: GraphId, crop: Bounds) -> Result<bool> {
 		crop.check()?;
 		let Some(graph) = self.get_mut(id) else {
@@ -169,7 +169,7 @@ impl Graphs {
 	/// Renames a graph, and reports the name it actually took.
 	///
 	/// **Rejected rather than adjusted.** Unlike [`add`](Self::add), where a suggestion comes from a
-	/// filename nobody chose, a rename is something a person typed — silently turning `basemap` into
+	/// filename nobody chose, a rename is something a person typed - silently turning `basemap` into
 	/// `basemap-2` because the name is taken is a worse answer than saying so.
 	///
 	/// The style references this name ([Q32]); rewriting those references is the caller's other half
@@ -218,13 +218,13 @@ impl Graphs {
 /// the bugs.
 /// The name a source suggests: its filename, without directories or extension.
 ///
-/// One rule for both ways a graph is created — opening a `.vpl`, and importing anything else — so
+/// One rule for both ways a graph is created - opening a `.vpl`, and importing anything else - so
 /// that `berlin.mbtiles` and `berlin.vpl` cannot disagree about what the graph is called. [Q35]
 /// makes this the only moment the name is derived: saving to a different filename later does not
 /// rename anything, so getting it right here is the whole of getting it right.
 ///
-/// Falls back to `graph` when there is no usable stem — a bare directory, or a name that sanitises
-/// away to nothing — which is what [`Graphs::add`] would have produced regardless.
+/// Falls back to `graph` when there is no usable stem - a bare directory, or a name that sanitises
+/// away to nothing - which is what [`Graphs::add`] would have produced regardless.
 #[must_use]
 pub fn name_for_source(source: &str) -> String {
 	std::path::Path::new(source)
@@ -390,7 +390,7 @@ mod tests {
 		assert_eq!(graphs.get(second).unwrap().name, "places-2");
 	}
 
-	/// A freed name becomes available again — otherwise a project would accumulate `-2`s forever.
+	/// A freed name becomes available again - otherwise a project would accumulate `-2`s forever.
 	#[test]
 	fn removing_a_graph_frees_its_name() {
 		let mut graphs = graphs();

@@ -1,6 +1,6 @@
 //! Installing and removing font families (G7, S4.1).
 //!
-//! The bundled tier covers Latin and ships in the binary (S0.6); everything else is 8–48 MB that
+//! The bundled tier covers Latin and ships in the binary (S0.6); everything else is 8-48 MB that
 //! most projects never need, so it is fetched when someone asks for it and can be removed again.
 
 use crate::state::AppState;
@@ -55,7 +55,7 @@ pub async fn install_font(
 /// Removes a family. Reports whether one was there.
 ///
 /// **The mount is not removed**, and cannot be: the server takes static sources and never gives them
-/// back. Until it does, a family removed mid-session keeps serving until the next start — which is
+/// back. Until it does, a family removed mid-session keeps serving until the next start - which is
 /// the harmless direction for this to be wrong in, and is said here rather than left to be noticed.
 #[tauri::command]
 #[specta::specta]

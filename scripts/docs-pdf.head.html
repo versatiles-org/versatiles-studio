@@ -4,7 +4,7 @@
 	 *
 	 * Deliberately not the application's tokens: those describe a dark-capable interface on a
 	 * screen, and every one of them would have to be overridden for ink on white. What is borrowed
-	 * is the type scale's habit — few sizes, each a deliberate step — rather than its values.
+	 * is the type scale's habit - few sizes, each a deliberate step - rather than its values.
 	 */
 
 	@page {
@@ -30,7 +30,7 @@
 		background: #fff;
 		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 		line-height: 1.5;
-		/* Long technical words — `from_stacked_raster`, hyphenated crate names — in a narrow
+		/* Long technical words - `from_stacked_raster`, hyphenated crate names - in a narrow
 		   column. Without this they push a table cell past the page rather than breaking. */
 		overflow-wrap: break-word;
 	}
@@ -92,8 +92,8 @@
 		border-radius: 3px;
 	}
 
-	/* Wireframes and VPL samples. Kept whole where they fit — a diagram split across a page break
-	   is two half-diagrams — but allowed to break rather than overflow when they do not. */
+	/* Wireframes and VPL samples. Kept whole where they fit - a diagram split across a page break
+	   is two half-diagrams - but allowed to break rather than overflow when they do not. */
 	pre {
 		font-size: 8pt;
 		line-height: 1.35;
@@ -119,8 +119,8 @@
 	}
 
 	/*
-	 * Tables carry most of these documents — the feature catalogue, the work items, the decisions'
-	 * comparisons — and the widest rows run past 450 characters. Smaller than the body text on
+	 * Tables carry most of these documents - the feature catalogue, the work items, the decisions'
+	 * comparisons - and the widest rows run past 450 characters. Smaller than the body text on
 	 * purpose: a table that fits is worth more than one set at reading size and clipped.
 	 */
 	table {
@@ -144,7 +144,7 @@
 		font-weight: 600;
 	}
 
-	/* A row may break across pages — some are a paragraph long — but the header repeats when it
+	/* A row may break across pages - some are a paragraph long - but the header repeats when it
 	   does, or the columns on the second page mean nothing. */
 	thead {
 		display: table-header-group;
@@ -163,8 +163,8 @@
 		margin: 1.4em 0;
 	}
 
-	/* Pandoc's table of contents. No page numbers — they need paged-media CSS no browser
-	   implements — so it earns its place by being clickable and by showing the shape of the whole
+	/* Pandoc's table of contents. No page numbers - they need paged-media CSS no browser
+	   implements - so it earns its place by being clickable and by showing the shape of the whole
 	   set at a glance. */
 	#TOC {
 		break-after: page;

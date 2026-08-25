@@ -1,7 +1,7 @@
 /**
  * What the layer tree shows, apart from the component that draws it (S4.5, D3).
  *
- * A generated style is long — `colorful` is 324 layers — and the list is only usable if it is
+ * A generated style is long - `colorful` is 324 layers - and the list is only usable if it is
  * grouped and filterable. Both are decisions with answers worth asserting, so they live here.
  */
 
@@ -63,7 +63,7 @@ export function matching(layers: StyleLayer[], query: string): StyleLayer[] {
 /**
  * The paint property that carries a layer's main colour.
  *
- * One per layer type, because that is how MapLibre names them — there is no generic `color`. A type
+ * One per layer type, because that is how MapLibre names them - there is no generic `color`. A type
  * with no colour of its own (`raster`, `hillshade`) returns `null`, and the tree offers no swatch
  * rather than one that would do nothing.
  */
@@ -89,8 +89,8 @@ export function colourKey(type: string): string | null {
 /**
  * A layer's current colour, or `null` when it has none this can edit.
  *
- * **Only a plain colour.** A paint property may be an expression — `["interpolate", …]` is how a
- * road changes width with zoom — and a swatch showing the first branch of one would be a lie, while
+ * **Only a plain colour.** A paint property may be an expression - `["interpolate", …]` is how a
+ * road changes width with zoom - and a swatch showing the first branch of one would be a lie, while
  * setting it would silently delete the rest. Those say so instead, and stay for the expression
  * editor.
  */

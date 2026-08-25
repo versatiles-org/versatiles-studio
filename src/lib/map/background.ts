@@ -1,12 +1,12 @@
 /**
  * The optional background map, generated with `@versatiles/style`.
  *
- * Studio draws what a pipeline produces, which on its own floats over nothing — useful for judging
+ * Studio draws what a pipeline produces, which on its own floats over nothing - useful for judging
  * a filter, useless for judging whether a road is in the right place. A background gives the tiles
  * something to sit on.
  *
  * **Generated, not fetched.** `tiles.versatiles.org` hosts finished style JSONs, and using one would
- * have been fewer lines — but a hosted style also carries *its* sprite and glyph URLs, so every font
+ * have been fewer lines - but a hosted style also carries *its* sprite and glyph URLs, so every font
  * and icon would come over the network too. Building the style here lets the tiles come from
  * versatiles.org while the assets come from Studio's own embedded server, which already has them
  * (Q9). That is the difference between a background costing tiles and costing everything.
@@ -14,7 +14,7 @@
  * **Off by default**, because G5 promises Studio works with no network once its assets are
  * installed. Choosing a background is the user asking for remote data, explicitly.
  *
- * Depending on `@versatiles/style` is not the thing [Q18](../../../docs/decisions.md) declined —
+ * Depending on `@versatiles/style` is not the thing [Q18](../../../docs/decisions.md) declined -
  * that was the *component* library. This is the style generator D1 and D8 already name as their
  * basis.
  */
@@ -38,15 +38,15 @@ export interface Background {
 /**
  * The choices, in the order they are offered: off, then light to dark, then imagery.
  *
- * A subset of what the package builds — it also offers per-language and terrain variants, which are
+ * A subset of what the package builds - it also offers per-language and terrain variants, which are
  * a different decision from "what does the map sit on" and would make this a menu of thirty.
  */
 export const BACKGROUNDS: Background[] = [
 	{ id: 'none', label: 'No background', group: 'off' },
 	{ id: 'colorful', label: 'Colorful', group: 'light' },
-	{ id: 'neutrino', label: 'Neutrino — minimal', group: 'light' },
-	{ id: 'graybeard', label: 'Graybeard — grey', group: 'light' },
-	{ id: 'shadow', label: 'Shadow — grey', group: 'dark' },
+	{ id: 'neutrino', label: 'Neutrino - minimal', group: 'light' },
+	{ id: 'graybeard', label: 'Graybeard - grey', group: 'light' },
+	{ id: 'shadow', label: 'Shadow - grey', group: 'dark' },
 	{ id: 'eclipse', label: 'Eclipse', group: 'dark' },
 	{ id: 'satellite', label: 'Satellite', group: 'imagery' }
 ];

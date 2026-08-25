@@ -2,7 +2,7 @@
  * The default render style (S1.4).
  *
  * "Preview" only means something if vector tiles render legibly, which is why M1 silently pulls in
- * the bundled asset tier — sprites plus Latin glyphs (Q9). Both are served by the embedded server
+ * the bundled asset tier - sprites plus Latin glyphs (Q9). Both are served by the embedded server
  * straight out of their archives, so the URLs below point at it rather than at any remote host:
  * Studio works offline from first launch.
  *

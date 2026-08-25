@@ -4,7 +4,7 @@
  * The launcher's four doors, its recent list and its footer.
  *
  * It had seven controls and now has four, so what is worth asserting is that each door still leads
- * somewhere — and that the remote one, which is the only one with a state, opens rather than
+ * somewhere - and that the remote one, which is the only one with a state, opens rather than
  * needing two presses to do anything.
  */
 
@@ -67,7 +67,7 @@ describe('the four doors', () => {
 		(await screen.findByRole('button', { name: /Open a remote file/ })).click();
 
 		const field = await screen.findByLabelText('Address of a remote file');
-		// Awaited, because focusing waits for the field to exist — which is the whole reason it is
+		// Awaited, because focusing waits for the field to exist - which is the whole reason it is
 		// not done in the same breath as the press.
 		await vi.waitFor(() =>
 			expect(document.activeElement, 'a door that opens without focusing asks for a second click').toBe(field)
@@ -133,7 +133,7 @@ describe('the recent list', () => {
 /**
  * The footer, which is the only place the application says what it is.
  *
- * Version from the core rather than from `package.json`, and "alpha" beside it — the word is only
+ * Version from the core rather than from `package.json`, and "alpha" beside it - the word is only
  * useful next to somewhere to report things, which is what the link is for.
  */
 describe('the footer', () => {
@@ -150,7 +150,7 @@ describe('the footer', () => {
  * Dropping a file, which is the same gesture as the first door by other means.
  *
  * It used to be filed under the recent list, where it only was because that is where the window
- * happened to end — and where a first run, with nothing recent, would not think to look.
+ * happened to end - and where a first run, with nothing recent, would not think to look.
  */
 describe('the drop hint', () => {
 	it('sits with the door it is another way of pressing, in both states', () => {

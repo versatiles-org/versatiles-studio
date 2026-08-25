@@ -56,7 +56,7 @@
 		/** The stack, bottom first, and what each source is doing (S6.5). One entry until a project
 		 *  holds more than one graph, and then the reason a basemap can sit under data. */
 		stack = [],
-		/** Which source the pane is editing — the selected graph. */
+		/** Which source the pane is editing - the selected graph. */
 		editing = null,
 		/** Selects a graph from the stack. */
 		onSelect = undefined
@@ -106,7 +106,7 @@
 	/// Layer ids the style on the map actually has, which is what an override can apply to.
 	const presentIds = $derived(rendered?.layers.map((layer) => layer.id) ?? []);
 
-	/// Overrides with no layer to land on — invisible in the tree, because it lists layers.
+	/// Overrides with no layer to land on - invisible in the tree, because it lists layers.
 	const inert = $derived(inertOverrides(vectorAppearance?.overrides ?? {}, presentIds));
 
 	const shaded = $derived(isAdjusted(shade));
@@ -116,7 +116,7 @@
 	}
 
 	// **What these tiles are, and how confidently** (S6.1). Everything below is gated on it, because
-	// a preset aimed at raster tiles is not a control that does something subtle — it is a control
+	// a preset aimed at raster tiles is not a control that does something subtle - it is a control
 	// that does nothing, and one that looks identical to a working one is worse than none.
 	const reading = $derived(
 		source ? sourceKind(source.tileFormat, source.tileSchema, source.layers, sourceStyle.kind) : null
@@ -124,7 +124,7 @@
 	const kind = $derived(reading?.kind ?? null);
 	const vector = $derived(kind === null || isVector(kind));
 
-	/// Every raster slider's neutral is `0` except opacity, whose is `1` — the same asymmetry the
+	/// Every raster slider's neutral is `0` except opacity, whose is `1` - the same asymmetry the
 	/// vector sliders have, for the same reason: a multiplier's identity is not zero.
 	const rasterValue = (key: RasterKey): number =>
 		sliderValue(RASTER_SLIDERS, rasterAdjust as Record<string, number | null>, key);
@@ -156,7 +156,7 @@
 	/// Clears one recolour field, leaving the rest alone.
 	///
 	/// **`undefined`, not the neutral number.** The recipe stores only what was changed, so a field
-	/// set back to its neutral value must leave no trace — otherwise an untouched style and a reset
+	/// set back to its neutral value must leave no trace - otherwise an untouched style and a reset
 	/// one compare unequal, and the exported code carries settings nobody chose.
 	function clearRecolor(key: string): void {
 		style.previewRecolor({ ...(vectorAppearance?.recolor ?? {}), [key]: undefined } as Recolor);
@@ -202,7 +202,7 @@
 
 	/// Writing the style out (S4.6, D8). Three forms, because they answer different questions: the
 	/// JSON is what a map consumes, the code is what a build regenerates it from, and the bundle is
-	/// the JSON with the fonts and sprites it needs beside it — for a machine that will not reach
+	/// the JSON with the fonts and sprites it needs beside it - for a machine that will not reach
 	/// versatiles.org.
 	let exporting = $state<string | null>(null);
 
@@ -470,8 +470,8 @@
 
 			{#if inert.length > 0}
 				<!-- S6.7: the tree lists layers, so an override whose layer this preset does not have is
-				     invisible. It is kept rather than dropped — the presets share a namespace, and it
-				     applies again under one that has the layer — so clearing is offered, never automatic. -->
+				     invisible. It is kept rather than dropped - the presets share a namespace, and it
+				     applies again under one that has the layer - so clearing is offered, never automatic. -->
 				<p class="note substituted">
 					{inert.length}
 					{inert.length === 1 ? 'change applies' : 'changes apply'} to layers this preset does not draw. They come back under
@@ -501,7 +501,7 @@
 				disabled={!rendered || exporting !== null || !canGenerateCode(appearance)}
 				title={canGenerateCode(appearance)
 					? 'The preset and what was changed, as code'
-					: 'A derived style has no builder to call — export it as style.json'}
+					: 'A derived style has no builder to call - export it as style.json'}
 				onclick={() => void exportAs('ts')}
 			>
 				@versatiles/style code
@@ -519,7 +519,7 @@
 
 		{#if missingFonts.length > 0}
 			<p class="note" role="status">
-				No glyphs were found for {missingFonts.join(', ')} — install the family under Assets, or MapLibre will fall back.
+				No glyphs were found for {missingFonts.join(', ')} - install the family under Assets, or MapLibre will fall back.
 			</p>
 		{/if}
 	</section>
@@ -618,8 +618,8 @@
 	}
 
 	/* The reason a section is absent, which is a different thing from a hint about one that is
-	   present — so it reads as a statement rather than as small print under a control. */
-	/* A statement about what the map is showing, not a hint about a control — so it sits above the
+	   present - so it reads as a statement rather than as small print under a control. */
+	/* A statement about what the map is showing, not a hint about a control - so it sits above the
 	   presets rather than under them, and reads before the thing it is explaining. */
 	/* A per-field reset, quiet until the field has something to reset. `visibility` rather than
 	   `display`, so the column keeps its width and no row shifts as values change. */

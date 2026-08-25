@@ -2,7 +2,7 @@
  * The text a user copies out of the problems panel (S6.8).
  *
  * **A list of errors is not a bug report.** Half of what makes one actionable is what the person
- * pasting it should not have to assemble: which build, which platform, which webview, which GPU —
+ * pasting it should not have to assemble: which build, which platform, which webview, which GPU -
  * and a plain rendering of the browser's own error is none of those. This composes both halves into
  * something that can be pasted into an issue as it stands.
  *
@@ -11,14 +11,14 @@
  * carrying somebody's name to a public tracker.
  *
  * Nothing is ever sent anywhere. The report is text, on a clipboard, under the eye of the person
- * who chose to copy it — which is also why it needs no consent screen and collects no telemetry.
+ * who chose to copy it - which is also why it needs no consent screen and collects no telemetry.
  */
 
 import type { Environment, Problem } from '../ipc/commands';
 
 /** What the webview knows about itself, which the core cannot answer for it. */
 export interface Local {
-	/** `navigator.userAgent` — which engine, at which version. */
+	/** `navigator.userAgent` - which engine, at which version. */
 	userAgent: string;
 	/**
 	 * The GPU, as WebGL will admit to it.
@@ -35,8 +35,8 @@ const LIMIT = 100;
 /**
  * The report, as Markdown.
  *
- * Markdown because every place this is going — a GitHub issue, a chat, an email to the person who
- * wrote the pipeline — renders it, and the one place that does not still reads as plain text.
+ * Markdown because every place this is going - a GitHub issue, a chat, an email to the person who
+ * wrote the pipeline - renders it, and the one place that does not still reads as plain text.
  */
 export function buildReport(input: {
 	problems: Problem[];
@@ -48,7 +48,7 @@ export function buildReport(input: {
 	 * Which run these problems are from.
 	 *
 	 * **Said out loud, because the two read identically and mean opposite things.** A report from
-	 * the previous session describes a run that is over — very likely one that crashed — so its
+	 * the previous session describes a run that is over - very likely one that crashed - so its
 	 * problems are not evidence about the build the reader is looking at unless they know that.
 	 */
 	session?: 'this' | 'previous';
@@ -57,7 +57,7 @@ export function buildReport(input: {
 	const hide = redactor(environment?.home ?? null);
 
 	const lines = [
-		'## VersaTiles Studio — problem report',
+		'## VersaTiles Studio - problem report',
 		'',
 		`- Reported: ${at.toISOString()}`,
 		`- Version: ${environment?.appVersion ?? 'unknown'}`,
@@ -112,7 +112,7 @@ function describe(problem: Problem, hide: (text: string) => string): string[] {
  * Replaces the user's home directory with `~` wherever it appears.
  *
  * **Every path Studio reports is a path somebody chose**, and on all three platforms the home
- * directory carries their account name — often their real one. Redacting it costs nothing that a
+ * directory carries their account name - often their real one. Redacting it costs nothing that a
  * reader of the report needed: `~/maps/berlin.mbtiles` says everything `/Users/anna/maps/…` did.
  *
  * Case-insensitively on Windows and macOS, whose filesystems are, and where a path can therefore
@@ -120,7 +120,7 @@ function describe(problem: Problem, hide: (text: string) => string): string[] {
  */
 function redactor(home: string | null): (text: string) => string {
 	if (!home) return (text) => text;
-	// Trailing separators trimmed so `/Users/anna/` and `/Users/anna` both match — and a home of `/`
+	// Trailing separators trimmed so `/Users/anna/` and `/Users/anna` both match - and a home of `/`
 	// is ignored rather than replacing every slash in the report with a tilde.
 	const trimmed = home.replace(/[/\\]+$/, '');
 	if (trimmed.length < 2) return (text) => text;
@@ -132,13 +132,13 @@ function redactor(home: string | null): (text: string) => string {
  * How much of a report fits in a URL.
  *
  * Browsers and servers both stop somewhere around eight kilobytes, and the number is nobody's
- * promise — so this stays well under it. Percent-encoding is what is measured, since a report is
+ * promise - so this stays well under it. Percent-encoding is what is measured, since a report is
  * mostly newlines and punctuation and inflates by roughly three times on the way into a query.
  */
 const URL_LIMIT = 6000;
 
 /** What is said in place of the part that did not fit. */
-const TRIMMED = '\n\n_The rest of this report did not fit in a link. It is on your clipboard — paste it here._';
+const TRIMMED = '\n\n_The rest of this report did not fit in a link. It is on your clipboard - paste it here._';
 
 /**
  * A prefilled issue on the repository, carrying as much of the report as a URL will hold.
@@ -172,7 +172,7 @@ function fit(body: string): string {
  * Asks WebGL what it is drawing with.
  *
  * `WEBGL_debug_renderer_info` is the only way to a real answer, and it is absent in some browsers by
- * design — hence `null` rather than a guess. The context is created and dropped here: holding one
+ * design - hence `null` rather than a guess. The context is created and dropped here: holding one
  * costs a GPU context, and this is called once, when a report is copied.
  */
 export function gpuRenderer(canvas: HTMLCanvasElement): string | null {
@@ -184,7 +184,7 @@ export function gpuRenderer(canvas: HTMLCanvasElement): string | null {
 		const renderer = gl.getParameter(info.UNMASKED_RENDERER_WEBGL) as unknown;
 		return typeof renderer === 'string' ? renderer : null;
 	} catch {
-		// A context can be refused outright — a machine with no GPU left to give, or a policy that
+		// A context can be refused outright - a machine with no GPU left to give, or a policy that
 		// blocks WebGL. Neither is worth failing a report over.
 		return null;
 	}

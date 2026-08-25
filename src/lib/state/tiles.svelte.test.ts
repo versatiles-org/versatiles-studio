@@ -39,7 +39,7 @@ describe('tile activity', () => {
 		vi.stubGlobal('fetch', tile.fetch);
 
 		const inFlight = request(1);
-		// One tick short of the threshold, whatever the threshold is — a fixed margin breaks the day
+		// One tick short of the threshold, whatever the threshold is - a fixed margin breaks the day
 		// somebody lowers `PATIENCE` to watch the overlay, which is a reasonable thing to do.
 		await vi.advanceTimersByTimeAsync(PATIENCE - 1);
 
@@ -99,7 +99,7 @@ describe('tile activity', () => {
 		expect(features.map((f) => f.properties.state).filter((state) => state === 'rendering')).toHaveLength(6);
 		expect(features.map((f) => f.properties.state).filter((state) => state === 'queued')).toHaveLength(2);
 
-		// A ring of five points, closed — a polygon MapLibre will accept.
+		// A ring of five points, closed - a polygon MapLibre will accept.
 		const ring = features[0].geometry.coordinates[0];
 		expect(ring).toHaveLength(5);
 		expect(ring[0]).toEqual(ring[4]);
@@ -131,7 +131,7 @@ describe('tile activity', () => {
 
 	/**
 	 * The bug this pair exists for: a tile set is sparse, so a 404 is the server answering rather
-	 * than failing — and MapLibre only knows that if the error says so. It branches on `err.status`
+	 * than failing - and MapLibre only knows that if the error says so. It branches on `err.status`
 	 * twice, in the worker source and in the tile cache; without one, panning a Berlin extract
 	 * recorded a problem per empty tile and lost the fill from the parent tile as well.
 	 */

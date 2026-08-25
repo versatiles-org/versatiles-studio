@@ -2,10 +2,10 @@
  * Which command failed, attached to the failure itself (S6.8).
  *
  * **A core error arrives as a bare sentence.** `Result<T, String>` is the whole convention, so
- * "no such file" reaches the webview with nothing around it — no stack, because it did not happen
+ * "no such file" reaches the webview with nothing around it - no stack, because it did not happen
  * here, and no name, because the string is all the core sent. In the status bar that is exactly
  * right; in a problem report an hour later it is a sentence with nowhere to put it, and the one
- * fact that would locate it — which of sixty-odd commands was being called — is known at the call
+ * fact that would locate it - which of sixty-odd commands was being called - is known at the call
  * and thrown away one line later.
  *
  * **Named by a proxy rather than by sixty call sites.** `commands.ts` wraps each generated function
@@ -22,7 +22,7 @@
  * A command that answered with an error, and which command it was.
  *
  * `message` is the core's sentence and nothing else, so everything that shows an error to a person
- * — the status bar, above all — reads exactly as it did before this existed.
+ * - the status bar, above all - reads exactly as it did before this existed.
  */
 export class CommandFailed extends Error {
 	/** The name as the webview calls it: `saveProject`, not `save_project`. */
@@ -61,7 +61,7 @@ function failed(outcome: unknown): outcome is Failed {
  * The generated commands, each one naming itself when it fails.
  *
  * Only failures are touched. A command that succeeds returns exactly what it returned, and so does
- * one whose answer is not an outcome at all — several of the generated functions return a plain
+ * one whose answer is not an outcome at all - several of the generated functions return a plain
  * value, and a proxy that assumed otherwise would rewrite something it had not understood.
  */
 export function namingFailures<T extends object>(commands: T): T {
@@ -72,7 +72,7 @@ export function namingFailures<T extends object>(commands: T): T {
 
 			return (...args: unknown[]) => {
 				const answer = (value as (...called: unknown[]) => unknown).apply(target, args);
-				// Not every generated function is async — and one that throws on the way to returning
+				// Not every generated function is async - and one that throws on the way to returning
 				// a promise is a webview with no bridge, which is not this module's story to tell.
 				if (!(answer instanceof Promise)) return answer;
 				return answer.then((outcome: unknown) =>

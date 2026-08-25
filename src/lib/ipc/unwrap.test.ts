@@ -6,7 +6,7 @@ import { unwrap } from './unwrap';
  *
  * Every call site is a `try`/`catch` that hands what it caught to `status.fail`. If this returned
  * the failure as a value instead, each of those would take the error branch of nothing and carry on
- * with `undefined` — which is a blank pane rather than a message.
+ * with `undefined` - which is a blank pane rather than a message.
  */
 
 describe('unwrap', () => {

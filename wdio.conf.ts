@@ -2,7 +2,7 @@
  * How the end-to-end tests reach a running Studio.
  *
  * **The embedded driver, on every platform.** `tauri-driver` cannot attach to a WKWebView, so it
- * would mean tests that run on a Linux runner and never on the Mac they were written on — the
+ * would mean tests that run on a Linux runner and never on the Mac they were written on - the
  * arrangement where a suite quietly stops being run. The embedded provider puts a W3C server inside
  * the application instead, which works on WKWebView, WebKitGTK and WebView2 alike. It is compiled in
  * only under the `e2e` feature, and `guards.test.ts` keeps that out of anything that ships.
@@ -14,7 +14,7 @@
  * **Plain WebDriver, not the service's `browser.tauri.*` helpers.** Those need `withGlobalTauri` and
  * a frontend package imported into the application, and buy nothing: `browser.execute` reaches
  * `window.__TAURI_INTERNALS__.invoke`, which is the bridge the webview itself uses. Studio ships no
- * test scaffolding in the product — see [the plan](docs/scope-e2e.md).
+ * test scaffolding in the product - see [the plan](docs/scope-e2e.md).
  */
 
 import { spawnSync } from 'node:child_process';
@@ -33,7 +33,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 const BINARY = platform === 'win32' ? 'target/debug/versatiles-studio.exe' : 'target/debug/versatiles-studio';
 
 if (!existsSync(BINARY)) {
-	throw new Error(`no binary at ${BINARY} — run: npm run e2e:build`);
+	throw new Error(`no binary at ${BINARY} - run: npm run e2e:build`);
 }
 
 /**
@@ -60,7 +60,7 @@ const LOGS = resolve(import.meta.dirname, 'target/e2e-logs');
  *
  * Every spec file gets its own session and therefore its own copy of Studio, and each one binds
  * this port. A session that starts while the last one's application is still shutting down reaches
- * *that* application instead — which is holding whatever windows the last spec left, and reports the
+ * *that* application instead - which is holding whatever windows the last spec left, and reports the
  * confusing `no window could be found` rather than anything about ports.
  */
 const PORT = 4445;
@@ -81,7 +81,7 @@ function listening(): Promise<boolean> {
  * Ends the copy of Studio that was listening on `PORT`.
  *
  * **The service does not.** Ending a session closes nothing, and Studio is built not to quit when
- * its windows go — the launcher comes back instead (Q48) — so without this every spec leaves an
+ * its windows go - the launcher comes back instead (Q48) - so without this every spec leaves an
  * application running, and the next spec's session reaches that one rather than its own.
  *
  * By port rather than by name: `target/debug/versatiles-studio` is also what `npm run tauri dev`
@@ -89,7 +89,7 @@ function listening(): Promise<boolean> {
  * in. Only the process holding the driver port belongs to the tests.
  */
 function stopStudio(): void {
-	if (platform === 'win32') return; // Windows is not a target of this suite — see the plan.
+	if (platform === 'win32') return; // Windows is not a target of this suite - see the plan.
 	const found = spawnSync('lsof', ['-ti', `tcp:${PORT}`, '-sTCP:LISTEN'], { encoding: 'utf8' });
 	// Loudly, because the alternative is every spec after the first being handed the previous one's
 	// windows and reporting `no window could be found`, which says nothing about a missing tool.
@@ -108,7 +108,7 @@ function stopStudio(): void {
  *
  * **Locally yes, in CI no**, which is not a compromise but the two places wanting opposite things. A
  * run opens and closes a dozen windows: on the machine someone is working at that is a minute of
- * stolen focus, and nobody is looking at them anyway. On a runner nobody is looking at all — and a
+ * stolen focus, and nobody is looking at them anyway. On a runner nobody is looking at all - and a
  * window that never appears is never composited, so the screenshot `afterTest` keeps shows the panes
  * and an empty square where the map is. The UI is captured either way; only the map is not.
  *
@@ -156,7 +156,7 @@ export const config: WebdriverIO.Config = {
 				// to open is the launcher (S7.7). Every other window is `window-N`, found by label.
 				//
 				// **Always the launcher, so every spec starts the same way.** Studio can be started on
-				// a file instead — it is what the Finder does — but the service only passes arguments
+				// a file instead - it is what the Finder does - but the service only passes arguments
 				// to an instance it spawns before the run, not to the one a spec gets, so a spec that
 				// relied on them would silently be handed an empty launcher. `openProject` in
 				// `support.ts` opens the fixture from here instead, which is a path a person has too.
@@ -204,13 +204,13 @@ export const config: WebdriverIO.Config = {
 	},
 
 	/**
-	 * Leaves nothing running, and does not return until that is true — see `stopStudio` and `PORT`.
+	 * Leaves nothing running, and does not return until that is true - see `stopStudio` and `PORT`.
 	 *
 	 * **Here rather than before the next session**, which is where this started: the service decides
 	 * whether to spawn an application before a config hook of the next worker gets to run, so a spec
 	 * that waited for the port at its own start had already been handed the previous spec's window.
 	 * The suite passed one spec at a time and failed as a whole, which is the worst way for it to
-	 * fail — so the waiting belongs to the spec that is leaving, not to the one arriving.
+	 * fail - so the waiting belongs to the spec that is leaving, not to the one arriving.
 	 */
 	async afterSession() {
 		stopStudio();

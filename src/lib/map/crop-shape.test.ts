@@ -21,7 +21,7 @@ describe('rectangle', () => {
 });
 
 describe('outside', () => {
-	// One polygon with a hole does both jobs — the fill dims, the line traces. Two shapes could be
+	// One polygon with a hole does both jobs - the fill dims, the line traces. Two shapes could be
 	// drawn out of step with each other; one cannot.
 	it('is the world with the crop as a hole in it', () => {
 		const rings = ringsOf(outside(BERLIN));
@@ -30,7 +30,7 @@ describe('outside', () => {
 	});
 
 	// Beyond the Web Mercator limit there is no map to dim, and a polygon reaching ±90 projects to
-	// infinity — which MapLibre draws as nothing at all.
+	// infinity - which MapLibre draws as nothing at all.
 	it('stops the dimming at the Mercator limit, not the pole', () => {
 		const [world] = ringsOf(outside(BERLIN));
 		const lats = world.map(([, lat]) => Math.abs(lat));

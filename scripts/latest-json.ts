@@ -4,7 +4,7 @@
  *   node --experimental-strip-types scripts/latest-json.ts <sig-dir> <version> [names-file] > latest.json
  *
  * **Built from what was produced, not from a template.** A platform whose build failed is simply
- * absent from the result — an updater that offers a download that is not there is worse than one
+ * absent from the result - an updater that offers a download that is not there is worse than one
  * that offers nothing, because the failure lands on the user rather than in the run that caused it.
  *
  * **The signature is the point.** Each entry pairs a URL with the minisign signature Tauri emitted
@@ -24,12 +24,12 @@ const BASE = 'https://github.com/versatiles-org/versatiles-studio/releases/downl
  *
  * **Matched on a suffix, and the two halves are asymmetric for a reason.**
  *
- * macOS emits `VersaTiles Studio.app.tar.gz` — no version and no architecture — so both Mac builds
+ * macOS emits `VersaTiles Studio.app.tar.gz` - no version and no architecture - so both Mac builds
  * produce one filename, and the release workflow renames each to its platform key. Those suffixes
  * are therefore whole names.
  *
  * Linux has no `.AppImage.tar.gz` at all: Tauri signs the AppImage itself, so the file the updater
- * downloads is the same one a person downloads, under the name Tauri gave it — which already carries
+ * downloads is the same one a person downloads, under the name Tauri gave it - which already carries
  * the architecture. Those suffixes are the tail of that name.
  *
  * Both were read off a real release run rather than from the documentation, which describes neither.
@@ -40,7 +40,7 @@ const PLATFORMS: { key: string; suffixes: string[] }[] = [
 	{ key: 'linux-x86_64', suffixes: ['_amd64.AppImage'] },
 	{ key: 'linux-aarch64', suffixes: ['_aarch64.AppImage'] },
 	// **Two candidates each, and that is not indecision.** The updater's own documentation says
-	// Windows ships a `.zip` of the installer — the same documentation says Linux ships an
+	// Windows ships a `.zip` of the installer - the same documentation says Linux ships an
 	// `.AppImage.tar.gz`, and Linux ships a bare `.AppImage`. Rather than spend a release finding
 	// out, both spellings are accepted; the first that appears wins, and the guard below still
 	// refuses anything left over. Narrow this once a real Windows release has been seen.
@@ -77,14 +77,14 @@ export function platformsFor(names: string[], version: string, read: (name: stri
 		if (!names.includes(signature)) {
 			// Unsigned means the secret was missing from the run. Publishing the entry anyway would
 			// produce an update every installed copy downloads and then refuses.
-			throw new Error(`${bundle} has no ${signature} — was TAURI_SIGNING_PRIVATE_KEY set?`);
+			throw new Error(`${bundle} has no ${signature} - was TAURI_SIGNING_PRIVATE_KEY set?`);
 		}
 		// **A name GitHub would rewrite must never reach the manifest.** It turns a space into a
-		// dot on upload, so the asset ends up called something else and the URL here 404s — silently,
+		// dot on upload, so the asset ends up called something else and the URL here 404s - silently,
 		// for every user of that platform. The release workflow renames them; this is what notices
 		// if it ever stops.
 		if (/[^A-Za-z0-9._-]/.test(bundle)) {
-			throw new Error(`${bundle} has characters GitHub rewrites in an asset name — rename it before upload`);
+			throw new Error(`${bundle} has characters GitHub rewrites in an asset name - rename it before upload`);
 		}
 		claimed.add(bundle);
 		claimed.add(signature);
@@ -96,7 +96,7 @@ export function platformsFor(names: string[], version: string, read: (name: stri
 	}
 
 	// **No signature may be left over.** A `.sig` no platform claimed means an updater artefact was
-	// named something this does not expect — and without this the failure is the quiet one: the
+	// named something this does not expect - and without this the failure is the quiet one: the
 	// platform is simply absent from the manifest, and those users never see an update again. That
 	// is exactly how the macOS entries went missing.
 	const orphans = names.filter((name) => name.endsWith('.sig') && !claimed.has(name));
@@ -112,7 +112,7 @@ export function platformsFor(names: string[], version: string, read: (name: stri
  *
  * **Two sources, because the release is the truth about names and the disk is the truth about
  * signatures.** Every bundle job uploads straight into the draft, so by the time this runs the
- * only complete list of what exists is GitHub's own — and it is GitHub's list that matters, since
+ * only complete list of what exists is GitHub's own - and it is GitHub's list that matters, since
  * it rewrites characters it dislikes in an asset name. Reading `readdirSync` instead would build a
  * manifest from names nobody serves.
  *
@@ -139,7 +139,7 @@ function main(): void {
 	const platforms = platformsFor(names, version, (name) => readFileSync(join(dir, name), 'utf8'));
 
 	if (Object.keys(platforms).length === 0) {
-		throw new Error(`no updater bundles among ${names.length} assets — found: ${names.join(', ')}`);
+		throw new Error(`no updater bundles among ${names.length} assets - found: ${names.join(', ')}`);
 	}
 
 	process.stdout.write(

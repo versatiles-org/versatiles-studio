@@ -6,7 +6,7 @@
 	// A copy of the project that works somewhere else (G1, S5.1).
 	//
 	// **Why this is not just "Save project" into another folder.** A pipeline names its source with
-	// the path the file was imported from — an absolute one, under this account, on this machine.
+	// the path the file was imported from - an absolute one, under this account, on this machine.
 	// Copy that folder to a colleague and every graph in it points at a file that is not there. This
 	// carries the data in and rewrites the pipelines to name the copies.
 	//
@@ -36,7 +36,7 @@
 
 <Modal title="Save a copy" width="32rem" onClose={onCancel}>
 	<p class="lead">
-		Carries the data your pipelines read, and rewrites them to name the copies — so the result opens on another machine.
+		Carries the data your pipelines read, and rewrites them to name the copies - so the result opens on another machine.
 	</p>
 
 	<fieldset>
@@ -54,7 +54,7 @@
 	<section>
 		<h3 class="section-label">Carries</h3>
 		{#if plan.carry.length === 0}
-			<p class="note">Nothing — every source is a URL, so the copy needs no data beside it.</p>
+			<p class="note">Nothing - every source is a URL, so the copy needs no data beside it.</p>
 		{:else}
 			<p class="total">
 				<strong>{count(plan.carry.length)} files · {formatBytes(total)}</strong>

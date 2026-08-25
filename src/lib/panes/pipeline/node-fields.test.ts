@@ -43,7 +43,7 @@ describe('which fields the form shows', () => {
 		field({ name: 'sources', sources: true })
 	];
 
-	// A source arrives through a `[ … ]` block, not a `key=value` pair — offering one would produce
+	// A source arrives through a `[ … ]` block, not a `key=value` pair - offering one would produce
 	// VPL that cannot parse.
 	it('never offers a source as a parameter', () => {
 		expect(unsetFields(fields, []).map((f) => f.name)).toEqual(['filename', 'bbox']);
@@ -147,7 +147,7 @@ describe('suggestions', () => {
 describe('summarise', () => {
 	it('says the range when the type has one', () => {
 		expect(summarise(field({ control: { kind: 'number', integer: true, min: 0, max: 15 } }))).toBe(
-			'whole number 0–15 · optional'
+			'whole number 0-15 · optional'
 		);
 	});
 

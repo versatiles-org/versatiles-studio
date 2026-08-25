@@ -2,7 +2,7 @@
  * Turning a recipe into a MapLibre style (S4.2, [Q36]).
  *
  * The core stores what the style is made from; this is where it becomes one. `@versatiles/style` is
- * a JavaScript library, so the generator was always going to live on this side — [Q36] makes that
+ * a JavaScript library, so the generator was always going to live on this side - [Q36] makes that
  * the design rather than an accident, by keeping the 125 kB it produces out of the core entirely.
  *
  * Here rather than in a directory of its own, beside `background.ts` and `default-style.ts`: this
@@ -42,7 +42,7 @@ const BUILDERS = { colorful, eclipse, graybeard, neutrino, satellite, shadow } a
 
 /** One graph, as the style will name it. */
 export interface StyleSource {
-	/** The graph's name — its server mount, its `style.json` source and its `.vpl` file ([Q32]). */
+	/** The graph's name - its server mount, its `style.json` source and its `.vpl` file ([Q32]). */
 	name: string;
 	/** Where its tiles come from. */
 	tileUrl: string;
@@ -51,7 +51,7 @@ export interface StyleSource {
 /**
  * Builds the style a vector appearance describes over the given sources.
  *
- * Returns `null` for a recipe with no builder — `derived` is S4.4's, and until that exists there is
+ * Returns `null` for a recipe with no builder - `derived` is S4.4's, and until that exists there is
  * nothing to render rather than something wrong to render.
  */
 export function renderStyle(
@@ -64,7 +64,7 @@ export function renderStyle(
 
 	// The builders are overloaded: they return a promise when asked for terrain or hillshade, which
 	// have to be fetched, and a style directly otherwise. Nothing here asks for either, so this is
-	// the synchronous overload — TypeScript cannot see that through the lookup in `BUILDERS`.
+	// the synchronous overload - TypeScript cannot see that through the lookup in `BUILDERS`.
 	const style = build({
 		// The first source is what the preset's own layers draw from. A preset knows one schema and
 		// one source; naming several is S4.4's problem, not this function's.
@@ -84,7 +84,7 @@ export function renderStyle(
  * Drops the fields a recipe left unset.
  *
  * The core omits them entirely, but a recipe that has been through the webview can carry explicit
- * `undefined`s — and `{ gamma: undefined }` is not the same to the builder as `{}` for any option
+ * `undefined`s - and `{ gamma: undefined }` is not the same to the builder as `{}` for any option
  * it tests for presence rather than for value.
  */
 function cleaned(recolor: VectorAppearance['recolor']): Record<string, unknown> {
@@ -114,7 +114,7 @@ function applyOverride(layer: LayerSpecification, patch: LayerOverride | undefin
 	if (patch.minZoom !== undefined && patch.minZoom !== null) next.minzoom = patch.minZoom;
 	if (patch.maxZoom !== undefined && patch.maxZoom !== null) next.maxzoom = patch.maxZoom;
 	if (patch.visible !== undefined && patch.visible !== null) {
-		// `visibility` is a layout property in MapLibre, not a top-level field — setting it anywhere
+		// `visibility` is a layout property in MapLibre, not a top-level field - setting it anywhere
 		// else is ignored silently, which looks exactly like a broken checkbox.
 		next.layout = { ...(next.layout ?? {}), visibility: patch.visible ? 'visible' : 'none' };
 	}
@@ -183,7 +183,7 @@ export function rasterStyle(
  * The MapLibre encoding a container's schema means, or `null` when there is none it can decode.
  *
  * **`dem/versatiles` deliberately returns `null`.** MapLibre knows `mapbox`, `terrarium` and a
- * `custom` unpacking defined by three channel factors and a shift — and nothing published says what
+ * `custom` unpacking defined by three channel factors and a shift - and nothing published says what
  * those are for VersaTiles' own encoding. Guessing would draw convincing relief of the wrong
  * mountains, which is worse than drawing none and saying why.
  */
@@ -215,7 +215,7 @@ export function hillshadePaint(shade: Hillshade): Record<string, unknown> {
 /**
  * A style that draws one elevation source as relief (S6.6, D12).
  *
- * Returns `null` when the encoding is unknown — the recipe may say, and otherwise the container's
+ * Returns `null` when the encoding is unknown - the recipe may say, and otherwise the container's
  * schema does. Neither saying anything is the case that has to draw nothing: a `raster-dem` source
  * with the wrong encoding produces relief that looks right and is not.
  */
@@ -262,7 +262,7 @@ export type StyleBasis =
 	| 'raster'
 	/** Drawn as relief from elevation data (S6.6). */
 	| 'hillshade'
-	/** Nothing draws — an unknown DEM encoding, or a container with no layers to derive from. */
+	/** Nothing draws - an unknown DEM encoding, or a container with no layers to derive from. */
 	| 'none';
 
 /**
@@ -270,7 +270,7 @@ export type StyleBasis =
  *
  * **A preset that draws nothing is not an answer.** The six are written against Shortbread's layer
  * names, so pointing one at a `from_csv` result matched no `source-layer` and the map fell back to a
- * bare background — the most common thing the pipeline pane produces, rendered as though the style
+ * bare background - the most common thing the pipeline pane produces, rendered as though the style
  * pane were broken. Deriving from the layers the probe actually found is the answer that was already
  * written and already tested; it was just not reachable unless someone picked it by hand.
  *
@@ -294,7 +294,7 @@ export function styleFor(
 	// **The format has the final say over the kind.** `kind` can be a guess, and it can be something
 	// a person set by hand; neither makes MapLibre able to decode the bytes. A container whose format
 	// could not be determined lands on `bin`, and pointing any source at those produces one decode
-	// failure per tile and a blank map with nothing to say why — the bug `tile-format.ts` exists for.
+	// failure per tile and a blank map with nothing to say why - the bug `tile-format.ts` exists for.
 	const renderable = renderableAs(tileFormat);
 	if (renderable === null) return { style: null, basis: 'none' };
 
@@ -307,7 +307,7 @@ export function styleFor(
 		const shade = appearance.type === 'hillshade' ? appearance.shade : {};
 		const style = hillshadeStyle(shade, tileSchema, sources);
 		// `null` means no encoding anyone here can decode. The container layer `preview` already
-		// added stays, which shows the encoded colours — wrong as a map, honest as a picture.
+		// added stays, which shows the encoded colours - wrong as a map, honest as a picture.
 		return style ? { style, basis: 'hillshade' } : { style: null, basis: 'none' };
 	}
 
@@ -337,7 +337,7 @@ export function styleFor(
  *
  * **The presets assume Shortbread**, a layer naming scheme most of the world's vector tiles do not
  * use. Point `colorful` at a container of `buildings` and `admin` and it renders its background and
- * nothing else — a blank map where the hairlines used to be, with no error to explain it.
+ * nothing else - a blank map where the hairlines used to be, with no error to explain it.
  *
  * So the caller asks first, and keeps the hairlines when the answer is no. Deriving a style from the
  * layers a container actually has is [S4.4](../../../docs/scope-release-1.md); until then this is
@@ -349,7 +349,7 @@ export function drawsAnything(style: StyleSpecification, available: string[]): b
 	return style.layers.some((layer) => 'source-layer' in layer && wanted.has(layer['source-layer'] as string));
 }
 
-/** What a layer is made of, and what it is called — the whole input a derived style needs. */
+/** What a layer is made of, and what it is called - the whole input a derived style needs. */
 export interface DerivableLayer {
 	name: string;
 	/** `point`, `line`, `polygon` or `unknown`, from the core's probe (S4.4). */
@@ -361,7 +361,7 @@ export interface DerivableLayer {
  *
  * **Not a good-looking map, and not trying to be.** The presets know what `water_polygons` means;
  * this knows nothing about any layer except its name and what it is made of. What it can promise is
- * that every layer is visible and told apart from its neighbours — which is what you need before
+ * that every layer is visible and told apart from its neighbours - which is what you need before
  * you can style anything, and what a Shortbread preset over a non-Shortbread container cannot give.
  *
  * Colours come from the layer's *name*, so they are stable across reloads and across two people
@@ -376,7 +376,7 @@ export function deriveStyle(
 	const source = sources[0];
 	if (!source || layers.length === 0) return null;
 
-	// Polygons underneath, then lines, then points — the order things cover each other in. Without
+	// Polygons underneath, then lines, then points - the order things cover each other in. Without
 	// it a layer of building footprints hides every road beneath it, which is exactly the map a
 	// derived style is supposed to rescue you from.
 	const order = { polygon: 0, line: 1, point: 2, unknown: 3 } as const;
@@ -424,7 +424,7 @@ function paint(layer: DerivableLayer, source: string): LayerSpecification[] {
 }
 
 /**
- * A colour for a layer name — the same one every time, and far from its neighbours'.
+ * A colour for a layer name - the same one every time, and far from its neighbours'.
  *
  * The hash is spread around the wheel by the golden angle rather than used directly: consecutive
  * hashes land next to each other on the circle, which is how two adjacent layers end up two
@@ -443,7 +443,7 @@ function isVectorKind(kind: SourceKind): boolean {
 
 /** One source in the stack, with everything needed to draw it. */
 export interface StackEntry {
-	/** The graph's name — its mount, and what the style calls the source. */
+	/** The graph's name - its mount, and what the style calls the source. */
 	name: string;
 	tileUrl: string;
 	appearance: Appearance;
@@ -453,7 +453,7 @@ export interface StackEntry {
 	tileSchema?: string | null;
 	layers: DerivableLayer[];
 	mountedLayers: string[];
-	/** Where the tiles are and which zooms they cover — see [`extentOf`]. */
+	/** Where the tiles are and which zooms they cover - see [`extentOf`]. */
 	bbox?: [number, number, number, number] | null;
 	minZoom?: number;
 	maxZoom?: number;
@@ -467,7 +467,7 @@ type Extent = { bounds?: [number, number, number, number]; minzoom?: number; max
  *
  * **Each field only if the container has one**, so a source Studio knows nothing about keeps
  * whatever its builder declared rather than being overwritten with a guess. `bbox` is already what
- * `fitToBounds` trusts, so this is not a new claim about the data — it is the same one, told to the
+ * `fitToBounds` trusts, so this is not a new claim about the data - it is the same one, told to the
  * one component that was making its own up.
  */
 function extentOf(entry: StackEntry): Extent {
@@ -490,7 +490,7 @@ export interface Composed {
  * ([S6.5](../../../docs/scope-release-2.md)).
  *
  * **This is what makes "a basemap under my data" a stack position rather than a feature.** Each
- * entry is styled by exactly the rules a single source already had — `styleFor` decides per entry —
+ * entry is styled by exactly the rules a single source already had - `styleFor` decides per entry -
  * and the results are concatenated in order. A source that draws nothing contributes nothing and
  * says so in `bases`, rather than taking the whole style down with it.
  *
@@ -502,7 +502,7 @@ export function composeStyle(
 	/**
 	 * A background map to sit under everything, already built.
 	 *
-	 * **Not a special case — the bottom of the same stack.** It is generated by the same
+	 * **Not a special case - the bottom of the same stack.** It is generated by the same
 	 * `@versatiles/style` builders a preset uses, so its layer ids and its source key collide with a
 	 * preset entry's exactly. Merging it here rather than choosing between it and the stack is what
 	 * makes the collision handling below apply to it too; choosing was the old rule, and it stopped
@@ -517,7 +517,7 @@ export function composeStyle(
 	let sprite: StyleSpecification['sprite'];
 
 	// **Ids are prefixed only when more than one source is drawn.** Two vector sources on the same
-	// preset produce identical layer ids, and MapLibre keeps the first — so the upper source would
+	// preset produce identical layer ids, and MapLibre keeps the first - so the upper source would
 	// silently vanish. Prefixing unconditionally would instead rename every layer in the
 	// single-source case, which is the case every exported `style.json` and every override written
 	// before this was added already refers to.
@@ -551,7 +551,7 @@ export function composeStyle(
 		// **The source key collides too, not just the layer ids.** `@versatiles/style`'s builders
 		// name their source `versatiles-shortbread` whatever they were pointed at, so two preset
 		// sources merge into one and the second silently replaces the first's tiles. Each built style
-		// has exactly one source — it was built from one — so renaming it to the entry is safe, and
+		// has exactly one source - it was built from one - so renaming it to the entry is safe, and
 		// the layers that referred to it follow.
 		const [built] = Object.keys(style.sources);
 		const key = prefix ? name : built;
@@ -559,7 +559,7 @@ export function composeStyle(
 		// builders declare a source as a list of tile URLs and nothing else; `@versatiles/style`'s
 		// declares `bounds` of the whole world and `maxzoom: 14`, which is true of Shortbread in
 		// general and false of the extract in front of you. Either way MapLibre asks for tiles that
-		// cannot exist — a Berlin extract answers three of four requests at z1 with a 404, and each
+		// cannot exist - a Berlin extract answers three of four requests at z1 with a 404, and each
 		// of those takes one of the tile queue's six slots ahead of a tile that does.
 		sources[key] = { ...style.sources[built], ...extent };
 

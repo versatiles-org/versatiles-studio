@@ -4,7 +4,7 @@
 //! `.versatiles`, `.mbtiles`, `.pmtiles` and `.vpl`. Receiving the file is a separate problem, and
 //! the two platforms disagree about how:
 //!
-//! * **macOS** delivers it as a `RunEvent::Opened` with URLs — before the window exists at launch,
+//! * **macOS** delivers it as a `RunEvent::Opened` with URLs - before the window exists at launch,
 //!   and again at any time while the application is already running.
 //! * **Linux** passes it as a command-line argument, once, at launch.
 //!
@@ -12,14 +12,14 @@
 //! told something arrived, so a file that landed before the window existed is not lost.
 //!
 //! **The MIME types are ours, because nobody else has one.** None of the four formats is registered
-//! with IANA, and freedesktop's `shared-mime-info` knows none of them — not `.mbtiles`, `.pmtiles`
-//! or even GeoPackage — so there is no convention to match and each association declares a
+//! with IANA, and freedesktop's `shared-mime-info` knows none of them - not `.mbtiles`, `.pmtiles`
+//! or even GeoPackage - so there is no convention to match and each association declares a
 //! `vnd.` string of its own. `x-` would be the older habit and RFC 6648 deprecates it for new types.
 //!
 //! `.mbtiles` said `application/vnd.mapbox-vector-tile` until 2026-08-23, which was wrong twice
 //! over: that type is the *tile* payload, and an MBTiles file is a SQLite container that as often
 //! holds PNG or WebP. It is `application/vnd.mbtiles`, matching its two neighbours. The one thing
-//! this cannot express is that it is a SQLite database — freedesktop would say
+//! this cannot express is that it is a SQLite database - freedesktop would say
 //! `sub-class-of application/vnd.sqlite3`, the way it does for Kexi, and Tauri's association takes
 //! a single string. Claiming `application/vnd.sqlite3` outright is the trap to avoid: Studio would
 //! offer to open every SQLite file on the machine.
@@ -33,7 +33,7 @@ use tauri::{AppHandle, Emitter, Manager};
 ///
 /// **Two queues, because there are two ways a path arrives** ([S7.6](../../docs/scope-release-3.md)):
 ///
-/// * *For a window*, which is the launcher's handoff — it creates a project window and hands that
+/// * *For a window*, which is the launcher's handoff - it creates a project window and hands that
 ///   window the thing it was asked to open. Only that window may take it.
 /// * *For nobody in particular*, which is the operating system asking before any window exists. The
 ///   first window to ask takes it, which is the behaviour a double-clicked file has always had.
@@ -73,7 +73,7 @@ impl PendingOpen {
 		taken
 	}
 
-	/// Forgets what was waiting for a window that will never ask — one that failed to open.
+	/// Forgets what was waiting for a window that will never ask - one that failed to open.
 	pub fn forget(&self, label: &str) {
 		if let Ok(mut queues) = self.0.lock() {
 			queues.claimed.remove(label);
@@ -101,7 +101,7 @@ pub fn from_command_line() -> Vec<String> {
 ///
 /// **Two cases, because there is not always a window to hand them to** ([S7.7]):
 ///
-/// * A project is open — the queue and an event are enough. Whichever window drains first takes
+/// * A project is open - the queue and an event are enough. Whichever window drains first takes
 ///   them, which is what a double-clicked file has always done.
 /// * Nothing is open but the launcher, which is the state Studio now starts in. A queue nobody
 ///   drains is a file that silently does not open, so a window is made for it and the launcher's
@@ -194,7 +194,7 @@ mod tests {
 	#[test]
 	fn command_line_arguments_that_are_not_files_are_ignored() {
 		// `from_command_line` reads the real argv, so this checks the filter it applies rather than
-		// the arguments themselves — under `cargo test` they are the harness's own.
+		// the arguments themselves - under `cargo test` they are the harness's own.
 		for argument in std::env::args() {
 			if argument.starts_with('-') {
 				assert!(

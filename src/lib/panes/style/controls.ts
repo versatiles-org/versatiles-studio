@@ -1,10 +1,10 @@
 /**
- * What the style pane's controls are, and what each one shows — apart from the component that draws
- * them (S6.1–S6.7).
+ * What the style pane's controls are, and what each one shows - apart from the component that draws
+ * them (S6.1-S6.7).
  *
  * The same split `layer-tree.ts` next door makes, for the same reason: the pane's script had grown
  * to three hundred lines, and almost none of it was markup. A slider's neutral value, whether a
- * field counts as changed, which reading a picker should clear rather than record — those are
+ * field counts as changed, which reading a picker should clear rather than record - those are
  * decisions with right answers, and a decision inside a `.svelte` file is one no test can ask about.
  *
  * **Written after a rule went wrong exactly that way.** The map's background became unreachable for
@@ -27,7 +27,7 @@ export interface Slider<K extends string> {
 	/**
 	 * What a cleared control returns to.
 	 *
-	 * **Not always zero.** A multiplier's identity is 1, and an opacity's is 1 — stored beside the
+	 * **Not always zero.** A multiplier's identity is 1, and an opacity's is 1 - stored beside the
 	 * range so the two cannot disagree, which they did while the neutral was a literal in three
 	 * places.
 	 */
@@ -70,7 +70,7 @@ export type RasterKey = 'hue' | 'saturation' | 'brightness' | 'contrast' | 'opac
  * The raster controls, in MapLibre's own units.
  *
  * **Not `RECOLOR_SLIDERS` under different labels.** `rotate` and `saturate` happen to mean the same
- * thing; contrast and brightness do not — `Recolor`'s are a multiplier and an offset where
+ * thing; contrast and brightness do not - `Recolor`'s are a multiplier and an offset where
  * MapLibre's are an offset and a pair of range endpoints. Two lists that look alike beat one list
  * with a conversion table nobody can read.
  */
@@ -91,7 +91,7 @@ export const HILLSHADE_SLIDERS: Slider<ShadeKey>[] = [
 ];
 
 /**
- * The three lights, defaulting to tokens rather than to MapLibre's pure black and white — which is
+ * The three lights, defaulting to tokens rather than to MapLibre's pure black and white - which is
  * heavy over a light basemap and invisible over a dark one, and cannot follow the theme.
  */
 export const HILLSHADE_COLOURS: { key: 'shadow' | 'highlight' | 'accent'; label: string; token: MapToken }[] = [
@@ -115,7 +115,7 @@ export function sliderValue<K extends string>(
  * What one field of a recolouring becomes when a slider moves.
  *
  * **Neutral means absent, not the neutral number.** A slider returned to the middle must leave no
- * trace in the recipe — otherwise an untouched style and a reset one compare unequal, the undo stack
+ * trace in the recipe - otherwise an untouched style and a reset one compare unequal, the undo stack
  * records a non-change, and the exported code carries settings nobody chose.
  */
 export function withSlider<K extends string, T extends object>(
@@ -129,7 +129,7 @@ export function withSlider<K extends string, T extends object>(
 	return { ...held, [key]: next === neutral ? undefined : next };
 }
 
-/** Whether anything in an adjustment has been set — which is what a "reset" button appears for. */
+/** Whether anything in an adjustment has been set - which is what a "reset" button appears for. */
 export function isAdjusted(held: object | null | undefined): boolean {
 	return Object.values(held ?? {}).some((value) => value != null);
 }
@@ -145,7 +145,7 @@ export function isSet(held: Record<string, unknown> | undefined, key: string): b
  * What to store when someone picks a kind from the list.
  *
  * **`null` when they pick the reading Studio already made.** The recipe holds the *correction*, not
- * the answer — so choosing what was derived anyway clears the override rather than freezing it, and
+ * the answer - so choosing what was derived anyway clears the override rather than freezing it, and
  * a container that later gains a `tile_schema` is read better instead of being stuck.
  */
 export function kindChoice(chosen: SourceKind, derived: SourceKind | null): SourceKind | null {
@@ -169,7 +169,7 @@ export function encodingChoice(chosen: string): DemEncoding | null {
  *
  * `Recipe.order` is bottom-first, because that is the order layers are emitted in. A person reading
  * a list of what covers what expects the top at the top, so it is reversed here rather than stored
- * that way — which keeps the file matching the render.
+ * that way - which keeps the file matching the render.
  */
 export function stackRows<T>(stack: T[]): T[] {
 	return [...stack].reverse();
@@ -214,8 +214,8 @@ export const BASIS_NOTE: Record<KindBasis, string> = {
  * Overrides with no layer to land on.
  *
  * **Invisible otherwise, because the tree lists layers rather than overrides.** They are kept and
- * not dropped — the six presets share a namespace, so one that goes quiet under a smaller preset
- * applies again under a larger — which is exactly why they need saying out loud (S6.7).
+ * not dropped - the six presets share a namespace, so one that goes quiet under a smaller preset
+ * applies again under a larger - which is exactly why they need saying out loud (S6.7).
  */
 export function inertOverrides(overrides: Record<string, unknown>, present: string[]): string[] {
 	return Object.keys(overrides).filter((id) => !present.includes(id));

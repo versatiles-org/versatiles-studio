@@ -73,7 +73,7 @@ describe('grouped', () => {
 });
 
 describe('pickable', () => {
-	it('is what the arrow keys walk — the unavailable rows are shown, not visited', () => {
+	it('is what the arrow keys walk - the unavailable rows are shown, not visited', () => {
 		expect(pickable(OPERATIONS).map((i) => i.value)).toEqual(['filter', 'vector_filter_layers']);
 	});
 });

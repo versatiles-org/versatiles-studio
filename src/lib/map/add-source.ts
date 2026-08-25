@@ -16,7 +16,7 @@ import { throughQueue } from './tile-queue';
  *
  * **Not matched by id.** A mount's name is the style's source name too ([Q32]), and a composed style
  * names its layers after it: `pipeline:raster` with one source drawn, `pipeline/pipeline:raster`
- * with several. Matching on the id therefore does both wrong things at once — it removes the
+ * with several. Matching on the id therefore does both wrong things at once - it removes the
  * recipe's layer in the first case, and in the second it removes nothing and then tries to pull the
  * source out from under a layer still drawing from it, which MapLibre refuses in the console. Same
  * reason `theme.ts` tags a layer with its role rather than recognising one by name.
@@ -29,7 +29,7 @@ export function addContainerToMap(
 ): boolean {
 	const { name, tileUrl, info } = opened;
 	// Only formats a map can actually draw get a layer. Treating "not mvt" as "raster" is how a
-	// container of `bin` tiles produced one decode error per tile and a blank map — see
+	// container of `bin` tiles produced one decode error per tile and a blank map - see
 	// `tile-format.ts`.
 	const kind = renderableAs(info.tileFormat);
 
@@ -37,7 +37,7 @@ export function addContainerToMap(
 	if (kind === null) return false;
 
 	// A source of that name surviving the line above is one this module did not add: the style is
-	// drawing the same mount, from the same graph's tiles. The layers below can sit on it — a second
+	// drawing the same mount, from the same graph's tiles. The layers below can sit on it - a second
 	// source under a name already taken is the one thing `addSource` throws on.
 	if (!map.getSource(name)) {
 		map.addSource(name, {
@@ -79,7 +79,7 @@ const PADDING = 24;
  * Frames a container's extent.
  *
  * **Separate from adding the source, because moving someone's camera is not a detail of that.**
- * `addContainerToMap` used to end with this, so every rebuild of the preview refit the map — and
+ * `addContainerToMap` used to end with this, so every rebuild of the preview refit the map - and
  * the preview rebuilds on every edit to the VPL. Panning somewhere, changing a parameter and being
  * thrown back to the data's extent is the bug that separated them.
  *
@@ -94,7 +94,7 @@ export function fitToBounds(map: MaplibreMap, bbox: [number, number, number, num
  * Takes a mount off the map: the layers added under `name` here, and the source they drew from once
  * nothing else is drawing from it.
  *
- * **The source goes only when it is free.** Removing one a layer is still using is refused — nothing
+ * **The source goes only when it is free.** Removing one a layer is still using is refused - nothing
  * comes off, and the console fills with `Source "…" cannot be removed while layer "…" is using it.`
  */
 export function removeContainerFromMap(map: MaplibreMap, name: string): void {

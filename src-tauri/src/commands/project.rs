@@ -1,6 +1,6 @@
 //! Saving and opening a project directory (G1, S5.1, [Q6]).
 //!
-//! A project is a folder, so sharing one means sending a folder — and every file in it is usable
+//! A project is a folder, so sharing one means sending a folder - and every file in it is usable
 //! without Studio: the `.vpl` files run under `versatiles convert`, the `style.json` loads in
 //! MapLibre.
 //!
@@ -17,7 +17,7 @@ use tauri::State;
 /// error.
 ///
 /// Saving also moves what relative paths resolve against, because they are now relative to this
-/// directory — a `.vpl` reading `berlin.mbtiles` beside it must keep meaning that file.
+/// directory - a `.vpl` reading `berlin.mbtiles` beside it must keep meaning that file.
 ///
 /// [Q36]: ../../../docs/decisions.md
 #[tauri::command]
@@ -81,7 +81,7 @@ pub async fn project_path(window: tauri::Window, state: State<'_, AppState>) -> 
 /// **Replacing, not merging.** A window is one project ([Q16]); opening a second one beside the
 /// first would leave two sets of graphs sharing an undo stack and a style, which is not a project.
 ///
-/// Returns the recipe, because the webview has to render the style again — the manifest carries what
+/// Returns the recipe, because the webview has to render the style again - the manifest carries what
 /// it is made from, not the style itself.
 ///
 /// [Q16]: ../../../docs/decisions.md
@@ -106,7 +106,7 @@ pub async fn open_project(
 		documents.push((graph.clone(), document));
 	}
 
-	// **This window's project, replaced whole.** Another window's is untouched — which is the
+	// **This window's project, replaced whole.** Another window's is untouched - which is the
 	// difference S7.1 makes: opening a project used to replace the one the entire application had.
 	let held = state.project(&window).await;
 	let mut project = held.lock().await;
@@ -133,7 +133,7 @@ pub async fn open_project(
 	Ok(loaded.manifest.style)
 }
 
-/// Whether a directory holds a project — so the open dialog can say why one does not.
+/// Whether a directory holds a project - so the open dialog can say why one does not.
 #[tauri::command]
 #[specta::specta]
 pub fn is_project(dir: String) -> bool {
@@ -150,7 +150,7 @@ pub fn is_project(dir: String) -> bool {
 pub struct CopyPlan {
 	/// The files that would come along, each once however many pipelines name it.
 	pub carry: Vec<studio_core::bundle::Carried>,
-	/// References naming a file that is not there — shown, because a copy missing one of these is
+	/// References naming a file that is not there - shown, because a copy missing one of these is
 	/// still worth making and the person making it should know.
 	pub missing: Vec<studio_core::bundle::Reference>,
 }
@@ -158,7 +158,7 @@ pub struct CopyPlan {
 /// The graphs as [`studio_core::bundle`] wants them: text, and what their relative names point at.
 ///
 /// A graph's own `.vpl` directory, because that is what the pipeline resolves against when it runs.
-/// A graph never saved has none, and falls back to `project_dir` — the same thing every other
+/// A graph never saved has none, and falls back to `project_dir` - the same thing every other
 /// relative path in this window resolves against, so a copy and a run agree about what a bare
 /// `berlin.mbtiles` means.
 type Owned = (String, String, Option<std::path::PathBuf>, studio_core::export::Bounds);
@@ -199,7 +199,7 @@ fn plan_of(owned: &[Owned]) -> Result<studio_core::bundle::Plan, String> {
 
 /// What copying this project elsewhere would carry, without writing anything.
 ///
-/// Asked before the destination is chosen, so the dialog can say what it costs — the same
+/// Asked before the destination is chosen, so the dialog can say what it costs - the same
 /// plan-then-write split `estimate` and `export` use.
 #[tauri::command]
 #[specta::specta]
@@ -213,15 +213,15 @@ pub async fn copy_plan(window: tauri::Window, state: State<'_, AppState>) -> Res
 	})
 }
 
-/// Writes a self-contained copy — a directory, or one `.zip`.
+/// Writes a self-contained copy - a directory, or one `.zip`.
 ///
 /// **Planned again here rather than carried over from [`copy_plan`].** The plan is a few `stat`
 /// calls, and recomputing it means what is written describes the project as it is now rather than as
 /// it was when a dialog opened.
 ///
 /// **On a blocking thread**, because this copies tile containers: `std::fs::copy` of twenty
-/// gigabytes must not be sitting on the async runtime. There is no progress to report — neither
-/// `fs::copy` nor the zip writer offers any — so the status bar says it is working and that is all
+/// gigabytes must not be sitting on the async runtime. There is no progress to report - neither
+/// `fs::copy` nor the zip writer offers any - so the status bar says it is working and that is all
 /// it can honestly say.
 #[tauri::command]
 #[specta::specta]

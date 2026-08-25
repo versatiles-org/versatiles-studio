@@ -52,8 +52,8 @@ coverage:
         # real gate the day component tests exist.
         informational: true
 
-# `carryforward` is the one setting that must not be forgotten. A job that did not run — a skipped
-# matrix leg, a re-run of one half — otherwise uploads nothing and Codecov reads that as zero,
+# `carryforward` is the one setting that must not be forgotten. A job that did not run - a skipped
+# matrix leg, a re-run of one half - otherwise uploads nothing and Codecov reads that as zero,
 # failing the *other* language's check for a reason that has nothing to do with it.
 flag_management:
   default_rules:
@@ -120,5 +120,5 @@ comment:
   # Both flags and every component, so the two halves are visible in one place on the pull request.
   layout: 'condensed_header, diff, flags, components, condensed_files'
   behavior: default
-  # No comment when a pull request changes no covered code — a docs-only change should not get one.
+  # No comment when a pull request changes no covered code - a docs-only change should not get one.
   require_changes: true

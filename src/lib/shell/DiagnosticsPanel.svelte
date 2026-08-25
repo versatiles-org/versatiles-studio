@@ -16,15 +16,15 @@
 	//
 	// **Beside the job list rather than in a window**, and for the same reason it is: an error is
 	// something you glance at while working on the next thing, and a modal that has to be dismissed
-	// makes checking on it cost more than it is worth. It is also where errors already live — the
+	// makes checking on it cost more than it is worth. It is also where errors already live - the
 	// bar is what shows the current one (Q24), so the history belongs on the same strip.
 	//
 	// The one button that matters is **Copy report**. A user who can paste a report has said more in
-	// one gesture than a paragraph of "it crashed when I opened the file" ever does — that is the
+	// one gesture than a paragraph of "it crashed when I opened the file" ever does - that is the
 	// whole purpose of the panel, and the list is what makes the report worth trusting.
 	//
 	// **Two sessions, because the interesting one is often not this one.** A window that crashed,
-	// was killed for memory, or aborted on a panic left nothing in memory to show — only the file it
+	// was killed for memory, or aborted on a panic left nothing in memory to show - only the file it
 	// was writing as it went. That run is a tab here rather than a separate feature, because a
 	// person looking for what went wrong should not have to know which kind of wrong it was.
 
@@ -36,8 +36,8 @@
 	/// is a scroll problem rather than a feature.
 	let openId = $state<number | null>(null);
 
-	/// What the copy button last did, so it can say so. Copying gives no feedback of its own — the
-	/// clipboard is invisible — and a button that looks unchanged reads as a button that failed.
+	/// What the copy button last did, so it can say so. Copying gives no feedback of its own - the
+	/// clipboard is invisible - and a button that looks unchanged reads as a button that failed.
 	let copied = $state<'yes' | 'no' | null>(null);
 
 	// Fetched rather than streamed, the same as a job's log: a container of unreadable tiles reports
@@ -45,7 +45,7 @@
 	// arriving at a number nobody is watching.
 	//
 	// **Refetched when the count moves**, which is the only signal that the list on screen is out of
-	// date — and it costs no polling, because the core hands the count back with every report. Read
+	// date - and it costs no polling, because the core hands the count back with every report. Read
 	// for the dependency, not the value, which is what the `void` says. Without this a problem that
 	// arrived while the panel was open would show in the button and not in the list under it.
 	$effect(() => {
@@ -53,7 +53,7 @@
 		void refresh();
 	});
 
-	/// What is running this — the report's header, and the path in the footer.
+	/// What is running this - the report's header, and the path in the footer.
 	///
 	/// Read once when the panel opens rather than held from startup: it cannot change while the
 	/// application runs, and no window should pay an IPC call for a string most sessions never show.
@@ -71,7 +71,7 @@
 		if (showing === 'previous' && problems.earlier === null) void loadEarlier();
 	});
 
-	/// What is on screen — and `null` for the previous session until its file has been read, which
+	/// What is on screen - and `null` for the previous session until its file has been read, which
 	/// is not the same as a run that recorded nothing.
 	const list = $derived(showing === 'this' ? problems.list : (problems.earlier ?? []));
 	const loading = $derived(showing === 'previous' && problems.earlier === null);
@@ -86,12 +86,12 @@
 		// The composing, the clipboard and the issue all live in `state/diagnostics.svelte.ts`, so
 		// the Help menu and these buttons cannot come to different answers about what a report says.
 		copied = (await copyReport(showing)) ? 'yes' : 'no';
-		// Selecting the list is the fallback that needs no permission at all — ⌘C then does what the
+		// Selecting the list is the fallback that needs no permission at all - ⌘C then does what the
 		// button could not.
 		if (copied === 'no') selectAll();
 	}
 
-	/// Writes the report to a file — for attaching it, or for keeping it past this window.
+	/// Writes the report to a file - for attaching it, or for keeping it past this window.
 	async function saveAs() {
 		try {
 			const path = await save({
@@ -101,7 +101,7 @@
 			if (typeof path !== 'string') return;
 			await saveReport(path, await composeReport(showing));
 		} catch (error) {
-			// In the bar, like every other failure — and recorded, which puts a failure to save the
+			// In the bar, like every other failure - and recorded, which puts a failure to save the
 			// problem report into the problem report. That is the right place for it.
 			status.fail(error);
 		}
@@ -156,7 +156,7 @@
 		</span>
 
 		<button type="button" class="quiet" onclick={() => void copy()} disabled={list.length === 0}>
-			{#if copied === 'yes'}Copied ✓{:else if copied === 'no'}Selected — press ⌘C{:else}Copy report{/if}
+			{#if copied === 'yes'}Copied ✓{:else if copied === 'no'}Selected - press ⌘C{:else}Copy report{/if}
 		</button>
 		<button type="button" class="quiet" onclick={() => void saveAs()} disabled={list.length === 0}>Save…</button>
 		<button type="button" class="quiet" onclick={() => void report()} disabled={list.length === 0}>
@@ -174,7 +174,7 @@
 	{:else if list.length === 0}
 		<p class="empty">
 			{#if showing === 'previous'}
-				The last run of Studio recorded no problems — or there was no last run. A window that crashed still leaves what
+				The last run of Studio recorded no problems - or there was no last run. A window that crashed still leaves what
 				it had written up to that point.
 			{:else}
 				Nothing has gone wrong this session. Problems that do turn up are collected here, with a report you can copy
@@ -216,7 +216,7 @@
 
 	<!-- **The file, named and openable.** The list is the copy that is convenient; the file is the
 	     one that survives a window being killed, and a person who has to send it needs to be able to
-	     find it — a path you can read is worse than a path you can open, and this costs nothing to be
+	     find it - a path you can read is worse than a path you can open, and this costs nothing to be
 	     both. Shown in full rather than redacted: this is their own machine, and the redaction
 	     belongs to the report, which is the thing that leaves it. -->
 	{#if where}
@@ -255,7 +255,7 @@
 	}
 
 	/* The selected tab is the only one in full ink, which is the same way the bar marks an expanded
-	   panel — one rule for "you are looking at this", not two. */
+	   panel - one rule for "you are looking at this", not two. */
 	.tab {
 		flex: none;
 		padding: 0 var(--space-2);
@@ -302,7 +302,7 @@
 		font-size: var(--text-sm);
 	}
 
-	/* Level is carried by shape as much as colour — filled for an error, hollow for a warning — so
+	/* Level is carried by shape as much as colour - filled for an error, hollow for a warning - so
 	   it survives a monochrome or colour-blind reading. The same rule the job dots follow. */
 	.dot {
 		flex: none;

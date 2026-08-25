@@ -10,13 +10,13 @@
  * }
  * ```
  *
- * So replacing that object makes the entire frontend drivable without the desktop shell — which
+ * So replacing that object makes the entire frontend drivable without the desktop shell - which
  * matters because there is no `tauri-driver` for macOS, and the alternative was verifying panes by
  * looking at them.
  *
  * **What this does and does not prove.** A test built on it asserts what the interface does with an
  * answer, never that the core would give that answer. The contract between the two is held by
- * `bindings_are_up_to_date`, which fails the moment a Rust type moves — so a fixture that satisfies
+ * `bindings_are_up_to_date`, which fails the moment a Rust type moves - so a fixture that satisfies
  * the generated TypeScript cannot drift from the real signature. What stays uncovered is the core's
  * behaviour, and that has its own tests.
  */
@@ -25,7 +25,7 @@
 export type Answers = Record<string, unknown | ((args: Record<string, unknown>) => unknown)>;
 
 export interface TauriStub {
-	/** Every call made, in order — for asserting that a control reached the core at all. */
+	/** Every call made, in order - for asserting that a control reached the core at all. */
 	calls: { cmd: string; args: Record<string, unknown> }[];
 	/** Adds or replaces an answer mid-test, for the second half of a round trip. */
 	answer(cmd: string, value: Answers[string]): void;
@@ -48,7 +48,7 @@ export function stubTauri(answers: Answers = {}): TauriStub {
 		invoke(cmd: string, args: Record<string, unknown> = {}) {
 			calls.push({ cmd, args });
 			if (!(cmd in table)) {
-				return Promise.reject(new Error(`no stubbed answer for "${cmd}" — add one to stubTauri()`));
+				return Promise.reject(new Error(`no stubbed answer for "${cmd}" - add one to stubTauri()`));
 			}
 			const answer = table[cmd];
 			return Promise.resolve(typeof answer === 'function' ? answer(args) : answer);

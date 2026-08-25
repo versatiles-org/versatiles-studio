@@ -1,5 +1,5 @@
 /**
- * The file dialog's filters, from the core's catalogue of ways in (E1–E3, S3.2).
+ * The file dialog's filters, from the core's catalogue of ways in (E1-E3, S3.2).
  *
  * **Here rather than in `App.svelte`, because there are two callers now** ([S7.5]): the workbench's
  * File → Open, and the launcher window, which is a page of its own with no access to the other's
@@ -21,8 +21,8 @@ export function anyExtension(kinds: ImportKind[]): string[] {
  * Asks for a file, narrowed to one kind when a card chose it.
  *
  * A card's whole contribution is *saying what you are bringing in before you go looking for it*, so
- * the dialog it opens shows that kind's files and nothing else. With no card — the keyboard route,
- * or "+ Add source" before a choice — every kind is offered at once.
+ * the dialog it opens shows that kind's files and nothing else. With no card - the keyboard route,
+ * or "+ Add source" before a choice - every kind is offered at once.
  *
  * `null` when the dialog was cancelled, which is ordinary and worth nothing being said about.
  */

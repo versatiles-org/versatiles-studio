@@ -19,11 +19,11 @@
 
 	// The Pipeline pane's contents (Q22, [Q31]).
 	//
-	// The pane *wrapper* — title, fold, which sidebar — is `Sidebar`'s business; this is only what
+	// The pane *wrapper* - title, fold, which sidebar - is `Sidebar`'s business; this is only what
 	// goes inside one. That separation is the whole of Q31: where a pane sits became data, so this
 	// file has no opinion about it.
 	//
-	// There is deliberately no Sources pane — the `from_container` read nodes at the head of the
+	// There is deliberately no Sources pane - the `from_container` read nodes at the head of the
 	// pipeline *are* the sources, and a separate list would show the same nodes twice (Q14).
 	//
 	// Style arrives at S4 and Export at S5. Their sections are not stubbed out here: an empty
@@ -71,7 +71,7 @@
 		pipelineRevision: number;
 
 		// Grouped by what they act on rather than passed one by one. Most of these this file never
-		// calls — it receives them and hands them to `GraphList` or `Chain` — and fourteen loose
+		// calls - it receives them and hands them to `GraphList` or `Chain` - and fourteen loose
 		// callbacks made a signature where the six it *does* use were impossible to pick out.
 
 		/** Acting on the crop. It lives on the graph in the core, so all three go out. */
@@ -86,7 +86,7 @@
 		graphActions: {
 			select: (id: number) => void;
 			rename: (id: number, name: string) => void;
-			/** Removes it for good — the history cannot restore a graph that is gone ([Q32]). */
+			/** Removes it for good - the history cannot restore a graph that is gone ([Q32]). */
 			remove: (id: number) => void;
 			addSource: (kind: ImportKind) => void;
 		};
@@ -110,12 +110,12 @@
 			format: () => void;
 			/** `true` to choose a new file rather than writing to the one already open. */
 			save: (chooseFile: boolean) => void;
-			/** Opens the export modal for this graph — a run, not an edit ([Q32]). */
+			/** Opens the export modal for this graph - a run, not an edit ([Q32]). */
 			export: () => void;
 		};
 	} = $props();
 
-	// Q15: one pane, two tabs over one document — not two panes.
+	// Q15: one pane, two tabs over one document - not two panes.
 	let tab = $state<'graph' | 'vpl'>('graph');
 	/// Whether "+ Add source" has been opened into its cards. Local: which way in someone is part
 	/// way through choosing is not worth remembering across a reload.
@@ -149,7 +149,7 @@
 			draftTokens = review.tokens;
 			draftDiagnostics = review.diagnostics;
 			draftError = null;
-			// A document that parses is worth keeping even when it does not yet make sense — the
+			// A document that parses is worth keeping even when it does not yet make sense - the
 			// diagnostics say what is wrong, and the graph and preview can still show the shape.
 			documentActions.change(next);
 		} catch (error) {
@@ -315,7 +315,7 @@
 <style>
 	/* The pane lives in a fixed grid column. Without `min-width: 0` here and on every descendant
 	   that lays out children, a long path would set the column's content width and push the map off
-	   the edge — flex and grid children default to `min-width: auto`, not zero. */
+	   the edge - flex and grid children default to `min-width: auto`, not zero. */
 	.pane {
 		display: flex;
 		flex-direction: column;
@@ -397,7 +397,7 @@
 	}
 
 	/* Centred, and set apart from the chain above by a rule of its own: these are what the pane is
-	   for, and they had been sitting in the far corner at the smallest size in the application —
+	   for, and they had been sitting in the far corner at the smallest size in the application -
 	   read as a footnote rather than as the three things you came here to do. */
 	.actions {
 		display: flex;

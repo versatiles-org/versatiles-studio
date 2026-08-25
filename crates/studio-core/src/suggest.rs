@@ -1,6 +1,6 @@
 //! Values a node's fields could take, worked out from what the node points at (S3.4, E2).
 //!
-//! The generated form ([C2](../../docs/features.md)) knows a field's *type* — this is where it
+//! The generated form ([C2](../../docs/features.md)) knows a field's *type* - this is where it
 //! learns the field's *domain*. `from_csv`'s `lon_column` is a `String` as far as `field_meta` is
 //! concerned, and one of a specific handful of strings as far as the file is concerned; only the
 //! second is useful to fill in.
@@ -12,7 +12,7 @@
 //! from.
 //!
 //! Suggestions, never constraints. A file too large to have been read, a column that only appears
-//! further down, a name Studio has no opinion about — all of those leave the field exactly as
+//! further down, a name Studio has no opinion about - all of those leave the field exactly as
 //! usable as it was.
 //!
 //! [Q29]: ../../docs/decisions.md
@@ -45,7 +45,7 @@ const CSV_COLUMN_FIELDS: [&str; 5] = [
 
 /// Suggestions for a node's fields. Empty when there is nothing to say, which is most nodes.
 ///
-/// `dir` is what a relative `filename` resolves against — the same directory the pipeline itself
+/// `dir` is what a relative `filename` resolves against - the same directory the pipeline itself
 /// resolves against, so a node that runs and a node that suggests are looking at the same file.
 #[must_use]
 pub fn for_node(node: &Node, dir: &Path) -> Vec<FieldSuggestion> {
@@ -78,7 +78,7 @@ pub fn for_node(node: &Node, dir: &Path) -> Vec<FieldSuggestion> {
 /// Suggestions for every node in a pipeline, by the path that names it.
 ///
 /// **One answer for the whole graph, rather than one per selection.** Every node in the chain shows
-/// its own form, so every node needs its own suggestions — and a `filename` on one node has nothing
+/// its own form, so every node needs its own suggestions - and a `filename` on one node has nothing
 /// to say about the field of another. Asking per node would be a round trip each; asking once is
 /// cheap because [`for_node`] refuses everything that is not a `from_csv` before it touches a disk,
 /// so a chain costs one header read per CSV node and a string comparison for the rest.
@@ -156,7 +156,7 @@ mod tests {
 		assert!(suggestions.iter().any(|s| s.field == "properties_include"));
 	}
 
-	/// A relative filename means *beside the pipeline*, the same as it does when the node runs —
+	/// A relative filename means *beside the pipeline*, the same as it does when the node runs -
 	/// so a suggestion and a build are never looking at two different files.
 	#[test]
 	fn a_relative_filename_resolves_the_way_the_pipeline_resolves_it() {
@@ -203,7 +203,7 @@ mod pipeline_tests {
 	}
 
 	/// **The reason this exists.** Every node shows its own form, so two `from_csv` nodes reading
-	/// different files must offer different columns — which is exactly what asking once per
+	/// different files must offer different columns - which is exactly what asking once per
 	/// selection could not do.
 	#[test]
 	fn each_node_gets_its_own_file_s_columns() {

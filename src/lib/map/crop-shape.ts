@@ -2,8 +2,8 @@
  * The shapes a crop is drawn as, and the rules for turning a drag into one (F2, S5.2, S5.4).
  *
  * Apart from `CropOverlay`, which binds them to the map, for the reason `layer-tree.ts` gives: these
- * are decisions with right answers — where the dimming stops, when two corners are a rectangle and
- * when they are a click — and a decision inside a `.svelte` file is one no test can ask about.
+ * are decisions with right answers - where the dimming stops, when two corners are a rectangle and
+ * when they are a click - and a decision inside a `.svelte` file is one no test can ask about.
  */
 
 /** West, south, east, north. */
@@ -19,7 +19,7 @@ export interface LngLatish {
  * Where the dimmed world stops.
  *
  * **The Web Mercator limit, not the pole.** Beyond it there is no map to dim, and a polygon reaching
- * ±90 projects to infinity — which MapLibre draws as nothing at all.
+ * ±90 projects to infinity - which MapLibre draws as nothing at all.
  */
 export const MERCATOR_LIMIT = 85.05;
 
@@ -50,7 +50,7 @@ function collection(coordinates: Ring[]) {
 }
 
 /**
- * The rectangle itself — what a drag in flight is drawn as.
+ * The rectangle itself - what a drag in flight is drawn as.
  *
  * **Not the dimmed form.** Dimming is right for a crop that exists, since it says which part of the
  * world survives, and wrong for one being dragged: starting a small box turned the whole map dark
@@ -61,7 +61,7 @@ export function rectangle(box: BBox) {
 }
 
 /**
- * The world with the crop punched out of it — what a finished crop is drawn as.
+ * The world with the crop punched out of it - what a finished crop is drawn as.
  *
  * One polygon with a hole does both jobs: the fill dims the outside, the line traces the edge. Two
  * shapes could be drawn out of step with each other; one cannot.
@@ -94,7 +94,7 @@ export function boxBetween(a: LngLatish, b: LngLatish): BBox {
  * Whether a finished drag is a rectangle at all.
  *
  * **A click is not an empty selection.** Two identical corners would otherwise clear the crop
- * someone was only trying to look at — which is a thing you cannot undo by clicking again.
+ * someone was only trying to look at - which is a thing you cannot undo by clicking again.
  */
 export function isRectangle(box: BBox): boolean {
 	return box[0] !== box[2] && box[1] !== box[3];

@@ -52,7 +52,7 @@ describe('opening the dialog', () => {
 		expect(exporting.producing).toBeNull();
 	});
 
-	// Asked for by name rather than taken from the last preview, which follows the pin — with a node
+	// Asked for by name rather than taken from the last preview, which follows the pin - with a node
 	// pinned that describes an intermediate step, and the export writes the graph regardless.
 	it('forgets the previous answer while the new one is fetched', async () => {
 		await exporting.show(3);

@@ -3,18 +3,18 @@
 	import { help } from '../state/help.svelte';
 	// The "add something" picker, in place of a `<select>`.
 	//
-	// Both places that offer a list of things to insert — `＋ operation…` on the chain's rail and
-	// `＋ parameter…` inside a node — were native selects. A select can hold a list and nothing
+	// Both places that offer a list of things to insert - `＋ operation…` on the chain's rail and
+	// `＋ parameter…` inside a node - were native selects. A select can hold a list and nothing
 	// else: its options cannot carry a description, a disabled option's reason is a `title` the
 	// platform may or may not show, and there is no way to type and narrow. With thirty transforms
 	// that last one is the difference between reading a list and finding a name.
 	//
 	// **Positioned like `Help`, and for the same reason.** The sidebar scrolls and clips, so a list
 	// drawn inside a node cannot escape it; `position: fixed` from the trigger's measured rectangle
-	// sidesteps that without portals. Not the Popover API — Studio already decided against it for
+	// sidesteps that without portals. Not the Popover API - Studio already decided against it for
 	// `Help` because WebKitGTK versions vary on Linux, and one popup mechanism is enough.
 	//
-	// A scroll invalidates the measured rectangle, so it closes rather than chases — again `Help`'s
+	// A scroll invalidates the measured rectangle, so it closes rather than chases - again `Help`'s
 	// answer, and the honest one.
 
 	let {
@@ -39,7 +39,7 @@
 	let trigger = $state<HTMLButtonElement>();
 	let list = $state<HTMLElement>();
 	let rect = $state<DOMRect | null>(null);
-	/// The row being examined — pointed at, or walked to with the arrows. `null` when neither.
+	/// The row being examined - pointed at, or walked to with the arrows. `null` when neither.
 	///
 	/// Not the same as `active`, which is the row Enter would pick and therefore always a pickable
 	/// one. A refused operation can be examined and cannot be picked, and the reason it is refused
@@ -52,7 +52,7 @@
 
 	const matches = $derived(matching(items, query));
 	const groups = $derived(grouped(matches));
-	/// Only rows that can be chosen, in display order — what the arrow keys walk.
+	/// Only rows that can be chosen, in display order - what the arrow keys walk.
 	const walkable = $derived(pickable(matches));
 
 	function show() {
@@ -122,7 +122,7 @@
 	$effect(measure);
 
 	/// Where the list goes: under the trigger, pulled inside the window, and above it instead when
-	/// there is more room there — a node near the bottom of a long chain is the ordinary case, not
+	/// there is more room there - a node near the bottom of a long chain is the ordinary case, not
 	/// the exceptional one.
 	const position = $derived.by(() => {
 		if (!rect) return null;
@@ -153,7 +153,7 @@
 	///
 	/// **Beside, not below.** Measured across the operations, a field's documentation runs to a
 	/// median of 110 characters and as far as 604, so each row keeps one line and the rest is read
-	/// here. Putting it inside the box — under the list, or by growing the row — would move the
+	/// here. Putting it inside the box - under the list, or by growing the row - would move the
 	/// rows while the pointer was travelling down them, which is the reflow `Help` already refuses
 	/// for the same reason. Out here it overlays the map and disturbs nothing.
 	///
@@ -161,7 +161,7 @@
 	/// ([Q31](../../../docs/decisions.md)), so a picker near the right edge is a real case.
 	const tip = $derived.by(() => {
 		// **Yields to a pinned popover.** `Help` lands beside the sidebar and this lands beside the
-		// list, which is inside the sidebar — so the two occupy the same strip of screen, and this
+		// list, which is inside the sidebar - so the two occupy the same strip of screen, and this
 		// one is on top. Pinning is the gesture for "keep this where I can read it", so the thing
 		// that arrives later is the one that gives way. A *peek* is not covered: it belongs to a
 		// pointer that is somewhere else entirely, and it goes on its own the moment this one could
@@ -271,7 +271,7 @@
 
 	{#if tip}
 		<!-- A sibling of the list, not a child: it has to escape the box's own bounds. `role="tooltip"`
-		     and no pointer events, because it describes the row rather than being something to use —
+		     and no pointer events, because it describes the row rather than being something to use -
 		     and a box that swallowed the pointer would sit between it and the rows on the way past. -->
 		<p
 			class="tip"
@@ -329,7 +329,7 @@
 		padding: 0 var(--space-2);
 	}
 
-	/* One line each. What a row *means* is in the tip beside it — repeating a clipped half of it
+	/* One line each. What a row *means* is in the tip beside it - repeating a clipped half of it
 	   here bought a hint at the cost of halving how many rows fit, and the clipped half is the part
 	   that reads as noise. */
 	.row {
@@ -345,7 +345,7 @@
 		text-overflow: ellipsis;
 		white-space: nowrap;
 
-		/* The highlight follows the keyboard *and* the pointer, so there is only ever one — a hover
+		/* The highlight follows the keyboard *and* the pointer, so there is only ever one - a hover
 		   style of its own would let the mouse show one row while Enter picked another. */
 		&.active {
 			background: var(--chrome);

@@ -13,7 +13,7 @@ use tauri::{AppHandle, Manager};
 /// Where `sprites.tar.gz` and `glyphs.tar.gz` are on this machine.
 ///
 /// In a packaged app Tauri copies them next to the binary. In `tauri dev` there is no bundle, so
-/// fall back to the source tree — which is also what makes a fresh clone work after
+/// fall back to the source tree - which is also what makes a fresh clone work after
 /// `npm run assets:fetch`.
 pub fn resource_dir(app: &AppHandle) -> Result<PathBuf> {
 	if let Ok(dir) = app.path().resource_dir() {
@@ -31,7 +31,7 @@ pub fn resource_dir(app: &AppHandle) -> Result<PathBuf> {
 		return Ok(in_tree);
 	}
 
-	anyhow::bail!("bundled assets not found — run `npm run assets:fetch`")
+	anyhow::bail!("bundled assets not found - run `npm run assets:fetch`")
 }
 
 /// Mounts the bundled tier on the embedded server.

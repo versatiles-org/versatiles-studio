@@ -2,8 +2,8 @@
 	// Svelte 5 recursive components import themselves; `<svelte:self>` is deprecated.
 	import JsonTree from './JsonTree.svelte';
 
-	// A foldable JSON view. Every object and array is a `<details>`, so a large TileJSON — where
-	// `vector_layers` alone can run to dozens of entries — collapses to something scannable.
+	// A foldable JSON view. Every object and array is a `<details>`, so a large TileJSON - where
+	// `vector_layers` alone can run to dozens of entries - collapses to something scannable.
 	// `<details>` also gets keyboard support and disclosure semantics for free.
 	let { value, name, depth = 0, open }: { value: unknown; name?: string; depth?: number; open?: boolean } = $props();
 
@@ -26,7 +26,7 @@
 		Array.isArray(v) ? v.map((child, i) => [String(i), child]) : Object.entries(v as object);
 
 	// `$derived`, not a plain const: `depth` is a prop, and a const would capture only its first
-	// value. Callers can override — the inspector starts TileJSON folded, since a side panel should
+	// value. Callers can override - the inspector starts TileJSON folded, since a side panel should
 	// not open with a wall of metadata.
 	const isOpen = $derived(open ?? depth < 1);
 </script>

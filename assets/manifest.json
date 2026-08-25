@@ -1,5 +1,5 @@
 {
-	"$comment": "Pinned map assets (Q9). Never 'latest' — moved deliberately via `npm run assets:update`. Digests come verbatim from GitHub release assets.",
+	"$comment": "Pinned map assets (Q9). Never 'latest' - moved deliberately via `npm run assets:update`. Digests come verbatim from GitHub release assets.",
 	"sources": {
 		"sprites": {
 			"repo": "versatiles-org/versatiles-style",

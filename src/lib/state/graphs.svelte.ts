@@ -10,7 +10,7 @@
  * name and rebuild, because the mount moves with it. And both have to refetch the list, because the
  * unsaved dot lives on it.
  *
- * **What this does not own.** Which document is on screen — that is `document.svelte.ts`, and this
+ * **What this does not own.** Which document is on screen - that is `document.svelte.ts`, and this
  * only says which graphs exist. Redrawing the map after any of this is the application's fan-out.
  *
  * [Q32]: ../../../docs/decisions.md
@@ -22,7 +22,7 @@ import { preview } from './preview.svelte';
 let list = $state<GraphInfo[]>([]);
 
 /**
- * Where the map is looking. **Not the selection** — you can edit one node while watching another,
+ * Where the map is looking. **Not the selection** - you can edit one node while watching another,
  * in another graph. `null` is the ordinary state: the map shows every graph.
  */
 let pin = $state<{ graph: number; path: number[] } | null>(null);
@@ -39,7 +39,7 @@ export const graphs = {
 		return pin;
 	},
 
-	/** Whether the project has no graphs — which is the landing screen's whole condition. */
+	/** Whether the project has no graphs - which is the landing screen's whole condition. */
 	get empty(): boolean {
 		return list.length === 0;
 	},
@@ -71,7 +71,7 @@ export const graphs = {
 	/**
 	 * Builds every graph that has not been built yet, so a style can draw the whole stack (S6.5).
 	 *
-	 * **On open, not on every refresh.** A project's graphs are one build apiece — a cost a person
+	 * **On open, not on every refresh.** A project's graphs are one build apiece - a cost a person
 	 * expects when opening something and would not forgive on every keystroke.
 	 */
 	async mountAll(): Promise<void> {
@@ -96,7 +96,7 @@ export const graphs = {
 	/**
 	 * Removes a graph and forgets its tiles.
 	 *
-	 * Returns the graph that should be shown next, or `null` when that was the last one — the caller
+	 * Returns the graph that should be shown next, or `null` when that was the last one - the caller
 	 * owns the document, so it decides what to open rather than being told.
 	 */
 	async remove(id: number): Promise<number | null> {
@@ -112,7 +112,7 @@ export const graphs = {
 	/**
 	 * Moves the pin to a node, or clears it when it is already there.
 	 *
-	 * Clicking the pinned node again is what gets you back to seeing every graph — the same gesture
+	 * Clicking the pinned node again is what gets you back to seeing every graph - the same gesture
 	 * off as on, because a separate "clear" would be a control that only exists sometimes.
 	 */
 	async togglePin(graph: number, path: number[]): Promise<void> {

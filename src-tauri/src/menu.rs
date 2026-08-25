@@ -1,6 +1,6 @@
 //! The native menu, and how a click on it reaches the window (S0.1).
 //!
-//! **These were buttons in the corner of the window.** Open a project, save it, save a copy — verbs
+//! **These were buttons in the corner of the window.** Open a project, save it, save a copy - verbs
 //! about the application rather than about anything on screen, sitting in a strip that
 //! [Q39](../../docs/decisions.md) had already emptied of its original purpose. A menu is where a
 //! person looks for them, and it is the one place that gets accelerators, platform conventions and
@@ -12,7 +12,7 @@
 //!
 //! **The Edit submenu exists to keep the webview usable, not to add features.** On macOS, a custom
 //! menu that omits cut, copy, paste and select-all takes those shortcuts away from every text field
-//! in the window — including the VPL editor. Undo and redo are deliberately *not* here: an
+//! in the window - including the VPL editor. Undo and redo are deliberately *not* here: an
 //! accelerator is handled before the webview sees the key, so a `⌘Z` menu item would take the
 //! keystroke away from the document-wide undo in `App.svelte` and hand it to whichever text box
 //! happened to have focus.
@@ -40,7 +40,7 @@ const CHECK_UPDATES: &str = "check-updates";
 /// Builds the menu and hands it to the application.
 ///
 /// App-wide rather than per-window: on macOS that is the only kind there is, and elsewhere Tauri
-/// gives it to every window that has not asked for one of its own — including windows opened later.
+/// gives it to every window that has not asked for one of its own - including windows opened later.
 pub fn install(app: &AppHandle) -> Result<()> {
 	let menu = build(app).context("building the menu")?;
 	app.set_menu(menu).context("setting the menu")?;
@@ -95,7 +95,7 @@ fn application(app: &AppHandle) -> Result<Submenu<Wry>> {
 		.build()?)
 }
 
-/// Opening and saving — everything that is about the project rather than about the selection.
+/// Opening and saving - everything that is about the project rather than about the selection.
 ///
 /// **`⌘S` saves the *project*.** It used to save the current `.vpl`, which was right when a window
 /// held one document and became quietly wrong when [Q6](../../docs/decisions.md) made a project the
@@ -113,8 +113,8 @@ fn file(app: &AppHandle) -> Result<Submenu<Wry>> {
 		.text(SAVE_PROJECT_AS, "Save Project As…")
 		.text(SAVE_COPY, "Save a Copy…");
 
-	// On macOS both of these live where the platform puts them — Close in the Window submenu, Quit
-	// in the application one — and repeating them here would put two ⌘W items in one menu bar.
+	// On macOS both of these live where the platform puts them - Close in the Window submenu, Quit
+	// in the application one - and repeating them here would put two ⌘W items in one menu bar.
 	#[cfg(not(target_os = "macos"))]
 	{
 		file = file.separator().close_window().separator().quit();
@@ -174,7 +174,7 @@ fn help(app: &AppHandle) -> Result<Submenu<Wry>> {
 /// Sets an accelerator after the fact.
 ///
 /// `SubmenuBuilder::text` takes no accelerator, and building each item separately to give it one
-/// costs a `let` and a `.item()` per line — six of them, for a submenu whose shape is the thing
+/// costs a `let` and a `.item()` per line - six of them, for a submenu whose shape is the thing
 /// worth reading. This keeps the shape above and the keys beside each other.
 fn accelerate(submenu: &Submenu<Wry>, id: &str, keys: &str) -> Result<()> {
 	let item = submenu
@@ -198,7 +198,7 @@ pub fn chosen(app: &AppHandle, id: &MenuId) {
 	// through a webview only to have it call back would put a round trip between the key and the
 	// window.
 	// **⌘N opens the launcher**, which is what starting a project now means ([Q48], S7.5). It used
-	// to open an empty project window — a window that could do nothing until you used File → Open,
+	// to open an empty project window - a window that could do nothing until you used File → Open,
 	// which is the launcher's job said less well.
 	if id.0 == "new-project" {
 		if let Err(error) = crate::windows::open_launcher(app) {
@@ -209,7 +209,7 @@ pub fn chosen(app: &AppHandle, id: &MenuId) {
 	}
 
 	// Answered here for the same reason as the one below it: showing a file in the file manager is
-	// the shell's errand, and the file is the application's own — no window is involved in either.
+	// the shell's errand, and the file is the application's own - no window is involved in either.
 	if id.0 == "show-log" {
 		if let Err(error) = crate::commands::diagnostics::reveal_log(app) {
 			let state = app.state::<crate::state::AppState>();
@@ -225,7 +225,7 @@ pub fn chosen(app: &AppHandle, id: &MenuId) {
 		.into_values()
 		.find(|window| window.is_focused().unwrap_or(false))
 	else {
-		// Nothing is focused — a menu reached through the macOS menu bar with every window hidden.
+		// Nothing is focused - a menu reached through the macOS menu bar with every window hidden.
 		// There is no window to act in, and no way to say so that anybody would see.
 		return;
 	};
@@ -242,7 +242,7 @@ pub fn chosen(app: &AppHandle, id: &MenuId) {
 /// Enables and disables the items for the window in front of the person reading them (S7.8).
 ///
 /// **Applied per window, because on macOS there is one menu for all of them.** A focused launcher
-/// that disabled Save would disable it for the project window behind it — so this runs whenever a
+/// that disabled Save would disable it for the project window behind it - so this runs whenever a
 /// window takes focus, and again whenever the focused window's own answer changes.
 ///
 /// **The answer comes from the core, not from the webview.** Whether there is anything to save is

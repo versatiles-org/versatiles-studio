@@ -1,13 +1,13 @@
 name: sqlite3 command-line tool
 description: Puts sqlite3.exe on PATH for the Windows runners, which have no package that supplies it.
 
-# **PROJ builds `proj.db` at compile time, with the sqlite3 *binary*.** Not the library — the
+# **PROJ builds `proj.db` at compile time, with the sqlite3 *binary*.** Not the library - the
 # library is already in the tree. `libproj`'s CMakeLists does `find_program(EXE_SQLITE3 sqlite3)`
 # and stops with "sqlite3 binary not found!" when that fails, which is where both Windows bundles
 # died. The Ubuntu and macOS images ship the tool, so this is the only platform that needs it.
 #
 # Studio compiles GDAL and PROJ from source ([Q19], [Q34]), so this is not avoidable by asking for
-# a prebuilt PROJ — there isn't one in this build.
+# a prebuilt PROJ - there isn't one in this build.
 #
 # **Downloaded and checksummed rather than installed from a package manager.** Chocolatey adds a
 # package manager to the build for one 4 MB tool. The official zip is pinned by version *and* by
@@ -28,7 +28,7 @@ runs:
         $ErrorActionPreference = 'Stop'
 
         # Pinned as one fact: the release, and the hash of its zip. Moving the version means
-        # replacing the hash in the same edit — which is the point of it being here rather than
+        # replacing the hash in the same edit - which is the point of it being here rather than
         # behind an input that would let the two drift apart.
         $release = '3530400'
         $year    = '2026'
@@ -49,7 +49,7 @@ runs:
         # Before unzipping, not after: a mismatch means these are not the bytes this was written
         # against, and running them to find out is the thing being avoided.
         $got = (Get-FileHash -Algorithm SHA256 $zip).Hash
-        if ($got -ne $sha) { throw "$name hashed $got, expected $sha — bump both together" }
+        if ($got -ne $sha) { throw "$name hashed $got, expected $sha - bump both together" }
 
         Expand-Archive -Path $zip -DestinationPath $dest -Force
         # `GITHUB_PATH` rather than `$env:PATH`: a composite step's environment does not survive
