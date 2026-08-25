@@ -55,6 +55,15 @@
 
 	const control = $derived(field?.control);
 
+	/// Whether a value is a path: read from its end, and offered a file picker.
+	///
+	/// **The core's answer, not a guess made here.** This used to be a name test in this file -
+	/// `filename`, `*_file`, `*_path` - and it missed `raster_mask`'s `geojson`, both `cutline`s
+	/// and `ssh_identity`, three fields that name a file and say so nowhere a name test could see.
+	/// The registry is the core's to read, and a test there holds the list against it when
+	/// upstream adds another (C2).
+	const isPath = $derived(control?.kind === 'path');
+
 	/// What the empty box says.
 	///
 	/// **A default beats whatever the caller suggested** ([vt#253]). "a value" is a restatement of
@@ -76,12 +85,6 @@
 			.filter(Boolean);
 
 	const chosen = $derived(parts(value));
-
-	/// Whether a value is a path, and so should be read from its end.
-	///
-	/// By key rather than by looking at the value: an empty `filename` is still a path, and a
-	/// `layer_name` that happens to contain a slash is not.
-	const isPath = $derived(name === 'filename' || name.endsWith('_file') || name.endsWith('_path'));
 
 	/// Fills the field from the file picker.
 	///

@@ -133,6 +133,9 @@ export function summarise(field: FieldInfo): string {
 		case 'numbers':
 			type = `${control.count} numbers`;
 			break;
+		case 'path':
+			type = 'a file path';
+			break;
 		default:
 			type = 'text';
 	}

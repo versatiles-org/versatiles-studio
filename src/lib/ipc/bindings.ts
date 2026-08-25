@@ -807,6 +807,15 @@ export type ContainerInfo = {
 
 /**  The control a parameter should be edited with. */
 export type Control = { kind: "text" } | 
+/**
+ *  A file this machine has: edited as text, and with a file picker beside it.
+ * 
+ *  **Not a `rust_type`.** Upstream spells every one of these `String` or `Option<String>`,
+ *  because VPL stores a path as text and so does everything downstream of it. What makes a
+ *  path a path is what the operation *does* with it, which only the parameter's name says -
+ *  so this is the one control decided by name rather than by type. See [`is_path`].
+ */
+{ kind: "path" } | 
 /**  `min`/`max` come from the integer width, so a zoom level cannot be set to 300. */
 { kind: "number"; integer: boolean; min: number | null; max: number | null } | { kind: "boolean" } | 
 /**  An enum, with every accepted spelling. */

@@ -31,6 +31,13 @@ pub fn registry() -> &'static HashMap<String, OperationMeta> {
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub enum Control {
 	Text,
+	/// A file this machine has: edited as text, and with a file picker beside it.
+	///
+	/// **Not a `rust_type`.** Upstream spells every one of these `String` or `Option<String>`,
+	/// because VPL stores a path as text and so does everything downstream of it. What makes a
+	/// path a path is what the operation *does* with it, which only the parameter's name says -
+	/// so this is the one control decided by name rather than by type. See [`is_path`].
+	Path,
 	/// `min`/`max` come from the integer width, so a zoom level cannot be set to 300.
 	Number {
 		integer: bool,
@@ -53,12 +60,31 @@ pub enum Control {
 	},
 }
 
+/// Whether a parameter names a file on this machine.
+///
+/// **By name, because nothing else says so.** Every one of these is a `String` upstream, and their
+/// documentation says it in prose or not at all - `filter`'s `filename` and `from_container`'s
+/// `ssh_identity` never use the word. So the names are listed, and `path_fields_are_all_named`
+/// holds the list against the whole registry rather than trusting it.
+///
+/// The suffixes are the general rule and the four names are what upstream calls the rest: a
+/// `cutline` is a GeoJSON file GDAL clips against (`cutline_path` by the time it reaches GDAL), an
+/// `ssh_identity` is a private key file, and `raster_mask`'s `geojson` is the polygon to mask with.
+///
+/// A URL is not one of these: `from_tilejson`'s `url` is somewhere else entirely, and a picker
+/// offering the local disk for it would be answering the wrong question.
+fn is_path(name: &str) -> bool {
+	matches!(name, "filename" | "geojson" | "cutline" | "ssh_identity")
+		|| name.ends_with("_file")
+		|| name.ends_with("_path")
+}
+
 /// Reads a `rust_type` into the control that fits it.
 ///
 /// Unknown types fall back to text rather than failing. A parameter upstream adds in a shape we do
 /// not recognise should still be editable - as the string it is written as, which is what VPL
 /// stores anyway.
-fn control_for(rust_type: &str, enum_variants: &[&'static str]) -> Control {
+fn control_for(name: &str, rust_type: &str, enum_variants: &[&'static str]) -> Control {
 	if !enum_variants.is_empty() {
 		return Control::Choice {
 			options: enum_variants.iter().map(|v| (*v).to_string()).collect(),
@@ -79,6 +105,12 @@ fn control_for(rust_type: &str, enum_variants: &[&'static str]) -> Control {
 	if let Some(count) = fixed_array_len(inner) {
 		return Control::Numbers { count };
 	}
+	// Checked after the shapes above rather than first: a name is the weakest evidence here, and a
+	// parameter that upstream types as a number or an enum is that whatever it is called.
+	if is_path(name) {
+		return Control::Path;
+	}
+
 	match inner {
 		"u8" => number(true, 0.0, f64::from(u8::MAX)),
 		"u16" => number(true, 0.0, f64::from(u16::MAX)),
@@ -183,7 +215,7 @@ pub fn operations() -> Vec<OperationInfo> {
 					doc: field.doc.clone(),
 					required: field.is_required,
 					sources: field.is_sources,
-					control: control_for(&field.rust_type, &field.enum_variants),
+					control: control_for(&field.name, &field.rust_type, &field.enum_variants),
 					default: field.default.clone(),
 				})
 				.collect(),
@@ -215,6 +247,79 @@ mod tests {
 		};
 		assert!(options.contains(&"png".to_string()), "{options:?}");
 		assert!(options.contains(&"mvt".to_string()), "{options:?}");
+	}
+
+	/// Every path in the registry, as `operation.field`.
+	fn paths() -> Vec<String> {
+		operations()
+			.into_iter()
+			.flat_map(|op| {
+				op.fields
+					.into_iter()
+					.filter(|f| f.control == Control::Path)
+					.map(move |f| format!("{}.{}", op.name, f.name))
+			})
+			.collect()
+	}
+
+	/// **The list, held against the registry.** `is_path` decides by name, which is a guess that
+	/// goes stale the moment upstream adds a parameter - and the failure is silent: a field that
+	/// names a file, with no picker beside it, looks exactly like one that does not.
+	///
+	/// So the whole set is written out. An operation added upstream fails this and someone decides
+	/// which it is, which is the only moment anyone can.
+	#[test]
+	fn path_fields_are_all_named() {
+		let mut found = paths();
+		found.sort();
+		assert_eq!(
+			found,
+			[
+				"filter.filename",
+				"from_container.filename",
+				"from_container.ssh_identity",
+				"from_csv.filename",
+				"from_gdal_dem.cutline",
+				"from_gdal_dem.filename",
+				"from_gdal_raster.cutline",
+				"from_gdal_raster.filename",
+				"from_geo.filename",
+				"from_tile.filename",
+				"meta_update.tilejson_file",
+				"meta_update.tilejson_update_file",
+				"meta_update.vector_layers_file",
+				"raster_mask.geojson",
+				"vector_update_properties.data_source_path",
+			]
+		);
+	}
+
+	/// The half of the list that says so out loud, checked against what upstream wrote rather than
+	/// against a name: `raster_mask`'s `geojson` was missed exactly this way, and its documentation
+	/// had said "Path to a GeoJSON file" all along.
+	#[test]
+	fn a_field_documented_as_a_path_is_one() {
+		for operation in operations() {
+			for field in operation.fields {
+				if field.doc.starts_with("Path to") {
+					assert_eq!(
+						field.control,
+						Control::Path,
+						"{}.{} says {:?}",
+						operation.name,
+						field.name,
+						field.doc
+					);
+				}
+			}
+		}
+	}
+
+	/// A URL is somewhere else, and a picker offering the local disk for it answers the wrong
+	/// question.
+	#[test]
+	fn a_url_is_not_a_path() {
+		assert_eq!(field("from_tilejson", "url").control, Control::Text);
 	}
 
 	/// The bound is the point: a zoom level is a `u8`, so the control cannot offer 300.
@@ -251,7 +356,15 @@ mod tests {
 	#[test]
 	fn a_string_list_is_a_list_and_a_plain_string_is_text() {
 		assert_eq!(field("from_csv", "properties_include").control, Control::List);
-		assert_eq!(field("from_container", "filename").control, Control::Text);
+		assert_eq!(field("from_csv", "layer_name").control, Control::Text);
+	}
+
+	/// The same Rust type as `layer_name` above, and a different control - which is the whole of
+	/// why `is_path` reads the name.
+	#[test]
+	fn a_string_naming_a_file_is_a_path() {
+		assert_eq!(field("from_container", "filename").control, Control::Path);
+		assert_eq!(field("raster_mask", "geojson").control, Control::Path);
 	}
 
 	#[test]
@@ -280,8 +393,8 @@ mod tests {
 	/// An unrecognised type is still editable, as the string VPL stores anyway.
 	#[test]
 	fn an_unknown_type_falls_back_to_text() {
-		assert_eq!(control_for("Option<SomethingNew>", &[]), Control::Text);
-		assert_eq!(control_for("[String;2]", &[]), Control::Text);
+		assert_eq!(control_for("whatever", "Option<SomethingNew>", &[]), Control::Text);
+		assert_eq!(control_for("whatever", "[String;2]", &[]), Control::Text);
 	}
 
 	#[test]

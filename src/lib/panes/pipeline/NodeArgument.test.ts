@@ -17,6 +17,16 @@ import { cleanup, render, screen } from '@testing-library/svelte';
 import NodeArgument from './NodeArgument.svelte';
 import { stubTauri, type TauriStub } from '../../testing/tauri';
 
+/** `field_meta` for a parameter that names a file - the core's `Control::Path`. */
+const PATH_FIELD = (name: string) => ({
+	name,
+	doc: '',
+	required: false,
+	sources: false,
+	default: null,
+	control: { kind: 'path' as const }
+});
+
 const CONTAINER = {
 	id: 'container',
 	label: 'Tile container',
@@ -42,16 +52,32 @@ const picks = (path: string | null) => tauri.answer('plugin:dialog|open', path);
 
 describe('which parameters offer a file picker', () => {
 	it('offers one for a path field', () => {
-		render(NodeArgument, { name: 'filename', value: '', onCommit: () => {} });
+		render(NodeArgument, { name: 'filename', field: PATH_FIELD('filename'), value: '', onCommit: () => {} });
 
 		expect(screen.getByLabelText('Choose a file for filename')).toBeTruthy();
 	});
 
-	// By key rather than by value: `layer_name` is not a path however many slashes it holds.
+	// The name is not what decides it - the core is. `raster_mask`'s `geojson` and `from_gdal_*`'s
+	// `cutline` name files and look nothing like `*_file`, which is how a name test in here missed
+	// them; a `layer_name` full of slashes is still not a path.
+	it('offers one for a path field named nothing like a path', () => {
+		render(NodeArgument, { name: 'geojson', field: PATH_FIELD('geojson'), value: '', onCommit: () => {} });
+
+		expect(screen.getByLabelText('Choose a file for geojson')).toBeTruthy();
+	});
+
 	it('offers none for a field that is not a path', () => {
 		render(NodeArgument, { name: 'layer_name', value: 'a/b', onCommit: () => {} });
 
 		expect(screen.queryByLabelText('Choose a file for layer_name')).toBeNull();
+	});
+
+	// A field the operation does not declare has no metadata to read, and a guess is what this
+	// stopped making.
+	it('offers none for a parameter the operation does not declare', () => {
+		render(NodeArgument, { name: 'filename', value: '', onCommit: () => {} });
+
+		expect(screen.queryByLabelText('Choose a file for filename')).toBeNull();
 	});
 
 	// A number, a choice and a checkbox have their own controls, and none of them is a path.
@@ -78,7 +104,7 @@ describe('what the picker does with what it gets', () => {
 	it('commits the picked path the same way a typed one is committed', async () => {
 		const onCommit = vi.fn();
 		picks('/tmp/berlin.versatiles');
-		render(NodeArgument, { name: 'filename', value: '', onCommit });
+		render(NodeArgument, { name: 'filename', field: PATH_FIELD('filename'), value: '', onCommit });
 
 		screen.getByLabelText('Choose a file for filename').click();
 		await vi.waitFor(() => expect(onCommit).toHaveBeenCalledWith('/tmp/berlin.versatiles'));
@@ -89,7 +115,12 @@ describe('what the picker does with what it gets', () => {
 	it('leaves the field alone when the dialog is cancelled', async () => {
 		const onCommit = vi.fn();
 		picks(null);
-		render(NodeArgument, { name: 'filename', value: '/tmp/berlin.versatiles', onCommit });
+		render(NodeArgument, {
+			name: 'filename',
+			field: PATH_FIELD('filename'),
+			value: '/tmp/berlin.versatiles',
+			onCommit
+		});
 
 		screen.getByLabelText('Choose a file for filename').click();
 		await vi.waitFor(() => expect(tauri.calls.some((call) => call.cmd === 'plugin:dialog|open')).toBe(true));
@@ -101,7 +132,13 @@ describe('what the picker does with what it gets', () => {
 	// offering a menu, so a second entry would be a choice nobody could make there.
 	it('filters to what the node reads', async () => {
 		picks('/tmp/berlin.versatiles');
-		render(NodeArgument, { name: 'filename', value: '', kind: CONTAINER, onCommit: () => {} });
+		render(NodeArgument, {
+			name: 'filename',
+			field: PATH_FIELD('filename'),
+			value: '',
+			kind: CONTAINER,
+			onCommit: () => {}
+		});
 
 		screen.getByLabelText('Choose a file for filename').click();
 		await vi.waitFor(() => expect(tauri.calls.some((call) => call.cmd === 'plugin:dialog|open')).toBe(true));
@@ -116,7 +153,7 @@ describe('what the picker does with what it gets', () => {
 	// may want a stylesheet, a CSV or something Studio has never heard of.
 	it('offers every file when the node is not a way in', async () => {
 		picks('/tmp/anything.txt');
-		render(NodeArgument, { name: 'sprite_file', value: '', onCommit: () => {} });
+		render(NodeArgument, { name: 'sprite_file', field: PATH_FIELD('sprite_file'), value: '', onCommit: () => {} });
 
 		screen.getByLabelText('Choose a file for sprite_file').click();
 		await vi.waitFor(() => expect(tauri.calls.some((call) => call.cmd === 'plugin:dialog|open')).toBe(true));

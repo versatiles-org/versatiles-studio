@@ -166,6 +166,7 @@ describe('summarise', () => {
 		expect(summarise(field({ control: { kind: 'list' } }))).toContain('comma separated');
 		expect(summarise(field({ control: { kind: 'numbers', count: 4 } }))).toContain('4 numbers');
 		expect(summarise(field({ control: { kind: 'text' } }))).toContain('text');
+		expect(summarise(field({ control: { kind: 'path' } }))).toContain('a file path');
 	});
 
 	it('always ends by saying whether it is required', () => {
