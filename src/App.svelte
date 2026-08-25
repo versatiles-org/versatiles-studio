@@ -297,6 +297,22 @@
 		return await setGraph(currentGraph, text, kind);
 	}
 
+	/// Starts a graph on a read node, with nothing filled in yet.
+	///
+	/// **`addGraph` rather than `setPipelineText`**, which writes into the graph on screen whenever
+	/// there is one - the door says "new graph", so it makes one whether or not something is open.
+	///
+	/// It arrives incomplete on purpose. `from_container` with no `filename` is a node whose form
+	/// says what is missing and whose path field has a picker beside it (C2, C4) - which is the
+	/// same two steps the cards took, in the order that lets the second one be reconsidered.
+	async function newGraph(operation: string) {
+		try {
+			await applyDocument(await addGraph(null, operation));
+		} catch (e) {
+			status.fail(e);
+		}
+	}
+
 	/// Shows another graph's chain. The pin does not move: the map is a separate question ([Q32]).
 	async function selectGraph(id: number) {
 		const found = await getGraph(id);
@@ -584,7 +600,12 @@
 		return () => void unlisten.then((f) => f());
 	});
 
-	/// Opens the file dialog, narrowed to one import kind when a card chose it.
+	/// Opens the file dialog, narrowed to one import kind when the caller knows which.
+	///
+	/// Two callers, and they know different amounts: File → Open takes anything Studio can read,
+	/// while "from VPL file…" is asking for a `.vpl` and says so. Whatever comes back goes to
+	/// `load`, which asks the core what the file is rather than trusting which door it came
+	/// through.
 	///
 	/// The filters live in `common/import.ts` because the launcher offers the same ones from a page
 	/// that cannot reach this function - two copies of "what Studio can open" is the shape of bug
@@ -815,7 +836,8 @@
 				select: (id) => void selectGraph(id),
 				rename: (id, name) => void rename(id, name),
 				remove: (id) => void removeGraphById(id),
-				addSource: (kind) => void pick(kind)
+				addNode: (operation) => void newGraph(operation),
+				openFile: () => void pick(kinds.find((kind) => kind.id === 'pipeline'))
 			}}
 			nodeActions={{
 				pin: (path) => void pin(path),

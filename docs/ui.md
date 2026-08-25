@@ -344,12 +344,19 @@ form. That is a map tool, not a mode — the same way a selection tool would be.
 
 ## Import has no surface of its own
 
-A card opens the native file dialog, **creates a graph** and selects it. The generated form is the
-node itself (C2), the live preview (C3) is the preview, inline errors (C4) are the validation. Under
-[Q32](decisions.md) "+ Add source" finally means what it says: before, it replaced the whole
-pipeline. E1's "map columns, layer name, zoom range, simplification, with a preview" is a filled-in
-form beside a live map, not a dialog sequence — a bespoke flow would be a second place where
-pipelines are authored.
+"＋ new graph…" offers two doors — **from VPL node**, which picks the `from_*` the chain begins with,
+and **from VPL file**, which opens a `.vpl` someone already wrote. Either **creates a graph** and
+selects it. Everything after that is the node's own form: the generated fields are the wizard (C2),
+with a file picker on every path parameter, the live preview (C3) is the preview, inline errors (C4)
+are the validation. E1's "map columns, layer name, zoom range, simplification, with a preview" is a
+filled-in form beside a live map, not a dialog sequence — a bespoke flow would be a second place
+where pipelines are authored.
+
+It used to be one card per import kind. Four of the five differed only in which extensions their
+file dialog would show — a decision with no consequence, since `importKindFor` reads the kind off the
+name — and between them they could not reach `from_debug`, `from_color` or `from_tilejson`, which
+open no file at all. Sorting the doors by _how the graph is written_ rather than by _what kind of
+file you have_ costs nothing and reaches every operation the build has.
 
 **No mode of its own, and no split by data type.** Importing is building, and building is Pipeline.
 Splitting raster from vector would break mixed pipelines — `from_stacked_raster` and

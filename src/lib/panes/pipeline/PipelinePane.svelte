@@ -14,7 +14,7 @@
 		type GraphInfo,
 		type Bounds
 	} from '../../ipc/commands';
-	import ImportCards from '../../common/ImportCards.svelte';
+	import Picker from '../../common/Picker.svelte';
 	import CropSection from './CropSection.svelte';
 
 	// The Pipeline pane's contents (Q22, [Q31]).
@@ -44,7 +44,7 @@
 		nodeActions,
 		documentActions
 	}: {
-		/** Every way in this build has, offered by "+ Add source" (S3.2). */
+		/** Every way in this build has, for the file dialog behind a path parameter (S3.2). */
 		kinds: ImportKind[];
 		/** Every known operation, for the transform picker. Empty until the one-off fetch lands. */
 		operations?: OperationInfo[];
@@ -82,13 +82,17 @@
 			/** Crops to what the map is showing. */
 			useView: () => void;
 		};
-		/** Acting on the set of graphs. Adding a source creates one ([Q32]). */
+		/** Acting on the set of graphs. A graph *is* a source, so starting one is how sources
+		 *  arrive ([Q32]). */
 		graphActions: {
 			select: (id: number) => void;
 			rename: (id: number, name: string) => void;
 			/** Removes it for good - the history cannot restore a graph that is gone ([Q32]). */
 			remove: (id: number) => void;
-			addSource: (kind: ImportKind) => void;
+			/** Starts a graph on a `from_*` node, with nothing filled in yet. */
+			addNode: (operation: string) => void;
+			/** Opens a `.vpl` as a graph of its own. */
+			openFile: () => void;
 		};
 		/** Acting on a node or one of its arguments. */
 		nodeActions: {
@@ -114,6 +118,21 @@
 			export: () => void;
 		};
 	} = $props();
+
+	/// What "from VPL node…" offers: every operation a chain can begin with.
+	///
+	/// From the registry rather than from the import catalogue, which is a different question. The
+	/// catalogue answers "what file have you got" - five cards, of which four differ only in the
+	/// extensions a dialog would show, and `importKindFor` reads that off the name anyway. This
+	/// answers "what should this graph read", which is the decision that actually has to be made
+	/// here, and it offers all of them: `from_debug`, `from_color` and `from_tilejson` open no file
+	/// at all and had no card to be chosen from.
+	const reads = $derived(
+		operations
+			.filter((operation) => operation.kind === 'read')
+			.sort((a, b) => a.name.localeCompare(b.name))
+			.map((operation) => ({ value: operation.name, description: operation.summary }))
+	);
 
 	// Q15: one pane, two tabs over one document - not two panes.
 	let tab = $state<'graph' | 'vpl'>('graph');
@@ -180,18 +199,45 @@
 		onNew={() => (adding = !adding)}
 	/>
 
-	<!-- The same cards the landing screen shows, from one catalogue (S3.2). A graph *is* a source
-	     under [Q32], so "+ Add source" and "new graph" were two doors to the same room; this is the
-	     one door, next to where graphs live. Folded away until asked for: a pane is not a launcher. -->
+	<!-- **Two doors, because a graph arrives in exactly two ways**: it is written here, or it was
+	     written already. Everything else is a parameter of the node the first door creates - which
+	     is a form the pane draws, with a file picker on every path field, rather than a dialog
+	     sequence in front of it.
+	     
+	     It was one card per import kind, from the catalogue. Four of the five differed only in the
+	     extensions their file dialog would show, and picking the wrong one was a decision with no
+	     consequence - `importKindFor` reads the kind off the name. What they cost was the operations
+	     that have no file to pick: `from_debug`, `from_color` and `from_tilejson` were unreachable
+	     from the one door that creates graphs.
+	     
+	     Folded away until asked for: a pane is not a launcher. -->
 	{#if adding}
-		<ImportCards
-			{kinds}
-			compact
-			onChoose={(kind) => {
-				adding = false;
-				graphActions.addSource(kind);
-			}}
-		/>
+		<div class="doors">
+			<!-- Only once there is something behind it. `operations` is empty until the one-off fetch
+			     lands, and a door onto an empty list is worse than a door that is not there yet -
+			     the same rule `＋ operation…` follows on the rail. -->
+			{#if reads.length > 0}
+				<Picker
+					label="from VPL node…"
+					placeholder="Filter operations…"
+					items={reads}
+					onPick={(operation) => {
+						adding = false;
+						graphActions.addNode(operation);
+					}}
+				/>
+			{/if}
+			<button
+				type="button"
+				class="door"
+				onclick={() => {
+					adding = false;
+					graphActions.openFile();
+				}}
+			>
+				from VPL file…
+			</button>
+		</div>
 	{/if}
 
 	<div class="tabs" role="tablist" aria-label="Pipeline view">
@@ -326,6 +372,26 @@
 		overflow-x: hidden;
 		overscroll-behavior: contain;
 		background: var(--surface);
+	}
+
+	/* Under the list rather than beside it: the two doors are what the row above just asked about,
+	   and a graph list that grew two buttons on its last row would read as a third graph. */
+	.doors {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-1);
+		padding: var(--space-2) var(--space-2) 0;
+	}
+
+	/* The same weight as the picker beside it, because they are the same offer made twice. */
+	.door {
+		color: var(--ink-2);
+		font-size: var(--text-sm);
+
+		&:hover {
+			color: var(--ink);
+		}
 	}
 
 	.tabs {

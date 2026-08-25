@@ -40,14 +40,15 @@ lib/panes/style/      StylePane · LayerTree
 lib/panes/project/    CopyDialog
 lib/panes/inspector/  Inspector
 lib/map/              MapCanvas · MapControls · TileGrid · TileActivity · CoordinateJump · Views · FeaturePopup · CropOverlay
-lib/common/           used by more than one owner: Help · HelpTrigger · Picker · JsonTree · Modal · ImportCards · LandingScreen
+lib/common/           used by more than one owner: Help · HelpTrigger · Picker · JsonTree · Modal · LandingScreen
 ```
 
 A pane's folder is named for the pane, so "what uses `NodeArgument`?" is answered by its path before
-anyone opens a file. `ImportCards` sits in `common/` because it genuinely has two owners: the same
-cards from the same catalogue, which is the whole point of [S3.2](scope-release-1.md). Since the
-launcher stopped showing them it is the pane's alone, and would move if a second owner does not
-return.
+anyone opens a file. `ImportCards` used to sit in `common/` on the strength of two owners — the same
+cards from the same catalogue, which is the whole point of [S3.2](scope-release-1.md). The launcher
+dropped them for four doors sorted by _where the thing is_, and then "＋ new graph…" dropped them for
+two sorted by _how the graph is written_; a component in `common/` with no owners left is a component,
+so it went. The catalogue it drew on did not: it still decides what the file dialogs offer.
 
 **A name is unique across the application**, even though the folder already scopes it. The folder
 helps when reading a path; it does not help when fuzzy-finding by filename or reading the tables
@@ -144,7 +145,6 @@ An errand you leave the window for and come back from ([Q39](decisions.md)).
 | Component       | Does                                                                                                                        | Stage |
 | --------------- | --------------------------------------------------------------------------------------------------------------------------- | ----- |
 | `LandingScreen` | The launcher's contents: four doors beside the recent list, the mark, and a footer naming the version ([Q48](decisions.md)) | S1.1  |
-| `ImportCards`   | One card per import kind, from the core's catalogue. In the pane, where choosing one becomes a `from_*` node (E1–E3)        | S3.2  |
 | `Help`          | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md))          | S2.13 |
 | `HelpTrigger`   | The `?` that opens it                                                                                                       | S2.13 |
 | `Picker`        | `＋ operation…` and `＋ parameter…`: a filterable list, grouped, with the full text beside its row                          | S2.13 |
