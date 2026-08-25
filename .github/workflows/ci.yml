@@ -123,6 +123,77 @@ jobs:
           disable_search: true
           fail_ci_if_error: true
 
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    # **On pull requests, unlike `bundle`.** Bundling proves that packaging works, which is a
+    # question about the release machinery and hardly ever about the commit — so it waits for `main`.
+    # These stories prove that the change under review still opens a window, draws a map and writes a
+    # file, which is a question about exactly this commit. Learning that after merging is most of the
+    # value gone.
+    #
+    # The suite itself is a minute; everything before it is the debug build, which carries GDAL.
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install Tauri system dependencies
+        timeout-minutes: 12
+        uses: ./.github/actions/tauri-deps
+      # A window needs a display, `stopStudio` in `wdio.conf.ts` finds the application by the port it
+      # listens on, and the map needs something to answer for WebGL. All three are on the runner
+      # images already; installed here only if that ever stops being true, which costs nothing when
+      # it is.
+      - name: Install what the suite needs on top
+        run: |
+          set -euo pipefail
+          missing=""
+          command -v xvfb-run >/dev/null || missing="$missing xvfb"
+          command -v lsof >/dev/null || missing="$missing lsof"
+          # The map's WebGL comes from Mesa's software rasteriser here; without the DRI drivers there
+          # is no GL context and the story that asserts the map draws is the one that says so.
+          dpkg -s libgl1-mesa-dri >/dev/null 2>&1 || missing="$missing libgl1-mesa-dri"
+          [ -z "$missing" ] || sudo apt-get install -y --no-install-recommends $missing
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          # Its own key: this is the only job that compiles the `e2e` feature in, and sharing a
+          # cache with a build that does not would mean each evicting the other's artefacts.
+          key: e2e
+          cache-on-failure: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # Sprites and glyphs are mounted at start-up (Q9), and a window that could not mount them
+      # says so in its problem log — which several stories assert is empty.
+      - run: npm run assets:fetch
+      - run: npm run e2e:build
+
+      # **`WEBKIT_DISABLE_DMABUF_RENDERER`, not `WEBKIT_DISABLE_COMPOSITING_MODE`.** The usual
+      # incantation for WebKitGTK in a container disables compositing, which takes WebGL with it —
+      # and a suite that asserts the map draws would then be asserting it against a webview that
+      # cannot draw one. Disabling only the dmabuf renderer keeps compositing, and Mesa's software
+      # rasteriser supplies the GL.
+      - name: Run the stories
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" npm run e2e:run
+        env:
+          WEBKIT_DISABLE_DMABUF_RENDERER: 1
+          LIBGL_ALWAYS_SOFTWARE: 1
+
+      # What a failure here is about is rarely the assertion. The application's own problem log and
+      # the driver's logs are what say which of the two broke.
+      - name: Keep what failed
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-logs
+          path: |
+            target/e2e-data/logs
+            target/e2e-logs
+          if-no-files-found: ignore
+          retention-days: 7
+
   bundle:
     # `Bundle Linux arm64` rather than `Bundle (ubuntu-24.04-arm)`: the runner label is an
     # implementation detail, and the Actions UI truncates a long job name exactly where the part

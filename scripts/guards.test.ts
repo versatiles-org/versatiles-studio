@@ -518,7 +518,15 @@ describe('the e2e feature', () => {
 		for (const [name, body] of building) {
 			expect(body, `\`${name}\` builds a release; it must not pass the e2e feature`).not.toMatch(feature);
 		}
-		for (const path of ['scripts/release.ts', 'scripts/bundle-local.ts', '.github/workflows/release.yml']) {
+		// `ci.yml` is here because it now holds both: a job that runs the suite and a job that builds
+		// a release. The suite's job says `npm run e2e:build` rather than the flag, so this stays clean
+		// while catching the flag turning up in the bundle step beside it.
+		for (const path of [
+			'scripts/release.ts',
+			'scripts/bundle-local.ts',
+			'.github/workflows/release.yml',
+			'.github/workflows/ci.yml'
+		]) {
 			expect(readFileSync(join(root, path), 'utf8'), `${path} must not pass the e2e feature`).not.toMatch(feature);
 		}
 	});

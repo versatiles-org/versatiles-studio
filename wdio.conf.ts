@@ -81,6 +81,9 @@ function listening(): Promise<boolean> {
 function stopStudio(): void {
 	if (platform === 'win32') return; // Windows is not a target of this suite — see the plan.
 	const found = spawnSync('lsof', ['-ti', `tcp:${PORT}`, '-sTCP:LISTEN'], { encoding: 'utf8' });
+	// Loudly, because the alternative is every spec after the first being handed the previous one's
+	// windows and reporting `no window could be found`, which says nothing about a missing tool.
+	if (found.error) throw new Error(`cannot find what holds port ${PORT}: install lsof (${found.error.message})`);
 	for (const pid of found.stdout.split('\n').filter(Boolean)) {
 		try {
 			process.kill(Number(pid), 'SIGKILL');
@@ -112,6 +115,9 @@ export const config: WebdriverIO.Config = {
 	// missing. Nothing is wrong and nothing can be done about it from here, and a run that prints a
 	// screen of warnings it wants ignored teaches people to ignore the output.
 	logLevel: 'error',
+	// Somewhere to upload from when this fails on a runner nobody can watch. Under `target/`, which
+	// is already ignored, and beside the application's own problem log.
+	outputDir: 'target/e2e-logs',
 
 	capabilities: [
 		{

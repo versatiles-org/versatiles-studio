@@ -115,12 +115,35 @@ Findings that shaped the stories, each verified rather than assumed:
 - **App-wide state persists between specs**, because it is app-wide: the panes one spec opened are
   still open for the next. `openPane` is idempotent for that reason.
 
-## Phase 3 — CI
+## Phase 3 — CI · done
 
-On the existing Bundle job on Linux, which already produces a debug-capable build. WebKitGTK needs a
-display: `xvfb-run`, plus `WEBKIT_DISABLE_COMPOSITING_MODE=1` for software rendering — the one
-place where the two platforms genuinely differ, and the reason the map assertion is
-"a GL context exists" rather than a pixel comparison.
+A job of its own in `ci.yml`, on `ubuntu-latest`, on pull requests as well as `main`. **Not on the
+Bundle job**, as the plan first assumed: that job builds a release, and these tests need a binary
+with the `e2e` feature — a second build either way, so it belongs beside the others rather than
+inside one.
+
+**On pull requests, unlike `bundle`.** Bundling proves that packaging works, which is a question
+about the release machinery and rarely about the commit. These stories prove the change under review
+still opens a window, draws a map and writes a file, which is a question about exactly this commit.
+
+**Verified, not assumed.** The whole suite was run against WebKitGTK on Linux under Xvfb before the
+job was written — 22 tests, all passing, in the same minute they take on macOS. What that settled:
+
+- `WEBKIT_DISABLE_DMABUF_RENDERER=1` is enough. The usual advice is
+  `WEBKIT_DISABLE_COMPOSITING_MODE=1`, which takes WebGL with it — a suite asserting the map draws
+  would then be asserting it against a webview that cannot draw one. It is not needed.
+- **WebGL works** on Mesa's software rasteriser (`LIBGL_ALWAYS_SOFTWARE=1`), so the map draws and
+  the spike's assertion holds on both platforms.
+- Xvfb, `lsof` and the Mesa DRI drivers are what the runner has to have; the job checks for each and
+  installs only what is missing.
+
+On failure the application's problem log and the driver's logs are kept as an artefact for a week —
+a failure here is rarely about the assertion, and those two are what say which side broke.
+
+**Only Linux runs in CI.** macOS would cover WKWebView, where the webview genuinely differs — the
+`<select>` finding above is one such difference — but it is a second full debug build for a platform
+every contributor to this project already runs the suite on by hand. Worth adding if that stops
+being true.
 
 ## Phase 4 — keeping it honest
 
