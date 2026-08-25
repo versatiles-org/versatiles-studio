@@ -18,7 +18,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { resolve } from 'node:path';
 import { platform } from 'node:process';
@@ -44,6 +44,16 @@ if (!existsSync(BINARY)) {
  * in `lib.rs` reads this, and only a binary built with the `e2e` feature reads it at all.
  */
 const DATA = resolve(import.meta.dirname, 'target/e2e-data');
+
+/**
+ * Where a failure leaves its evidence, and what CI uploads.
+ *
+ * A story fails on a runner nobody is watching, and the assertion is rarely the interesting part: a
+ * map that did not draw and a map that drew the wrong thing fail the same line. A picture of the
+ * window, and what the application itself was complaining about at that moment, are what tell them
+ * apart.
+ */
+const LOGS = resolve(import.meta.dirname, 'target/e2e-logs');
 
 /**
  * The port the embedded driver listens on, and the reason sessions have to queue for it.
@@ -117,7 +127,7 @@ export const config: WebdriverIO.Config = {
 	logLevel: 'error',
 	// Somewhere to upload from when this fails on a runner nobody can watch. Under `target/`, which
 	// is already ignored, and beside the application's own problem log.
-	outputDir: 'target/e2e-logs',
+	outputDir: LOGS,
 
 	capabilities: [
 		{
@@ -146,6 +156,37 @@ export const config: WebdriverIO.Config = {
 	/** A run starts with no recents and no saved views, whatever the last one left behind. */
 	onPrepare() {
 		rmSync(DATA, { recursive: true, force: true });
+	},
+
+	/**
+	 * Keeps a picture of the window and whatever the application was complaining about.
+	 *
+	 * Best effort on purpose: this runs after a test has already failed, and a hook that threw here
+	 * would replace the failure being reported with one about the reporting.
+	 */
+	async afterTest(test: { parent: string; title: string }, _context: unknown, result: { passed: boolean }) {
+		if (result.passed) return;
+		const name = `${test.parent} ${test.title}`
+			.replace(/[^a-z0-9]+/gi, '-')
+			.toLowerCase()
+			.slice(0, 100);
+		mkdirSync(LOGS, { recursive: true });
+		try {
+			await browser.saveScreenshot(resolve(LOGS, `${name}.png`));
+		} catch {
+			// A window that has already gone is exactly when there is nothing to photograph.
+		}
+		try {
+			const problems = await browser.execute(
+				async () =>
+					await (
+						window as unknown as { __TAURI_INTERNALS__: { invoke(c: string): Promise<unknown> } }
+					).__TAURI_INTERNALS__.invoke('diagnostics')
+			);
+			writeFileSync(resolve(LOGS, `${name}.problems.json`), JSON.stringify(problems, null, 2));
+		} catch {
+			// No window, or no bridge in it yet.
+		}
 	},
 
 	/**

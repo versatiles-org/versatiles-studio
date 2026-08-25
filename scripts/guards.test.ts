@@ -494,6 +494,65 @@ describe('starting a child process', () => {
  * builds a release turns it on; both halves are asserted here rather than remembered, because the
  * failure mode is silent and only visible to somebody reading a shipped binary.
  */
+/**
+ * What keeps the end-to-end suite worth reading ([the plan](../docs/scope-e2e.md)).
+ *
+ * A suite this small has no room for a test nobody believes. Two rules carry most of that, and both
+ * are the kind that erode quietly — a retry added while chasing one bad afternoon, a wait added
+ * without a message because the failure was obvious *at the time*.
+ */
+describe('the end-to-end suite', () => {
+	const root = fileURLToPath(new URL('../', import.meta.url));
+	const specs = readdirSync(join(root, 'e2e'), { recursive: true, encoding: 'utf8' })
+		.filter((name) => name.endsWith('.ts'))
+		.map((name) => join('e2e', name));
+
+	it('has stories to check', () => {
+		expect(specs.length).toBeGreaterThan(3);
+	});
+
+	/**
+	 * **Nothing is retried.** A story that passes on the second attempt is a story that has told you
+	 * something and been ignored — either the application is racy, which is a bug, or the story is,
+	 * which is a bug in the story. Retries turn both into noise, and the suite has one job that a
+	 * retry destroys: being believed.
+	 */
+	it('retries nothing', () => {
+		const config = readFileSync(join(root, 'wdio.conf.ts'), 'utf8');
+		const configured = /^\s*(specFileRetries\w*|retries)\s*:/m.exec(config);
+		expect(configured?.[0] ?? null, 'a flaky story is deleted, not retried').toBeNull();
+	});
+
+	/**
+	 * **Every wait says what it was waiting for.** Without a message a timeout reports the wait's own
+	 * source, which names the helper and not the seam — "waitUntil condition timed out" is the same
+	 * sentence whether the window never opened or the export never finished.
+	 */
+	it('says what each wait was for', () => {
+		const silent: string[] = [];
+		for (const path of specs) {
+			const text = readFileSync(join(root, path), 'utf8');
+			for (const match of text.matchAll(/\bwait(?:Until|ForExist|ForDisplayed|ForClickable)\(/g)) {
+				const from = match.index + match[0].length - 1;
+				if (!callAt(text, from).includes('timeoutMsg')) {
+					silent.push(`${path}: ${match[0]} at ${text.slice(0, from).split('\n').length}`);
+				}
+			}
+		}
+		expect(silent, 'give it a timeoutMsg naming what did not happen').toEqual([]);
+	});
+});
+
+/** The text of the call whose opening bracket is at `from`, brackets balanced. */
+function callAt(text: string, from: number): string {
+	let depth = 0;
+	for (let at = from; at < text.length; at++) {
+		if (text[at] === '(') depth++;
+		else if (text[at] === ')' && --depth === 0) return text.slice(from, at + 1);
+	}
+	return text.slice(from);
+}
+
 describe('the e2e feature', () => {
 	const root = fileURLToPath(new URL('../', import.meta.url));
 	const manifest = readFileSync(join(root, 'src-tauri/Cargo.toml'), 'utf8');

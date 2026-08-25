@@ -5,7 +5,8 @@ ever opened a window. Everything between the webview and the binary is unverifie
 the menu, drag-and-drop, the IPC bridge, whether the map draws at all.
 
 This document is the plan for closing that gap with [WebdriverIO](https://webdriver.io), and the
-record of what the spike found.
+record of what building it found — three defects it caught on the way in, and the handful of things
+the driver turned out not to be able to do.
 
 ## What this is for, and what it is not for
 
@@ -145,9 +146,26 @@ a failure here is rarely about the assertion, and those two are what say which s
 every contributor to this project already runs the suite on by hand. Worth adding if that stops
 being true.
 
-## Phase 4 — keeping it honest
+## Phase 4 — keeping it honest · done
 
-- Screenshots and the application's own problem log kept as artefacts on failure.
-- A failing story must name the seam it broke, not just the assertion.
-- Any story that goes flaky is deleted rather than retried: a suite this small has no room for a
-  test nobody believes.
+Three rules, two of them enforced by `guards.test.ts` rather than by intention.
+
+**A failure keeps its evidence.** `afterTest` writes a screenshot of the window and the
+application's own problem list at that moment into `target/e2e-logs`, which CI uploads for a week.
+Verified by failing a story on purpose: the picture shows the rendered WebGL map, the pane, and the
+preset that was actually selected — enough to tell "the map did not draw" from "the map drew the
+wrong thing", which fail the same assertion. The hook is best-effort throughout: a hook that threw
+would replace the failure being reported with one about the reporting.
+
+**Every wait says what it was waiting for.** Without a message a timeout reports the wait's own
+source, which names the helper and not the seam — "waitUntil condition timed out" reads the same
+whether the window never opened or the export never finished. A guard checks every `waitUntil`,
+`waitForExist`, `waitForDisplayed` and `waitForClickable` in `e2e/` for a `timeoutMsg`.
+
+**Nothing is retried.** A story that passes on the second attempt has told you something and been
+ignored: either the application is racy, which is a bug, or the story is, which is a bug in the
+story. Retries turn both into noise, and this suite has one job a retry destroys — being believed. A
+flaky story is deleted, and a guard fails on `specFileRetries` or mocha `retries` appearing in
+`wdio.conf.ts`.
+
+Both guards were checked by violating them, not by watching them pass.
