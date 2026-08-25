@@ -46,14 +46,13 @@ export const commands = {
 	/**  Opens the launcher, or focuses the one already open (S7.5). */
 	openLauncher: () => typedError<null, string>(__TAURI_INVOKE("open_launcher")),
 	/**
-	 *  Enables or disables the menu items that need something to be open (S0.1).
+	 *  Redraws the menu for this window (S7.8).
 	 * 
-	 *  **Pushed down, not pulled up.** Whether there is a project to save is a `$derived` in the
-	 *  webview, and a native menu cannot read one — so the window tells the menu when the answer
-	 *  changes. One flag, because one flag is what the menu actually varies on; anything finer would be
-	 *  a mechanism built for a second caller that does not exist.
+	 *  **Called when what the menu should offer changes** — the first graph appearing, the last one
+	 *  going — because a menu is not reactive and the moment Save becomes possible is not a moment the
+	 *  shell can see. What it *reads* is the core: this says "look again", not "here is the answer".
 	 */
-	setMenuState: (hasProject: boolean) => typedError<null, string>(__TAURI_INVOKE("set_menu_state", { hasProject })),
+	refreshMenu: () => typedError<null, string>(__TAURI_INVOKE("refresh_menu")),
 	/**  Everything that has gone wrong this session, oldest first. */
 	diagnostics: () => typedError<Problem[], string>(__TAURI_INVOKE("diagnostics")),
 	/**

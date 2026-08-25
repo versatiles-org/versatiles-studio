@@ -34,7 +34,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::open_window,
 		commands::open_in_new_window,
 		commands::open_launcher,
-		commands::set_menu_state,
+		commands::refresh_menu,
 		commands::diagnostics::diagnostics,
 		commands::diagnostics::previous_problems,
 		commands::diagnostics::log_diagnostic,
@@ -254,6 +254,26 @@ pub fn run() {
 					.collect();
 				opened::receive(app, paths);
 			}
+			// **Whichever window is in front decides what the menu offers** (S7.8). On macOS there is
+			// one menu for every window, so a focused launcher that left Save enabled would be
+			// offering to save a project it does not have — and one that disabled it would take it
+			// away from the window behind it.
+			if let tauri::RunEvent::WindowEvent {
+				label,
+				event: tauri::WindowEvent::Focused(true),
+				..
+			} = &event
+			{
+				let app = app.clone();
+				let label = label.clone();
+				tauri::async_runtime::spawn(async move {
+					let state = tauri::Manager::state::<AppState>(&app);
+					if let Err(error) = menu::apply(&app, &state, &label).await {
+						warn(&state.diagnostics, "Could not redraw the menu for this window", &error);
+					}
+				});
+			}
+
 			// **A window that is gone takes its project with it** (S7.1). Not on close *requested* and
 			// not on a reload: the label survives a reload, which is what lets a window that crashed
 			// come back to its work rather than to an empty project ([Q16]).

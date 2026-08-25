@@ -156,6 +156,14 @@ impl Projects {
 		)
 	}
 
+	/// This window's project **if it has one**, without creating it.
+	///
+	/// For asking about a window rather than acting in it — the menu, which is redrawn on focus and
+	/// must not bring a project into existence by being looked at (S7.8).
+	pub async fn peek(&self, label: &str) -> Option<Arc<Mutex<Project>>> {
+		self.0.lock().await.get(label).map(Arc::clone)
+	}
+
 	/// Forgets a window's project. Called when the window is destroyed, not when it reloads.
 	///
 	/// Returns what was held, so the caller can take down what it had running — the server mounts

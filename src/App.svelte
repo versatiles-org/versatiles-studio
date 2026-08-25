@@ -54,7 +54,7 @@
 		takeOpened,
 		OPENED_EVENT,
 		MENU_EVENT,
-		setMenuState,
+		refreshMenu,
 		setCrop,
 		addGraph,
 		setGraph,
@@ -531,11 +531,13 @@
 
 	/// Keeps the menu's Save items in step with whether there is anything to save.
 	///
-	/// A native menu cannot read a `$derived`, so the window pushes it down. Failing is left to the
-	/// problem log rather than the status bar: a menu item that stays enabled is a message someone
-	/// gets when they use it, not something to interrupt them with now.
+	/// A native menu cannot read a `$derived`, so the moment the answer changes has to be *said* —
+	/// but not the answer itself, which the core already holds (S7.8). Failing is left to the problem
+	/// log rather than the status bar: a menu item that stays enabled is a message someone gets when
+	/// they use it, not something to interrupt them with now.
 	$effect(() => {
-		void setMenuState(!graphs.empty);
+		void graphs.empty;
+		void refreshMenu();
 	});
 
 	// A file double-clicked in Finder or passed on the command line. It can arrive before this

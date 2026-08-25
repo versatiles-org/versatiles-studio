@@ -142,8 +142,13 @@ export const clearDiagnostics = () => unwrap(commands.clearDiagnostics());
 /** What is running this, for the header of a copied report. */
 export const environment = () => unwrap(commands.environment());
 
-/** Enables or disables the menu items that need a project open (S0.1). */
-export const setMenuState = (hasProject: boolean) => unwrap(commands.setMenuState(hasProject));
+/**
+ * Asks the menu to look again at what this window can offer (S7.8).
+ *
+ * Says "look again", not "here is the answer": what the menu reads is the project in the core, so
+ * there is no flag here to fall out of step with it.
+ */
+export const refreshMenu = () => unwrap(commands.refreshMenu());
 
 // -- jobs ------------------------------------------------------------------------------------
 

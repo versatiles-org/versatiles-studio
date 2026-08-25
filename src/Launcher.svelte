@@ -1,15 +1,24 @@
 <script lang="ts">
+	import { listen } from '@tauri-apps/api/event';
+	import { openUrl } from '@tauri-apps/plugin-opener';
 	import LandingScreen from './lib/common/LandingScreen.svelte';
 	import { askForProject, askForSource } from './lib/common/import';
+	import { REPOSITORY } from './lib/common/repository';
 	import {
 		forgetRecent,
 		importKinds,
 		openInNewWindow,
 		recentSources,
+		MENU_EVENT,
 		type ImportKind,
 		type RecentEntry
 	} from './lib/ipc/commands';
-	import { record, watch as watchForProblems } from './lib/state/diagnostics.svelte';
+	import {
+		record,
+		refresh as refreshProblems,
+		reportProblem,
+		watch as watchForProblems
+	} from './lib/state/diagnostics.svelte';
 
 	// The launcher: what opens when Studio starts with nothing to open, and what ⌘N opens
 	// ([Q48], [S7.5]).
@@ -41,6 +50,35 @@
 	$effect(() => {
 		void importKinds().then((loaded) => (kinds = loaded));
 		void refreshRecents();
+		// So Help → Report a Problem from here carries the session's problems rather than a header
+		// and nothing else. There is no panel in this window; the list is only ever reported.
+		void refreshProblems();
+	});
+
+	/// The menu items this window can answer (S7.8).
+	///
+	/// **Not all of them.** Save has nothing to save here and is disabled by the shell when this
+	/// window has focus; ⌘N and Show Problem Log are answered without a window at all. What is left
+	/// is the two gestures this window is *for*, and the two that are about Studio rather than a
+	/// project.
+	$effect(() => {
+		const unlisten = listen<string>(MENU_EVENT, ({ payload }) => {
+			switch (payload) {
+				case 'open':
+					void choose();
+					return;
+				case 'open-project':
+					void chooseProject();
+					return;
+				case 'report-problem':
+					void reportProblem('this').catch(() => (problem = 'Could not open the issue page.'));
+					return;
+				case 'repository':
+					void openUrl(REPOSITORY).catch(() => (problem = 'Could not open a browser.'));
+					return;
+			}
+		});
+		return () => void unlisten.then((stop) => stop());
 	});
 
 	async function refreshRecents() {

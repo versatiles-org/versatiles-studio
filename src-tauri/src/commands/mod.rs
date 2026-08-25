@@ -36,19 +36,17 @@ pub async fn server_base_url(state: State<'_, AppState>) -> Result<String, Strin
 	Ok(server.base_url())
 }
 
-/// Enables or disables the menu items that need something to be open (S0.1).
+/// Redraws the menu for this window (S7.8).
 ///
-/// **Pushed down, not pulled up.** Whether there is a project to save is a `$derived` in the
-/// webview, and a native menu cannot read one — so the window tells the menu when the answer
-/// changes. One flag, because one flag is what the menu actually varies on; anything finer would be
-/// a mechanism built for a second caller that does not exist.
+/// **Called when what the menu should offer changes** — the first graph appearing, the last one
+/// going — because a menu is not reactive and the moment Save becomes possible is not a moment the
+/// shell can see. What it *reads* is the core: this says "look again", not "here is the answer".
 #[tauri::command]
 #[specta::specta]
-pub fn set_menu_state(app: AppHandle, has_project: bool) -> Result<(), String> {
-	for item in [crate::menu::SAVE_PROJECT, crate::menu::SAVE_COPY] {
-		crate::menu::set_enabled(&app, item, has_project).map_err(|error| format!("{error:#}"))?;
-	}
-	Ok(())
+pub async fn refresh_menu(app: AppHandle, window: tauri::Window, state: State<'_, AppState>) -> Result<(), String> {
+	crate::menu::apply(&app, &state, window.label())
+		.await
+		.map_err(|error| format!("{error:#}"))
 }
 
 /// Opens a project window for `source`, hands it that path, and closes the window that asked.

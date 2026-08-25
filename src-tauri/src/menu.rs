@@ -24,12 +24,15 @@ use tauri::{AppHandle, Emitter, Manager, Wry};
 /// What the webview hears when something is chosen. The payload is the item's id.
 pub const EVENT: &str = "studio://menu";
 
-/// The File submenu's own id, so an item inside it can be found again to be enabled or disabled.
+/// The submenus whose items are enabled and disabled, by id, so they can be found again.
 const FILE: &str = "file";
+const HELP: &str = "help";
 
 /// Items whose availability depends on what is open, named once so both ends agree.
-pub const SAVE_PROJECT: &str = "save-project";
-pub const SAVE_COPY: &str = "save-copy";
+const SAVE_PROJECT: &str = "save-project";
+const SAVE_PROJECT_AS: &str = "save-project-as";
+const SAVE_COPY: &str = "save-copy";
+const PROBLEMS: &str = "problems";
 
 /// Named because it moves between submenus by platform, and both places must spell it the same.
 const CHECK_UPDATES: &str = "check-updates";
@@ -107,7 +110,7 @@ fn file(app: &AppHandle) -> Result<Submenu<Wry>> {
 		.text("open-project", "Open Project…")
 		.separator()
 		.text(SAVE_PROJECT, "Save Project")
-		.text("save-project-as", "Save Project As…")
+		.text(SAVE_PROJECT_AS, "Save Project As…")
 		.text(SAVE_COPY, "Save a Copy…");
 
 	// On macOS both of these live where the platform puts them — Close in the Window submenu, Quit
@@ -122,7 +125,7 @@ fn file(app: &AppHandle) -> Result<Submenu<Wry>> {
 	accelerate(&file, "open", "CmdOrCtrl+O")?;
 	accelerate(&file, "open-project", "CmdOrCtrl+Shift+O")?;
 	accelerate(&file, SAVE_PROJECT, "CmdOrCtrl+S")?;
-	accelerate(&file, "save-project-as", "CmdOrCtrl+Shift+S")?;
+	accelerate(&file, SAVE_PROJECT_AS, "CmdOrCtrl+Shift+S")?;
 	Ok(file)
 }
 
@@ -159,8 +162,8 @@ fn window(app: &AppHandle) -> Result<Submenu<Wry>> {
 
 /// Where a problem goes (S6.8), and where the source is.
 fn help(app: &AppHandle) -> Result<Submenu<Wry>> {
-	Ok(SubmenuBuilder::new(app, "Help")
-		.text("problems", "Problems…")
+	Ok(SubmenuBuilder::with_id(app, HELP, "Help")
+		.text(PROBLEMS, "Problems…")
 		.text("report-problem", "Report a Problem…")
 		.text("show-log", "Show Problem Log")
 		.separator()
@@ -236,15 +239,41 @@ pub fn chosen(app: &AppHandle, id: &MenuId) {
 	}
 }
 
-/// Enables or disables the items that need something to be open.
+/// Enables and disables the items for the window in front of the person reading them (S7.8).
 ///
-/// **The webview says when.** Whether there is a project is a question about what is on screen, and
-/// the menu cannot read `$derived` — so this is pushed down rather than pulled up.
-pub fn set_enabled(app: &AppHandle, id: &str, enabled: bool) -> Result<()> {
+/// **Applied per window, because on macOS there is one menu for all of them.** A focused launcher
+/// that disabled Save would disable it for the project window behind it — so this runs whenever a
+/// window takes focus, and again whenever the focused window's own answer changes.
+///
+/// **The answer comes from the core, not from the webview.** Whether there is anything to save is
+/// something the project already knows; a flag pushed up from a `$derived` would be a second copy of
+/// it, and two copies of one fact disagree the first time one of them is not sent.
+pub async fn apply(app: &AppHandle, state: &crate::state::AppState, label: &str) -> Result<()> {
+	// The launcher holds no project and never will: it exists to make one somewhere else.
+	let has_project = match state.projects.peek(label).await {
+		Some(project) => !project.lock().await.graphs.list().is_empty(),
+		None => false,
+	};
+	let is_launcher = label == crate::windows::LAUNCHER;
+
+	set_enabled(app, FILE, SAVE_PROJECT, has_project)?;
+	set_enabled(app, FILE, SAVE_PROJECT_AS, has_project)?;
+	set_enabled(app, FILE, SAVE_COPY, has_project)?;
+	// The launcher has no status bar to expand, so there would be nothing for this to open there.
+	set_enabled(app, HELP, PROBLEMS, !is_launcher)?;
+	Ok(())
+}
+
+/// Enables or disables one item of one submenu.
+fn set_enabled(app: &AppHandle, submenu: &str, id: &str, enabled: bool) -> Result<()> {
 	let menu = app.menu().context("the application has no menu")?;
-	let file = menu.get(FILE).context("the menu has no File submenu")?;
-	let file = file.as_submenu().context("File is not a submenu")?;
-	let item = file.get(id).with_context(|| format!("no menu item {id:?}"))?;
+	let found = menu
+		.get(submenu)
+		.with_context(|| format!("the menu has no {submenu:?} submenu"))?;
+	let found = found
+		.as_submenu()
+		.with_context(|| format!("{submenu:?} is not a submenu"))?;
+	let item = found.get(id).with_context(|| format!("no menu item {id:?}"))?;
 	item
 		.as_menuitem()
 		.with_context(|| format!("{id:?} is not a plain menu item"))?
