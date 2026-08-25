@@ -44,9 +44,7 @@ jobs:
       - run: npm run check:format:web
       - run: npm run check:types
       - run: npm run check:lint:web
-      # `check:test:web` runs vitest with coverage, so the report below is a by-product of the tests
-      # that already had to run rather than a second pass over the same code.
-      - run: npm run check:test:web
+      - run: npm run coverage:web
       - name: Upload coverage
         # A fork's pull request has no access to the secret, and failing someone's first
         # contribution on a missing token is the worst possible first impression.
