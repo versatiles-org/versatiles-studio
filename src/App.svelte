@@ -3,6 +3,7 @@
 	import { untrack } from 'svelte';
 	import { getCurrentWebview } from '@tauri-apps/api/webview';
 	import { listen } from '@tauri-apps/api/event';
+	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
 	import AppShell from './lib/shell/AppShell.svelte';
@@ -10,7 +11,9 @@
 	import Boundary from './lib/shell/Boundary.svelte';
 	import Help from './lib/common/Help.svelte';
 	import { connectJobs } from './lib/state/jobs.svelte';
-	import { refresh as refreshProblems, watch as watchForProblems } from './lib/state/diagnostics.svelte';
+	import { refresh as refreshProblems, reportProblem, watch as watchForProblems } from './lib/state/diagnostics.svelte';
+	import { panels } from './lib/shell/StatusBar.svelte';
+	import { REPOSITORY } from './lib/common/repository';
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
@@ -49,6 +52,8 @@
 		forgetRecent,
 		takeOpened,
 		OPENED_EVENT,
+		MENU_EVENT,
+		setMenuState,
 		setCrop,
 		addGraph,
 		setGraph,
@@ -231,11 +236,14 @@
 			if (!(event.metaKey || event.ctrlKey)) return;
 			const key = event.key.toLowerCase();
 			const tag = (event.target as HTMLElement | null)?.tagName;
-			if (key === 's') {
-				event.preventDefault();
-				void savePipeline(event.shiftKey);
-				return;
-			}
+			// **⌘S is the menu's now, and it saves the project.** It used to save the current `.vpl`
+			// from here, which was right when a window held one document and became quietly wrong
+			// when a project became the thing you open and share ([Q6]). The pipeline keeps its own
+			// Save and Save as… buttons in the pane that owns it ([Q31]).
+			//
+			// Undo stays here on purpose: a menu accelerator is handled before the webview sees the
+			// key, so a ⌘Z item would take the keystroke away from the rule below and hand it to
+			// whichever text box had focus.
 			if (key !== 'z' || tag === 'INPUT' || tag === 'SELECT') return;
 			event.preventDefault();
 			void stepHistory(!event.shiftKey);
@@ -471,6 +479,53 @@
 		const bbox = preview.last?.info.bbox;
 		if (map && bbox) fitToBounds(map, bbox, true);
 	}
+
+	/// What a native menu choice does (S0.1).
+	///
+	/// **The menu says which, and this says what.** Every one of these already existed as a button
+	/// or a shortcut; the switch is the whole of the wiring, and the actions stay where the state
+	/// they touch is. `new-window` is absent because the shell answers that one itself — no window
+	/// is involved in opening a window.
+	$effect(() => {
+		const unlisten = listen<string>(MENU_EVENT, ({ payload }) => {
+			switch (payload) {
+				case 'open':
+					void pick();
+					return;
+				case 'open-project':
+					void openProjectDir();
+					return;
+				case 'save-project':
+					void project.save(styleText);
+					return;
+				case 'save-project-as':
+					void project.saveAs(styleText);
+					return;
+				case 'save-copy':
+					void project.showCopy();
+					return;
+				case 'problems':
+					panels.show('problems');
+					return;
+				case 'report-problem':
+					void reportProblem('this').catch((error: unknown) => status.fail(error));
+					return;
+				case 'repository':
+					void openUrl(REPOSITORY).catch((error: unknown) => status.fail(error));
+					return;
+			}
+		});
+		return () => void unlisten.then((stop) => stop());
+	});
+
+	/// Keeps the menu's Save items in step with whether there is anything to save.
+	///
+	/// A native menu cannot read a `$derived`, so the window pushes it down. Failing is left to the
+	/// problem log rather than the status bar: a menu item that stays enabled is a message someone
+	/// gets when they use it, not something to interrupt them with now.
+	$effect(() => {
+		void setMenuState(!graphs.empty);
+	});
 
 	// A file double-clicked in Finder or passed on the command line. It can arrive before this
 	// window exists, so the queue is drained on start as well as on the event — the event alone
@@ -805,13 +860,7 @@
 	rightPane={empty ? undefined : rightPaneContent}
 >
 	{#snippet appBar()}
-		<AppBar
-			onOpenAssets={() => (assets = true)}
-			onOpenProject={() => void openProjectDir()}
-			onSaveProject={() => void project.saveAs(styleText)}
-			onSaveCopy={() => void project.showCopy()}
-			hasProject={!graphs.empty}
-		/>
+		<AppBar onOpenAssets={() => (assets = true)} />
 	{/snippet}
 	{#snippet mapPane()}
 		<!-- The map inside a boundary of its own, for the same reason the panes are: a style or a

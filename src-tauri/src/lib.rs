@@ -8,6 +8,7 @@ mod assets;
 mod bindings;
 mod commands;
 mod events;
+mod menu;
 mod opened;
 mod state;
 mod windows;
@@ -34,6 +35,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::app_version,
 		commands::server_base_url,
 		commands::open_window,
+		commands::set_menu_state,
 		commands::diagnostics::diagnostics,
 		commands::diagnostics::previous_problems,
 		commands::diagnostics::log_diagnostic,
@@ -70,6 +72,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::project::save_project,
 		commands::project::open_project,
 		commands::project::is_project,
+		commands::project::project_path,
 		commands::project::copy_plan,
 		commands::project::save_project_copy,
 		commands::assets::font_families,
@@ -214,14 +217,20 @@ pub fn run() {
 					jobs: studio_core::jobs::Jobs::new(),
 					pinned: Mutex::new(None),
 					project_dir: Mutex::new(std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+					project_root: Mutex::new(None),
 					asset_dir,
 					data_dir,
 				},
 			);
 
+			// Before any window opens, so the first one gets it on Windows and Linux — where the menu
+			// belongs to a window rather than to the application (S0.1).
+			menu::install(app.handle())?;
+
 			windows::open_extra_from_env(app.handle())?;
 			Ok(())
 		})
+		.on_menu_event(|app, event| menu::chosen(app, event.id()))
 		.invoke_handler(builder.invoke_handler())
 		.build(tauri::generate_context!())
 		.expect("error while building VersaTiles Studio")

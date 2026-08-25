@@ -197,6 +197,7 @@ versatiles-studio/
 │       ├── main.rs             the entry point
 │       ├── commands/           #[tauri::command] bindings — control plane
 │       ├── events/             Channels — event plane                    (Q3)
+│       ├── menu.rs             the native menu; a choice becomes an event (S0.1)
 │       ├── windows.rs          one window per project                    (Q16)
 │       ├── opened.rs           files the OS asks Studio to open          (S0.1)
 │       ├── assets.rs           locating the bundled tier                 (S0.6)

@@ -22,6 +22,7 @@ import {
 	copyPlan,
 	isProject,
 	openProject,
+	projectPath,
 	saveProject,
 	saveProjectCopy,
 	type CopyPlan,
@@ -51,7 +52,30 @@ export const project = {
 		}
 	},
 
-	/** Writes the project into a directory someone chooses. */
+	/**
+	 * Writes the project back where it came from, asking only if there is nowhere yet (⌘S).
+	 *
+	 * **The asking is what tells this from `saveAs`.** A Save that opened a directory picker every
+	 * time would be Save As under another name, and the shortcut on it would be a shortcut to a
+	 * dialog. Where the project lives is the core's to remember ([Q16]) — a window that kept it
+	 * would forget on reload, and forget differently from the window next to it.
+	 */
+	async save(styleText: () => string | null): Promise<void> {
+		try {
+			const dir = await projectPath();
+			if (dir === null) {
+				await this.saveAs(styleText);
+				return;
+			}
+			status.busy('Saving the project…');
+			await saveProject(dir, styleText());
+			status.settle();
+		} catch (error) {
+			status.fail(error);
+		}
+	},
+
+	/** Writes the project into a directory someone chooses (⇧⌘S). */
 	async saveAs(styleText: () => string | null): Promise<void> {
 		try {
 			const dir = await openDialog({ directory: true, title: 'Save project into…' });

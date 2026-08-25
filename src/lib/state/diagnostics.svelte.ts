@@ -26,10 +26,14 @@
  * [Q16]: ../../../docs/decisions.md
  */
 
+import { openUrl } from '@tauri-apps/plugin-opener';
 import { CommandFailed } from '../ipc/failure';
+import { buildReport, gpuRenderer, issueUrl, type Local } from '../common/report';
+import { REPOSITORY } from '../common/repository';
 import {
 	clearDiagnostics,
 	diagnostics,
+	environment,
 	logDiagnostic,
 	previousProblems,
 	type NewProblem,
@@ -171,6 +175,67 @@ export function reset(): void {
 	failures = 0;
 	stopped = false;
 	pending = Promise.resolve();
+}
+
+/** Which run a report is about. The two read identically and mean opposite things. */
+export type Session = 'this' | 'previous';
+
+/**
+ * The report as text.
+ *
+ * **Here rather than in the panel**, because two things now ask for it — the Copy button and the
+ * Help menu — and a report that differed depending on which one you used would be the sort of bug
+ * that only ever appears in someone else's issue.
+ */
+export async function composeReport(session: Session): Promise<string> {
+	const local: Local = {
+		userAgent: navigator.userAgent,
+		renderer: gpuRenderer(window.document.createElement('canvas'))
+	};
+	// Asked for when a report is made rather than held: it cannot change while the application runs,
+	// and no window should pay an IPC call at startup for a string most sessions never need.
+	const where = await environment().catch(() => null);
+	return buildReport({
+		problems: session === 'this' ? list : (earlier ?? []),
+		environment: where,
+		local,
+		// A plain `Date`, not `SvelteDate`: it is read once, on the next line, and never held in
+		// `$state` — there is nothing for a reactive wrapper to do but cost a subscription.
+		// eslint-disable-next-line svelte/prefer-svelte-reactivity
+		at: new Date(),
+		session
+	});
+}
+
+/** Puts a report on the clipboard. `false` when the webview refused — the caller offers a fallback. */
+export async function copyReport(session: Session): Promise<boolean> {
+	const text = await composeReport(session);
+	try {
+		await navigator.clipboard.writeText(text);
+		return true;
+	} catch {
+		// A webview can refuse the clipboard outright, and there is nothing to be done about it here.
+		return false;
+	}
+}
+
+/**
+ * Opens a prefilled issue, with the whole report on the clipboard first.
+ *
+ * **Both, in that order.** A URL holds a few thousand characters and a report can be longer, so the
+ * link carries what fits and says the rest is already copied — which is only true if the copying
+ * happened first. Returns whether that copy worked, so a caller with somewhere to say so can.
+ */
+export async function reportProblem(session: Session): Promise<boolean> {
+	const text = await composeReport(session);
+	const copied = await navigator.clipboard
+		.writeText(text)
+		.then(() => true)
+		.catch(() => false);
+	// In the system browser, not here: a webview that navigated to GitHub would be a window with the
+	// application gone from it and no way back. Same reason as the alpha ribbon's.
+	await openUrl(issueUrl(REPOSITORY, text));
+	return copied;
 }
 
 /**

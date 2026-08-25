@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { save } from '@tauri-apps/plugin-dialog';
-	import { openUrl } from '@tauri-apps/plugin-opener';
-	import { problems, forgetAll, loadEarlier, refresh } from '../state/diagnostics.svelte';
-	import { buildReport, gpuRenderer, issueUrl, type Local } from '../common/report';
+	import {
+		problems,
+		composeReport,
+		copyReport,
+		forgetAll,
+		loadEarlier,
+		refresh,
+		reportProblem
+	} from '../state/diagnostics.svelte';
 	import { environment, saveReport, type Environment, type Problem } from '../ipc/commands';
 	import { status } from '../state/status.svelte';
-
-	/// Where a report goes when someone chooses to send it. The same repository the alpha ribbon
-	/// links to, and the only host the opener capability will open.
-	const REPO = 'https://github.com/versatiles-org/versatiles-studio';
 
 	// Everything that has gone wrong this session, expandable from the status bar (S6.8).
 	//
@@ -80,30 +82,13 @@
 		return new Date(problem.at * 1000).toLocaleTimeString();
 	}
 
-	/// The report as it stands, built once and used by all three ways out of here.
-	async function compose(): Promise<string> {
-		const local: Local = {
-			userAgent: navigator.userAgent,
-			renderer: gpuRenderer(window.document.createElement('canvas'))
-		};
-		// Asked for again only if the panel never got an answer — a report with "unknown" where the
-		// build number should be is the one thing this whole feature exists to prevent.
-		const found = where ?? (await environment().catch(() => null));
-		// Which session, said in the report: the two read identically and mean opposite things.
-		return buildReport({ problems: list, environment: found, local, at: new Date(), session: showing });
-	}
-
 	async function copy() {
-		const text = await compose();
-		try {
-			await navigator.clipboard.writeText(text);
-			copied = 'yes';
-		} catch {
-			// A webview can refuse the clipboard outright. Selecting the panel is the fallback that
-			// needs no permission at all — ⌘C then does what the button could not.
-			copied = 'no';
-			selectAll();
-		}
+		// The composing, the clipboard and the issue all live in `state/diagnostics.svelte.ts`, so
+		// the Help menu and these buttons cannot come to different answers about what a report says.
+		copied = (await copyReport(showing)) ? 'yes' : 'no';
+		// Selecting the list is the fallback that needs no permission at all — ⌘C then does what the
+		// button could not.
+		if (copied === 'no') selectAll();
 	}
 
 	/// Writes the report to a file — for attaching it, or for keeping it past this window.
@@ -114,7 +99,7 @@
 				filters: [{ name: 'Markdown', extensions: ['md'] }]
 			});
 			if (typeof path !== 'string') return;
-			await saveReport(path, await compose());
+			await saveReport(path, await composeReport(showing));
 		} catch (error) {
 			// In the bar, like every other failure — and recorded, which puts a failure to save the
 			// problem report into the problem report. That is the right place for it.
@@ -122,18 +107,9 @@
 		}
 	}
 
-	/// Opens a prefilled issue, with the whole report on the clipboard first.
-	///
-	/// **Both, in that order.** A URL holds a few thousand characters and a report can be longer, so
-	/// the link carries what fits and says the rest is already copied — which is only true if the
-	/// copying happened first.
 	async function report() {
-		const text = await compose();
-		await navigator.clipboard.writeText(text).catch(() => (copied = 'no'));
 		try {
-			// In the system browser, not here: a webview that navigated to GitHub would be a window
-			// with the application gone from it and no way back. Same reason as the alpha ribbon's.
-			await openUrl(issueUrl(REPO, text));
+			if (!(await reportProblem(showing))) copied = 'no';
 		} catch (error) {
 			status.fail(error);
 		}

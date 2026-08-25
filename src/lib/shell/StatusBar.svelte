@@ -10,6 +10,30 @@
 	// good trade.
 	export type Status =
 		{ kind: 'idle' } | { kind: 'busy'; message: string; fraction?: number } | { kind: 'error'; message: string };
+
+	/**
+	 * Which panel the bar has expanded, if any.
+	 *
+	 * **One at a time.** Both expand upward from the same strip, and two of them open would push the
+	 * map into a letterbox — and they answer different questions anyway: what ran, and what broke.
+	 *
+	 * **Module state, because the bar is not the only thing that opens these.** Help → Problems… does
+	 * too, and the menu has no component to reach through. There is one status bar per window, so a
+	 * value shared across instances is shared with nothing.
+	 */
+	let expanded = $state<'jobs' | 'problems' | null>(null);
+
+	export const panels = {
+		get current(): 'jobs' | 'problems' | null {
+			return expanded;
+		},
+		show(which: 'jobs' | 'problems'): void {
+			expanded = which;
+		},
+		toggle(which: 'jobs' | 'problems'): void {
+			expanded = expanded === which ? null : which;
+		}
+	};
 </script>
 
 <script lang="ts">
@@ -42,15 +66,7 @@
 		return parts.length > 0 ? parts.join(' · ') : undefined;
 	}
 
-	/// Which panel is expanded, if any.
-	///
-	/// **One at a time.** Both expand upward from the same strip, and two of them open would push the
-	/// map into a letterbox — and they answer different questions anyway: what ran, and what broke.
-	let open = $state<'jobs' | 'problems' | null>(null);
-
-	function toggle(which: 'jobs' | 'problems') {
-		open = open === which ? null : which;
-	}
+	const open = $derived(panels.current);
 
 	/// The running job the bar reports on, if any. See `jobs.current` for why it is the newest.
 	const job = $derived(jobs.current);
@@ -130,7 +146,7 @@
 			type="button"
 			class="action jobs problems"
 			aria-expanded={open === 'problems'}
-			onclick={() => toggle('problems')}
+			onclick={() => panels.toggle('problems')}
 		>
 			Problems ({problems.count})
 		</button>
@@ -138,7 +154,7 @@
 
 	<!-- The way into the history, and the only thing here that is always visible. Its count is
 	     what is still running, which is the number worth knowing at a glance. -->
-	<button type="button" class="action jobs" aria-expanded={open === 'jobs'} onclick={() => toggle('jobs')}>
+	<button type="button" class="action jobs" aria-expanded={open === 'jobs'} onclick={() => panels.toggle('jobs')}>
 		Jobs{waiting > 0 ? ` (${waiting})` : ''}
 	</button>
 </div>

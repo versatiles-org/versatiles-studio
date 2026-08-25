@@ -84,6 +84,14 @@ export type {
 /** The event that says the OS asked Studio to open something while it was already running. */
 export const OPENED_EVENT = 'studio://opened';
 
+/**
+ * The event that says something was chosen from the native menu (S0.1). The payload is the item's id.
+ *
+ * The menu is declarative in Rust and the actions stay in the window, beside the state they already
+ * touch — so what crosses the boundary is a name, not a behaviour. Same shape as `OPENED_EVENT`.
+ */
+export const MENU_EVENT = 'studio://menu';
+
 // -- shell -----------------------------------------------------------------------------------
 
 export const appVersion = () => commands.appVersion();
@@ -118,6 +126,9 @@ export const clearDiagnostics = () => unwrap(commands.clearDiagnostics());
 
 /** What is running this, for the header of a copied report. */
 export const environment = () => unwrap(commands.environment());
+
+/** Enables or disables the menu items that need a project open (S0.1). */
+export const setMenuState = (hasProject: boolean) => unwrap(commands.setMenuState(hasProject));
 
 // -- jobs ------------------------------------------------------------------------------------
 
@@ -209,6 +220,13 @@ export const saveProjectCopy = (target: string, zip: boolean, style: string | nu
 
 /** Whether a directory holds a project, so the dialog can say why one does not. */
 export const isProject = (dir: string) => commands.isProject(dir);
+
+/**
+ * Where this project lives, or `null` if it has never been saved or opened.
+ *
+ * What tells Save from Save As: with an answer, ⌘S writes without asking.
+ */
+export const projectPath = () => unwrap(commands.projectPath());
 
 // -- assets ------------------------------------------------------------------------------------
 

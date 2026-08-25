@@ -7,26 +7,18 @@
 	// **It was the mode bar** ([Q22], S4.1) — Map · Assets — until [Q39] made the asset manager a
 	// dialog. That left one mode, which is the state Q22 itself called chrome that switches between
 	// nothing and itself, so the tabs went and the errand became a button among the others.
+	//
+	// **And it is now nearly empty**, because opening and saving a project went to the native menu
+	// where they belong (S0.1) — which is what this file's own comment said should happen. What is
+	// left is the two that are not plain commands: an errand, and a status line. Both have a home
+	// coming, and this strip goes with them.
 
 	let {
-		onOpenAssets,
-		onOpenProject,
-		onSaveProject,
-		onSaveCopy,
-		hasProject
+		onOpenAssets
 	}: {
 		/** Fonts to install (G7, S4.1) — an errand you leave the window for and come back from, which
 		 *  is what a dialog is. */
 		onOpenAssets: () => void;
-		/** Opening and saving a *project* (G1, S5.1) — app-level work, so it sits on the app-level
-		 *  bar rather than in a pane, which under [Q31] owns only what it emits. Native menus
-		 *  (S0.1) are where these belong eventually. */
-		onOpenProject: () => void;
-		onSaveProject: () => void;
-		/** A copy that works on another machine (S5.1) — the data comes with it. */
-		onSaveCopy: () => void;
-		/** False with nothing open: there is no project to copy. */
-		hasProject: boolean;
 	} = $props();
 </script>
 
@@ -36,10 +28,6 @@
 	<UpdateNotice />
 	<span class="divider" aria-hidden="true"></span>
 	<button type="button" class="project" onclick={onOpenAssets}>Fonts…</button>
-	<span class="divider" aria-hidden="true"></span>
-	<button type="button" class="project" onclick={onOpenProject}>Open project…</button>
-	<button type="button" class="project" onclick={onSaveProject}>Save project…</button>
-	<button type="button" class="project" onclick={onSaveCopy} disabled={!hasProject}>Save a copy…</button>
 </nav>
 
 <style>

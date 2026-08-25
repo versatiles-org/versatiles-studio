@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { openUrl } from '@tauri-apps/plugin-opener';
+	import { REPOSITORY } from '../common/repository';
 
 	// What state this is in, said once, in the corner (G8-ish: honesty about maturity is cheaper than
 	// a support thread). It links to the repository, because "alpha" is only useful next to somewhere
@@ -13,7 +14,7 @@
 	// A `<button>` rather than an `<a>`: it does not navigate, and a link that lies about that is a
 	// link a middle-click or a right-click "open in new tab" will break.
 
-	const REPO = 'https://github.com/versatiles-org/versatiles-studio';
+	const REPO = REPOSITORY;
 
 	let failed = $state(false);
 

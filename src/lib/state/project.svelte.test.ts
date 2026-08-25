@@ -15,6 +15,7 @@ const ipc = vi.hoisted(() => ({
 	copyPlan: vi.fn(),
 	isProject: vi.fn(),
 	openProject: vi.fn(),
+	projectPath: vi.fn(),
 	saveProject: vi.fn(),
 	saveProjectCopy: vi.fn()
 }));
@@ -35,6 +36,7 @@ beforeEach(() => {
 	ipc.saveProject.mockResolvedValue(undefined);
 	ipc.saveProjectCopy.mockResolvedValue(undefined);
 	ipc.copyPlan.mockResolvedValue({ files: ['project.yaml'] });
+	ipc.projectPath.mockResolvedValue(null);
 	project.cancelCopy();
 	status.dismiss();
 });
@@ -59,6 +61,54 @@ describe('opening a project', () => {
 		await expect(project.open()).resolves.toBeNull();
 		expect(status.current).toEqual({ kind: 'error', message: '/tmp/project holds no project.yaml' });
 		expect(ipc.openProject).not.toHaveBeenCalled();
+	});
+});
+
+/**
+ * ⌘S and ⇧⌘S, which the native menu now owns (S0.1).
+ *
+ * The distinction is the whole point of the pair: a Save that opened a picker every time would be
+ * Save As under another name, and a shortcut on it would be a shortcut to a dialog.
+ */
+describe('saving where it already lives', () => {
+	it('writes back without asking once there is somewhere to write', async () => {
+		ipc.projectPath.mockResolvedValue('/tmp/berlin');
+		await project.save(style);
+
+		expect(dialog.open, 'nothing to ask about').not.toHaveBeenCalled();
+		expect(ipc.saveProject).toHaveBeenCalledWith('/tmp/berlin', '{"version":8}');
+	});
+
+	// A project that has never been saved has nowhere to be written back to, so the first ⌘S is a
+	// Save As — which is what every application does and nobody notices.
+	it('asks the first time, because there is nowhere yet', async () => {
+		ipc.projectPath.mockResolvedValue(null);
+		await project.save(style);
+
+		expect(dialog.open).toHaveBeenCalled();
+		expect(ipc.saveProject).toHaveBeenCalledWith('/tmp/project', '{"version":8}');
+	});
+
+	it('writes nothing when that first ask is cancelled', async () => {
+		ipc.projectPath.mockResolvedValue(null);
+		dialog.open.mockResolvedValue(null);
+		await project.save(style);
+		expect(ipc.saveProject).not.toHaveBeenCalled();
+	});
+
+	it('reports a failure from the core rather than throwing at the menu', async () => {
+		ipc.projectPath.mockResolvedValue('/tmp/berlin');
+		ipc.saveProject.mockRejectedValue(new Error('read-only volume'));
+		await project.save(style);
+		expect(status.current).toEqual({ kind: 'error', message: 'read-only volume' });
+	});
+
+	// Save As means *choose*, whether or not the project has a home already.
+	it('always asks, even when it knows where the project lives', async () => {
+		ipc.projectPath.mockResolvedValue('/tmp/berlin');
+		await project.saveAs(style);
+		expect(dialog.open).toHaveBeenCalled();
+		expect(ipc.saveProject).toHaveBeenCalledWith('/tmp/project', '{"version":8}');
 	});
 });
 

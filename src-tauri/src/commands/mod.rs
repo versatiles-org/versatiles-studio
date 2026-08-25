@@ -36,6 +36,21 @@ pub async fn server_base_url(state: State<'_, AppState>) -> Result<String, Strin
 	Ok(server.base_url())
 }
 
+/// Enables or disables the menu items that need something to be open (S0.1).
+///
+/// **Pushed down, not pulled up.** Whether there is a project to save is a `$derived` in the
+/// webview, and a native menu cannot read one — so the window tells the menu when the answer
+/// changes. One flag, because one flag is what the menu actually varies on; anything finer would be
+/// a mechanism built for a second caller that does not exist.
+#[tauri::command]
+#[specta::specta]
+pub fn set_menu_state(app: AppHandle, has_project: bool) -> Result<(), String> {
+	for item in [crate::menu::SAVE_PROJECT, crate::menu::SAVE_COPY] {
+		crate::menu::set_enabled(&app, item, has_project).map_err(|error| format!("{error:#}"))?;
+	}
+	Ok(())
+}
+
 /// Opens another window. One window per project ([Q16]) — this is what ⌘N does.
 ///
 /// Each window gets its own webview process, so a crash takes one project down rather than all of

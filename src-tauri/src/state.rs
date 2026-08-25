@@ -57,6 +57,14 @@ pub struct AppState {
 	/// them, so opening one moves this. Before any is opened it is wherever Studio was started; it
 	/// becomes the project directory once [Q6] has one.
 	pub project_dir: Mutex<PathBuf>,
+	/// The directory this window's project was last saved to or opened from, if any.
+	///
+	/// **Not `project_dir` above**, which starts at the working directory and only ever answers
+	/// "what do relative paths mean". This answers a different question — *has this been saved, and
+	/// where* — and the two disagree for the whole of a window's life until someone saves. Without
+	/// it, "Save Project" would have to ask for a directory it already knows, which is what makes it
+	/// indistinguishable from "Save Project As…".
+	pub project_root: Mutex<Option<PathBuf>>,
 	/// What has gone wrong this session, for the panel that lets a user copy it (S6.8).
 	///
 	/// Not behind a `Mutex` for the same reason `jobs` is not: it is `Clone` and locks its own ring.

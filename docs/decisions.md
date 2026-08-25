@@ -16,6 +16,46 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q47 — The verbs about the project live in a native menu, and ⌘S saves the project
+
+**Decided 2026-08-25.** Five controls sat in the top-right corner: check for updates, fonts, open a
+project, save it, save a copy. [Q39](#q39--the-asset-manager-is-a-dialog-and-with-it-the-mode-bar-goes)
+kept that strip when the modes went, on the grounds that it "had quietly become something else" — but
+what it had become is a menu bar drawn by hand, in the one corner of the window where a menu is not.
+`AppBar.svelte` said so itself: _native menus (S0.1) are where these belong eventually._
+
+**A native menu, not an in-window one.** These are OS-level verbs, and a custom menu button
+re-implements what every person already knows where to find — while getting none of the accelerators,
+platform conventions or keyboard navigation for free. S0.1 has listed native menus as outstanding
+since the shell was built.
+
+**The menu says which; the window says what.** `menu.rs` emits `studio://menu` with the chosen item's
+id and stops there. Every action stays in `App.svelte` beside the state it already touches, which is
+the same shape `studio://opened` established — what crosses the boundary is a name, not a behaviour.
+`New Window` is the exception and answers itself in the shell, because no window is involved in
+opening one.
+
+**⌘S saves the project.** It used to save the current `.vpl`, which was right when a window held one
+document and became quietly wrong when [Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest) made a project the thing
+you open and share — the shortcut named the wrong noun. ⇧⌘S is Save Project As. The pipeline keeps
+its own Save and Save as… buttons in the pane that owns it ([Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits));
+what it loses is a keystroke, and it was never the one people meant.
+
+**Save is not Save As, and that costs a field.** `AppState.project_root` remembers where a project
+was saved or opened, so ⌘S writes back without asking. Without it the two menu items would be
+indistinguishable and the shortcut would be a shortcut to a directory picker. It is deliberately not
+`project_dir`, which starts at the working directory and only ever answers what relative paths mean.
+
+**Undo is not in the menu, and Edit exists only to keep the webview usable.** A menu accelerator is
+handled before the webview sees the key, so a ⌘Z item would take the keystroke away from the
+document-wide undo in `App.svelte` and hand it to whichever text box had focus — losing the rule that
+a focused `<input>` keeps its own undo while the VPL editor does not. On macOS the Edit submenu still
+has to carry cut, copy, paste and select-all: a custom menu that omits them takes those shortcuts
+away from every text field in the window.
+
+**The bar is nearly empty now** and goes when its last two occupants have somewhere better: the fonts
+errand and the update notice, which is not a command at all but a button with a live status line.
+
 ### Q46 — An overlay on the map is one helper with one test, not three copies of a pattern
 
 **Decided 2026-08-24.** `TileGrid`, `TileActivity` and `CropOverlay` each hand-rolled the same

@@ -43,8 +43,24 @@ pub async fn save_project(state: State<'_, AppState>, dir: String, style: Option
 	let recipe = state.style.lock().await.clone();
 	studio_core::project::save(&dir, &graphs, &recipe, style.as_deref()).map_err(|error| format!("{error:#}"))?;
 
-	*state.project_dir.lock().await = dir;
+	*state.project_dir.lock().await = dir.clone();
+	*state.project_root.lock().await = Some(dir);
 	Ok(())
+}
+
+/// Where this project lives, or `None` if it has never been saved or opened.
+///
+/// What tells "Save Project" from "Save Project As…": with an answer here the first writes without
+/// asking, and without one there is nothing to write to yet and it has to ask like the second.
+#[tauri::command]
+#[specta::specta]
+pub async fn project_path(state: State<'_, AppState>) -> Result<Option<String>, String> {
+	Ok(state
+		.project_root
+		.lock()
+		.await
+		.as_ref()
+		.map(|dir| dir.to_string_lossy().into_owned()))
 }
 
 /// Opens a project directory, replacing everything currently open.
@@ -88,7 +104,8 @@ pub async fn open_project(state: State<'_, AppState>, dir: String) -> Result<stu
 	}
 
 	*state.style.lock().await = loaded.manifest.style.clone();
-	*state.project_dir.lock().await = dir;
+	*state.project_dir.lock().await = dir.clone();
+	*state.project_root.lock().await = Some(dir);
 	Ok(loaded.manifest.style)
 }
 

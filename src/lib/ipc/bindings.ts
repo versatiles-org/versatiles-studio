@@ -27,6 +27,15 @@ export const commands = {
 	 *  [Q16]: ../../docs/decisions.md
 	 */
 	openWindow: (label: string) => typedError<null, string>(__TAURI_INVOKE("open_window", { label })),
+	/**
+	 *  Enables or disables the menu items that need something to be open (S0.1).
+	 * 
+	 *  **Pushed down, not pulled up.** Whether there is a project to save is a `$derived` in the
+	 *  webview, and a native menu cannot read one — so the window tells the menu when the answer
+	 *  changes. One flag, because one flag is what the menu actually varies on; anything finer would be
+	 *  a mechanism built for a second caller that does not exist.
+	 */
+	setMenuState: (hasProject: boolean) => typedError<null, string>(__TAURI_INVOKE("set_menu_state", { hasProject })),
 	/**  Everything that has gone wrong this session, oldest first. */
 	diagnostics: () => typedError<Problem[], string>(__TAURI_INVOKE("diagnostics")),
 	/**
@@ -300,6 +309,13 @@ export const commands = {
 	openProject: (dir: string) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("open_project", { dir })),
 	/**  Whether a directory holds a project — so the open dialog can say why one does not. */
 	isProject: (dir: string) => __TAURI_INVOKE<boolean>("is_project", { dir }),
+	/**
+	 *  Where this project lives, or `None` if it has never been saved or opened.
+	 * 
+	 *  What tells "Save Project" from "Save Project As…": with an answer here the first writes without
+	 *  asking, and without one there is nothing to write to yet and it has to ask like the second.
+	 */
+	projectPath: () => typedError<string | null, string>(__TAURI_INVOKE("project_path")),
 	/**
 	 *  What copying this project elsewhere would carry, without writing anything.
 	 * 
