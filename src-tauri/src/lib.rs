@@ -41,6 +41,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::diagnostics::log_diagnostic,
 		commands::diagnostics::clear_diagnostics,
 		commands::diagnostics::save_report,
+		commands::diagnostics::show_log,
 		commands::diagnostics::environment,
 		commands::export::export_graph,
 		commands::export::estimate_export,

@@ -9,7 +9,7 @@
 		refresh,
 		reportProblem
 	} from '../state/diagnostics.svelte';
-	import { environment, saveReport, type Environment, type Problem } from '../ipc/commands';
+	import { environment, saveReport, showLog, type Environment, type Problem } from '../ipc/commands';
 	import { status } from '../state/status.svelte';
 
 	// Everything that has gone wrong this session, expandable from the status bar (S6.8).
@@ -214,12 +214,20 @@
 		</ul>
 	{/if}
 
-	<!-- **The file, named.** The list is the copy that is convenient; the file is the one that
-	     survives a window being killed, and a person who has to send it needs to be able to find it.
-	     Shown in full rather than redacted: this is their own machine, and the redaction belongs to
-	     the report, which is the thing that leaves it. -->
+	<!-- **The file, named and openable.** The list is the copy that is convenient; the file is the
+	     one that survives a window being killed, and a person who has to send it needs to be able to
+	     find it — a path you can read is worse than a path you can open, and this costs nothing to be
+	     both. Shown in full rather than redacted: this is their own machine, and the redaction
+	     belongs to the report, which is the thing that leaves it. -->
 	{#if where}
-		<p class="where truncate" title={where.log}>Written to {where.log}</p>
+		<button
+			type="button"
+			class="where truncate"
+			title="Show {where.log} in the file manager"
+			onclick={() => void showLog().catch((error: unknown) => status.fail(error))}
+		>
+			Written to {where.log}
+		</button>
 	{/if}
 </div>
 
@@ -352,11 +360,18 @@
 	}
 
 	.where {
-		margin: 0;
+		display: block;
+		width: 100%;
 		padding: var(--space-2) var(--space-5);
 		border-top: 1px solid var(--rule);
 		font-size: var(--text-xs);
 		color: var(--ink-2);
+		text-align: left;
+
+		&:hover {
+			color: var(--ink);
+			text-decoration: underline;
+		}
 	}
 
 	.detail-text {

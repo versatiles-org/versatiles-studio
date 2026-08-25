@@ -162,6 +162,7 @@ fn help(app: &AppHandle) -> Result<Submenu<Wry>> {
 	Ok(SubmenuBuilder::new(app, "Help")
 		.text("problems", "Problems…")
 		.text("report-problem", "Report a Problem…")
+		.text("show-log", "Show Problem Log")
 		.separator()
 		.text("repository", "VersaTiles Studio on GitHub")
 		.build()?)
@@ -192,6 +193,15 @@ pub fn chosen(app: &AppHandle, id: &MenuId) {
 	// **Answered here, because no window is involved in the answer.** Everything else acts on the
 	// project in front of someone; a new window is the shell's own errand, and sending it through a
 	// webview only to have it call back would put a round trip between the key and the window.
+	// Answered here for the same reason as the one below it: showing a file in the file manager is
+	// the shell's errand, and the file is the application's own — no window is involved in either.
+	if id.0 == "show-log" {
+		if let Err(error) = crate::commands::diagnostics::reveal_log(app) {
+			let state = app.state::<crate::state::AppState>();
+			crate::warn(&state.diagnostics, "Could not show the problem log", &error);
+		}
+		return;
+	}
 	if id.0 == "new-window" {
 		if let Err(error) = crate::windows::open_new(app) {
 			let state = app.state::<crate::state::AppState>();

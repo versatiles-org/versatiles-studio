@@ -118,6 +118,9 @@ export const previousProblems = () => unwrap(commands.previousProblems());
 /** Records a problem the webview saw, and answers how many distinct ones there now are. */
 export const logDiagnostic = (report: NewProblem) => unwrap(commands.logDiagnostic(report));
 
+/** Shows the problem log in the file manager, selected — for attaching it to something. */
+export const showLog = () => unwrap(commands.showLog());
+
 /** Writes a problem report where the user asked for it. The path comes from a native save dialog. */
 export const saveReport = (path: string, text: string) => unwrap(commands.saveReport(path, text));
 

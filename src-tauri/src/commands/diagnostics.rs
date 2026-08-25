@@ -8,8 +8,10 @@
 //! the webview would cost a thousand messages to draw a number nobody is looking at.
 
 use crate::state::AppState;
+use anyhow::{Context, Result};
 use studio_core::diagnostics::{NewProblem, Problem};
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State};
+use tauri_plugin_opener::OpenerExt;
 
 /// Everything that has gone wrong this session, oldest first.
 #[tauri::command]
@@ -61,6 +63,32 @@ pub async fn clear_diagnostics(state: State<'_, AppState>) -> Result<(), String>
 #[specta::specta]
 pub async fn save_report(path: String, text: String) -> Result<(), String> {
 	studio_core::project::write_atomically(std::path::Path::new(&path), &text).map_err(|error| format!("{error:#}"))
+}
+
+/// Shows the problem log in the file manager, selected.
+///
+/// **The path is this side's, never the caller's.** Revealing an arbitrary path is a capability
+/// worth thinking hard about; revealing *the log file* is not, because there is exactly one and the
+/// application knows where it put it. That is also why this goes through the plugin's Rust API
+/// rather than its command: the scope that would otherwise have to be widened is replaced by there
+/// being nothing to scope.
+pub fn reveal_log(app: &AppHandle) -> Result<()> {
+	let path = studio_core::diagnostics::log_path(&app.state::<AppState>().log_dir);
+	// A log directory that could not be written leaves nothing to show, and the failure to write it
+	// was already recorded at startup — so this says the plain thing rather than repeating that one.
+	if !path.exists() {
+		anyhow::bail!("there is no log file at {}", path.display());
+	}
+	app.opener()
+		.reveal_item_in_dir(&path)
+		.with_context(|| format!("revealing {}", path.display()))
+}
+
+/// The same, for the panel's footer — the path is written there, and a path you can open is better.
+#[tauri::command]
+#[specta::specta]
+pub async fn show_log(app: AppHandle) -> Result<(), String> {
+	reveal_log(&app).map_err(|error| format!("{error:#}"))
 }
 
 /// What is running this, for the header of a copied report.

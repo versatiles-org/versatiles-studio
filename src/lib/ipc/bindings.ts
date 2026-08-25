@@ -68,6 +68,8 @@ export const commands = {
 	 *  The path came from a native save dialog, which is the whole of the trust story.
 	 */
 	saveReport: (path: string, text: string) => typedError<null, string>(__TAURI_INVOKE("save_report", { path, text })),
+	/**  The same, for the panel's footer — the path is written there, and a path you can open is better. */
+	showLog: () => typedError<null, string>(__TAURI_INVOKE("show_log")),
 	environment: () => typedError<Environment, string>(__TAURI_INVOKE("environment")),
 	/**
 	 *  Starts an export and returns the job running it.

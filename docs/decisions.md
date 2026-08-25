@@ -32,8 +32,8 @@ since the shell was built.
 **The menu says which; the window says what.** `menu.rs` emits `studio://menu` with the chosen item's
 id and stops there. Every action stays in `App.svelte` beside the state it already touches, which is
 the same shape `studio://opened` established — what crosses the boundary is a name, not a behaviour.
-`New Window` is the exception and answers itself in the shell, because no window is involved in
-opening one.
+`New Window` and `Show Problem Log` are the exceptions and answer themselves in the shell, because no
+window is involved in opening a window or in showing a file the application itself wrote.
 
 **⌘S saves the project.** It used to save the current `.vpl`, which was right when a window held one
 document and became quietly wrong when [Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest) made a project the thing
