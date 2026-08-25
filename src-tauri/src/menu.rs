@@ -31,6 +31,9 @@ const FILE: &str = "file";
 pub const SAVE_PROJECT: &str = "save-project";
 pub const SAVE_COPY: &str = "save-copy";
 
+/// Named because it moves between submenus by platform, and both places must spell it the same.
+const CHECK_UPDATES: &str = "check-updates";
+
 /// Builds the menu and hands it to the application.
 ///
 /// App-wide rather than per-window: on macOS that is the only kind there is, and elsewhere Tauri
@@ -53,6 +56,14 @@ fn build(app: &AppHandle) -> Result<Menu<Wry>> {
 
 	menu.append(&file(app)?)?;
 
+	// Fonts and updates are about *Studio* rather than about the project. macOS has a place for
+	// exactly that and every Mac user knows where it is; nowhere else does, so elsewhere they get a
+	// submenu of their own rather than being wedged into File, which is about documents.
+	#[cfg(not(target_os = "macos"))]
+	{
+		menu.append(&tools(app)?)?;
+	}
+
 	#[cfg(target_os = "macos")]
 	{
 		menu.append(&edit(app)?)?;
@@ -67,6 +78,9 @@ fn build(app: &AppHandle) -> Result<Menu<Wry>> {
 fn application(app: &AppHandle) -> Result<Submenu<Wry>> {
 	Ok(SubmenuBuilder::new(app, "VersaTiles Studio")
 		.about(None)
+		.text(CHECK_UPDATES, "Check for Updates…")
+		.separator()
+		.text("fonts", "Fonts…")
 		.separator()
 		.services()
 		.separator()
@@ -110,6 +124,16 @@ fn file(app: &AppHandle) -> Result<Submenu<Wry>> {
 	accelerate(&file, SAVE_PROJECT, "CmdOrCtrl+S")?;
 	accelerate(&file, "save-project-as", "CmdOrCtrl+Shift+S")?;
 	Ok(file)
+}
+
+/// What is about Studio rather than about the project. macOS puts these in the application submenu.
+#[cfg(not(target_os = "macos"))]
+fn tools(app: &AppHandle) -> Result<Submenu<Wry>> {
+	Ok(SubmenuBuilder::new(app, "Tools")
+		.text("fonts", "Fonts…")
+		.separator()
+		.text(CHECK_UPDATES, "Check for Updates…")
+		.build()?)
 }
 
 /// The clipboard, and nothing else. See this module's note on why undo is not here.

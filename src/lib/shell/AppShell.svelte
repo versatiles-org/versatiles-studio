@@ -21,11 +21,8 @@
 		onRightResize,
 		mapPane,
 		rightPane,
-		statusBar,
-		appBar
+		statusBar
 	}: {
-		/** The Map · Assets bar, above everything (Q22, S4.1). */
-		appBar?: Snippet;
 		leftPane?: Snippet;
 		/** CSS pixels. The core clamps it, so this is already in range. */
 		leftWidth?: number;
@@ -47,7 +44,6 @@
 	style:--left-width="{leftWidth}px"
 	style:--right-width="{rightWidth}px"
 >
-	{#if appBar}<div class="bar">{@render appBar()}</div>{/if}
 	{#if leftPane}
 		<aside class="left">{@render leftPane()}</aside>
 		<PaneResizer side="left" width={leftWidth} onResize={(w, done) => onLeftResize?.(w, done)} />
@@ -64,36 +60,33 @@
 	.shell {
 		display: grid;
 		grid-template-columns: 1fr;
-		/* A row for the application bar above everything. It is `auto`, so with no bar the row
-		   collapses to nothing and the layout is what it was (Q22, S4.1). */
-		grid-template-rows: auto 1fr auto;
-		grid-template-areas: 'bar' 'map' 'status';
+		/* Two rows: the work, and the status bar under it. There was a third above them for the
+		   application bar until [Q47](../../../docs/decisions.md) sent its contents to the native
+		   menu — the map is that much taller for it. */
+		grid-template-rows: 1fr auto;
+		grid-template-areas: 'map' 'status';
 		height: 100vh;
 		color: var(--ink);
 		background: var(--chrome);
 
 		&.has-right {
 			grid-template-columns: 1fr clamp(180px, var(--right-width), 640px);
-			grid-template-areas: 'bar bar' 'map right' 'status status';
+			grid-template-areas: 'map right' 'status status';
 		}
 
 		&.has-left.has-right {
 			grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr clamp(180px, var(--right-width), 640px);
-			grid-template-areas: 'bar bar bar' 'left map right' 'status status status';
+			grid-template-areas: 'left map right' 'status status status';
 		}
 
 		&.has-left {
 			grid-template-columns: clamp(180px, var(--left-width), 640px) 1fr;
-			grid-template-areas: 'bar bar' 'left map' 'status status';
+			grid-template-areas: 'left map' 'status status';
 		}
 	}
 
 	/* `clamp` mirrors the range the core enforces on save (`store::Layout`), which stays the
 	   authority — this only keeps a live drag from overshooting before it is stored. */
-
-	.bar {
-		grid-area: bar;
-	}
 
 	/* Both panes clip; their content scrolls. Keeping the scroll inside the content means a pane can
 	   hold a sticky header or a footer later without the aside fighting it — and it is one rule

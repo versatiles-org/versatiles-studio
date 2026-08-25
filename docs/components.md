@@ -33,7 +33,7 @@ common but the absence of a better home. Ownership is a fact you can check by gr
 import; kind is a judgement, and judgements drift.
 
 ```text
-lib/shell/            the frame and its bar: AppShell · AppBar · AlphaRibbon · Sidebar · Pane · PaneResizer · Boundary · StatusBar · JobsPanel · DiagnosticsPanel · UpdateNotice · AssetsDialog
+lib/shell/            the frame and its bar: AppShell · AlphaRibbon · Sidebar · Pane · PaneResizer · Boundary · StatusBar · JobsPanel · DiagnosticsPanel · UpdateDialog · AssetsDialog
 lib/panes/pipeline/   PipelinePane and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor
 lib/panes/inspector/  Inspector
 lib/map/              MapCanvas · MapControls · TileGrid · CoordinateJump · Views · FeaturePopup
@@ -108,8 +108,7 @@ One `Map` instance for the whole window, owned by the core ([Q16](decisions.md))
 | `TileActivity` | Tiles the map is still waiting for, shaded and labelled `queued` or `rendering` (S2.16)                                                                                                  | S2.16            |
 | `VplEditor`    | Textarea over a highlighted `<pre>`; the tokens come from the parser (C4, [Q25](decisions.md))                                                                                           | S2.3             |
 | `StylePane`    | Preset and the global adjustments over it (D1) — the layer tree is S4.5                                                                                                                  | S4.2             |
-| `AppBar`       | Fonts and the update notice. Was the mode bar until [Q39](decisions.md) retired the modes; the project verbs left for the native menu at [Q47](decisions.md)                             | S4.1             |
-| `UpdateNotice` | "Check for updates", and what came back. On the bar because an update is never why the window is open (G4)                                                                               | S5.8             |
+| `UpdateDialog` | What came back from a check, and the Install and Restart it offers. A dialog because a menu item cannot say "Installing…" ([Q47](decisions.md)); it opens because somebody asked (G4)    | S5.8             |
 | `AssetsDialog` | Font families: size, install, remove, download all. A modal, not a mode ([Q39](decisions.md)); the bundled tier is not listed, being unremovable                                         | S4.1             |
 | `LayerTree`    | The rendered style's layers: search, group, hide, recolour, zoom range, and edit the filter ([Q37](decisions.md))                                                                        | S4.5             |
 | `ExportDialog` | What the graph produces, what will be written, an estimate on request ([Q42](decisions.md)), then the file — modal, per graph ([Q32](decisions.md), [Q41](decisions.md))                 | S3.3, S3.6, S3.7 |

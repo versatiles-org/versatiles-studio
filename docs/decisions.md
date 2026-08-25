@@ -53,8 +53,17 @@ a focused `<input>` keeps its own undo while the VPL editor does not. On macOS t
 has to carry cut, copy, paste and select-all: a custom menu that omits them takes those shortcuts
 away from every text field in the window.
 
-**The bar is nearly empty now** and goes when its last two occupants have somewhere better: the fonts
-errand and the update notice, which is not a command at all but a button with a live status line.
+**And with that the bar is gone.** Its last two occupants were not plain commands: the fonts errand,
+which was already a dialog and only needed a new trigger, and the update notice, which is a button
+with a live status line — a menu item cannot say "Installing…", let alone offer to restart. Both are
+now menu items; the update opens `UpdateDialog`. On macOS they sit in the application submenu, where
+that platform puts what is about the application rather than about the document; elsewhere they get
+a Tools submenu, because File is about documents and wedging them there would say something untrue.
+
+**A dialog for updates is not a contradiction of "never interrupt".** That rule is about
+_unsolicited_ announcements. This one opens because somebody just chose it from a menu, and
+answering a direct question is the one time a modal is the polite form. `AppShell` loses its `bar`
+row, and the map is that much taller.
 
 ### Q46 — An overlay on the map is one helper with one test, not three copies of a pattern
 

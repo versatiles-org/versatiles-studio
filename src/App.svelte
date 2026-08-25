@@ -29,9 +29,9 @@
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
 	import StylePane from './lib/panes/style/StylePane.svelte';
-	import AppBar from './lib/shell/AppBar.svelte';
 	import AlphaRibbon from './lib/shell/AlphaRibbon.svelte';
 	import AssetsDialog from './lib/shell/AssetsDialog.svelte';
+	import UpdateDialog from './lib/shell/UpdateDialog.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import CopyDialog from './lib/panes/project/CopyDialog.svelte';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
@@ -173,6 +173,9 @@
 	/// Whether the fonts dialog is up. Local, not durable: a window is never restored onto a dialog
 	/// ([Q39]).
 	let assets = $state(false);
+
+	/// Whether the update dialog is up. Opening it is what asks — see `UpdateDialog`.
+	let updating = $state(false);
 	let recents = $state<RecentEntry[]>([]);
 
 	// The landing screen is what an *empty* window shows — it goes away for good once something is
@@ -503,6 +506,12 @@
 					return;
 				case 'save-copy':
 					void project.showCopy();
+					return;
+				case 'fonts':
+					assets = true;
+					return;
+				case 'check-updates':
+					updating = true;
 					return;
 				case 'problems':
 					panels.show('problems');
@@ -859,9 +868,6 @@
 	onRightResize={(width, done) => layout.resize('right', width, done)}
 	rightPane={empty ? undefined : rightPaneContent}
 >
-	{#snippet appBar()}
-		<AppBar onOpenAssets={() => (assets = true)} />
-	{/snippet}
 	{#snippet mapPane()}
 		<!-- The map inside a boundary of its own, for the same reason the panes are: a style or a
 		     container it cannot make sense of should not take the editor and the status bar with it,
@@ -952,6 +958,10 @@
 
 <!-- Outside the map region, like every other modal: the map keeps running behind it rather than
      being torn down, so coming back from installing a font returns to the view you left. -->
+{#if updating}
+	<UpdateDialog onClose={() => (updating = false)} />
+{/if}
+
 {#if assets}
 	<AssetsDialog onClose={() => (assets = false)} />
 {/if}
