@@ -197,15 +197,17 @@ background, grid, reset — bottom-right.
 
 ## Layouts
 
-### Landing screen — what an empty window shows
+### Launcher — a window of its own
 
-A launcher, not a wizard: it disappears once a project is open, and everything on it is reachable
-from inside the workbench. Opening a project fills that window; ⌘N opens another empty one.
+A launcher, not a wizard: everything on it is reachable from inside the workbench, and nothing on it
+gates anything. It opens when Studio starts with nothing to open and when ⌘N asks for a project, and
+it closes the moment something is opened from it
+([Q48](decisions.md#q48--a-window-is-a-project-and-the-launcher-is-a-window-of-its-own),
+[S7.5](scope-release-3.md)).
 
-**Becoming a window of its own at [S7.5](scope-release-3.md)**
-([Q48](decisions.md#q48--a-window-is-a-project-and-the-launcher-is-a-window-of-its-own)): the same
-contents, in a small window that opens at start and closes when something is opened from it. What is
-drawn below does not change; where it is drawn does.
+It was an overlay inside a project window until [S7.9](scope-release-3.md), which made a window two
+different things depending on whether it happened to hold any graphs. A project window between
+documents now says one quiet line — where the way in is — rather than becoming a launcher.
 
 ```text
 ┌───────────────────────────────────────────────────────────┐

@@ -2,9 +2,15 @@
 	import type { ImportKind, RecentEntry } from '../ipc/commands';
 	import ImportCards from './ImportCards.svelte';
 
-	// What an empty window shows (Q13). A **launcher, not a wizard**: it disappears the moment a
-	// project is open, and everything on it is also reachable from inside the workbench. It gained
-	// its import cards at S3.2 and gains "start a style" at S4 — nothing here gates anything.
+	// The launcher's contents (Q13, [Q48]). A **launcher, not a wizard**: everything on it is also
+	// reachable from inside the workbench, and nothing here gates anything. It gained its import
+	// cards at S3.2 and "Open a project" when it became a window of its own at S7.5.
+	//
+	// **It was what an empty project window showed** until S7.9. As an overlay it made a window two
+	// different things depending on whether it happened to hold any graphs; as a window of its own
+	// it is one thing, and a project window between documents says one quiet line instead.
+	//
+	// [Q48]: ../../../docs/decisions.md
 	//
 	// The cards come from the core's catalogue rather than being written out here, which is what
 	// removed the "Open a tile container" card that named four extensions the drop handler and the
@@ -105,12 +111,11 @@
 	   the content is taller than the window: centred overflow spills past *both* edges, so the
 	   heading goes off the top where no scrollbar can reach it. Centring moved to the sheet's auto
 	   margins, which collapse to zero the moment there is nothing to spare. */
+	/* Fills whatever it is given, which is now a window of its own rather than the map region. */
 	.landing {
 		height: 100%;
 		display: flex;
 		overflow-y: auto;
-		/* The map is behind this, and scrolling past the end of a list should not start panning it. */
-		overscroll-behavior: contain;
 		padding: var(--space-6);
 		background: var(--chrome);
 	}

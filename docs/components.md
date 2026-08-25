@@ -67,21 +67,21 @@ The five-region grid from [UI Concept](ui.md). All Studio-specific. How they are
 tokens, the rules and what is enforced — is in [Styling](styling.md). A component that adds a map
 layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not follow the theme.
 
-| Component          | Does                                                                                                          | Stage |
-| ------------------ | ------------------------------------------------------------------------------------------------------------- | ----- |
-| `AppShell`         | The grid: two sidebars, map, and the status bar under them                                                    | S0.1  |
-| `Sidebar` + `Pane` | A sidebar renders a **list** of panes; each is foldable and its state is core-owned ([Q31](decisions.md))     | S2.2  |
-| `PaneResizer`      | The draggable edge of a side pane, used on both                                                               | S2.2  |
-| `MapControls`      | Background picker, grid toggle and Reset view, over the map                                                   | S1.6  |
-| `StatusBar`        | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))            | S1.9  |
-| `JobsPanel`        | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                        | S3.1  |
-| `DiagnosticsPanel` | What has gone wrong, this session and the run before it, with a report to copy into an issue (S6.8)           | S6.8  |
-| `Boundary`         | One pane or the map failing instead of the window; records what it caught and offers a retry (S6.8)           | S6.8  |
-| `LandingScreen`    | The ways in, the recent list and Open a project — drawn by `Launcher` in its own window ([Q48](decisions.md)) | S1.1  |
-| `Launcher`         | The launcher window's root. Every gesture ends in a project window opening and this one closing (S7.6)        | S7.5  |
-| `AlphaRibbon`      | What state this is in, across the top-right corner, linking to the repository in the system browser           | —     |
-| `ImportCards`      | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)              | S3.2  |
-| `CopyDialog`       | What a portable copy would carry, and whether to write it as a folder or a `.zip` (G1)                        | S5.1  |
+| Component          | Does                                                                                                               | Stage |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------ | ----- |
+| `AppShell`         | The grid: two sidebars, map, and the status bar under them                                                         | S0.1  |
+| `Sidebar` + `Pane` | A sidebar renders a **list** of panes; each is foldable and its state is core-owned ([Q31](decisions.md))          | S2.2  |
+| `PaneResizer`      | The draggable edge of a side pane, used on both                                                                    | S2.2  |
+| `MapControls`      | Background picker, grid toggle and Reset view, over the map                                                        | S1.6  |
+| `StatusBar`        | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))                 | S1.9  |
+| `JobsPanel`        | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                             | S3.1  |
+| `DiagnosticsPanel` | What has gone wrong, this session and the run before it, with a report to copy into an issue (S6.8)                | S6.8  |
+| `Boundary`         | One pane or the map failing instead of the window; records what it caught and offers a retry (S6.8)                | S6.8  |
+| `LandingScreen`    | The ways in, the recent list and Open a project — the launcher's contents, in its own window ([Q48](decisions.md)) | S1.1  |
+| `Launcher`         | The launcher window's root. Every gesture ends in a project window opening and this one closing (S7.6)             | S7.5  |
+| `AlphaRibbon`      | What state this is in, across the top-right corner, linking to the repository in the system browser                | —     |
+| `ImportCards`      | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)                   | S3.2  |
+| `CopyDialog`       | What a portable copy would carry, and whether to write it as a folder or a `.zip` (G1)                             | S5.1  |
 
 ## Map
 

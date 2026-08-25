@@ -26,7 +26,6 @@
 	import { exporting } from './lib/state/export.svelte';
 	import { status } from './lib/state/status.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
-	import LandingScreen from './lib/common/LandingScreen.svelte';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
 	import StylePane from './lib/panes/style/StylePane.svelte';
@@ -50,7 +49,6 @@
 
 	import { forExport } from './lib/map/style-code';
 	import {
-		forgetRecent,
 		takeOpened,
 		OPENED_EVENT,
 		MENU_EVENT,
@@ -63,7 +61,6 @@
 		openVpl,
 		saveVpl,
 		redo as redoPipeline,
-		recentSources,
 		serverBaseUrl,
 		vplRemoveProperty,
 		vplInsertNode,
@@ -81,8 +78,7 @@
 		importReadNode,
 		fieldSuggestions,
 		type EditKind,
-		type ImportKind,
-		type RecentEntry
+		type ImportKind
 	} from './lib/ipc/commands';
 
 	/// Every way in this build has (S3.2). Build-time information about the binary, so it is fetched
@@ -178,8 +174,6 @@
 
 	/// Whether the update dialog is up. Opening it is what asks — see `UpdateDialog`.
 	let updating = $state(false);
-	let recents = $state<RecentEntry[]>([]);
-
 	// The landing screen is what an *empty* window shows — it goes away for good once something is
 	// open, and never gates anything (Q13).
 	//
@@ -208,7 +202,6 @@
 		// still running across a reload — has to appear in the bar, not only the ones this session
 		// starts.
 		void connectJobs();
-		void refreshRecents();
 		void layout.load();
 		void vplOperations().then((loaded) => (operations = loaded));
 		// The style survives a reload the way the graphs do — the core owns it ([Q36]).
@@ -406,10 +399,6 @@
 	///
 	/// Only a `busy` message is cleared: an error is a state someone has to answer, and dropping it
 	/// because unrelated work finished would hide the thing that needs answering.
-	async function refreshRecents() {
-		recents = await recentSources().catch(() => []);
-	}
-
 	$effect(() => {
 		serverBaseUrl()
 			.then((url) => {
@@ -688,7 +677,6 @@
 			status.busy(`Saved ${filename(target)}`);
 			// The other half of the dot: saving is what clears it, and the list has to be told.
 			await graphs.refresh();
-			await refreshRecents();
 			status.settle();
 		} catch (e) {
 			status.fail(e);
@@ -752,11 +740,9 @@
 				// beside it (C2, C4); this only says so where the eye already is.
 				if (opened.diagnostics.length > 0) {
 					status.fail(opened.diagnostics[0].message);
-					await refreshRecents();
 					return;
 				}
 			}
-			await refreshRecents();
 			await refreshPreview();
 		} catch (e) {
 			status.fail(e);
@@ -903,16 +889,13 @@
 				}}
 			/>
 			{#if empty}
-				<LandingScreen
-					{kinds}
-					{recents}
-					onImport={(kind) => void pick(kind)}
-					onOpenUrl={(source) => void load(source)}
-					onForget={async (source) => {
-						await forgetRecent(source);
-						await refreshRecents();
-					}}
-				/>
+				<!-- **Quiet, and not a launcher** (S7.9, [Q48]). The launcher is a window now; putting
+				     one inside a window that is already a project is what made a project window two
+				     different things depending on its contents. This is a window between documents —
+				     it says where the way in is and gets out of the way. -->
+				<p class="nothing">
+					Nothing is open. <strong>File → Open…</strong> brings a container, a pipeline or a table into this window.
+				</p>
 			{:else}
 				<CoordinateJump {map} />
 				<Views {map} />
@@ -970,11 +953,23 @@
 <Help />
 
 <style>
-	/* The landing screen covers the map region entirely; the map keeps running behind it so that
-	   opening something does not have to build one. */
-	:global(.landing) {
+	/* A window between documents. Over the map rather than replacing it — the map keeps running, so
+	   opening something does not have to build one — and small enough to read as a note rather than
+	   as a screen (S7.9). */
+	.nothing {
 		position: absolute;
-		inset: 0;
+		inset: auto 0 0;
+		margin: 0;
+		padding: var(--space-4) var(--space-5);
 		z-index: 6;
+		font-size: var(--text-sm);
+		color: var(--ink-2);
+		text-align: center;
+
+		strong {
+			color: var(--ink);
+			font-weight: 500;
+			white-space: nowrap;
+		}
 	}
 </style>

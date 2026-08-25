@@ -34,7 +34,7 @@ contents — and makes "new project" mean "empty this window out".
 | **S7.6** | ~~**The handoff.**~~ — **done**; `open_in_new_window` names the window first, queues the path for it, opens it and then closes the launcher — in that order, or the application is briefly window-less. `PendingOpen` is keyed per window with an unclaimed queue for what the OS asked before any window existed                                                                                                  | infrastructure |
 | **S7.7** | ~~**Startup and lifecycle.**~~ — **done**; `tauri.conf.json` declares no window at all, so what opens is decided in `lib.rs`: a file on the command line opens a project window for itself, anything else opens the launcher. `ExitRequested` brings the launcher back when the last project window closes, and lets the application go when the launcher itself was the last to close                             | infrastructure |
 | **S7.8** | ~~**The menu follows focus.**~~ — **done**; `menu::apply` runs on `Focused` and whenever the focused window says its answer changed, and it reads the project in the core rather than a flag pushed up from a `$derived` — one fact, not two. The launcher answers the menu items it is for, and the shell disables the ones it is not                                                                             | infrastructure |
-| **S7.9** | **The in-window landing screen goes**, and a project window with no graphs left shows a quiet empty workbench rather than a launcher inside a window that is already a project                                                                                                                                                                                                                                     | infrastructure |
+| **S7.9** | ~~**The in-window landing screen goes.**~~ — **done**; a project window between documents says one quiet line about where the way in is, rather than becoming a launcher. The recents list went with it — this window only ever wrote to it, and the launcher is what reads it                                                                                                                                     | infrastructure |
 
 **Built in this order, which is close to the numbering but not identical.** S7.1 is the change
 everything else stands on. S7.2, S7.3 and S7.4 are not separate features — they are the three places
@@ -45,10 +45,10 @@ second project.
 S7.5 to S7.9 are the visible half and are mostly new code: a second entry point, a window, and the
 wiring between them.
 
-**S7.1 to S7.4 have landed, and ⌘N now means what Q16 said it did**: two windows with their own
-graphs, undo stacks, tiles, job lists and cameras. The webview did not change for any of it — specta
-skips a `Window` argument, so forty command signatures moved without a line of TypeScript following
-them.
+**All of S7 has landed.** S7.1 to S7.4 made a window mean a project — its own graphs, undo stack,
+tiles, job list and camera — and not one line of TypeScript changed for it, because specta skips a
+`Window` argument the way it skips `AppHandle`. S7.5 to S7.9 made the launcher a window and took the
+last of it out of the workbench.
 
 ## The three collisions S7.1 exposes
 
