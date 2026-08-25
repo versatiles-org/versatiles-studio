@@ -99,6 +99,18 @@ export const appVersion = () => commands.appVersion();
 /** Base URL of the embedded server. The port is ephemeral, so it must be asked for, never assumed. */
 export const serverBaseUrl = () => unwrap(commands.serverBaseUrl());
 
+/**
+ * Opens a project window for `source`, hands it that path, and closes the window that asked (S7.6).
+ *
+ * The launcher's whole gesture. The path is not inspected here or there: a file, a project
+ * directory and a URL are all the same to it, and the window that receives it decides what it is —
+ * through the same code that already answers that for a double-clicked file.
+ */
+export const openInNewWindow = (source: string) => unwrap(commands.openInNewWindow(source));
+
+/** Opens the launcher, or focuses the one already open (S7.5). */
+export const openLauncher = () => unwrap(commands.openLauncher());
+
 /** Files the OS has asked Studio to open since the last call. Draining, so two windows cannot both. */
 export const takeOpened = () => commands.takeOpened();
 

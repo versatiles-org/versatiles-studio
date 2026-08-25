@@ -32,6 +32,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::app_version,
 		commands::server_base_url,
 		commands::open_window,
+		commands::open_in_new_window,
+		commands::open_launcher,
 		commands::set_menu_state,
 		commands::diagnostics::diagnostics,
 		commands::diagnostics::previous_problems,

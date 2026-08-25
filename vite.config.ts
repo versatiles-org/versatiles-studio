@@ -1,5 +1,6 @@
 // `vitest/config` rather than `vite`, so the `test` block below is typed. It re-exports
 // Vite's own `defineConfig` and adds nothing to the build.
+import { resolve } from 'node:path';
 import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
@@ -69,6 +70,16 @@ export default defineConfig({
 	build: {
 		target: 'es2022',
 		sourcemap: true,
+		// **Two pages, because the launcher is one** ([S7.5](docs/scope-release-3.md)). Vite builds
+		// the entry it finds at the root unless told otherwise, and a `landing.html` it has not been
+		// told about is simply absent from the bundle — where it fails as a blank window rather than
+		// as a build error.
+		rollupOptions: {
+			input: {
+				index: resolve(__dirname, 'index.html'),
+				landing: resolve(__dirname, 'landing.html')
+			}
+		},
 		// MapLibre alone is ~800 kB. Code-splitting a desktop app that loads from disk buys nothing,
 		// so the default 500 kB advisory is noise rather than a signal.
 		chunkSizeWarningLimit: 1500

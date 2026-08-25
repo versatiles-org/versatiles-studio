@@ -14,6 +14,7 @@
 		recents,
 		onImport,
 		onOpenUrl,
+		onOpenProject,
 		onForget
 	}: {
 		/** Every way in this build has, in the order the core offers them. */
@@ -21,6 +22,9 @@
 		recents: RecentEntry[];
 		onImport: (kind: ImportKind) => void;
 		onOpenUrl: (url: string) => void;
+		/** Opening a whole project directory (G1) — offered by the launcher, which is where starting
+		 *  from something you already have belongs. Absent inside a window that already has one. */
+		onOpenProject?: () => void;
 		onForget: (source: string) => void;
 	} = $props();
 
@@ -49,6 +53,15 @@
 
 		<div class="ways">
 			<ImportCards {kinds} onChoose={onImport} />
+
+			<!-- Not a card in the catalogue either: a project is not a way *in*, it is somewhere you
+			     have already been. It sits with the ways in because that is what a launcher is for. -->
+			{#if onOpenProject}
+				<button type="button" class="card project" onclick={onOpenProject}>
+					<strong>Open a project</strong>
+					<span>A folder Studio saved: the pipelines, the style and the manifest</span>
+				</button>
+			{/if}
 
 			<!-- Not a card in the catalogue: a URL is not a *kind* of data, it is a place one comes
 			     from, and every kind that can be read over HTTP can be read from here. -->

@@ -28,6 +28,24 @@ export const commands = {
 	 */
 	openWindow: (label: string) => typedError<null, string>(__TAURI_INVOKE("open_window", { label })),
 	/**
+	 *  Opens a project window for `source`, hands it that path, and closes the window that asked.
+	 * 
+	 *  **The launcher's whole gesture, as one command** ([S7.6](../../docs/scope-release-3.md)). Three
+	 *  steps that only make sense together: a launcher that opened a window and stayed would be a
+	 *  launcher you have to dismiss, and one that closed before the window existed would be an
+	 *  application with no windows for as long as a webview takes to boot.
+	 * 
+	 *  **Queued before the window is built**, because a webview starts asynchronously and drains its
+	 *  queue when it is ready — pushing afterwards would be racing the thing being handed to.
+	 * 
+	 *  The path is not inspected here. A file, a directory holding a project, or a URL are all the same
+	 *  to this: the window that receives it decides what it is, using the same code that already
+	 *  answers that question for a double-clicked file.
+	 */
+	openInNewWindow: (source: string) => typedError<null, string>(__TAURI_INVOKE("open_in_new_window", { source })),
+	/**  Opens the launcher, or focuses the one already open (S7.5). */
+	openLauncher: () => typedError<null, string>(__TAURI_INVOKE("open_launcher")),
+	/**
 	 *  Enables or disables the menu items that need something to be open (S0.1).
 	 * 
 	 *  **Pushed down, not pulled up.** Whether there is a project to save is a `$derived` in the

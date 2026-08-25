@@ -35,8 +35,12 @@ describe('component organisation', () => {
 	/// Not a rule so much as the shape the rules produce: a component belongs to a pane, the shell,
 	/// the map, or more than one owner. A new top-level folder is a decision worth making on
 	/// purpose, so this fails until `docs/components.md` says what it is for.
+	///
+	/// **Two roots at the top**, one per page: `App` is the workbench and `Launcher` is the window
+	/// that opens projects ([Q48](../../docs/decisions.md), S7.5). A third would be a third window
+	/// with a page of its own, which is worth stopping to justify.
 	it('keeps components in the folders the scheme names', () => {
-		const allowed = /^src\/(App\.svelte|lib\/(shell|common|map|panes\/[a-z]+)\/[A-Za-z]+\.svelte)$/;
+		const allowed = /^src\/((App|Launcher)\.svelte|lib\/(shell|common|map|panes\/[a-z]+)\/[A-Za-z]+\.svelte)$/;
 		const stray = components('src')
 			.map(([, path]) => path)
 			.filter((path) => !allowed.test(path));

@@ -24,28 +24,60 @@
 //! a single string. Claiming `application/vnd.sqlite3` outright is the trap to avoid: Studio would
 //! offer to open every SQLite file on the machine.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager};
 
 /// Paths waiting for a webview to pick them up.
+///
+/// **Two queues, because there are two ways a path arrives** ([S7.6](../../docs/scope-release-3.md)):
+///
+/// * *For a window*, which is the launcher's handoff — it creates a project window and hands that
+///   window the thing it was asked to open. Only that window may take it.
+/// * *For nobody in particular*, which is the operating system asking before any window exists. The
+///   first window to ask takes it, which is the behaviour a double-clicked file has always had.
 #[derive(Default)]
-pub struct PendingOpen(Mutex<Vec<String>>);
+pub struct PendingOpen(Mutex<Queues>);
+
+#[derive(Default)]
+struct Queues {
+	claimed: HashMap<String, Vec<String>>,
+	unclaimed: Vec<String>,
+}
 
 impl PendingOpen {
-	pub fn push(&self, paths: impl IntoIterator<Item = String>) {
-		if let Ok(mut queue) = self.0.lock() {
-			queue.extend(paths);
+	/// Queues paths for one window. Waits there however long that window takes to start.
+	pub fn push_for(&self, label: &str, paths: impl IntoIterator<Item = String>) {
+		if let Ok(mut queues) = self.0.lock() {
+			queues.claimed.entry(label.to_string()).or_default().extend(paths);
 		}
 	}
 
-	/// Takes everything queued. Draining rather than reading, so two windows cannot both open it.
-	pub fn take(&self) -> Vec<String> {
-		self
-			.0
-			.lock()
-			.map(|mut queue| std::mem::take(&mut *queue))
-			.unwrap_or_default()
+	/// Queues paths for whichever window asks first.
+	pub fn push(&self, paths: impl IntoIterator<Item = String>) {
+		if let Ok(mut queues) = self.0.lock() {
+			queues.unclaimed.extend(paths);
+		}
+	}
+
+	/// Takes what is waiting for this window, and anything waiting for nobody.
+	///
+	/// Draining rather than reading, so two windows cannot both open the same file.
+	pub fn take(&self, label: &str) -> Vec<String> {
+		let Ok(mut queues) = self.0.lock() else {
+			return Vec::new();
+		};
+		let mut taken = queues.claimed.remove(label).unwrap_or_default();
+		taken.append(&mut queues.unclaimed);
+		taken
+	}
+
+	/// Forgets what was waiting for a window that will never ask — one that failed to open.
+	pub fn forget(&self, label: &str) {
+		if let Ok(mut queues) = self.0.lock() {
+			queues.claimed.remove(label);
+		}
 	}
 }
 
@@ -78,8 +110,8 @@ pub fn receive(app: &AppHandle, paths: Vec<String>) {
 /// Everything the OS has asked Studio to open since the last call.
 #[tauri::command]
 #[specta::specta]
-pub fn take_opened(app: AppHandle) -> Vec<String> {
-	app.state::<PendingOpen>().take()
+pub fn take_opened(app: AppHandle, window: tauri::Window) -> Vec<String> {
+	app.state::<PendingOpen>().take(window.label())
 }
 
 #[cfg(test)]
@@ -91,11 +123,47 @@ mod tests {
 		let pending = PendingOpen::default();
 		pending.push(["/a.versatiles".to_string(), "/b.vpl".to_string()]);
 
-		assert_eq!(pending.take(), ["/a.versatiles", "/b.vpl"]);
+		assert_eq!(pending.take("window-1"), ["/a.versatiles", "/b.vpl"]);
 		assert!(
-			pending.take().is_empty(),
+			pending.take("window-2").is_empty(),
 			"a second window must not open the same files"
 		);
+	}
+
+	/// The launcher's handoff: it names the window the file is for, and no other window may take it.
+	#[test]
+	fn a_path_meant_for_one_window_waits_for_that_window() {
+		let pending = PendingOpen::default();
+		pending.push_for("window-2", ["/berlin.versatiles".to_string()]);
+
+		assert!(
+			pending.take("window-1").is_empty(),
+			"another window took the launcher's handoff"
+		);
+		assert_eq!(pending.take("window-2"), ["/berlin.versatiles"]);
+		assert!(pending.take("window-2").is_empty(), "and only once");
+	}
+
+	/// A double-clicked file arrives before any window exists, so it waits for whoever asks first.
+	#[test]
+	fn a_window_takes_its_own_and_whatever_was_waiting_for_nobody() {
+		let pending = PendingOpen::default();
+		pending.push(["/from-the-os.versatiles".to_string()]);
+		pending.push_for("window-2", ["/from-the-launcher.versatiles".to_string()]);
+
+		assert_eq!(
+			pending.take("window-2"),
+			["/from-the-launcher.versatiles", "/from-the-os.versatiles"]
+		);
+	}
+
+	/// A window that never opened would otherwise hold its handoff for the life of the process.
+	#[test]
+	fn forgetting_a_window_drops_what_was_waiting_for_it() {
+		let pending = PendingOpen::default();
+		pending.push_for("window-2", ["/berlin.versatiles".to_string()]);
+		pending.forget("window-2");
+		assert!(pending.take("window-2").is_empty());
 	}
 
 	/// The executable itself and any flags are not files to open.

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { open, save } from '@tauri-apps/plugin-dialog';
+	import { save } from '@tauri-apps/plugin-dialog';
 	import { untrack } from 'svelte';
 	import { getCurrentWebview } from '@tauri-apps/api/webview';
 	import { listen } from '@tauri-apps/api/event';
@@ -14,6 +14,7 @@
 	import { refresh as refreshProblems, reportProblem, watch as watchForProblems } from './lib/state/diagnostics.svelte';
 	import { panels } from './lib/shell/StatusBar.svelte';
 	import { REPOSITORY } from './lib/common/repository';
+	import { anyExtension, askForSource } from './lib/common/import';
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
@@ -90,8 +91,9 @@
 	/// step: none of them knew about `from_geo`, which the binary has had all along.
 	let kinds = $state<ImportKind[]>([]);
 
-	/// Extensions the window accepts at all, for the dialog's catch-all filter and for drop.
-	const anyExtension = $derived(kinds.flatMap((kind) => kind.extensions));
+	/// Extensions the window accepts at all, for the drop handler. The dialog's filters come from
+	/// the same catalogue through `common/import.ts`, which the launcher also uses (S7.5).
+	const accepted = $derived(anyExtension(kinds));
 
 	/// What Save writes. Taken from the same catalogue as the open side, so the extension a
 	/// pipeline is saved with is by construction one that can be opened again.
@@ -554,7 +556,7 @@
 		const unlisten = getCurrentWebview().onDragDropEvent((event) => {
 			if (event.payload.type !== 'drop') return;
 			for (const path of event.payload.paths) {
-				if (anyExtension.some((ext) => path.toLowerCase().endsWith(`.${ext}`))) void load(path);
+				if (accepted.some((ext) => path.toLowerCase().endsWith(`.${ext}`))) void load(path);
 			}
 		});
 		return () => void unlisten.then((f) => f());
@@ -562,18 +564,12 @@
 
 	/// Opens the file dialog, narrowed to one import kind when a card chose it.
 	///
-	/// A card's whole contribution is *saying what you are bringing in before you go looking for
-	/// it*, so the dialog it opens shows that kind's files and nothing else. With no card — the
-	/// keyboard route, or "+ Add source" before a choice — every kind is offered at once.
+	/// The filters live in `common/import.ts` because the launcher offers the same ones from a page
+	/// that cannot reach this function — two copies of "what Studio can open" is the shape of bug
+	/// where a launcher offers a format the workbench then refuses (S7.5).
 	async function pick(kind?: ImportKind) {
-		const filters = kind
-			? [{ name: kind.label, extensions: kind.extensions }]
-			: [
-					{ name: 'Everything Studio can open', extensions: anyExtension },
-					...kinds.map((each) => ({ name: each.label, extensions: each.extensions }))
-				];
-		const picked = await open({ multiple: false, filters });
-		if (typeof picked === 'string') await load(picked);
+		const picked = await askForSource(kinds, kind);
+		if (picked) await load(picked);
 	}
 
 	/// Builds the preview and says in the bar what came of it.

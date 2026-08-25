@@ -101,7 +101,7 @@ fn application(app: &AppHandle) -> Result<Submenu<Wry>> {
 fn file(app: &AppHandle) -> Result<Submenu<Wry>> {
 	#[cfg_attr(target_os = "macos", allow(unused_mut))]
 	let mut file = SubmenuBuilder::with_id(app, FILE, "File")
-		.text("new-window", "New Window")
+		.text("new-project", "New Project…")
 		.separator()
 		.text("open", "Open…")
 		.text("open-project", "Open Project…")
@@ -118,7 +118,7 @@ fn file(app: &AppHandle) -> Result<Submenu<Wry>> {
 	}
 
 	let file = file.build()?;
-	accelerate(&file, "new-window", "CmdOrCtrl+N")?;
+	accelerate(&file, "new-project", "CmdOrCtrl+N")?;
 	accelerate(&file, "open", "CmdOrCtrl+O")?;
 	accelerate(&file, "open-project", "CmdOrCtrl+Shift+O")?;
 	accelerate(&file, SAVE_PROJECT, "CmdOrCtrl+S")?;
@@ -191,21 +191,26 @@ fn accelerate(submenu: &Submenu<Wry>, id: &str, keys: &str) -> Result<()> {
 /// project open on the machine.
 pub fn chosen(app: &AppHandle, id: &MenuId) {
 	// **Answered here, because no window is involved in the answer.** Everything else acts on the
-	// project in front of someone; a new window is the shell's own errand, and sending it through a
-	// webview only to have it call back would put a round trip between the key and the window.
+	// project in front of someone; opening a window is the shell's own errand, and sending it
+	// through a webview only to have it call back would put a round trip between the key and the
+	// window.
+	// **⌘N opens the launcher**, which is what starting a project now means ([Q48], S7.5). It used
+	// to open an empty project window — a window that could do nothing until you used File → Open,
+	// which is the launcher's job said less well.
+	if id.0 == "new-project" {
+		if let Err(error) = crate::windows::open_launcher(app) {
+			let state = app.state::<crate::state::AppState>();
+			crate::warn(&state.diagnostics, "Could not open the launcher", &error);
+		}
+		return;
+	}
+
 	// Answered here for the same reason as the one below it: showing a file in the file manager is
 	// the shell's errand, and the file is the application's own — no window is involved in either.
 	if id.0 == "show-log" {
 		if let Err(error) = crate::commands::diagnostics::reveal_log(app) {
 			let state = app.state::<crate::state::AppState>();
 			crate::warn(&state.diagnostics, "Could not show the problem log", &error);
-		}
-		return;
-	}
-	if id.0 == "new-window" {
-		if let Err(error) = crate::windows::open_new(app) {
-			let state = app.state::<crate::state::AppState>();
-			crate::warn(&state.diagnostics, "Could not open a new window", &error);
 		}
 		return;
 	}
