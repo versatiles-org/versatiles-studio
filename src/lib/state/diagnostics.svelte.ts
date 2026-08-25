@@ -68,6 +68,19 @@ let pending: Promise<unknown> = Promise.resolve();
 /** Reports turned away by the cap, so that the fact can be recorded rather than hidden. */
 let dropped = 0;
 
+/**
+ * How many reports may fail in a row before this module stops trying.
+ *
+ * **A circuit breaker, and it earns its keep the moment the console is teed.** If the core has gone
+ * away, every report fails — and anything that logs a failed report to the console comes straight
+ * back through the tee as another problem to report. The queue's cap bounds one burst of that; this
+ * ends it. Five in a row is a core that is gone, not a hiccup: one success resets the count.
+ */
+const GIVE_UP_AFTER = 5;
+
+let failures = 0;
+let stopped = false;
+
 export const problems = {
 	get list(): Problem[] {
 		return list;
@@ -91,6 +104,7 @@ export const problems = {
  * reads from here.
  */
 export function record(problem: NewProblem): void {
+	if (stopped) return;
 	if (queued >= QUEUE_LIMIT) {
 		dropped += 1;
 		return;
@@ -103,10 +117,15 @@ export function record(problem: NewProblem): void {
 	// handles, rather than an exception thrown back into `status.fail` and out of somebody's catch.
 	pending = pending
 		.then(() => logDiagnostic(problem))
-		.then((total) => (count = total))
+		.then((total) => {
+			count = total;
+			failures = 0;
+		})
 		.catch(() => {
 			// The core is the only place a problem can be kept, so there is nowhere left to say that
 			// saying it failed. Dropping it is the end of the line rather than a choice.
+			failures += 1;
+			stopped = failures >= GIVE_UP_AFTER;
 		})
 		.finally(() => {
 			queued -= 1;
@@ -148,6 +167,8 @@ export function reset(): void {
 	count = 0;
 	queued = 0;
 	dropped = 0;
+	failures = 0;
+	stopped = false;
 	pending = Promise.resolve();
 }
 
@@ -198,9 +219,95 @@ function json(value: object): string | null {
 }
 
 /**
+ * The console methods that mean something went wrong, and the level each one means.
+ *
+ * Not `log` or `info`. Those are how a library narrates itself, and a panel that collected them
+ * would be a transcript rather than a list of problems — with the one line that matters somewhere
+ * in the middle of it.
+ */
+const TEED = { error: 'error', warn: 'warn' } as const satisfies Record<string, NewProblem['level']>;
+
+/**
+ * Whether a report is being made from inside the tee, so the tee cannot report its own reporting.
+ *
+ * **The synchronous half only.** A report that fails does so a turn later, with this long since
+ * down, and anything that logs *that* to the console arrives back here as a new problem. What ends
+ * that is the queue's cap and then [`GIVE_UP_AFTER`] — this only stops the tightest version of it.
+ */
+let teeing = false;
+
+/**
+ * Copies what is written to `console.error` and `console.warn` into the log.
+ *
+ * **This is the only way to hear from code that neither throws nor fires an event**, which is most
+ * of what a map draws with: MapLibre's style-spec validation says exactly why a layer drew nothing
+ * and says it to the console, and a bundled build has no console anybody can open. Studio's own
+ * `tokens.ts` and `overlay.ts` report the same way.
+ *
+ * **The original is always called first**, so a developer with devtools open loses nothing and sees
+ * it in the usual order.
+ */
+export function teeConsole(): () => void {
+	/** What was there before, and what this put in its place — both needed to undo it safely. */
+	const swapped: { name: keyof typeof TEED; before: typeof console.error; patched: typeof console.error }[] = [];
+
+	for (const name of Object.keys(TEED) as (keyof typeof TEED)[]) {
+		const before = console[name];
+		const call = before.bind(console) as (...args: unknown[]) => void;
+		const patched = (...args: unknown[]) => {
+			call(...args);
+			// Reporting can itself write to the console — an IPC layer complaining that it has no
+			// window to talk to — and that would arrive back here as another thing to report.
+			if (teeing) return;
+			teeing = true;
+			try {
+				record({ level: TEED[name], origin: 'webview', ...phrase(args) });
+			} finally {
+				teeing = false;
+			}
+		};
+		swapped.push({ name, before, patched });
+		console[name] = patched;
+	}
+
+	return () => {
+		for (const { name, before, patched } of swapped) {
+			// **Only if it is still ours.** Something else may have wrapped the console since — a
+			// devtools bridge, another copy of this — and restoring over it would tear out its work
+			// while leaving it holding a reference to this one.
+			if (console[name] === patched) console[name] = before;
+		}
+		swapped.length = 0;
+	};
+}
+
+/**
+ * What a console call is saying: its first argument, then everything else as detail.
+ *
+ * `console.error('could not draw', error, { layer })` is the shape almost every caller uses, and
+ * the first argument is reliably the sentence. The rest is what a report needs and a list has no
+ * room for.
+ */
+function phrase(args: unknown[]): { message: string; detail: string | null } {
+	if (args.length === 0) return { message: 'console call with no arguments', detail: null };
+	const [first, ...rest] = args;
+	const head = describe(first);
+	const tail = rest.map(readable).filter(Boolean).join('\n');
+	return { message: head.message, detail: [head.detail, tail].filter(Boolean).join('\n') || null };
+}
+
+/** One console argument as text, keeping a stack whole and a circular object from throwing. */
+function readable(value: unknown): string {
+	if (value instanceof Error) return value.stack ?? `${value.name}: ${value.message}`;
+	if (typeof value !== 'object' || value === null) return String(value);
+	return json(value) ?? String(value);
+}
+
+/**
  * Starts listening for what only the webview can see. Called once, from the shell's startup.
  *
- * Returns the teardown, so a reload does not leave two of each handler on one `window`.
+ * Returns the teardown, so a reload does not leave two of each handler on one `window` — or two
+ * layers of console wrapper, each calling the other.
  */
 export function watch(): () => void {
 	const onRejection = (event: PromiseRejectionEvent) => {
@@ -223,8 +330,10 @@ export function watch(): () => void {
 
 	window.addEventListener('unhandledrejection', onRejection);
 	window.addEventListener('error', onError, true);
+	const untee = teeConsole();
 	return () => {
 		window.removeEventListener('unhandledrejection', onRejection);
 		window.removeEventListener('error', onError, true);
+		untee();
 	};
 }

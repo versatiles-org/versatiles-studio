@@ -7,6 +7,7 @@
 	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
 	import AppShell from './lib/shell/AppShell.svelte';
 	import StatusBar from './lib/shell/StatusBar.svelte';
+	import Boundary from './lib/shell/Boundary.svelte';
 	import Help from './lib/common/Help.svelte';
 	import { connectJobs } from './lib/state/jobs.svelte';
 	import { refresh as refreshProblems, watch as watchForProblems } from './lib/state/diagnostics.svelte';
@@ -813,60 +814,65 @@
 		/>
 	{/snippet}
 	{#snippet mapPane()}
-		{#if style}
-			<MapCanvas
-				{style}
-				bind:map
-				initialView={layout.current?.view ?? null}
-				onMove={(view) => layout.rememberView(view)}
-				onStyleLoad={() => preview.restore(map, previewDrawn)}
+		<!-- The map inside a boundary of its own, for the same reason the panes are: a style or a
+		     container it cannot make sense of should not take the editor and the status bar with it,
+		     which is the one place that could then say what happened. -->
+		<Boundary label="The map">
+			{#if style}
+				<MapCanvas
+					{style}
+					bind:map
+					initialView={layout.current?.view ?? null}
+					onMove={(view) => layout.rememberView(view)}
+					onStyleLoad={() => preview.restore(map, previewDrawn)}
+				/>
+			{/if}
+			<!-- `mount` is what the click is allowed to hit: Studio's own tiles, never the background. -->
+			<FeaturePopup
+				{map}
+				{drawing}
+				source={preview.containers.at(-1)?.info.source ?? null}
+				mount={preview.last?.name ?? null}
 			/>
-		{/if}
-		<!-- `mount` is what the click is allowed to hit: Studio's own tiles, never the background. -->
-		<FeaturePopup
-			{map}
-			{drawing}
-			source={preview.containers.at(-1)?.info.source ?? null}
-			mount={preview.last?.name ?? null}
-		/>
-		<TileGrid {map} visible={showGrid} />
-		<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
+			<TileGrid {map} visible={showGrid} />
+			<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
 		     has no visibility of its own to toggle. -->
-		<TileActivity {map} />
-		<!-- Always mounted: with no crop it draws nothing, and drawing mode is a prop rather than a
+			<TileActivity {map} />
+			<!-- Always mounted: with no crop it draws nothing, and drawing mode is a prop rather than a
 		     mount, so leaving it does not have to tear down the rectangle it just made. -->
-		<CropOverlay
-			{map}
-			bbox={crop.bbox ?? null}
-			{drawing}
-			onDrawn={(bbox) => {
-				drawing = false;
-				void changeCrop({ bbox, minZoom: crop.minZoom ?? null, maxZoom: crop.maxZoom ?? null });
-			}}
-		/>
-		{#if empty}
-			<LandingScreen
-				{kinds}
-				{recents}
-				onImport={(kind) => void pick(kind)}
-				onOpenUrl={(source) => void load(source)}
-				onForget={async (source) => {
-					await forgetRecent(source);
-					await refreshRecents();
+			<CropOverlay
+				{map}
+				bbox={crop.bbox ?? null}
+				{drawing}
+				onDrawn={(bbox) => {
+					drawing = false;
+					void changeCrop({ bbox, minZoom: crop.minZoom ?? null, maxZoom: crop.maxZoom ?? null });
 				}}
 			/>
-		{:else}
-			<CoordinateJump {map} />
-			<Views {map} />
-			<MapControls
-				{background}
-				{showGrid}
-				canReset={Boolean(preview.last?.info.bbox)}
-				onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
-				onToggleGrid={() => (showGrid = !showGrid)}
-				onReset={resetView}
-			/>
-		{/if}
+			{#if empty}
+				<LandingScreen
+					{kinds}
+					{recents}
+					onImport={(kind) => void pick(kind)}
+					onOpenUrl={(source) => void load(source)}
+					onForget={async (source) => {
+						await forgetRecent(source);
+						await refreshRecents();
+					}}
+				/>
+			{:else}
+				<CoordinateJump {map} />
+				<Views {map} />
+				<MapControls
+					{background}
+					{showGrid}
+					canReset={Boolean(preview.last?.info.bbox)}
+					onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
+					onToggleGrid={() => (showGrid = !showGrid)}
+					onReset={resetView}
+				/>
+			{/if}
+		</Boundary>
 	{/snippet}
 	{#snippet statusBar()}
 		<StatusBar status={status.current} onDismiss={() => status.dismiss()} />

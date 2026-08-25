@@ -33,7 +33,7 @@ common but the absence of a better home. Ownership is a fact you can check by gr
 import; kind is a judgement, and judgements drift.
 
 ```text
-lib/shell/            the frame and its bar: AppShell · AppBar · AlphaRibbon · Sidebar · Pane · PaneResizer · StatusBar · JobsPanel · UpdateNotice · AssetsDialog
+lib/shell/            the frame and its bar: AppShell · AppBar · AlphaRibbon · Sidebar · Pane · PaneResizer · Boundary · StatusBar · JobsPanel · DiagnosticsPanel · UpdateNotice · AssetsDialog
 lib/panes/pipeline/   PipelinePane and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor
 lib/panes/inspector/  Inspector
 lib/map/              MapCanvas · MapControls · TileGrid · CoordinateJump · Views · FeaturePopup
@@ -73,6 +73,8 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 | `MapControls`      | Background picker, grid toggle and Reset view, over the map                                               | S1.6  |
 | `StatusBar`        | What the application is doing; progress, cancellation, and where errors land ([Q24](decisions.md))        | S1.9  |
 | `JobsPanel`        | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                    | S3.1  |
+| `DiagnosticsPanel` | What has gone wrong, this session and the run before it, with a report to copy into an issue (S6.8)       | S6.8  |
+| `Boundary`         | One pane or the map failing instead of the window; records what it caught and offers a retry (S6.8)       | S6.8  |
 | `LandingScreen`    | What an empty window shows                                                                                | S1.1  |
 | `AlphaRibbon`      | What state this is in, across the top-right corner, linking to the repository in the system browser       | —     |
 | `ImportCards`      | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)          | S3.2  |

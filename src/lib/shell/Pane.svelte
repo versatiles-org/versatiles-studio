@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import Boundary from './Boundary.svelte';
 
 	// One pane: a titled, collapsible box in a sidebar (Q22, [Q31]).
 	//
@@ -45,8 +46,14 @@
 	<!-- Kept in the DOM while collapsed would mean rebuilding editor state on every toggle; removed
 	     means losing it. Removed is right for now — nothing in here holds state yet — and this is
 	     the line to revisit when the VPL editor lands at S2.3. -->
+	<!-- Each pane inside its own boundary, which is the unit that makes sense: a pane is already the
+	     thing that knows nothing about its neighbours (Q31), so one of them meeting a shape it did
+	     not expect should cost that pane and nothing else. Here rather than in `Sidebar` because
+	     this is where the title lives, and a failure has to say which pane it was. -->
 	{#if open}
-		<div class="body" {id}>{@render children()}</div>
+		<div class="body" {id}>
+			<Boundary label={title}>{@render children()}</Boundary>
+		</div>
 	{/if}
 </section>
 

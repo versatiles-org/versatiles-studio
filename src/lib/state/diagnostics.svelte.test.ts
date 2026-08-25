@@ -27,6 +27,7 @@ const {
 	loadEarlier,
 	reset,
 	describe: describeError,
+	teeConsole,
 	watch
 } = await import('./diagnostics.svelte');
 
@@ -174,6 +175,137 @@ describe('the list the panel draws', () => {
 		expect(ipc.clearDiagnostics).toHaveBeenCalled();
 		expect(problems.list).toEqual([]);
 		expect(problems.count).toBe(0);
+	});
+});
+
+describe('the console, which is where code that never throws says so', () => {
+	/** What `logDiagnostic` was told, in order. */
+	const reported = () =>
+		ipc.logDiagnostic.mock.calls.map(([r]) => r as { level: string; message: string; detail: string | null });
+
+	it('copies an error into the log and still writes it to the console', async () => {
+		// MapLibre's style validation says exactly why a layer drew nothing, and says it here — to a
+		// console a bundled build gives nobody a way to open.
+		const written: unknown[][] = [];
+		const original = console.error;
+		console.error = (...args: unknown[]) => void written.push(args);
+
+		const untee = teeConsole();
+		console.error('layer "roads" is missing a source');
+		await settled();
+		untee();
+		console.error = original;
+
+		expect(written, 'the original is still called, and first').toEqual([['layer "roads" is missing a source']]);
+		expect(reported()).toEqual([
+			{ level: 'error', origin: 'webview', message: 'layer "roads" is missing a source', detail: null }
+		]);
+	});
+
+	it('takes a warning as a warning', async () => {
+		const original = console.warn;
+		console.warn = () => {};
+		const untee = teeConsole();
+		console.warn('deprecated');
+		await settled();
+		untee();
+		console.warn = original;
+
+		expect(reported()[0].level).toBe('warn');
+	});
+
+	it('keeps everything after the first argument as detail', async () => {
+		const original = console.error;
+		console.error = () => {};
+		const untee = teeConsole();
+		console.error('could not draw', new Error('boom'), { layer: 'roads' });
+		await settled();
+		untee();
+		console.error = original;
+
+		const [only] = reported();
+		expect(only.message).toBe('could not draw');
+		expect(only.detail).toContain('boom');
+		expect(only.detail).toContain('"layer":"roads"');
+	});
+
+	it('puts the console back exactly as it found it', () => {
+		const original = console.error;
+		const untee = teeConsole();
+		expect(console.error).not.toBe(original);
+		untee();
+		expect(console.error).toBe(original);
+	});
+
+	it('leaves a console somebody else has since wrapped alone', () => {
+		const original = console.error;
+		const untee = teeConsole();
+		// A devtools bridge, or a second copy of this. Restoring over it would tear out its work and
+		// leave it holding a reference to ours.
+		const theirs = () => {};
+		console.error = theirs;
+		untee();
+		expect(console.error).toBe(theirs);
+		console.error = original;
+	});
+
+	/**
+	 * The loop this bounds: reporting fails, something logs that failure to the console, the tee
+	 * reports *that*, which fails.
+	 *
+	 * The reentrancy guard only covers the synchronous half — the failure comes back a turn later,
+	 * when the guard is long since down. What ends it is the circuit breaker, and what this asserts
+	 * is that it ends at all, quickly, rather than spinning for as long as the window is open.
+	 */
+	it('cannot spin between the console and a core that is not answering', async () => {
+		ipc.logDiagnostic.mockImplementation(() => {
+			console.error('the IPC layer is unhappy');
+			return Promise.reject(new Error('no window'));
+		});
+		const original = console.error;
+		console.error = () => {};
+		const untee = teeConsole();
+
+		console.error('something went wrong');
+		await settled();
+		const attempts = ipc.logDiagnostic.mock.calls.length;
+
+		// Once more, to show it has stopped rather than merely paused.
+		console.error('and another thing');
+		await settled();
+		untee();
+		console.error = original;
+
+		expect(attempts, 'bounded by the breaker, not by luck').toBeLessThanOrEqual(6);
+		expect(ipc.logDiagnostic.mock.calls.length).toBe(attempts);
+	});
+
+	/** Five failures in a row is a core that has gone, not a hiccup. */
+	it('stops trying once the core has stopped answering', async () => {
+		ipc.logDiagnostic.mockRejectedValue(new Error('no window'));
+		for (let attempt = 0; attempt < 6; attempt += 1) {
+			record({ level: 'error', origin: 'webview', message: `try ${attempt}`, detail: null });
+			await settled();
+		}
+		const attempts = ipc.logDiagnostic.mock.calls.length;
+
+		record({ level: 'error', origin: 'webview', message: 'one more', detail: null });
+		await settled();
+		expect(ipc.logDiagnostic.mock.calls.length, 'no further attempts once it has given up').toBe(attempts);
+		expect(attempts).toBe(5);
+	});
+
+	it('forgets it gave up as soon as one report gets through', async () => {
+		ipc.logDiagnostic.mockRejectedValueOnce(new Error('a hiccup'));
+		record({ level: 'error', origin: 'webview', message: 'first', detail: null });
+		await settled();
+
+		ipc.logDiagnostic.mockResolvedValue(2);
+		for (let attempt = 0; attempt < 6; attempt += 1) {
+			record({ level: 'error', origin: 'webview', message: `try ${attempt}`, detail: null });
+			await settled();
+		}
+		expect(problems.count).toBe(2);
 	});
 });
 
