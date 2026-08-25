@@ -103,9 +103,11 @@
 		}
 	}
 
-	async function choose(kind?: ImportKind) {
+	/// One dialog offering everything this build can read — the catalogue supplies the filters, so a
+	/// build without GDAL neither offers a GeoTIFF nor claims to.
+	async function choose() {
 		problem = null;
-		const picked = await askForSource(kinds, kind);
+		const picked = await askForSource(kinds);
 		if (picked) await open(picked);
 	}
 
@@ -120,7 +122,7 @@
 	<LandingScreen
 		{kinds}
 		{recents}
-		onImport={(kind) => void choose(kind)}
+		onOpenFile={() => void choose()}
 		onOpenUrl={(source) => void open(source)}
 		onOpenProject={() => void chooseProject()}
 		onForget={async (source) => {

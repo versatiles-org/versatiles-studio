@@ -1,40 +1,56 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import type { ImportKind, RecentEntry } from '../ipc/commands';
-	import ImportCards from './ImportCards.svelte';
+	import logo from '../../../src-tauri/icons/128x128.png';
 
 	// The launcher's contents (Q13, [Q48]). A **launcher, not a wizard**: everything on it is also
-	// reachable from inside the workbench, and nothing here gates anything. It gained its import
-	// cards at S3.2 and "Open a project" when it became a window of its own at S7.5.
+	// reachable from inside the workbench, and nothing here gates anything.
 	//
-	// **It was what an empty project window showed** until S7.9. As an overlay it made a window two
-	// different things depending on whether it happened to hold any graphs; as a window of its own
-	// it is one thing, and a project window between documents says one quiet line instead.
+	// **Three doors, by where the thing is** — a local file, a remote one, a project folder. It was
+	// seven: one card per import kind, plus a project card, plus a URL form. Those five cards
+	// differed only in which extensions the file dialog would show, which is not a decision anyone
+	// arrives wanting to make — `importKindFor` reads the kind off the extension anyway. What is
+	// left are the three that genuinely differ, and they differ in mechanism: a file dialog, a text
+	// field, a directory dialog.
+	//
+	// **The catalogue did not go away, it changed job.** It still decides which extensions the
+	// dialog offers, and it names them under the first card — so a build without GDAL neither
+	// offers a GeoTIFF nor claims to. Choosing a kind up front is still a real decision *inside* the
+	// workbench, where it becomes a `from_*` node; that is `ImportCards`, and it stayed there.
 	//
 	// [Q48]: ../../../docs/decisions.md
-	//
-	// The cards come from the core's catalogue rather than being written out here, which is what
-	// removed the "Open a tile container" card that named four extensions the drop handler and the
-	// file dialog each repeated in their own words.
+
 	let {
 		kinds,
 		recents,
-		onImport,
+		onOpenFile,
 		onOpenUrl,
 		onOpenProject,
 		onForget
 	}: {
-		/** Every way in this build has, in the order the core offers them. */
+		/** Every way in this build has — named under the first card, and the dialog's filters. */
 		kinds: ImportKind[];
 		recents: RecentEntry[];
-		onImport: (kind: ImportKind) => void;
+		onOpenFile: () => void;
 		onOpenUrl: (url: string) => void;
-		/** Opening a whole project directory (G1) — offered by the launcher, which is where starting
-		 *  from something you already have belongs. Absent inside a window that already has one. */
-		onOpenProject?: () => void;
+		onOpenProject: () => void;
 		onForget: (source: string) => void;
 	} = $props();
 
 	let url = $state('');
+	/// Whether the remote field is showing. A door that opens rather than a form always standing
+	/// open: three cards of the same height read as three choices, and one of them being a text box
+	/// makes it read as a form with two buttons beside it.
+	let asking = $state(false);
+	let field = $state<HTMLInputElement>();
+
+	async function askForUrl() {
+		asking = true;
+		// After the field exists — it is what the press was for, and a door that opens without
+		// putting the caret in it asks for a second click to do nothing with.
+		await tick();
+		field?.focus();
+	}
 
 	function submit(event: SubmitEvent) {
 		event.preventDefault();
@@ -55,31 +71,45 @@
 
 <div class="landing">
 	<div class="sheet">
-		<h1>VersaTiles Studio</h1>
+		<!-- `alt=""`, because the name is right beside it: a screen reader announcing "VersaTiles
+		     logo, VersaTiles Studio" says it twice. The mark is the one committed as the application
+		     icon, imported rather than copied so the two cannot drift apart. -->
+		<h1><img src={logo} alt="" width="40" height="40" />VersaTiles Studio</h1>
 
-		<div class="ways">
-			<ImportCards {kinds} onChoose={onImport} />
+		<div class="doors">
+			<button type="button" class="card" onclick={onOpenFile}>
+				<strong>Open a local file</strong>
+				<span>Tiles you have, or data to build them from</span>
+				<!-- From the core's catalogue, so this cannot name something the build lacks (S3.2). -->
+				{#if kinds.length}
+					<span class="kinds">{kinds.map((kind) => kind.label).join(' · ')}</span>
+				{/if}
+			</button>
 
-			<!-- Not a card in the catalogue either: a project is not a way *in*, it is somewhere you
-			     have already been. It sits with the ways in because that is what a launcher is for. -->
-			{#if onOpenProject}
-				<button type="button" class="card project" onclick={onOpenProject}>
-					<strong>Open a project</strong>
-					<span>A folder Studio saved: the pipelines, the style and the manifest</span>
-				</button>
-			{/if}
-
-			<!-- Not a card in the catalogue: a URL is not a *kind* of data, it is a place one comes
-			     from, and every kind that can be read over HTTP can be read from here. -->
-			<form class="card" onsubmit={submit}>
-				<strong>Open a remote URL</strong>
+			<button type="button" class="card" aria-expanded={asking} onclick={() => void askForUrl()}>
+				<strong>Open a remote file</strong>
 				<span>HTTPS or SFTP — a planet file opens from its index</span>
-				<div class="row">
-					<input bind:value={url} type="text" placeholder="https://…" spellcheck="false" />
-					<button type="submit" class="button" disabled={!url.trim()}>Open</button>
-				</div>
-			</form>
+			</button>
+
+			<button type="button" class="card" onclick={onOpenProject}>
+				<strong>Open a project folder</strong>
+				<span>A folder Studio saved: its pipelines, style and manifest</span>
+			</button>
 		</div>
+
+		{#if asking}
+			<form class="ask" onsubmit={submit}>
+				<input
+					bind:this={field}
+					bind:value={url}
+					type="text"
+					placeholder="https://…"
+					spellcheck="false"
+					aria-label="Address of a remote file"
+				/>
+				<button type="submit" class="button" disabled={!url.trim()}>Open</button>
+			</form>
+		{/if}
 
 		{#if recents.length}
 			<section class="recents">
@@ -111,7 +141,6 @@
 	   the content is taller than the window: centred overflow spills past *both* edges, so the
 	   heading goes off the top where no scrollbar can reach it. Centring moved to the sheet's auto
 	   margins, which collapse to zero the moment there is nothing to spare. */
-	/* Fills whatever it is given, which is now a window of its own rather than the map region. */
 	.landing {
 		height: 100%;
 		display: flex;
@@ -130,27 +159,46 @@
 	}
 
 	h1 {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
 		margin: 0;
 		font-size: var(--text-xl);
 		font-weight: 600;
 	}
 
-	.ways {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-5);
-		width: min(42rem, 100%);
+	/* Beside the name rather than over it: the window is 620px tall and the recent list is what has
+	   to fit, so the header takes one line rather than three. */
+	img {
+		display: block;
+		width: 2.5rem;
+		height: 2.5rem;
+	}
+
+	/* Three of a row where there is room, stacking on a narrow window rather than shrinking into
+	   three columns too thin to read. */
+	.doors {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+		gap: var(--space-4);
+		width: 100%;
 	}
 
 	.card {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
+		min-width: 0;
 		text-align: left;
 		padding: var(--space-5);
 		border: 1px solid var(--rule);
 		border-radius: var(--radius-lg);
 		background: var(--surface);
+
+		&:hover,
+		&[aria-expanded='true'] {
+			border-color: var(--accent);
+		}
 
 		strong {
 			font-weight: 600;
@@ -161,14 +209,18 @@
 		}
 	}
 
-	form.card {
-		cursor: default;
+	/* What this build can actually read, from the core. Quiet: it answers a question rather than
+	   asking one. */
+	.kinds {
+		margin-top: auto;
+		padding-top: var(--space-2);
+		font-size: var(--text-sm);
 	}
 
-	.row {
+	.ask {
 		display: flex;
 		gap: var(--space-3);
-		margin-top: var(--space-3);
+		width: 100%;
 
 		input {
 			flex: 1;

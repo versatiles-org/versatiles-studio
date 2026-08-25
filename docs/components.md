@@ -44,9 +44,10 @@ lib/common/           used by more than one owner: Help · HelpTrigger · Picker
 ```
 
 A pane's folder is named for the pane, so "what uses `NodeArgument`?" is answered by its path before
-anyone opens a file. `ImportCards` and `LandingScreen` sit in `common/` because they genuinely have
-two owners — the launcher and the Sources pane show the same cards from the same catalogue, which is
-the whole point of [S3.2](scope-release-1.md).
+anyone opens a file. `ImportCards` sits in `common/` because it genuinely has two owners: the same
+cards from the same catalogue, which is the whole point of [S3.2](scope-release-1.md). Since the
+launcher stopped showing them it is the pane's alone, and would move if a second owner does not
+return.
 
 **A name is unique across the application**, even though the folder already scopes it. The folder
 helps when reading a path; it does not help when fuzzy-finding by filename or reading the tables
@@ -140,14 +141,14 @@ An errand you leave the window for and come back from ([Q39](decisions.md)).
 
 ## Used by more than one owner
 
-| Component       | Does                                                                                                               | Stage |
-| --------------- | ------------------------------------------------------------------------------------------------------------------ | ----- |
-| `LandingScreen` | The ways in, the recent list and Open a project — the launcher's contents ([Q48](decisions.md))                    | S1.1  |
-| `ImportCards`   | The ways in, from the core's catalogue; used by the launcher and by "+ Add source" (E1–E3)                         | S3.2  |
-| `Help`          | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md)) | S2.13 |
-| `HelpTrigger`   | The `?` that opens it                                                                                              | S2.13 |
-| `Picker`        | `＋ operation…` and `＋ parameter…`: a filterable list, grouped, with the full text beside its row                 | S2.13 |
-| `JsonTree`      | Any JSON, collapsible — used by `Inspector` and by `FeaturePopup`                                                  | S1.5  |
+| Component       | Does                                                                                                                                 | Stage |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ----- |
+| `LandingScreen` | The launcher's contents: three doors — local file, remote file, project folder — the recent list, and the mark ([Q48](decisions.md)) | S1.1  |
+| `ImportCards`   | One card per import kind, from the core's catalogue. In the pane, where choosing one becomes a `from_*` node (E1–E3)                 | S3.2  |
+| `Help`          | The one parameter-help popover, beside the sidebar and over the map; hover peeks, click pins ([Q33](decisions.md))                   | S2.13 |
+| `HelpTrigger`   | The `?` that opens it                                                                                                                | S2.13 |
+| `Picker`        | `＋ operation…` and `＋ parameter…`: a filterable list, grouped, with the full text beside its row                                   | S2.13 |
+| `JsonTree`      | Any JSON, collapsible — used by `Inspector` and by `FeaturePopup`                                                                    | S1.5  |
 
 ## Conventions
 

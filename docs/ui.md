@@ -216,15 +216,25 @@ It was an overlay inside a project window until [S7.9](scope-release-3.md), whic
 different things depending on whether it happened to hold any graphs. A project window between
 documents now says one quiet line — where the way in is — rather than becoming a launcher.
 
+**Three doors, by where the thing is** rather than by what kind of data it holds. It was seven
+controls: a card per import kind, a project card and a URL form — but those five cards differed only
+in which extensions the file dialog would show, which is not a decision anyone arrives wanting to
+make. The catalogue still decides what the dialog offers and names it under the first door, so a
+build without GDAL neither offers a GeoTIFF nor claims to; choosing a kind up front is still a real
+decision inside the workbench, where it becomes a `from_*` node.
+
 ```text
 ┌───────────────────────────────────────────────────────────┐
-│  VersaTiles Studio                                        │
-│  ┌───────────────────┐  ┌───────────────────┐             │
-│  │ Open a tile   A1  │  │ Open a remote A2  │  + import   │
-│  │ container         │  │ URL               │    cards S3 │
-│  └───────────────────┘  └───────────────────┘             │
+│              ◆  VersaTiles Studio                         │
+│  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐ │
+│  │ Open a local   │ │ Open a remote  │ │ Open a project │ │
+│  │ file       (A1)│ │ file       (A2)│ │ folder     (G1)│ │
+│  │ Tile container │ │ HTTPS or SFTP  │ │ pipelines,     │ │
+│  │ · Vector data… │ │                │ │ style, manifest│ │
+│  └────────────────┘ └────────────────┘ └────────────────┘ │
 │  Recent                                             (A7)  │
 │  · osm.versatiles          · MyProject/                   │
+│  …or drop a file anywhere in this window.                 │
 └───────────────────────────────────────────────────────────┘
 ```
 
