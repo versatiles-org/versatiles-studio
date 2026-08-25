@@ -231,7 +231,9 @@ versatiles-studio/
 │   ├── docs.test.ts            · guards.test.ts — what these documents promise
 │   └── spawn.test.ts           the Windows spawn rules, asserted from any platform
 ├── e2e/                        stories, run against a real window
-│   ├── spike.e2e.ts            what the driver can do, asserted
+│   ├── launcher/               what opens with nothing open — and the spike
+│   ├── project/                the workbench: style, export, save and reopen
+│   ├── support.ts              the moves every story shares
 │   └── fixtures/               `from_debug`, so CI downloads nothing
 ├── wdio.conf.ts                the embedded driver, and how it starts Studio
 ├── codecov.yml                 one flag per codebase, components within

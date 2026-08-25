@@ -131,13 +131,4 @@
 		border-top: 1px solid var(--rule);
 		background: var(--surface);
 	}
-
-	:global(:root) {
-		--ink: var(--ink);
-		--ink-2: var(--ink-2);
-		--rule: var(--rule);
-		--surface: var(--surface);
-		--chrome: var(--chrome);
-		--accent: var(--accent);
-	}
 </style>

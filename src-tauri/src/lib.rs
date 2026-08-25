@@ -22,6 +22,51 @@ use studio_core::{
 use tokio::sync::Mutex;
 
 /// One window per project; the landing screen is what an empty window shows (Q13, Q16).
+/// Where app-wide state lives: recents, named views, the saved layout ([Q21]).
+///
+/// **The one path a test may move**, because there is only one and everything app-wide is under it.
+/// Without this the end-to-end suite reads and writes the recents of whoever is running it, and
+/// leaves them changed — a test that edits the tester's own data is a test people stop running.
+///
+/// Compiled in only under `e2e`, so no shipped build has an environment variable that can relocate
+/// somebody's projects list ([the plan](../../docs/scope-e2e.md)).
+///
+/// [Q21]: ../../docs/decisions.md
+fn data_dir(app: &tauri::App) -> std::path::PathBuf {
+	if let Some(dir) = moved_aside() {
+		return dir;
+	}
+	tauri::Manager::path(app)
+		.app_data_dir()
+		.unwrap_or_else(|_| std::path::PathBuf::from("."))
+}
+
+/// Where the problem log is written ([S6.8]).
+///
+/// It follows `data_dir` when a test has moved that aside, so a failed run leaves its problems
+/// somewhere a CI job can collect them rather than in the runner's home directory.
+///
+/// [S6.8]: ../../docs/scope-release-2.md
+fn log_dir(app: &tauri::App, data_dir: &std::path::Path) -> std::path::PathBuf {
+	if moved_aside().is_some() {
+		return data_dir.join("logs");
+	}
+	tauri::Manager::path(app)
+		.app_log_dir()
+		.unwrap_or_else(|_| data_dir.join("logs"))
+}
+
+/// The directory an end-to-end run has been told to use instead, if this build can be told at all.
+#[cfg(feature = "e2e")]
+fn moved_aside() -> Option<std::path::PathBuf> {
+	std::env::var("STUDIO_DATA_DIR").ok().map(std::path::PathBuf::from)
+}
+
+#[cfg(not(feature = "e2e"))]
+fn moved_aside() -> Option<std::path::PathBuf> {
+	None
+}
+
 /// The commands the webview may call, and the source of the generated TypeScript (S0.3).
 ///
 /// One list rather than two: `generate_handler!` and a separate export list would drift the moment
@@ -177,15 +222,11 @@ pub fn run() {
 			tauri::async_runtime::block_on(assets::mount_bundled(app.handle(), &mut server))?;
 			// App-wide state lives beside the application's *data*, not its configuration, and not
 			// inside any project (Q21). It must survive a window reload (Q16).
-			let data_dir = tauri::Manager::path(app)
-				.app_data_dir()
-				.unwrap_or_else(|_| std::path::PathBuf::from("."));
+			let data_dir = data_dir(app);
 			// **Opened before anything else can fail**, and rotated as it opens: the run worth
 			// reading back is the one that had no exit to write anything at (S6.8). Failing costs
 			// the file and not the panel, so it is recorded rather than raised.
-			let log_dir = tauri::Manager::path(app)
-				.app_log_dir()
-				.unwrap_or_else(|_| data_dir.join("logs"));
+			let log_dir = log_dir(app, &data_dir);
 			if let Err(error) = diagnostics.open_log(&log_dir) {
 				warn(
 					&diagnostics,

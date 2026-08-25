@@ -75,6 +75,8 @@
 		type Span,
 		importKinds,
 		importKindFor,
+		isProject,
+		type Recipe,
 		importReadNode,
 		fieldSuggestions,
 		type EditKind,
@@ -102,6 +104,21 @@
 	/// and the graph list that lets you switch between them is S2.13.
 	/// Which graph `pipeline` is. Every command that touches a document takes it.
 	const currentGraph = $derived(document.graph);
+
+	// **What the style pane edits** (S6.4).
+	//
+	// The pane holds one graph at a time, and until this existed nothing ever told it which — so
+	// every control in it read the unstyled default and wrote nowhere. It looked right, because the
+	// default is what an untouched source shows, and it stayed wrong until an end-to-end test pressed
+	// a preset and asked the core what it had recorded ([the plan](docs/scope-e2e.md)).
+	//
+	// Name as well as id, because the recipe files a source's style under its name and a rename has
+	// to move the pane with it — `focus` ignores a repeat of what it already holds.
+	$effect(() => {
+		const id = currentGraph;
+		const name = id === null ? null : graphs.nameOf(id);
+		styleRecipe.focus(id !== null && name !== null ? { id, name } : null);
+	});
 
 	/** Build-time information about the binary, so it is fetched once and never refreshed. */
 	let operations = $state<OperationInfo[]>([]);
@@ -373,8 +390,16 @@
 
 	/// Opens a project directory, replacing what is open — a window is one project ([Q16]).
 	async function openProjectDir() {
+		await adopt(() => project.open());
+	}
+
+	/// What a window does once a project directory has been read, however it was chosen.
+	///
+	/// Shared by the menu, which asks for the directory, and by a path handed to this window by the
+	/// launcher — the two have to end in the same state, and the second used to end in an error.
+	async function adopt(read: () => Promise<Recipe | null>) {
 		try {
-			const recipe = await project.open();
+			const recipe = await read();
 			if (!recipe) return;
 			styleRecipe.restored(recipe);
 			await graphs.refresh();
@@ -539,7 +564,13 @@
 	});
 
 	async function drainOpened() {
-		for (const path of await takeOpened().catch(() => [])) await load(path);
+		for (const path of await takeOpened().catch(() => [])) {
+			// **A project folder is not a file to import** (S7.5). The launcher hands one over the
+			// same queue a double-clicked container arrives on, and everything here used to go to
+			// `load`, which asks the catalogue for a read node and gets none for a directory.
+			if (await isProject(path).catch(() => false)) await adopt(() => project.at(path));
+			else await load(path);
+		}
 	}
 
 	// Drag & drop is a shell affordance, so it goes through the same path as the file dialog.

@@ -123,11 +123,30 @@ export const project = {
 	async open(): Promise<Recipe | null> {
 		const dir = await openDialog({ directory: true, title: 'Open project' });
 		if (typeof dir !== 'string') return null;
-		if (!(await isProject(dir))) {
-			status.fail(`${dir} holds no project.yaml`);
-			return null;
-		}
-		status.busy('Opening the project…');
-		return await openProject(dir);
+		return await openAt(dir);
+	},
+
+	/**
+	 * The same, for a directory something else has already chosen.
+	 *
+	 * **The launcher's third door ends here** ([S7.5]). It hands a path to a new window, and that
+	 * window used to send everything it was handed down the file path — where a directory has no
+	 * read node, so opening a project folder opened an empty window and said Studio had no way to
+	 * open it. Found by the end-to-end story that saves a project and opens it again.
+	 *
+	 * [S7.5]: ../../../docs/scope-release-3.md
+	 */
+	async at(dir: string): Promise<Recipe | null> {
+		return await openAt(dir);
 	}
 };
+
+/** Shared by both doors: what a directory has to be before it can be opened as a project. */
+async function openAt(dir: string): Promise<Recipe | null> {
+	if (!(await isProject(dir))) {
+		status.fail(`${dir} holds no project.yaml`);
+		return null;
+	}
+	status.busy('Opening the project…');
+	return await openProject(dir);
+}

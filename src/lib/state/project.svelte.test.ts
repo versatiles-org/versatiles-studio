@@ -62,6 +62,27 @@ describe('opening a project', () => {
 		expect(status.current).toEqual({ kind: 'error', message: '/tmp/project holds no project.yaml' });
 		expect(ipc.openProject).not.toHaveBeenCalled();
 	});
+
+	/**
+	 * The launcher's third door, which never opens a picker of its own here (S7.5).
+	 *
+	 * It hands a directory to a *new* window, so the window has to be able to open one it was given
+	 * rather than one it asked for — and until an end-to-end story saved a project and opened it
+	 * again, it could not: everything handed to a window went down the import path, where a
+	 * directory has no read node.
+	 */
+	it('opens a directory it was handed, without asking', async () => {
+		await expect(project.at('/tmp/handed')).resolves.toEqual(RECIPE);
+		expect(dialog.open).not.toHaveBeenCalled();
+		expect(ipc.openProject).toHaveBeenCalledWith('/tmp/handed');
+	});
+
+	it('refuses one that holds no manifest, by name', async () => {
+		ipc.isProject.mockResolvedValue(false);
+		await expect(project.at('/tmp/handed')).resolves.toBeNull();
+		expect(status.current).toEqual({ kind: 'error', message: '/tmp/handed holds no project.yaml' });
+		expect(ipc.openProject).not.toHaveBeenCalled();
+	});
 });
 
 /**
