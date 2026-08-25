@@ -93,14 +93,23 @@
 			<h2 class="section-label">Start</h2>
 
 			<div class="doors">
-				<button type="button" class="door" onclick={onOpenFile}>
-					<strong>Open a local file</strong>
-					<span>Tiles you have, or data to build them from</span>
-					<!-- From the core's catalogue, so this cannot name something the build lacks (S3.2). -->
-					{#if kinds.length}
-						<span class="kinds">{kinds.map((kind) => kind.label).join(' · ')}</span>
-					{/if}
-				</button>
+				<!-- The hint is grouped with the door rather than placed after it, so the row gap does not
+				     leave it floating exactly between two doors and belonging to neither. -->
+				<div class="local">
+					<button type="button" class="door" onclick={onOpenFile}>
+						<strong>Open a local file</strong>
+						<span>Tiles you have, or data to build them from</span>
+						<!-- From the core's catalogue, so this cannot name something the build lacks (S3.2). -->
+						{#if kinds.length}
+							<span class="kinds">{kinds.map((kind) => kind.label).join(' · ')}</span>
+						{/if}
+					</button>
+
+					<!-- Under the door it is another way of pressing, rather than under the list of what has
+					     been opened before: dropping a file *is* opening a local one, and it was filed with
+					     the recent list only because that is where the window happened to end. -->
+					<p class="drop">…or drop a file anywhere in this window.</p>
+				</div>
 
 				<button type="button" class="door" aria-expanded={asking} onclick={() => void askForUrl()}>
 					<strong>Open a remote file</strong>
@@ -152,11 +161,10 @@
 						</li>
 					{/each}
 				</ul>
-				<p class="drop">…or drop a file anywhere in this window.</p>
 			{:else}
 				<!-- The empty half of the window is where a first-timer is already looking, so it says
-				     the thing the doors cannot: that none of them are necessary. -->
-				<p class="nothing">Nothing yet — drop a file anywhere in this window, or start on the left.</p>
+				     what the column is for rather than leaving them to work it out from a heading. -->
+				<p class="nothing">Nothing yet — what you open will be listed here.</p>
 			{/if}
 		</section>
 	</div>
@@ -200,11 +208,13 @@
 		height: 2.5rem;
 	}
 
-	/* The doors keep their width; the list takes the rest. Stacked on a narrow window rather than
-	   squeezed into two columns too thin for either. */
+	/* Half each. The doors were given only what they needed at first, which left the window looking
+	   like a narrow panel with a large empty area beside it — the two halves are equally the point,
+	   so they are equally wide. Stacked on a narrow window rather than squeezed into two columns too
+	   thin for either. */
 	.columns {
 		display: grid;
-		grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: var(--space-6);
 		min-height: 0;
 	}
@@ -330,10 +340,18 @@
 		padding: 0 var(--space-3);
 	}
 
+	/* No gap between the two: what separates the hint from the door is the door's own padding, which
+	   is less than the space to the next one — which is what makes it read as part of this one. */
+	.local {
+		display: flex;
+		flex-direction: column;
+	}
+
+	/* Aligned with the door's text above it, so it reads as a line of that door rather than as the
+	   next item in the list. */
 	.drop {
-		max-width: 34rem;
-		margin: var(--space-4) 0 0;
-		padding: 0 var(--space-3);
+		margin: 0;
+		padding: 0 var(--space-5);
 		color: var(--ink-2);
 		font-size: var(--text-sm);
 	}

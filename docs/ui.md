@@ -229,8 +229,11 @@ build without GDAL neither offers a GeoTIFF nor claims to; choosing a kind up fr
 decision inside the workbench, where it becomes a `from_*` node.
 
 "New empty project" sits under a rule and last: it is the only one that opens nothing, and the
-rarest way to start. With no history the second column holds its place and offers the drop instead —
-an empty half-window with a grey sentence in the corner reads as something that failed to load.
+rarest way to start. Dropping a file is filed with the first door rather than with the list, because
+that is what it is — opening a local file by other means; it sat under the recent list only because
+that is where the window happened to end, which is the last place a first run would look. With no
+history the second column holds its place and says what will fill it: an empty half-window with a
+grey sentence in the corner reads as something that failed to load.
 
 The footer is the only place the application says what it is: name, version from the core, the word
 alpha, and the repository behind it — the word is only useful next to somewhere to report things.
@@ -242,10 +245,11 @@ alpha, and the repository behind it — the word is only useful next to somewher
 │  START                      RECENT                         │
 │  Open a local file      (A1) osm.versatiles       2 h ago  │
 │  Tile container · Vector…    MyProject/          yesterday │
-│  Open a remote file     (A2) berlin.vpl           3 d ago  │
-│  HTTPS or SFTP               …                             │
-│  Open a project folder  (G1) …or drop a file anywhere in   │
-│  pipelines, style, manifest  this window.                  │
+│  …or drop a file anywhere    berlin.vpl           3 d ago  │
+│  Open a remote file     (A2) …                             │
+│  HTTPS or SFTP                                             │
+│  Open a project folder  (G1)                               │
+│  pipelines, style, manifest                                │
 │  ──────────────────────                                    │
 │  New empty project                                         │
 │  A window with nothing in it yet                           │

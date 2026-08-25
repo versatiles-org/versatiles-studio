@@ -120,14 +120,13 @@ describe('the recent list', () => {
 
 	/**
 	 * **It stays, and says so.** The list used to be absent until there was something in it, which is
-	 * right for a column under the doors and wrong for a column beside them: half the window would
-	 * be blank with no explanation. What fills it is the one thing the doors cannot say — that none
-	 * of them are necessary.
+	 * right for a column under the doors and wrong for a column beside them: half the window would be
+	 * blank with no explanation.
 	 */
-	it('holds a place, and offers the drop, when there is nothing to list', () => {
+	it('holds a place, and says what it is for, when there is nothing to list', () => {
 		show();
 		expect(screen.getByText('Recent')).toBeTruthy();
-		expect(screen.getByText(/drop a file anywhere/)).toBeTruthy();
+		expect(screen.getByText(/what you open will be listed here/)).toBeTruthy();
 	});
 });
 
@@ -144,5 +143,35 @@ describe('the footer', () => {
 
 		(await screen.findByRole('button', { name: 'github' })).click();
 		expect(calls.onOpenRepository).toHaveBeenCalledTimes(1);
+	});
+});
+
+/**
+ * Dropping a file, which is the same gesture as the first door by other means.
+ *
+ * It used to be filed under the recent list, where it only was because that is where the window
+ * happened to end — and where a first run, with nothing recent, would not think to look.
+ */
+describe('the drop hint', () => {
+	it('sits with the door it is another way of pressing, in both states', () => {
+		const { unmount } = render(LandingScreen, {
+			kinds: KINDS,
+			recents: RECENTS,
+			version: '0.2.0',
+			onOpenFile: vi.fn(),
+			onOpenUrl: vi.fn(),
+			onOpenProject: vi.fn(),
+			onNewProject: vi.fn(),
+			onForget: vi.fn(),
+			onOpenRepository: vi.fn()
+		});
+
+		const hint = screen.getByText(/drop a file anywhere/);
+		const start = screen.getByRole('button', { name: /Open a local file/ }).closest('section');
+		expect(start?.contains(hint)).toBe(true);
+
+		unmount();
+		show();
+		expect(screen.getByText(/drop a file anywhere/)).toBeTruthy();
 	});
 });
