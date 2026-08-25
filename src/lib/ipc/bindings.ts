@@ -364,7 +364,7 @@ export const commands = {
 	 *  the harmless direction for this to be wrong in, and is said here rather than left to be noticed.
 	 */
 	removeFont: (id: string) => typedError<boolean, string>(__TAURI_INVOKE("remove_font", { id })),
-	/**  The remembered pane layout, or the default one. */
+	/**  This window's layout. */
 	layout: () => typedError<Layout, string>(__TAURI_INVOKE("layout")),
 	/**
 	 *  Records the layout after the user collapses a section or drags the pane edge.

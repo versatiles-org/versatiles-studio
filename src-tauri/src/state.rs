@@ -80,6 +80,12 @@ pub struct Project {
 	/// them, so opening one moves this. Before any is opened it is wherever Studio was started; it
 	/// becomes the project directory once [Q6] has one.
 	pub dir: PathBuf,
+	/// Which panes are open, how wide they are, the background, and where the camera is looking.
+	///
+	/// **Per project** ([S7.4](../../docs/scope-release-3.md)) — it reads as pane state and is not:
+	/// `view` is the camera and `background` is a map setting, and two windows sharing them meant
+	/// panning one panned the other the next time either saved.
+	pub layout: Layout,
 	/// The directory this project was last saved to or opened from, if any.
 	///
 	/// **Not `dir` above**, which starts at the working directory and only ever answers "what do
@@ -92,8 +98,9 @@ pub struct Project {
 
 impl Project {
 	/// A project with nothing in it, resolving relative paths against the working directory.
-	fn new(label: &str) -> Self {
+	fn new(label: &str, layout: Layout) -> Self {
 		Self {
+			layout,
 			prefix: label
 				.chars()
 				.map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' })
@@ -134,14 +141,18 @@ pub struct Projects(Mutex<HashMap<String, Arc<Mutex<Project>>>>);
 
 impl Projects {
 	/// This window's project, created empty if it has none yet.
-	pub async fn of(&self, label: &str) -> Arc<Mutex<Project>> {
+	///
+	/// A new one opens on `layout` — what the last window to change one left behind, which is how a
+	/// second window gets the pane widths and the background someone has settled on rather than the
+	/// defaults they moved away from.
+	pub async fn of(&self, label: &str, layout: &Layout) -> Arc<Mutex<Project>> {
 		Arc::clone(
 			self
 				.0
 				.lock()
 				.await
 				.entry(label.to_string())
-				.or_insert_with(|| Arc::new(Mutex::new(Project::new(label)))),
+				.or_insert_with(|| Arc::new(Mutex::new(Project::new(label, layout.clone())))),
 		)
 	}
 
@@ -160,7 +171,11 @@ pub struct AppState {
 	/// Recent sources and named views. The core owns the lists; this layer owns where they live.
 	pub recents: Mutex<Recents>,
 	pub views: Mutex<Views>,
-	/// Which left-pane sections are open, and how wide the pane is (S2.2, [Q22]).
+	/// What a **new** project's layout starts as: the last one any window saved (S7.4).
+	///
+	/// Not the layout of anything. The live one belongs to a project — [`Project::layout`] — and this
+	/// is only what the next window inherits, which is also all that `layout.json` was ever able to
+	/// mean once there was more than one window.
 	pub layout: Mutex<Layout>,
 	/// Every open project, one per window ([Q48], S7.1).
 	pub projects: Projects,
@@ -200,7 +215,14 @@ impl AppState {
 	/// the "current" project — is a guess that is wrong whenever two windows are open, which is the
 	/// entire point of S7.1.
 	pub async fn project(&self, window: &Window) -> Arc<Mutex<Project>> {
-		self.projects.of(window.label()).await
+		// **Without the camera.** Pane widths and a background are preferences worth carrying into a
+		// new window; where another project's map was looking is not — and `None` already means
+		// "nothing to restore", which leaves a new window free to frame whatever it opens.
+		let layout = Layout {
+			view: None,
+			..self.layout.lock().await.clone()
+		};
+		self.projects.of(window.label(), &layout).await
 	}
 }
 
@@ -215,7 +237,7 @@ mod tests {
 		let projects = Projects::default();
 
 		{
-			let held = projects.of("window-1").await;
+			let held = projects.of("window-1", &Layout::default()).await;
 			held.lock().await.graphs.add(
 				"berlin",
 				studio_core::vpl::Document::parse("from_container filename=\"x\"").expect("parses"),
@@ -223,9 +245,26 @@ mod tests {
 			);
 		}
 
-		assert_eq!(projects.of("window-1").await.lock().await.graphs.list().len(), 1);
 		assert_eq!(
-			projects.of("window-2").await.lock().await.graphs.list().len(),
+			projects
+				.of("window-1", &Layout::default())
+				.await
+				.lock()
+				.await
+				.graphs
+				.list()
+				.len(),
+			1
+		);
+		assert_eq!(
+			projects
+				.of("window-2", &Layout::default())
+				.await
+				.lock()
+				.await
+				.graphs
+				.list()
+				.len(),
 			0,
 			"a second window starts empty rather than inheriting the first's work"
 		);
@@ -236,8 +275,8 @@ mod tests {
 	#[tokio::test]
 	async fn the_same_window_gets_the_same_project() {
 		let projects = Projects::default();
-		let first = projects.of("window-1").await;
-		let second = projects.of("window-1").await;
+		let first = projects.of("window-1", &Layout::default()).await;
+		let second = projects.of("window-1", &Layout::default()).await;
 		assert!(Arc::ptr_eq(&first, &second));
 	}
 
@@ -245,15 +284,28 @@ mod tests {
 	#[tokio::test]
 	async fn closing_forgets_the_project() {
 		let projects = Projects::default();
-		projects.of("window-1").await.lock().await.graphs.add(
-			"berlin",
-			studio_core::vpl::Document::parse("from_container filename=\"x\"").expect("parses"),
-			None,
-		);
+		projects
+			.of("window-1", &Layout::default())
+			.await
+			.lock()
+			.await
+			.graphs
+			.add(
+				"berlin",
+				studio_core::vpl::Document::parse("from_container filename=\"x\"").expect("parses"),
+				None,
+			);
 
 		assert!(projects.close("window-1").await.is_some());
 		assert!(
-			projects.of("window-1").await.lock().await.graphs.list().is_empty(),
+			projects
+				.of("window-1", &Layout::default())
+				.await
+				.lock()
+				.await
+				.graphs
+				.list()
+				.is_empty(),
 			"a reused label is a fresh project, not the one that was closed"
 		);
 	}
@@ -266,8 +318,8 @@ mod tests {
 	#[tokio::test]
 	async fn two_windows_do_not_serve_each_others_tiles() {
 		let projects = Projects::default();
-		let first = projects.of("window-1").await;
-		let second = projects.of("window-2").await;
+		let first = projects.of("window-1", &Layout::default()).await;
+		let second = projects.of("window-2", &Layout::default()).await;
 
 		let (a, b) = (
 			first.lock().await.mount("pipeline"),
@@ -286,7 +338,7 @@ mod tests {
 	#[tokio::test]
 	async fn one_window_mounts_one_name_one_way() {
 		let projects = Projects::default();
-		let held = projects.of("window-1").await;
+		let held = projects.of("window-1", &Layout::default()).await;
 		let project = held.lock().await;
 		assert_eq!(project.mount("berlin"), project.mount("berlin"));
 	}
@@ -295,7 +347,7 @@ mod tests {
 	#[tokio::test]
 	async fn a_mount_name_stays_inside_its_path_segment() {
 		let projects = Projects::default();
-		let held = projects.of("window/1:odd").await;
+		let held = projects.of("window/1:odd", &Layout::default()).await;
 		let mounted = held.lock().await.mount("berlin");
 		assert!(!mounted.contains('/'), "{mounted}");
 		assert!(!mounted.contains(':'), "{mounted}");
@@ -305,14 +357,64 @@ mod tests {
 	#[tokio::test]
 	async fn a_projects_mounts_are_recognisable_as_its_own() {
 		let projects = Projects::default();
-		let first = projects.of("window-1").await;
-		let second = projects.of("window-2").await;
+		let first = projects.of("window-1", &Layout::default()).await;
+		let second = projects.of("window-2", &Layout::default()).await;
 		let (prefix, theirs) = (first.lock().await.mounts(), second.lock().await.mount("pipeline"));
 
 		assert!(first.lock().await.mount("pipeline").starts_with(&prefix));
 		assert!(
 			!theirs.starts_with(&prefix),
 			"another window's mount is not ours to unmount"
+		);
+	}
+
+	/// The collision S7.4 exists for: `Layout` reads as pane state and carries the camera.
+	#[tokio::test]
+	async fn two_windows_look_wherever_each_of_them_is_looking() {
+		let projects = Projects::default();
+		let first = projects.of("window-1", &Layout::default()).await;
+		let second = projects.of("window-2", &Layout::default()).await;
+
+		first.lock().await.layout.view = Some(studio_core::store::Camera {
+			lng: 13.4,
+			lat: 52.5,
+			zoom: 11.0,
+			bearing: 0.0,
+			pitch: 0.0,
+		});
+
+		assert!(
+			second.lock().await.layout.view.is_none(),
+			"panning in one window moved the other's camera"
+		);
+	}
+
+	/// What a second window inherits, and the one thing it does not.
+	#[tokio::test]
+	async fn a_new_window_inherits_the_widths_but_not_the_view() {
+		let settled = Layout {
+			left_width: 420.0,
+			background: "graybeard".to_string(),
+			view: Some(studio_core::store::Camera {
+				lng: 13.4,
+				lat: 52.5,
+				zoom: 11.0,
+				bearing: 0.0,
+				pitch: 0.0,
+			}),
+			..Layout::default()
+		};
+
+		// What `AppState::project` hands in: the defaults, minus where somebody else was looking.
+		let seed = Layout { view: None, ..settled };
+		let held = Projects::default().of("window-2", &seed).await;
+		let project = held.lock().await;
+
+		assert_eq!(project.layout.left_width, 420.0, "a preference worth carrying over");
+		assert_eq!(project.layout.background, "graybeard");
+		assert!(
+			project.layout.view.is_none(),
+			"another project's camera means nothing here — `None` leaves this one free to frame what it opens"
 		);
 	}
 
@@ -325,7 +427,7 @@ mod tests {
 	#[tokio::test]
 	async fn a_new_project_resolves_relative_paths_somewhere() {
 		let projects = Projects::default();
-		let held = projects.of("window-1").await;
+		let held = projects.of("window-1", &Layout::default()).await;
 		let project = held.lock().await;
 		assert!(project.dir.is_absolute() || project.dir == Path::new("."));
 		assert!(project.root.is_none(), "nothing has been saved yet");

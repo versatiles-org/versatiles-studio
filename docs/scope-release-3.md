@@ -29,7 +29,7 @@ contents — and makes "new project" mean "empty this window out".
 | **S7.1** | ~~**A project per window.**~~ — **done**; `Project` holds the graphs, style, history, pin, directory and root, and `Projects` keys one per window label, created when a window first asks and dropped when it is destroyed. Thirty-four commands take the window they came from. The generated TypeScript did not move: specta skips a `Window` argument the way it skips `AppHandle`, so the webview is unchanged | infrastructure |
 | **S7.2** | ~~**Mounts namespaced per window.**~~ — **done**; every mount carries the window's prefix, so `Preview.name` stays the graph's name for the style while the tiles are served from `window-2.pipeline`. `ServerManager::unmount_prefix` takes a closed window's mounts down, and the test for it builds its sources from `from_debug` so it runs without sample containers                                          | infrastructure |
 | **S7.3** | ~~**A job list per project.**~~ — **done**; every job carries the window that submitted it, so a bar lists its own project's work, `Lane::Latest` supersedes only within a scope, events reach one sink, and history is pruned per scope. `Lane::Queued` deliberately still serialises application-wide: its argument is about the disk and the cores, which two projects share                                    | E7             |
-| **S7.4** | **Layout per window.** Pane widths, background and camera follow the window; the stored `layout.json` becomes the defaults a new window opens with rather than a value two windows fight over                                                                                                                                                                                                                      | infrastructure |
+| **S7.4** | ~~**Layout per window.**~~ — **done**; `Project.layout` holds the panes, the widths, the background and the camera, and `layout.json` is demoted to the defaults the next window opens on — carried over without the view, because another project's camera means nothing here                                                                                                                                     | infrastructure |
 | **S7.5** | **The launcher as a window.** Its own HTML entry and its own small window — import cards, the URL field, recents, open a project. No map, no panes, none of MapLibre                                                                                                                                                                                                                                               | A1, A2, A7     |
 | **S7.6** | **The handoff.** Opening something from the launcher creates a project window, hands it the path, and closes the launcher. The queue that already delivers a double-clicked file becomes per window, so there is one way in rather than two                                                                                                                                                                        | infrastructure |
 | **S7.7** | **Startup and lifecycle.** The launcher is what opens when the OS passed nothing to open; it comes back when the last project window closes; closing it with nothing else open quits                                                                                                                                                                                                                               | infrastructure |
@@ -44,6 +44,11 @@ second project.
 
 S7.5 to S7.9 are the visible half and are mostly new code: a second entry point, a window, and the
 wiring between them.
+
+**S7.1 to S7.4 have landed, and ⌘N now means what Q16 said it did**: two windows with their own
+graphs, undo stacks, tiles, job lists and cameras. The webview did not change for any of it — specta
+skips a `Window` argument, so forty command signatures moved without a line of TypeScript following
+them.
 
 ## The three collisions S7.1 exposes
 
