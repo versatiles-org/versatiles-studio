@@ -18,8 +18,8 @@ a way to see the others.
 | `src/lib/styles/tokens.ts`  | Reading tokens from JavaScript, for MapLibre paint properties            |
 | A component's `<style>`     | Everything true of that component only                                   |
 
-Both stylesheets are imported in `main.ts` before the application mounts, so tokens are always
-defined by the time anything renders.
+Both stylesheets are imported by each page's entry point — `main.ts` and `landing.ts` — before the
+application mounts, so tokens are always defined by the time anything renders.
 
 ## The rules
 
@@ -129,7 +129,7 @@ fails if one comes back.
 | _(none)_                  | ordinary UI text — inherits `--text-md`, 14px |
 | `--text-sm`               | dense data displays: JSON, popups, metadata   |
 | `--text-xs`               | labels and counts in the left pane            |
-| `--text-lg` / `--text-xl` | panel emphasis; the landing screen            |
+| `--text-lg` / `--text-xl` | panel emphasis; the launcher                  |
 
 **Machine text is monospace; prose is the UI font.** A path, a URL, a layer name, a feature id, a
 coordinate, a VPL node, a JSON key — anything a machine produced or a machine will read — gets

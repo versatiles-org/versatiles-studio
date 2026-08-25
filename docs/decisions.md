@@ -30,10 +30,10 @@ one thing, and the workbench is one thing, and neither has a mode.
 
 **This is what finally makes [Q16](#q16--one-application-instance-one-window-per-project) true.**
 "One window per project" was decided at S0.8 and never built: every piece of project state in
-`AppState` is a single application-wide `Mutex` — graphs, style, history, the pin, the project
-directory, and the layout that carries the pane widths and _the camera_. ⌘N opens a second window
-onto the same project, sharing one undo stack and one viewport. The alternative to building it now
-was a launcher that could only ever hand its result to the one project the core can hold, which is
+`AppState` was a single application-wide `Mutex` — graphs, style, history, the pin, the project
+directory, and the layout that carries the pane widths and _the camera_ — so ⌘N opened a second
+window onto the same project, sharing one undo stack and one viewport. The alternative to building it
+was a launcher that could only ever hand its result to the one project the core could hold, which is
 the same mode in a second window.
 
 **So the core holds a project per window**, keyed by the window's label — that being the identity

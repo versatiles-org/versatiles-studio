@@ -83,11 +83,6 @@ held to 90%, and the `src-tauri` command layer is reported but never enforced, s
 Uploading needs a `CODECOV_TOKEN` repository secret. Pull requests from forks skip the upload rather
 than failing on a secret they cannot have.
 
-Some Rust tests need sample containers, which are not vendored — `berlin.versatiles` alone is 25 MB.
-They are found automatically if a `versatiles-rs` checkout sits beside this one, or via
-`STUDIO_TESTDATA=/path/to/containers`; without either they skip rather than fail. Tests marked
-`#[ignore]` need the network — run them with `cargo test -- --ignored`.
-
 ## Sample containers
 
 Some Rust tests need sample containers, which are not vendored — `berlin.versatiles` alone is 25 MB.

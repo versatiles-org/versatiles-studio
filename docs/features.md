@@ -1,6 +1,6 @@
 # Feature Catalogue
 
-> Draft. This is the **idea pool**; the **Stage** column says what is actually scheduled. See
+> The **idea pool**; the **Stage** column says what is actually scheduled. See
 > [Release 1 Scope](scope-release-1.md) for why, and [Roadmap](roadmap.md) for what comes after.
 
 Seven clusters, stable IDs so they can be referenced from other documents and from issues. The

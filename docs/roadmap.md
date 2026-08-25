@@ -2,27 +2,29 @@
 
 > Stages, not dates. Feature IDs refer to the [Feature Catalogue](features.md).
 
-**Release 1 is defined by four funding milestones (M1–M4)**, not by us. Their scope, the six stages
-and the work items live in
-[Release 1 Scope](scope-release-1.md) and are not repeated here. This document covers how release 1
-ships, and what comes after it.
+**The work is defined by four funding milestones (M1–M4)**, not by us. The stages and items live in
+the scope documents and are not repeated here; this is the shape around them.
 
-An earlier version put analysis (cluster B) in stage 2 as the cheapest useful work. The funded scope
-reverses that — see [Q2](decisions.md).
+| Release                         | What it is                                         | State                                |
+| ------------------------------- | -------------------------------------------------- | ------------------------------------ |
+| [Release 1](scope-release-1.md) | M1–M4: open, edit, convert, style, ship            | Every item done bar six stretch ones |
+| [Release 2](scope-release-2.md) | Style modes: the four kinds of tileset people open | Done                                 |
+| [Release 3](scope-release-3.md) | One window, one project, and a launcher of its own | Done                                 |
 
-## How release 1 ships
+Shipped so far: `v0.1.0` and `v0.2.0`, both alpha. **1.0 and the public announcement land together**
+([Q8](decisions.md)) — the journalism audience should not meet Studio before it can create anything.
 
-Per [Q8](decisions.md), stages 1 onward ship as `v0.x` releases with an honest "under development"
-banner, aimed at tile operators and ourselves. **1.0 and the public announcement land together**,
-when all four milestones are in — the journalism audience should not meet Studio before it can
-create anything.
+An earlier plan put analysis (cluster B) in stage 2 as the cheapest useful work. The funded scope
+reverses that ([Q2](decisions.md)).
 
-Release 1 targets **Linux and macOS** via a Homebrew cask ([Q10](decisions.md)). Windows and Apple
-notarisation are deferred, keeping certificate procurement off the critical path; the cost is a
-Gatekeeper approval macOS users click through once, so the install instructions are part of the
-deliverable.
+## Platforms
 
-## Immediately after release 1
+- **Linux and macOS** via a Homebrew cask ([Q10](decisions.md)).
+- **Windows and Apple notarisation are deferred**, keeping certificate procurement off the critical
+  path. The cost is a Gatekeeper dialog macOS users click through once, so the install instructions
+  are part of the deliverable.
+
+## Next
 
 The cheapest valuable additions, in order:
 
@@ -31,26 +33,20 @@ The cheapest valuable additions, in order:
 - **Windows builds and a certificate** — OV, EV, or Azure Artifact Signing. Get quotes first
   ([Q10](decisions.md)).
 - **B1, B2, B3** — tile size statistics, byte breakdown, spec validation with a repair button.
-  Cheaper than once assumed: the per-layer breakdown already exists and the size scan is index-only
-  ([Q12](decisions.md)), so what remains is mostly visualisation. Only B2's per-attribute split is
-  new analysis work.
+  Cheaper than once assumed: the per-layer breakdown exists and the size scan is index-only
+  ([Q12](decisions.md)). Only B2's per-attribute split is new analysis work.
 - **F5, F4** — embed snippet and static site export. Without these, a user who has made a map still
   has to ask us what to do next.
 
 ## Later
 
-Two different things end up here, and the difference matters when planning: a **stretch** item is
-already scoped into release 1 and is cut first if time runs out, so it arrives with its stage rather
-than after it. Everything else was never in release 1 at all. The stretch items are A4, C5, C8, D5,
-D6, D9, E4 and E6 ([Release 1 Scope](scope-release-1.md) marks them `*`).
-
+- **The six stretch items release 1 did not reach** — S2.10 and S2.11 (recipe library, watch mode),
+  S3.8 and S3.9 (DEM workflow, table joins), S4.9 and S4.10 (accessibility checks, glyphs from own
+  fonts). A stretch item is scoped into a release and cut first if time runs out, so it lands at the
+  top of this list rather than at the bottom.
 - **B4, B5** — coverage gaps and container diff, valuable once people rebuild data sets regularly.
 - **D7** — legends. Explicitly **out** of release 1, unlike the D-cluster stretch items.
 - **F3, F6, F7** — upload targets, print-quality image export, offline packages.
-
-Cut a stretch item and it lands at the top of this list: D5, D6 and D9 (dark variants, accessibility
-checks, glyph generation from own fonts), E4 and E6 (DEM and hillshade, table joins for choropleths),
-C5 and C8 (recipe library, watch mode), A4 (layer and attribute introspection).
 
 ## Deliberately open-ended
 

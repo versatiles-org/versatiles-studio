@@ -1,9 +1,5 @@
 # Architecture
 
-> Draft. The shell question and the internal boundaries are settled ([Q1](decisions.md),
-> [Q3](decisions.md), [Q4](decisions.md), [Q6](decisions.md), [Q11](decisions.md)). The panel layout
-> is not.
-
 ## The central idea
 
 ```mermaid
@@ -68,54 +64,51 @@ Studio is one of five things, and knowing which is what decides whether anything
 
 The third, fourth and fifth are the ones worth being precise about.
 
-**A chosen destination is checked in the core, not in the dialog.** The filter that shapes a save
-dialog runs in the webview and therefore decides nothing: `export_graph` refuses a target whose
-extension is not one `export::WRITABLE` names, and `save_vpl` refuses one the import catalogue does
-not call a pipeline file. Those are the only two commands that take somewhere to _write_, and a
-third that took one and checked nothing would be the bug to look for — the commands that take a path
-to _read_ are row four, and check nothing by design.
+Three of those rows are worth being precise about.
 
-**A source named by the document is unconstrained on purpose.** A `.vpl` says
-`from_csv filename='…'`, and reading that file is what the document is _for_ — the preview of that
-same node decodes it in full and draws it on the map, so inspecting its header reads strictly less.
-Restricting it to the project directory would also make Studio **stricter than the CLI it drives**,
-which is the drift `vpl::validate` exists to prevent.
+- **A chosen destination is checked in the core, not in the dialog.** A save dialog's filter runs in
+  the webview and therefore decides nothing: `export_graph` refuses a target whose extension is not
+  one `export::WRITABLE` names, and `save_vpl` refuses one the import catalogue does not call a
+  pipeline file. Those are the only two commands that take somewhere to _write_; a third that took
+  one and checked nothing would be the bug to look for.
+- **A source named by the document is unconstrained on purpose.** A `.vpl` says
+  `from_csv filename='…'`, and reading that file is what the document is _for_ — the preview of that
+  node decodes it in full and draws it, so inspecting its header reads strictly less. Restricting it
+  to the project directory would make Studio **stricter than the CLI it drives**, which is the drift
+  `vpl::validate` exists to prevent.
+- **A path assembled from data is the one that is not a false positive.** The other rows end at a
+  person who chose the file or typed the pipeline; this one does not. A name inside `project.yaml`,
+  a family id arriving over IPC, an entry in an archive fetched over the network were all written by
+  whoever produced the data. Every one goes through
+  [`studio_core::paths`](../crates/studio-core/src/paths.rs): `segment` for what must be a single
+  filename, `within` for what must stay inside a directory.
 
-**A path assembled from data is the one that is not a false positive.** The four rows above all end
-at a person: they chose the file, or they typed the pipeline. This row does not — a name inside
-`project.yaml`, a family id arriving over IPC, an entry in an archive fetched over the network were
-all written by whoever produced the data, and that is not always whoever is sitting in front of the
-application. Every one of them goes through
-[`studio_core::paths`](../crates/studio-core/src/paths.rs): `segment` for something that must be a
-single filename, `within` for something that must stay inside a directory.
+The last row exists because two of them did not, and the scanner was right about both:
+`assets::remove` joined a family id straight from the webview, so `../…` deleted a `.tar.gz` outside
+the asset directory, and `style::bundle` trusted the names inside a `.tar.gz` — the classic zip slip.
+Both are fixed, and both have a test that fails when the guard is removed.
 
-The row exists because two of them did not, and the scanner was right about both. `assets::remove`
-joined a family id straight from the webview, so `../…` deleted a `.tar.gz` outside the asset
-directory; `style::bundle` trusted the names inside a `.tar.gz`, which is the classic zip slip. Both
-are fixed, and both have a test that fails when the guard is removed.
+**Triaging an alert.** Find its row. Rows one to four are false positives and this table is the
+citation; row five is a bug unless the path went through `paths`. Neither would be a path reaching
+the filesystem that fits no row at all.
 
-**Triaging an alert, then.** Find which row it is in. Rows one to four are false positives and this
-table is the citation; row five is a bug unless the path went through `paths`. What would be neither:
-a path reaching the filesystem that fits no row at all.
-
-**Why the noise is not filtered away.** Of the 65 `rust/path-injection` alerts standing on
-2026-08-22, 43 were in `#[cfg(test)]` code — so the obvious move is to stop scanning tests. It does
-not work. Code scanning here runs on GitHub's **default setup**, which reads no configuration at
-all: no `paths-ignore`, no `query-filters`. Advanced setup would allow both, and was tried and
-reverted — it cannot shrink that 43 either, because path filters work on files and those tests live
-inside the product files they test, and switching risks re-opening the dismissals already recorded.
-
-So the controls are the ones above: the guard, and this table to triage against. The residual cost is
-dismissing the test-code alerts by hand, which is bounded — test code changes rarely, so each
-dismissal is made once. Filtering the rule out entirely would buy a quiet list; it would also have
-kept both of the bugs in the row above.
+**Why the noise is not filtered away.** Of 65 `rust/path-injection` alerts standing on 2026-08-22, 43
+were in `#[cfg(test)]` code, so the obvious move is to stop scanning tests. It does not work: code
+scanning runs on GitHub's **default setup**, which reads no configuration — no `paths-ignore`, no
+`query-filters`. Advanced setup allows both and was tried and reverted; it cannot shrink that 43
+either, because path filters work on files and those tests live inside the product files they test.
+The residual cost is dismissing test-code alerts by hand, which is bounded — test code changes
+rarely, so each dismissal is made once. Filtering the rule out would buy a quiet list and would have
+kept both of the bugs above.
 
 ## Layers
 
 **Tauri shell.** Native windows, menus, file dialogs, drag & drop, file type associations,
 auto-update. Deliberately thin — the bridge to the platform, no application logic. **One window per
-project, one application instance** ([Q16](decisions.md)): each webview is its own OS process, so a
-project gets both crash isolation and its own WebGL context budget.
+project, one application instance** ([Q16](decisions.md), [Q48](decisions.md)): each webview is its
+own OS process, so a project gets both crash isolation and its own WebGL context budget. What opens
+at startup is decided in code rather than declared in `tauri.conf.json` — a file passed on the
+command line opens a project window, anything else opens the launcher.
 
 **UI (web).** Svelte 5, matching the rest of the org, with MapLibre GL for the canvas. All
 JavaScript is bundled at build time; **no Node runtime ships** ([Q5](decisions.md)). Components are
@@ -126,27 +119,30 @@ written from scratch rather than imported from `@versatiles/svelte` ([Q18](decis
 
 - _Project model_ — sources, pipeline, style, views; a directory with a `project.yaml` manifest
   beside real `.vpl` and `style.json` files (G1, [Q6](decisions.md))
-- _App store_ — recent sources, named views (A7), and the window's own layout: pane widths, which
-  panes are open, the background choice and the map camera. Application state, not project state, so
-  it lives beside the app's data, split across JSON files **by recovery policy** rather than by
-  subject ([Q21](decisions.md)) — precious data is never silently replaced with an empty one. The
-  core owns them; the platform layer decides where they live
+- _App store_ — recent sources and named views (A7), which belong to the person rather than to any
+  project, plus the layout a **new** window opens on. Split across JSON files **by recovery policy**
+  rather than by subject ([Q21](decisions.md)): precious data is never silently replaced with an
+  empty one. The core owns them; the platform layer decides where they live. The live layout — pane
+  widths, the background, the camera — belongs to a project ([Q48](decisions.md))
 - _VPL document model_ — a lossless syntax tree over the pipeline text, keeping spans, comments and
   parameter order, so the node graph (C1) and inline errors (C4) address the real file
   ([Q11](decisions.md)). A project holds **several named graphs**, each one document producing one
   named tile source ([Q32](decisions.md)); undo spans all of them, because ⌘Z should undo the last
   edit rather than the last edit _here_ (G6)
 - _Job runner_ — long operations with progress, cancellation and logging (E7); must exist before any
-  export feature, not after
+  export feature, not after. One runner, **a list per project**: a window is shown its own work, and
+  "newest wins" supersedes only within it ([Q48](decisions.md))
+- _Problem log_ — what went wrong this session, folded and written to disk as it happens, so the
+  account survives the window that produced it (S6.8)
 - _Analysis services_ — probe-derived statistics, cached in memory per container
   ([Q4](decisions.md)), aggregating over `layer_stats()` and `validate_tile()`
 - _Asset manager_ — download, pin, verify and remove font families and sprite sets (G7), and
   generate glyph sets from the user's own fonts (D9)
 - _Server manager_ — lifecycle of the **single** embedded server. `add_tile_source` and
   `remove_tile_source` work on a running server, so **each graph is a named mount**, not a server of
-  its own ([Q16](decisions.md)). Every graph is served so the style can name it — from S4, when
-  there is a style to name them; today the graph being edited is mounted and stays mounted. One
-  node may be _pinned_ on top of that for preview ([Q32](decisions.md))
+  its own ([Q16](decisions.md)). Every graph a project holds is served, so a style can name them all;
+  mount names carry the window, or two projects with a graph of the same name would serve each
+  other's tiles. One node may be _pinned_ on top of that for preview ([Q32](decisions.md))
 
 The core is a plain Rust library with no Tauri types, so it can be driven by ordinary Rust tests;
 `#[tauri::command]` functions are a thin binding over it. `versatiles_node` proves the shape — the
@@ -161,7 +157,8 @@ of the crates, and pressure to improve their APIs is a welcome side effect.
 versatiles-studio/
 ├── Cargo.toml                  workspace: crates/* + src-tauri
 ├── package.json                Vite · Svelte 5 · TypeScript — build-time only (Q5)
-├── index.html                  single entry; one surface, no routes         (Q22)
+├── index.html                  the workbench                                (Q22)
+├── landing.html                the launcher — its own page, no map          (Q48)
 │
 ├── crates/
 │   └── studio-core/
@@ -183,6 +180,7 @@ versatiles-studio/
 │           ├── suggest.rs      values a field could take                 (E2)
 │           ├── analysis.rs     probe stats, in-memory per container      (Q4)
 │           ├── assets.rs       install, pin, verify; glyph generation    (G7, D9)
+│           ├── paths.rs        the guard on a path assembled from data
 │           ├── store.rs        recents and named views, outliving a window (A7, Q21)
 │           └── server.rs       embedded server lifecycle, named mounts   (Q16)
 │
@@ -198,7 +196,7 @@ versatiles-studio/
 │       ├── commands/           #[tauri::command] bindings — control plane
 │       ├── events/             Channels — event plane                    (Q3)
 │       ├── menu.rs             the native menu; a choice becomes an event (S0.1)
-│       ├── windows.rs          one window per project                    (Q16)
+│       ├── windows.rs          project windows and the launcher     (Q16, Q48)
 │       ├── opened.rs           files the OS asks Studio to open          (S0.1)
 │       ├── assets.rs           locating the bundled tier                 (S0.6)
 │       ├── bindings.rs         generating bindings.ts from the commands  (S0.3)
@@ -208,8 +206,8 @@ versatiles-studio/
 │   └── maplibre-gl-worker.js   generated, not hand-written               (Q18)
 │
 ├── src/                        the webview
-│   ├── main.ts                 mounts the app; imports both stylesheets
-│   ├── App.svelte
+│   ├── main.ts                 · landing.ts — one entry point per page
+│   ├── App.svelte              · Launcher.svelte — one root per page
 │   └── lib/
 │       ├── shell/              the frame: AppShell · Sidebar · Pane · bars
 │       ├── panes/<pane>/       each pane and its own parts               (Q31)
@@ -253,8 +251,9 @@ the OS hands over, where the bundled assets are, and the generator that writes `
 **`resources/` holds archives, not directories.** [Q9](decisions.md) is emphatic that assets are
 never unpacked, and a `resources/sprites/` tree would quietly undo that at build time.
 
-**No `src/routes`.** Studio navigates by mode, not by URL, and has no server or SSR, so SvelteKit's
-value is unused while its cost — an adapter config and a router for a single-page app — is not.
+**No `src/routes`.** Studio has two pages and no navigation between them: a window is one or the
+other for its whole life ([Q48](decisions.md)). With no server and no SSR, SvelteKit's value is
+unused while its cost — an adapter config and a router — is not.
 
 **No `crates/studio-vpl`.** The lossless syntax tree should land upstream in `versatiles_pipeline`
 ([Q11](decisions.md)). If that crate ever appears here, it means upstream declined — a signal worth
@@ -278,14 +277,15 @@ Taken seriously it has teeth: a view that edits the text must edit it **surgical
 reformatting, reordering parameters or dropping comments as a side effect. That is why the node
 graph needs a lossless syntax tree rather than a parse-and-print round trip ([Q11](decisions.md)).
 
-**Nothing durable lives only in the webview.** The core holds the project, pipeline, jobs and
-server; the webview renders them. The map camera, the graphs and their text, and the pane
-layout are all restorable from the core, so a reloaded window comes back where it was
-([Q16](decisions.md)). There is no active mode to join them — [Q39](decisions.md) retired the modes, and a window is never restored onto a dialog. **Cursors are
-deliberately not owned** — scroll position stays in the webview ([Q35](decisions.md)), because the
-test is what you would have to redo by hand rather than whether the value survives: a camera has to
-be found again, a scroll is one flick. This is the source-of-truth principle applied to volatile UI state
-rather than to files.
+**Nothing durable lives only in the webview.** The core holds the projects, the pipelines, the jobs
+and the server; the webview renders them. The map camera, the graphs and their text and the pane
+layout are all restorable from the core, keyed by window label, so a reloaded window comes back where
+it was ([Q16](decisions.md), [Q48](decisions.md)). There is no active mode to join them —
+[Q39](decisions.md) retired the modes, and a window is never restored onto a dialog.
+
+**Cursors are deliberately not owned.** Scroll position stays in the webview
+([Q35](decisions.md)): the test is what you would have to redo by hand rather than whether the value
+survives. A camera has to be found again; a scroll is one flick.
 
 **Generate UI from metadata where possible.** Parameter forms come from `field_meta`
 ([inventory](ecosystem.md)). Hand-written UI per operation would rot the first time versatiles-rs
@@ -309,25 +309,25 @@ which is the reminder that
 that should have been upstream and was never offered there costs the ecosystem an improvement and
 costs us the maintenance of a private copy.
 
-**It has already paid out twice.** Studio needed a lossless VPL syntax tree for C1 and
-upstream's parser could not give one ([Q23](decisions.md)); rather than keep the second grammar it
-had written, Studio filed
-[#216](https://github.com/versatiles-org/versatiles-rs/issues/216),
-[#217](https://github.com/versatiles-org/versatiles-rs/issues/217) and
-[#218](https://github.com/versatiles-org/versatiles-rs/issues/218). All three landed in 4.8.0 as
-`CstFile`, and Studio's parser, printer and the differential test that kept the two honest were
-deleted — **about 700 lines removed for 250 added**, and one grammar in the ecosystem instead of two.
-`crates/studio-vpl` not existing is the visible result: it would only be here if upstream had said no.
+**It has already paid out.**
 
-The second payout was wider rather than deeper. Ten of the twelve asks filed during stage 1 landed
-together in 4.9.0, including an operation that reports whether it fits a source — a capability
-Studio would otherwise have had to guess at, one operation at a time, from metadata that does not
-carry the answer. Four more landed in 4.9.1, one of them the day after it was filed.
-
-**One of those four needed no adoption at all**, which is the clearest measure of the arrangement
-working. Studio stopped validating enum values itself when it took `check_pipeline` in 4.9.0; when
-the parser started deciding them ([vt#252](https://github.com/versatiles-org/versatiles-rs/issues/252)),
-the fix arrived underneath Studio and the only change here was a test that had recorded the gap.
+- **The VPL syntax tree.** Studio needed a lossless one for C1 and upstream's parser could not give
+  one ([Q23](decisions.md)). Rather than keep the second grammar it had written, Studio filed
+  [#216](https://github.com/versatiles-org/versatiles-rs/issues/216),
+  [#217](https://github.com/versatiles-org/versatiles-rs/issues/217) and
+  [#218](https://github.com/versatiles-org/versatiles-rs/issues/218); all three landed in 4.8.0 as
+  `CstFile`, and Studio's parser, printer and differential test were deleted — **about 700 lines
+  removed for 250 added**, and one grammar in the ecosystem instead of two. `crates/studio-vpl` not
+  existing is the visible result.
+- **Ten of twelve asks from stage 1** landed together in 4.9.0, including an operation that reports
+  whether it fits a source — a capability Studio would otherwise have had to guess at, one operation
+  at a time, from metadata that does not carry the answer. Four more landed in 4.9.1, one the day
+  after it was filed.
+- **One of those needed no adoption at all**, which is the clearest measure of the arrangement
+  working. Studio stopped validating enum values itself when it took `check_pipeline` in 4.9.0; when
+  the parser started deciding them
+  ([vt#252](https://github.com/versatiles-org/versatiles-rs/issues/252)) the fix arrived underneath
+  Studio, and the only change here was a test that had recorded the gap.
 
 **The two platforms deliver an opened file differently.** macOS sends `RunEvent::Opened`, possibly
 before the window exists and possibly again later; Linux puts the path in `argv`, once. `opened.rs`
@@ -359,5 +359,6 @@ archives too, so downloaded and generated fonts take the same path.
 | **Q6**   | A project is a directory of real files described by a YAML manifest                      |
 | **Q11**  | The node graph is in release 1, and needs a lossless VPL syntax tree                     |
 | **Q16**  | One application instance, one window per project, one embedded server with named mounts  |
+| **Q48**  | A window _is_ a project, and the launcher is a window of its own                         |
 
 See the [decision log](decisions.md) for the reasoning.

@@ -1,8 +1,12 @@
 # Style Use Cases
 
-What someone actually opens, what they want to do with it, and what the style pane does about it
-today. Four cases, read against the code rather than against the plan — the gaps below are things
-that are true of the build, not things that are merely unfinished.
+What someone actually opens, what they want to do with it, and what the style pane did about it.
+Four cases, read against the code rather than against the plan.
+
+> **This is the case for [Release 2](scope-release-2.md), and that work has landed.** Everything
+> below in the present tense describes the build _before_ S6 — the gaps it names are the ones S6.1 to
+> S6.7 closed, and the design it argues for is the one that shipped. Kept because the reasoning is
+> what the code now embodies, and because the four cases are still the four things people open.
 
 Not to be confused with [Styling](styling.md), which is Studio's own CSS.
 
@@ -260,82 +264,15 @@ invisible, and the code export emitted it into a file with no such layer. Cleari
 and never automatic — an override gone quiet under one preset is work someone may be in the middle of
 comparing.
 
-# Implementation plan
+# What it became
 
-Seven steps, tracked as **S6.1 – S6.7** in [Release 2 Scope](scope-release-2.md), which is where the
-ordering rationale and the migration risks live. The numbering below matches: step 1 is S6.1.
+The seven steps this document proposed are **S6.1 – S6.7** in
+[Release 2 Scope](scope-release-2.md), where each row records what actually landed rather than what
+was planned. In order: read `tile_schema` and say what a source is; derive a style where a preset
+would draw nothing; the raster imagery editor; split `Appearance` into a tagged union and migrate the
+manifest; the source stack; the DEM editor; and the override-collision question, whose premise turned
+out to be wrong.
 
-The first three are small and each one removes a way the pane currently misleads, so they are worth
-landing on their own even if the rest waits. Step 4 is the breaking change.
-
-### 1 · Read `tile_schema` and say what a source is
-
-Surface it through `ContainerInfo` rather than leaving callers to dig in the opaque `tile_json`, then
-show it in the pane with a picker that overrides it.
-
-- `crates/studio-core/src/analysis.rs` — a `tile_schema: Option<String>` field beside `tile_format`
-- `src/lib/panes/style/StylePane.svelte` — the "Interpreted as" row
-- Probing stays as the fallback: no schema means the old inference
-
-Nothing else changes yet. On its own this makes UC2 and UC3 stop lying about what they are showing.
-
-### 2 · Derive where a preset would draw nothing
-
-`src/App.svelte:609` already computes the condition and answers "no style". Answer "derive one"
-instead.
-
-- One branch in the `styled` derivation; `deriveStyle` already exists and is already tested
-- Fixes UC4, which is the most common thing the pipeline pane produces
-
-### 3 · The raster imagery editor
-
-The controls exist and point at the wrong thing.
-
-- `src/lib/map/style.ts` — a raster branch emitting one `raster` layer with `raster-*` paint
-- `src/lib/panes/style/StylePane.svelte` — the slider block, minus gamma, plus resampling
-- Fixes UC2 without touching the recipe's shape yet, by treating the raster settings as a `Recolor`
-  read differently
-
-### 4 · Split `Appearance` into a tagged union — **the breaking change**
-
-- `crates/studio-core/src/style/mod.rs` — `SourceKind`, `Appearance`, `SourceStyle`
-- `crates/studio-core/src/project.rs` — bump `Manifest::version` to `2` and migrate a version-1
-  recipe into a single-source stack. The version field and its `version <= 1` guard already exist,
-  so the mechanism is there
-- `src-tauri/src/bindings.rs` — regenerate; `bindings_are_up_to_date` will fail until it is
-- `src/lib/state/style.svelte.ts`, `src/lib/ipc/commands.ts` — follow the new shape
-- Still single-source: the stack is one entry deep, so nothing in the UI moves yet
-
-Doing this before the stack keeps two large changes from landing together, and doing it before a
-release keeps the migration to one hop.
-
-### 5 · The source stack
-
-- `composeStyle` replaces `renderStyle`'s single-source assumption; `sources[0]` disappears
-- `src/App.svelte` — pass every mounted graph, not `preview.last` alone
-- `StylePane` — the list, drag-to-reorder, per-source expand
-- This is where "a basemap underneath" becomes possible without a new concept
-
-### 6 · The DEM editor
-
-- `add-source.ts` — a `raster-dem` source with `encoding` from the kind
-- A `hillshade` branch in `composeStyle`, plus its controls
-- Most new code, least existing scaffolding, and no other step depends on it
-
-### 7 · Decide the override-collision question
-
-Prune with a notice, or key by preset. Small either way, and it can land any time after step 4.
-
-## What to watch
-
-**`bindings_are_up_to_date`** is the tripwire for steps 1 and 4 — it fails the moment the Rust types
-move and the generated TypeScript has not.
-
-**The existing tests are mostly still right.** `style.test.ts` asserts things about `renderStyle`
-that stay true of the preset branch; `layer-tree.test.ts` and `filter.test.ts` are about the tree and
-do not care about kinds. `style-code.test.ts` is the one to read carefully at step 4, since D8's code
-export only means anything for a preset source.
-
-**A version-1 project must keep opening.** The migration in step 4 is the only place that can be got
-wrong quietly, and `project.rs` already has a test that reads a hand-written manifest string —
-extend it rather than replacing it.
+**What held it honest**, and still does: `bindings_are_up_to_date` failed the moment the Rust types
+moved without the generated TypeScript, and `project.rs`'s test on a hand-written manifest string is
+what kept a version-1 project opening across the migration.

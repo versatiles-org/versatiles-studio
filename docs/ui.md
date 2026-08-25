@@ -1,7 +1,6 @@
 # UI Concept
 
-> Draft. The shape is settled ([Q13](decisions.md), [Q15](decisions.md), [Q22](decisions.md));
-> section detail is not. Reasoning lives in the decision log; this document is what it looks like.
+> Reasoning lives in the [decision log](decisions.md); this document is what it looks like.
 
 ## The shape
 
@@ -16,8 +15,13 @@ accepted rather than designed around.
 **There is one surface, and no modes** ([Q39](decisions.md)). [Q22](decisions.md) kept a mode bar to
 separate map work from non-map tools, with the asset manager (G7) as the second occupant that made it
 worth having; making that an errand-shaped **dialog** took the occupant away, and a one-item bar is
-chrome that does nothing. What arrived at S4 is an **application bar** instead: what is about Studio
-or the project — fonts, open, save, run elsewhere — rather than about any one pane's output.
+chrome that does nothing. An application bar took its place for two releases and then went the same
+way: what is about Studio or the project belongs in the **native menu**, which is where a person
+looks for it and the only place that gets accelerators and platform conventions for free
+([Q47](decisions.md)).
+
+**A window is a project** ([Q48](decisions.md)). ⌘N opens the launcher, which is a window of its own;
+picking something there opens a project window and closes the launcher.
 
 **It still grows one stage at a time.** Sections are added, not rebuilt:
 
@@ -26,8 +30,10 @@ or the project — fonts, open, save, run elsewhere — rather than about any on
 | S1    | The surface, sections collapsed: map, inspector, status bar                 |
 | S2    | Left pane opens — Pipeline section, Graph / VPL tabs                        |
 | S3    | Import cards on the landing screen and "add source"                         |
-| S4    | Style pane — layer tree and its own export; **the application bar appears** |
+| S4    | Style pane — layer tree and its own export                                  |
 | S5    | Crop, estimate and serve join the panes that own them ([Q31](decisions.md)) |
+| S6    | The style pane says what it is looking at, and draws every kind of tileset  |
+| S7    | The launcher becomes a window; the in-window chrome goes to the menu        |
 
 The alternatives fail differently: a **node-graph-as-app** needs the graph in S1 but C1 lands in S2,
 and a layer tree is not a node; a **file-tree IDE** matches [Q6](decisions.md) but sells P1 the
@@ -62,15 +68,15 @@ True everywhere. These matter more than the arrangement.
 
 ## Panes and sections
 
-Three regions, always present — **left pane, map, right pane** — over the status and job bar, with
-the application bar arriving above them at S4.
+Three regions, always present — **left pane, map, right pane** — over the status and job bar. What is
+about Studio or the project is in the native menu above all of them, not in the window
+([Q47](decisions.md)).
 
-| Region         | Holds                                                                                                                                                                                                                   |
-| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **App bar**    | What is about Studio or the project, not about a pane: fonts (G7), open, save, save a copy, run elsewhere. No modes ([Q39](decisions.md)); locally generated glyphs (D9) belong to the asset manager, which is a dialog |
-| **Left pane**  | The chain, as collapsible sections: **Pipeline · Style · Export**                                                                                                                                                       |
-| **Map**        | The subject, the preview, an input device for the crop rectangle (F2), and the controls that move the camera — coordinate jump and named views (A7, [Q38](decisions.md))                                                |
-| **Right pane** | What things turn out to be — the pipeline's output, and an opened container's own metadata. Not parameters ([Q32](decisions.md))                                                                                        |
+| Region         | Holds                                                                                                                                                                    |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Left pane**  | The chain, as collapsible sections: **Pipeline · Style · Export**                                                                                                        |
+| **Map**        | The subject, the preview, an input device for the crop rectangle (F2), and the controls that move the camera — coordinate jump and named views (A7, [Q38](decisions.md)) |
+| **Right pane** | What things turn out to be — the pipeline's output, and an opened container's own metadata. Not parameters ([Q32](decisions.md))                                         |
 
 **The left pane is the chain from data to pixels.** Sources feed the pipeline, the pipeline produces
 tiles, the style renders them, export writes them out — steps that used to be a mode switch apart,
@@ -116,8 +122,9 @@ pipeline's output rather than a container's tiles.
 
 **Saving a pipeline lives in the Pipeline section**, because that is its scope: it writes the
 pipeline as the `.vpl` the CLI already reads. Saving a _project_ — the manifest, the style and the
-pipeline as a directory (G1) — is a different command with a different scope, and gets its own home
-when it arrives. One writes a file, the other a folder; they are not two spellings of one thing.
+pipelines as a directory (G1) — is a different command with a different scope, and lives in the File
+menu with ⌘S on it ([Q47](decisions.md)). One writes a file, the other a folder; they are not two
+spellings of one thing, and the shortcut names the one people mean.
 
 **Paths inside a `.vpl` file resolve against that file**, the way `versatiles convert` resolves them:
 `from_container filename="berlin.mbtiles"` means the one beside it. Opening a pipeline therefore
@@ -267,15 +274,16 @@ Tabs, not a split — one pane is usable on a 13-inch laptop. Side by side exist
 and file agree, so the tabs owe that back; [Q15](decisions.md#q15--the-pipeline-pane-tabs-between-graph-and-text)
 lists the four debts and this is where they are paid.
 
-### S4 and S5 — Style joins the chain
+### S4 onward — Style joins the chain
 
 Nothing moves. More panes appear below the ones already there, and the asset manager opens as a
-dialog over them ([Q39](decisions.md)). Export is not among them: it belongs to the pane whose output it writes ([Q31](decisions.md)),
-and to the graph that produced it ([Q32](decisions.md)).
+dialog over them ([Q39](decisions.md)). Export is not among them: it belongs to the pane whose output
+it writes ([Q31](decisions.md)), and to the graph that produced it ([Q32](decisions.md)). Opening,
+saving and fonts are in the menu rather than in a strip along the top ([Q47](decisions.md)).
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
-│  [Fonts…]  [Open project…]  [Save…]  [Save a copy…]       │
+│ ≡  MyProject                                              │
 ├───────────────────┬──────────────────────┬────────────────┤
 │ ▾ PIPELINE        │        MAP           │ ▾ INSPECTOR    │
 │   ◉ basemap    •  │   live style over    │ format, zooms  │
@@ -321,10 +329,10 @@ nothing the generated form does not handle. VPL makes no such split either.
 ## State the core must own
 
 Not because of mode switches — there are none — but because a window can crash or reload
-([Q16](decisions.md)):
+([Q16](decisions.md)). **Per window, because a window is a project** ([Q48](decisions.md)):
 
 Map camera · the graphs and their text · the sources they read · which panes are open and how wide ·
-the global undo stack · running jobs and their logs · unsaved edits.
+the undo stack · the jobs that project has run · unsaved edits.
 
 **What it deliberately does not own: cursors.** Scroll position stays in the webview
 ([Q35](decisions.md#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)).
@@ -334,7 +342,7 @@ value is already in the core, so the gap costs a gesture, not work.
 
 ## Settled elsewhere
 
-**Project settings open as a dialog from the application bar**, beside the asset manager — which
+**Project settings open as a dialog from the menu**, beside the asset manager — which
 [Q39](decisions.md) made a dialog too, for the same reason. They are edited rarely and are not a
 selection, so a modal is honest — and it keeps the right pane's rule intact rather than carving an
 exception into it.

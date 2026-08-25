@@ -13,16 +13,16 @@ The decision this implements, and what it supersedes, is
 
 ## S7 · One window, one project — and a launcher of its own
 
-**What the code actually does today.** Every piece of project state in `AppState` is a single
+**What the code did before this stage.** Every piece of project state in `AppState` was a single
 app-wide `Mutex`: `graphs`, `style`, `history`, `pinned`, `project_dir`, `project_root` — and
-`layout`, which carries the pane widths, the background _and the camera_. So ⌘N opens a second window
-onto the same project, sharing one undo stack and one viewport. `open_project`'s own doc comment
-concedes it: _"opening a second one beside the first would leave two sets of graphs sharing an undo
-stack and a style, which is not a project."_
+`layout`, which carries the pane widths, the background _and the camera_. So ⌘N opened a second
+window onto the same project, sharing one undo stack and one viewport. `open_project`'s own doc
+comment conceded it: _"opening a second one beside the first would leave two sets of graphs sharing
+an undo stack and a style, which is not a project."_
 
-**And the launcher is a screen inside that window.** `LandingScreen` renders over the map region
-whenever there are no graphs, which makes a project window two different things depending on its
-contents — and makes "new project" mean "empty this window out".
+**And the launcher was a screen inside that window.** `LandingScreen` rendered over the map region
+whenever there were no graphs, which made a project window two different things depending on its
+contents — and made "new project" mean "empty this window out".
 
 | Item     | Work                                                                                                                                                                                                                                                                                                                                                                                                               | Feature        |
 | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- |

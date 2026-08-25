@@ -1,6 +1,6 @@
 # Ecosystem Inventory
 
-> Snapshot taken 2026-08-16. Verify before relying on any single detail.
+> Snapshot taken 2026-08-16, against versatiles-rs 4.7. Verify before relying on any single detail — Studio is on 4.10, and [Filed, and what came back](#filed-and-what-came-back) records which gaps have since closed.
 
 Most of Studio's engine already exists. This is the evidence base the [decision log](decisions.md)
 refers back to — what is available, so planning can tell "wire up something that works" from "build
@@ -87,8 +87,8 @@ free. Three details drive [Q4](decisions.md) and [Q12](decisions.md):
 
 ### 3. The VPL parser only runs one way
 
-> **Resolved upstream in v4.8.0** (not yet on crates.io): a lossless `CstFile` with spans, a
-> serialiser and positioned parse errors. See [Q23](decisions.md) for what that means for Studio.
+> **Resolved upstream in v4.8.0**: a lossless `CstFile` with spans, a serialiser and positioned parse
+> errors. Studio has been on it since; see [Q23](decisions.md) for what it meant here.
 
 The constraint that shapes cluster C. Text → structure is solved; structure → text does not exist:
 

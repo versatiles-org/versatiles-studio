@@ -1,7 +1,5 @@
 # Vision & Scope
 
-> Draft. Everything here is open for discussion.
-
 VersaTiles Studio is a desktop application that makes the whole life cycle of map tiles — creating,
 inspecting, transforming, styling and publishing them — accessible without a terminal and without a
 full GIS.
@@ -64,5 +62,6 @@ Scenarios that should feel easy. These double as acceptance tests for the concep
 
 ## Related documents
 
-Who these scenarios belong to: [Target Audiences](audiences.md). What is needed to support them:
-[Feature Catalogue](features.md). What we already have: [Ecosystem Inventory](ecosystem.md).
+- Who these scenarios belong to — [Target Audiences](audiences.md)
+- What is needed to support them — [Feature Catalogue](features.md)
+- What already exists to build on — [Ecosystem Inventory](ecosystem.md)
