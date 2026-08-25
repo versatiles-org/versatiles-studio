@@ -67,6 +67,14 @@ export interface Context {
 	 * previous preview's and would put hairlines over a styled map every other refresh.
 	 */
 	styled: () => boolean;
+	/**
+	 * Whether this window already knows where it is looking.
+	 *
+	 * True when the core handed back a camera for this project — which is what a *reloaded* window
+	 * gets and a new one does not ([Q48](../../../docs/decisions.md), S7.4). Framing the data over
+	 * the top of it would undo the one thing a reload is supposed to preserve.
+	 */
+	restored: boolean;
 }
 
 /** The opened containers, each with the read node it corresponds to (Q22). */
@@ -186,7 +194,7 @@ export const preview = {
 	 * shows the data as it is at that step, and with nothing pinned the map shows the graph's output
 	 * in full.
 	 */
-	async refresh({ map, pipeline, pinned, styled }: Context): Promise<Refreshed> {
+	async refresh({ map, pipeline, pinned, styled, restored }: Context): Promise<Refreshed> {
 		if (!map || !pipeline) return { kind: 'unavailable' };
 
 		// **A document that does not validate is not built.** `＋ operation…` inserts a node with its
@@ -234,6 +242,22 @@ export const preview = {
 		showing = result !== null;
 		if (!result) return { kind: 'shown' };
 
+		// **The camera moves when tiles first appear, and never again on its own.** Every edit to
+		// the VPL rebuilds the preview, so refitting here would drag the map back to the data's
+		// extent on every keystroke that parses — panning somewhere to look at a change and being
+		// thrown out of it. Framing the data again is a deliberate act with a button of its own.
+		//
+		// **Before the question of who draws the tiles**, which this used to sit after. Framing is
+		// not one of the things a recipe takes over: whether the map is drawn by a style or by the
+		// hairlines below, the first sight of data is the moment to look at it. Sitting below the
+		// early return meant a window opened at null island and stayed there — and since S6.2
+		// derives a style for very nearly everything, that was almost every window. "Reset view"
+		// worked, which is what made it look like a missing gesture rather than a missing camera.
+		//
+		// **And not over a camera the window already has.** A reloaded window comes back to where it
+		// was looking; a new one has nothing to come back to, so the data decides.
+		if (!wasShowing && !restored && result.info.bbox) fitToBounds(map, result.info.bbox);
+
 		// The hairlines are what a *styled* map does not need: when the recipe renders these tiles,
 		// its own layers draw them and a line over the top would be a second opinion (S4.3). Asked
 		// after the build, because the answer is about the preview the build just produced.
@@ -249,12 +273,6 @@ export const preview = {
 		}
 
 		mountedName = result.name;
-
-		// **The camera moves when tiles first appear, and never again on its own.** Every edit to
-		// the VPL rebuilds the preview, so refitting here would drag the map back to the data's
-		// extent on every keystroke that parses — panning somewhere to look at a change and being
-		// thrown out of it. Framing the data again is a deliberate act with a button of its own.
-		if (!wasShowing && result.info.bbox) fitToBounds(map, result.info.bbox);
 		return { kind: 'shown' };
 	},
 

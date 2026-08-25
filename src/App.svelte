@@ -573,7 +573,10 @@
 				map,
 				pipeline: document.current,
 				pinned: graphs.pinned,
-				styled: () => previewDrawn
+				styled: () => previewDrawn,
+				// A camera came back from the core, so this window is a reload rather than a first
+				// open and already knows where it was looking.
+				restored: layout.current?.view != null
 			});
 			switch (done.kind) {
 				// A newer build owns the map and is still working; the bar is its to set, not ours.
