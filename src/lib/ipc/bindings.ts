@@ -1123,7 +1123,18 @@ export type JobEvent =
  *  Absolute counts when the job has them. The runner turns successive values into a rate
  *  and an ETA; a listener never has to keep its own history to know how fast this is going.
  */
-done: number | null; total: number | null; message: string } | 
+done: number | null; total: number | null; message: string; 
+/**
+ *  How fast it is going and how long is left — **filled in by the runner on the way out**,
+ *  the same as `log_lines` below.
+ * 
+ *  The reporter cannot know either: both are derived from this update *and the ones before
+ *  it*, which only the registry has. Left off the event, they were computed on every update
+ *  and never left the core — the list a window takes when it subscribes carried them, and
+ *  nothing after that did, so a job that started while you were watching showed a bar and a
+ *  message and never a speed.
+ */
+rate: number | null; etaSeconds: number | null } | 
 /**  A line for the job log. Failures at minute forty have to be able to say why. */
 { kind: "log"; id: number; line: string; 
 /**

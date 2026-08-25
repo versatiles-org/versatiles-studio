@@ -87,7 +87,19 @@ function update(job: Job, event: JobEvent): Job {
 		case 'started':
 			return { ...job, state: { kind: 'running' } };
 		case 'progress':
-			return { ...job, fraction: event.fraction, message: event.message };
+			// **All of it, not just the fraction.** The counts, the speed and the ETA arrive on the
+			// same event and were being dropped here — so a job that started while a window was
+			// watching showed a bar and a message and never a speed, while one that was already
+			// running when the window subscribed showed the numbers it had at that instant, frozen.
+			return {
+				...job,
+				fraction: event.fraction,
+				done: event.done,
+				total: event.total,
+				rate: event.rate,
+				etaSeconds: event.etaSeconds,
+				message: event.message
+			};
 		case 'log':
 			return { ...job, logLines: event.logLines };
 		case 'finished':

@@ -169,6 +169,18 @@ pub enum JobEvent {
 		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
 		total: Option<u64>,
 		message: String,
+		/// How fast it is going and how long is left — **filled in by the runner on the way out**,
+		/// the same as `log_lines` below.
+		///
+		/// The reporter cannot know either: both are derived from this update *and the ones before
+		/// it*, which only the registry has. Left off the event, they were computed on every update
+		/// and never left the core — the list a window takes when it subscribes carried them, and
+		/// nothing after that did, so a job that started while you were watching showed a bar and a
+		/// message and never a speed.
+		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+		rate: Option<f64>,
+		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+		eta_seconds: Option<f64>,
 	},
 	/// A line for the job log. Failures at minute forty have to be able to say why.
 	Log {
@@ -328,6 +340,10 @@ impl Reporter {
 			done,
 			total,
 			message: message.into(),
+			// Corrected by the runner, which is the only thing that can see the updates before this
+			// one. Same arrangement as `log_lines` below.
+			rate: None,
+			eta_seconds: None,
 		});
 	}
 
@@ -712,6 +728,8 @@ impl Jobs {
 				done,
 				total,
 				message,
+				rate,
+				eta_seconds,
 			} => {
 				if let Some(entry) = registry.entry(*id) {
 					entry.job.fraction = *fraction;
@@ -719,6 +737,11 @@ impl Jobs {
 					entry.job.total = *total;
 					entry.job.message.clone_from(message);
 					entry.rate_and_eta(Instant::now());
+					// Out again on the same event. The listener is not expected to keep a history of
+					// its own — and the one that tried would have to keep the runner's anchor rule
+					// with it, which is the whole reason that rule lives in one place.
+					*rate = entry.job.rate;
+					*eta_seconds = entry.job.eta_seconds;
 				}
 			}
 			JobEvent::Log { id, line, log_lines } => {
@@ -1043,6 +1066,74 @@ mod tests {
 		until(|| jobs.list(WINDOW).iter().all(|job| !job.state.is_active())).await;
 		assert_eq!(peak.load(Ordering::SeqCst), 1, "the lane holds one job");
 		assert_eq!(*order.lock().unwrap(), [0, 1, 2, 3], "and holds it in order");
+	}
+
+	/// The bug this exists for: the speed and the ETA were computed on every update and never left
+	/// the core.
+	///
+	/// The list a window takes when it subscribes carried them; nothing after that did. So an export
+	/// started while you were watching showed a bar and "processing tiles" and never a speed — and
+	/// one already running when the window opened showed whatever it had at that instant, frozen.
+	#[tokio::test]
+	async fn a_progress_event_carries_the_speed_the_runner_worked_out() {
+		let jobs = Jobs::new();
+		let events = collector(&jobs);
+
+		let id = jobs.submit("writing", Lane::Queued, WINDOW, |handle| async move {
+			handle.counted(0, 100, "processing tiles");
+			// Far enough apart that the anchor has elapsed time to divide by.
+			tokio::time::sleep(Duration::from_millis(20)).await;
+			handle.counted(50, 100, "processing tiles");
+			Ok(())
+		});
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+
+		let paced: Vec<(Option<f64>, Option<f64>)> = events
+			.lock()
+			.unwrap()
+			.iter()
+			.filter_map(|event| match event {
+				JobEvent::Progress { rate, eta_seconds, .. } => Some((*rate, *eta_seconds)),
+				_ => None,
+			})
+			.collect();
+
+		assert_eq!(paced.len(), 2);
+		assert_eq!(
+			paced[0],
+			(None, None),
+			"nothing has moved yet, and a rate from one sample is not a rate"
+		);
+		let (rate, eta) = paced[1];
+		assert!(rate.is_some_and(|rate| rate > 0.0), "no speed on the second update");
+		assert!(eta.is_some_and(|eta| eta > 0.0), "no ETA on the second update");
+	}
+
+	/// A job that cannot count says so, rather than reporting a speed of zero.
+	#[tokio::test]
+	async fn an_uncounted_job_reports_no_speed_at_all() {
+		let jobs = Jobs::new();
+		let events = collector(&jobs);
+
+		let id = jobs.submit("thinking", Lane::Queued, WINDOW, |handle| async move {
+			handle.working("building the pipeline");
+			Ok(())
+		});
+		until(|| !jobs.job(id).unwrap().state.is_active()).await;
+
+		let held = events.lock().unwrap();
+		let progress = held
+			.iter()
+			.find(|event| matches!(event, JobEvent::Progress { .. }))
+			.expect("the message went out as progress");
+		assert!(matches!(
+			progress,
+			JobEvent::Progress {
+				rate: None,
+				eta_seconds: None,
+				..
+			}
+		));
 	}
 
 	// -- one runner, a list per project (S7.3) --------------------------------------------------

@@ -94,6 +94,60 @@ describe('folding events in', () => {
 		expect(jobs.all[0]).toMatchObject({ fraction: 0.42, message: 'writing tiles' });
 	});
 
+	/**
+	 * The bug this exists for: only `fraction` and `message` were taken off the event, so the bar
+	 * showed a moving bar and "processing tiles" and never a speed. The counts, the rate and the ETA
+	 * were all on the event already — the runner works them out and sends them back on it.
+	 */
+	it('carries the counts and the pace with it, not only the fraction', async () => {
+		const send = await connect([job(1)]);
+		send({
+			kind: 'progress',
+			id: 1,
+			fraction: 0.42,
+			done: 42_000,
+			total: 100_000,
+			rate: 6100,
+			etaSeconds: 9.5,
+			message: 'processing tiles'
+		} as JobEvent);
+
+		expect(jobs.all[0]).toMatchObject({
+			fraction: 0.42,
+			done: 42_000,
+			total: 100_000,
+			rate: 6100,
+			etaSeconds: 9.5
+		});
+	});
+
+	/** A job that cannot count must not keep the last pace it had from a job that could. */
+	it('clears the pace when an update stops being able to say', async () => {
+		const send = await connect([job(1)]);
+		send({
+			kind: 'progress',
+			id: 1,
+			fraction: 0.4,
+			done: 4,
+			total: 10,
+			rate: 2,
+			etaSeconds: 3,
+			message: 'x'
+		} as JobEvent);
+		send({
+			kind: 'progress',
+			id: 1,
+			fraction: null,
+			done: null,
+			total: null,
+			rate: null,
+			etaSeconds: null,
+			message: 'tidying up'
+		} as JobEvent);
+
+		expect(jobs.all[0]).toMatchObject({ rate: null, etaSeconds: null, done: null, message: 'tidying up' });
+	});
+
 	// Leaving the last fraction at 0.7 would draw a bar that stops short of the end for as long as
 	// the row is on screen.
 	it('finishes a job all the way to the end of its bar', async () => {
