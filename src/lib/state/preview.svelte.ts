@@ -86,13 +86,27 @@ let last = $state<Preview | null>(null);
 let built = $state<Record<string, Preview>>({});
 
 /**
- * The mount currently drawn on the map, or `null` when nothing is.
+ * The mount whose layers *this module* put on the map, or `null` when it has none there.
  *
  * Kept rather than derived, because taking a layer off again needs the name it went on under and
  * the two cases do not share one: a pinned node is built into the fixed `preview` mount, while an
  * unpinned graph is mounted under the graph's own name ([Q32]).
+ *
+ * **Only ever set once the layers are actually on.** It used to be set as soon as a build succeeded,
+ * hairlines drawn or not — so a styled map, which draws its own layers and gets no hairlines, left
+ * this pointing at a source the *recipe* owns. The next refresh then tried to remove that source,
+ * which MapLibre refuses while the recipe's layers are drawing from it, once per save.
  */
 let mountedName = $state<string | null>(null);
+
+/**
+ * Whether tiles are on screen, which is not the same question as the one above.
+ *
+ * The camera's rule ("frame the data when it first appears, and never again") is about what a person
+ * can see, so a styled preview counts even though this module drew none of it. Reading `mountedName`
+ * for it would refit the map the moment a style was switched off.
+ */
+let showing = $state(false);
 
 /** The vector layers a preview's tiles actually contain, for deciding whether a preset can draw. */
 export function layersIn(preview: Preview | null | undefined): string[] {
@@ -205,7 +219,7 @@ export const preview = {
 
 		// **Whether anything was already drawn, read before it is cleared.** It decides the camera
 		// below, and two lines from now the answer is gone.
-		const wasShowing = mountedName !== null;
+		const wasShowing = showing;
 
 		// Off the map before the name is overwritten — afterwards there is nothing left to remove it
 		// with, and the layer stays on the map for the rest of the session.
@@ -217,13 +231,15 @@ export const preview = {
 		// The edited graph's entry in the stack follows what was just built, so the map shows the
 		// edit rather than what this graph looked like when the project opened.
 		if (result && !pinned) built = { ...built, [result.name]: result };
+		showing = result !== null;
 		if (!result) return { kind: 'shown' };
-
-		mountedName = result.name;
 
 		// The hairlines are what a *styled* map does not need: when the recipe renders these tiles,
 		// its own layers draw them and a line over the top would be a second opinion (S4.3). Asked
 		// after the build, because the answer is about the preview the build just produced.
+		//
+		// Nothing is mounted in that case — the recipe's own source and layers are, and they are not
+		// this module's to take off again.
 		if (styled()) return { kind: 'shown' };
 
 		// A format the map cannot draw is a thing to say, not a blank map with errors in the console
@@ -231,6 +247,8 @@ export const preview = {
 		if (!addContainerToMap(map, result)) {
 			return { kind: 'unrenderable', message: whyNotRenderable(result.info.tileFormat) };
 		}
+
+		mountedName = result.name;
 
 		// **The camera moves when tiles first appear, and never again on its own.** Every edit to
 		// the VPL rebuilds the preview, so refitting here would drag the map back to the data's
@@ -278,7 +296,10 @@ export const preview = {
 	 * the style just drew.
 	 */
 	restore(map: MaplibreMap | undefined, styled: boolean): void {
-		if (map && last && !styled) addContainerToMap(map, last);
+		// Whatever was mounted went with the old style, so it is no longer this module's to remove —
+		// and the new style may well own a source of that same name.
+		mountedName = null;
+		if (map && last && !styled && addContainerToMap(map, last)) mountedName = last.name;
 	},
 
 	/**
@@ -290,6 +311,7 @@ export const preview = {
 	clear(map: MaplibreMap | undefined): void {
 		if (mountedName && map) removeContainerFromMap(map, mountedName);
 		mountedName = null;
+		showing = false;
 	},
 
 	/**
@@ -303,6 +325,7 @@ export const preview = {
 		containers = [];
 		last = null;
 		mountedName = null;
+		showing = false;
 		built = {};
 	}
 };

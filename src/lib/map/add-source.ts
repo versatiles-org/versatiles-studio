@@ -4,12 +4,24 @@
  * The container reports its own format and real zoom range, so nothing here guesses.
  */
 
-import type { Map as MaplibreMap } from 'maplibre-gl';
+import type { LayerSpecification, Map as MaplibreMap } from 'maplibre-gl';
 import type { OpenedContainer } from '../ipc/commands';
 import { token } from '../styles/tokens';
 import { renderableAs } from './tile-format';
 import { role } from './theme';
 import { throughQueue } from './tile-queue';
+
+/**
+ * Which mount a layer belongs to, so removing one takes off this module's own work and nothing else.
+ *
+ * **Not matched by id.** A mount's name is the style's source name too ([Q32]), and a composed style
+ * names its layers after it: `pipeline:raster` with one source drawn, `pipeline/pipeline:raster`
+ * with several. Matching on the id therefore does both wrong things at once — it removes the
+ * recipe's layer in the first case, and in the second it removes nothing and then tries to pull the
+ * source out from under a layer still drawing from it, which MapLibre refuses in the console. Same
+ * reason `theme.ts` tags a layer with its role rather than recognising one by name.
+ */
+const MOUNT = 'studio:mount';
 
 export function addContainerToMap(
 	map: MaplibreMap,
@@ -24,16 +36,21 @@ export function addContainerToMap(
 	if (map.getSource(name)) removeContainerFromMap(map, name);
 	if (kind === null) return false;
 
-	map.addSource(name, {
-		type: kind,
-		// Through Studio's own queue rather than straight at the server (S2.16): it is the only
-		// place that can tell a tile waiting for a slot from one the server is rendering, and the
-		// status bar says which.
-		tiles: [throughQueue(tileUrl)],
-		minzoom: info.minZoom,
-		maxzoom: info.maxZoom,
-		...(info.bbox ? { bounds: info.bbox } : {})
-	});
+	// A source of that name surviving the line above is one this module did not add: the style is
+	// drawing the same mount, from the same graph's tiles. The layers below can sit on it — a second
+	// source under a name already taken is the one thing `addSource` throws on.
+	if (!map.getSource(name)) {
+		map.addSource(name, {
+			type: kind,
+			// Through Studio's own queue rather than straight at the server (S2.16): it is the only
+			// place that can tell a tile waiting for a slot from one the server is rendering, and the
+			// status bar says which.
+			tiles: [throughQueue(tileUrl)],
+			minzoom: info.minZoom,
+			maxzoom: info.maxZoom,
+			...(info.bbox ? { bounds: info.bbox } : {})
+		});
+	}
 
 	if (kind === 'vector') {
 		// Until S1.5 knows the container's layers, draw every vector layer as a hairline. Deriving a
@@ -44,12 +61,12 @@ export function addContainerToMap(
 				type: 'line',
 				source: name,
 				'source-layer': layer,
-				metadata: role('container-feature'),
+				metadata: { ...role('container-feature'), [MOUNT]: name },
 				paint: { 'line-color': token('--map-feature'), 'line-width': 0.6, 'line-opacity': 0.8 }
 			});
 		}
 	} else {
-		map.addLayer({ id: `${name}:raster`, type: 'raster', source: name });
+		map.addLayer({ id: `${name}:raster`, type: 'raster', source: name, metadata: { [MOUNT]: name } });
 	}
 
 	return true;
@@ -73,11 +90,25 @@ export function fitToBounds(map: MaplibreMap, bbox: [number, number, number, num
 	map.fitBounds(bbox, { padding: PADDING, duration: animate ? 400 : 0 });
 }
 
+/**
+ * Takes a mount off the map: the layers added under `name` here, and the source they drew from once
+ * nothing else is drawing from it.
+ *
+ * **The source goes only when it is free.** Removing one a layer is still using is refused — nothing
+ * comes off, and the console fills with `Source "…" cannot be removed while layer "…" is using it.`
+ */
 export function removeContainerFromMap(map: MaplibreMap, name: string): void {
+	let inUse = false;
 	for (const layer of map.getStyle().layers) {
-		if (layer.id.startsWith(`${name}:`)) map.removeLayer(layer.id);
+		if (mountOf(layer) === name) map.removeLayer(layer.id);
+		else if ('source' in layer && layer.source === name) inUse = true;
 	}
-	if (map.getSource(name)) map.removeSource(name);
+	if (!inUse && map.getSource(name)) map.removeSource(name);
+}
+
+/** The mount a layer was added for, or `undefined` for one this module did not add. */
+function mountOf(layer: LayerSpecification): string | undefined {
+	return (layer.metadata as { [MOUNT]?: string } | undefined)?.[MOUNT];
 }
 
 /** TileJSON's `vector_layers`, which every well-formed vector container publishes. */

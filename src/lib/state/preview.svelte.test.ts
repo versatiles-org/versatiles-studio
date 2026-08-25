@@ -130,8 +130,60 @@ describe('the preview on the map', () => {
 
 		expect(outcome).toEqual({ kind: 'shown' });
 		expect(added).toEqual([]);
-		// Still the current mount, so the next refresh knows what to take off.
+		// Still the build the rest of the window composes its style from.
 		expect(preview.last?.name).toBe('styled-one');
+	});
+
+	/**
+	 * What the console said, once per save: `Source "pipeline" cannot be removed while layer
+	 * "pipeline/pipeline:raster" is using it.`
+	 *
+	 * Nothing was mounted — the recipe drew those tiles and this module drew none of them — but the
+	 * mount name was recorded anyway, so the next refresh tried to take the *style's* source off the
+	 * map. A mount's name is the style's source name too ([Q32]), which is what made the mistake
+	 * reach MapLibre instead of failing to find anything.
+	 */
+	it('has nothing to take off again when a style drew the tiles', async () => {
+		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: () => true });
+
+		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: () => true });
+		expect(removed).toEqual([]);
+
+		// And the same on the way back out of a style: still nothing of this module's on the map.
+		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+		expect(removed).toEqual([]);
+		expect(added).toHaveLength(1);
+	});
+
+	it('forgets the mount when the style it was drawn on is replaced', async () => {
+		// `restore` is called once the new style is in place. Setting a style discards every layer
+		// added to the old one, so a name kept across it points at layers that are already gone —
+		// and quite possibly at a source the *new* style owns.
+		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+
+		preview.restore(map, true);
+		expect(added, 'not over a styled map').toHaveLength(1);
+
+		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+		expect(removed).toEqual([]);
+	});
+
+	it('puts the preview back after a style swap, and knows it is there', async () => {
+		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+
+		preview.restore(map, false);
+		expect(added).toHaveLength(2);
+
+		// Drawn again means mounted again: the next refresh has to take those layers off.
+		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
+		expect(removed).toEqual(['pipeline']);
 	});
 
 	it('asks about the style after the build, not before', async () => {
@@ -186,6 +238,18 @@ describe('the preview on the map', () => {
 		// It returns before the map is touched at all, camera included.
 		ipc.mountGraph.mockResolvedValueOnce(built('styled-two'));
 		await preview.refresh({ map, pipeline: document(), pinned: null, styled: () => true });
+		expect(fitted).toEqual([]);
+	});
+
+	it('leaves the camera alone when a style is switched off', async () => {
+		// The tiles were on screen the whole time — the recipe was drawing them — so the hairlines
+		// taking over is not a first appearance. Asking "did *this module* mount anything" instead
+		// would throw the camera back to the data's extent on the way out of a style.
+		ipc.mountGraph.mockResolvedValueOnce(built('styled-three'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: () => true });
+
+		ipc.mountGraph.mockResolvedValueOnce(built('styled-three'));
+		await preview.refresh({ map, pipeline: document(), pinned: null, styled: unstyled });
 		expect(fitted).toEqual([]);
 	});
 

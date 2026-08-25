@@ -272,6 +272,11 @@ whenever a naming scheme changed elsewhere. **A new themed map layer must be tag
 it will not follow the theme.** `MapCanvas` triggers the repaint by reading `theme.dark` from
 `styles/theme.svelte.ts`.
 
+The same reason gives layers a second tag. `metadata['studio:mount']` names the mount a layer was
+added for, so `add-source.ts` can take its own layers off again without matching ids — a mount's name
+is also the style's source name ([Q32]), so the recipe's layers and Studio's fallback hairlines share
+both the source and, when one source is drawn, the id.
+
 `index.html` carries the only styling outside `src/lib/styles`: a background colour for each theme,
 because the stylesheets arrive with the JS bundle and the window would otherwise paint white for a
 frame on every launch.
