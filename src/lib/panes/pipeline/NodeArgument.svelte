@@ -1,7 +1,8 @@
 <script lang="ts">
-	import type { FieldInfo } from '../../ipc/commands';
+	import type { FieldInfo, ImportKind } from '../../ipc/commands';
 	import HelpTrigger from '../../common/HelpTrigger.svelte';
 	import type { HelpContent } from '../../state/help.svelte';
+	import { askForPath } from '../../common/import';
 
 	// One argument of a node: its name, its help, its control, and whether it can be removed (C2).
 	//
@@ -24,6 +25,7 @@
 		suggestions = [],
 		placeholder = '',
 		tentative = false,
+		kind,
 		onCommit,
 		onRemove,
 		removeLabel
@@ -41,6 +43,8 @@
 		placeholder?: string;
 		/** In the pane and not yet in the document - tinted to say so. */
 		tentative?: boolean;
+		/** The way in this node's operation reads, when it is one - the file dialog's filter. */
+		kind?: ImportKind;
 		/** Fired on blur, Enter or a choice - never per keystroke, which would reparse the document
 		 *  on every character and fight the caret. */
 		onCommit: (raw: string) => void;
@@ -78,6 +82,21 @@
 	/// By key rather than by looking at the value: an empty `filename` is still a path, and a
 	/// `layer_name` that happens to contain a slash is not.
 	const isPath = $derived(name === 'filename' || name.endsWith('_file') || name.endsWith('_path'));
+
+	/// Fills the field from the file picker.
+	///
+	/// **A path field needs a picker at all** because the value is one someone otherwise has to
+	/// know by heart and type without a single character of help - and it is the one kind of value
+	/// where the machine already knows every valid answer. Everything else in this form is a name,
+	/// a number or a choice out of a list the pane shows.
+	///
+	/// It commits like any other edit rather than by its own route, so a picked path lands in the
+	/// document the same way a typed one does - including a pending row, which has no value yet and
+	/// gets one this way.
+	async function browse() {
+		const picked = await askForPath(kind, `Choose a file for ${name}`);
+		if (picked !== null) onCommit(picked);
+	}
 
 	/** A datalist needs an id, and two nodes can hold the same parameter name. */
 	const listId = $props.id();
@@ -118,24 +137,42 @@
 				}}
 			/>
 		{:else}
-			<input
-				type="text"
-				class:path={isPath}
-				{value}
-				title={value}
-				placeholder={hint || (control?.kind === 'numbers' ? `${control.count} numbers` : '')}
-				list={suggestions.length > 0 ? listId : undefined}
-				spellcheck="false"
-				autocomplete="off"
-				onblur={(event) => onCommit(event.currentTarget.value)}
-				onkeydown={(event) => {
-					if (event.key === 'Enter') event.currentTarget.blur();
-					if (event.key === 'Escape') {
-						event.currentTarget.value = value;
-						event.currentTarget.blur();
-					}
-				}}
-			/>
+			<!-- The box and its browse button are one control, so they sit in one box: a `…` that
+			     wrapped to the next line would read as something the field does rather than as its
+			     other half. -->
+			<div class="line">
+				<input
+					type="text"
+					class:path={isPath}
+					{value}
+					title={value}
+					placeholder={hint || (control?.kind === 'numbers' ? `${control.count} numbers` : '')}
+					list={suggestions.length > 0 ? listId : undefined}
+					spellcheck="false"
+					autocomplete="off"
+					onblur={(event) => onCommit(event.currentTarget.value)}
+					onkeydown={(event) => {
+						if (event.key === 'Enter') event.currentTarget.blur();
+						if (event.key === 'Escape') {
+							event.currentTarget.value = value;
+							event.currentTarget.blur();
+						}
+					}}
+				/>
+				{#if isPath}
+					<!-- `…` rather than a folder: it is what a field that opens a dialog has said
+					     everywhere for thirty years, and it stays legible at the size this row is. -->
+					<button
+						type="button"
+						class="browse"
+						title="Choose a file…"
+						aria-label={`Choose a file for ${name}`}
+						onclick={browse}
+					>
+						…
+					</button>
+				{/if}
+			</div>
 			{#if suggestions.length > 0}
 				<datalist id={listId}>
 					{#each suggestions as option (option)}<option value={option}></option>{/each}
@@ -234,6 +271,27 @@
 	   same prefix and nothing that tells them apart. */
 	input.path {
 		text-align: right;
+	}
+
+	.line {
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		min-width: 0;
+	}
+
+	/* The button is the fixed part: the box takes whatever is left, so the path keeps the width it
+	   had in every other row. */
+	.browse {
+		flex: none;
+		padding: 0 var(--space-1);
+		font-size: var(--text-xs);
+		line-height: 1;
+		color: var(--ink-2);
+
+		&:hover {
+			color: var(--ink);
+		}
 	}
 
 	.chips {

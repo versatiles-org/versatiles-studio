@@ -265,6 +265,7 @@
 			pipeline={pipeline.pipeline}
 			{pinned}
 			{operations}
+			{kinds}
 			{properties}
 			{fits}
 			{suggestions}

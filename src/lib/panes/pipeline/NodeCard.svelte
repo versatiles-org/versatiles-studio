@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../../ipc/commands';
+	import type { FieldInfo, ImportKind, OperationInfo, Span, VplNode, VplProperty } from '../../ipc/commands';
 	import {
 		addableFields,
 		editFor,
@@ -36,6 +36,7 @@
 		pinned,
 		isHead,
 		operations = [],
+		kinds = [],
 		properties = [],
 		suggestions = {},
 		onPin,
@@ -53,6 +54,8 @@
 		 *  this, and may be removed. */
 		isHead: boolean;
 		operations?: OperationInfo[];
+		/** Every way in this build has, for the file dialog behind a path parameter (S3.2). */
+		kinds?: ImportKind[];
 		/** Property names the pipeline produces, for list fields (S3.3). */
 		properties?: string[];
 		/** Per-field values read from what the node points at - a CSV's own columns (S3.4). */
@@ -72,6 +75,15 @@
 	} = $props();
 
 	const meta = $derived(operations.find((operation) => operation.name === node.name));
+
+	/// The way in this node reads, when it is one - what the file dialog behind a path field
+	/// filters to.
+	///
+	/// By the operation rather than by the field: `from_container` is the definition of "what a
+	/// container file is", and it is the same list the drop target and the open dialog use. A
+	/// transform's `*_file` matches nothing here and is offered every file, which is the honest
+	/// answer for a field nothing is known about.
+	const kind = $derived(kinds.find((each) => each.operation === node.name));
 	const field = (key: string): FieldInfo | undefined => fieldOf(meta?.fields ?? [], key);
 
 	/** Parameters the operation accepts and this node has not set. Sources are not parameters. */
@@ -215,6 +227,7 @@
 				value={valueText(property)}
 				help={field ? contentFor(property.key, field) : undefined}
 				suggestions={options(property.key, field?.control)}
+				{kind}
 				onCommit={(raw) => commit(property, raw)}
 				onRemove={field?.required ? undefined : () => onRemove(property.span)}
 			/>
@@ -230,6 +243,7 @@
 				help={contentFor(field.name, field)}
 				suggestions={options(field.name, field.control)}
 				placeholder="needs a value"
+				{kind}
 				onCommit={(raw) => commitRequired(field.name, raw)}
 			/>
 		{/each}
@@ -247,6 +261,7 @@
 				suggestions={options(pending, field?.control)}
 				placeholder="a value"
 				tentative
+				{kind}
 				onCommit={commitPending}
 				onRemove={() => (pending = null)}
 				removeLabel="Cancel"

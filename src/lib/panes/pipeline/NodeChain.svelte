@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Fit, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
+	import type { Fit, ImportKind, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
 	import { walk, samePath, isChainHead, feedsPreview } from '../../vpl/node-at';
 	import NodeCard from './NodeCard.svelte';
 	import Picker from '../../common/Picker.svelte';
@@ -17,6 +17,7 @@
 		pipeline,
 		pinned,
 		operations = [],
+		kinds = [],
 		properties = [],
 		fits = [],
 		suggestions = {},
@@ -31,6 +32,8 @@
 		/** The pinned node's path, when the pin is in *this* graph. */
 		pinned: number[] | null;
 		operations?: OperationInfo[];
+		/** Every way in this build has, for the file dialog behind a path parameter (S3.2). */
+		kinds?: ImportKind[];
 		properties?: string[];
 		/**
 		 * What can be appended to what the map is showing, and why the rest cannot (S2.14).
@@ -106,6 +109,7 @@
 				pinned={samePath(pinned, row.path)}
 				isHead={isChainHead(row.path)}
 				{operations}
+				{kinds}
 				{properties}
 				suggestions={suggestions[row.path.join('.')] ?? {}}
 				{onPin}
