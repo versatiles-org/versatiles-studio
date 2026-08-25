@@ -4,6 +4,7 @@
 	import * as maplibre from 'maplibre-gl';
 	import type { StyleSpecification } from 'maplibre-gl';
 	import { applyMapTheme } from './theme';
+	import { restyler } from './restyle';
 	import { record } from '../state/diagnostics.svelte';
 	import { theme } from '../styles/theme.svelte';
 	import type { Camera } from '../ipc/commands';
@@ -38,6 +39,13 @@
 	let applied: StyleSpecification | undefined;
 
 	/**
+	 * Hands a style to the map when the map is ready for one — see `restyle.ts`.
+	 *
+	 * Built with the map, because it listens for `style.load` and has to hear the first one.
+	 */
+	let apply: ((style: StyleSpecification) => void) | undefined;
+
+	/**
 	 * Whether the stored camera has been honoured.
 	 *
 	 * The layout is fetched over IPC, so it can arrive either side of the map being built. Applied
@@ -66,13 +74,15 @@
 	// Swapping the background replaces the whole style, which is MapLibre's only way to do it —
 	// and takes every layer added to the previous one with it. `onStyleLoad` is how the caller
 	// hears that it needs to put its own layers back.
+	//
+	// **Applied rather than set**, because a style set while the current one is still loading cannot
+	// be diffed — MapLibre says so once, then rebuilds from scratch, refetching every source at the
+	// one moment a map has the most to fetch. On every launch, as it turned out. See `restyle.ts`.
 	$effect(() => {
 		const next = style;
-		const instance = untrack(() => map);
-		if (!instance || applied === next) return;
+		if (!apply || applied === next) return;
 		applied = next;
-		instance.setStyle(next);
-		instance.once('styledata', () => onStyleLoad?.());
+		apply(next);
 	});
 
 	// Paint values are copied into a layer when it is added, so the map does not follow the system
@@ -115,6 +125,10 @@
 					}
 				: {})
 		});
+		// Before anything can set a style: this listens for `style.load`, and the first of those is
+		// the style the map was just constructed with.
+		apply = restyler(instance, () => onStyleLoad?.());
+
 		untrack(() => (map = instance));
 
 		const report = () => {
@@ -152,6 +166,7 @@
 			// Destroyed, not hidden — WebGL evicts the oldest context silently, so a Map that is not
 			// on screen must not hold one (Q16).
 			instance.remove();
+			apply = undefined;
 			untrack(() => (map = undefined));
 		};
 	});
