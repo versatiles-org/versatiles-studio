@@ -85,6 +85,7 @@ containers some tests want, and how a release is cut.
 | [Feature Catalogue](docs/features.md)      | The full idea pool, grouped and individually referenceable |
 | [Release 1 Scope](docs/scope-release-1.md) | Milestones, stages, and the work items in each             |
 | [Release 2 Scope](docs/scope-release-2.md) | Style modes: the four kinds of tileset people open         |
+| [Release 3 Scope](docs/scope-release-3.md) | One window, one project, and a launcher of its own         |
 | [Ecosystem Inventory](docs/ecosystem.md)   | What already exists in versatiles-org and can be reused    |
 | [Architecture](docs/architecture.md)       | How the pieces fit together                                |
 | [UI Concept](docs/ui.md)                   | How the features are organised on screen, stage by stage   |

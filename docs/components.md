@@ -75,7 +75,7 @@ layer must tag it with `role()` from `lib/map/theme.ts`, or the layer will not f
 | `JobsPanel`        | Every job this session has run, expanded upward from the bar; opens one job's log (E7)                    | S3.1  |
 | `DiagnosticsPanel` | What has gone wrong, this session and the run before it, with a report to copy into an issue (S6.8)       | S6.8  |
 | `Boundary`         | One pane or the map failing instead of the window; records what it caught and offers a retry (S6.8)       | S6.8  |
-| `LandingScreen`    | What an empty window shows                                                                                | S1.1  |
+| `LandingScreen`    | What an empty window shows — a window of its own from [S7.5](scope-release-3.md) ([Q48](decisions.md))    | S1.1  |
 | `AlphaRibbon`      | What state this is in, across the top-right corner, linking to the repository in the system browser       | —     |
 | `ImportCards`      | The ways in, from the core's catalogue; used by the landing screen and by "+ Add source" (E1–E3)          | S3.2  |
 | `CopyDialog`       | What a portable copy would carry, and whether to write it as a folder or a `.zip` (G1)                    | S5.1  |

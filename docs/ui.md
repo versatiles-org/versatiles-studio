@@ -202,6 +202,11 @@ background, grid, reset — bottom-right.
 A launcher, not a wizard: it disappears once a project is open, and everything on it is reachable
 from inside the workbench. Opening a project fills that window; ⌘N opens another empty one.
 
+**Becoming a window of its own at [S7.5](scope-release-3.md)**
+([Q48](decisions.md#q48--a-window-is-a-project-and-the-launcher-is-a-window-of-its-own)): the same
+contents, in a small window that opens at start and closes when something is opened from it. What is
+drawn below does not change; where it is drawn does.
+
 ```text
 ┌───────────────────────────────────────────────────────────┐
 │  VersaTiles Studio                                        │

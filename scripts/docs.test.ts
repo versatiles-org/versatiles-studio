@@ -112,7 +112,7 @@ const schemes = [
 		// `S6.1` is defined in release 2's and referenced from release 1's neighbours; checking only
 		// one file would fail every reference to the other, and pointing at the newest would quietly
 		// stop checking the older items. Add the next release's document here when it exists.
-		definedIn: ['docs/scope-release-1.md', 'docs/scope-release-2.md'],
+		definedIn: ['docs/scope-release-1.md', 'docs/scope-release-2.md', 'docs/scope-release-3.md'],
 		/** `| **S3.6** | …` and its stretch form `| **S4.10\*** | …` */
 		define: /^\|\s*\*\*(S\d+\.\d+)\\?\*?\*\*/gm,
 		refer: /(?<![\w.])(S\d+\.\d+)(?!\w)(?!\.\d)/g

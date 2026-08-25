@@ -16,6 +16,55 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q48 — A window is a project, and the launcher is a window of its own
+
+**Decided 2026-08-25.** The landing screen is a full-screen overlay inside a project window, shown
+whenever that window has no graphs ([Q13](#q13--studio-is-a-workbench-new-projects-start-from-a-landing-screen)).
+It becomes a **window**: opened when the application starts with nothing to open, opened again by
+_New Project_, and closed the moment something is opened from it.
+
+**A launcher inside a project window makes the window two things.** Which of them you are looking at
+depends on whether the project happens to be empty, so "new project" comes to mean "empty this window
+out" — and there is no way to start a second project without abandoning the first. As a window it is
+one thing, and the workbench is one thing, and neither has a mode.
+
+**This is what finally makes [Q16](#q16--one-application-instance-one-window-per-project) true.**
+"One window per project" was decided at S0.8 and never built: every piece of project state in
+`AppState` is a single application-wide `Mutex` — graphs, style, history, the pin, the project
+directory, and the layout that carries the pane widths and _the camera_. ⌘N opens a second window
+onto the same project, sharing one undo stack and one viewport. The alternative to building it now
+was a launcher that could only ever hand its result to the one project the core can hold, which is
+the same mode in a second window.
+
+**So the core holds a project per window**, keyed by the window's label — that being the identity
+Q16 describes, and one that survives a reload, which Q16 requires. Around forty commands gain the
+window they were called from. The work is [S7](scope-release-3.md), where the three places
+application-wide state was quietly doing per-project work are named: server mounts keyed by graph
+name alone, a `Latest` job lane that supersedes across windows, and the camera living in `Layout`.
+
+**A job list per project**, which narrows Q16's "unified" row rather than reversing it. What that
+row was arguing is that one Rust core means one runner and one queue — no fragmentation across
+operating-system processes, one asset writer, one server. That still holds. What does not is showing
+a person the machine's work when they asked about their project: an export started in another window
+is not news in this one, and `Lane::Latest` superseding across windows means every keystroke in one
+window cancels another's preview build. One runner, a list per project.
+
+**Recents and named views stay application-wide.** They are about the person, not the project — a
+file opened in one window is recent everywhere, and a saved view is a place you go back to. Per
+project they would leave the launcher unable to list what you last opened, which is most of what a
+launcher is for. The problem log stays application-wide for a different reason: it is the account of
+a _session_ ([S6.8](scope-release-2.md)), and several of the things it records happen outside any
+project or take a window with them.
+
+**Its own page, not the workbench with the workbench hidden.** A second HTML entry means a launcher
+that does not load MapLibre or a pane in order to show four cards and a list of recent files. It also
+settles what chrome it has, by not having any to hide.
+
+**The last project window closing brings the launcher back**, on every platform rather than only
+where the convention says so. The alternative — macOS keeps running with no window, Windows and Linux
+quit — is more native and less obvious, and an application that vanishes when you close a document is
+the behaviour being avoided. Closing the launcher itself, with nothing else open, quits.
+
 ### Q47 — The verbs about the project live in a native menu, and ⌘S saves the project
 
 **Decided 2026-08-25.** Five controls sat in the top-right corner: check for updates, fonts, open a
@@ -1420,15 +1469,20 @@ missed it returns as a map control, not a panel.
 
 Not tabs, not separate application instances.
 
-|                    | App instance           | **Window**                       | Tab              |
-| ------------------ | ---------------------- | -------------------------------- | ---------------- |
-| Webview processes  | N                      | N                                | 1                |
-| Rust cores         | N                      | **1**                            | 1                |
-| WebGL budget       | 16 each                | **16 each**                      | 16 _total_       |
-| Crash blast radius | 1 project              | **1 project**                    | **all projects** |
-| Asset manager (G7) | N writers, needs locks | **single writer**                | single writer    |
-| Job queue (E7)     | fragmented             | **unified**                      | unified          |
-| macOS conventions  | wrong                  | **⌘N, Window menu, full screen** | non-native       |
+|                    | App instance           | **Window**        | Tab              |
+| ------------------ | ---------------------- | ----------------- | ---------------- |
+| Webview processes  | N                      | N                 | 1                |
+| Rust cores         | N                      | **1**             | 1                |
+| WebGL budget       | 16 each                | **16 each**       | 16 _total_       |
+| Crash blast radius | 1 project              | **1 project**     | **all projects** |
+| Asset manager (G7) | N writers, needs locks | **single writer** | single writer    |
+| Job queue (E7)     | fragmented             | **unified**       | unified          |
+
+_Two rows above were about one core, and stayed true; the job queue row was read too widely for a
+while. [Q48](#q48--a-window-is-a-project-and-the-launcher-is-a-window-of-its-own) keeps the single
+runner it argues for and gives each project its own list — and makes the "one window per project"
+column heading describe the code, which until then it did not._
+| macOS conventions | wrong | **⌘N, Window menu, full screen** | non-native |
 
 **Tauri already gives us the isolation.** Every webview is a separate OS process and the docs name
 fault isolation as the point, with the core able to restart one that goes invalid. So a window per
@@ -1453,7 +1507,7 @@ server, and the config mounts many named sources at once.
   reload path matters more than prevention.
 - **Destroy `Map` instances that are not visible.** Not pressing at one map per project, but the
   ceiling discards the context you looked at _first_, so establish the habit before B5.
-- **The landing screen is what an empty window shows** ([Q13](#q13--studio-is-a-workbench-new-projects-start-from-a-landing-screen)); ⌘N opens another.
+- **The landing screen is what an empty window shows** ([Q13](#q13--studio-is-a-workbench-new-projects-start-from-a-landing-screen)); ⌘N opens another. _Superseded by [Q48](#q48--a-window-is-a-project-and-the-launcher-is-a-window-of-its-own): the launcher is a window of its own, and ⌘N opens one._
 - **Measured at S0.8 (2026-08-16, macOS, debug build, empty page).** The window model holds
   comfortably:
 
@@ -1485,6 +1539,10 @@ not a wizard.
   with no project. It starts as open-a-container plus recents (A7) and gains cards as clusters land.
 - **It never gates anything.** Everything on it is also reachable from inside the workbench. A
   launcher that becomes a required first step is a wizard by another name.
+
+_One clause of this moved at [Q48](#q48--a-window-is-a-project-and-the-launcher-is-a-window-of-its-own):
+the landing screen is a window of its own rather than what an empty project window shows. Everything
+else stands — it is still a launcher, it still arrives at stage 1, and it still gates nothing._
 
 ### Q14 — Explore and Pipeline stay separate modes — **superseded by [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)**
 
