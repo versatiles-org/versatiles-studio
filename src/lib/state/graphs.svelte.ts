@@ -1,8 +1,9 @@
 /**
- * The project's graphs, and where the map is looking ([Q32]).
+ * The project's graphs, and which of them the map draws ([Q32], [Q49]).
  *
  * Several named VPL documents, each producing one named tile source. The list is what the pane draws
- * and what the style names its sources by; the pin is which node the map shows.
+ * and what the style names its sources by; the eyes are which of them, and how much of each, is
+ * being drawn.
  *
  * **Three rules that were enforced by statement order and are now enforced by the functions.**
  * Removing a graph has to read its name *before* the removal, or its tiles stay on the map for the
@@ -14,29 +15,27 @@
  * only says which graphs exist. Redrawing the map after any of this is the application's fan-out.
  *
  * [Q32]: ../../../docs/decisions.md
+ * [Q49]: ../../../docs/decisions.md
  */
 
-import { getPinned, listGraphs, removeGraph, renameGraph, setPin, type GraphInfo } from '../ipc/commands';
+import { listGraphs, removeGraph, renameGraph, setGraphEnabled, setNodeEnabled, type GraphInfo } from '../ipc/commands';
 import { preview } from './preview.svelte';
 
 let list = $state<GraphInfo[]>([]);
-
-/**
- * Where the map is looking. **Not the selection** - you can edit one node while watching another,
- * in another graph. `null` is the ordinary state: the map shows every graph.
- */
-let pin = $state<{ graph: number; path: number[] } | null>(null);
-
-/** Whether two node paths name the same node. */
-const samePath = (a: number[], b: number[]) => a.length === b.length && a.every((step, i) => step === b[i]);
 
 export const graphs = {
 	get list(): GraphInfo[] {
 		return list;
 	},
 
-	get pinned(): { graph: number; path: number[] } | null {
-		return pin;
+	/** Whether a graph is drawn at all - its row's eye ([Q49]). Unknown graphs count as drawn. */
+	isEnabled(id: number): boolean {
+		return list.find((graph) => graph.id === id)?.enabled ?? true;
+	},
+
+	/** The node paths switched off in a graph ([Q49]). */
+	disabledIn(id: number): number[][] {
+		return list.find((graph) => graph.id === id)?.disabled ?? [];
 	},
 
 	/** Whether the project has no graphs - which is the landing screen's whole condition. */
@@ -63,11 +62,6 @@ export const graphs = {
 		list = await listGraphs().catch(() => []);
 	},
 
-	/** Reads the pin back from the core, which may have dropped it. */
-	async readPin(): Promise<void> {
-		pin = await getPinned();
-	},
-
 	/**
 	 * Builds every graph that has not been built yet, so a style can draw the whole stack (S6.5).
 	 *
@@ -75,7 +69,9 @@ export const graphs = {
 	 * expects when opening something and would not forgive on every keystroke.
 	 */
 	async mountAll(): Promise<void> {
-		const unbuilt = list.filter((graph) => !(graph.name in preview.built)).map((graph) => graph.id);
+		// **Only the ones that are drawn** ([Q49]). A graph whose eye is off costs nothing on open,
+		// which is most of why the eye is worth having on a project with a slow source in it.
+		const unbuilt = list.filter((graph) => graph.enabled && !(graph.name in preview.built)).map((graph) => graph.id);
 		if (unbuilt.length > 0) await preview.mountAll(unbuilt);
 	},
 
@@ -105,18 +101,34 @@ export const graphs = {
 		await removeGraph(id);
 		if (gone) preview.forget(gone);
 		await this.refresh();
-		await this.readPin();
 		return list[0]?.id ?? null;
 	},
 
 	/**
-	 * Moves the pin to a node, or clears it when it is already there.
+	 * Switches a graph on or off ([Q49]).
 	 *
-	 * Clicking the pinned node again is what gets you back to seeing every graph - the same gesture
-	 * off as on, because a separate "clear" would be a control that only exists sometimes.
+	 * **The tiles go with it.** Off, its mount is forgotten so nothing draws it and nothing names it
+	 * in the style; on, it is built like any graph that has not been built yet. Doing only half of
+	 * this is how a source stays on the map after its eye says it is gone.
 	 */
-	async togglePin(graph: number, path: number[]): Promise<void> {
-		const same = pin && pin.graph === graph && samePath(pin.path, path);
-		pin = await setPin(same ? null : { graph, path });
+	async setEnabled(id: number, enabled: boolean): Promise<void> {
+		const name = this.nameOf(id);
+		await setGraphEnabled(id, enabled);
+		if (!enabled && name) preview.forget(name);
+		await this.refresh();
+		if (enabled) await this.mountAll();
+	},
+
+	/**
+	 * Switches one node of a graph on or off ([Q49]).
+	 *
+	 * The graph is rebuilt, because what it produces has changed - which is the whole difference
+	 * between this and the pin it replaces: the tiles under that graph's name are now the tiles of
+	 * the pipeline you can see.
+	 */
+	async setNodeEnabled(id: number, path: number[], enabled: boolean): Promise<void> {
+		await setNodeEnabled(id, path, enabled);
+		await this.refresh();
+		await preview.rebuild(id);
 	}
 };

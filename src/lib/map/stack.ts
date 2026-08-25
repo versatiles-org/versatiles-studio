@@ -72,25 +72,29 @@ export function drawOrder(recipe: Recipe, built: Record<string, Preview>): strin
 	return order;
 }
 
-/** What the map should draw, and what each source contributed. */
+/**
+ * What the map should draw, and what each source contributed.
+ *
+ * **Every graph that has tiles, and nothing else** ([Q49]). This used to have a second mode: a
+ * pinned node replaced the whole stack with itself, so the map showed one step of one graph and
+ * hid the rest of the project. The eyes say the same thing without a mode - a graph switched off
+ * is not in `built` at all, and a graph with nodes switched off is in it as the pipeline that is
+ * switched on.
+ *
+ * Losing that branch fixes something it took with it: `styleText` serialises what this returns, so
+ * saving a project while a node was pinned wrote a `style.json` naming that one source.
+ */
 export function stackFor(input: {
 	recipe: Recipe | null;
 	built: Record<string, Preview>;
-	/** The node being looked at, when one is pinned. */
-	pinned: Preview | null;
 	serverUrl: string | null;
 	background: StyleSpecification | null;
 }): Composed {
-	const { recipe, built, pinned, serverUrl, background } = input;
+	const { recipe, built, serverUrl, background } = input;
 	if (!serverUrl) return { style: null, bases: [] };
 
 	// No recipe yet - the background alone is still a map worth drawing.
 	if (!recipe) return composeStyle([], '', background);
-
-	// **Pinned means "look at this node alone."** The stack is what a project draws; a pin is a
-	// question about one step of one graph, and stacking the rest under it would answer a different
-	// one. The background stays: it is context, not content.
-	if (pinned) return composeStyle([entryFor(pinned, recipe)], serverUrl, background);
 
 	return composeStyle(
 		drawOrder(recipe, built).map((name) => entryFor(built[name], recipe)),

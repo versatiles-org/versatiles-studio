@@ -28,14 +28,7 @@ import type { Map as MaplibreMap } from 'maplibre-gl';
 import { addContainerToMap, fitToBounds, removeContainerFromMap } from '../map/add-source';
 import { whyNotRenderable } from '../map/tile-format';
 import { walk } from '../vpl/node-at';
-import {
-	mountGraph,
-	openContainer,
-	previewPipeline,
-	type DocumentView,
-	type OpenedContainer,
-	type Preview
-} from '../ipc/commands';
+import { mountGraph, openContainer, type DocumentView, type OpenedContainer, type Preview } from '../ipc/commands';
 
 /** What a refresh did, for the caller to say in the status bar. */
 export type Refreshed =
@@ -58,8 +51,6 @@ export type Refreshed =
 export interface Context {
 	map: MaplibreMap | undefined;
 	pipeline: DocumentView | null;
-	/** Where the map is looking, or `null` to show the edited graph in full ([Q32]). */
-	pinned: { graph: number; path: number[] } | null;
 	/**
 	 * Whether a style recipe is drawing these tiles - asked as a function, not passed as a value.
 	 *
@@ -96,9 +87,8 @@ let built = $state<Record<string, Preview>>({});
 /**
  * The mount whose layers *this module* put on the map, or `null` when it has none there.
  *
- * Kept rather than derived, because taking a layer off again needs the name it went on under and
- * the two cases do not share one: a pinned node is built into the fixed `preview` mount, while an
- * unpinned graph is mounted under the graph's own name ([Q32]).
+ * Kept rather than derived, because taking a layer off again needs the name it went on under, and
+ * by the time it has to come off the graph may have been renamed or switched off ([Q32]).
  *
  * **Only ever set once the layers are actually on.** It used to be set as soon as a build succeeded,
  * hairlines drawn or not - so a styled map, which draws its own layers and gets no hairlines, left
@@ -175,7 +165,20 @@ export const preview = {
 		built = next;
 	},
 
-	/** Forgets a graph's tiles - for one that has been removed. */
+	/**
+	 * Rebuilds one graph, whatever it now produces ([Q49]).
+	 *
+	 * For a change to *what a graph is* rather than to which graph is on screen: switching a node
+	 * off changes the tiles served under that graph's name, and the stack has to follow even when
+	 * the graph is not the one being edited. `null` back means it has nothing to serve any more, so
+	 * its entry goes.
+	 */
+	async rebuild(id: number): Promise<void> {
+		const result = await mountGraph(id).catch(() => null);
+		if (result) built = { ...built, [result.name]: result };
+	},
+
+	/** Forgets a graph's tiles - for one that has been removed, or switched off. */
 	forget(name: string): void {
 		if (!(name in built)) return;
 		const next = { ...built };
@@ -190,11 +193,11 @@ export const preview = {
 	 * Builds what the map should show, and puts it there.
 	 *
 	 * This is what "instantly see the result" means (M4): changing the pipeline changes the tiles
-	 * rather than a number in a form. **Which** pipeline is the pin's to say ([Q32]) - a pinned node
-	 * shows the data as it is at that step, and with nothing pinned the map shows the graph's output
-	 * in full.
+	 * rather than a number in a form. **Which** pipeline is the eyes' to say ([Q49]): the core
+	 * builds the graph's effective document, so what arrives here is the pipeline whose nodes are
+	 * switched on - under the graph's own name, like any other graph in the stack.
 	 */
-	async refresh({ map, pipeline, pinned, styled, restored }: Context): Promise<Refreshed> {
+	async refresh({ map, pipeline, styled, restored }: Context): Promise<Refreshed> {
 		if (!map || !pipeline) return { kind: 'unavailable' };
 
 		// **A document that does not validate is not built.** `＋ operation…` inserts a node with its
@@ -217,13 +220,12 @@ export const preview = {
 		// at S4 - until something renders them, building every graph on every refresh is a job
 		// apiece for tiles nobody draws. Half of it falls out already: a mount is keyed by name and
 		// nothing unmounts on a graph switch, so each graph visited stays served until it is removed.
-		const outcome = pinned
-			? await previewPipeline(pinned.graph, pinned.path)
-			: await mountGraph(pipeline.graph).then((p) => (p ? ({ kind: 'ready', ...p } as const) : null));
+		const result = await mountGraph(pipeline.graph);
 
-		if (!outcome) return { kind: 'nothing' };
-		// Nothing is written: a newer build already owns the map, and this one is on its way out.
-		if (outcome.kind === 'superseded') return { kind: 'superseded' };
+		// Either a newer build of this graph owns the map already, or the graph has nothing to
+		// serve - it is switched off, or switched off down to nothing. Neither is a reason to take
+		// what is on the map off it: `forget` is what does that, when the eye says so.
+		if (!result) return { kind: 'nothing' };
 
 		// **Whether anything was already drawn, read before it is cleared.** It decides the camera
 		// below, and two lines from now the answer is gone.
@@ -234,13 +236,11 @@ export const preview = {
 		if (mountedName) removeContainerFromMap(map, mountedName);
 		mountedName = null;
 
-		const result = outcome.kind === 'ready' ? outcome : null;
 		last = result;
 		// The edited graph's entry in the stack follows what was just built, so the map shows the
 		// edit rather than what this graph looked like when the project opened.
-		if (result && !pinned) built = { ...built, [result.name]: result };
-		showing = result !== null;
-		if (!result) return { kind: 'shown' };
+		built = { ...built, [result.name]: result };
+		showing = true;
 
 		// **The camera moves when tiles first appear, and never again on its own.** Every edit to
 		// the VPL rebuilds the preview, so refitting here would drag the map back to the data's

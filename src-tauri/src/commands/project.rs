@@ -43,6 +43,7 @@ pub async fn save_project(
 				name: graph.name.clone(),
 				vpl: graph.document.text().to_string(),
 				crop: graph.crop,
+				enabled: graph.enabled,
 			})
 			.collect();
 		(graphs, project.style.clone())
@@ -161,7 +162,15 @@ pub struct CopyPlan {
 /// A graph never saved has none, and falls back to `project_dir` - the same thing every other
 /// relative path in this window resolves against, so a copy and a run agree about what a bare
 /// `berlin.mbtiles` means.
-type Owned = (String, String, Option<std::path::PathBuf>, studio_core::export::Bounds);
+/// The last field is whether the graph is drawn ([Q49]), so a copy opens looking the way the
+/// original looked.
+type Owned = (
+	String,
+	String,
+	Option<std::path::PathBuf>,
+	studio_core::export::Bounds,
+	bool,
+);
 
 fn sources(project: &Project) -> Vec<Owned> {
 	let project_dir = &project.dir;
@@ -179,6 +188,7 @@ fn sources(project: &Project) -> Vec<Owned> {
 				graph.document.text().to_string(),
 				Some(dir),
 				graph.crop,
+				graph.enabled,
 			)
 		})
 		.collect()
@@ -187,11 +197,12 @@ fn sources(project: &Project) -> Vec<Owned> {
 fn plan_of(owned: &[Owned]) -> Result<studio_core::bundle::Plan, String> {
 	let sources: Vec<studio_core::bundle::Source> = owned
 		.iter()
-		.map(|(name, text, dir, crop)| studio_core::bundle::Source {
+		.map(|(name, text, dir, crop, enabled)| studio_core::bundle::Source {
 			name,
 			text,
 			dir: dir.as_deref(),
 			crop: *crop,
+			enabled: *enabled,
 		})
 		.collect();
 	studio_core::bundle::plan(&sources).map_err(|error| format!("{error:#}"))

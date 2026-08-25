@@ -33,13 +33,13 @@
 	let {
 		node,
 		path,
-		pinned,
+		on,
 		isHead,
 		operations = [],
 		kinds = [],
 		properties = [],
 		suggestions = {},
-		onPin,
+		onToggle,
 		onCommit,
 		onRemove,
 		onSet,
@@ -47,8 +47,8 @@
 	}: {
 		node: VplNode;
 		path: number[];
-		/** Whether the map is showing *this* node. Independent of selection ([Q32]). */
-		pinned: boolean;
+		/** Whether this node runs - its eye ([Q49]). Independent of selection ([Q32]). */
+		on: boolean;
 		/** Whether this is the node the chain starts with - the one node with no `×`, because a
 		 *  chain must begin with a `from_*` node ([Q32]). A read node nested in a composite is not
 		 *  this, and may be removed. */
@@ -60,7 +60,8 @@
 		properties?: string[];
 		/** Per-field values read from what the node points at - a CSV's own columns (S3.4). */
 		suggestions?: Record<string, string[]>;
-		onPin: (path: number[]) => void;
+		/** Switches this node on or off. The head node has none - see `isHead`. */
+		onToggle: (path: number[], on: boolean) => void;
 		onCommit: (span: Span, value: string) => void;
 		onRemove: (span: Span) => void;
 		/**
@@ -166,14 +167,21 @@
 
 <div class="node">
 	<div class="title">
+		<!-- **The eye is what runs, not what is being looked at** ([Q49]). Off, this operation is not
+		     in the pipeline that builds - the pipe runs *through* it rather than stopping at it,
+		     which is what the ghosted row below says and what tells this from the pin it replaces.
+		     
+		     The head node's eye is the graph's: a chain that reads nothing is not a chain, so
+		     switching it off is switching the graph off, and the row in the sources list is the same
+		     switch seen from the other end. -->
 		<button
 			type="button"
 			class="eye"
-			class:on={pinned}
-			title={pinned ? 'Stop showing this on the map' : 'Show this node on the map'}
-			aria-pressed={pinned}
-			aria-label={pinned ? 'Stop previewing' : 'Preview this node'}
-			onclick={() => onPin(path)}
+			class:on
+			title={on ? `Switch off ${node.name}` : `Switch on ${node.name}`}
+			aria-pressed={on}
+			aria-label={on ? `Switch off ${node.name}` : `Switch on ${node.name}`}
+			onclick={() => onToggle(path, !on)}
 		>
 			<svg viewBox="0 0 16 16" aria-hidden="true">
 				<path
@@ -182,7 +190,7 @@
 					stroke="currentColor"
 					stroke-width="1.3"
 				/>
-				{#if pinned}
+				{#if on}
 					<circle cx="8" cy="8" r="2.4" fill="currentColor" />
 				{:else}
 					<circle cx="8" cy="8" r="1.9" fill="none" stroke="currentColor" stroke-width="1.3" />

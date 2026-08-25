@@ -18,9 +18,11 @@
 
 use crate::export::Bounds;
 use crate::vpl::Document;
-use anyhow::{Result, bail, ensure};
+use anyhow::{Context, Result, bail, ensure};
 use serde::Serialize;
+use std::collections::BTreeSet;
 use std::path::PathBuf;
+use versatiles_pipeline::vpl::VPLPipeline;
 
 /// Identifies a graph for as long as the project is open.
 // `u32` rather than `u64` for the reason `JobId` is: it crosses to the webview, and specta will not
@@ -46,6 +48,35 @@ pub struct GraphInfo {
 	pub dirty: bool,
 	/// What an export of this graph is narrowed to (F2, S5.2) - empty until someone sets one.
 	pub crop: Bounds,
+	/// Whether the graph is drawn at all ([Q49]) - its row's eye in the sources list.
+	///
+	/// Off means it is not built: no job on open, no mount on the server, no source in the style.
+	/// The `.vpl` and everything about it stay; this is a switch, not a deletion.
+	pub enabled: bool,
+	/// Nodes switched off inside it, as paths ([Q49]).
+	///
+	/// **Session state, not the project's.** A bypass is a way of looking at a pipeline, and the
+	/// `.vpl` on disk has no word for it - so it dies with the window rather than saving a project
+	/// whose file says one thing and whose map shows another.
+	pub disabled: Vec<Vec<u32>>,
+	/// How many nodes the document has.
+	pub nodes: u32,
+	/// How many of them actually run - what a row says as "3 of 5" ([Q49]).
+	///
+	/// **Counted from the effective pipeline, not from `disabled.len()`.** One switched-off path can
+	/// take several nodes with it: the head of a `from_stacked` branch drops that whole branch, so
+	/// subtracting the number of switched-off paths would claim four of five nodes run when two do.
+	/// Zero when the graph is off.
+	pub running: u32,
+}
+
+/// How many nodes a pipeline holds, nested ones included.
+fn count(pipeline: &VPLPipeline) -> u32 {
+	pipeline
+		.pipeline
+		.iter()
+		.map(|node| 1 + node.sources.iter().map(count).sum::<u32>())
+		.sum()
 }
 
 /// A graph and the parts of it only the core needs.
@@ -57,6 +88,11 @@ pub struct Graph {
 	/// Path and the text as last saved, so "is there anything to save" is answered by comparison
 	/// rather than by a flag someone has to remember to set.
 	pub file: Option<(PathBuf, String)>,
+	/// Whether the graph is drawn at all ([Q49]). Durable: it is in `project.yaml`, because which
+	/// sources a project draws is part of what the project is.
+	pub enabled: bool,
+	/// Nodes switched off inside it ([Q49]) - see [`GraphInfo::disabled`] for why this is not.
+	pub disabled: BTreeSet<Vec<usize>>,
 	/// The bbox and zoom range an export of this graph is narrowed to (F2, S5.2).
 	///
 	/// **On the graph, not on the export dialog.** A crop is something you arrive at by looking at
@@ -70,6 +106,7 @@ pub struct Graph {
 impl Graph {
 	#[must_use]
 	pub fn info(&self) -> GraphInfo {
+		let nodes = u32::try_from(self.document.pipeline().count()).unwrap_or(u32::MAX);
 		GraphInfo {
 			id: self.id,
 			name: self.name.clone(),
@@ -81,7 +118,33 @@ impl Graph {
 				.as_ref()
 				.is_none_or(|(_, saved)| saved != self.document.text()),
 			crop: self.crop,
+			enabled: self.enabled,
+			disabled: self
+				.disabled
+				.iter()
+				.map(|path| path.iter().map(|index| *index as u32).collect())
+				.collect(),
+			nodes,
+			// The ordinary case is every node running, and it is on the path of every refresh - so
+			// it answers without lowering the tree again.
+			running: if self.enabled && self.disabled.is_empty() {
+				nodes
+			} else {
+				self.effective().as_ref().map_or(0, count)
+			},
 		}
+	}
+
+	/// The pipeline this graph actually runs - the document minus its switched-off nodes.
+	///
+	/// `None` when nothing is left to run, which is either the graph switched off or its head node
+	/// switched off. Everything that builds a graph goes through here, so the map, the style and
+	/// the server can never disagree about what a graph is.
+	#[must_use]
+	pub fn effective(&self) -> Option<VPLPipeline> {
+		self
+			.enabled
+			.then(|| self.document.to_pipeline_without(&self.disabled))?
 	}
 }
 
@@ -141,6 +204,8 @@ impl Graphs {
 			name,
 			document,
 			file,
+			enabled: true,
+			disabled: BTreeSet::new(),
 			crop: Bounds::default(),
 		});
 		id
@@ -157,6 +222,68 @@ impl Graphs {
 		};
 		graph.crop = crop;
 		Ok(true)
+	}
+
+	/// Switches a graph on or off ([Q49]). `false` when there is no such graph.
+	///
+	/// Off is not a deletion and not an edit: the document, its file and its style entry all stay
+	/// exactly as they are, and switching it back on restores which of its nodes were off too.
+	pub fn set_enabled(&mut self, id: GraphId, enabled: bool) -> bool {
+		let Some(graph) = self.get_mut(id) else {
+			return false;
+		};
+		graph.enabled = enabled;
+		true
+	}
+
+	/// Switches one node on or off ([Q49]).
+	///
+	/// **Two nodes cannot be switched off**, and both refusals are the same rule one level apart: a
+	/// chain has to read something.
+	///
+	/// * The node the whole graph starts with. Switching that off is switching the graph off, which
+	///   [`set_enabled`](Self::set_enabled) is for - and an alias would be a second place for the
+	///   same fact to be stored.
+	/// * The last source a composite still has. `from_stacked [ a, b ]` may lose `b`; it may not
+	///   lose both, because `from_stacked` with an empty bracket is not a pipeline.
+	///
+	/// Switching one *on* is never refused: the set only ever shrinks, and a path that names
+	/// nothing is a document that has moved on.
+	pub fn set_node_enabled(&mut self, id: GraphId, path: &[usize], enabled: bool) -> Result<()> {
+		let graph = self.get(id).context("no such graph")?;
+		if enabled {
+			self.get_mut(id).context("no such graph")?.disabled.remove(path);
+			return Ok(());
+		}
+
+		ensure!(!path.is_empty(), "no operation at that position");
+		let pipeline = graph.document.pipeline();
+		ensure!(pipeline.at_path(path).is_some(), "no operation at that position");
+		ensure!(
+			path != [0],
+			"the operation a graph starts with cannot be switched off on its own - switch off the graph"
+		);
+
+		// The head of a nested chain, so switching it off takes that source out of the composite
+		// above it. A path is a node index then pairs of source and node index, so a head one level
+		// down is `[ … , node, source, 0 ]`.
+		if path.len() >= 3 && path[path.len() - 1] == 0 {
+			let (parent_path, source) = (&path[..path.len() - 2], path[path.len() - 2]);
+			let parent = pipeline.at_path(parent_path).context("no operation at that position")?;
+			let left = (0..parent.sources.len())
+				.filter(|other| *other != source)
+				.filter(|other| {
+					let mut head = parent_path.to_vec();
+					head.extend_from_slice(&[*other, 0]);
+					!graph.disabled.contains(&head)
+				})
+				.count();
+			ensure!(left > 0, "'{}' needs at least one source", parent.name);
+		}
+
+		let path = path.to_vec();
+		self.get_mut(id).context("no such graph")?.disabled.insert(path);
+		Ok(())
 	}
 
 	/// Removes a graph. `false` when there was none with that id.
@@ -269,6 +396,168 @@ mod tests {
 		assert_eq!(sanitise("Grüße"), "gr-e", "non-ASCII is not smuggled into a URL");
 		assert_eq!(sanitise("!!!"), "");
 		assert!(sanitise(&"x".repeat(200)).len() <= MAX_NAME);
+	}
+
+	// -- eyes ([Q49]) ---------------------------------------------------------------------------
+
+	/// What the graph runs, as VPL.
+	fn runs(graphs: &Graphs, id: GraphId) -> Option<String> {
+		graphs.get(id).unwrap().effective().map(|pipeline| pipeline.to_string())
+	}
+
+	#[test]
+	fn a_new_graph_is_drawn_in_full() {
+		let mut graphs = graphs();
+		let id = graphs.add("a", doc("from_debug format=png | raster_flatten"), None);
+
+		assert!(graphs.get(id).unwrap().enabled);
+		assert_eq!(runs(&graphs, id).unwrap(), "from_debug format=png | raster_flatten");
+	}
+
+	/// The row's eye. Off is not a deletion: the document is still there, and switching it back on
+	/// finds the nodes exactly as they were left.
+	#[test]
+	fn a_graph_switched_off_runs_nothing_and_keeps_everything() {
+		let mut graphs = graphs();
+		let id = graphs.add("a", doc("from_debug format=png | raster_flatten"), None);
+		graphs.set_node_enabled(id, &[1], false).unwrap();
+
+		assert!(graphs.set_enabled(id, false));
+		assert_eq!(runs(&graphs, id), None);
+
+		assert!(graphs.set_enabled(id, true));
+		assert_eq!(
+			runs(&graphs, id).unwrap(),
+			"from_debug format=png",
+			"the node it had off is still off"
+		);
+	}
+
+	#[test]
+	fn a_node_switched_off_is_skipped_and_can_come_back() {
+		let mut graphs = graphs();
+		let id = graphs.add(
+			"a",
+			doc("from_debug format=png | filter level_max=5 | raster_flatten"),
+			None,
+		);
+
+		graphs.set_node_enabled(id, &[1], false).unwrap();
+		assert_eq!(runs(&graphs, id).unwrap(), "from_debug format=png | raster_flatten");
+
+		graphs.set_node_enabled(id, &[1], true).unwrap();
+		assert_eq!(
+			runs(&graphs, id).unwrap(),
+			"from_debug format=png | filter level_max=5 | raster_flatten"
+		);
+	}
+
+	/// **The whole reason the eyes are per node.** A branch leaves the composite and everything
+	/// after the composite carries on - which the pin, being a cut, could never say.
+	#[test]
+	fn one_branch_of_a_composite_can_go_without_taking_the_rest() {
+		let mut graphs = graphs();
+		let vpl = "from_stacked [ from_debug format=png, from_color color=ff0000 ] | raster_overview level=2";
+		let id = graphs.add("a", doc(vpl), None);
+
+		graphs.set_node_enabled(id, &[0, 1, 0], false).unwrap();
+
+		assert_eq!(
+			runs(&graphs, id).unwrap(),
+			"from_stacked [ from_debug format=png ] | raster_overview level=2"
+		);
+	}
+
+	/// A composite has to read something, so the last branch standing stays.
+	#[test]
+	fn the_last_source_of_a_composite_cannot_be_switched_off() {
+		let mut graphs = graphs();
+		let vpl = "from_stacked [ from_debug format=png, from_color color=ff0000 ]";
+		let id = graphs.add("a", doc(vpl), None);
+		graphs.set_node_enabled(id, &[0, 0, 0], false).unwrap();
+
+		let refused = graphs.set_node_enabled(id, &[0, 1, 0], false).unwrap_err();
+
+		assert!(format!("{refused:#}").contains("at least one source"), "{refused:#}");
+		assert_eq!(runs(&graphs, id).unwrap(), "from_stacked [ from_color color=ff0000 ]");
+	}
+
+	/// Switching that one off is switching the graph off, and that is the row's eye - two places
+	/// storing one fact is how they come to disagree.
+	#[test]
+	fn the_operation_a_graph_starts_with_cannot_be_switched_off() {
+		let mut graphs = graphs();
+		let id = graphs.add("a", doc("from_debug format=png | raster_flatten"), None);
+
+		let refused = graphs.set_node_enabled(id, &[0], false).unwrap_err();
+
+		assert!(format!("{refused:#}").contains("switch off the graph"), "{refused:#}");
+		assert!(graphs.get(id).unwrap().enabled, "and nothing happened to the graph");
+	}
+
+	#[test]
+	fn a_path_naming_nothing_is_refused_rather_than_stored() {
+		let mut graphs = graphs();
+		let id = graphs.add("a", doc("from_debug format=png"), None);
+
+		assert!(graphs.set_node_enabled(id, &[9], false).is_err());
+		assert!(graphs.set_node_enabled(id, &[], false).is_err());
+		assert!(graphs.get(id).unwrap().disabled.is_empty());
+	}
+
+	/// Switching one back on is never refused: the set only shrinks, and a stale path is what an
+	/// edit in the VPL tab leaves behind.
+	#[test]
+	fn switching_a_node_on_is_never_refused() {
+		let mut graphs = graphs();
+		let id = graphs.add("a", doc("from_debug format=png"), None);
+
+		assert!(graphs.set_node_enabled(id, &[9], true).is_ok());
+		assert!(graphs.set_node_enabled(id, &[0], true).is_ok());
+	}
+
+	/// What a row says when some of a graph's nodes are off - nested ones counted, because they are
+	/// nodes with eyes of their own.
+	#[test]
+	fn a_graph_reports_how_many_nodes_it_has() {
+		let mut graphs = graphs();
+		let id = graphs.add(
+			"a",
+			doc("from_stacked [ from_debug format=png, from_color ] | raster_flatten"),
+			None,
+		);
+
+		let info = graphs.get(id).unwrap().info();
+
+		assert_eq!(info.nodes, 4);
+		assert_eq!(info.running, 4);
+		assert!(info.disabled.is_empty());
+	}
+
+	/// **One switched-off path can take several nodes with it.** Subtracting the number of paths
+	/// would say three of four run when two do - the branch head takes its whole branch.
+	#[test]
+	fn what_runs_is_counted_rather_than_subtracted() {
+		let mut graphs = graphs();
+		let vpl = "from_stacked [ from_debug format=png | raster_flatten, from_color ] | raster_overview level=2";
+		let id = graphs.add("a", doc(vpl), None);
+
+		graphs.set_node_enabled(id, &[0, 0, 0], false).unwrap();
+		let info = graphs.get(id).unwrap().info();
+
+		assert_eq!(info.nodes, 5);
+		assert_eq!(info.disabled.len(), 1);
+		assert_eq!(info.running, 3, "the branch's two nodes went with its head");
+	}
+
+	/// Off is off: no node of it is running, whatever its own eyes say.
+	#[test]
+	fn a_graph_that_is_off_runs_none_of_its_nodes() {
+		let mut graphs = graphs();
+		let id = graphs.add("a", doc("from_debug format=png | raster_flatten"), None);
+		graphs.set_enabled(id, false);
+
+		assert_eq!(graphs.get(id).unwrap().info().running, 0);
 	}
 
 	/// Two `places.geojson` files in different folders both want to be `places`.

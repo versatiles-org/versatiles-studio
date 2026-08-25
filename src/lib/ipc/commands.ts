@@ -457,19 +457,22 @@ export const openVpl = (path: string) => unwrap(commands.openVpl(path));
 export const saveVpl = (graph: number, path: string) => unwrap(commands.saveVpl(graph, path));
 
 /**
- * Runs a graph up to `path`, mounts the result, and pins the map to it. An empty path means the
- * whole graph.
+ * Builds a graph's *effective* pipeline and mounts it under its own name (Q32, [Q49]).
+ *
+ * Effective means the document minus the nodes whose eyes are off. `null` when there are no tiles
+ * to serve - the graph is off, or a newer build of it has superseded this one.
  */
-export const previewPipeline = (graph: number, path: number[]) => unwrap(commands.previewPipeline(graph, path));
-
-/** Builds a graph in full and mounts it under its own name - the ordinary view (Q32). */
 export const mountGraph = (graph: number) => unwrap(commands.mountGraph(graph));
 
-/** Where the map is looking, or null for the ordinary state. */
-export const getPinned = () => unwrap(commands.pinned());
+/** Switches a graph on or off ([Q49]). Durable: it is in `project.yaml`. */
+export const setGraphEnabled = (graph: number, enabled: boolean) => unwrap(commands.setGraphEnabled(graph, enabled));
 
-/** Pins the map to one node, or clears the pin. Exactly one across the project. */
-export const setPin = (pin: { graph: number; path: number[] } | null) => unwrap(commands.setPin(pin));
+/**
+ * Switches one node on or off ([Q49]). Session-only, and refused for the node a chain starts with
+ * and for the last source a composite has.
+ */
+export const setNodeEnabled = (graph: number, path: number[], enabled: boolean) =>
+	unwrap(commands.setNodeEnabled(graph, path, enabled));
 
 /**
  * Steps back, or forward again. Null when there is nowhere to go.

@@ -168,6 +168,9 @@ pub struct Source<'a> {
 	pub dir: Option<&'a Path>,
 	/// Carried through to the copy's manifest, so a crop survives being sent to somebody.
 	pub crop: crate::export::Bounds,
+	/// Whether it is drawn ([Q49]), carried for the same reason: a copy should open looking the
+	/// way the original looked.
+	pub enabled: bool,
 }
 
 /// Where a reference sits in one graph's text, and what it resolves to.
@@ -221,6 +224,7 @@ pub fn plan(sources: &[Source]) -> Result<Plan> {
 			name: source.name.to_string(),
 			vpl: rewrite(source, &rewrites)?,
 			crop: source.crop,
+			enabled: source.enabled,
 		});
 	}
 
@@ -435,6 +439,7 @@ mod tests {
 			text,
 			dir,
 			crop: crate::export::Bounds::default(),
+			enabled: true,
 		}
 	}
 

@@ -151,6 +151,27 @@ pub struct GraphRef {
 	/// nothing, so a project that never used one has a manifest that never mentions it.
 	#[serde(skip_serializing_if = "is_unset")]
 	pub crop: crate::export::Bounds,
+	/// Whether the graph is drawn ([Q49]) - the eye on its row in the sources list.
+	///
+	/// **Durable, unlike the switched-off nodes inside it.** Which sources a project draws is part
+	/// of what the project *is*: someone who switched off a slow hillshade to work on the vector
+	/// tiles should not have it built again tomorrow. Which *nodes* of a graph are bypassed is a
+	/// way of looking at that graph, has no word in the `.vpl`, and is deliberately not here.
+	///
+	/// Written only when it is off, so a manifest gains nothing until something is - and a file
+	/// written before this existed reads as every graph drawn, which is what it meant.
+	#[serde(default = "drawn", skip_serializing_if = "is_drawn")]
+	pub enabled: bool,
+}
+
+/// A graph nobody has switched off. `serde`'s default for `bool` is `false`, which would read every
+/// manifest written before [Q49] as a project that draws nothing.
+const fn drawn() -> bool {
+	true
+}
+
+fn is_drawn(enabled: &bool) -> bool {
+	*enabled
 }
 
 /// Whether these bounds narrow nothing - the manifest omits them when so.
@@ -167,6 +188,8 @@ pub struct SavedGraph {
 	pub name: String,
 	pub vpl: String,
 	pub crop: crate::export::Bounds,
+	/// Whether the graph is drawn ([Q49]). `true` for everything that predates it.
+	pub enabled: bool,
 }
 
 /// What `project.yaml` holds.
@@ -293,6 +316,7 @@ pub fn manifest_text(graphs: &[SavedGraph], recipe: &crate::style::Recipe) -> Re
 				name: graph.name.clone(),
 				file: format!("{}.vpl", graph.name),
 				crop: graph.crop,
+				enabled: graph.enabled,
 			})
 			.collect(),
 		style: recipe.clone(),
@@ -381,6 +405,7 @@ pub fn load(dir: &Path) -> Result<Loaded> {
 			name: graph.name.clone(),
 			vpl,
 			crop: graph.crop,
+			enabled: graph.enabled,
 		});
 	}
 
@@ -417,6 +442,7 @@ mod project_tests {
 				name: "basemap".to_string(),
 				vpl: "from_debug format=png".to_string(),
 				crop: crate::export::Bounds::default(),
+				enabled: true,
 			},
 			SavedGraph {
 				name: "hillshade".to_string(),
@@ -426,6 +452,7 @@ mod project_tests {
 					min_zoom: Some(4),
 					max_zoom: Some(12),
 				},
+				enabled: false,
 			},
 		]
 	}
@@ -459,6 +486,44 @@ mod project_tests {
 		let text = std::fs::read_to_string(dir.join(MANIFEST_FILE)).unwrap();
 		let basemap = text.split("- name: hillshade").next().unwrap();
 		assert!(!basemap.contains("crop"), "{basemap}");
+	}
+
+	/// A graph switched off is switched off tomorrow too ([Q49]) - the point of it being durable is
+	/// that a slow source stays unbuilt across a reopen.
+	#[test]
+	fn a_graph_switched_off_survives_the_manifest() {
+		let dir = crate::testing::dir("project-enabled");
+		save(&dir, &graphs(), &recipe(), None).unwrap();
+
+		let loaded = load(&dir).unwrap();
+		assert!(loaded.graphs[0].enabled);
+		assert!(!loaded.graphs[1].enabled, "hillshade was switched off");
+
+		// Only the one that is off says anything, so a project nobody has switched anything off in
+		// has a manifest that never mentions it.
+		let text = std::fs::read_to_string(dir.join(MANIFEST_FILE)).unwrap();
+		let basemap = text.split("- name: hillshade").next().unwrap();
+		assert!(!basemap.contains("enabled"), "{basemap}");
+	}
+
+	/// **A manifest written before [Q49] draws everything**, which is what it meant. `serde`'s
+	/// default for a `bool` is `false`, so getting this wrong would open every older project as one
+	/// that draws nothing at all.
+	#[test]
+	fn a_manifest_from_before_the_eyes_draws_every_graph() {
+		let dir = crate::testing::dir("project-enabled-old");
+		std::fs::create_dir_all(&dir).unwrap();
+		std::fs::write(dir.join("basemap.vpl"), "from_debug format=png").unwrap();
+		std::fs::write(
+			dir.join(MANIFEST_FILE),
+			"version: 2\ngraphs:\n  - name: basemap\n    file: basemap.vpl\nstyle:\n  sources: {}\n  order: []\n",
+		)
+		.unwrap();
+
+		let loaded = load(&dir).unwrap();
+
+		assert_eq!(loaded.graphs.len(), 1);
+		assert!(loaded.graphs[0].enabled);
 	}
 
 	/// **The one thing S6.4 could get wrong quietly.** A version-1 project must keep opening, and its

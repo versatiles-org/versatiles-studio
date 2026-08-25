@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Fit, ImportKind, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
-	import { walk, samePath, isChainHead, feedsPreview } from '../../vpl/node-at';
+	import { walk, isChainHead, isOn } from '../../vpl/node-at';
 	import NodeCard from './NodeCard.svelte';
 	import Picker from '../../common/Picker.svelte';
 
@@ -15,13 +15,14 @@
 	// used to be only the selected node's, which is a distinction the chain no longer makes.
 	let {
 		pipeline,
-		pinned,
+		disabled,
+		enabled,
 		operations = [],
 		kinds = [],
 		properties = [],
 		fits = [],
 		suggestions = {},
-		onPin,
+		onToggle,
 		onCommit,
 		onRemove,
 		onSet,
@@ -29,8 +30,10 @@
 		onAddOperation
 	}: {
 		pipeline: VplPipeline;
-		/** The pinned node's path, when the pin is in *this* graph. */
-		pinned: number[] | null;
+		/** Node paths switched off in this graph ([Q49]). */
+		disabled: number[][];
+		/** Whether the graph itself is switched on. Off, the whole chain reads as not running. */
+		enabled: boolean;
 		operations?: OperationInfo[];
 		/** Every way in this build has, for the file dialog behind a path parameter (S3.2). */
 		kinds?: ImportKind[];
@@ -45,7 +48,8 @@
 		fits?: Fit[];
 		/** By node path, then by field. Each node is handed only its own. */
 		suggestions?: Record<string, Record<string, string[]>>;
-		onPin: (path: number[]) => void;
+		/** Switches a node on or off. The head's eye is the graph's - see `NodeCard`. */
+		onToggle: (path: number[], on: boolean) => void;
 		onCommit: (span: Span, value: string) => void;
 		onRemove: (span: Span) => void;
 		onSet: (span: Span, key: string, values: string[]) => void;
@@ -55,9 +59,16 @@
 
 	const rows = $derived(walk(pipeline));
 
-	/// Which rows reach what the map is showing. The pin decides, so this is the chain drawing the
-	/// same answer `preview::up_to` computes (C3).
-	const active = $derived(rows.map((row) => feedsPreview(row.path, pinned)));
+	/// Which rows are running.
+	///
+	/// **Each node answers for itself** ([Q49]). This used to be `feedsPreview`, which asked whether
+	/// a node reached the pin - so switching one node off darkened every node after it, and one
+	/// branch of a `from_stacked` darkened the other. A bypass is not a truncation: the nodes below
+	/// a switched-off one carry on, which is what the pipe running through it says.
+	///
+	/// The graph's own switch is the head node's, so an off graph shows a chain of off eyes without
+	/// this having to know about it.
+	const on = $derived(rows.map((row) => (isChainHead(row.path) ? enabled : isOn(row.path, disabled))));
 
 	/// Only transforms. A read node belongs at the head and gets there by adding a source (Q14);
 	/// offering one here would produce a document that parses and is then immediately marked wrong.
@@ -102,17 +113,17 @@
 
 <div class="chain">
 	{#each rows as row, index (row.path.join('.'))}
-		<div class="row" class:inactive={!active[index]} style:--depth={row.depth}>
+		<div class="row" class:inactive={!on[index]} style:--depth={row.depth}>
 			<NodeCard
 				node={row.node}
 				path={row.path}
-				pinned={samePath(pinned, row.path)}
+				on={on[index]}
 				isHead={isChainHead(row.path)}
 				{operations}
 				{kinds}
 				{properties}
 				suggestions={suggestions[row.path.join('.')] ?? {}}
-				{onPin}
+				{onToggle}
 				{onCommit}
 				{onRemove}
 				{onSet}
@@ -121,11 +132,10 @@
 		</div>
 
 		{#if index < rows.length - 1 || transforms.length > 0}
-			<!-- A connection is live when the node it arrives at is, because that is what makes it a
-			     connection. The last rail arrives nowhere - it is the invitation to add an operation,
-			     not a pipe carrying anything - so it is never live. `active[index + 1]` is `undefined`
-			     there, which is exactly the answer. -->
-			<div class="rail" class:inactive={!active[index + 1]} style:--depth={row.depth}>
+			<!-- **The pipe does not go dark under a switched-off node** ([Q49]), because the tiles
+			     still flow: they skip it. What is dark is the node itself. The whole chain goes dark
+			     with the graph, which is the one case where nothing is flowing at all. -->
+			<div class="rail" class:inactive={!enabled} style:--depth={row.depth}>
 				<span class="stem" aria-hidden="true"></span>
 				{#if transforms.length > 0}
 					<Picker
@@ -171,12 +181,12 @@
 	   reads as something joined rather than as cards stacked near a hairline - which is what it
 	   looked like when this was 1px of `--rule` and the nodes were bordered in the same grey as
 	   every other separator in the pane. */
-	/* **Only the part that reaches the map is the accent.** The eye decides what is previewed, and
-	   everything downstream of it is not being drawn - so it says so, in the colour a separator has
-	   rather than the one the pipeline has. Without this the whole chain claimed to be live while
-	   half of it was not running at all. */
+	/* **A switched-off node is a ghost, not a gap** ([Q49]). It keeps its place and its form - the
+	   parameters are still there to read and to edit - and says it is not running by going quiet.
+	   The pipe around it stays live, because the tiles still flow; they skip it. */
 	.inactive {
 		--pipe: var(--rule);
+		opacity: 0.55;
 	}
 
 	.stem {

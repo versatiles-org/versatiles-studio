@@ -106,9 +106,13 @@ D8 came to have no home at all under [Q22](decisions.md).
 There is **no Parameters pane**: every node carries its own arguments in the chain ([Q32](decisions.md)). A parameter's documentation opens beside the sidebar rather than inside the node, and required parameters are shown empty rather than marked with a symbol ([Q33](decisions.md)).
 
 **A graph is a named VPL document producing one named tile source** ([Q32](decisions.md#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)), and that one name is
-the server mount, the `style.json` source and the `.vpl` filename at once. Every graph is served, so
-that from S4 a style can name them all; **one node, in one graph, may be pinned** to override the
-map — the debugging view C3 describes.
+the server mount, the `style.json` source and the `.vpl` filename at once. Every graph that is
+switched on is served, so that a style can name them all.
+
+**The sources list is the layers panel** ([Q49](decisions.md)). One row per graph, an eye that says
+whether it is drawn, and a highlight that says which one you are editing — two questions, kept
+apart: a graph you cannot see is still one you can work on. Inside a graph, each node has an eye of
+its own saying whether that operation runs.
 
 **Double-clicking a file opens it.** Studio owns `.versatiles`, `.mbtiles`, `.pmtiles` and `.vpl`,
 declared as exported UTIs so the types belong to it rather than being borrowed. The two platforms
@@ -147,12 +151,17 @@ network once its assets are installed, and off is the default that keeps that tr
 `json`, `geojson`, `topojson` and `svg` cannot. Those are named in the status bar rather than left as
 a blank map.
 
-**The map shows what the pipeline produces, not the file that feeds it** (C3). Pinning a node runs
-the pipeline **up to and including it** and mounts the result, so tightening a filter changes the
-tiles rather than a number in a form. A node inside a `[ … ]` block previews that block's own chain,
-which is the reason to pin one. With nothing pinned the map draws every graph the project serves.
-The chain says which half of itself is running: the part feeding the pin wears the accent, the rest
-a separator's colour. Containers are inputs; the map never shows one directly.
+**The map shows what the pipeline produces, not the file that feeds it** (C3). What is built is a
+graph's _effective_ pipeline — its document minus the nodes whose eyes are off ([Q49](decisions.md))
+— so tightening a filter changes the tiles rather than a number in a form, and switching a step off
+shows what the data looks like without it. The map draws every graph that is switched on, together.
+
+**A switched-off node is a ghost, not a gap.** It keeps its place and its form, and the pipe runs
+_through_ it: the nodes after it carry on, because a bypass is not a truncation. That is what lets
+one branch of a `from_stacked` leave the bracket while the composite and everything after it keep
+running. Two eyes cannot be switched off — the node a chain starts with, which is the graph's own
+switch, and the last source a composite has. Containers are inputs; the map never shows one
+directly.
 
 **Undo is one stack for the whole document** (G6). The text editor, the parameter forms and the
 graph all change the same pipeline, so ⌘Z means the same thing wherever the focus is — a form change
@@ -317,11 +326,11 @@ saving and fonts are in the menu rather than in a strip along the top ([Q47](dec
 ├───────────────────┬──────────────────────┬────────────────┤
 │ ▾ PIPELINE        │        MAP           │ ▾ INSPECTOR    │
 │   ◉ basemap    •  │   live style over    │ format, zooms  │
-│   ◌ hillshade     │   every mounted      │ TileJSON (A6)  │
-│   ◌ places        │   graph              │                │
+│   ◉ hillshade 3/5 │   every graph that   │ TileJSON (A6)  │
+│   ◌ places        │   is switched on     │                │
 │   ＋ new graph…    │                      │                │
 │  ─────────────    │  ┌ ─ ─ ─ ┐           │                │
-│   Graph │ VPL     │  │ pinned│      (C3) │                │
+│   Graph │ VPL     │  │ live  │      (C3) │                │
 │   from_geo  ⌄.geo │  └ ─ ─ ─ ┘           │                │
 │   ◉ vector_filter │                      │                │
 │     filter  ? …   │                      │                │

@@ -199,6 +199,19 @@ impl Pipeline {
 		node.sources.get(source)?.at_path(tail)
 	}
 
+	/// How many nodes there are in all, nested ones included.
+	///
+	/// What a sources row says when some of them are switched off - "3 of 5" - and the only number
+	/// in that sentence the webview cannot work out for a graph it is not showing ([Q49]).
+	#[must_use]
+	pub fn count(&self) -> usize {
+		self
+			.nodes
+			.iter()
+			.map(|node| 1 + node.sources.iter().map(Pipeline::count).sum::<usize>())
+			.sum()
+	}
+
 	/// The pipeline that *contains* the node at `path`, and its index within it.
 	///
 	/// A node's siblings are what structural edits are about - inserting after one, removing one and

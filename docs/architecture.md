@@ -142,7 +142,9 @@ written from scratch rather than imported from `@versatiles/svelte` ([Q18](decis
   `remove_tile_source` work on a running server, so **each graph is a named mount**, not a server of
   its own ([Q16](decisions.md)). Every graph a project holds is served, so a style can name them all;
   mount names carry the window, or two projects with a graph of the same name would serve each
-  other's tiles. One node may be _pinned_ on top of that for preview ([Q32](decisions.md))
+  other's tiles. What is mounted for a graph is its _effective_ pipeline — the document minus the
+  nodes whose eyes are off, and nothing at all when the graph itself is off
+  ([Q49](decisions.md))
 
 The core is a plain Rust library with no Tauri types, so it can be driven by ordinary Rust tests;
 `#[tauri::command]` functions are a thin binding over it. `versatiles_node` proves the shape — the

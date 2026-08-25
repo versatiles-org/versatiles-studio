@@ -236,7 +236,6 @@
 			await syncContainersToPipeline();
 			await graphs.mountAll();
 		});
-		void graphs.readPin();
 		void exporting.loadFormats();
 	});
 
@@ -394,14 +393,38 @@
 		}
 	}
 
-	/// Moves the map to a node, or clears the pin when it is already there.
+	/// Switches one node of the graph on screen on or off ([Q49]).
 	///
-	/// Clicking the pinned node again is what gets you back to seeing every graph - the same
-	/// gesture off as on, because a separate "clear" would be a control that only exists sometimes.
-	async function pin(path: number[]) {
+	/// **The head node's eye is the graph's**, because a chain that reads nothing is not a chain -
+	/// so it goes to the same switch the row in the list uses rather than to a second one that
+	/// would have to be kept in step with it.
+	///
+	/// Refused by the core for the last source a composite has, and the message says which node
+	/// needs one.
+	async function toggleNode(path: number[], enabled: boolean) {
 		if (currentGraph === null) return;
-		await graphs.togglePin(currentGraph, path);
-		await refreshPreview();
+		try {
+			if (path.length === 1 && path[0] === 0) await toggleGraph(currentGraph, enabled);
+			else {
+				await graphs.setNodeEnabled(currentGraph, path, enabled);
+				await refreshPreview();
+			}
+		} catch (e) {
+			status.fail(e);
+		}
+	}
+
+	/// Switches a whole graph on or off - the eye on its row ([Q49]).
+	///
+	/// Durable, so a source somebody switched off is still off when the project is reopened. The
+	/// map follows because the stack is drawn from what is built, and an off graph is not built.
+	async function toggleGraph(id: number, enabled: boolean) {
+		try {
+			await graphs.setEnabled(id, enabled);
+			await refreshPreview();
+		} catch (e) {
+			status.fail(e);
+		}
 	}
 
 	/// Opens a project directory, replacing what is open - a window is one project ([Q16]).
@@ -480,7 +503,6 @@
 		stackFor({
 			recipe: styleRecipe.current,
 			built: preview.built,
-			pinned: graphs.pinned ? preview.last : null,
 			serverUrl,
 			background: backgroundStyle
 		})
@@ -624,7 +646,6 @@
 			const done = await preview.refresh({
 				map,
 				pipeline: document.current,
-				pinned: graphs.pinned,
 				styled: () => previewDrawn,
 				// A camera came back from the core, so this window is a reload rather than a first
 				// open and already knows where it was looking.
@@ -825,7 +846,6 @@
 			properties={producedProperties}
 			fits={preview.last?.fits ?? []}
 			{suggestions}
-			pinned={graphs.pinned && graphs.pinned.graph === currentGraph ? graphs.pinned.path : null}
 			crop={document.current ? { bounds: crop, drawing } : null}
 			cropActions={{
 				set: (bounds) => void changeCrop(bounds),
@@ -836,11 +856,12 @@
 				select: (id) => void selectGraph(id),
 				rename: (id, name) => void rename(id, name),
 				remove: (id) => void removeGraphById(id),
+				setEnabled: (id, enabled) => void toggleGraph(id, enabled),
 				addNode: (operation) => void newGraph(operation),
 				openFile: () => void pick(kinds.find((kind) => kind.id === 'pipeline'))
 			}}
 			nodeActions={{
-				pin: (path) => void pin(path),
+				setEnabled: (path, enabled) => void toggleNode(path, enabled),
 				addOperation: (afterNameSpan, operation) => void addOperation(afterNameSpan, operation),
 				remove: (span) => void removeNode(span),
 				commitValue: (span, value) => void editSelected((text) => vplSetValue(text, span, value)),

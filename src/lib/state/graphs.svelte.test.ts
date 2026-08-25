@@ -5,47 +5,49 @@ import type { GraphInfo } from '../ipc/commands';
  * The three rules that used to be enforced by the order of statements inside `App.svelte`.
  *
  * Each fails quietly in the running application: tiles that stay on the map with nothing left to
- * remove them by, a renamed graph whose style resets itself, a pin left pointing at a graph that is
- * gone. None of them is a crash, which is why each is worth a test rather than a careful reading.
+ * remove them by, a renamed graph whose style resets itself, a graph whose eye says it is gone
+ * while its tiles are still drawing. None of them is a crash, which is why each is worth a test
+ * rather than a careful reading.
  */
 
 const ipc = vi.hoisted(() => ({
 	listGraphs: vi.fn(),
 	removeGraph: vi.fn(),
 	renameGraph: vi.fn(),
-	setPin: vi.fn(),
-	getPinned: vi.fn()
+	setGraphEnabled: vi.fn(),
+	setNodeEnabled: vi.fn()
 }));
 vi.mock('../ipc/commands', () => ipc);
 
 const forgotten: string[] = [];
 const mounted: number[][] = [];
+const rebuilt: number[] = [];
 vi.mock('./preview.svelte', () => ({
 	preview: {
 		get built() {
 			return { basemap: {} };
 		},
 		forget: (name: string) => void forgotten.push(name),
-		mountAll: (ids: number[]) => void mounted.push(ids)
+		mountAll: (ids: number[]) => void mounted.push(ids),
+		rebuild: (id: number) => void rebuilt.push(id)
 	}
 }));
 
 const { graphs } = await import('./graphs.svelte');
 
-const info = (id: number, name: string): GraphInfo => ({ id, name }) as GraphInfo;
+const info = (id: number, name: string, enabled = true): GraphInfo =>
+	({ id, name, enabled, disabled: [], nodes: 3 }) as unknown as GraphInfo;
 
 beforeEach(async () => {
 	forgotten.length = 0;
 	mounted.length = 0;
+	rebuilt.length = 0;
 	ipc.listGraphs.mockResolvedValue([info(1, 'basemap'), info(2, 'places')]);
 	ipc.removeGraph.mockResolvedValue(undefined);
 	ipc.renameGraph.mockResolvedValue(undefined);
-	ipc.getPinned.mockResolvedValue(null);
-	ipc.setPin.mockImplementation((pin: unknown) => Promise.resolve(pin));
+	ipc.setGraphEnabled.mockResolvedValue(true);
+	ipc.setNodeEnabled.mockResolvedValue(null);
 	await graphs.refresh();
-	// **Module-scoped `$state` outlives a test.** Without this the pin set by one test is still
-	// there for the next, and a toggle that should set reads as a toggle that clears.
-	await graphs.readPin();
 });
 
 describe('the list', () => {
@@ -81,13 +83,6 @@ describe('removing a graph', () => {
 		ipc.listGraphs.mockResolvedValue([]);
 		expect(await graphs.remove(1)).toBeNull();
 	});
-
-	// The core may have dropped the pin along with the graph; asking beats assuming which way.
-	it('reads the pin back rather than guessing', async () => {
-		ipc.listGraphs.mockResolvedValue([]);
-		await graphs.remove(1);
-		expect(ipc.getPinned).toHaveBeenCalled();
-	});
 });
 
 describe('renaming a graph', () => {
@@ -101,26 +96,49 @@ describe('renaming a graph', () => {
 	});
 });
 
-describe('the pin', () => {
-	it('moves to a node that was not pinned', async () => {
-		await graphs.togglePin(1, [0, 2]);
-		expect(graphs.pinned).toEqual({ graph: 1, path: [0, 2] });
+describe('the eyes ([Q49])', () => {
+	// **The half that fails quietly.** Telling the core is not enough: a graph whose tiles are still
+	// mounted keeps drawing under its own name, so the eye would say "off" over a map that shows it.
+	it('forgets the tiles of a graph it switches off', async () => {
+		ipc.listGraphs.mockResolvedValue([info(1, 'basemap', false), info(2, 'places')]);
+		await graphs.setEnabled(1, false);
+
+		expect(ipc.setGraphEnabled).toHaveBeenCalledWith(1, false);
+		expect(forgotten).toEqual(['basemap']);
+		expect(mounted, 'and nothing is built for a graph that is off').toEqual([]);
 	});
 
-	// The same gesture off as on - a separate "clear" would be a control that only exists sometimes.
-	it('clears when the node it names is already pinned', async () => {
-		await graphs.togglePin(1, [0, 2]);
-		await graphs.togglePin(1, [0, 2]);
-		expect(graphs.pinned).toBeNull();
+	it('builds it again when it comes back on', async () => {
+		await graphs.setEnabled(2, true);
+
+		expect(ipc.setGraphEnabled).toHaveBeenCalledWith(2, true);
+		expect(forgotten).toEqual([]);
+		expect(mounted.flat()).toContain(2);
 	});
 
-	it('moves rather than clearing for a different node or a different graph', async () => {
-		await graphs.togglePin(1, [0, 2]);
-		await graphs.togglePin(1, [0, 3]);
-		expect(graphs.pinned).toEqual({ graph: 1, path: [0, 3] });
+	// A graph that is off costs nothing when the project opens, which is most of the point.
+	it('leaves a switched-off graph unbuilt on open', async () => {
+		ipc.listGraphs.mockResolvedValue([info(1, 'basemap'), info(2, 'places', false)]);
+		await graphs.refresh();
+		await graphs.mountAll();
 
-		await graphs.togglePin(2, [0, 3]);
-		expect(graphs.pinned).toEqual({ graph: 2, path: [0, 3] });
+		expect(mounted).toEqual([]);
+	});
+
+	// Switching a node off changes what that graph *is*, so its own tiles have to follow - which is
+	// the difference from the pin, whose tiles were a mount of their own.
+	it('rebuilds the graph a node was switched off in', async () => {
+		await graphs.setNodeEnabled(1, [2], false);
+
+		expect(ipc.setNodeEnabled).toHaveBeenCalledWith(1, [2], false);
+		expect(rebuilt).toEqual([1]);
+	});
+
+	it('reports what the core refuses rather than pretending it worked', async () => {
+		ipc.setNodeEnabled.mockRejectedValue(new Error("'from_stacked' needs at least one source"));
+
+		await expect(graphs.setNodeEnabled(1, [0, 1, 0], false)).rejects.toThrow('at least one source');
+		expect(rebuilt).toEqual([]);
 	});
 });
 

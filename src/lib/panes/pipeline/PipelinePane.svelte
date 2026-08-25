@@ -35,7 +35,6 @@
 		fits = [],
 		suggestions = {},
 		graphs = [],
-		pinned = null,
 		pipeline,
 		pipelineRevision,
 		crop,
@@ -57,8 +56,6 @@
 		suggestions?: Record<string, Record<string, string[]>>;
 		/** Every graph in the project ([Q32]). */
 		graphs?: GraphInfo[];
-		/** The pinned node, when the pin is in *this* graph. */
-		pinned?: number[] | null;
 		/** This window's pipeline, owned by the core (Q25). */
 		pipeline: DocumentView | null;
 		/** What an export of this graph is narrowed to, and what that costs (F2, C6, S5.2). */
@@ -89,6 +86,8 @@
 			rename: (id: number, name: string) => void;
 			/** Removes it for good - the history cannot restore a graph that is gone ([Q32]). */
 			remove: (id: number) => void;
+			/** Switches a graph on or off - the eye on its row ([Q49]). */
+			setEnabled: (id: number, enabled: boolean) => void;
 			/** Starts a graph on a `from_*` node, with nothing filled in yet. */
 			addNode: (operation: string) => void;
 			/** Opens a `.vpl` as a graph of its own. */
@@ -96,8 +95,8 @@
 		};
 		/** Acting on a node or one of its arguments. */
 		nodeActions: {
-			/** Moves the map to this node, or clears the pin when it is already there. */
-			pin: (path: number[]) => void;
+			/** Switches a node on or off - the eye on its row in the chain ([Q49]). */
+			setEnabled: (path: number[], enabled: boolean) => void;
 			/** Inserts a transform after the node whose name occupies `span`. */
 			addOperation: (afterNameSpan: Span, operation: string) => void;
 			remove: (span: Span) => void;
@@ -133,6 +132,9 @@
 			.sort((a, b) => a.name.localeCompare(b.name))
 			.map((operation) => ({ value: operation.name, description: operation.summary }))
 	);
+
+	/// This graph's row in the list, which is where its eyes live ([Q49]).
+	const current = $derived(graphs.find((graph) => graph.id === pipeline?.graph));
 
 	// Q15: one pane, two tabs over one document - not two panes.
 	let tab = $state<'graph' | 'vpl'>('graph');
@@ -192,8 +194,8 @@
 	<GraphList
 		{graphs}
 		current={pipeline?.graph ?? null}
-		pinnedGraph={pinned ? (pipeline?.graph ?? null) : null}
 		onSelect={graphActions.select}
+		onToggle={graphActions.setEnabled}
 		onRename={graphActions.rename}
 		onRemove={graphActions.remove}
 		onNew={() => (adding = !adding)}
@@ -309,13 +311,14 @@
 	{:else}
 		<NodeChain
 			pipeline={pipeline.pipeline}
-			{pinned}
+			disabled={current?.disabled ?? []}
+			enabled={current?.enabled ?? true}
 			{operations}
 			{kinds}
 			{properties}
 			{fits}
 			{suggestions}
-			onPin={nodeActions.pin}
+			onToggle={nodeActions.setEnabled}
 			onCommit={nodeActions.commitValue}
 			onRemove={nodeActions.removeProperty}
 			onSet={(span, key, values) => nodeActions.setProperty(span, key, values)}

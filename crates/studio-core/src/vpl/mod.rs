@@ -33,7 +33,8 @@ pub use operations::{Control, FieldInfo, OperationInfo, operations};
 pub use semantics::{Lang, Names, Role, role_of};
 pub use validate::{Diagnostic, validate};
 
-use versatiles_pipeline::vpl::{CstFile, VPLPipeline, parse_cst};
+use std::collections::BTreeSet;
+use versatiles_pipeline::vpl::{CstFile, VPLNode, VPLPipeline, parse_cst};
 
 /// A parse failure, positioned. Upstream's error, narrowed to what an editor needs.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -295,6 +296,59 @@ impl Document {
 	pub fn to_pipeline(&self) -> VPLPipeline {
 		self.cst.lower()
 	}
+
+	/// The same tree with the switched-off nodes taken out ([Q49]).
+	///
+	/// **What an eye means.** A node whose eye is off is not in the pipeline that runs - so this is
+	/// the document minus those nodes, and everything downstream of here builds, mounts, draws and
+	/// styles what comes back. `None` means nothing is left to run at all.
+	///
+	/// **Switching off a chain's head switches off the chain**, because a chain that does not read
+	/// anything is not a chain. One level down that is what makes `from_stacked [ a, b ]` become
+	/// `from_stacked [ a ]` - the branch leaves the composite and everything after the composite
+	/// keeps running, which is the whole reason the eyes are per node rather than a cut point.
+	///
+	/// Paths are the ones [`Pipeline::node_at`] produces: a node index, then pairs of source and
+	/// node index.
+	///
+	/// [Q49]: ../../../docs/decisions.md
+	#[must_use]
+	pub fn to_pipeline_without(&self, off: &BTreeSet<Vec<usize>>) -> Option<VPLPipeline> {
+		if off.is_empty() {
+			return Some(self.to_pipeline());
+		}
+		strip(self.to_pipeline(), &mut Vec::new(), off)
+	}
+}
+
+/// One chain with its switched-off nodes removed, or `None` when nothing is left of it.
+fn strip(pipeline: VPLPipeline, path: &mut Vec<usize>, off: &BTreeSet<Vec<usize>>) -> Option<VPLPipeline> {
+	let mut kept: Vec<VPLNode> = Vec::new();
+	for (index, mut node) in pipeline.pipeline.into_iter().enumerate() {
+		path.push(index);
+		if off.contains(path.as_slice()) {
+			path.pop();
+			// The head, so the whole chain goes: what follows it has nothing to read.
+			if index == 0 {
+				return None;
+			}
+			continue;
+		}
+		let sources = std::mem::take(&mut node.sources);
+		node.sources = sources
+			.into_iter()
+			.enumerate()
+			.filter_map(|(source, chain)| {
+				path.push(source);
+				let kept = strip(chain, path, off);
+				path.pop();
+				kept
+			})
+			.collect();
+		kept.push(node);
+		path.pop();
+	}
+	(!kept.is_empty()).then(|| VPLPipeline::new(kept))
 }
 
 impl std::fmt::Display for Document {

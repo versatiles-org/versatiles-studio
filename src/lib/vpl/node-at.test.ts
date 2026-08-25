@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { feedsPreview, isChainHead, nodeAt, nodeAtPath, samePath, selectionSurvives, walk } from './node-at';
+import { isChainHead, isOn, nodeAt, nodeAtPath, samePath, selectionSurvives, walk } from './node-at';
 import type { VplNode, VplPipeline } from '../ipc/commands';
 
 /** A minimal node, positioned. Only the fields these functions read. */
@@ -132,34 +132,26 @@ describe('selectionSurvives', () => {
 	});
 });
 
-describe('feedsPreview', () => {
-	it('is everything when nothing is pinned - the map draws the whole graph', () => {
-		expect(feedsPreview([0], null)).toBe(true);
-		expect(feedsPreview([4, 1, 2], null)).toBe(true);
+describe('isOn', () => {
+	/// **Every node answers for itself** ([Q49]). This replaced `feedsPreview`, which asked whether
+	/// a node reached the pin - so one node switched off darkened everything after it, and one
+	/// branch of a composite darkened its sibling. A bypass skips a node; it does not cut a chain.
+	it('is on for everything when nothing is switched off', () => {
+		expect(isOn([0], [])).toBe(true);
+		expect(isOn([4, 1, 2], [])).toBe(true);
 	});
 
-	it('is the pinned node and what comes before it in its chain', () => {
-		expect(feedsPreview([0], [2])).toBe(true);
-		expect(feedsPreview([2], [2])).toBe(true);
-		expect(feedsPreview([3], [2])).toBe(false);
+	it('is off only for the node that was switched off', () => {
+		const off = [[2]];
+		expect(isOn([1], off)).toBe(true);
+		expect(isOn([2], off)).toBe(false);
+		expect(isOn([3], off), 'what comes after a bypassed node still runs').toBe(true);
 	});
 
-	it('counts what is nested inside a node that feeds it', () => {
-		// A source chain hanging off node 1 is how node 1 has anything to produce.
-		expect(feedsPreview([1, 0, 0], [2])).toBe(true);
-		// …and one hanging off a node after the pin still does not.
-		expect(feedsPreview([3, 0, 0], [2])).toBe(false);
-	});
-
-	// Pinning inside a block previews *that block's* chain, so the pipeline consuming it is not
-	// part of the answer - which is what `preview::up_to` does, and looks surprising until you
-	// remember that the point of pinning a nested node is to see the data at that step.
-	it('leaves the outer pipeline out when the pin is nested', () => {
-		expect(feedsPreview([1, 0, 0], [1, 0, 1])).toBe(true);
-		expect(feedsPreview([1, 0, 2], [1, 0, 1])).toBe(false);
-		expect(feedsPreview([0], [1, 0, 1])).toBe(false);
-		expect(feedsPreview([1], [1, 0, 1])).toBe(false);
-		// A different source of the same node feeds a different chain.
-		expect(feedsPreview([1, 1, 0], [1, 0, 1])).toBe(false);
+	it('leaves the other branch of a composite alone', () => {
+		const off = [[0, 0, 1]];
+		expect(isOn([0, 0, 1], off)).toBe(false);
+		expect(isOn([0, 1, 0], off)).toBe(true);
+		expect(isOn([0], off), 'the composite still runs, with one source fewer').toBe(true);
 	});
 });

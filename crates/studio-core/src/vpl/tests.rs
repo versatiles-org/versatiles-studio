@@ -691,3 +691,93 @@ fn formatting_changes_nothing_but_the_layout() {
 	again.format();
 	assert_eq!(again.text(), once, "formatting twice is formatting once");
 }
+
+// -- switched-off nodes ([Q49]) --------------------------------------------------------------
+
+/// What runs, as VPL, with these node paths switched off.
+fn without(vpl: &str, off: &[&[usize]]) -> Option<String> {
+	let document = Document::parse(vpl).unwrap();
+	let set: std::collections::BTreeSet<Vec<usize>> = off.iter().map(|path| path.to_vec()).collect();
+	document.to_pipeline_without(&set).map(|pipeline| pipeline.to_string())
+}
+
+/// Nothing switched off is the document itself - the ordinary state, and the one that must not
+/// take a different path through the code.
+#[test]
+fn everything_on_is_the_whole_pipeline() {
+	let vpl = "from_debug format=png | raster_overview level=2 | raster_flatten";
+	assert_eq!(
+		without(vpl, &[]).unwrap(),
+		"from_debug format=png | raster_overview level=2 | raster_flatten"
+	);
+}
+
+/// The pipe runs *through* a switched-off node rather than stopping at it: this is a bypass, not
+/// the truncation the pin used to do.
+#[test]
+fn a_switched_off_transform_is_skipped_and_the_rest_still_runs() {
+	let vpl = "from_debug format=png | raster_overview level=2 | raster_flatten";
+	assert_eq!(without(vpl, &[&[1]]).unwrap(), "from_debug format=png | raster_flatten");
+}
+
+#[test]
+fn switching_off_several_leaves_the_rest_in_order() {
+	let vpl = "from_debug format=png | filter level_max=5 | raster_overview level=2 | raster_flatten";
+	assert_eq!(
+		without(vpl, &[&[1], &[3]]).unwrap(),
+		"from_debug format=png | raster_overview level=2"
+	);
+}
+
+/// **The case the cut point could not express.** One branch of a composite leaves, the composite
+/// still runs, and so does everything after it.
+#[test]
+fn switching_off_a_branch_head_drops_that_source_and_keeps_the_rest() {
+	let vpl = "from_stacked [ from_debug format=png, from_color color=ff0000 ] | raster_overview level=2";
+	assert_eq!(
+		without(vpl, &[&[0, 1, 0]]).unwrap(),
+		"from_stacked [ from_debug format=png ] | raster_overview level=2"
+	);
+}
+
+/// Inside a branch it is the ordinary rule, one level down.
+#[test]
+fn switching_off_a_node_inside_a_branch_shortens_only_that_branch() {
+	let vpl = "from_stacked [ from_debug format=png | raster_flatten, from_color color=ff0000 ]";
+	assert_eq!(
+		without(vpl, &[&[0, 0, 1]]).unwrap(),
+		"from_stacked [ from_debug format=png, from_color color=ff0000 ]"
+	);
+}
+
+/// A chain that reads nothing is not a chain, so its head takes it with it.
+#[test]
+fn switching_off_the_head_switches_off_the_chain_it_heads() {
+	assert_eq!(without("from_debug format=png | raster_flatten", &[&[0]]), None);
+}
+
+/// **A composite that loses every branch keeps standing**, so that what fails says which node
+/// failed - upstream's own "needs at least one source", against the node that needs one - rather
+/// than the pipeline quietly becoming nothing.
+///
+/// Unreachable through the eyes: the graph refuses to switch off the last source. This is what the
+/// answer should be if anything ever asks anyway.
+#[test]
+fn a_composite_that_loses_every_branch_keeps_the_node_that_needs_one() {
+	let vpl = "from_stacked [ from_debug format=png, from_color color=ff0000 ]";
+	let left = without(vpl, &[&[0, 0, 0], &[0, 1, 0]]).unwrap();
+	assert_eq!(left, "from_stacked");
+
+	let problems = versatiles_pipeline::check_pipeline(&Document::parse(&left).unwrap().to_pipeline());
+	assert_eq!(problems.len(), 1, "{problems:?}");
+	assert!(problems[0].message.contains("at least one source"), "{problems:?}");
+	assert_eq!(problems[0].path, [0]);
+}
+
+/// A path naming nothing changes nothing: the document has moved on, and a stale path is the
+/// ordinary consequence of editing the VPL by hand.
+#[test]
+fn a_path_that_names_nothing_is_ignored() {
+	let vpl = "from_debug format=png | raster_flatten";
+	assert_eq!(without(vpl, &[&[7]]).unwrap(), "from_debug format=png | raster_flatten");
+}

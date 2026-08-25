@@ -48,9 +48,9 @@ function open(graphActions: { addNode: () => void; openFile: () => void }) {
 		pipelineRevision: 0,
 		crop: null,
 		cropActions: { set: () => {}, draw: () => {}, useView: () => {} },
-		graphActions: { select: () => {}, rename: () => {}, remove: () => {}, ...graphActions },
+		graphActions: { select: () => {}, rename: () => {}, remove: () => {}, setEnabled: () => {}, ...graphActions },
 		nodeActions: {
-			pin: () => {},
+			setEnabled: () => {},
 			addOperation: () => {},
 			remove: () => {},
 			commitValue: () => {},

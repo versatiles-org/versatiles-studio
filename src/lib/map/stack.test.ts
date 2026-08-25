@@ -68,7 +68,7 @@ describe('stackFor', () => {
 	const background = { version: 8, sources: { osm: { type: 'raster', tiles: ['x'] } }, layers: [] } as never;
 
 	it('draws nothing before the server is up', () => {
-		expect(stackFor({ recipe: recipe(), built: {}, pinned: null, serverUrl: null, background })).toEqual({
+		expect(stackFor({ recipe: recipe(), built: {}, serverUrl: null, background })).toEqual({
 			style: null,
 			bases: []
 		});
@@ -80,7 +80,6 @@ describe('stackFor', () => {
 		const { style } = stackFor({
 			recipe: recipe(),
 			built: { places: built('places') },
-			pinned: null,
 			serverUrl: BASE,
 			background
 		});
@@ -88,23 +87,39 @@ describe('stackFor', () => {
 	});
 
 	it('draws the background before any recipe has arrived', () => {
-		const { style } = stackFor({ recipe: null, built: {}, pinned: null, serverUrl: BASE, background });
+		const { style } = stackFor({ recipe: null, built: {}, serverUrl: BASE, background });
 		expect(style).not.toBeNull();
 	});
 
-	// A pin is a question about one step of one graph; the rest of the project is not the answer.
-	it('shows only the pinned node', () => {
+	/// **Every graph that has tiles, and no second mode** ([Q49]).
+	///
+	/// A pinned node used to replace the stack with itself, which drew one step of one graph and hid
+	/// the rest of the project. It also decided what a *save* wrote: `styleText` serialises what
+	/// this returns, so saving while something was pinned wrote a `style.json` naming one source.
+	/// Switching a source off now means it is not in `built` at all, which is the same fact in one
+	/// place instead of two.
+	it('draws every source that has tiles', () => {
 		const { style, bases } = stackFor({
 			recipe: recipe(),
 			built: { a: built('a'), b: built('b') },
-			pinned: built('a'),
 			serverUrl: BASE,
 			background
 		});
 		// `bases` is one row per *entry* - the background is context rather than a source anyone
 		// lists or reorders, so it draws without appearing here.
-		expect(bases.map((entry) => entry.name)).toEqual(['a']);
+		expect(bases.map((entry) => entry.name)).toEqual(['a', 'b']);
 		expect(Object.keys(style!.sources)).toContain('background');
+	});
+
+	/// What a switched-off graph looks like from here: absent, because nothing built it.
+	it('draws nothing for a source with no tiles', () => {
+		const { bases } = stackFor({
+			recipe: recipe(),
+			built: { a: built('a') },
+			serverUrl: BASE,
+			background
+		});
+		expect(bases.map((entry) => entry.name)).toEqual(['a']);
 	});
 });
 

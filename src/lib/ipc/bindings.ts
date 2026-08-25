@@ -578,21 +578,14 @@ export const commands = {
 	 */
 	formatGraph: (id: number) => typedError<DocumentView, VplError>(__TAURI_INVOKE("format_graph", { id })),
 	/**
-	 *  Runs the pipeline up to `path` and mounts the result - as a cancellable job (S2.7, S3.1).
+	 *  Builds a graph and mounts it under its own name ([Q32]).
 	 * 
-	 *  Building opens the inputs, which on a large source is not instant, so this runs in the runner's
-	 *  [`Lane::Latest`]: **editing the pipeline again stops the build that is now out of date**, rather
-	 *  than leaving it to finish an answer nobody will look at. That is also why the caller no longer
-	 *  needs a token to discard stale replies - being superseded is something the runner knows, so it
-	 *  is something this can report.
-	 */
-	previewPipeline: (graph: number, path: number[]) => typedError<PreviewOutcome, string>(__TAURI_INVOKE("preview_pipeline", { graph, path })),
-	/**
-	 *  Builds a graph in full and mounts it under its own name ([Q32]).
+	 *  Every graph is served, because that is what a style names: mounting by name rather than under
+	 *  one shared mount is what lets a style reference `basemap` and `hillshade` separately.
 	 * 
-	 *  Every graph is served, because that is what a style names - this is the ordinary view, and the
-	 *  pin is the exception layered on top. Mounting by name rather than under one shared `preview`
-	 *  mount is what lets a style reference `basemap` and `hillshade` separately.
+	 *  **What is built is the graph's *effective* pipeline** ([Q49]) - the document minus the nodes
+	 *  whose eyes are off, and nothing at all when the graph itself is off. Every route to tiles goes
+	 *  through here, so the map, the server and the style cannot disagree about what a graph is.
 	 */
 	mountGraph: (graph: number) => typedError<{
 	/**  Mount name, stable so a rebuild replaces rather than accumulates. */
@@ -617,24 +610,30 @@ export const commands = {
 	 */
 	fits: Fit[],
 } | null, string>(__TAURI_INVOKE("mount_graph", { graph })),
-	/**  Where the map is looking: the pinned node, or `None` for the ordinary state ([Q32]). */
-	pinned: () => typedError<{
-	graph: number,
-	path: number[],
-} | null, string>(__TAURI_INVOKE("pinned")),
 	/**
-	 *  Pins the map to one node, or clears the pin.
+	 *  Switches a graph on or off - the eye on its row in the sources list ([Q49]).
 	 * 
-	 *  **Exactly one across the project.** Pinning elsewhere moves it; pinning the pinned node clears
-	 *  it, which is the gesture that gets you back to seeing everything.
+	 *  Off means it is not built: no job when the project opens, no mount on the server, and no source
+	 *  in the `style.json` a save writes. Nothing else changes - the document, its file, its crop and
+	 *  its style entry all stay, and switching it back on finds the nodes it had off still off.
+	 * 
+	 *  **Durable**, so a slow source somebody switched off is still off tomorrow. It is the caller's
+	 *  job to remount or forget the tiles; this owns the fact, not the map.
 	 */
-	setPin: (pin: {
-	graph: number,
-	path: number[],
-} | null) => typedError<{
-	graph: number,
-	path: number[],
-} | null, string>(__TAURI_INVOKE("set_pin", { pin })),
+	setGraphEnabled: (graph: number, enabled: boolean) => typedError<boolean, string>(__TAURI_INVOKE("set_graph_enabled", { graph, enabled })),
+	/**
+	 *  Switches one node of a graph on or off - the eye on its row in the chain ([Q49]).
+	 * 
+	 *  A node that is off is not in the pipeline that runs; the pipe flows **through** it rather than
+	 *  stopping at it, which is what tells this from the pin it replaces. Refused for the two nodes a
+	 *  chain cannot do without - see [`Graphs::set_node_enabled`].
+	 * 
+	 *  **Not durable, and not an edit.** The `.vpl` has no word for a bypassed node, so this is a way
+	 *  of looking at a pipeline rather than part of it: it belongs to the session, and an export runs
+	 *  the document in full. `path` is the node path the graph view already speaks - a node index, then
+	 *  pairs of source and node index.
+	 */
+	setNodeEnabled: (graph: number, path: number[], enabled: boolean) => typedError<null, string>(__TAURI_INVOKE("set_node_enabled", { graph, path, enabled })),
 	/**
 	 *  Steps back, or forward again. `None` when there is nowhere to go.
 	 * 
@@ -999,6 +998,32 @@ export type GraphInfo = {
 	dirty: boolean,
 	/**  What an export of this graph is narrowed to (F2, S5.2) - empty until someone sets one. */
 	crop: Bounds,
+	/**
+	 *  Whether the graph is drawn at all ([Q49]) - its row's eye in the sources list.
+	 * 
+	 *  Off means it is not built: no job on open, no mount on the server, no source in the style.
+	 *  The `.vpl` and everything about it stay; this is a switch, not a deletion.
+	 */
+	enabled: boolean,
+	/**
+	 *  Nodes switched off inside it, as paths ([Q49]).
+	 * 
+	 *  **Session state, not the project's.** A bypass is a way of looking at a pipeline, and the
+	 *  `.vpl` on disk has no word for it - so it dies with the window rather than saving a project
+	 *  whose file says one thing and whose map shows another.
+	 */
+	disabled: number[][],
+	/**  How many nodes the document has. */
+	nodes: number,
+	/**
+	 *  How many of them actually run - what a row says as "3 of 5" ([Q49]).
+	 * 
+	 *  **Counted from the effective pipeline, not from `disabled.len()`.** One switched-off path can
+	 *  take several nodes with it: the head of a `from_stacked` branch drops that whole branch, so
+	 *  subtracting the number of switched-off paths would claim four of five nodes run when two do.
+	 *  Zero when the graph is off.
+	 */
+	running: number,
 };
 
 /**
@@ -1420,12 +1445,6 @@ export type PaneState = {
 	open: boolean,
 };
 
-/**  Which node the map shows, overriding every mounted graph. */
-export type Pin = {
-	graph: number,
-	path: number[],
-};
-
 /**  A chain of nodes, `a | b | c`. */
 export type Pipeline = {
 	nodes: Node[],
@@ -1470,20 +1489,6 @@ export type Preview = {
 	 */
 	fits: Fit[],
 };
-
-/**
- *  What a preview request came to.
- * 
- *  Three outcomes rather than an `Option`, because "there is nothing at that path" and "you asked
- *  again before I finished" are different facts and the caller does different things with them.
- */
-export type PreviewOutcome = {
-	kind: "ready",
-} & Preview | 
-/**  The path names no node, or there is no pipeline yet. */
-{ kind: "nothing" } | 
-/**  A newer preview replaced this one before it finished. Its answer is the current one. */
-{ kind: "superseded" };
 
 /**  One problem, as the panel lists it and the report prints it. */
 export type Problem = {

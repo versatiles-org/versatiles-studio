@@ -25,7 +25,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use studio_core::{
 	diagnostics::Diagnostics,
-	graphs::{GraphId, Graphs},
+	graphs::Graphs,
 	history::History,
 	jobs::Jobs,
 	server::ServerManager,
@@ -34,13 +34,6 @@ use studio_core::{
 };
 use tauri::Window;
 
-/// Which node, in which graph, the map is pinned to ([Q32]).
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Pinned {
-	pub graph: GraphId,
-	/// The path `Pipeline::at_path` walks - a node index, then pairs of source and node index.
-	pub path: Vec<usize>,
-}
 use tokio::sync::Mutex;
 
 /// One project: the graphs, how they are drawn, and where on disk it all is.
@@ -71,9 +64,6 @@ pub struct Project {
 	/// One undo stack across every graph *and* the style, whichever view an edit came from
 	/// ([Q11], [Q32], [Q36], G6) - and across this project only.
 	pub history: History,
-	/// The node whose output the map is showing, overriding the style ([Q32]). `None` is the
-	/// ordinary state: the map draws every mounted graph.
-	pub pinned: Option<Pinned>,
 	/// What relative paths in the VPL resolve against.
 	///
 	/// A `.vpl` file's paths are relative to **that file**, the way `versatiles convert` resolves
@@ -108,7 +98,6 @@ impl Project {
 			graphs: Graphs::new(),
 			style: Recipe::default(),
 			history: History::new(),
-			pinned: None,
 			dir: std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")),
 			root: None,
 		}
@@ -334,11 +323,6 @@ mod tests {
 			second.lock().await.mount("pipeline"),
 		);
 		assert_ne!(a, b);
-		// The pinned preview was worse: every window's pin was the literal `preview` mount.
-		assert_ne!(
-			first.lock().await.mount("preview"),
-			second.lock().await.mount("preview")
-		);
 	}
 
 	/// Within one window a mount name still means one thing, so re-opening replaces rather than

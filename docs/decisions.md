@@ -16,6 +16,59 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q49 — An eye means "this runs", at both scales; the pin is retired
+
+**Decided 2026-08-26.** Studio had two eyes that meant different things. On a node it was the
+**pin**: clicking it built that node's chain truncated at it, into a per-window `preview` mount, and
+`stackFor` short-circuited to draw that one source — so looking at one step of one graph hid every
+other graph in the project. On a graph's row in the sources list it was not a control at all, only a
+read-only mark showing which graph held the pin.
+
+**One meaning: an eye says this is processed, and its scope is its row.** A graph's eye says the
+graph is built, mounted, drawn and named in `style.json`. A node's eye says that operation is in the
+pipeline that runs. Nothing else changes when you click one.
+
+**A bypass, not a cut.** The eyes are per node and independent: switching one off removes that node
+from the effective pipeline and the ones after it carry on — the pipe runs _through_ it, which is
+what the ghosted row draws. A cut point could not express the case that decided this:
+`from_stacked [ a, b ]` where you want the stack without `b`. Under the pin, tapping inside `b`
+darkened `a`, the composite, and everything after it; now `b` leaves the bracket and the rest of the
+pipeline keeps running.
+
+**Two nodes cannot be switched off**, and both refusals are one rule at different depths — a chain
+has to read something.
+
+- The node a graph starts with. Switching that off is switching the graph off, so its eye _is_ the
+  row's eye rather than a second place for the same fact.
+- The last source a composite still has. `from_stacked` with an empty bracket is not a pipeline, and
+  upstream already says so in those words.
+
+Everything else is free, so the structural failures `check_pipeline` reports cannot arise from the
+eyes. What remains is a mismatch between the tiles arriving at a node and what it can consume, and
+that is the one check Studio cannot make statically — `compatible_transforms` needs a built source —
+so it arrives from the build rather than from the click.
+
+**What is durable, and what is not.** A graph's eye is in `project.yaml`: which sources a project
+draws is part of what it is, and someone who switched off a slow hillshade should not have it built
+again tomorrow. A node's eye is session state, because the `.vpl` has no word for a bypassed node —
+persisting it would save a project whose file says one thing and whose map shows another. The
+consequence is stated rather than hidden: **an export runs the document in full**, eyes or not.
+
+**Phase 2, not yet built:** a bypassed node round-trips as a _commented-out_ node in the VPL, which
+the tree already preserves through formatting (S1.11). Then the file, the map and the export cannot
+disagree, undo covers it, and the caveat above goes away. The state is a set of node paths either
+way, so that is a change of storage rather than of model.
+
+**What this removed:** `Pinned` and its two commands, `preview_pipeline`, `preview::up_to`, the
+per-window `preview` mount, `feedsPreview`, and `stackFor`'s exclusive branch. Three concepts became
+one. It also fixed something the pin took with it: `styleText` serialises what `stackFor` returns,
+so **saving a project while a node was pinned wrote a `style.json` naming that one source**.
+
+**Amends [Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)**, whose pin
+this replaces, and answers the eye it left on the graph rows. The layers-panel reading — one row per
+source, an eye for drawn, a highlight for selected, and the two independent — is the model it was
+reaching for.
+
 ### Q48 — A window is a project, and the launcher is a window of its own
 
 **Decided 2026-08-25.** The landing screen is a full-screen overlay inside a project window, shown

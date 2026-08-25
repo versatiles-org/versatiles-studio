@@ -154,11 +154,7 @@ pub async fn add_graph(
 pub async fn remove_graph(window: tauri::Window, state: State<'_, AppState>, id: GraphId) -> Result<bool, String> {
 	let held = state.project(&window).await;
 	let mount = {
-		let mut project = held.lock().await;
-		// A pin into a graph that is gone would leave the map showing something unreachable.
-		if project.pinned.as_ref().is_some_and(|p| p.graph == id) {
-			project.pinned = None;
-		}
+		let project = held.lock().await;
 		let name = project.graphs.get(id).map(|graph| graph.name.clone());
 		name.map(|name| project.mount(&name))
 	};
@@ -462,142 +458,6 @@ pub struct Preview {
 	pub fits: Vec<studio_core::analysis::Fit>,
 }
 
-/// What a preview request came to.
-///
-/// Three outcomes rather than an `Option`, because "there is nothing at that path" and "you asked
-/// again before I finished" are different facts and the caller does different things with them.
-#[derive(serde::Serialize)]
-#[serde(tag = "kind", rename_all = "camelCase")]
-#[derive(specta::Type)]
-pub enum PreviewOutcome {
-	// Boxed only to keep the variants a similar size - `Preview` carries a whole `ContainerInfo`,
-	// and the other two carry nothing. Transparent on the wire and in the generated types.
-	Ready(Box<Preview>),
-	/// The path names no node, or there is no pipeline yet.
-	Nothing,
-	/// A newer preview replaced this one before it finished. Its answer is the current one.
-	Superseded,
-}
-
-/// Runs the pipeline up to `path` and mounts the result - as a cancellable job (S2.7, S3.1).
-///
-/// Building opens the inputs, which on a large source is not instant, so this runs in the runner's
-/// [`Lane::Latest`]: **editing the pipeline again stops the build that is now out of date**, rather
-/// than leaving it to finish an answer nobody will look at. That is also why the caller no longer
-/// needs a token to discard stale replies - being superseded is something the runner knows, so it
-/// is something this can report.
-#[tauri::command]
-#[specta::specta]
-pub async fn preview_pipeline(
-	app: AppHandle,
-	window: tauri::Window,
-	state: State<'_, AppState>,
-	graph: GraphId,
-	path: Vec<u32>,
-) -> Result<PreviewOutcome, String> {
-	// `u32` rather than `usize` at the boundary: it arrives from JavaScript as numbers, and specta
-	// will not emit a 64-bit integer as a `number` (see `bindings.rs`).
-	let path: Vec<usize> = path.into_iter().map(|index| index as usize).collect();
-	let held = state.project(&window).await;
-	let (document, mount, dir) = {
-		let project = held.lock().await;
-		let Some(document) = project.graphs.get(graph).map(|g| g.document.clone()) else {
-			return Ok(PreviewOutcome::Nothing);
-		};
-		(document, project.mount("preview"), project.dir.clone())
-	};
-	// An empty path means the whole pipeline - what the map shows when nothing is selected.
-	let full = document.to_pipeline();
-	let wanted = if path.is_empty() {
-		Some(full)
-	} else {
-		studio_core::preview::up_to(full, &path)
-	};
-	let Some(wanted) = wanted else {
-		return Ok(PreviewOutcome::Nothing);
-	};
-
-	// The result travels back through a oneshot rather than the event stream: it is an answer to
-	// *this* call, not news for every listener, and it carries a mount URL the bar has no use for.
-	let (tx, rx) = tokio::sync::oneshot::channel();
-	state.jobs.submit(
-		"Building preview",
-		Lane::Latest,
-		window.label(),
-		move |handle| async move {
-			let outcome = build_preview(&app, &handle, wanted, mount, dir).await;
-			// Sent as a `Result`, so a failure reaches the caller's `catch` *and* is recorded as a
-			// failed job. Only supersession drops the sender, which is what makes that distinguishable
-			// from failing at the far end.
-			let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
-			outcome.map(|_| ())
-		},
-	);
-
-	match rx.await {
-		Ok(Ok(preview)) => Ok(PreviewOutcome::Ready(Box::new(preview))),
-		Ok(Err(error)) => Err(error),
-		// A dropped sender is a job that was aborted, which in this lane means superseded.
-		Err(_) => Ok(PreviewOutcome::Superseded),
-	}
-}
-
-/// The build itself, split out so the job body is about reporting rather than about tiles.
-async fn build_preview(
-	app: &AppHandle,
-	handle: &JobHandle,
-	wanted: VPLPipeline,
-	mount: String,
-	dir: std::path::PathBuf,
-) -> anyhow::Result<Preview> {
-	// `preview` is what the webview calls the pinned node's source; the mount it is served from
-	// carries the window, or every window's pin would be the same mount (S7.2).
-	build_into(app, handle, wanted, "preview", &mount, dir).await
-}
-
-/// Builds a pipeline and mounts it, replacing whatever was there.
-///
-/// **`mount` and `name` are different things** ([S7.2](../../../docs/scope-release-3.md)). `mount`
-/// is where the tiles are served from, and carries the window's prefix so two projects with a graph
-/// of the same name do not serve each other's tiles. `name` is what the webview calls this source in
-/// the style it composes - the graph's own name, which a prefix would leak into every `style.json`
-/// Studio exports.
-///
-/// **The directory comes in rather than being looked up.** The job outlives the command, and by the
-/// time it runs the window that asked may have opened a project somewhere else - so what a relative
-/// `filename` means is captured with the pipeline it belongs to, not read again later (S7.1).
-async fn build_into(
-	app: &AppHandle,
-	handle: &JobHandle,
-	wanted: VPLPipeline,
-	name: &str,
-	mount: &str,
-	dir: std::path::PathBuf,
-) -> anyhow::Result<Preview> {
-	// Fetched here rather than captured: the job outlives the command's borrow, and an `AppHandle`
-	// is the supported way to reach managed state from something that does.
-	let state = tauri::Manager::state::<AppState>(app);
-	handle.working("building the pipeline");
-	let mut server = state.server.lock().await;
-	let source = studio_core::preview::build(server.runtime(), wanted, &dir).await?;
-
-	handle.working("reading what it produces");
-	let info = studio_core::analysis::describe(&source, "preview").await?;
-
-	handle.working("looking at what it contains");
-	let layers = studio_core::analysis::probe_layers(&source, &info).await;
-	let fits = studio_core::analysis::fitting(&source).await;
-
-	server.mount(mount, source).await?;
-	Ok(Preview {
-		name: name.to_string(),
-		tile_url: server.tile_url(mount),
-		info,
-		layers,
-		fits,
-	})
-}
-
 /// Opens a `.vpl` file as this window's pipeline (C9, S2.9).
 ///
 /// A pipeline written by hand or emitted by the CLI has to be openable, or "edit VPL" only ever
@@ -709,55 +569,65 @@ pub async fn save_vpl(
 	Ok(DocumentView::of(entry, &project.history))
 }
 
-/// Where the map is looking: the pinned node, or `None` for the ordinary state ([Q32]).
-#[tauri::command]
-#[specta::specta]
-pub async fn pinned(window: tauri::Window, state: State<'_, AppState>) -> Result<Option<Pin>, String> {
-	let held = state.project(&window).await;
-	let pin = held.lock().await.pinned.as_ref().map(|pin| Pin {
-		graph: pin.graph,
-		path: pin.path.iter().map(|index| *index as u32).collect(),
-	});
-	Ok(pin)
-}
-
-/// Which node the map shows, overriding every mounted graph.
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[derive(specta::Type)]
-pub struct Pin {
-	pub graph: GraphId,
-	pub path: Vec<u32>,
-}
-
-/// Pins the map to one node, or clears the pin.
+/// Switches a graph on or off - the eye on its row in the sources list ([Q49]).
 ///
-/// **Exactly one across the project.** Pinning elsewhere moves it; pinning the pinned node clears
-/// it, which is the gesture that gets you back to seeing everything.
+/// Off means it is not built: no job when the project opens, no mount on the server, and no source
+/// in the `style.json` a save writes. Nothing else changes - the document, its file, its crop and
+/// its style entry all stay, and switching it back on finds the nodes it had off still off.
+///
+/// **Durable**, so a slow source somebody switched off is still off tomorrow. It is the caller's
+/// job to remount or forget the tiles; this owns the fact, not the map.
 #[tauri::command]
 #[specta::specta]
-pub async fn set_pin(
+pub async fn set_graph_enabled(
 	window: tauri::Window,
 	state: State<'_, AppState>,
-	pin: Option<Pin>,
-) -> Result<Option<Pin>, String> {
+	graph: GraphId,
+	enabled: bool,
+) -> Result<bool, String> {
 	let held = state.project(&window).await;
 	let mut project = held.lock().await;
-	project.pinned = pin.map(|pin| crate::state::Pinned {
-		graph: pin.graph,
-		path: pin.path.iter().map(|index| *index as usize).collect(),
-	});
-	Ok(project.pinned.as_ref().map(|pin| Pin {
-		graph: pin.graph,
-		path: pin.path.iter().map(|index| *index as u32).collect(),
-	}))
+	Ok(project.graphs.set_enabled(graph, enabled))
 }
 
-/// Builds a graph in full and mounts it under its own name ([Q32]).
+/// Switches one node of a graph on or off - the eye on its row in the chain ([Q49]).
 ///
-/// Every graph is served, because that is what a style names - this is the ordinary view, and the
-/// pin is the exception layered on top. Mounting by name rather than under one shared `preview`
-/// mount is what lets a style reference `basemap` and `hillshade` separately.
+/// A node that is off is not in the pipeline that runs; the pipe flows **through** it rather than
+/// stopping at it, which is what tells this from the pin it replaces. Refused for the two nodes a
+/// chain cannot do without - see [`Graphs::set_node_enabled`].
+///
+/// **Not durable, and not an edit.** The `.vpl` has no word for a bypassed node, so this is a way
+/// of looking at a pipeline rather than part of it: it belongs to the session, and an export runs
+/// the document in full. `path` is the node path the graph view already speaks - a node index, then
+/// pairs of source and node index.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_node_enabled(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	graph: GraphId,
+	path: Vec<u32>,
+	enabled: bool,
+) -> Result<(), String> {
+	// `u32` at the boundary: a path arrives from JavaScript as numbers, and specta will not emit a
+	// 64-bit integer as a `number` (see `bindings.rs`).
+	let path: Vec<usize> = path.into_iter().map(|index| index as usize).collect();
+	let held = state.project(&window).await;
+	let mut project = held.lock().await;
+	project
+		.graphs
+		.set_node_enabled(graph, &path, enabled)
+		.map_err(|error| format!("{error:#}"))
+}
+
+/// Builds a graph and mounts it under its own name ([Q32]).
+///
+/// Every graph is served, because that is what a style names: mounting by name rather than under
+/// one shared mount is what lets a style reference `basemap` and `hillshade` separately.
+///
+/// **What is built is the graph's *effective* pipeline** ([Q49]) - the document minus the nodes
+/// whose eyes are off, and nothing at all when the graph itself is off. Every route to tiles goes
+/// through here, so the map, the server and the style cannot disagree about what a graph is.
 #[tauri::command]
 #[specta::specta]
 pub async fn mount_graph(
@@ -767,17 +637,22 @@ pub async fn mount_graph(
 	graph: GraphId,
 ) -> Result<Option<Preview>, String> {
 	let held = state.project(&window).await;
-	let (name, mount, document, dir) = {
+	let (name, mount, pipeline, dir) = {
 		let project = held.lock().await;
-		let Some((name, document)) = project.graphs.get(graph).map(|g| (g.name.clone(), g.document.clone())) else {
+		let Some(found) = project.graphs.get(graph) else {
+			return Ok(None);
+		};
+		let name = found.name.clone();
+		// Switched off, or switched off down to nothing: there are no tiles to serve, and saying so
+		// is what keeps an off graph out of the stack and out of the style.
+		let Some(pipeline) = found.effective() else {
 			return Ok(None);
 		};
 		let mount = project.mount(&name);
-		(name, mount, document, project.dir.clone())
+		(name, mount, pipeline, project.dir.clone())
 	};
 
 	let (tx, rx) = tokio::sync::oneshot::channel();
-	let pipeline = document.to_pipeline();
 	let label = format!("Building {name}");
 	state
 		.jobs
@@ -793,6 +668,49 @@ pub async fn mount_graph(
 		// Superseded by a newer build of the same graph; its answer is the current one.
 		Err(_) => Ok(None),
 	}
+}
+
+/// Builds a pipeline and mounts it, replacing whatever was there.
+///
+/// **`mount` and `name` are different things** ([S7.2](../../../docs/scope-release-3.md)). `mount`
+/// is where the tiles are served from, and carries the window's prefix so two projects with a graph
+/// of the same name do not serve each other's tiles. `name` is what the webview calls this source in
+/// the style it composes - the graph's own name, which a prefix would leak into every `style.json`
+/// Studio exports.
+///
+/// **The directory comes in rather than being looked up.** The job outlives the command, and by the
+/// time it runs the window that asked may have opened a project somewhere else - so what a relative
+/// `filename` means is captured with the pipeline it belongs to, not read again later (S7.1).
+async fn build_into(
+	app: &AppHandle,
+	handle: &JobHandle,
+	wanted: VPLPipeline,
+	name: &str,
+	mount: &str,
+	dir: std::path::PathBuf,
+) -> anyhow::Result<Preview> {
+	// Fetched here rather than captured: the job outlives the command's borrow, and an `AppHandle`
+	// is the supported way to reach managed state from something that does.
+	let state = tauri::Manager::state::<AppState>(app);
+	handle.working("building the pipeline");
+	let mut server = state.server.lock().await;
+	let source = studio_core::preview::build(server.runtime(), wanted, &dir).await?;
+
+	handle.working("reading what it produces");
+	let info = studio_core::analysis::describe(&source, "preview").await?;
+
+	handle.working("looking at what it contains");
+	let layers = studio_core::analysis::probe_layers(&source, &info).await;
+	let fits = studio_core::analysis::fitting(&source).await;
+
+	server.mount(mount, source).await?;
+	Ok(Preview {
+		name: name.to_string(),
+		tile_url: server.tile_url(mount),
+		info,
+		layers,
+		fits,
+	})
 }
 
 /// Every way this build can bring data in (S3.2).
