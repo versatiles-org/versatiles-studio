@@ -26,6 +26,7 @@
  * [Q16]: ../../../docs/decisions.md
  */
 
+import { CommandFailed } from '../ipc/failure';
 import {
 	clearDiagnostics,
 	diagnostics,
@@ -198,6 +199,12 @@ export async function forgetAll(): Promise<void> {
  * every report said "opening berlin.mbtiles" and nothing about where.
  */
 export function describe(error: unknown): { message: string; detail: string | null } {
+	if (error instanceof CommandFailed) {
+		// **The one fact the core could not send.** Its errors are bare sentences — no stack, because
+		// it did not happen here — so without this a report says "no such file" and nothing about
+		// what was being attempted. The stack is this side's and names `unwrap`, which helps nobody.
+		return { message: error.message, detail: `while calling ${error.command}` };
+	}
 	if (error instanceof Error) {
 		return { message: error.message || error.name, detail: error.stack ?? null };
 	}

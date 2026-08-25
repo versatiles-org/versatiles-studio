@@ -8,7 +8,9 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Environment, Problem } from '../ipc/commands';
-import { buildReport, type Local } from './report';
+import { buildReport, issueUrl, type Local } from './report';
+
+const REPO = 'https://github.com/versatiles-org/versatiles-studio';
 
 const AT = new Date('2026-08-25T12:00:00.000Z');
 
@@ -38,6 +40,43 @@ function problem(over: Partial<Problem> = {}): Problem {
 
 const report = (problems: Problem[], environment: Environment | null = WHERE) =>
 	buildReport({ problems, environment, local: LOCAL, at: AT });
+
+describe('the issue a report can open', () => {
+	it('opens with somewhere to say what you were doing', () => {
+		const body = decodeURIComponent(issueUrl(REPO, 'the report').split('?body=')[1]);
+		// A wall of diagnostics with no prompt gets no answer to the one question the report cannot
+		// answer for itself.
+		expect(body.startsWith('_What were you doing when this happened?_')).toBe(true);
+		expect(body).toContain('the report');
+	});
+
+	it('points at the repository, and nowhere else', () => {
+		// The capability scopes the opener to this one host; a URL outside it simply would not open.
+		expect(issueUrl(REPO, 'x').startsWith(`${REPO}/issues/new?body=`)).toBe(true);
+	});
+
+	/** Browsers and servers both stop somewhere around eight kilobytes, and neither promises where. */
+	it('keeps a long report inside what a URL will carry', () => {
+		const huge = Array.from({ length: 400 }, (_, index) => `### problem ${index}\n\nsomething went wrong`).join('\n');
+		const url = issueUrl(REPO, huge);
+		expect(url.length).toBeLessThan(7000);
+	});
+
+	it('says that it truncated, and where the rest is', () => {
+		const huge = 'x'.repeat(40_000);
+		const body = decodeURIComponent(issueUrl(REPO, huge).split('?body=')[1]);
+		// Silently dropping the tail would leave the reader concluding things from an absence this
+		// function invented — and not knowing the whole of it is already on the clipboard.
+		expect(body).toContain('did not fit in a link');
+		expect(body).toContain('on your clipboard');
+	});
+
+	it('leaves a report that fits exactly as it was', () => {
+		const body = decodeURIComponent(issueUrl(REPO, 'one small problem').split('?body=')[1]);
+		expect(body).not.toContain('did not fit');
+		expect(body.endsWith('one small problem')).toBe(true);
+	});
+});
 
 describe('the report a user pastes into an issue', () => {
 	it('names the build, the platform and the hardware', () => {

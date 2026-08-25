@@ -49,6 +49,16 @@ export const commands = {
 	logDiagnostic: (report: NewProblem) => typedError<number, string>(__TAURI_INVOKE("log_diagnostic", { report })),
 	/**  Forgets them all — for reproducing a problem cleanly before copying the report. */
 	clearDiagnostics: () => typedError<null, string>(__TAURI_INVOKE("clear_diagnostics")),
+	/**
+	 *  Writes a problem report where the user asked for it.
+	 * 
+	 *  **The webview composes the text**, for the same reason `export_style` takes its contents: what a
+	 *  report says is a presentation decision, and the half of it that only the window can answer —
+	 *  the engine, the GPU — never crosses into the core at all.
+	 * 
+	 *  The path came from a native save dialog, which is the whole of the trust story.
+	 */
+	saveReport: (path: string, text: string) => typedError<null, string>(__TAURI_INVOKE("save_report", { path, text })),
 	environment: () => typedError<Environment, string>(__TAURI_INVOKE("environment")),
 	/**
 	 *  Starts an export and returns the job running it.

@@ -15,10 +15,21 @@
  *   `unwrap` below converts one into the other, in one place.
  * * **Names that read at the call site**, where the generated one is shaped by the Rust function:
  *   `getPipeline` rather than `pipeline`, which would shadow the variable holding it everywhere.
+ * * **Which command a failure came from**, which the core cannot say and the call site knows for
+ *   exactly one line — see `failure.ts`.
  */
 
-import { commands } from './bindings';
+import { commands as generated } from './bindings';
+import { namingFailures } from './failure';
 import { unwrap } from './unwrap';
+
+/**
+ * The generated commands, each naming itself when it fails — see `failure.ts`.
+ *
+ * Here rather than at each wrapper below: the name a proxy reads off the key cannot be pasted
+ * wrong, and a command added later is named without anyone remembering to.
+ */
+const commands = namingFailures(generated);
 import type {
 	Bounds,
 	NewProblem,
@@ -98,6 +109,9 @@ export const previousProblems = () => unwrap(commands.previousProblems());
 
 /** Records a problem the webview saw, and answers how many distinct ones there now are. */
 export const logDiagnostic = (report: NewProblem) => unwrap(commands.logDiagnostic(report));
+
+/** Writes a problem report where the user asked for it. The path comes from a native save dialog. */
+export const saveReport = (path: string, text: string) => unwrap(commands.saveReport(path, text));
 
 /** Forgets them all — for reproducing a problem cleanly before copying the report. */
 export const clearDiagnostics = () => unwrap(commands.clearDiagnostics());

@@ -344,6 +344,16 @@ describe('the run before this one', () => {
 });
 
 describe('turning a caught thing into a problem', () => {
+	it('says which command a core failure came from, since the core cannot', async () => {
+		// A `Result<T, String>` arrives as a bare sentence: no stack, because it did not happen here.
+		// Without the command name a report says "no such file" and nothing about what was attempted.
+		const { CommandFailed } = await import('../ipc/failure');
+		expect(describeError(new CommandFailed('saveProject', 'no such file'))).toEqual({
+			message: 'no such file',
+			detail: 'while calling saveProject'
+		});
+	});
+
 	it('keeps the stack of an Error, which is what the status bar has no room for', () => {
 		const error = new Error('opening berlin.mbtiles');
 		const described = describeError(error);

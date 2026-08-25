@@ -129,6 +129,46 @@ function redactor(home: string | null): (text: string) => string {
 }
 
 /**
+ * How much of a report fits in a URL.
+ *
+ * Browsers and servers both stop somewhere around eight kilobytes, and the number is nobody's
+ * promise — so this stays well under it. Percent-encoding is what is measured, since a report is
+ * mostly newlines and punctuation and inflates by roughly three times on the way into a query.
+ */
+const URL_LIMIT = 6000;
+
+/** What is said in place of the part that did not fit. */
+const TRIMMED = '\n\n_The rest of this report did not fit in a link. It is on your clipboard — paste it here._';
+
+/**
+ * A prefilled issue on the repository, carrying as much of the report as a URL will hold.
+ *
+ * **The prompt comes first, and empty.** What the report cannot say is what the person was doing,
+ * and an issue that opens with somewhere to write it gets an answer far more often than one that
+ * opens with a wall of diagnostics.
+ *
+ * **Truncated out loud, and never silently**: the note says the rest is on the clipboard, which is
+ * why copying happens before this is opened rather than as an alternative to it.
+ */
+export function issueUrl(repository: string, report: string): string {
+	const body = `_What were you doing when this happened?_\n\n---\n\n${report}`;
+	return `${repository}/issues/new?body=${encodeURIComponent(fit(body))}`;
+}
+
+/** The longest prefix of `body` that leaves room for the note, cut at a line rather than a word. */
+function fit(body: string): string {
+	if (encodeURIComponent(body).length <= URL_LIMIT) return body;
+
+	let kept = body;
+	// Ninety per cent at a time: a handful of passes on any real report, and no arithmetic that has
+	// to be right about how many bytes a character becomes.
+	while (kept.length > 0 && encodeURIComponent(kept + TRIMMED).length > URL_LIMIT) {
+		kept = kept.slice(0, Math.floor(kept.length * 0.9));
+	}
+	return kept.slice(0, Math.max(kept.lastIndexOf('\n'), 0)) + TRIMMED;
+}
+
+/**
  * Asks WebGL what it is drawing with.
  *
  * `WEBGL_debug_renderer_info` is the only way to a real answer, and it is absent in some browsers by

@@ -1,7 +1,14 @@
 <script lang="ts">
+	import { save } from '@tauri-apps/plugin-dialog';
+	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { problems, forgetAll, loadEarlier, refresh } from '../state/diagnostics.svelte';
-	import { buildReport, gpuRenderer, type Local } from '../common/report';
-	import { environment, type Environment, type Problem } from '../ipc/commands';
+	import { buildReport, gpuRenderer, issueUrl, type Local } from '../common/report';
+	import { environment, saveReport, type Environment, type Problem } from '../ipc/commands';
+	import { status } from '../state/status.svelte';
+
+	/// Where a report goes when someone chooses to send it. The same repository the alpha ribbon
+	/// links to, and the only host the opener capability will open.
+	const REPO = 'https://github.com/versatiles-org/versatiles-studio';
 
 	// Everything that has gone wrong this session, expandable from the status bar (S6.8).
 	//
@@ -73,7 +80,8 @@
 		return new Date(problem.at * 1000).toLocaleTimeString();
 	}
 
-	async function copy() {
+	/// The report as it stands, built once and used by all three ways out of here.
+	async function compose(): Promise<string> {
 		const local: Local = {
 			userAgent: navigator.userAgent,
 			renderer: gpuRenderer(window.document.createElement('canvas'))
@@ -82,7 +90,11 @@
 		// build number should be is the one thing this whole feature exists to prevent.
 		const found = where ?? (await environment().catch(() => null));
 		// Which session, said in the report: the two read identically and mean opposite things.
-		const text = buildReport({ problems: list, environment: found, local, at: new Date(), session: showing });
+		return buildReport({ problems: list, environment: found, local, at: new Date(), session: showing });
+	}
+
+	async function copy() {
+		const text = await compose();
 		try {
 			await navigator.clipboard.writeText(text);
 			copied = 'yes';
@@ -91,6 +103,39 @@
 			// needs no permission at all — ⌘C then does what the button could not.
 			copied = 'no';
 			selectAll();
+		}
+	}
+
+	/// Writes the report to a file — for attaching it, or for keeping it past this window.
+	async function saveAs() {
+		try {
+			const path = await save({
+				defaultPath: 'versatiles-studio-problems.md',
+				filters: [{ name: 'Markdown', extensions: ['md'] }]
+			});
+			if (typeof path !== 'string') return;
+			await saveReport(path, await compose());
+		} catch (error) {
+			// In the bar, like every other failure — and recorded, which puts a failure to save the
+			// problem report into the problem report. That is the right place for it.
+			status.fail(error);
+		}
+	}
+
+	/// Opens a prefilled issue, with the whole report on the clipboard first.
+	///
+	/// **Both, in that order.** A URL holds a few thousand characters and a report can be longer, so
+	/// the link carries what fits and says the rest is already copied — which is only true if the
+	/// copying happened first.
+	async function report() {
+		const text = await compose();
+		await navigator.clipboard.writeText(text).catch(() => (copied = 'no'));
+		try {
+			// In the system browser, not here: a webview that navigated to GitHub would be a window
+			// with the application gone from it and no way back. Same reason as the alpha ribbon's.
+			await openUrl(issueUrl(REPO, text));
+		} catch (error) {
+			status.fail(error);
 		}
 	}
 
@@ -136,6 +181,10 @@
 
 		<button type="button" class="quiet" onclick={() => void copy()} disabled={list.length === 0}>
 			{#if copied === 'yes'}Copied ✓{:else if copied === 'no'}Selected — press ⌘C{:else}Copy report{/if}
+		</button>
+		<button type="button" class="quiet" onclick={() => void saveAs()} disabled={list.length === 0}>Save…</button>
+		<button type="button" class="quiet" onclick={() => void report()} disabled={list.length === 0}>
+			Report on GitHub
 		</button>
 		<!-- Only this session's, and only the list: what is on disk is the account of a run, and a run
 		     does not stop having happened because somebody cleared a panel. -->

@@ -50,6 +50,19 @@ pub async fn clear_diagnostics(state: State<'_, AppState>) -> Result<(), String>
 	Ok(())
 }
 
+/// Writes a problem report where the user asked for it.
+///
+/// **The webview composes the text**, for the same reason `export_style` takes its contents: what a
+/// report says is a presentation decision, and the half of it that only the window can answer —
+/// the engine, the GPU — never crosses into the core at all.
+///
+/// The path came from a native save dialog, which is the whole of the trust story.
+#[tauri::command]
+#[specta::specta]
+pub async fn save_report(path: String, text: String) -> Result<(), String> {
+	studio_core::project::write_atomically(std::path::Path::new(&path), &text).map_err(|error| format!("{error:#}"))
+}
+
 /// What is running this, for the header of a copied report.
 ///
 /// **Half of it can only be answered here.** The webview knows its own engine and its GPU; the
