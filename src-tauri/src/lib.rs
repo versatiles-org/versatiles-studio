@@ -14,13 +14,10 @@ mod state;
 mod windows;
 
 use state::AppState;
-use std::path::PathBuf;
 use studio_core::{
 	diagnostics::{Diagnostics, Level, NewProblem, Origin},
-	history::History,
 	server::ServerManager,
 	store::{Layout, Recents, Views},
-	style::Recipe,
 };
 use tokio::sync::Mutex;
 
@@ -212,13 +209,9 @@ pub fn run() {
 					recents: Mutex::new(recents),
 					views: Mutex::new(views),
 					layout: Mutex::new(layout),
-					graphs: Mutex::new(studio_core::graphs::Graphs::new()),
-					style: Mutex::new(Recipe::default()),
-					history: Mutex::new(History::new()),
+					// One project per window, each created when its window first asks (S7.1, [Q48]).
+					projects: state::Projects::default(),
 					jobs: studio_core::jobs::Jobs::new(),
-					pinned: Mutex::new(None),
-					project_dir: Mutex::new(std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
-					project_root: Mutex::new(None),
 					asset_dir,
 					data_dir,
 				},
@@ -246,6 +239,24 @@ pub fn run() {
 					.map(|path| path.to_string_lossy().into_owned())
 					.collect();
 				opened::receive(app, paths);
+			}
+			// **A window that is gone takes its project with it** (S7.1). Not on close *requested* and
+			// not on a reload: the label survives a reload, which is what lets a window that crashed
+			// come back to its work rather than to an empty project ([Q16]).
+			if let tauri::RunEvent::WindowEvent {
+				label,
+				event: tauri::WindowEvent::Destroyed,
+				..
+			} = &event
+			{
+				let app = app.clone();
+				let label = label.clone();
+				tauri::async_runtime::spawn(async move {
+					let state = tauri::Manager::state::<AppState>(&app);
+					// What it had mounted on the shared server outlives this until S7.2 gives those
+					// mounts names of their own; there is nothing here that could name them yet.
+					state.projects.close(&label).await;
+				});
 			}
 			let _ = (app, event);
 		});

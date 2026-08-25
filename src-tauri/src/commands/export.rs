@@ -39,19 +39,24 @@ pub fn writable_formats() -> Vec<String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn export_graph(
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
 	target: String,
 	bounds: Bounds,
 ) -> Result<JobId, String> {
-	let Some(pipeline) = state
-		.graphs
-		.lock()
-		.await
-		.get(graph)
-		.map(|graph| graph.document.to_pipeline())
-	else {
-		return Err("that graph is no longer open".to_string());
+	// The pipeline and the directory it resolves against come out of the project together, under one
+	// lock: they are two halves of one answer, and reading them separately would let an `open_project`
+	// in between hand the export one project's graph and another's paths (S7.1).
+	let project = state.project(&window).await;
+	let (pipeline, dir) = {
+		let project = project.lock().await;
+		let Some(pipeline) = project.graphs.get(graph).map(|graph| graph.document.to_pipeline()) else {
+			return Err("that graph is no longer open".to_string());
+		};
+		// Relative paths in the VPL resolve against the project directory, exactly as they do for a
+		// preview — an export must not mean something different by `filename='berlin.mbtiles'`.
+		(pipeline, project.dir.clone())
 	};
 
 	let target = PathBuf::from(target);
@@ -72,10 +77,6 @@ pub async fn export_graph(
 	// Same reasoning as the extension check: the form can be told what is wrong with the numbers it
 	// just submitted, rather than a job appearing only to fail.
 	bounds.check().map_err(|error| format!("{error:#}"))?;
-
-	// Relative paths in the VPL resolve against the project directory, exactly as they do for a
-	// preview — an export must not mean something different by `filename='berlin.mbtiles'`.
-	let dir = state.project_dir.lock().await.clone();
 
 	let name = target.file_name().map_or_else(
 		|| target.display().to_string(),
@@ -102,20 +103,22 @@ pub async fn export_graph(
 /// them, rather than after a filename has been chosen.
 #[tauri::command]
 #[specta::specta]
-pub async fn estimate_export(state: State<'_, AppState>, graph: GraphId, bounds: Bounds) -> Result<Estimate, String> {
-	let Some(pipeline) = state
-		.graphs
-		.lock()
-		.await
-		.get(graph)
-		.map(|graph| graph.document.to_pipeline())
-	else {
-		return Err("that graph is no longer open".to_string());
+pub async fn estimate_export(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	graph: GraphId,
+	bounds: Bounds,
+) -> Result<Estimate, String> {
+	let project = state.project(&window).await;
+	let (pipeline, dir) = {
+		let project = project.lock().await;
+		let Some(pipeline) = project.graphs.get(graph).map(|graph| graph.document.to_pipeline()) else {
+			return Err("that graph is no longer open".to_string());
+		};
+		(pipeline, project.dir.clone())
 	};
 
 	bounds.check().map_err(|error| format!("{error:#}"))?;
-
-	let dir = state.project_dir.lock().await.clone();
 
 	studio_core::estimate::estimate(pipeline, &dir, bounds)
 		.await
@@ -133,9 +136,19 @@ pub async fn estimate_export(state: State<'_, AppState>, graph: GraphId, bounds:
 /// cannot be about different tiles.
 #[tauri::command]
 #[specta::specta]
-pub async fn set_crop(state: State<'_, AppState>, graph: GraphId, crop: Bounds) -> Result<(), String> {
-	let mut graphs = state.graphs.lock().await;
-	if !graphs.set_crop(graph, crop).map_err(|error| format!("{error:#}"))? {
+pub async fn set_crop(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	graph: GraphId,
+	crop: Bounds,
+) -> Result<(), String> {
+	let project = state.project(&window).await;
+	let mut project = project.lock().await;
+	if !project
+		.graphs
+		.set_crop(graph, crop)
+		.map_err(|error| format!("{error:#}"))?
+	{
 		return Err("that graph is no longer open".to_string());
 	}
 	Ok(())

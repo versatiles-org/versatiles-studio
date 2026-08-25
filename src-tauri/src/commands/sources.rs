@@ -20,10 +20,19 @@ use tauri::State;
 /// actually enforced.
 #[tauri::command]
 #[specta::specta]
-pub async fn open_container(state: State<'_, AppState>, source: String) -> Result<OpenedContainer, String> {
+pub async fn open_container(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	source: String,
+) -> Result<OpenedContainer, String> {
 	// `from_container filename="berlin.mbtiles"` in a `.vpl` means *beside that file*, not beside
-	// wherever Studio was started. Absolute paths and URLs are left alone.
-	let resolved = resolve(&source, &state.project_dir.lock().await.clone());
+	// wherever Studio was started — and *that file* belongs to this window's project (S7.1).
+	// Absolute paths and URLs are left alone.
+	let resolved = {
+		let project = state.project(&window).await;
+		let dir = project.lock().await.dir.clone();
+		resolve(&source, &dir)
+	};
 
 	let mut server = state.server.lock().await;
 

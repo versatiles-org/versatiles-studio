@@ -6,7 +6,7 @@
 //!
 //! [Q6]: ../../../docs/decisions.md
 
-use crate::state::AppState;
+use crate::state::{AppState, Project};
 use tauri::State;
 
 /// Writes every graph, the style recipe, and the rendered style.
@@ -22,29 +22,40 @@ use tauri::State;
 /// [Q36]: ../../../docs/decisions.md
 #[tauri::command]
 #[specta::specta]
-pub async fn save_project(state: State<'_, AppState>, dir: String, style: Option<String>) -> Result<(), String> {
+pub async fn save_project(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	dir: String,
+	style: Option<String>,
+) -> Result<(), String> {
 	let dir = std::path::PathBuf::from(dir);
+	let held = state.project(&window).await;
 
-	let graphs: Vec<studio_core::project::SavedGraph> = state
-		.graphs
-		.lock()
-		.await
-		.iter()
-		.map(|graph| studio_core::project::SavedGraph {
-			name: graph.name.clone(),
-			vpl: graph.document.text().to_string(),
-			crop: graph.crop,
-		})
-		.collect();
+	// Read under one lock and released before the write: what goes to disk is one project as it
+	// stood at one instant, and holding the lock across the write would block this window's own
+	// edits for as long as the disk takes.
+	let (graphs, recipe) = {
+		let project = held.lock().await;
+		let graphs: Vec<studio_core::project::SavedGraph> = project
+			.graphs
+			.iter()
+			.map(|graph| studio_core::project::SavedGraph {
+				name: graph.name.clone(),
+				vpl: graph.document.text().to_string(),
+				crop: graph.crop,
+			})
+			.collect();
+		(graphs, project.style.clone())
+	};
 	if graphs.is_empty() {
 		return Err("there is nothing to save yet".to_string());
 	}
 
-	let recipe = state.style.lock().await.clone();
 	studio_core::project::save(&dir, &graphs, &recipe, style.as_deref()).map_err(|error| format!("{error:#}"))?;
 
-	*state.project_dir.lock().await = dir.clone();
-	*state.project_root.lock().await = Some(dir);
+	let mut project = held.lock().await;
+	project.dir = dir.clone();
+	project.root = Some(dir);
 	Ok(())
 }
 
@@ -54,13 +65,15 @@ pub async fn save_project(state: State<'_, AppState>, dir: String, style: Option
 /// asking, and without one there is nothing to write to yet and it has to ask like the second.
 #[tauri::command]
 #[specta::specta]
-pub async fn project_path(state: State<'_, AppState>) -> Result<Option<String>, String> {
-	Ok(state
-		.project_root
+pub async fn project_path(window: tauri::Window, state: State<'_, AppState>) -> Result<Option<String>, String> {
+	let project = state.project(&window).await;
+	let root = project
 		.lock()
 		.await
+		.root
 		.as_ref()
-		.map(|dir| dir.to_string_lossy().into_owned()))
+		.map(|dir| dir.to_string_lossy().into_owned());
+	Ok(root)
 }
 
 /// Opens a project directory, replacing everything currently open.
@@ -74,7 +87,11 @@ pub async fn project_path(state: State<'_, AppState>) -> Result<Option<String>, 
 /// [Q16]: ../../../docs/decisions.md
 #[tauri::command]
 #[specta::specta]
-pub async fn open_project(state: State<'_, AppState>, dir: String) -> Result<studio_core::style::Recipe, String> {
+pub async fn open_project(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	dir: String,
+) -> Result<studio_core::style::Recipe, String> {
 	use studio_core::history::{EditKind, Target};
 
 	let dir = std::path::PathBuf::from(dir);
@@ -89,23 +106,30 @@ pub async fn open_project(state: State<'_, AppState>, dir: String) -> Result<stu
 		documents.push((graph.clone(), document));
 	}
 
-	let mut graphs = state.graphs.lock().await;
-	let mut history = state.history.lock().await;
-	*graphs = studio_core::graphs::Graphs::new();
-	history.clear();
+	// **This window's project, replaced whole.** Another window's is untouched — which is the
+	// difference S7.1 makes: opening a project used to replace the one the entire application had.
+	let held = state.project(&window).await;
+	let mut project = held.lock().await;
+	project.graphs = studio_core::graphs::Graphs::new();
+	project.history.clear();
 
 	for (saved, document) in documents {
 		let file = dir.join(format!("{}.vpl", saved.name));
-		let id = graphs.add(&saved.name, document, Some((file, saved.vpl.clone())));
+		let id = project
+			.graphs
+			.add(&saved.name, document, Some((file, saved.vpl.clone())));
 		// Restored with the graph rather than set afterwards: a crop is part of what the project is.
-		graphs.set_crop(id, saved.crop).map_err(|error| format!("{error:#}"))?;
+		project
+			.graphs
+			.set_crop(id, saved.crop)
+			.map_err(|error| format!("{error:#}"))?;
 		// The baseline every document needs, so undo has somewhere to step back to.
-		history.push(Target::Graph(id), saved.vpl, EditKind::Replaced);
+		project.history.push(Target::Graph(id), saved.vpl, EditKind::Replaced);
 	}
 
-	*state.style.lock().await = loaded.manifest.style.clone();
-	*state.project_dir.lock().await = dir.clone();
-	*state.project_root.lock().await = Some(dir);
+	project.style = loaded.manifest.style.clone();
+	project.dir = dir.clone();
+	project.root = Some(dir);
 	Ok(loaded.manifest.style)
 }
 
@@ -139,12 +163,10 @@ pub struct CopyPlan {
 /// `berlin.mbtiles` means.
 type Owned = (String, String, Option<std::path::PathBuf>, studio_core::export::Bounds);
 
-async fn sources(state: &State<'_, AppState>) -> Vec<Owned> {
-	let project_dir = state.project_dir.lock().await.clone();
-	state
+fn sources(project: &Project) -> Vec<Owned> {
+	let project_dir = &project.dir;
+	project
 		.graphs
-		.lock()
-		.await
 		.iter()
 		.map(|graph| {
 			let dir = graph
@@ -181,8 +203,9 @@ fn plan_of(owned: &[Owned]) -> Result<studio_core::bundle::Plan, String> {
 /// plan-then-write split `estimate` and `export` use.
 #[tauri::command]
 #[specta::specta]
-pub async fn copy_plan(state: State<'_, AppState>) -> Result<CopyPlan, String> {
-	let owned = sources(&state).await;
+pub async fn copy_plan(window: tauri::Window, state: State<'_, AppState>) -> Result<CopyPlan, String> {
+	let project = state.project(&window).await;
+	let owned = sources(&*project.lock().await);
 	let plan = plan_of(&owned)?;
 	Ok(CopyPlan {
 		carry: plan.carry.clone(),
@@ -203,17 +226,21 @@ pub async fn copy_plan(state: State<'_, AppState>) -> Result<CopyPlan, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn save_project_copy(
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	target: String,
 	zip: bool,
 	style: Option<String>,
 ) -> Result<(), String> {
-	let owned = sources(&state).await;
+	let held = state.project(&window).await;
+	let (owned, recipe) = {
+		let project = held.lock().await;
+		(sources(&project), project.style.clone())
+	};
 	if owned.is_empty() {
 		return Err("there is nothing to copy yet".to_string());
 	}
 	let plan = plan_of(&owned)?;
-	let recipe = state.style.lock().await.clone();
 
 	tauri::async_runtime::spawn_blocking(move || {
 		let target = std::path::Path::new(&target);

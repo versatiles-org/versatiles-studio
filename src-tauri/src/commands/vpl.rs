@@ -94,16 +94,26 @@ impl DocumentView {
 /// Every graph in this project, in the order the pane shows them ([Q32]).
 #[tauri::command]
 #[specta::specta]
-pub async fn graphs(state: State<'_, AppState>) -> Result<Vec<studio_core::graphs::GraphInfo>, String> {
-	Ok(state.graphs.lock().await.list())
+pub async fn graphs(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+) -> Result<Vec<studio_core::graphs::GraphInfo>, String> {
+	let project = state.project(&window).await;
+	let list = project.lock().await.graphs.list();
+	Ok(list)
 }
 
 /// One graph in full, or `None` if it has been removed.
 #[tauri::command]
 #[specta::specta]
-pub async fn graph(state: State<'_, AppState>, id: GraphId) -> Result<Option<DocumentView>, String> {
-	let history = state.history.lock().await;
-	Ok(state.graphs.lock().await.get(id).map(|g| DocumentView::of(g, &history)))
+pub async fn graph(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	id: GraphId,
+) -> Result<Option<DocumentView>, String> {
+	let held = state.project(&window).await;
+	let project = held.lock().await;
+	Ok(project.graphs.get(id).map(|g| DocumentView::of(g, &project.history)))
 }
 
 /// Creates a graph from VPL text, and returns it.
@@ -117,6 +127,7 @@ pub async fn graph(state: State<'_, AppState>, id: GraphId) -> Result<Option<Doc
 #[tauri::command]
 #[specta::specta]
 pub async fn add_graph(
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	source: Option<String>,
 	text: String,
@@ -125,35 +136,42 @@ pub async fn add_graph(
 	let name = source
 		.as_deref()
 		.map_or_else(|| "graph".to_string(), studio_core::graphs::name_for_source);
-	let mut graphs = state.graphs.lock().await;
-	let id = graphs.add(&name, document, None);
+	let held = state.project(&window).await;
+	let mut project = held.lock().await;
+	let id = project.graphs.add(&name, document, None);
 
-	let mut history = state.history.lock().await;
 	// The baseline every graph needs, so undo has somewhere to step back to rather than stopping
 	// at this graph's first edit (see `History`).
-	let graph = graphs.get(id).expect("just added");
-	history.push(Target::Graph(id), graph.document.text(), EditKind::Replaced);
-	Ok(DocumentView::of(graph, &history))
+	let text = project.graphs.get(id).expect("just added").document.text().to_string();
+	project.history.push(Target::Graph(id), text, EditKind::Replaced);
+	let graph = project.graphs.get(id).expect("just added");
+	Ok(DocumentView::of(graph, &project.history))
 }
 
 /// Removes a graph, and reports whether there was one.
 #[tauri::command]
 #[specta::specta]
-pub async fn remove_graph(state: State<'_, AppState>, id: GraphId) -> Result<bool, String> {
+pub async fn remove_graph(window: tauri::Window, state: State<'_, AppState>, id: GraphId) -> Result<bool, String> {
+	let held = state.project(&window).await;
+	let name = {
+		let mut project = held.lock().await;
+		// A pin into a graph that is gone would leave the map showing something unreachable.
+		if project.pinned.as_ref().is_some_and(|p| p.graph == id) {
+			project.pinned = None;
+		}
+		project.graphs.get(id).map(|graph| graph.name.clone())
+	};
+
 	// The mount goes with it, or the style would keep resolving a source that no longer exists.
-	let name = state.graphs.lock().await.get(id).map(|graph| graph.name.clone());
+	// The server is the application's, so it is taken after the project lock is released.
 	if let Some(name) = name {
 		let mut server = state.server.lock().await;
 		if let Err(error) = server.unmount(&name) {
 			eprintln!("could not unmount {name}: {error:#}");
 		}
 	}
-	// A pin into a graph that is gone would leave the map showing something unreachable.
-	let mut pinned = state.pinned.lock().await;
-	if pinned.as_ref().is_some_and(|p| p.graph == id) {
-		*pinned = None;
-	}
-	Ok(state.graphs.lock().await.remove(id))
+	let removed = held.lock().await.graphs.remove(id);
+	Ok(removed)
 }
 
 /// Renames a graph, and reports the name it actually took.
@@ -168,16 +186,26 @@ pub async fn remove_graph(state: State<'_, AppState>, id: GraphId) -> Result<boo
 /// one should undo the rename rather than half of it.
 #[tauri::command]
 #[specta::specta]
-pub async fn rename_graph(state: State<'_, AppState>, id: GraphId, name: String) -> Result<String, String> {
-	let mut graphs = state.graphs.lock().await;
-	let old = graphs.get(id).map(|graph| graph.name.clone());
-	let renamed = graphs.rename(id, &name).map_err(|error| format!("{error:#}"))?;
+pub async fn rename_graph(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	id: GraphId,
+	name: String,
+) -> Result<String, String> {
+	let held = state.project(&window).await;
+	// Graphs and style under one lock — they are one project now, which is also what retires the
+	// note that used to be here about taking two locks in a fixed order to avoid a deadlock.
+	let (old, renamed) = {
+		let mut project = held.lock().await;
+		let old = project.graphs.get(id).map(|graph| graph.name.clone());
+		let renamed = project.graphs.rename(id, &name).map_err(|error| format!("{error:#}"))?;
+		if let Some(old) = old.as_ref().filter(|old| *old != &renamed) {
+			project.style.rename_source(old, &renamed);
+		}
+		(old, renamed)
+	};
 
 	if let Some(old) = old.filter(|old| old != &renamed) {
-		// Graphs first, then style — the same order `commands::style::edit` takes them in, so the
-		// two paths cannot deadlock against each other.
-		state.style.lock().await.rename_source(&old, &renamed);
-
 		let mut server = state.server.lock().await;
 		if let Err(error) = server.unmount(&old) {
 			eprintln!("could not unmount {old}: {error:#}");
@@ -193,14 +221,16 @@ pub async fn rename_graph(state: State<'_, AppState>, id: GraphId, name: String)
 #[tauri::command]
 #[specta::specta]
 pub async fn set_graph(
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	id: GraphId,
 	text: String,
 	kind: Option<EditKind>,
 ) -> Result<DocumentView, VplError> {
 	let document = Document::parse(text)?;
-	let mut graphs = state.graphs.lock().await;
-	let Some(graph) = graphs.get_mut(id) else {
+	let held = state.project(&window).await;
+	let mut project = held.lock().await;
+	let Some(graph) = project.graphs.get_mut(id) else {
 		return Err(VplError {
 			message: "no such graph".to_string(),
 			span: Span::new(0, 0),
@@ -213,12 +243,13 @@ pub async fn set_graph(
 		graph.file = None;
 	}
 	graph.document = document;
+	let text = graph.document.text().to_string();
 
-	let mut history = state.history.lock().await;
 	// The caller says where the edit came from, because only it knows: the same command carries a
 	// keystroke and a form change, and they deserve different undo granularity.
-	history.push(Target::Graph(id), graph.document.text(), kind.unwrap_or_default());
-	Ok(DocumentView::of(graph, &history))
+	project.history.push(Target::Graph(id), text, kind.unwrap_or_default());
+	let graph = project.graphs.get(id).expect("just edited");
+	Ok(DocumentView::of(graph, &project.history))
 }
 
 /// Lays a graph's VPL out again, keeping its comments ([vt#249], S1.11).
@@ -230,9 +261,14 @@ pub async fn set_graph(
 /// [vt#249]: https://github.com/versatiles-org/versatiles-rs/issues/249
 #[tauri::command]
 #[specta::specta]
-pub async fn format_graph(state: State<'_, AppState>, id: GraphId) -> Result<DocumentView, VplError> {
-	let mut graphs = state.graphs.lock().await;
-	let Some(graph) = graphs.get_mut(id) else {
+pub async fn format_graph(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	id: GraphId,
+) -> Result<DocumentView, VplError> {
+	let held = state.project(&window).await;
+	let mut project = held.lock().await;
+	let Some(graph) = project.graphs.get_mut(id) else {
 		return Err(VplError {
 			message: "no such graph".to_string(),
 			span: Span::new(0, 0),
@@ -240,12 +276,13 @@ pub async fn format_graph(state: State<'_, AppState>, id: GraphId) -> Result<Doc
 	};
 
 	graph.document.format();
+	let text = graph.document.text().to_string();
 
-	let mut history = state.history.lock().await;
 	// `Replaced` rather than a keystroke: this changes the whole document at once, and merging it
 	// into a run of typing would make one ⌘Z undo both the formatting and the last thing typed.
-	history.push(Target::Graph(id), graph.document.text(), EditKind::Replaced);
-	Ok(DocumentView::of(graph, &history))
+	project.history.push(Target::Graph(id), text, EditKind::Replaced);
+	let graph = project.graphs.get(id).expect("just formatted");
+	Ok(DocumentView::of(graph, &project.history))
 }
 
 /// Steps back, or forward again. `None` when there is nowhere to go.
@@ -254,14 +291,14 @@ pub async fn format_graph(state: State<'_, AppState>, id: GraphId) -> Result<Doc
 /// being edited — which is why it returns the whole document rather than just its text.
 #[tauri::command]
 #[specta::specta]
-pub async fn undo(state: State<'_, AppState>) -> Result<Option<Restored>, VplError> {
-	step(state, true).await
+pub async fn undo(window: tauri::Window, state: State<'_, AppState>) -> Result<Option<Restored>, VplError> {
+	step(&window, state, true).await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn redo(state: State<'_, AppState>) -> Result<Option<Restored>, VplError> {
-	step(state, false).await
+pub async fn redo(window: tauri::Window, state: State<'_, AppState>) -> Result<Option<Restored>, VplError> {
+	step(&window, state, false).await
 }
 
 /// What a step back or forward restored.
@@ -278,9 +315,14 @@ pub enum Restored {
 	Style(Recipe),
 }
 
-async fn step(state: State<'_, AppState>, back: bool) -> Result<Option<Restored>, VplError> {
-	let mut history = state.history.lock().await;
-	let Some(step) = (if back { history.undo() } else { history.redo() }) else {
+async fn step(window: &tauri::Window, state: State<'_, AppState>, back: bool) -> Result<Option<Restored>, VplError> {
+	let held = state.project(window).await;
+	let mut project = held.lock().await;
+	let Some(step) = (if back {
+		project.history.undo()
+	} else {
+		project.history.redo()
+	}) else {
 		return Ok(None);
 	};
 
@@ -289,13 +331,13 @@ async fn step(state: State<'_, AppState>, back: bool) -> Result<Option<Restored>
 			// Every state on the stack parsed when it was recorded, so this cannot fail — but it is
 			// parsed rather than assumed, because a panic here would take the window with it.
 			let document = Document::parse(step.text)?;
-			let mut graphs = state.graphs.lock().await;
-			let Some(graph) = graphs.get_mut(id) else {
+			let Some(graph) = project.graphs.get_mut(id) else {
 				// The graph was removed after the edit was recorded; nothing to restore into.
 				return Ok(None);
 			};
 			graph.document = document;
-			Ok(Some(Restored::Graph(DocumentView::of(graph, &history))))
+			let graph = project.graphs.get(id).expect("just restored");
+			Ok(Some(Restored::Graph(DocumentView::of(graph, &project.history))))
 		}
 		Target::Style => {
 			// Same reasoning: it serialised from a `Recipe`, so it reads back as one — and a
@@ -303,7 +345,7 @@ async fn step(state: State<'_, AppState>, back: bool) -> Result<Option<Restored>
 			let Ok(recipe) = Recipe::parse(&step.text) else {
 				return Ok(None);
 			};
-			*state.style.lock().await = recipe.clone();
+			project.style = recipe.clone();
 			Ok(Some(Restored::Style(recipe)))
 		}
 	}
@@ -444,6 +486,7 @@ pub enum PreviewOutcome {
 #[specta::specta]
 pub async fn preview_pipeline(
 	app: AppHandle,
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
 	path: Vec<u32>,
@@ -451,8 +494,13 @@ pub async fn preview_pipeline(
 	// `u32` rather than `usize` at the boundary: it arrives from JavaScript as numbers, and specta
 	// will not emit a 64-bit integer as a `number` (see `bindings.rs`).
 	let path: Vec<usize> = path.into_iter().map(|index| index as usize).collect();
-	let Some(document) = state.graphs.lock().await.get(graph).map(|g| g.document.clone()) else {
-		return Ok(PreviewOutcome::Nothing);
+	let held = state.project(&window).await;
+	let (document, dir) = {
+		let project = held.lock().await;
+		let Some(document) = project.graphs.get(graph).map(|g| g.document.clone()) else {
+			return Ok(PreviewOutcome::Nothing);
+		};
+		(document, project.dir.clone())
 	};
 	// An empty path means the whole pipeline — what the map shows when nothing is selected.
 	let full = document.to_pipeline();
@@ -471,7 +519,7 @@ pub async fn preview_pipeline(
 	state
 		.jobs
 		.submit("Building preview", Lane::Latest, move |handle| async move {
-			let outcome = build_preview(&app, &handle, wanted).await;
+			let outcome = build_preview(&app, &handle, wanted, dir).await;
 			// Sent as a `Result`, so a failure reaches the caller's `catch` *and* is recorded as a
 			// failed job. Only supersession drops the sender, which is what makes that distinguishable
 			// from failing at the far end.
@@ -488,18 +536,32 @@ pub async fn preview_pipeline(
 }
 
 /// The build itself, split out so the job body is about reporting rather than about tiles.
-async fn build_preview(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline) -> anyhow::Result<Preview> {
-	build_into(app, handle, wanted, "preview").await
+async fn build_preview(
+	app: &AppHandle,
+	handle: &JobHandle,
+	wanted: VPLPipeline,
+	dir: std::path::PathBuf,
+) -> anyhow::Result<Preview> {
+	build_into(app, handle, wanted, "preview", dir).await
 }
 
 /// Builds a pipeline and mounts it under `name`, replacing whatever was there.
-async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, name: &str) -> anyhow::Result<Preview> {
+///
+/// **The directory comes in rather than being looked up.** The job outlives the command, and by the
+/// time it runs the window that asked may have opened a project somewhere else — so what a relative
+/// `filename` means is captured with the pipeline it belongs to, not read again later (S7.1).
+async fn build_into(
+	app: &AppHandle,
+	handle: &JobHandle,
+	wanted: VPLPipeline,
+	name: &str,
+	dir: std::path::PathBuf,
+) -> anyhow::Result<Preview> {
 	// Fetched here rather than captured: the job outlives the command's borrow, and an `AppHandle`
 	// is the supported way to reach managed state from something that does.
 	let state = tauri::Manager::state::<AppState>(app);
 	handle.working("building the pipeline");
 	let mut server = state.server.lock().await;
-	let dir = state.project_dir.lock().await.clone();
 	let source = studio_core::preview::build(server.runtime(), wanted, &dir).await?;
 
 	handle.working("reading what it produces");
@@ -529,7 +591,11 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, na
 /// opening one moves `project_dir`.
 #[tauri::command]
 #[specta::specta]
-pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<DocumentView, VplError> {
+pub async fn open_vpl(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	path: String,
+) -> Result<DocumentView, VplError> {
 	let text = std::fs::read_to_string(&path).map_err(|error| VplError {
 		message: format!("could not read {path}: {error}"),
 		span: Span::new(0, 0),
@@ -537,24 +603,24 @@ pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 
 	let document = Document::parse(text)?;
 
-	if let Some(parent) = std::path::Path::new(&path).parent() {
-		*state.project_dir.lock().await = parent.to_path_buf();
-	}
-
 	let file = std::path::PathBuf::from(&path);
 	// The graph is named after the file it came from — which is also what it will be saved back as,
 	// and what the style will reference ([Q32]). Same rule as every other way in ([Q35]).
 	let stem = studio_core::graphs::name_for_source(&path);
 	let saved = (file, document.text().to_string());
 
-	let mut graphs = state.graphs.lock().await;
-	let id = graphs.add(&stem, document, Some(saved));
-
-	let mut history = state.history.lock().await;
-	let graph = graphs.get(id).expect("just added");
-	history.push(Target::Graph(id), graph.document.text(), EditKind::Replaced);
-	let view = DocumentView::of(graph, &history);
-	drop(graphs);
+	let held = state.project(&window).await;
+	let view = {
+		let mut project = held.lock().await;
+		if let Some(parent) = std::path::Path::new(&path).parent() {
+			project.dir = parent.to_path_buf();
+		}
+		let id = project.graphs.add(&stem, document, Some(saved));
+		let text = project.graphs.get(id).expect("just added").document.text().to_string();
+		project.history.push(Target::Graph(id), text, EditKind::Replaced);
+		let graph = project.graphs.get(id).expect("just added");
+		DocumentView::of(graph, &project.history)
+	};
 
 	{
 		let mut recents = state.recents.lock().await;
@@ -574,8 +640,14 @@ pub async fn open_vpl(state: State<'_, AppState>, path: String) -> Result<Docume
 /// separate command because it has a different scope.
 #[tauri::command]
 #[specta::specta]
-pub async fn save_vpl(state: State<'_, AppState>, graph: GraphId, path: String) -> Result<DocumentView, VplError> {
-	let Some(document) = state.graphs.lock().await.get(graph).map(|g| g.document.clone()) else {
+pub async fn save_vpl(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	graph: GraphId,
+	path: String,
+) -> Result<DocumentView, VplError> {
+	let held = state.project(&window).await;
+	let Some(document) = held.lock().await.graphs.get(graph).map(|g| g.document.clone()) else {
 		return Err(VplError {
 			message: "no such graph".to_string(),
 			span: Span::new(0, 0),
@@ -604,11 +676,11 @@ pub async fn save_vpl(state: State<'_, AppState>, graph: GraphId, path: String) 
 	// Saving to a file makes that file's directory what relative paths mean, exactly as opening one
 	// does — otherwise a pipeline saved beside its inputs would stop finding them.
 	let file = std::path::PathBuf::from(&path);
+	let mut project = held.lock().await;
 	if let Some(parent) = file.parent() {
-		*state.project_dir.lock().await = parent.to_path_buf();
+		project.dir = parent.to_path_buf();
 	}
-	let mut graphs = state.graphs.lock().await;
-	let Some(entry) = graphs.get_mut(graph) else {
+	let Some(entry) = project.graphs.get_mut(graph) else {
 		return Err(VplError {
 			message: "no such graph".to_string(),
 			span: Span::new(0, 0),
@@ -616,18 +688,20 @@ pub async fn save_vpl(state: State<'_, AppState>, graph: GraphId, path: String) 
 	};
 	entry.file = Some((file, document.text().to_string()));
 
-	let history = state.history.lock().await;
-	Ok(DocumentView::of(entry, &history))
+	let entry = project.graphs.get(graph).expect("just saved");
+	Ok(DocumentView::of(entry, &project.history))
 }
 
 /// Where the map is looking: the pinned node, or `None` for the ordinary state ([Q32]).
 #[tauri::command]
 #[specta::specta]
-pub async fn pinned(state: State<'_, AppState>) -> Result<Option<Pin>, String> {
-	Ok(state.pinned.lock().await.as_ref().map(|pin| Pin {
+pub async fn pinned(window: tauri::Window, state: State<'_, AppState>) -> Result<Option<Pin>, String> {
+	let held = state.project(&window).await;
+	let pin = held.lock().await.pinned.as_ref().map(|pin| Pin {
 		graph: pin.graph,
 		path: pin.path.iter().map(|index| *index as u32).collect(),
-	}))
+	});
+	Ok(pin)
 }
 
 /// Which node the map shows, overriding every mounted graph.
@@ -645,13 +719,18 @@ pub struct Pin {
 /// it, which is the gesture that gets you back to seeing everything.
 #[tauri::command]
 #[specta::specta]
-pub async fn set_pin(state: State<'_, AppState>, pin: Option<Pin>) -> Result<Option<Pin>, String> {
-	let mut current = state.pinned.lock().await;
-	*current = pin.map(|pin| crate::state::Pinned {
+pub async fn set_pin(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	pin: Option<Pin>,
+) -> Result<Option<Pin>, String> {
+	let held = state.project(&window).await;
+	let mut project = held.lock().await;
+	project.pinned = pin.map(|pin| crate::state::Pinned {
 		graph: pin.graph,
 		path: pin.path.iter().map(|index| *index as usize).collect(),
 	});
-	Ok(current.as_ref().map(|pin| Pin {
+	Ok(project.pinned.as_ref().map(|pin| Pin {
 		graph: pin.graph,
 		path: pin.path.iter().map(|index| *index as u32).collect(),
 	}))
@@ -666,28 +745,27 @@ pub async fn set_pin(state: State<'_, AppState>, pin: Option<Pin>) -> Result<Opt
 #[specta::specta]
 pub async fn mount_graph(
 	app: AppHandle,
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
 ) -> Result<Option<Preview>, String> {
-	let Some((name, document)) = state
-		.graphs
-		.lock()
-		.await
-		.get(graph)
-		.map(|g| (g.name.clone(), g.document.clone()))
-	else {
-		return Ok(None);
+	let held = state.project(&window).await;
+	let (name, document, dir) = {
+		let project = held.lock().await;
+		let Some((name, document)) = project.graphs.get(graph).map(|g| (g.name.clone(), g.document.clone())) else {
+			return Ok(None);
+		};
+		(name, document, project.dir.clone())
 	};
 
 	let (tx, rx) = tokio::sync::oneshot::channel();
 	let pipeline = document.to_pipeline();
-	state
-		.jobs
-		.submit(format!("Building {name}"), Lane::Latest, move |handle| async move {
-			let outcome = build_into(&app, &handle, pipeline, &name).await;
-			let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
-			outcome.map(|_| ())
-		});
+	let label = format!("Building {name}");
+	state.jobs.submit(label, Lane::Latest, move |handle| async move {
+		let outcome = build_into(&app, &handle, pipeline, &name, dir).await;
+		let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
+		outcome.map(|_| ())
+	});
 
 	match rx.await {
 		Ok(Ok(preview)) => Ok(Some(preview)),
@@ -748,12 +826,17 @@ pub fn import_read_node(kind_id: String, path: String) -> String {
 #[tauri::command]
 #[specta::specta]
 pub async fn field_suggestions(
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
 ) -> Result<Vec<studio_core::suggest::NodeSuggestions>, String> {
-	let Some(document) = state.graphs.lock().await.get(graph).map(|g| g.document.clone()) else {
-		return Ok(Vec::new());
+	let held = state.project(&window).await;
+	let (document, dir) = {
+		let project = held.lock().await;
+		let Some(document) = project.graphs.get(graph).map(|g| g.document.clone()) else {
+			return Ok(Vec::new());
+		};
+		(document, project.dir.clone())
 	};
-	let dir = state.project_dir.lock().await.clone();
 	Ok(studio_core::suggest::for_pipeline(document.pipeline(), &dir))
 }

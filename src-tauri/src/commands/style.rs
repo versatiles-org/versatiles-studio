@@ -12,7 +12,7 @@
 //!
 //! [Q36]: ../../../docs/decisions.md
 
-use crate::state::AppState;
+use crate::state::{AppState, Project};
 use studio_core::graphs::GraphId;
 use studio_core::history::{EditKind, Target};
 use studio_core::style::{Appearance, Hillshade, LayerOverride, Preset, RasterAdjust, Recipe, Recolor, SourceKind};
@@ -21,8 +21,10 @@ use tauri::{AppHandle, State};
 /// The recipe as it stands.
 #[tauri::command]
 #[specta::specta]
-pub async fn style(state: State<'_, AppState>) -> Result<Recipe, String> {
-	Ok(state.style.lock().await.clone())
+pub async fn style(window: tauri::Window, state: State<'_, AppState>) -> Result<Recipe, String> {
+	let project = state.project(&window).await;
+	let recipe = project.lock().await.style.clone();
+	Ok(recipe)
 }
 
 /// Records the recipe and returns it, so every mutation below is one line.
@@ -37,11 +39,9 @@ pub async fn style(state: State<'_, AppState>) -> Result<Recipe, String> {
 /// invalidate a reference held mid-edit (`graphs.rs`); the recipe stores by name, because that is
 /// what a MapLibre style calls a source and what `project.yaml` already lists. This is the one
 /// place the two meet, and `Recipe::rename_source` is the other.
-async fn source_name(state: &State<'_, AppState>, graph: GraphId) -> Result<String, String> {
-	state
+fn source_name(project: &Project, graph: GraphId) -> Result<String, String> {
+	project
 		.graphs
-		.lock()
-		.await
 		.get(graph)
 		.map(|found| found.name.clone())
 		.ok_or_else(|| format!("no graph {graph}"))
@@ -52,33 +52,39 @@ async fn source_name(state: &State<'_, AppState>, graph: GraphId) -> Result<Stri
 /// `kind` seeds a new entry so a raster source does not start life holding a preset it cannot use.
 /// It is ignored for an entry that already exists — the stored answer wins over a fresh reading, or
 /// a re-probe could quietly rewrite a choice someone made.
-async fn edit(
-	state: &State<'_, AppState>,
+fn edit(
+	project: &mut Project,
 	graph: GraphId,
 	kind: Option<SourceKind>,
 	change: impl FnOnce(&mut studio_core::style::SourceStyle),
 ) -> Result<Recipe, String> {
-	let name = source_name(state, graph).await?;
-	let mut recipe = state.style.lock().await.clone();
+	let name = source_name(project, graph)?;
+	let mut recipe = project.style.clone();
 	change(recipe.source_mut(&name, kind));
-	Ok(record(state, recipe).await)
+	Ok(record(project, recipe))
 }
 
-async fn record(state: &State<'_, AppState>, recipe: Recipe) -> Recipe {
-	let mut history = state.history.lock().await;
-	if history.current_of(Target::Style).is_none() {
-		history.push(Target::Style, state.style.lock().await.text(), EditKind::Replaced);
+fn record(project: &mut Project, recipe: Recipe) -> Recipe {
+	if project.history.current_of(Target::Style).is_none() {
+		let before = project.style.text();
+		project.history.push(Target::Style, before, EditKind::Replaced);
 	}
-	history.push(Target::Style, recipe.text(), EditKind::Structured);
-	*state.style.lock().await = recipe.clone();
+	project.history.push(Target::Style, recipe.text(), EditKind::Structured);
+	project.style = recipe.clone();
 	recipe
 }
 
 /// Switches which style a source starts from (D1).
 #[tauri::command]
 #[specta::specta]
-pub async fn set_style_preset(state: State<'_, AppState>, graph: GraphId, preset: Preset) -> Result<Recipe, String> {
-	edit(&state, graph, None, |style| {
+pub async fn set_style_preset(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	graph: GraphId,
+	preset: Preset,
+) -> Result<Recipe, String> {
+	let project = state.project(&window).await;
+	edit(&mut *project.lock().await, graph, None, |style| {
 		// A preset only means something on a vector appearance. Choosing one on a source currently
 		// drawn as raster says the person wants it drawn as vector, so the appearance follows —
 		// rather than the click being silently ignored.
@@ -93,7 +99,6 @@ pub async fn set_style_preset(state: State<'_, AppState>, graph: GraphId, preset
 			}
 		}
 	})
-	.await
 }
 
 /// Sets the raster adjustment — the imagery equivalent of `set_style_recolor` (S6.3, D11).
@@ -104,14 +109,20 @@ pub async fn set_style_preset(state: State<'_, AppState>, graph: GraphId, preset
 #[tauri::command]
 #[specta::specta]
 pub async fn set_style_raster(
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
 	raster: RasterAdjust,
 ) -> Result<Recipe, String> {
-	edit(&state, graph, Some(SourceKind::RasterImage), |style| {
-		style.appearance = Appearance::Raster { adjust: raster };
-	})
-	.await
+	let project = state.project(&window).await;
+	edit(
+		&mut *project.lock().await,
+		graph,
+		Some(SourceKind::RasterImage),
+		|style| {
+			style.appearance = Appearance::Raster { adjust: raster };
+		},
+	)
 }
 
 /// Drops a source's overrides for layers its style no longer has ([S6.7](../../../docs/scope-release-2.md)).
@@ -125,16 +136,19 @@ pub async fn set_style_raster(
 #[tauri::command]
 #[specta::specta]
 pub async fn prune_style_overrides(
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
 	present: Vec<String>,
 ) -> Result<Recipe, String> {
-	let name = source_name(&state, graph).await?;
-	let mut recipe = state.style.lock().await.clone();
+	let project = state.project(&window).await;
+	let mut project = project.lock().await;
+	let name = source_name(&project, graph)?;
+	let mut recipe = project.style.clone();
 	if recipe.prune_overrides(&name, &present) == 0 {
 		return Ok(recipe);
 	}
-	Ok(record(&state, recipe).await)
+	Ok(record(&mut project, recipe))
 }
 
 /// Sets the hillshade settings for an elevation source ([S6.6](../../../docs/scope-release-2.md), D12).
@@ -143,14 +157,20 @@ pub async fn prune_style_overrides(
 #[tauri::command]
 #[specta::specta]
 pub async fn set_style_hillshade(
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
 	shade: Hillshade,
 ) -> Result<Recipe, String> {
-	edit(&state, graph, Some(SourceKind::RasterDem), |style| {
-		style.appearance = Appearance::Hillshade { shade };
-	})
-	.await
+	let project = state.project(&window).await;
+	edit(
+		&mut *project.lock().await,
+		graph,
+		Some(SourceKind::RasterDem),
+		|style| {
+			style.appearance = Appearance::Hillshade { shade };
+		},
+	)
 }
 
 /// Sets the draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
@@ -163,10 +183,16 @@ pub async fn set_style_hillshade(
 /// dropping them here would lose a position for a graph that is only temporarily absent.
 #[tauri::command]
 #[specta::specta]
-pub async fn set_style_order(state: State<'_, AppState>, order: Vec<String>) -> Result<Recipe, String> {
-	let mut recipe = state.style.lock().await.clone();
+pub async fn set_style_order(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	order: Vec<String>,
+) -> Result<Recipe, String> {
+	let project = state.project(&window).await;
+	let mut project = project.lock().await;
+	let mut recipe = project.style.clone();
 	recipe.order = order;
-	Ok(record(&state, recipe).await)
+	Ok(record(&mut project, recipe))
 }
 
 /// Corrects what a source's tiles are being read as (S6.1).
@@ -178,11 +204,13 @@ pub async fn set_style_order(state: State<'_, AppState>, order: Vec<String>) -> 
 #[tauri::command]
 #[specta::specta]
 pub async fn set_style_kind(
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
 	kind: Option<SourceKind>,
 ) -> Result<Recipe, String> {
-	edit(&state, graph, kind, |style| {
+	let project = state.project(&window).await;
+	edit(&mut *project.lock().await, graph, kind, |style| {
 		// **Compared by variant, not by a vector/raster flag.** There are three appearances now, and
 		// imagery and elevation are as different from each other as either is from a preset — a
 		// boolean would have left a DEM holding raster adjustments it has no use for.
@@ -192,7 +220,6 @@ pub async fn set_style_kind(
 		}
 		style.kind = kind;
 	})
-	.await
 }
 
 /// Sets the global recolouring — hue, saturation, brightness, contrast and the rest (D1, D5).
@@ -202,28 +229,36 @@ pub async fn set_style_kind(
 /// recipe currently has.
 #[tauri::command]
 #[specta::specta]
-pub async fn set_style_recolor(state: State<'_, AppState>, graph: GraphId, recolor: Recolor) -> Result<Recipe, String> {
-	edit(&state, graph, None, |style| {
+pub async fn set_style_recolor(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	graph: GraphId,
+	recolor: Recolor,
+) -> Result<Recipe, String> {
+	let project = state.project(&window).await;
+	edit(&mut *project.lock().await, graph, None, |style| {
 		if let Appearance::Vector { recolor: current, .. } = &mut style.appearance {
 			*current = recolor;
 		}
 	})
-	.await
 }
 
 /// Changes one layer of a vector source (D3, S4.5).
 #[tauri::command]
 #[specta::specta]
 pub async fn set_layer_override(
+	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
 	layer: String,
 	patch: LayerOverride,
 ) -> Result<Recipe, String> {
-	let name = source_name(&state, graph).await?;
-	let mut recipe = state.style.lock().await.clone();
+	let project = state.project(&window).await;
+	let mut project = project.lock().await;
+	let name = source_name(&project, graph)?;
+	let mut recipe = project.style.clone();
 	recipe.set_override(&name, layer, patch);
-	Ok(record(&state, recipe).await)
+	Ok(record(&mut project, recipe))
 }
 
 /// What Studio can write a style as/// What Studio can write a style as — the file dialog's filters come from here.
