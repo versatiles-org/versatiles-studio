@@ -35,6 +35,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::server_base_url,
 		commands::open_window,
 		commands::diagnostics::diagnostics,
+		commands::diagnostics::previous_problems,
 		commands::diagnostics::log_diagnostic,
 		commands::diagnostics::clear_diagnostics,
 		commands::diagnostics::environment,
@@ -162,6 +163,19 @@ pub fn run() {
 			let data_dir = tauri::Manager::path(app)
 				.app_data_dir()
 				.unwrap_or_else(|_| std::path::PathBuf::from("."));
+			// **Opened before anything else can fail**, and rotated as it opens: the run worth
+			// reading back is the one that had no exit to write anything at (S6.8). Failing costs
+			// the file and not the panel, so it is recorded rather than raised.
+			let log_dir = tauri::Manager::path(app)
+				.app_log_dir()
+				.unwrap_or_else(|_| data_dir.join("logs"));
+			if let Err(error) = diagnostics.open_log(&log_dir) {
+				warn(
+					&diagnostics,
+					"Problems will not be written to disk this session",
+					&error,
+				);
+			}
 			// Recents reset silently when unreadable; views do not, because they are the user's own
 			// work. A broken views file is surfaced and left untouched rather than replaced.
 			// Installed families, after the bundled tier so they extend it rather than shadow it
@@ -188,6 +202,7 @@ pub fn run() {
 				app,
 				AppState {
 					diagnostics,
+					log_dir,
 					server: Mutex::new(server),
 					recents: Mutex::new(recents),
 					views: Mutex::new(views),

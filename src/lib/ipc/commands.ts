@@ -88,6 +88,14 @@ export const takeOpened = () => commands.takeOpened();
 /** Everything that has gone wrong this session, oldest first (S6.7). */
 export const diagnostics = () => unwrap(commands.diagnostics());
 
+/**
+ * What the run before this one left behind (S6.8).
+ *
+ * Read from the file rather than from memory, because there is none: the session this describes is
+ * the one that crashed, was killed, or aborted on a panic.
+ */
+export const previousProblems = () => unwrap(commands.previousProblems());
+
 /** Records a problem the webview saw, and answers how many distinct ones there now are. */
 export const logDiagnostic = (report: NewProblem) => unwrap(commands.logDiagnostic(report));
 

@@ -26,13 +26,30 @@
  * [Q16]: ../../../docs/decisions.md
  */
 
-import { clearDiagnostics, diagnostics, logDiagnostic, type NewProblem, type Problem } from '../ipc/commands';
+import {
+	clearDiagnostics,
+	diagnostics,
+	logDiagnostic,
+	previousProblems,
+	type NewProblem,
+	type Problem
+} from '../ipc/commands';
 
 /** What the panel draws, newest first. Empty until something asks for it. */
 let list = $state<Problem[]>([]);
 
 /** How many distinct problems the core holds — the number on the bar's button. */
 let count = $state(0);
+
+/**
+ * What the run before this one left behind, once somebody has asked for it.
+ *
+ * **A separate list, not a longer one.** They answer different questions — "what is wrong with what
+ * I am doing" and "what happened the time it died" — and a report has to say which of the two it
+ * is describing. `null` means nobody has asked yet, which is not the same as a run that left
+ * nothing behind.
+ */
+let earlier = $state<Problem[] | null>(null);
 
 /**
  * How many reports may be waiting on the core at once.
@@ -58,6 +75,11 @@ export const problems = {
 
 	get count(): number {
 		return count;
+	},
+
+	/** The previous run's problems, or `null` until they have been read. */
+	get earlier(): Problem[] | null {
+		return earlier;
 	}
 };
 
@@ -122,10 +144,22 @@ export async function refresh(): Promise<void> {
  */
 export function reset(): void {
 	list = [];
+	earlier = null;
 	count = 0;
 	queued = 0;
 	dropped = 0;
 	pending = Promise.resolve();
+}
+
+/**
+ * Reads the previous run's file. Called when its tab is opened, not at startup.
+ *
+ * Most launches follow an ordinary one, and reading a file nobody will look at is a cost paid on
+ * every start for a tab opened on almost none of them.
+ */
+export async function loadEarlier(): Promise<void> {
+	const held = await previousProblems().catch(() => []);
+	earlier = [...held].sort((a, b) => b.at - a.at || b.id - a.id);
 }
 
 /** Forgets everything — for reproducing a problem cleanly before copying the report. */

@@ -14,7 +14,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const ipc = vi.hoisted(() => ({
 	logDiagnostic: vi.fn(),
 	diagnostics: vi.fn(),
-	clearDiagnostics: vi.fn()
+	clearDiagnostics: vi.fn(),
+	previousProblems: vi.fn()
 }));
 vi.mock('../ipc/commands', () => ipc);
 
@@ -23,6 +24,7 @@ const {
 	record,
 	refresh,
 	forgetAll,
+	loadEarlier,
 	reset,
 	describe: describeError,
 	watch
@@ -56,6 +58,7 @@ beforeEach(() => {
 	ipc.diagnostics.mockResolvedValue([]);
 	ipc.clearDiagnostics.mockResolvedValue(null);
 	ipc.logDiagnostic.mockResolvedValue(0);
+	ipc.previousProblems.mockResolvedValue([]);
 	reset();
 });
 
@@ -171,6 +174,40 @@ describe('the list the panel draws', () => {
 		expect(ipc.clearDiagnostics).toHaveBeenCalled();
 		expect(problems.list).toEqual([]);
 		expect(problems.count).toBe(0);
+	});
+});
+
+describe('the run before this one', () => {
+	it('is unread until something asks for it, and is not the same as empty', async () => {
+		// `null` is "nobody has looked", which the panel shows as "reading…" — a run that recorded
+		// nothing is a different answer, and showing one as the other reads as a bug in the log.
+		expect(problems.earlier).toBeNull();
+		expect(ipc.previousProblems).not.toHaveBeenCalled();
+
+		await loadEarlier();
+		expect(problems.earlier).toEqual([]);
+	});
+
+	it('is kept apart from this session, newest first', async () => {
+		ipc.diagnostics.mockResolvedValueOnce([problem({ id: 1, message: 'happening now' })]);
+		await refresh();
+
+		ipc.previousProblems.mockResolvedValueOnce([
+			problem({ id: 1, at: 100, message: 'what killed it' }),
+			problem({ id: 2, at: 400, message: 'the last thing it said' })
+		]);
+		await loadEarlier();
+
+		// Two lists, not one longer one: they answer different questions, and a report has to say
+		// which of the two it is describing.
+		expect(problems.list.map((p) => p.message)).toEqual(['happening now']);
+		expect(problems.earlier?.map((p) => p.message)).toEqual(['the last thing it said', 'what killed it']);
+	});
+
+	it('shows nothing rather than failing when the file cannot be read', async () => {
+		ipc.previousProblems.mockRejectedValueOnce(new Error('no such directory'));
+		await loadEarlier();
+		expect(problems.earlier).toEqual([]);
 	});
 });
 

@@ -44,8 +44,16 @@ export function buildReport(input: {
 	local: Local;
 	/** When the report was made. Passed in rather than read, so the output is a pure function. */
 	at: Date;
+	/**
+	 * Which run these problems are from.
+	 *
+	 * **Said out loud, because the two read identically and mean opposite things.** A report from
+	 * the previous session describes a run that is over — very likely one that crashed — so its
+	 * problems are not evidence about the build the reader is looking at unless they know that.
+	 */
+	session?: 'this' | 'previous';
 }): string {
-	const { problems, environment, local, at } = input;
+	const { problems, environment, local, at, session = 'this' } = input;
 	const hide = redactor(environment?.home ?? null);
 
 	const lines = [
@@ -58,12 +66,20 @@ export function buildReport(input: {
 		`- GPU: ${local.renderer ?? 'unknown'}`,
 		`- User agent: ${local.userAgent}`,
 		'',
-		`## Problems (${problems.length})`,
+		session === 'previous'
+			? `## Problems from the previous session (${problems.length})`
+			: `## Problems (${problems.length})`,
 		''
 	];
 
+	if (session === 'previous') {
+		// The environment above is *this* run's, which is the only one anybody can still ask. Saying
+		// so is the difference between a caveat and a wrong fact.
+		lines.push('_Recorded by an earlier run of Studio. The environment above is the current one._', '');
+	}
+
 	if (problems.length === 0) {
-		lines.push('Nothing has gone wrong this session.');
+		lines.push(session === 'previous' ? 'That run recorded no problems.' : 'Nothing has gone wrong this session.');
 		return `${lines.join('\n')}\n`;
 	}
 

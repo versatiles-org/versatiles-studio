@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { problems, forgetAll, refresh } from '../state/diagnostics.svelte';
+	import { problems, forgetAll, loadEarlier, refresh } from '../state/diagnostics.svelte';
 	import { buildReport, gpuRenderer, type Local } from '../common/report';
-	import { environment, type Problem } from '../ipc/commands';
+	import { environment, type Environment, type Problem } from '../ipc/commands';
 
 	// Everything that has gone wrong this session, expandable from the status bar (S6.8).
 	//
@@ -13,6 +13,15 @@
 	// The one button that matters is **Copy report**. A user who can paste a report has said more in
 	// one gesture than a paragraph of "it crashed when I opened the file" ever does — that is the
 	// whole purpose of the panel, and the list is what makes the report worth trusting.
+	//
+	// **Two sessions, because the interesting one is often not this one.** A window that crashed,
+	// was killed for memory, or aborted on a panic left nothing in memory to show — only the file it
+	// was writing as it went. That run is a tab here rather than a separate feature, because a
+	// person looking for what went wrong should not have to know which kind of wrong it was.
+
+	/// Which session is being shown. `this` is the ordinary case and the one the bar's count is
+	/// about; `previous` is read from disk the first time it is asked for.
+	let showing = $state<'this' | 'previous'>('this');
 
 	/// Which problem's detail is open. One at a time: a stack is twenty lines, and a stack of stacks
 	/// is a scroll problem rather than a feature.
@@ -35,7 +44,28 @@
 		void refresh();
 	});
 
-	const list = $derived(problems.list);
+	/// What is running this — the report's header, and the path in the footer.
+	///
+	/// Read once when the panel opens rather than held from startup: it cannot change while the
+	/// application runs, and no window should pay an IPC call for a string most sessions never show.
+	let where = $state<Environment | null>(null);
+
+	$effect(() => {
+		void environment()
+			.then((found) => (where = found))
+			.catch(() => (where = null));
+	});
+
+	// Read once, when its tab is first opened: most launches follow an ordinary one, and reading a
+	// file nobody will look at is a cost paid on every start for a tab opened on almost none.
+	$effect(() => {
+		if (showing === 'previous' && problems.earlier === null) void loadEarlier();
+	});
+
+	/// What is on screen — and `null` for the previous session until its file has been read, which
+	/// is not the same as a run that recorded nothing.
+	const list = $derived(showing === 'this' ? problems.list : (problems.earlier ?? []));
+	const loading = $derived(showing === 'previous' && problems.earlier === null);
 
 	function when(problem: Problem): string {
 		// Local time, not ISO: this is read next to a memory of doing something, and 14:03 is what
@@ -48,11 +78,11 @@
 			userAgent: navigator.userAgent,
 			renderer: gpuRenderer(window.document.createElement('canvas'))
 		};
-		// The environment is asked for when a report is made, not held: it cannot change while the
-		// application runs, and fetching it up front would put an IPC call on every window's startup
-		// for a string most sessions never need.
-		const where = await environment().catch(() => null);
-		const text = buildReport({ problems: list, environment: where, local, at: new Date() });
+		// Asked for again only if the panel never got an answer — a report with "unknown" where the
+		// build number should be is the one thing this whole feature exists to prevent.
+		const found = where ?? (await environment().catch(() => null));
+		// Which session, said in the report: the two read identically and mean opposite things.
+		const text = buildReport({ problems: list, environment: found, local, at: new Date(), session: showing });
 		try {
 			await navigator.clipboard.writeText(text);
 			copied = 'yes';
@@ -62,6 +92,12 @@
 			copied = 'no';
 			selectAll();
 		}
+	}
+
+	function show(which: 'this' | 'previous') {
+		showing = which;
+		openId = null;
+		copied = null;
 	}
 
 	/// Selects the list, so the keyboard can copy what the clipboard API would not.
@@ -85,19 +121,40 @@
 
 <div class="panel">
 	<div class="tools">
-		<span class="count"
-			>{list.length === 0 ? 'Nothing has gone wrong' : `${list.length} problem${list.length === 1 ? '' : 's'}`}</span
-		>
+		<!-- Tabs, not a filter: they are two runs, and one of them is over. `aria-pressed` rather than
+		     a tablist, because there is one panel underneath and no roving focus to manage. -->
+		<button type="button" class="tab" aria-pressed={showing === 'this'} onclick={() => show('this')}>
+			This session{problems.count > 0 ? ` (${problems.count})` : ''}
+		</button>
+		<button type="button" class="tab" aria-pressed={showing === 'previous'} onclick={() => show('previous')}>
+			Previous run
+		</button>
+
+		<span class="count">
+			{#if loading}Reading…{:else if list.length > 0}{list.length} problem{list.length === 1 ? '' : 's'}{/if}
+		</span>
+
 		<button type="button" class="quiet" onclick={() => void copy()} disabled={list.length === 0}>
 			{#if copied === 'yes'}Copied ✓{:else if copied === 'no'}Selected — press ⌘C{:else}Copy report{/if}
 		</button>
-		<button type="button" class="quiet" onclick={() => void clear()} disabled={list.length === 0}>Clear</button>
+		<!-- Only this session's, and only the list: what is on disk is the account of a run, and a run
+		     does not stop having happened because somebody cleared a panel. -->
+		{#if showing === 'this'}
+			<button type="button" class="quiet" onclick={() => void clear()} disabled={list.length === 0}>Clear</button>
+		{/if}
 	</div>
 
-	{#if list.length === 0}
+	{#if loading}
+		<p class="empty">Reading what the last run wrote…</p>
+	{:else if list.length === 0}
 		<p class="empty">
-			Nothing has gone wrong this session. Problems that do turn up are collected here, with a report you can copy into
-			an issue.
+			{#if showing === 'previous'}
+				The last run of Studio recorded no problems — or there was no last run. A window that crashed still leaves what
+				it had written up to that point.
+			{:else}
+				Nothing has gone wrong this session. Problems that do turn up are collected here, with a report you can copy
+				into an issue.
+			{/if}
 		</p>
 	{:else}
 		<ul bind:this={region}>
@@ -131,6 +188,14 @@
 			{/each}
 		</ul>
 	{/if}
+
+	<!-- **The file, named.** The list is the copy that is convenient; the file is the one that
+	     survives a window being killed, and a person who has to send it needs to be able to find it.
+	     Shown in full rather than redacted: this is their own machine, and the redaction belongs to
+	     the report, which is the thing that leaves it. -->
+	{#if where}
+		<p class="where truncate" title={where.log}>Written to {where.log}</p>
+	{/if}
 </div>
 
 <style>
@@ -153,6 +218,25 @@
 		flex: 1;
 		min-width: 0;
 		color: var(--ink-2);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* The selected tab is the only one in full ink, which is the same way the bar marks an expanded
+	   panel — one rule for "you are looking at this", not two. */
+	.tab {
+		flex: none;
+		padding: 0 var(--space-2);
+		font-size: var(--text-sm);
+		color: var(--ink-2);
+
+		&[aria-pressed='true'] {
+			color: var(--ink);
+			font-weight: 500;
+		}
+
+		&:hover {
+			color: var(--ink);
+		}
 	}
 
 	.empty {
@@ -240,6 +324,14 @@
 		&:disabled {
 			opacity: 0.5;
 		}
+	}
+
+	.where {
+		margin: 0;
+		padding: var(--space-2) var(--space-5);
+		border-top: 1px solid var(--rule);
+		font-size: var(--text-xs);
+		color: var(--ink-2);
 	}
 
 	.detail-text {

@@ -19,7 +19,8 @@ const WHERE: Environment = {
 	os: 'macos',
 	arch: 'aarch64',
 	webview: '620.1.2',
-	home: '/Users/anna'
+	home: '/Users/anna',
+	log: '/Users/anna/Library/Logs/org.versatiles.studio/problems.jsonl'
 };
 
 function problem(over: Partial<Problem> = {}): Problem {
@@ -96,6 +97,24 @@ describe('the report a user pastes into an issue', () => {
 	it('refuses a home too short to mean anything', () => {
 		const text = report([problem({ message: 'could not open /srv/tiles' })], { ...WHERE, home: '/' });
 		expect(text).toContain('/srv/tiles');
+	});
+
+	/**
+	 * The two read identically and mean opposite things: a previous-session report describes a run
+	 * that is over — very likely the one that crashed — while the environment above it is this run's,
+	 * because that is the only one anybody can still ask.
+	 */
+	it('says when it is describing a run that is already over', () => {
+		const text = buildReport({
+			problems: [problem()],
+			environment: WHERE,
+			local: LOCAL,
+			at: AT,
+			session: 'previous'
+		});
+		expect(text).toContain('## Problems from the previous session (1)');
+		expect(text).toContain('Recorded by an earlier run');
+		expect(text).toContain('The environment above is the current one');
 	});
 
 	it('is worth copying even when nothing has gone wrong', () => {

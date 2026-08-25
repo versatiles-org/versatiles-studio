@@ -15,10 +15,23 @@
 //! them. An entry therefore carries a `count`, and a repeat moves its timestamp rather than adding
 //! a row.
 //!
+//! **And it is written down as it happens**, because the ring is in memory and the failures worth
+//! the most are the ones that take the memory with them: a webview crash, an out-of-memory kill, a
+//! panic that aborts. What the next launch can read back is the only account of those there is.
+//!
+//! The file is therefore **append-only, one line per occurrence**, and never rewritten in place: a
+//! process that dies mid-write loses at most the line it was writing, where a rewritten file could
+//! be lost whole. Folding happens again on the way back in — [`replay`] runs the same records
+//! through the same ring, so a session read from disk is counted exactly as it was counted live.
+//!
 //! [Q16]: ../../../docs/decisions.md
 
+use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
+use std::fs::{File, OpenOptions};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -29,6 +42,21 @@ use std::time::{SystemTime, UNIX_EPOCH};
 /// unbounded list in a process that runs for days is a leak with a nicer name, and five hundred
 /// distinct problems is already far past the point where anyone reads them.
 const HISTORY: usize = 500;
+
+/// This session's file, and the one before it.
+///
+/// Two, not a rotation of many. The question a log answers here is "what happened the time it
+/// broke", and that is either this run or the one that did not survive to tell anyone.
+const CURRENT: &str = "problems.jsonl";
+const PREVIOUS: &str = "problems.previous.jsonl";
+
+/// How large the file is allowed to get before it stops being written.
+///
+/// A flood is bounded in memory by the folding, but not on disk — the file takes a line per
+/// occurrence, which is what makes it survive a crash. Two megabytes is tens of thousands of lines,
+/// long past the point where anything new is being said, and small enough to sit in a log directory
+/// without anyone minding.
+const LOG_BYTES: u64 = 2 * 1024 * 1024;
 
 /// Identifies a problem for the lifetime of the process.
 // `u32` for the reason `JobId` is: specta will not emit a 64-bit integer as a plain number.
@@ -98,6 +126,18 @@ pub struct NewProblem {
 	pub detail: Option<String>,
 }
 
+/// One line of the file: a problem, and when it happened.
+///
+/// **An occurrence, not an entry.** No id and no count — those are the ring's bookkeeping, and a
+/// file that carried them would have to be rewritten every time one changed. Each line says only
+/// that a thing happened at a time, which is a fact that never needs revising.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Occurrence {
+	at: u32,
+	#[serde(flatten)]
+	problem: NewProblem,
+}
+
 /// The session's problems, shared by every window and by the panic hook.
 ///
 /// `Clone` and internally locked, like [`crate::jobs::Jobs`]: the panic hook holds one and the
@@ -112,6 +152,11 @@ pub struct Diagnostics {
 struct Inner {
 	entries: VecDeque<Problem>,
 	next: ProblemId,
+	/// Where occurrences are appended, once a directory has been named. `None` before that, and
+	/// again after a write fails — see [`Inner::append`].
+	file: Option<File>,
+	/// What has been written, so the cap costs no call to the filesystem.
+	written: u64,
 }
 
 impl Diagnostics {
@@ -125,8 +170,16 @@ impl Diagnostics {
 	/// Returns how many distinct entries are now held — the number the status bar puts on its
 	/// button, so that reporting one and asking for the count is a single call rather than two.
 	pub fn record(&self, report: NewProblem) -> u32 {
+		self.record_at(report, now())
+	}
+
+	/// Records a problem as having happened at a given time — how [`replay`] reads a file back.
+	fn record_at(&self, report: NewProblem, at: u32) -> u32 {
 		let mut inner = self.lock();
-		let at = now();
+		inner.append(&Occurrence {
+			at,
+			problem: report.clone(),
+		});
 
 		// Matched on everything but the time and the count, and searched across the whole ring
 		// rather than only against the last entry: MapLibre's per-tile errors arrive interleaved
@@ -169,9 +222,41 @@ impl Diagnostics {
 	}
 
 	/// Forgets everything — for reproducing a problem cleanly before copying the report.
+	///
+	/// **The list, not the file.** What is on disk is the account of a session, and a session does
+	/// not stop having happened because somebody cleared a panel; the next launch rotates it away in
+	/// the ordinary course of things.
 	pub fn clear(&self) {
 		let mut inner = self.lock();
 		inner.entries.clear();
+	}
+
+	/// Starts writing to `dir`, moving the file the last run left there out of the way first.
+	///
+	/// **Rotation happens on the way in rather than on the way out**, because the runs worth reading
+	/// are the ones that had no exit to run code at. A launch is the only moment guaranteed to come.
+	///
+	/// Failing is not fatal, and is worth reporting: a log directory that cannot be written costs
+	/// the file, not the panel, and everything recorded is still in memory where the window can see
+	/// it.
+	pub fn open_log(&self, dir: &Path) -> Result<()> {
+		std::fs::create_dir_all(dir).with_context(|| format!("creating {}", dir.display()))?;
+		let current = dir.join(CURRENT);
+		if current.exists() {
+			// Renamed rather than copied, so a large file costs nothing, and the rename replaces an
+			// older previous file in one step on every platform Studio runs on.
+			std::fs::rename(&current, dir.join(PREVIOUS)).with_context(|| format!("rotating {}", current.display()))?;
+		}
+		let file = OpenOptions::new()
+			.create(true)
+			.append(true)
+			.open(&current)
+			.with_context(|| format!("opening {}", current.display()))?;
+
+		let mut inner = self.lock();
+		inner.file = Some(file);
+		inner.written = 0;
+		Ok(())
 	}
 
 	/// **Poisoning is recovered from rather than propagated.** The panic hook records through here,
@@ -179,6 +264,32 @@ impl Diagnostics {
 	/// aborts the process and loses the very entry that explains it.
 	fn lock(&self) -> MutexGuard<'_, Inner> {
 		self.inner.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+	}
+}
+
+impl Inner {
+	/// Appends one occurrence, and gives up on the file rather than on the session.
+	///
+	/// **A failed write disables the sink.** A full disk or a directory that has gone away will fail
+	/// identically for every line after it, and a log that reported its own failure once per problem
+	/// would be a flood about a flood. The panel is unaffected either way — the file is the copy
+	/// that outlives the process, not the record itself.
+	///
+	/// Unbuffered on purpose: a `BufWriter` would hold the last lines in memory, which is precisely
+	/// the memory a crash takes with it.
+	fn append(&mut self, occurrence: &Occurrence) {
+		let Some(file) = self.file.as_mut() else { return };
+		if self.written >= LOG_BYTES {
+			return;
+		}
+		let Ok(mut line) = serde_json::to_vec(occurrence) else {
+			return;
+		};
+		line.push(b'\n');
+		match file.write_all(&line) {
+			Ok(()) => self.written += line.len() as u64,
+			Err(_) => self.file = None,
+		}
 	}
 }
 
@@ -190,6 +301,40 @@ impl Problem {
 			&& self.message == report.message
 			&& self.detail == report.detail
 	}
+}
+
+/// The problems a file holds, folded exactly as the session that wrote it folded them.
+///
+/// **A line that will not parse is skipped, not refused.** The last line of a file written by a
+/// process that was killed mid-write is half a line — and that is the case this whole file exists
+/// for. Refusing to read the log because the crash damaged it would be a fine joke and no use.
+#[must_use]
+pub fn replay(text: &str) -> Vec<Problem> {
+	let log = Diagnostics::new();
+	for line in text.lines() {
+		if let Ok(occurrence) = serde_json::from_str::<Occurrence>(line) {
+			log.record_at(occurrence.problem, occurrence.at);
+		}
+	}
+	log.list()
+}
+
+/// What the run before this one left behind, or nothing when there was no such run.
+///
+/// Missing is the ordinary case — a first launch, or a machine whose log directory could not be
+/// written — so it is not an error. An unreadable file is treated the same way: there is nothing a
+/// user could do about it, and it must not stand between them and this session's problems.
+#[must_use]
+pub fn previous(dir: &Path) -> Vec<Problem> {
+	std::fs::read_to_string(dir.join(PREVIOUS))
+		.map(|text| replay(&text))
+		.unwrap_or_default()
+}
+
+/// Where this session is being written, for the panel to name.
+#[must_use]
+pub fn log_path(dir: &Path) -> PathBuf {
+	dir.join(CURRENT)
 }
 
 fn count(inner: &Inner) -> u32 {
@@ -325,6 +470,92 @@ mod tests {
 		log.clear();
 		assert_eq!(log.count(), 0);
 		assert!(log.list().is_empty());
+	}
+
+	// -- the file the next launch reads ------------------------------------------------------
+
+	#[test]
+	fn writes_every_occurrence_down_as_it_happens() {
+		// One line per occurrence, not one per entry: the file is append-only because a process
+		// that dies mid-write must lose at most the line it was writing.
+		let dir = crate::testing::dir("diagnostics-append");
+		let log = Diagnostics::new();
+		log.open_log(&dir).expect("opening the log");
+
+		log.record(error("could not decode tile"));
+		log.record(error("could not decode tile"));
+		log.record(error("something else"));
+
+		let written = std::fs::read_to_string(log_path(&dir)).expect("reading it back");
+		assert_eq!(written.lines().count(), 3);
+		// No id and no count — a line states that a thing happened, which never needs revising.
+		assert!(!written.contains("\"id\""), "{written}");
+		assert!(!written.contains("\"count\""), "{written}");
+	}
+
+	#[test]
+	fn reads_a_session_back_folded_exactly_as_it_was_live() {
+		let dir = crate::testing::dir("diagnostics-replay");
+		let log = Diagnostics::new();
+		log.open_log(&dir).expect("opening the log");
+		for _ in 0..12 {
+			log.record(error("could not decode tile"));
+		}
+		log.record(error("something else"));
+
+		let text = std::fs::read_to_string(log_path(&dir)).expect("reading it back");
+		let read = replay(&text);
+		assert_eq!(read.len(), 2);
+		assert_eq!(read[0].count, 12, "the fold happens again on the way in");
+		assert_eq!(read[0].message, "could not decode tile");
+		assert_eq!(read[1].count, 1);
+	}
+
+	/// The case the file exists for: the process did not live to write the rest of the line.
+	#[test]
+	fn reads_what_survived_a_half_written_line() {
+		let text = "{\"at\":1,\"level\":\"error\",\"origin\":\"core\",\"message\":\"first\",\"detail\":null}\n		             {\"at\":2,\"level\":\"error\",\"orig";
+		let read = replay(text);
+		assert_eq!(read.len(), 1);
+		assert_eq!(read[0].message, "first");
+	}
+
+	#[test]
+	fn moves_the_last_run_aside_rather_than_over() {
+		let dir = crate::testing::dir("diagnostics-rotate");
+
+		let first = Diagnostics::new();
+		first.open_log(&dir).expect("opening the log");
+		first.record(error("what happened last time"));
+		drop(first);
+
+		// A launch is the only moment guaranteed to arrive — a run that crashed had no exit to
+		// rotate at, which is exactly the run worth reading.
+		let second = Diagnostics::new();
+		second.open_log(&dir).expect("opening the log again");
+		second.record(error("what is happening now"));
+
+		let held = previous(&dir);
+		assert_eq!(held.len(), 1);
+		assert_eq!(held[0].message, "what happened last time");
+
+		let now = replay(&std::fs::read_to_string(log_path(&dir)).expect("reading this session"));
+		assert_eq!(now.len(), 1);
+		assert_eq!(now[0].message, "what is happening now");
+	}
+
+	#[test]
+	fn has_no_previous_session_on_a_first_launch() {
+		let dir = crate::testing::dir("diagnostics-first-launch");
+		assert!(previous(&dir).is_empty());
+	}
+
+	/// A log directory that cannot be written costs the file, not the panel.
+	#[test]
+	fn keeps_recording_when_there_is_nowhere_to_write() {
+		let log = Diagnostics::new();
+		assert_eq!(log.record(error("no file open")), 1);
+		assert_eq!(log.list().len(), 1);
 	}
 
 	/// The hook runs on a panicking thread, which the test catches so the rest of the suite lives.

@@ -18,6 +18,19 @@ pub async fn diagnostics(state: State<'_, AppState>) -> Result<Vec<Problem>, Str
 	Ok(state.diagnostics.list())
 }
 
+/// What the run before this one left behind — the half a crash does not get to erase.
+///
+/// **Read from the file, not from memory**, because there is no memory left: the session this
+/// describes is the one that was killed, ran out of memory, or aborted on a panic. Read on demand
+/// rather than at startup, since most launches follow an ordinary one and nobody opens the tab.
+///
+/// Empty is the ordinary answer — a first launch, or a log directory that could not be written.
+#[tauri::command]
+#[specta::specta]
+pub async fn previous_problems(state: State<'_, AppState>) -> Result<Vec<Problem>, String> {
+	Ok(studio_core::diagnostics::previous(&state.log_dir))
+}
+
 /// Records a problem the webview saw, and answers how many there now are.
 ///
 /// **The count comes back** so the bar's badge is a fact rather than a tally the window keeps: a
@@ -54,12 +67,21 @@ pub struct Environment {
 	pub webview: Option<String>,
 	/// The user's home directory, for redaction. `None` when the platform has no answer.
 	pub home: Option<String>,
+	/// The file this session is being written to, for the panel to name.
+	///
+	/// **Worth naming rather than hiding.** Someone whose window will not open at all cannot reach
+	/// the panel, and a path they can be told over a chat is the difference between a report and a
+	/// shrug.
+	pub log: String,
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn environment(app: AppHandle) -> Result<Environment, String> {
+pub async fn environment(app: AppHandle, state: State<'_, AppState>) -> Result<Environment, String> {
 	Ok(Environment {
+		log: studio_core::diagnostics::log_path(&state.log_dir)
+			.to_string_lossy()
+			.into_owned(),
 		app_version: env!("CARGO_PKG_VERSION").to_string(),
 		os: std::env::consts::OS.to_string(),
 		arch: std::env::consts::ARCH.to_string(),

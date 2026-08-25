@@ -63,6 +63,11 @@ pub struct AppState {
 	/// It has to be, in fact — the panic hook holds a clone of this from before any window exists,
 	/// and a hook that had to reach through Tauri's state map could not run during start-up.
 	pub diagnostics: Diagnostics,
+	/// Where the problem log is written, and where the previous run's is read from.
+	///
+	/// `app_log_dir`, not `app_data_dir`: it is a log, it is what a user is asked to send, and every
+	/// platform already has a place people know to look for one.
+	pub log_dir: PathBuf,
 	/// Long operations, their queue and their logs ([Q3], E7, S3.1).
 	///
 	/// Not behind a `Mutex`: the runner is `Clone` and locks its own registry, so a command that

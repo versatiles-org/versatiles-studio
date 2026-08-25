@@ -30,6 +30,16 @@ export const commands = {
 	/**  Everything that has gone wrong this session, oldest first. */
 	diagnostics: () => typedError<Problem[], string>(__TAURI_INVOKE("diagnostics")),
 	/**
+	 *  What the run before this one left behind — the half a crash does not get to erase.
+	 * 
+	 *  **Read from the file, not from memory**, because there is no memory left: the session this
+	 *  describes is the one that was killed, ran out of memory, or aborted on a panic. Read on demand
+	 *  rather than at startup, since most launches follow an ordinary one and nobody opens the tab.
+	 * 
+	 *  Empty is the ordinary answer — a first launch, or a log directory that could not be written.
+	 */
+	previousProblems: () => typedError<Problem[], string>(__TAURI_INVOKE("previous_problems")),
+	/**
 	 *  Records a problem the webview saw, and answers how many there now are.
 	 * 
 	 *  **The count comes back** so the bar's badge is a fact rather than a tally the window keeps: a
@@ -826,6 +836,14 @@ export type Environment = {
 	webview: string | null,
 	/**  The user's home directory, for redaction. `None` when the platform has no answer. */
 	home: string | null,
+	/**
+	 *  The file this session is being written to, for the panel to name.
+	 * 
+	 *  **Worth naming rather than hiding.** Someone whose window will not open at all cannot reach
+	 *  the panel, and a path they can be told over a chat is the difference between a report and a
+	 *  shrug.
+	 */
+	log: string,
 };
 
 /**  What an export is expected to cost. */
