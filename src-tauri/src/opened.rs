@@ -97,14 +97,38 @@ pub fn from_command_line() -> Vec<String> {
 		.collect()
 }
 
-/// Queues paths and tells any open window they are there.
+/// Queues paths and makes sure something opens them.
+///
+/// **Two cases, because there is not always a window to hand them to** ([S7.7]):
+///
+/// * A project is open — the queue and an event are enough. Whichever window drains first takes
+///   them, which is what a double-clicked file has always done.
+/// * Nothing is open but the launcher, which is the state Studio now starts in. A queue nobody
+///   drains is a file that silently does not open, so a window is made for it and the launcher's
+///   question is answered by the thing it was about to ask.
+///
+/// [S7.7]: ../../docs/scope-release-3.md
 pub fn receive(app: &AppHandle, paths: Vec<String>) {
 	if paths.is_empty() {
 		return;
 	}
-	app.state::<PendingOpen>().push(paths);
-	// Best effort: with no window yet, the queue is what matters and the webview drains it on start.
-	let _ = app.emit(OPENED, ());
+
+	if crate::windows::any_project_open(app) {
+		app.state::<PendingOpen>().push(paths);
+		let _ = app.emit(OPENED, ());
+		return;
+	}
+
+	let label = crate::windows::next_label();
+	app.state::<PendingOpen>().push_for(&label, paths);
+	if let Err(error) = crate::windows::open(app, &label) {
+		// Nothing will ever ask for them, and a queue that grew per failed open is an invisible leak.
+		app.state::<PendingOpen>().forget(&label);
+		let state = app.state::<crate::state::AppState>();
+		crate::warn(&state.diagnostics, "Could not open a window for the file", &error);
+		return;
+	}
+	crate::windows::close_launcher(app);
 }
 
 /// Everything the OS has asked Studio to open since the last call.

@@ -10,16 +10,7 @@
 		"beforeBuildCommand": "npm run build"
 	},
 	"app": {
-		"windows": [
-			{
-				"title": "VersaTiles Studio",
-				"width": 1280,
-				"height": 800,
-				"minWidth": 900,
-				"minHeight": 600,
-				"dragDropEnabled": true
-			}
-		],
+		"windows": [],
 		"security": {
 			"csp": null
 		}

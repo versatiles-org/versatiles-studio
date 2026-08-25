@@ -137,6 +137,9 @@ pub fn run() {
 	let diagnostics = Diagnostics::new();
 	studio_core::diagnostics::catch_panics(&diagnostics);
 
+	// Whether the last window to be destroyed was the launcher — see the exit handler below.
+	let launcher_closed = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
 	tauri::Builder::default()
 		.plugin(tauri_plugin_dialog::init())
 		// Auto-update (G4, S5.8). **Checked from the webview, never on its own**: an application
@@ -200,7 +203,6 @@ pub fn run() {
 			};
 
 			tauri::Manager::manage(app, opened::PendingOpen::default());
-			opened::receive(app.handle(), opened::from_command_line());
 
 			tauri::Manager::manage(
 				app,
@@ -223,14 +225,24 @@ pub fn run() {
 			// belongs to a window rather than to the application (S0.1).
 			menu::install(app.handle())?;
 
+			// **Nothing is declared in `tauri.conf.json` any more**, so what opens is decided here
+			// (S7.7). A file passed on the command line opens a project window for itself; anything
+			// else opens the launcher, which is what Studio shows when it has nothing to show.
+			//
+			// After `AppState` is managed, because a window that could not be opened is reported
+			// through the problem log like everything else.
+			opened::receive(app.handle(), opened::from_command_line());
 			windows::open_extra_from_env(app.handle())?;
+			if tauri::Manager::webview_windows(app).is_empty() {
+				windows::open_launcher(app.handle())?;
+			}
 			Ok(())
 		})
 		.on_menu_event(|app, event| menu::chosen(app, event.id()))
 		.invoke_handler(builder.invoke_handler())
 		.build(tauri::generate_context!())
 		.expect("error while building VersaTiles Studio")
-		.run(|app, event| {
+		.run(move |app, event| {
 			// macOS delivers a double-clicked file here, both at launch and while running. Linux
 			// passes it on the command line instead, handled during setup.
 			#[cfg(target_os = "macos")]
@@ -251,6 +263,9 @@ pub fn run() {
 				..
 			} = &event
 			{
+				// Which window went is what tells "close the last project" from "close the launcher",
+				// and by the time the runtime says every window is gone there is nothing left to ask.
+				launcher_closed.store(label == windows::LAUNCHER, std::sync::atomic::Ordering::Relaxed);
 				let app = app.clone();
 				let label = label.clone();
 				tauri::async_runtime::spawn(async move {
@@ -266,6 +281,24 @@ pub fn run() {
 						warn(&state.diagnostics, "Could not unmount a closed window's tiles", &error);
 					}
 				});
+			}
+			// **The launcher comes back when the last project window closes**, on every platform
+			// ([Q48], S7.7) — an application that vanishes when you close a document is the behaviour
+			// being avoided, and one that lingers with no window is the behaviour nobody outside
+			// macOS expects.
+			//
+			// Decided here rather than on the close itself: this is the event that means *no windows
+			// are left*, and answering it there would be a guess about what the runtime is about to
+			// conclude. `code` is `None` only for the last window closing — ⌘Q and the updater's
+			// restart both set one, and neither is a request to reopen anything.
+			if let tauri::RunEvent::ExitRequested { code: None, api, .. } = &event
+				&& !launcher_closed.load(std::sync::atomic::Ordering::Relaxed)
+			{
+				api.prevent_exit();
+				if let Err(error) = windows::open_launcher(app) {
+					let state = tauri::Manager::state::<AppState>(app);
+					warn(&state.diagnostics, "Could not reopen the launcher", &error);
+				}
 			}
 			let _ = (app, event);
 		});

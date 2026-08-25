@@ -22,6 +22,9 @@ pub fn open(app: &AppHandle, label: &str) -> Result<()> {
 		.title("VersaTiles Studio")
 		.inner_size(1280.0, 800.0)
 		.min_inner_size(900.0, 600.0)
+		// Drag and drop is on by default — `tauri.conf.json` said so explicitly and no longer
+		// describes a window at all (S7.7). The builder can only turn it *off*, which is what makes
+		// the default safe to rely on rather than something this has to restate.
 		.build()
 		.with_context(|| format!("opening window {label:?}"))?;
 	Ok(())
@@ -58,6 +61,24 @@ pub fn open_launcher(app: &AppHandle) -> Result<()> {
 		.build()
 		.context("opening the launcher")?;
 	Ok(())
+}
+
+/// Whether any window is holding a project — the launcher does not count.
+///
+/// What tells "there is somewhere to open this" from "Studio is showing nothing", which is the
+/// question both startup and a file arriving from the operating system have to answer
+/// ([S7.7](../../docs/scope-release-3.md)).
+pub fn any_project_open(app: &AppHandle) -> bool {
+	tauri::Manager::webview_windows(app)
+		.keys()
+		.any(|label| label != LAUNCHER)
+}
+
+/// Closes the launcher if it is open. Its question has been answered.
+pub fn close_launcher(app: &AppHandle) {
+	if let Some(launcher) = tauri::Manager::get_webview_window(app, LAUNCHER) {
+		let _ = launcher.close();
+	}
 }
 
 /// Opens `STUDIO_WINDOWS` extra windows at startup.
