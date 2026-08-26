@@ -13,23 +13,42 @@ import { restyler } from './restyle';
 /** A style, told apart by its one layer's id. */
 const style = (id: string) => ({ version: 8, sources: {}, layers: [{ id, type: 'background' }] }) as StyleSpecification;
 
-/** The ids of the styles the map was actually given, in order. */
-function fakeMap() {
+/**
+ * The ids of the styles the map was actually given, in order.
+ *
+ * `applies` is what MapLibre does with a style it is handed, and the two cases behave differently
+ * enough to be worth telling apart:
+ *
+ * * `rebuild` - the ordinary one. The style stops being loaded and says `style.load` when it is
+ *   again, which the test decides the moment of.
+ * * `nothing` - the diff found no operations to perform. `Style.setState` returns before firing
+ *   anything, and the style already on the map is untouched and still loaded.
+ */
+function fakeMap(applies: 'rebuild' | 'nothing' = 'rebuild') {
 	const handlers: (() => void)[] = [];
 	const set: string[] = [];
+	/** What `isStyleLoaded` would answer - the flag MapLibre's diff insists on. */
+	let styleLoaded = false;
 
 	const map = {
 		on: (event: string, handler: () => void) => {
 			if (event === 'style.load') handlers.push(handler);
 		},
-		setStyle: (next: StyleSpecification) => void set.push(next.layers[0].id)
+		setStyle: (next: StyleSpecification) => {
+			set.push(next.layers[0].id);
+			if (applies === 'rebuild') styleLoaded = false;
+		},
+		isStyleLoaded: () => styleLoaded
 	};
 
 	return {
 		map: map as unknown as MaplibreMap,
 		set,
 		/** What MapLibre fires when the style on the map has finished loading. */
-		loaded: () => handlers.forEach((handler) => handler())
+		loaded: () => {
+			styleLoaded = true;
+			handlers.forEach((handler) => handler());
+		}
 	};
 }
 
@@ -102,6 +121,38 @@ describe('applying a style', () => {
 
 		fake.loaded();
 		expect(applied).toHaveBeenCalledTimes(1);
+	});
+
+	/**
+	 * **The event does not always come.** `Style.setState` returns at `operations.length === 0`
+	 * before firing `style.load`, so a style that comes out equal to the one already on the map
+	 * applies nothing and announces nothing. Waiting for it parks every later style behind an event
+	 * that is never coming - a map that stops responding to a background switch, a preset, a new
+	 * graph, until the window is reloaded.
+	 */
+	it('does not park the next style behind one that changed nothing', () => {
+		const fake = fakeMap('nothing');
+		const apply = restyler(fake.map);
+		fake.loaded();
+
+		apply(style('unchanged'));
+		expect(fake.set).toEqual(['unchanged']);
+
+		apply(style('after'));
+		expect(fake.set, 'the map is still ready: nothing was torn down').toEqual(['unchanged', 'after']);
+	});
+
+	it('says nothing was applied when nothing was, because nothing was discarded', () => {
+		const applied = vi.fn();
+		const fake = fakeMap('nothing');
+		const apply = restyler(fake.map, applied);
+		fake.loaded();
+
+		apply(style('unchanged'));
+
+		// The callback exists so the caller can draw its own layers again. A style that applied no
+		// operations discarded none of them, so calling it would redraw what is already there.
+		expect(applied).not.toHaveBeenCalled();
 	});
 
 	it('does not say so for a style that was superseded before it was applied', () => {

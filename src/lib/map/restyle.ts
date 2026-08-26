@@ -30,6 +30,12 @@
  * a style given as an object is parsed one animation frame later, which is the whole of the race
  * this module exists for. The one way it never arrives is a style that fails validation, and that
  * is a map with no layers on it either way.
+ *
+ * **And once - it does not arrive when the diff had nothing to do.** `Style.setState` returns at
+ * `operations.length === 0` *before* firing it, so a style that comes out equal to the one already
+ * on the map applies nothing and announces nothing. Waiting for it there would park every later
+ * style behind a event that is never coming, which is a map that stops responding to anything
+ * until the window is reloaded. So readiness is *derived* rather than awaited - see `push`.
  */
 
 import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
@@ -66,6 +72,22 @@ export function restyler(map: MaplibreMap, onApplied?: () => void): (style: Styl
 		ready = false;
 		owned = true;
 		map.setStyle(next);
+		// **Three things can have happened, and only one of them is worth waiting for.**
+		//
+		// The diff applied changes, and `setState` fired `style.load` from inside the call above -
+		// so `ready` is already back to true and `onApplied` has run.
+		//
+		// The diff found nothing to do, and fired nothing. The style on the map is untouched and
+		// still loaded, so it is ready for the next one - and `onApplied` must *not* run, because
+		// nothing was discarded and there is nothing to draw again.
+		//
+		// The diff could not be done and MapLibre is rebuilding from scratch. The style is no longer
+		// loaded and its `style.load` is genuinely on its way, so this leaves `ready` alone.
+		//
+		// `isStyleLoaded` is typed `boolean | void` - it returns nothing at all when the map has no
+		// style, which is not a state this can be reached in, and `=== true` says so without
+		// pretending otherwise.
+		if (!ready) ready = map.isStyleLoaded() === true;
 	}
 
 	return (style: StyleSpecification) => {
