@@ -83,7 +83,10 @@ describe('documentation links', () => {
 			}
 		}
 
-		expect(checked).toBeGreaterThan(200);
+		// A floor rather than a count: it exists so that a scan finding nothing - a changed layout, a
+		// glob that stopped matching - fails instead of passing quietly. It came down from 200 with the
+		// documents themselves, and should come down again rather than be met by adding links.
+		expect(checked).toBeGreaterThan(150);
 		expect(broken, 'fix the link, or the heading it meant to name').toEqual([]);
 	});
 });
@@ -108,11 +111,10 @@ const schemes = [
 	},
 	{
 		name: 'work item',
-		// **A list, because a release gets its own scope document and the numbering carries on.**
-		// `S6.1` is defined in release 2's and referenced from release 1's neighbours; checking only
-		// one file would fail every reference to the other, and pointing at the newest would quietly
-		// stop checking the older items. Add the next release's document here when it exists.
-		definedIn: ['docs/scope-release-1.md', 'docs/scope-release-2.md', 'docs/scope-release-3.md'],
+		// **One document, because the releases have shipped.** Each had its own scope document while
+		// it was being planned; `history.md` is all three, and the numbering carries straight on
+		// through it. A release still in flight would get its own file back, and this list.
+		definedIn: ['docs/history.md'],
 		/** `| **S3.6** | …` and its stretch form `| **S4.10\*** | …` */
 		define: /^\|\s*\*\*(S\d+\.\d+)\\?\*?\*\*/gm,
 		refer: /(?<![\w.])(S\d+\.\d+)(?!\w)(?!\.\d)/g
@@ -190,5 +192,92 @@ describe('the repository layout', () => {
 
 	it('names every script', () => {
 		expect(listed('scripts'), 'add it to the tree in docs/architecture.md').toEqual([]);
+	});
+});
+
+/**
+ * A size budget, so the documentation does not grow back.
+ *
+ * **Written after cutting it in half**, when the reason each document was long turned out to be the
+ * same one: a fact explained here as well as beside the code that implements it, and a log entry
+ * kept in full long after the thing it argued about had shipped. The budgets are a little above what
+ * each file now needs, so ordinary editing is free and a document doubling is not.
+ *
+ * Raise a number deliberately when a document has more to say. That is a different act from not
+ * noticing it grew, which is what this exists to make impossible.
+ */
+describe('documentation size', () => {
+	/** Words per file, generous by roughly a fifth. */
+	const budget: Record<string, number> = {
+		'docs/decisions.md': 7650,
+		'docs/history.md': 4450,
+		'docs/features.md': 2700,
+		'docs/ui.md': 2350,
+		'docs/ecosystem.md': 2000,
+		'docs/architecture.md': 1950,
+		'docs/styling.md': 1800,
+		'docs/components.md': 1100,
+		'docs/scope-e2e.md': 750,
+		'docs/roadmap.md': 650,
+		'docs/vision.md': 400,
+		'docs/audiences.md': 350
+	};
+
+	/** Every document has a budget, or a new one could grow without one. */
+	it('covers every document', () => {
+		expect(docs.filter((path) => path.startsWith('docs/') && !(path in budget))).toEqual([]);
+	});
+
+	it('keeps each document within it', () => {
+		const over = docs
+			.filter((path) => path in budget)
+			.map((path) => ({ path, words: read(path).split(/\s+/).filter(Boolean).length }))
+			.filter(({ path, words }) => words > budget[path])
+			.map(({ path, words }) => `${path}: ${words} words, budget ${budget[path]}`);
+
+		expect(over, 'shorten it, or raise the budget on purpose').toEqual([]);
+	});
+});
+
+/**
+ * Links from the code into `docs/`.
+ *
+ * **The half that was never checked.** Around a hundred module comments point at a planning
+ * document, and merging three scope documents into `history.md` moved every one of them at once -
+ * which is exactly the shape of change the link test above exists for, happening on the side of the
+ * boundary it could not see. A rotted link here is invisible: the comment still reads as a
+ * reference, and the file it names is simply gone.
+ *
+ * Anchors are not checked, only files. The comments name documents rather than headings, and a
+ * heading is a great deal more likely to be reworded than a filename is to move.
+ */
+describe('links from the source into the documentation', () => {
+	const roots = ['src', 'crates', 'src-tauri', 'scripts', 'e2e'];
+	const code = /\.(ts|svelte|rs)$/;
+
+	/** Every source file under `roots`, recursively. */
+	function sources(dir: string, found: string[] = []): string[] {
+		for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
+			const path = `${dir}/${entry.name}`;
+			if (entry.isDirectory()) {
+				if (entry.name !== 'node_modules' && entry.name !== 'target') sources(path, found);
+			} else if (code.test(entry.name)) found.push(path);
+		}
+		return found;
+	}
+
+	it('name a document that exists', () => {
+		const missing: string[] = [];
+		let checked = 0;
+
+		for (const path of roots.flatMap((dir) => sources(dir))) {
+			for (const [, name] of readFileSync(join(root, path), 'utf8').matchAll(/docs\/([\w.-]+\.md)/g)) {
+				checked += 1;
+				if (!existsSync(join(root, 'docs', name))) missing.push(`${path}: docs/${name}`);
+			}
+		}
+
+		expect(checked, 'no references found - has the pattern or the layout changed?').toBeGreaterThan(50);
+		expect([...new Set(missing)].sort(), 'the document moved or was renamed').toEqual([]);
 	});
 });

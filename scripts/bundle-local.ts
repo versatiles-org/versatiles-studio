@@ -8,7 +8,7 @@
  * wrong, so this is that recipe written down.
  *
  * **Why not `bundle:local`.** The convention here is that `npm run x` runs every `x:*` script
- * ([S5.6](../docs/scope-release-1.md)), and `guards.test.ts` enforces it. Naming this `bundle:local`
+ * ([S5.6](../docs/history.md)), and `guards.test.ts` enforces it. Naming this `bundle:local`
  * would make it a member of the `bundle` group and oblige `npm run bundle` to run it - which is
  * exactly what CI must not do. The hyphen says it is its own command, not part of that group.
  *

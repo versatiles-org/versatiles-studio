@@ -3,7 +3,7 @@
 //! Everything durable lives in the core, not the webview ([Q16]) - this struct is what the commands
 //! reach through to get there.
 //!
-//! **Two scopes, and the split is the whole of [S7.1](../../docs/scope-release-3.md).** What belongs
+//! **Two scopes, and the split is the whole of [S7.1](../../docs/history.md).** What belongs
 //! to the *application* - one embedded server, the job runner, the recent files, the problem log -
 //! sits on [`AppState`]. What belongs to a *project* sits on [`Project`], and there is one of those
 //! per window ([Q48]).
@@ -39,7 +39,7 @@ use tokio::sync::Mutex;
 /// One project: the graphs, how they are drawn, and where on disk it all is.
 ///
 /// **One of these per window** ([Q48]), which is what makes a window mean something. Everything here
-/// was an application-wide `Mutex` on [`AppState`] until [S7.1](../../docs/scope-release-3.md), and
+/// was an application-wide `Mutex` on [`AppState`] until [S7.1](../../docs/history.md), and
 /// the giveaway that it should not have been is `history`: an undo stack shared between two projects
 /// steps one of them back into the other's edit.
 pub struct Project {
@@ -51,7 +51,7 @@ pub struct Project {
 	/// window draws the other's tiles. No error, no failed job: plausible tiles from the wrong
 	/// project.
 	///
-	/// [S7.2]: ../../docs/scope-release-3.md
+	/// [S7.2]: ../../docs/history.md
 	prefix: String,
 	/// **The project's graphs** - several named VPL documents, each producing one named tile
 	/// source ([Q32]). Owned here rather than in the webview ([Q16]); each carries its own file and
@@ -72,7 +72,7 @@ pub struct Project {
 	pub dir: PathBuf,
 	/// Which panes are open, how wide they are, the background, and where the camera is looking.
 	///
-	/// **Per project** ([S7.4](../../docs/scope-release-3.md)) - it reads as pane state and is not:
+	/// **Per project** ([S7.4](../../docs/history.md)) - it reads as pane state and is not:
 	/// `view` is the camera and `background` is a map setting, and two windows sharing them meant
 	/// panning one panned the other the next time either saved.
 	pub layout: Layout,
@@ -156,7 +156,7 @@ impl Projects {
 	/// Forgets a window's project. Called when the window is destroyed, not when it reloads.
 	///
 	/// Returns what was held, so the caller can take down what it had running - the server mounts
-	/// belonging to it, once [S7.2](../../docs/scope-release-3.md) gives them names of their own.
+	/// belonging to it, once [S7.2](../../docs/history.md) gives them names of their own.
 	pub async fn close(&self, label: &str) -> Option<Arc<Mutex<Project>>> {
 		self.0.lock().await.remove(label)
 	}

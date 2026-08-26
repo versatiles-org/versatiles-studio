@@ -4,7 +4,7 @@
 
 ```mermaid
 flowchart LR
-  subgraph shell["Tauri shell — native dialogs · drag and drop · menus · auto-update"]
+  subgraph shell["Tauri shell - native dialogs · drag and drop · menus · auto-update"]
     ui["UI (webview)<br/>Svelte · MapLibre GL · all JS bundled at build time<br/>layer stack · node graph · style editor · charts"]
     core["Studio core (Rust)<br/>project model · VPL document model · job runner<br/>analysis services · asset manager and glyph generation · server manager"]
     server["Embedded server<br/>tiles from the live pipeline<br/>glyphs and sprites, served straight from their archives"]
@@ -18,19 +18,9 @@ flowchart LR
   server --> crates
 ```
 
-The load-bearing decision is the **embedded server**. Rather than pushing tile bytes through IPC,
-Studio runs `versatiles serve` on loopback against the _current_ pipeline state and lets MapLibre
-fetch over HTTP as it normally would. That makes live preview (C3) nearly free — change a parameter,
-invalidate the source, MapLibre re-fetches, with no separate build step — keeps MapLibre completely
-standard, lets `@versatiles/svelte` and `maplibre-versatiles-styler` drop in unmodified, and serves
-glyphs and sprites straight out of their `.tar.gz` archives via `serve -s` ([Q9](decisions.md)).
-
-Costs to watch: cache invalidation on every pipeline edit, and binding a free loopback port without
-tripping firewall prompts.
+Costs to watch: cache invalidation on every pipeline edit, and binding a free loopback port without tripping firewall prompts.
 
 ## Three planes
-
-Settled by [Q3](decisions.md). The UI reaches the core three ways, chosen by what is being moved.
 
 | Plane       | Carries                                                       | Mechanism                            |
 | ----------- | ------------------------------------------------------------- | ------------------------------------ |
@@ -38,129 +28,38 @@ Settled by [Q3](decisions.md). The UI reaches the core three ways, chosen by wha
 | **Data**    | tiles, glyphs, sprites                                        | the embedded HTTP server             |
 | **Events**  | job progress, warnings, log lines                             | Tauri Channels                       |
 
-The split is forced, not stylistic — [Q3](decisions.md#q3--three-planes-ipc-for-control-http-for-data-channels-for-events) has the reasoning. The consequence
-to remember here is that tile bytes must never travel over IPC, and that a one-off blob is the
-exception: `tauri::ipc::Response` returns an array buffer without JSON, which is how A4 reads a raw
-tile.
+Settled by [Q3](decisions.md). The UI reaches the core three ways, chosen by what is being moved.
 
-The data plane has one wrinkle worth knowing before reading `map/tile-queue.ts`: Studio's own tiles
-go through a `studio://` protocol registered with MapLibre, so the **queue is the webview's** rather
-than the browser's. That is what makes "queued" and "rendering" separable at all (S2.16) — Q3 has
-the argument. The tiles still travel over HTTP; only the waiting moved.
+The split is forced, not stylistic - [Q3](decisions.md#q3--three-planes-ipc-for-control-http-for-data-channels-for-events) has the reasoning. The consequence to remember here is that tile bytes must never travel over IPC, and that a one-off blob is the exception: `tauri::ipc::Response` returns an array buffer without JSON, which is how A4 reads a raw tile.
 
 ### Paths across the control plane
-
-Tauri treats the webview as the less-trusted side, so a filesystem path arriving over IPC is
-tainted by construction — and static analysis says so, repeatedly and correctly. Every such path in
-Studio is one of five things, and knowing which is what decides whether anything needs doing:
 
 | Kind                             | Where it comes from                        | What constrains it                                        |
 | -------------------------------- | ------------------------------------------ | --------------------------------------------------------- |
 | **Test fixture**                 | `crate::testing`, inside the crate         | Never crosses the boundary at all                         |
 | **Application data**             | `app_data_dir()` plus a module constant    | The webview cannot name it ([Q21](decisions.md))          |
 | **Chosen destination**           | a native save dialog, passed back over IPC | The command checks the extension, not the dialog's filter |
-| **Source named by the document** | a `filename` in the VPL being edited       | Nothing — and deliberately so                             |
-| **Assembled from data**          | a manifest id, an entry inside a `.tar.gz` | [`paths`](../crates/studio-core/src/paths.rs) — a guard   |
+| **Source named by the document** | a `filename` in the VPL being edited       | Nothing - and deliberately so                             |
+| **Assembled from data**          | a manifest id, an entry inside a `.tar.gz` | [`paths`](../crates/studio-core/src/paths.rs) - a guard   |
+
+Tauri treats the webview as the less-trusted side, so a filesystem path arriving over IPC is tainted by construction - and static analysis says so, repeatedly and correctly. Every such path in Studio is one of five things, and knowing which is what decides whether anything needs doing:
 
 The third, fourth and fifth are the ones worth being precise about.
 
-Three of those rows are worth being precise about.
-
-- **A chosen destination is checked in the core, not in the dialog.** A save dialog's filter runs in
-  the webview and therefore decides nothing: `export_graph` refuses a target whose extension is not
-  one `export::WRITABLE` names, and `save_vpl` refuses one the import catalogue does not call a
-  pipeline file. Those are the only two commands that take somewhere to _write_; a third that took
-  one and checked nothing would be the bug to look for.
-- **A source named by the document is unconstrained on purpose.** A `.vpl` says
-  `from_csv filename='…'`, and reading that file is what the document is _for_ — the preview of that
-  node decodes it in full and draws it, so inspecting its header reads strictly less. Restricting it
-  to the project directory would make Studio **stricter than the CLI it drives**, which is the drift
-  `vpl::validate` exists to prevent.
-- **A path assembled from data is the one that is not a false positive.** The other rows end at a
-  person who chose the file or typed the pipeline; this one does not. A name inside `project.yaml`,
-  a family id arriving over IPC, an entry in an archive fetched over the network were all written by
-  whoever produced the data. Every one goes through
-  [`studio_core::paths`](../crates/studio-core/src/paths.rs): `segment` for what must be a single
-  filename, `within` for what must stay inside a directory.
-
-The last row exists because two of them did not, and the scanner was right about both:
-`assets::remove` joined a family id straight from the webview, so `../…` deleted a `.tar.gz` outside
-the asset directory, and `style::bundle` trusted the names inside a `.tar.gz` — the classic zip slip.
-Both are fixed, and both have a test that fails when the guard is removed.
-
-**Triaging an alert.** Find its row. Rows one to four are false positives and this table is the
-citation; row five is a bug unless the path went through `paths`. Neither would be a path reaching
-the filesystem that fits no row at all.
-
-**Why the noise is not filtered away.** Of 65 `rust/path-injection` alerts standing on 2026-08-22, 43
-were in `#[cfg(test)]` code, so the obvious move is to stop scanning tests. It does not work: code
-scanning runs on GitHub's **default setup**, which reads no configuration — no `paths-ignore`, no
-`query-filters`. Advanced setup allows both and was tried and reverted; it cannot shrink that 43
-either, because path filters work on files and those tests live inside the product files they test.
-The residual cost is dismissing test-code alerts by hand, which is bounded — test code changes
-rarely, so each dismissal is made once. Filtering the rule out would buy a quiet list and would have
-kept both of the bugs above.
-
 ## Layers
 
-**Tauri shell.** Native windows, menus, file dialogs, drag & drop, file type associations,
-auto-update. Deliberately thin — the bridge to the platform, no application logic. **One window per
-project, one application instance** ([Q16](decisions.md), [Q48](decisions.md)): each webview is its
-own OS process, so a project gets both crash isolation and its own WebGL context budget. What opens
-at startup is decided in code rather than declared in `tauri.conf.json` — a file passed on the
-command line opens a project window, anything else opens the launcher.
-
-**UI (web).** Svelte 5, matching the rest of the org, with MapLibre GL for the canvas. All
-JavaScript is bundled at build time; **no Node runtime ships** ([Q5](decisions.md)). Components are
-written from scratch rather than imported from `@versatiles/svelte` ([Q18](decisions.md)) — see the
-[component inventory](components.md).
+**UI (web).** Svelte 5, matching the rest of the org, with MapLibre GL for the canvas. All JavaScript is bundled at build time; **no Node runtime ships** ([Q5](decisions.md)). Components are written from scratch rather than imported from `@versatiles/svelte` ([Q18](decisions.md)) - see the [component inventory](components.md).
 
 **Studio core (Rust).** The part worth designing carefully:
-
-- _Project model_ — sources, pipeline, style, views; a directory with a `project.yaml` manifest
-  beside real `.vpl` and `style.json` files (G1, [Q6](decisions.md))
-- _App store_ — recent sources and named views (A7), which belong to the person rather than to any
-  project, plus the layout a **new** window opens on. Split across JSON files **by recovery policy**
-  rather than by subject ([Q21](decisions.md)): precious data is never silently replaced with an
-  empty one. The core owns them; the platform layer decides where they live. The live layout — pane
-  widths, the background, the camera — belongs to a project ([Q48](decisions.md))
-- _VPL document model_ — a lossless syntax tree over the pipeline text, keeping spans, comments and
-  parameter order, so the node graph (C1) and inline errors (C4) address the real file
-  ([Q11](decisions.md)). A project holds **several named graphs**, each one document producing one
-  named tile source ([Q32](decisions.md)); undo spans all of them, because ⌘Z should undo the last
-  edit rather than the last edit _here_ (G6)
-- _Job runner_ — long operations with progress, cancellation and logging (E7); must exist before any
-  export feature, not after. One runner, **a list per project**: a window is shown its own work, and
-  "newest wins" supersedes only within it ([Q48](decisions.md))
-- _Problem log_ — what went wrong this session, folded and written to disk as it happens, so the
-  account survives the window that produced it (S6.8)
-- _Analysis services_ — probe-derived statistics, cached in memory per container
-  ([Q4](decisions.md)), aggregating over `layer_stats()` and `validate_tile()`
-- _Asset manager_ — download, pin, verify and remove font families and sprite sets (G7), and
-  generate glyph sets from the user's own fonts (D9)
-- _Server manager_ — lifecycle of the **single** embedded server. `add_tile_source` and
-  `remove_tile_source` work on a running server, so **each graph is a named mount**, not a server of
-  its own ([Q16](decisions.md)). Every graph a project holds is served, so a style can name them all;
-  mount names carry the window, or two projects with a graph of the same name would serve each
-  other's tiles. What is mounted for a graph is its _effective_ pipeline — the document minus the
-  nodes whose eyes are off, and nothing at all when the graph itself is off
-  ([Q49](decisions.md))
-
-The core is a plain Rust library with no Tauri types, so it can be driven by ordinary Rust tests;
-`#[tauri::command]` functions are a thin binding over it. `versatiles_node` proves the shape — the
-same idea with napi instead of IPC.
-
-**versatiles-rs.** A library dependency, not shelled out to. Studio should be a first-class consumer
-of the crates, and pressure to improve their APIs is a welcome side effect.
 
 ## Repository layout
 
 ```text
 versatiles-studio/
 ├── Cargo.toml                  workspace: crates/* + src-tauri
-├── package.json                Vite · Svelte 5 · TypeScript — build-time only (Q5)
+├── package.json                Vite · Svelte 5 · TypeScript - build-time only (Q5)
 ├── index.html                  the workbench                                (Q22)
-├── landing.html                the launcher — its own page, no map          (Q48)
+├── landing.html                the launcher - its own page, no map          (Q48)
 │
 ├── crates/
 │   └── studio-core/
@@ -177,7 +76,7 @@ versatiles-studio/
 │           ├── export.rs       writing the result to a container         (F2)
 │           ├── estimate.rs     what that write will cost, before it runs (C6)
 │           ├── style/          the recipe, and the bundle a style ships in (Q36, D8)
-│           ├── import.rs       the catalogue of ways in                  (E1–E3)
+│           ├── import.rs       the catalogue of ways in                  (E1-E3)
 │           ├── tabular.rs      a delimited file's header                 (E2)
 │           ├── suggest.rs      values a field could take                 (E2)
 │           ├── analysis.rs     probe stats, in-memory per container      (Q4)
@@ -187,7 +86,7 @@ versatiles-studio/
 │           └── server.rs       embedded server lifecycle, named mounts   (Q16)
 │
 ├── src-tauri/                  deliberately thin
-│   ├── tauri.conf.json         · tauri.macos.conf.json — one name each way
+│   ├── tauri.conf.json         · tauri.macos.conf.json - one name each way
 │   ├── capabilities/
 │   ├── icons/                  generated from app-icon.png
 │   ├── resources/              bundled tier, shipped as archives         (Q9)
@@ -195,8 +94,8 @@ versatiles-studio/
 │   │   └── glyphs.tar.gz
 │   └── src/
 │       ├── main.rs             the entry point
-│       ├── commands/           #[tauri::command] bindings — control plane
-│       ├── events/             Channels — event plane                    (Q3)
+│       ├── commands/           #[tauri::command] bindings - control plane
+│       ├── events/             Channels - event plane                    (Q3)
 │       ├── menu.rs             the native menu; a choice becomes an event (S0.1)
 │       ├── windows.rs          project windows and the launcher     (Q16, Q48)
 │       ├── opened.rs           files the OS asks Studio to open          (S0.1)
@@ -208,8 +107,8 @@ versatiles-studio/
 │   └── maplibre-gl-worker.js   generated, not hand-written               (Q18)
 │
 ├── src/                        the webview
-│   ├── main.ts                 · landing.ts — one entry point per page
-│   ├── App.svelte              · Launcher.svelte — one root per page
+│   ├── main.ts                 · landing.ts - one entry point per page
+│   ├── App.svelte              · Launcher.svelte - one root per page
 │   └── lib/
 │       ├── shell/              the frame: AppShell · Sidebar · Pane · bars
 │       ├── panes/<pane>/       each pane and its own parts               (Q31)
@@ -222,155 +121,48 @@ versatiles-studio/
 │
 ├── scripts/                    tooling, not shipped
 │   ├── bundle_worker.ts        MapLibre 6 worker fix                     (S1.4)
-│   ├── fetch-assets.ts         · update-assets.ts — the pinned tier      (S0.6, S0.12)
-│   ├── upgrade-deps.sh         · prune-build-dirs.sh — housekeeping
+│   ├── fetch-assets.ts         · update-assets.ts - the pinned tier      (S0.6, S0.12)
+│   ├── upgrade-deps.sh         · prune-build-dirs.sh - housekeeping
 │   ├── docs-pdf.sh             every planning document as one PDF
 │   ├── run.ts                  every `{action}:*` script, for one action
 │   ├── bundle-local.ts         one command for an installer on this machine
 │   ├── spawn.ts                starting a child process portably
 │   ├── release.ts              check, bump, tag, push, publish            (S5.6)
 │   ├── latest-json.ts          the manifest the updater reads           (S5.8)
-│   ├── docs.test.ts            · guards.test.ts — what these documents promise
+│   ├── docs.test.ts            · guards.test.ts - what these documents promise
 │   └── spawn.test.ts           the Windows spawn rules, asserted from any platform
 ├── e2e/                        stories, run against a real window
-│   ├── launcher/               what opens with nothing open — and the spike
+│   ├── launcher/               what opens with nothing open - and the spike
 │   ├── project/                the workbench: style, export, save and reopen
 │   ├── support.ts              the moves every story shares
 │   └── fixtures/               `from_debug`, so CI downloads nothing
 ├── wdio.conf.ts                the embedded driver, and how it starts Studio
 ├── codecov.yml                 one flag per codebase, components within
 ├── .github/
-│   ├── workflows/              ci.yml, release.yml — Linux, macOS, Windows (S0.7, S5.6, S5.9)
+│   ├── workflows/              ci.yml, release.yml - Linux, macOS, Windows (S0.7, S5.6, S5.9)
 │   ├── actions/tauri-deps      the Linux packages, from a cache          (S0.7)
 │   └── actions/sqlite3         the tool PROJ builds `proj.db` with       (S5.9)
 └── docs/
 ```
 
-Which component lives in which of those folders, and why, is
-[Svelte Components](components.md).
+Which component lives in which of those folders, and why, is [Svelte Components](components.md).
 
-**`studio-core` is a separate crate because [Q3](decisions.md) requires it.** Inside `src-tauri` the
-"no Tauri types" rule would be a convention nobody enforces; as a workspace member it is a compile
-error. `src-tauri/src` therefore holds two of the three planes and nothing that could live below
-them — the third plane is HTTP and needs no code there, since the server lives in the core. What is
-left beside `commands/` and `events/` is what genuinely belongs to the platform: windows, the files
-the OS hands over, where the bundled assets are, and the generator that writes `bindings.ts`.
+**`resources/` holds archives, not directories.** [Q9](decisions.md) is emphatic that assets are never unpacked, and a `resources/sprites/` tree would quietly undo that at build time.
 
-**`resources/` holds archives, not directories.** [Q9](decisions.md) is emphatic that assets are
-never unpacked, and a `resources/sprites/` tree would quietly undo that at build time.
-
-**No `src/routes`.** Studio has two pages and no navigation between them: a window is one or the
-other for its whole life ([Q48](decisions.md)). With no server and no SSR, SvelteKit's value is
-unused while its cost — an adapter config and a router — is not.
-
-**No `crates/studio-vpl`.** The lossless syntax tree should land upstream in `versatiles_pipeline`
-([Q11](decisions.md)). If that crate ever appears here, it means upstream declined — a signal worth
-noticing rather than a neutral fact.
-
-**`ipc/bindings.ts` is committed, not generated at build time.** `tauri-specta` can do either;
-committing it makes a change to the command surface visible in review, which is the drift
-[Q3](decisions.md) exists to prevent. The cost is staleness, caught by a plain `cargo test` —
-`bindings_are_up_to_date` regenerates into a scratch file and compares, and says how to fix itself
-(`UPDATE_BINDINGS=1`). A test rather than a build step, so a broken pre-1.0 generator cannot stop the
-app from building; and it is `.prettierignore`d, because reformatting a generated file is what makes
-that test fail for no reason.
+**And a new revision is a swap, not a new source.** The webview owns the other half of that: handing MapLibre a whole style makes its diff take a source whose tile URL changed off the map and put it back, discarding every rendered tile to fetch the same squares again. `map/tile-swap.ts` recognises the case where a change is nothing but tile URLs and calls `setTiles`, which reloads each tile in view while it keeps drawing the one it has. Everything else - a layer added, a preset, a source arriving or leaving, a background - still goes through `setStyle`, because the rule is _when in doubt, full_: mistaking a real change for a swap would leave the map wrong, mistaking a swap for a real change only costs the flash it used to cost anyway.
 
 ## Principles
 
-**The text is the source of truth.** The VPL text, the style JSON and the project file are the real
-artefacts; the node graph, style panels and layer tree are views onto them. This is what makes
-projects diffable, reviewable and handable to a CLI user.
+**The text is the source of truth.** The VPL text, the style JSON and the project file are the real artefacts; the node graph, style panels and layer tree are views onto them. This is what makes projects diffable, reviewable and handable to a CLI user.
 
-Taken seriously it has teeth: a view that edits the text must edit it **surgically**, never
-reformatting, reordering parameters or dropping comments as a side effect. That is why the node
-graph needs a lossless syntax tree rather than a parse-and-print round trip ([Q11](decisions.md)).
-
-**Nothing durable lives only in the webview.** The core holds the projects, the pipelines, the jobs
-and the server; the webview renders them. The map camera, the graphs and their text and the pane
-layout are all restorable from the core, keyed by window label, so a reloaded window comes back where
-it was ([Q16](decisions.md), [Q48](decisions.md)). There is no active mode to join them —
-[Q39](decisions.md) retired the modes, and a window is never restored onto a dialog.
-
-**Cursors are deliberately not owned.** Scroll position stays in the webview
-([Q35](decisions.md)): the test is what you would have to redo by hand rather than whether the value
-survives. A camera has to be found again; a scroll is one flick.
-
-**Generate UI from metadata where possible.** Parameter forms come from `field_meta`
-([inventory](ecosystem.md)). Hand-written UI per operation would rot the first time versatiles-rs
-adds an operation.
-
-**Nothing only exists inside Studio.** Every artefact must be exportable in a documented format.
-
-**Ask whether a capability belongs upstream, every time.** Before building something that is a fact
-about _tiles_ rather than about Studio's interface, check whether `versatiles-rs` should carry it.
-The test is who else would want it: reading a raster tile's colour model and size is something the
-CLI and `versatiles_node` want too, while grouping a picker by what fits is Studio's alone. The
-reverse test matters more — **when the knowledge lives upstream, so does the question**, which is why
-[vt#235](https://github.com/versatiles-org/versatiles-rs/issues/235) asks an operation whether it
-fits a source instead of reimplementing every operation's requirements here.
-
-This is not a rule to wait. Studio builds what it needs now _and_ files the ask alongside;
-[Ecosystem Inventory](ecosystem.md) records each one with what Studio does meanwhile. Where a
-workaround rests on a claim, a test holds that claim — not the shape of the fix that will retire it,
-which is the reminder that
-[was tried and failed](ecosystem.md#filed-and-what-came-back). What the rule forbids is building quietly: a capability
-that should have been upstream and was never offered there costs the ecosystem an improvement and
-costs us the maintenance of a private copy.
-
-**It has already paid out.**
-
-- **The VPL syntax tree.** Studio needed a lossless one for C1 and upstream's parser could not give
-  one ([Q23](decisions.md)). Rather than keep the second grammar it had written, Studio filed
-  [#216](https://github.com/versatiles-org/versatiles-rs/issues/216),
-  [#217](https://github.com/versatiles-org/versatiles-rs/issues/217) and
-  [#218](https://github.com/versatiles-org/versatiles-rs/issues/218); all three landed in 4.8.0 as
-  `CstFile`, and Studio's parser, printer and differential test were deleted — **about 700 lines
-  removed for 250 added**, and one grammar in the ecosystem instead of two. `crates/studio-vpl` not
-  existing is the visible result.
-- **Ten of twelve asks from stage 1** landed together in 4.9.0, including an operation that reports
-  whether it fits a source — a capability Studio would otherwise have had to guess at, one operation
-  at a time, from metadata that does not carry the answer. Four more landed in 4.9.1, one the day
-  after it was filed.
-- **One of those needed no adoption at all**, which is the clearest measure of the arrangement
-  working. Studio stopped validating enum values itself when it took `check_pipeline` in 4.9.0; when
-  the parser started deciding them
-  ([vt#252](https://github.com/versatiles-org/versatiles-rs/issues/252)) the fix arrived underneath
-  Studio, and the only change here was a test that had recorded the gap.
-
-**The two platforms deliver an opened file differently.** macOS sends `RunEvent::Opened`, possibly
-before the window exists and possibly again later; Linux puts the path in `argv`, once. `opened.rs`
-funnels both into a queue the webview drains, rather than each caller learning the difference.
-
-**Tile URLs carry a revision.** The embedded server sends `cache-control: public, max-age=2419200`
-— 28 days. That used to be hardcoded, and 4.9.0 made it configurable
-([vt#222](https://github.com/versatiles-org/versatiles-rs/issues/222), asked for by us); the
-revision stays anyway, because it is the better answer. Shortening the header would make panning
-back over tiles the browser already holds fetch them again, while a URL nothing has seen invalidates
-exactly what changed and keeps the rest. That is right for a public
-tile server and wrong for an editing surface: mount names are stable by design, so a rebuilt preview
-or a re-opened file asks for the same URL and the webview answers from its cache with tiles that may
-be weeks old. `ServerManager::tile_url` appends a per-mount counter, so every build is a URL no cache
-has seen. The reader itself is not the problem — the runtime re-reads the file on every open.
-
-**And a new revision is a swap, not a new source.** The webview owns the other half of that: handing
-MapLibre a whole style makes its diff take a source whose tile URL changed off the map and put it
-back, discarding every rendered tile to fetch the same squares again. `map/tile-swap.ts` recognises
-the case where a change is nothing but tile URLs and calls `setTiles`, which reloads each tile in
-view while it keeps drawing the one it has. Everything else — a layer added, a preset, a source
-arriving or leaving, a background — still goes through `setStyle`, because the rule is _when in
-doubt, full_: mistaking a real change for a swap would leave the map wrong, mistaking a swap for a
-real change only costs the flash it used to cost anyway.
-
-**Assets are archives, not file trees.** Fonts and sprites stay compressed and are served from
-there — atomic to verify, replace and delete. Glyph sets Studio generates itself (D9) are written as
-archives too, so downloaded and generated fonts take the same path.
+Taken seriously it has teeth: a view that edits the text must edit it **surgically**, never reformatting, reordering parameters or dropping comments as a side effect. That is why the node graph needs a lossless syntax tree rather than a parse-and-print round trip ([Q11](decisions.md)).
 
 ## Settled questions
 
 | Question | Answer                                                                                   |
 | -------- | ---------------------------------------------------------------------------------------- |
 | **Q1**   | Native Tauri application, not a subcommand serving a browser UI                          |
-| **Q3**   | Three planes — IPC for control, HTTP for data, Channels for events                       |
+| **Q3**   | Three planes - IPC for control, HTTP for data, Channels for events                       |
 | **Q4**   | Analysis statistics in memory, keyed by container; no sidecars, none in the project file |
 | **Q5**   | No Node runtime ships; all JavaScript is bundled into the webview at build time          |
 | **Q6**   | A project is a directory of real files described by a YAML manifest                      |

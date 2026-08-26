@@ -35,7 +35,7 @@
 	// nothing to lose by closing at the moment something opens.
 	//
 	// [Q48]: ../docs/decisions.md
-	// [S7.5]: ../docs/scope-release-3.md
+	// [S7.5]: ../docs/history.md
 
 	let kinds = $state<ImportKind[]>([]);
 	let recents = $state<RecentEntry[]>([]);

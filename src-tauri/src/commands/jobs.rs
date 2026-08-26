@@ -15,7 +15,7 @@ use tauri::{State, ipc::Channel};
 /// what closes the gap - subscribing and then listing separately leaves a window where an event
 /// lands between the two and is counted twice, or lands before the list is taken and is missed.
 ///
-/// **This window's work, not the machine's** ([S7.3](../../../docs/scope-release-3.md)): one runner
+/// **This window's work, not the machine's** ([S7.3](../../../docs/history.md)): one runner
 /// still, but a list per project, so an export started next door does not appear in this bar.
 #[tauri::command]
 #[specta::specta]

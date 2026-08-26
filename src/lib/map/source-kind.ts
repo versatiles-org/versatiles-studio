@@ -4,7 +4,7 @@
  * The style pane has four editors and this is what picks between them. Four cases, and only one of
  * them worked before this existed: a preset was pointed at whatever the pipeline produced, and when
  * the layer names did not match - which is most of the time - the answer was to draw no style at
- * all. See [Style Use Cases](../../../docs/style-use-cases.md).
+ * all. See [Style Use Cases](../../../docs/history.md).
  *
  * **The container's own answer first, a guess second, and the person last.** `tile_schema` is a
  * declaration and beats anything inferred from the bytes; where it is absent the format and the

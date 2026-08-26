@@ -158,7 +158,7 @@ impl LayerOverride {
 	}
 }
 
-/// What a source's tiles are, as far as drawing them is concerned ([S6.1](../../../docs/scope-release-2.md)).
+/// What a source's tiles are, as far as drawing them is concerned ([S6.1](../../../docs/history.md)).
 ///
 /// **Studio's vocabulary, not the container's.** A container declares a `tile_schema` - upstream's
 /// list, which can grow - and this is the much smaller question the style pane actually switches on:
@@ -187,7 +187,7 @@ pub enum SourceKind {
 	RasterDem,
 }
 
-/// How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/scope-release-2.md), D11).
+/// How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/history.md), D11).
 ///
 /// **Its own type rather than a second reading of [`Recolor`].** The two describe the same five
 /// ideas and only two of them share a parameterisation: `rotate` and `saturate` mean what
@@ -251,7 +251,7 @@ pub enum DemEncoding {
 	Terrarium,
 }
 
-/// How elevation is drawn as relief ([S6.6](../../../docs/scope-release-2.md), D12).
+/// How elevation is drawn as relief ([S6.6](../../../docs/history.md), D12).
 ///
 /// **`None` is "leave it alone"**, as everywhere else here: an untouched setting serialises to
 /// nothing, so a fresh recipe and an untouched one compare equal and the undo stack stays quiet.
@@ -280,7 +280,7 @@ pub struct Hillshade {
 	pub accent: Option<String>,
 }
 
-/// How one source is drawn ([S6.4](../../../docs/scope-release-2.md)).
+/// How one source is drawn ([S6.4](../../../docs/history.md)).
 ///
 /// **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
 /// recolour, a layer-override map *and* a raster adjustment, and at least half of that was
@@ -366,7 +366,7 @@ pub struct SourceStyle {
 pub struct Recipe {
 	/// By graph name.
 	pub sources: BTreeMap<String, SourceStyle>,
-	/// Draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
+	/// Draw order, bottom first ([S6.5](../../../docs/history.md)).
 	///
 	/// **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
 	/// drag that has to renumber every sibling is how two entries end up claiming one position.
@@ -431,7 +431,7 @@ impl Recipe {
 	}
 
 	/// Drops overrides for layers the current style has no place for
-	/// ([S6.7](../../../docs/scope-release-2.md)).
+	/// ([S6.7](../../../docs/history.md)).
 	///
 	/// **Not something to do on a preset change.** The six presets share one namespace - neutrino's
 	/// 207 layer ids are a strict subset of colorful's 324 - so an override on `water` is meant to

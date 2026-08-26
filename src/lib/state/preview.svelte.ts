@@ -75,7 +75,7 @@ let containers = $state<OpenedContainer[]>([]);
 let last = $state<Preview | null>(null);
 
 /**
- * Every graph built this session, by name ([S6.5](../../../docs/scope-release-2.md)).
+ * Every graph built this session, by name ([S6.5](../../../docs/history.md)).
  *
  * **What the stack is drawn from.** A style names several sources now, so the map needs every
  * graph's tiles and not only the one being edited. Built once - [`mountAll`] does it when a project

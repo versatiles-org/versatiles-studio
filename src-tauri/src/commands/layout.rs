@@ -3,7 +3,7 @@
 //! Pane state is durable state, so it lives in the core like everything else ([Q16]) rather than in
 //! the webview where a reload would lose it.
 //!
-//! **One live layout per project** ([S7.4](../../../docs/scope-release-3.md)). It reads as pane
+//! **One live layout per project** ([S7.4](../../../docs/history.md)). It reads as pane
 //! state and is not: `view` is the camera and `background` is a map setting, so an application-wide
 //! one meant panning in one window panned the other the next time either saved. What stays
 //! application-wide is `layout.json`, demoted to the defaults the *next* window opens on.

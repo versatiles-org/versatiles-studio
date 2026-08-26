@@ -134,7 +134,7 @@ export const project = {
 	 * read node, so opening a project folder opened an empty window and said Studio had no way to
 	 * open it. Found by the end-to-end story that saves a project and opens it again.
 	 *
-	 * [S7.5]: ../../../docs/scope-release-3.md
+	 * [S7.5]: ../../../docs/history.md
 	 */
 	async at(dir: string): Promise<Recipe | null> {
 		return await openAt(dir);

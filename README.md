@@ -55,7 +55,7 @@ across distributions ([Q10](docs/decisions.md)).
 ### Windows
 
 Download the `x64` `-setup.exe`. There is no separate ARM build - Windows on ARM runs this one
-under emulation ([S5.9](docs/scope-release-1.md)).
+under emulation ([S5.9](docs/history.md)).
 
 **Windows will warn you on first run.** SmartScreen shows "Windows protected your PC" for anything
 it has not seen signed before; click **More info**, then **Run anyway**. Studio is not code-signed
@@ -78,23 +78,20 @@ containers some tests want, and how a release is cut.
 
 ## Planning documents
 
-| Document                                   | Contents                                                   |
-| ------------------------------------------ | ---------------------------------------------------------- |
-| [Vision & Scope](docs/vision.md)           | What Studio is, what it deliberately is not                |
-| [Target Audiences](docs/audiences.md)      | Who we build for, and what each group needs                |
-| [Feature Catalogue](docs/features.md)      | The full idea pool, grouped and individually referenceable |
-| [Release 1 Scope](docs/scope-release-1.md) | Milestones, stages, and the work items in each             |
-| [Release 2 Scope](docs/scope-release-2.md) | Style modes: the four kinds of tileset people open         |
-| [Release 3 Scope](docs/scope-release-3.md) | One window, one project, and a launcher of its own         |
-| [End-to-End Testing](docs/scope-e2e.md)    | What the seams cost to test, and the plan for testing them |
-| [Ecosystem Inventory](docs/ecosystem.md)   | What already exists in versatiles-org and can be reused    |
-| [Architecture](docs/architecture.md)       | How the pieces fit together                                |
-| [UI Concept](docs/ui.md)                   | How the features are organised on screen, stage by stage   |
-| [Styling](docs/styling.md)                 | Design tokens, and the rules that keep the CSS consistent  |
-| [Style Use Cases](docs/style-use-cases.md) | What people open, and the case for release 2's style work  |
-| [Svelte Components](docs/components.md)    | The component inventory, and what to reuse as reference    |
-| [Decision Log](docs/decisions.md)          | Every question raised, and how it was settled              |
-| [Roadmap](docs/roadmap.md)                 | Release 1 at a glance, and what comes after                |
+| Document                                 | Contents                                                          |
+| ---------------------------------------- | ----------------------------------------------------------------- |
+| [Vision & Scope](docs/vision.md)         | What Studio is, what it deliberately is not                       |
+| [Target Audiences](docs/audiences.md)    | Who we build for, and what each group needs                       |
+| [Feature Catalogue](docs/features.md)    | The full idea pool, grouped and individually referenceable        |
+| [Release History](docs/history.md)       | What each release set out to do, its work items, and what shipped |
+| [End-to-End Testing](docs/scope-e2e.md)  | What the seams cost to test, and the plan for testing them        |
+| [Ecosystem Inventory](docs/ecosystem.md) | What already exists in versatiles-org and can be reused           |
+| [Architecture](docs/architecture.md)     | How the pieces fit together                                       |
+| [UI Concept](docs/ui.md)                 | How the features are organised on screen, stage by stage          |
+| [Styling](docs/styling.md)               | Design tokens, and the rules that keep the CSS consistent         |
+| [Svelte Components](docs/components.md)  | The component inventory, and what to reuse as reference           |
+| [Decision Log](docs/decisions.md)        | Every question raised, and how it was settled                     |
+| [Roadmap](docs/roadmap.md)               | Release 1 at a glance, and what comes after                       |
 
 ## Privacy
 

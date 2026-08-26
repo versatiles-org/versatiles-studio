@@ -1,6 +1,6 @@
 /**
  * Turning what is built and what the recipe says into the stack the map draws
- * ([S6.5](../../../docs/scope-release-2.md)).
+ * ([S6.5](../../../docs/history.md)).
  *
  * `composeStyle` next door knows how to draw a list of sources. This is what decides *which* list,
  * and it is the half that had nowhere to be tested: it lived in a `$derived` inside `App.svelte`,

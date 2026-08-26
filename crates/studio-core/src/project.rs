@@ -52,7 +52,7 @@ pub fn save_vpl(path: &Path, text: &str) -> Result<()> {
 /// directory is routinely on another. A half-written file where a whole one used to be is the
 /// failure this exists to prevent.
 ///
-/// Shared by every text a project writes - a `.vpl`, and a style ([S4.6](../../docs/scope-release-1.md)).
+/// Shared by every text a project writes - a `.vpl`, and a style ([S4.6](../../docs/history.md)).
 /// The guard about *what* may be written belongs to the caller; this one is about writing it safely.
 pub fn write_atomically(path: &Path, text: &str) -> Result<()> {
 	let dir = path.parent().context("target has no parent directory")?;
@@ -224,7 +224,7 @@ pub const STYLE_FILE: &str = "style.json";
 
 /// What [`save`] writes, and the highest [`load`] understands.
 ///
-/// **2 since [S6.4](../../docs/scope-release-2.md)**, when the style stopped being one preset over
+/// **2 since [S6.4](../../docs/history.md)**, when the style stopped being one preset over
 /// the whole project and became one entry per source. A version-1 file still opens: [`migrate_v1`]
 /// reads its recipe and files it under the first graph, which is the only graph a version-1 project
 /// could have been styling.

@@ -110,7 +110,7 @@ impl ServerManager {
 
 	/// Removes every mount whose name starts with `prefix`, and reports how many went.
 	///
-	/// **For a window that has closed** ([S7.2](../../../docs/scope-release-3.md)): one server serves
+	/// **For a window that has closed** ([S7.2](../../../docs/history.md)): one server serves
 	/// the whole application, so each window's mounts carry its own prefix, and what it had served is
 	/// exactly what shares that prefix. Asked for by prefix rather than tracked as a list, because a
 	/// list is a second account of the same fact and the two would disagree the first time a mount
@@ -316,7 +316,7 @@ mod tests {
 		Ok(())
 	}
 
-	/// What a closed window takes down with it ([S7.2](../../../docs/scope-release-3.md)).
+	/// What a closed window takes down with it ([S7.2](../../../docs/history.md)).
 	///
 	/// One server serves the whole application, so each window's mounts carry its own prefix - and a
 	/// window that has gone must take exactly those and nothing belonging to a window still open.

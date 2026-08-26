@@ -6,7 +6,7 @@
  * functions. Two copies of "which extensions can Studio open" is the shape of bug where a launcher
  * offers a format the workbench then refuses.
  *
- * [S7.5]: ../../../docs/scope-release-3.md
+ * [S7.5]: ../../../docs/history.md
  */
 
 import { open } from '@tauri-apps/plugin-dialog';

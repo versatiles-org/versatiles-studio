@@ -51,7 +51,7 @@ pub async fn refresh_menu(app: AppHandle, window: tauri::Window, state: State<'_
 
 /// Opens a project window for `source`, hands it that path, and closes the window that asked.
 ///
-/// **The launcher's whole gesture, as one command** ([S7.6](../../docs/scope-release-3.md)). Three
+/// **The launcher's whole gesture, as one command** ([S7.6](../../docs/history.md)). Three
 /// steps that only make sense together: a launcher that opened a window and stayed would be a
 /// launcher you have to dismiss, and one that closed before the window existed would be an
 /// application with no windows for as long as a webview takes to boot.

@@ -174,7 +174,7 @@ pub async fn remove_graph(window: tauri::Window, state: State<'_, AppState>, id:
 /// Renames a graph, and reports the name it actually took.
 ///
 /// The name is the mount, the source name in `style.json` and the `.vpl` filename at once ([Q32]),
-/// so this remounts under the new name - and since [S6.4](../../../docs/scope-release-2.md) the
+/// so this remounts under the new name - and since [S6.4](../../../docs/history.md) the
 /// recipe files each source's style under that name too, so the style moves with it.
 ///
 /// **Without this a rename silently resets the style.** The entry would stay under the old name,
@@ -673,7 +673,7 @@ pub async fn mount_graph(
 
 /// Builds a pipeline and mounts it, replacing whatever was there.
 ///
-/// **`mount` and `name` are different things** ([S7.2](../../../docs/scope-release-3.md)). `mount`
+/// **`mount` and `name` are different things** ([S7.2](../../../docs/history.md)). `mount`
 /// is where the tiles are served from, and carries the window's prefix so two projects with a graph
 /// of the same name do not serve each other's tiles. `name` is what the webview calls this source in
 /// the style it composes - the graph's own name, which a prefix would leak into every `style.json`

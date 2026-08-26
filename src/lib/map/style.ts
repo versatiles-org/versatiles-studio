@@ -124,7 +124,7 @@ function applyOverride(layer: LayerSpecification, patch: LayerOverride | undefin
 
 /**
  * The paint an adjustment means, with everything untouched left out
- * ([S6.3](../../../docs/scope-release-2.md), D11).
+ * ([S6.3](../../../docs/history.md), D11).
  *
  * **Omitted, not defaulted.** A property set to its own default renders identically but exports a
  * style full of values nobody chose, and D8's output is meant to be a file someone can read.
@@ -246,7 +246,7 @@ export function hillshadeStyle(
 }
 
 /**
- * Which route produced the style on the map ([S6.2](../../../docs/scope-release-2.md)).
+ * Which route produced the style on the map ([S6.2](../../../docs/history.md)).
  *
  * The pane says which, because "your preset is not what you are looking at" is not something to
  * leave someone to work out from the map.
@@ -266,7 +266,7 @@ export type StyleBasis =
 	| 'none';
 
 /**
- * The style to draw, and how it was arrived at ([S6.2](../../../docs/scope-release-2.md)).
+ * The style to draw, and how it was arrived at ([S6.2](../../../docs/history.md)).
  *
  * **A preset that draws nothing is not an answer.** The six are written against Shortbread's layer
  * names, so pointing one at a `from_csv` result matched no `source-layer` and the map fell back to a
@@ -340,7 +340,7 @@ export function styleFor(
  * nothing else - a blank map where the hairlines used to be, with no error to explain it.
  *
  * So the caller asks first, and keeps the hairlines when the answer is no. Deriving a style from the
- * layers a container actually has is [S4.4](../../../docs/scope-release-1.md); until then this is
+ * layers a container actually has is [S4.4](../../../docs/history.md); until then this is
  * the difference between "styled" and "silently empty".
  */
 export function drawsAnything(style: StyleSpecification, available: string[]): boolean {
@@ -487,7 +487,7 @@ export interface Composed {
 
 /**
  * One style over several sources, drawn bottom-first
- * ([S6.5](../../../docs/scope-release-2.md)).
+ * ([S6.5](../../../docs/history.md)).
  *
  * **This is what makes "a basemap under my data" a stack position rather than a feature.** Each
  * entry is styled by exactly the rules a single source already had - `styleFor` decides per entry -

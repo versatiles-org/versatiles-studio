@@ -20,7 +20,7 @@
 //! machine dies. So the tile count is computed from the pyramid first and an absurd one is refused
 //! with a number and a way forward, rather than started and left to be discovered.
 //!
-//! **What is not here yet.** The crop rectangle is [S5.4](../../docs/scope-release-1.md).
+//! **What is not here yet.** The crop rectangle is [S5.4](../../docs/history.md).
 //! `max_zoom` is here early because it is the way out of the refusal above - a bound is a safety
 //! valve, not a convenience.
 //!
@@ -58,7 +58,7 @@ pub const MAX_TILES: u64 = 100_000_000;
 /// What an export narrows the pipeline to before writing it.
 ///
 /// Every field is optional and `None` means "as far as the pipeline goes". They are applied as one
-/// `filter` node appended to the pipeline ([S3.6](../../../docs/scope-release-1.md)) rather than by
+/// `filter` node appended to the pipeline ([S3.6](../../../docs/history.md)) rather than by
 /// clamping numbers we then look at: `filter` is versatiles-rs's own operation for this, so the
 /// source really does stop there and the tile count computed afterwards is the count that will be
 /// written.

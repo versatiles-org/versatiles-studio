@@ -32,7 +32,7 @@ pub struct ContainerInfo {
 	#[cfg_attr(feature = "bindings", specta(type = Option<[specta_typescript::Number; 4]>))]
 	pub bbox: Option<[f64; 4]>,
 	/// What the container says its tiles *contain*, if it says - `shortbread@1.0`, `dem/mapbox`,
-	/// `rgb`, and the rest of `TileSchema`'s spellings ([S6.1](../../docs/scope-release-2.md)).
+	/// `rgb`, and the rest of `TileSchema`'s spellings ([S6.1](../../docs/history.md)).
 	///
 	/// **Passed through as the container's own string rather than mirrored into an enum here.**
 	/// `TileSchema` is upstream's and can gain a variant; a copy of its list in Studio would be one

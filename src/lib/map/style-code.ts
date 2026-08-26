@@ -119,7 +119,7 @@ export function styleCode(appearance: Appearance, present?: string[]): string | 
 		'});'
 	];
 
-	// **Only the overrides the generated style can apply** ([S6.7](../../../docs/scope-release-2.md)).
+	// **Only the overrides the generated style can apply** ([S6.7](../../../docs/history.md)).
 	// The six presets share a namespace and a smaller one is a subset of a larger, so an override
 	// made under `colorful` sits inert under `neutrino` and comes back on the way over - which is
 	// why the recipe keeps it. Emitting it into a `neutrino` file is different: the loop would set a

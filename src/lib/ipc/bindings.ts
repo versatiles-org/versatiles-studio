@@ -30,7 +30,7 @@ export const commands = {
 	/**
 	 *  Opens a project window for `source`, hands it that path, and closes the window that asked.
 	 * 
-	 *  **The launcher's whole gesture, as one command** ([S7.6](../../docs/scope-release-3.md)). Three
+	 *  **The launcher's whole gesture, as one command** ([S7.6](../../docs/history.md)). Three
 	 *  steps that only make sense together: a launcher that opened a window and stayed would be a
 	 *  launcher you have to dismiss, and one that closed before the window existed would be an
 	 *  application with no windows for as long as a webview takes to boot.
@@ -159,7 +159,7 @@ export const commands = {
 	 *  what closes the gap - subscribing and then listing separately leaves a window where an event
 	 *  lands between the two and is counted twice, or lands before the list is taken and is missed.
 	 * 
-	 *  **This window's work, not the machine's** ([S7.3](../../../docs/scope-release-3.md)): one runner
+	 *  **This window's work, not the machine's** ([S7.3](../../../docs/history.md)): one runner
 	 *  still, but a list per project, so an export started next door does not appear in this bar.
 	 */
 	subscribeJobs: (channel: Channel<JobEvent>) => typedError<Job[], string>(__TAURI_INVOKE("subscribe_jobs", { channel })),
@@ -246,7 +246,7 @@ export const commands = {
 	 */
 	setStyleRaster: (graph: number, raster: RasterAdjust_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_raster", { graph, raster })),
 	/**
-	 *  Sets the draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
+	 *  Sets the draw order, bottom first ([S6.5](../../../docs/history.md)).
 	 * 
 	 *  The whole list, not a move: a reorder is one gesture with one result, and "move this one up"
 	 *  would need the two ends to agree about what the list was before it - which is the disagreement
@@ -257,13 +257,13 @@ export const commands = {
 	 */
 	setStyleOrder: (order: string[]) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_order", { order })),
 	/**
-	 *  Sets the hillshade settings for an elevation source ([S6.6](../../../docs/scope-release-2.md), D12).
+	 *  Sets the hillshade settings for an elevation source ([S6.6](../../../docs/history.md), D12).
 	 * 
 	 *  Whole-struct, like the recolour and the raster adjustment above, and for the same reason.
 	 */
 	setStyleHillshade: (graph: number, shade: Hillshade_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_hillshade", { graph, shade })),
 	/**
-	 *  Drops a source's overrides for layers its style no longer has ([S6.7](../../../docs/scope-release-2.md)).
+	 *  Drops a source's overrides for layers its style no longer has ([S6.7](../../../docs/history.md)).
 	 * 
 	 *  `present` is the ids the rendered style actually contains, which only the webview knows -
 	 *  `@versatiles/style` renders there ([Q36]), so the core cannot work out what a preset produced.
@@ -542,7 +542,7 @@ export const commands = {
 	 *  Renames a graph, and reports the name it actually took.
 	 * 
 	 *  The name is the mount, the source name in `style.json` and the `.vpl` filename at once ([Q32]),
-	 *  so this remounts under the new name - and since [S6.4](../../../docs/scope-release-2.md) the
+	 *  so this remounts under the new name - and since [S6.4](../../../docs/history.md) the
 	 *  recipe files each source's style under that name too, so the style moves with it.
 	 * 
 	 *  **Without this a rename silently resets the style.** The entry would stay under the old name,
@@ -668,7 +668,7 @@ export const commands = {
 
 /* Types */
 /**
- *  How one source is drawn ([S6.4](../../../docs/scope-release-2.md)).
+ *  How one source is drawn ([S6.4](../../../docs/history.md)).
  * 
  *  **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
  *  recolour, a layer-override map *and* a raster adjustment, and at least half of that was
@@ -679,7 +679,7 @@ export const commands = {
 export type Appearance = Appearance_Serialize | Appearance_Deserialize;
 
 /**
- *  How one source is drawn ([S6.4](../../../docs/scope-release-2.md)).
+ *  How one source is drawn ([S6.4](../../../docs/history.md)).
  * 
  *  **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
  *  recolour, a layer-override map *and* a raster adjustment, and at least half of that was
@@ -698,7 +698,7 @@ overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never;
 ({ type: "hillshade"; shade: Hillshade_Deserialize }) & { adjust?: never; overrides?: never; preset?: never; recolor?: never };
 
 /**
- *  How one source is drawn ([S6.4](../../../docs/scope-release-2.md)).
+ *  How one source is drawn ([S6.4](../../../docs/history.md)).
  * 
  *  **One variant, chosen by what the tiles are.** Before this, a recipe carried a preset, a
  *  recolour, a layer-override map *and* a raster adjustment, and at least half of that was
@@ -724,7 +724,7 @@ overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; s
  *  What an export narrows the pipeline to before writing it.
  * 
  *  Every field is optional and `None` means "as far as the pipeline goes". They are applied as one
- *  `filter` node appended to the pipeline ([S3.6](../../../docs/scope-release-1.md)) rather than by
+ *  `filter` node appended to the pipeline ([S3.6](../../../docs/history.md)) rather than by
  *  clamping numbers we then look at: `filter` is versatiles-rs's own operation for this, so the
  *  source really does stop there and the tile count computed afterwards is the count that will be
  *  written.
@@ -784,7 +784,7 @@ export type ContainerInfo = {
 	bbox: [number, number, number, number] | null,
 	/**
 	 *  What the container says its tiles *contain*, if it says - `shortbread@1.0`, `dem/mapbox`,
-	 *  `rgb`, and the rest of `TileSchema`'s spellings ([S6.1](../../docs/scope-release-2.md)).
+	 *  `rgb`, and the rest of `TileSchema`'s spellings ([S6.1](../../docs/history.md)).
 	 * 
 	 *  **Passed through as the container's own string rather than mirrored into an enum here.**
 	 *  `TileSchema` is upstream's and can gain a variant; a copy of its list in Studio would be one
@@ -1028,7 +1028,7 @@ export type GraphInfo = {
 };
 
 /**
- *  How elevation is drawn as relief ([S6.6](../../../docs/scope-release-2.md), D12).
+ *  How elevation is drawn as relief ([S6.6](../../../docs/history.md), D12).
  * 
  *  **`None` is "leave it alone"**, as everywhere else here: an untouched setting serialises to
  *  nothing, so a fresh recipe and an untouched one compare equal and the undo stack stays quiet.
@@ -1036,7 +1036,7 @@ export type GraphInfo = {
 export type Hillshade = Hillshade_Serialize | Hillshade_Deserialize;
 
 /**
- *  How elevation is drawn as relief ([S6.6](../../../docs/scope-release-2.md), D12).
+ *  How elevation is drawn as relief ([S6.6](../../../docs/history.md), D12).
  * 
  *  **`None` is "leave it alone"**, as everywhere else here: an untouched setting serialises to
  *  nothing, so a fresh recipe and an untouched one compare equal and the undo stack stays quiet.
@@ -1057,7 +1057,7 @@ export type Hillshade_Deserialize = {
 };
 
 /**
- *  How elevation is drawn as relief ([S6.6](../../../docs/scope-release-2.md), D12).
+ *  How elevation is drawn as relief ([S6.6](../../../docs/history.md), D12).
  * 
  *  **`None` is "leave it alone"**, as everywhere else here: an untouched setting serialises to
  *  nothing, so a fresh recipe and an untouched one compare equal and the undo stack stays quiet.
@@ -1533,7 +1533,7 @@ export type Quote =
 "double";
 
 /**
- *  How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/scope-release-2.md), D11).
+ *  How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/history.md), D11).
  * 
  *  **Its own type rather than a second reading of [`Recolor`].** The two describe the same five
  *  ideas and only two of them share a parameterisation: `rotate` and `saturate` mean what
@@ -1549,7 +1549,7 @@ export type Quote =
 export type RasterAdjust = RasterAdjust_Serialize | RasterAdjust_Deserialize;
 
 /**
- *  How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/scope-release-2.md), D11).
+ *  How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/history.md), D11).
  * 
  *  **Its own type rather than a second reading of [`Recolor`].** The two describe the same five
  *  ideas and only two of them share a parameterisation: `rotate` and `saturate` mean what
@@ -1587,7 +1587,7 @@ export type RasterAdjust_Deserialize = {
 };
 
 /**
- *  How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/scope-release-2.md), D11).
+ *  How imagery is adjusted when a source is drawn as raster ([S6.3](../../../docs/history.md), D11).
  * 
  *  **Its own type rather than a second reading of [`Recolor`].** The two describe the same five
  *  ideas and only two of them share a parameterisation: `rotate` and `saturate` mean what
@@ -1666,7 +1666,7 @@ export type Recipe_Deserialize = {
 	/**  By graph name. */
 	sources?: { [key in string]: SourceStyle_Deserialize },
 	/**
-	 *  Draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
+	 *  Draw order, bottom first ([S6.5](../../../docs/history.md)).
 	 * 
 	 *  **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
 	 *  drag that has to renumber every sibling is how two entries end up claiming one position.
@@ -1693,7 +1693,7 @@ export type Recipe_Serialize = {
 	/**  By graph name. */
 	sources: { [key in string]: SourceStyle_Serialize },
 	/**
-	 *  Draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
+	 *  Draw order, bottom first ([S6.5](../../../docs/history.md)).
 	 * 
 	 *  **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
 	 *  drag that has to renumber every sibling is how two entries end up claiming one position.
@@ -1852,7 +1852,7 @@ export type Review = {
 export type Side = "left" | "right";
 
 /**
- *  What a source's tiles are, as far as drawing them is concerned ([S6.1](../../../docs/scope-release-2.md)).
+ *  What a source's tiles are, as far as drawing them is concerned ([S6.1](../../../docs/history.md)).
  * 
  *  **Studio's vocabulary, not the container's.** A container declares a `tile_schema` - upstream's
  *  list, which can grow - and this is the much smaller question the style pane actually switches on:

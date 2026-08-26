@@ -13,7 +13,7 @@
 //! preview wants to be replaced the moment it is out of date. One FIFO queue serving both would
 //! make a preview wait behind a forty-minute export, which is the opposite of M4. See [`Lane`].
 //!
-//! **One runner, a list per project** ([S7.3](../../../docs/scope-release-3.md), [Q48]). Every job
+//! **One runner, a list per project** ([S7.3](../../../docs/history.md), [Q48]). Every job
 //! carries the scope that submitted it - a window - and three things follow from it: a window is
 //! shown its own project's work and not the machine's, [`Lane::Latest`] supersedes only within a
 //! scope, and history is pruned per scope so a busy project cannot age out a quiet one's.

@@ -1,7 +1,7 @@
 //! The project's style, as the recipe it is rendered from (S4.2, [Q36]).
 //!
 //! Every command here changes the recipe and records it, so ⌘Z walks back through style edits and
-//! pipeline edits in the order they happened ([S4.7](../../../docs/scope-release-1.md)). None of
+//! pipeline edits in the order they happened ([S4.7](../../../docs/history.md)). None of
 //! them renders anything: the webview holds `@versatiles/style` and turns a recipe into a style
 //! there.
 //!
@@ -125,7 +125,7 @@ pub async fn set_style_raster(
 	)
 }
 
-/// Drops a source's overrides for layers its style no longer has ([S6.7](../../../docs/scope-release-2.md)).
+/// Drops a source's overrides for layers its style no longer has ([S6.7](../../../docs/history.md)).
 ///
 /// `present` is the ids the rendered style actually contains, which only the webview knows -
 /// `@versatiles/style` renders there ([Q36]), so the core cannot work out what a preset produced.
@@ -151,7 +151,7 @@ pub async fn prune_style_overrides(
 	Ok(record(&mut project, recipe))
 }
 
-/// Sets the hillshade settings for an elevation source ([S6.6](../../../docs/scope-release-2.md), D12).
+/// Sets the hillshade settings for an elevation source ([S6.6](../../../docs/history.md), D12).
 ///
 /// Whole-struct, like the recolour and the raster adjustment above, and for the same reason.
 #[tauri::command]
@@ -173,7 +173,7 @@ pub async fn set_style_hillshade(
 	)
 }
 
-/// Sets the draw order, bottom first ([S6.5](../../../docs/scope-release-2.md)).
+/// Sets the draw order, bottom first ([S6.5](../../../docs/history.md)).
 ///
 /// The whole list, not a move: a reorder is one gesture with one result, and "move this one up"
 /// would need the two ends to agree about what the list was before it - which is the disagreement

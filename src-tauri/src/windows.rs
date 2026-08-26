@@ -53,7 +53,7 @@ pub fn open(app: &AppHandle, label: &str) -> Result<()> {
 /// The label the next project window will have.
 ///
 /// Handed out before the window is built so a caller can queue what that window should open
-/// ([S7.6](../../docs/scope-release-3.md)) - a webview boots asynchronously, and a handoff that
+/// ([S7.6](../../docs/history.md)) - a webview boots asynchronously, and a handoff that
 /// waited for it would be racing the thing it is handing off to.
 pub fn next_label() -> String {
 	static NEXT: AtomicU32 = AtomicU32::new(1);
@@ -95,7 +95,7 @@ pub fn open_launcher(app: &AppHandle) -> Result<()> {
 ///
 /// What tells "there is somewhere to open this" from "Studio is showing nothing", which is the
 /// question both startup and a file arriving from the operating system have to answer
-/// ([S7.7](../../docs/scope-release-3.md)).
+/// ([S7.7](../../docs/history.md)).
 pub fn any_project_open(app: &AppHandle) -> bool {
 	tauri::Manager::webview_windows(app)
 		.keys()

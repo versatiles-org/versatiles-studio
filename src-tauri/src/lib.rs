@@ -46,7 +46,7 @@ fn data_dir(app: &tauri::App) -> std::path::PathBuf {
 /// It follows `data_dir` when a test has moved that aside, so a failed run leaves its problems
 /// somewhere a CI job can collect them rather than in the runner's home directory.
 ///
-/// [S6.8]: ../../docs/scope-release-2.md
+/// [S6.8]: ../../docs/history.md
 fn log_dir(app: &tauri::App, data_dir: &std::path::Path) -> std::path::PathBuf {
 	if moved_aside().is_some() {
 		return data_dir.join("logs");

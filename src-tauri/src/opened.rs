@@ -31,7 +31,7 @@ use tauri::{AppHandle, Emitter, Manager};
 
 /// Paths waiting for a webview to pick them up.
 ///
-/// **Two queues, because there are two ways a path arrives** ([S7.6](../../docs/scope-release-3.md)):
+/// **Two queues, because there are two ways a path arrives** ([S7.6](../../docs/history.md)):
 ///
 /// * *For a window*, which is the launcher's handoff - it creates a project window and hands that
 ///   window the thing it was asked to open. Only that window may take it.
@@ -107,7 +107,7 @@ pub fn from_command_line() -> Vec<String> {
 ///   drains is a file that silently does not open, so a window is made for it and the launcher's
 ///   question is answered by the thing it was about to ask.
 ///
-/// [S7.7]: ../../docs/scope-release-3.md
+/// [S7.7]: ../../docs/history.md
 pub fn receive(app: &AppHandle, paths: Vec<String>) {
 	if paths.is_empty() {
 		return;
