@@ -111,7 +111,9 @@
 	]);
 </script>
 
-<div class="chain">
+<!-- A graph that is off is a chain that is not running, whatever each node's own eye says - the
+     same reading as a hidden layer whose filters keep their switches. -->
+<div class="chain" class:off={!enabled}>
 	{#each rows as row, index (row.path.join('.'))}
 		<div class="row" class:inactive={!on[index]} style:--depth={row.depth}>
 			<NodeCard
@@ -155,6 +157,10 @@
 		display: flex;
 		flex-direction: column;
 		min-width: 0;
+
+		&.off {
+			opacity: 0.55;
+		}
 	}
 
 	.row {

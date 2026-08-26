@@ -26,6 +26,20 @@ const CONTAINER = {
 	needs: []
 };
 
+/** A graph row as the core reports it, with however much of it is running. */
+const graph = (over: { nodes?: number; running?: number; enabled?: boolean } = {}) => ({
+	id: 1,
+	name: 'basemap',
+	path: null,
+	dirty: false,
+	crop: { bbox: null, minZoom: null, maxZoom: null },
+	enabled: true,
+	disabled: [],
+	nodes: 5,
+	running: 5,
+	...over
+});
+
 const OPERATIONS = [
 	{ name: 'from_container', kind: 'read', summary: 'reads a container', details: '', fields: [] },
 	{ name: 'from_debug', kind: 'read', summary: 'draws its own tiles', details: '', fields: [] },
@@ -41,14 +55,31 @@ const actions = () => ({
 
 /** The pane over an empty project, with the graph list's ＋ row showing. */
 function open(graphActions: { addNode: () => void; openFile: () => void }) {
+	pane({ graphActions });
+	screen.getByText('＋ new graph…').click();
+}
+
+/** The pane itself, over whatever graphs and document are given. */
+function pane(over: { graphActions?: object; graphs?: ReturnType<typeof graph>[]; pipeline?: object | null }) {
+	// The fixtures carry only what the pane reads; `render` wants the whole generated type.
+	const { graphActions = {}, graphs = [], pipeline = null } = over;
 	render(PipelinePane, {
 		kinds: [CONTAINER],
 		operations: OPERATIONS,
-		pipeline: null,
+		graphs,
+		pipeline: pipeline as never,
 		pipelineRevision: 0,
 		crop: null,
 		cropActions: { set: () => {}, draw: () => {}, useView: () => {} },
-		graphActions: { select: () => {}, rename: () => {}, remove: () => {}, setEnabled: () => {}, ...graphActions },
+		graphActions: {
+			select: () => {},
+			rename: () => {},
+			remove: () => {},
+			setEnabled: () => {},
+			addNode: () => {},
+			openFile: () => {},
+			...graphActions
+		},
 		nodeActions: {
 			setEnabled: () => {},
 			addOperation: () => {},
@@ -66,7 +97,6 @@ function open(graphActions: { addNode: () => void; openFile: () => void }) {
 			export: () => {}
 		}
 	});
-	screen.getByText('＋ new graph…').click();
 }
 
 beforeEach(() => {
@@ -122,5 +152,56 @@ describe('starting a graph', () => {
 
 		expect(graphActions.openFile).toHaveBeenCalled();
 		expect(graphActions.addNode).not.toHaveBeenCalled();
+	});
+});
+
+describe('what the pane says about switched-off nodes ([Q49])', () => {
+	/** The document view for a graph, with a chain the graph tab can draw. */
+	const document = (id: number) => ({
+		graph: id,
+		text: 'from_debug',
+		name: 'basemap',
+		dirty: false,
+		canUndo: false,
+		canRedo: false,
+		tokens: [],
+		diagnostics: [],
+		pipeline: {
+			nodes: [
+				{
+					name: 'from_debug',
+					nameSpan: { start: 0, end: 10 },
+					properties: [],
+					sources: [],
+					sourcesSpan: null,
+					span: { start: 0, end: 10 }
+				}
+			],
+			span: { start: 0, end: 10 }
+		}
+	});
+
+	// **The one place the eyes and an export disagree.** A bypassed node is session state and
+	// `export_graph` runs the document, so a graph with something switched off exports tiles nobody
+	// has looked at. Saying so where the switch is beats saying it in the export dialog.
+	it('says that an export runs the operations that are switched off', () => {
+		pane({ graphs: [graph({ nodes: 5, running: 3 })], pipeline: document(1) });
+
+		expect(screen.getByText(/3 of 5 operations are switched on/)).toBeTruthy();
+		expect(screen.getByText(/An export runs all of them/)).toBeTruthy();
+	});
+
+	it('says nothing when every operation runs', () => {
+		pane({ graphs: [graph()], pipeline: document(1) });
+
+		expect(screen.queryByText(/An export runs/)).toBeNull();
+	});
+
+	// The row's eye already says the graph is off, and an export of a graph you switched off is not
+	// a surprise anybody is walking into.
+	it('says nothing for a graph that is switched off entirely', () => {
+		pane({ graphs: [graph({ enabled: false, running: 0 })], pipeline: document(1) });
+
+		expect(screen.queryByText(/An export runs/)).toBeNull();
 	});
 });
