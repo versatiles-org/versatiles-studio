@@ -16,6 +16,21 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q51 - A layer override applies on whatever basis the style was arrived at
+
+**Decided 2026-08-26.** The layer tree is shown for every vector source, but only a preset style
+applied the overrides it wrote: `renderStyle` ran them, and `deriveStyle` - which is handed layers
+and sources, and never sees a recipe - could not. So on a
+derived or fallback style (S6.2) the eye closed, the recipe recorded it, the project saved it, and the map did not change.
+Colour, filter and zoom range were equally inert; visibility was just the one anyone would notice.
+
+The alternative was to gate the tree to preset styles, which is the smaller change and the wrong
+one: a container that no preset can draw is exactly the case where a per-layer control is worth
+most. So the overrides moved to the choke point instead - `styleFor` applies them to whichever
+style it picked, before `composeStyle` prefixes any ids. Raster and hillshade are untouched: they
+draw one layer, and switching that off is the source's eye
+([Q49](#q49---an-eye-means-this-runs-at-both-scales-the-pin-is-retired)), not a tree with one row.
+
 ### Q50 - Sources and Pipeline are two panes, and the sources list is where a stack is arranged
 
 **Decided 2026-08-26.** The pane titled "Sources" held four groups - the graphs, the chain, the crop

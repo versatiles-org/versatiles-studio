@@ -12,6 +12,7 @@ import {
 	styleFor
 } from './style';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
+import type { LayerSpecification, StyleSpecification } from '@maplibre/maplibre-gl-style-spec';
 import type { Appearance } from '../ipc/commands';
 import type { VectorAppearance } from './style';
 
@@ -111,6 +112,84 @@ describe('layer overrides', () => {
 		const patched = renderStyle(recipe({ overrides: { [id]: { visible: false } } }), SOURCES, BASE)!;
 		const untouched = plain.layers.filter((l) => l.id !== id);
 		expect(JSON.stringify(patched.layers.filter((l) => l.id !== id))).toEqual(JSON.stringify(untouched));
+	});
+});
+
+// **The layer tree is offered for every vector source**, not only for the ones a preset draws:
+// `StylePane` gates it on the source being vector, not on the basis `styleFor` landed on. So an
+// override made there has to reach the style whichever way that style was arrived at - otherwise
+// the eye is a switch wired to nothing, and the recipe records a change the map never makes.
+describe('overrides on every basis the layer tree is offered on', () => {
+	// Not Shortbread names, so a preset over these draws nothing and has to fall back.
+	const OWN = [
+		{ name: 'roads', geometry: 'line' },
+		{ name: 'parcels', geometry: 'polygon' }
+	];
+	const OWN_NAMES = OWN.map((layer) => layer.name);
+	const SHORTBREAD = ['water_polygons', 'street_polygons', 'boundaries'];
+
+	/** Hides the first drawn layer of whatever `styleFor` picks, the way the tree's eye does. */
+	function hideFirstLayer(preset: string, mountedLayers: string[]) {
+		const target = { kind: 'vectorShortbread' as const, tileFormat: 'mvt', layers: OWN, mountedLayers };
+		const plain = styleFor(recipe({ preset }), target, SOURCES, BASE);
+		// The tree lists the ids of the style on the map, so an override keys on those.
+		const id = plain.style!.layers.find((layer) => 'source-layer' in layer)!.id;
+		const hidden = styleFor(recipe({ preset, overrides: { [id]: { visible: false } } }), target, SOURCES, BASE);
+		return { id, plain: plain.style!, basis: hidden.basis, hidden: hidden.style! };
+	}
+
+	const layerNamed = (style: StyleSpecification, id: string) =>
+		style.layers.find((layer) => layer.id === id) as LayerSpecification & {
+			layout?: Record<string, unknown>;
+			paint?: Record<string, unknown>;
+			minzoom?: number;
+		};
+
+	it('hides a layer of a preset style', () => {
+		const { basis, hidden, id } = hideFirstLayer('colorful', SHORTBREAD);
+		expect(basis).toBe('preset');
+		expect(layerNamed(hidden, id).layout).toMatchObject({ visibility: 'none' });
+	});
+
+	it('hides a layer of a derived style', () => {
+		const { basis, hidden, id } = hideFirstLayer('derived', OWN_NAMES);
+		expect(basis).toBe('derived');
+		expect(layerNamed(hidden, id).layout).toMatchObject({ visibility: 'none' });
+	});
+
+	// The preset was asked for and drew nothing, so `deriveStyle` stood in. The tree still lists the
+	// layers that produced, and the eyes on them still have to work.
+	it('hides a layer of a fallback style', () => {
+		const { basis, hidden, id } = hideFirstLayer('colorful', OWN_NAMES);
+		expect(basis).toBe('fallback');
+		expect(layerNamed(hidden, id).layout).toMatchObject({ visibility: 'none' });
+	});
+
+	// Visibility is only the eye. Colour, filter and zoom range ride the same override down the same
+	// path, so one of them standing in for the rest is enough to know the path is connected.
+	it('carries the rest of an override into a derived style too', () => {
+		const target = { kind: 'vectorShortbread' as const, tileFormat: 'mvt', layers: OWN, mountedLayers: OWN_NAMES };
+		const plain = styleFor(recipe({ preset: 'derived' }), target, SOURCES, BASE).style!;
+		const id = plain.layers.find((layer) => layer.type === 'line')!.id;
+		const patched = styleFor(
+			recipe({ preset: 'derived', overrides: { [id]: { paint: { 'line-color': '#ff0000' }, minZoom: 7 } } }),
+			target,
+			SOURCES,
+			BASE
+		).style!;
+		expect(layerNamed(patched, id).paint!['line-color']).toBe('#ff0000');
+		expect(layerNamed(patched, id).minzoom).toBe(7);
+	});
+
+	it('leaves the layers nobody touched exactly as they were', () => {
+		const { plain, hidden, id } = hideFirstLayer('derived', OWN_NAMES);
+		const others = (style: StyleSpecification) => JSON.stringify(style.layers.filter((l) => l.id !== id));
+		expect(others(hidden)).toEqual(others(plain));
+	});
+
+	it('still validates as a style once an override is on it', () => {
+		const { hidden } = hideFirstLayer('derived', OWN_NAMES);
+		expect(validateStyleMin(hidden)).toEqual([]);
 	});
 });
 

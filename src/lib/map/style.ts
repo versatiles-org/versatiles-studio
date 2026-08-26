@@ -74,10 +74,7 @@ export function renderStyle(
 		recolor: cleaned(appearance.recolor)
 	}) as StyleSpecification;
 
-	return {
-		...style,
-		layers: style.layers.map((layer) => applyOverride(layer, appearance.overrides[layer.id]))
-	};
+	return withOverrides(style, appearance.overrides);
 }
 
 /**
@@ -120,6 +117,20 @@ function applyOverride(layer: LayerSpecification, patch: LayerOverride | undefin
 	}
 
 	return next as LayerSpecification;
+}
+
+/**
+ * A style with the recipe's per-layer changes on it.
+ *
+ * **Every basis the layer tree is offered on has to come through here.** The tree is shown for any
+ * vector source, not only for the ones a preset draws, so an eye closed over a derived style has to
+ * close a layer just as it does over `colorful`. It did not: `renderStyle` applied the overrides and
+ * `deriveStyle` - which is handed layers and sources, and never sees a recipe - could not. The eyes
+ * were switches wired to nothing, and the recipe recorded changes the map never made ([Q51]).
+ */
+function withOverrides(style: StyleSpecification, overrides: VectorAppearance['overrides']): StyleSpecification {
+	if (Object.keys(overrides).length === 0) return style;
+	return { ...style, layers: style.layers.map((layer) => applyOverride(layer, overrides[layer.id])) };
 }
 
 /**
@@ -313,23 +324,24 @@ export function styleFor(
 
 	if (!isVectorKind(kind) || renderable !== 'vector') return { style: null, basis: 'none' };
 
-	// A raster appearance on a vector source has nothing to say; derive rather than draw nothing.
-	if (appearance.type !== 'vector') {
+	// The derived builder is handed layers and sources and never sees a recipe, so the overrides go
+	// on here instead - the tree that writes them is offered on these styles too ([Q51]).
+	const overrides = appearance.type === 'vector' ? appearance.overrides : {};
+	const derive = (basis: StyleBasis): { style: StyleSpecification | null; basis: StyleBasis } => {
 		const derived = deriveStyle(layers, sources, serverBaseUrl);
-		return derived ? { style: derived, basis: 'derived' } : { style: null, basis: 'none' };
-	}
+		return derived ? { style: withOverrides(derived, overrides), basis } : { style: null, basis: 'none' };
+	};
+
+	// A raster appearance on a vector source has nothing to say; derive rather than draw nothing.
+	if (appearance.type !== 'vector') return derive('derived');
 
 	// Built from what the tiles have rather than from what a schema expects (S4.4).
-	if (appearance.preset === 'derived') {
-		const derived = deriveStyle(layers, sources, serverBaseUrl);
-		return derived ? { style: derived, basis: 'derived' } : { style: null, basis: 'none' };
-	}
+	if (appearance.preset === 'derived') return derive('derived');
 
 	const rendered = renderStyle(appearance, sources, serverBaseUrl);
 	if (rendered && drawsAnything(rendered, mountedLayers)) return { style: rendered, basis: 'preset' };
 
-	const derived = deriveStyle(layers, sources, serverBaseUrl);
-	return derived ? { style: derived, basis: 'fallback' } : { style: null, basis: 'none' };
+	return derive('fallback');
 }
 
 /**

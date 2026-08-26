@@ -1,7 +1,7 @@
 //! A project you can send somebody (G1, S5.1).
 //!
-//! [`project::save`](crate::project::save) writes a directory whose `.vpl` files are real pipelines
-//! - and whose `filename=` arguments point wherever the file was imported from, which on this
+//! [`project::save`](crate::project::save) writes a directory whose `.vpl` files are real pipelines,
+//! and whose `filename=` arguments point wherever the file was imported from, which on this
 //! machine is an absolute path under someone's home directory. Copy that directory to another
 //! machine and every pipeline in it names a file that is not there. The project is *readable*
 //! anywhere and *runnable* only here.
