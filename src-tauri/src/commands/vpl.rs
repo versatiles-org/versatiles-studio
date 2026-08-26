@@ -545,14 +545,29 @@ pub async fn save_vpl(
 		});
 	}
 
-	studio_core::project::save_vpl(std::path::Path::new(&path), document.text()).map_err(|error| VplError {
+	let file = std::path::PathBuf::from(&path);
+	let destination = file.parent().unwrap_or(std::path::Path::new(".")).to_path_buf();
+
+	// **Written for where it is going, not for where it was.** A reference below the destination is
+	// written relative to it, so a pipeline saved above its data is a thing you can move as a unit;
+	// one that would need `../` to reach stays absolute. It is also what makes "save as" correct: the
+	// text used to be written unchanged while the meaning of its relative paths moved with the file,
+	// so a pipeline saved elsewhere quietly looked for its inputs in the new directory.
+	let anchored = {
+		let project = held.lock().await;
+		studio_core::bundle::reanchor(document.text(), Some(&project.dir), &destination).map_err(|error| VplError {
+			message: format!("{error:#}"),
+			span: Span::new(0, 0),
+		})?
+	};
+
+	studio_core::project::save_vpl(std::path::Path::new(&path), &anchored).map_err(|error| VplError {
 		message: format!("{error:#}"),
 		span: Span::new(0, 0),
 	})?;
 
 	// Saving to a file makes that file's directory what relative paths mean, exactly as opening one
 	// does - otherwise a pipeline saved beside its inputs would stop finding them.
-	let file = std::path::PathBuf::from(&path);
 	let mut project = held.lock().await;
 	if let Some(parent) = file.parent() {
 		project.dir = parent.to_path_buf();
@@ -563,7 +578,14 @@ pub async fn save_vpl(
 			span: Span::new(0, 0),
 		});
 	};
-	entry.file = Some((file, document.text().to_string()));
+	// **The document becomes what was written**, or the editor would show absolute paths while the
+	// file on disk holds relative ones - and `dirty` is a comparison against the saved text, so a
+	// document left as it was would read as unsaved the moment it was saved.
+	entry.document = studio_core::vpl::Document::parse(&anchored).map_err(|error| VplError {
+		message: error.message,
+		span: error.span,
+	})?;
+	entry.file = Some((file, anchored));
 
 	let entry = project.graphs.get(graph).expect("just saved");
 	Ok(DocumentView::of(entry, &project.history))

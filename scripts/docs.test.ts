@@ -209,8 +209,8 @@ describe('the repository layout', () => {
 describe('documentation size', () => {
 	/** Words per file, generous by roughly a fifth. */
 	const budget: Record<string, number> = {
-		// Raised from 7650 for Q51-Q54, four decisions in one session on the map and the panes.
-		'docs/decisions.md': 8000,
+		// Raised from 7650 for Q51-Q55, five decisions in one session on the map, the panes and paths.
+		'docs/decisions.md': 8250,
 		'docs/history.md': 4450,
 		'docs/features.md': 2700,
 		'docs/ui.md': 2350,

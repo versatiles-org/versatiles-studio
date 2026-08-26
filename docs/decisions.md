@@ -16,6 +16,24 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q55 - A saved `.vpl` names its inputs relative to itself, when it can do so without `../`
+
+**Decided 2026-08-26.** Saving wrote the document's text verbatim. Two things followed from that.
+A pipeline saved above the data it reads kept absolute paths, so the `.vpl` and its inputs were not
+a thing anyone could move, copy or commit as a unit. And "save as" was wrong: the text went to the
+new file unchanged while [`project.dir`](../crates/studio-core/src/project.rs) - what a relative path
+_means_ - moved with it, so a pipeline saved from one directory to another quietly began looking for
+its inputs in the second.
+
+Saving now rewrites every file reference for where the file is going: relative below the
+destination, absolute for anything that would need `../`, since a path that climbs out is fragile in
+both directions and unreadable besides. URLs are untouched. `/` rather than the platform separator,
+since a `.vpl` is text that travels.
+
+**Not canonicalised** - resolving symlinks would rewrite a path someone chose into one they have
+never seen. The in-memory document becomes what was written, because `dirty` is a comparison against
+the saved text.
+
 ### Q54 - An empty project keeps its panes
 
 **Decided 2026-08-26.** A window with no graphs hid both sidebars and every map control, leaving one

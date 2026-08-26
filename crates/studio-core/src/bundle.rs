@@ -275,6 +275,84 @@ fn find(source: &Source) -> Result<Vec<Found>> {
 	Ok(out)
 }
 
+/// Every file reference rewritten as it should be written beside `to`.
+///
+/// **Relative when it can be, absolute when it cannot.** A pipeline saved above the data it reads -
+/// beside it, or anywhere below - becomes a thing you can move, copy or commit as a unit, because
+/// nothing in it names a directory outside itself. A reference that would need `../` to reach stays
+/// absolute: a path that climbs out is fragile in both directions, breaking when either end moves,
+/// and unreadable besides.
+///
+/// **Which also makes "save as" correct.** Saving wrote the text unchanged and then moved what
+/// relative paths *mean* to the new directory - so a pipeline saved from `/a` to `/b` kept
+/// `filename=data.mbtiles` and started looking for `/b/data.mbtiles`, silently. `from` is what those
+/// paths meant when they were written; `to` is where they are going.
+///
+/// URLs are left exactly as they are: they work from anywhere, so there is nothing to anchor.
+///
+/// **Not canonicalised.** Resolving symlinks would rewrite a path someone chose into one they have
+/// never seen, and the case it would help - a project reached through a link - is rarer than the
+/// case it would surprise. A symlinked directory keeps absolute paths, which still work.
+pub fn reanchor(text: &str, from: Option<&Path>, to: &Path) -> Result<String> {
+	let mut document = Document::parse(text).map_err(|error| anyhow::anyhow!("{}", error.message))?;
+	let to = normalise(to);
+
+	// Re-walked after every edit, because setting a value moves the spans after it - the same reason
+	// `rewrite` does it, one index at a time.
+	let mut index = 0;
+	loop {
+		let mut found = Vec::new();
+		walk(document.pipeline(), from, &mut found);
+		let Some(reference) = found.get(index) else {
+			return Ok(document.text().to_string());
+		};
+		index += 1;
+
+		let path = match &reference.kind {
+			ReferenceKind::Remote => continue,
+			ReferenceKind::Local { path, .. } | ReferenceKind::Missing { path } => normalise(path),
+		};
+
+		let written = match path.strip_prefix(&to) {
+			// Below `to`, so it can be named from there without climbing out. `/` rather than the
+			// platform separator: a `.vpl` is text that travels, and both platforms read `/`.
+			Ok(relative) => relative
+				.components()
+				.map(|part| part.as_os_str().to_string_lossy())
+				.collect::<Vec<_>>()
+				.join("/"),
+			Err(_) => path.to_string_lossy().into_owned(),
+		};
+
+		if written != reference.value {
+			document
+				.set_value(reference.span, &written)
+				.map_err(|error| anyhow::anyhow!("{}", error.message))?;
+		}
+	}
+}
+
+/// A path with `.` and `..` resolved, without asking the filesystem anything.
+///
+/// Lexical because `strip_prefix` is: `/a/b/../b/c` and `/a/b/c` are the same file and not the same
+/// text, and a reference that arrived with a `..` in it would otherwise never be seen as being
+/// below anything.
+fn normalise(path: &Path) -> PathBuf {
+	let mut out = PathBuf::new();
+	for part in path.components() {
+		match part {
+			std::path::Component::CurDir => {}
+			std::path::Component::ParentDir => {
+				if !out.pop() {
+					out.push("..");
+				}
+			}
+			other => out.push(other),
+		}
+	}
+	out
+}
+
 fn walk(pipeline: &Pipeline, dir: Option<&Path>, out: &mut Vec<Found>) {
 	for node in &pipeline.nodes {
 		collect(node, dir, out);
@@ -429,6 +507,110 @@ pub fn write_zip(path: &Path, plan: &Plan, recipe: &crate::style::Recipe, style:
 	entries.extend(carried(plan));
 
 	crate::archive::write_zip(path, &entries)
+}
+
+#[cfg(test)]
+mod reanchor_tests {
+	use super::*;
+
+	fn at(dir: &str) -> PathBuf {
+		PathBuf::from(dir)
+	}
+
+	/// What a reference says, whatever quoting the tree chose for it.
+	fn written(text: &str) -> Vec<String> {
+		let document = Document::parse(text).unwrap();
+		let mut found = Vec::new();
+		walk(document.pipeline(), None, &mut found);
+		found.into_iter().map(|reference| reference.value).collect()
+	}
+
+	/// The point of it: a pipeline saved above its data names it from there, so the two travel
+	/// together.
+	#[test]
+	fn a_file_below_the_save_becomes_relative() {
+		let text = "from_container filename='/home/anna/maps/berlin.mbtiles'";
+		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
+		assert_eq!(written(&out), ["berlin.mbtiles"]);
+	}
+
+	#[test]
+	fn a_file_deeper_still_keeps_the_path_below() {
+		let text = "from_container filename='/home/anna/maps/data/berlin.mbtiles'";
+		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
+		assert_eq!(written(&out), ["data/berlin.mbtiles"]);
+	}
+
+	/// The rule, stated: relative only when it can be written without climbing out. A `../` path is
+	/// fragile in both directions and unreadable besides.
+	#[test]
+	fn a_file_outside_stays_absolute() {
+		let text = "from_container filename='/home/anna/other/berlin.mbtiles'";
+		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
+		assert_eq!(written(&out), ["/home/anna/other/berlin.mbtiles"]);
+		assert!(!out.contains(".."), "{out}");
+	}
+
+	/// **What "save as" broke.** The text was written unchanged and the meaning of its relative paths
+	/// moved with the file, so a pipeline saved elsewhere quietly looked for its inputs in the new
+	/// directory.
+	#[test]
+	fn saving_somewhere_else_keeps_pointing_at_the_same_file() {
+		let text = "from_container filename=berlin.mbtiles";
+		let out = reanchor(text, Some(&at("/home/anna/maps")), &at("/tmp/elsewhere")).unwrap();
+		assert_eq!(written(&out), ["/home/anna/maps/berlin.mbtiles"]);
+	}
+
+	#[test]
+	fn saving_in_place_leaves_a_relative_path_alone() {
+		let text = "from_container filename='data/berlin.mbtiles'";
+		let dir = at("/home/anna/maps");
+		let out = reanchor(text, Some(&dir), &dir).unwrap();
+		assert_eq!(written(&out), ["data/berlin.mbtiles"]);
+	}
+
+	/// A URL works from anywhere, so there is nothing to anchor it to.
+	#[test]
+	fn a_url_is_left_exactly_as_it_is() {
+		let text = "from_tilejson url='https://example.org/tiles.json'";
+		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
+		assert_eq!(written(&out), ["https://example.org/tiles.json"]);
+	}
+
+	/// A reference to something that is not there is still somebody's intent, and moving the file it
+	/// is written in must not change which path it means.
+	#[test]
+	fn a_missing_file_is_anchored_like_any_other() {
+		let text = "from_container filename='/home/anna/maps/gone.mbtiles'";
+		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
+		assert_eq!(written(&out), ["gone.mbtiles"]);
+	}
+
+	/// `/a/b/../b/c` and `/a/b/c` are one file and two strings, and `strip_prefix` is text.
+	#[test]
+	fn a_path_that_doubles_back_is_still_below() {
+		let text = "from_container filename='/home/anna/maps/../maps/berlin.mbtiles'";
+		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
+		assert_eq!(written(&out), ["berlin.mbtiles"]);
+	}
+
+	/// Every node in the chain, not the first one.
+	#[test]
+	fn every_reference_in_the_pipeline_is_anchored() {
+		let text = "from_container filename='/home/anna/maps/a.mbtiles' | filter filename='/home/anna/maps/b.geojson'";
+		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
+		assert_eq!(written(&out), ["a.mbtiles", "b.geojson"]);
+	}
+
+	/// Saving twice must not keep rewriting: the second pass resolves the relative path it wrote
+	/// against the same directory and arrives at the same text.
+	#[test]
+	fn anchoring_what_is_already_anchored_changes_nothing() {
+		let dir = at("/home/anna/maps");
+		let once = reanchor("from_container filename='/home/anna/maps/berlin.mbtiles'", None, &dir).unwrap();
+		let twice = reanchor(&once, Some(&dir), &dir).unwrap();
+		assert_eq!(once, twice);
+	}
 }
 
 #[cfg(test)]
