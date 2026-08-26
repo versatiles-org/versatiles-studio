@@ -122,6 +122,13 @@
 		styleRecipe.focus(id !== null && name !== null ? { id, name } : null);
 	});
 
+	/// The selected graph's name, which is what the recipe and the built stack both file it under.
+	const currentName = $derived(currentGraph === null ? null : graphs.nameOf(currentGraph));
+
+	/// What the selected graph last built, or `null` while it has not - the inspector's other half
+	/// (A6). `built` is keyed by name because that is what a mount is called.
+	const currentBuild = $derived(currentName === null ? null : (preview.built[currentName] ?? null));
+
 	/** Build-time information about the binary, so it is fetched once and never refreshed. */
 	let operations = $state<OperationInfo[]>([]);
 
@@ -943,7 +950,11 @@
 				: null}
 		/>
 	{:else if id === 'inspector'}
-		<Inspector containers={preview.containers.map((c) => c.info)} />
+		<Inspector
+			containers={preview.containers.map((c) => c.info)}
+			result={currentBuild?.info ?? null}
+			graph={currentName}
+		/>
 	{/if}
 {/snippet}
 
