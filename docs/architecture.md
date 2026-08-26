@@ -352,6 +352,15 @@ or a re-opened file asks for the same URL and the webview answers from its cache
 be weeks old. `ServerManager::tile_url` appends a per-mount counter, so every build is a URL no cache
 has seen. The reader itself is not the problem — the runtime re-reads the file on every open.
 
+**And a new revision is a swap, not a new source.** The webview owns the other half of that: handing
+MapLibre a whole style makes its diff take a source whose tile URL changed off the map and put it
+back, discarding every rendered tile to fetch the same squares again. `map/tile-swap.ts` recognises
+the case where a change is nothing but tile URLs and calls `setTiles`, which reloads each tile in
+view while it keeps drawing the one it has. Everything else — a layer added, a preset, a source
+arriving or leaving, a background — still goes through `setStyle`, because the rule is _when in
+doubt, full_: mistaking a real change for a swap would leave the map wrong, mistaking a swap for a
+real change only costs the flash it used to cost anyway.
+
 **Assets are archives, not file trees.** Fonts and sprites stay compressed and are served from
 there — atomic to verify, replace and delete. Glyph sets Studio generates itself (D9) are written as
 archives too, so downloaded and generated fonts take the same path.
