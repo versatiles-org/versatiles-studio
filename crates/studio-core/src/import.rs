@@ -302,11 +302,24 @@ async fn head_of(source: &str) -> Result<String> {
 		let reader = DataReaderHttp::try_from(&url).with_context(|| format!("opening {source}"))?;
 		// A range, so a gigabyte of GeoJSON behind a URL costs one small request rather than a
 		// download nobody asked for.
-		reader
-			.read_range(&ByteRange::new(0, SNIFF_BYTES))
-			.await
-			.with_context(|| format!("reading the head of {source}"))?
-			.into_vec()
+		//
+		// **And the whole file when that fails, which is not a fallback so much as the other half of
+		// the rule.** Asking for 64 kB of a 14 kB document is a range past the end, and a server that
+		// answers `416 Range Not Satisfiable` is right to - which failed the sniff for *every* remote
+		// TileJSON, since none of them is anywhere near the cap. No fixed range avoids this: whatever
+		// it is, a smaller document refuses it.
+		//
+		// So the refusal is the evidence. A document large enough for the cost to matter answers the
+		// range request; one that refuses it is smaller than the cap, and reading it whole is reading
+		// less than was already asked for.
+		match reader.read_range(&ByteRange::new(0, SNIFF_BYTES)).await {
+			Ok(blob) => blob.into_vec(),
+			Err(_) => reader
+				.read_all()
+				.await
+				.with_context(|| format!("reading the head of {source}"))?
+				.into_vec(),
+		}
 	} else {
 		use std::io::Read;
 		let file = std::fs::File::open(source).with_context(|| format!("opening {source}"))?;
@@ -622,6 +635,76 @@ mod tests {
 		async fn an_unreadable_json_falls_back_to_its_name() {
 			let opening = opening_for("/nowhere/at/all/places.json").await;
 			assert_eq!(opening.kind.map(|kind| kind.id), Some("vector".to_string()));
+			assert!(opening.refused.is_none());
+		}
+
+		/// A loopback file server, answering ranges the way RFC 7233 says to.
+		///
+		/// Small enough to read, and the one rule that matters is the one a convenient fake would
+		/// have left out: a range starting past the end is *unsatisfiable*, not empty.
+		async fn serve(body: &'static str) -> String {
+			use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+			let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+			let port = listener.local_addr().unwrap().port();
+			tokio::spawn(async move {
+				while let Ok((mut socket, _)) = listener.accept().await {
+					let mut buffer = [0_u8; 2048];
+					let read = socket.read(&mut buffer).await.unwrap_or(0);
+					let request = String::from_utf8_lossy(&buffer[..read]).into_owned();
+					let _ = socket.write_all(answer(&request, body).as_bytes()).await;
+					let _ = socket.shutdown().await;
+				}
+			});
+			format!("http://127.0.0.1:{port}")
+		}
+
+		fn answer(request: &str, body: &str) -> String {
+			let len = body.len();
+			let Some(range) = request
+				.lines()
+				.find_map(|line| line.trim().strip_prefix("Range: bytes="))
+			else {
+				return format!("HTTP/1.1 200 OK\r\nContent-Length: {len}\r\nAccept-Ranges: bytes\r\n\r\n{body}");
+			};
+
+			let (from, to) = range.trim().split_once('-').unwrap_or((range.trim(), ""));
+			let start: usize = from.parse().unwrap_or(0);
+			if start >= len {
+				return format!(
+					"HTTP/1.1 416 Range Not Satisfiable\r\nContent-Range: bytes */{len}\r\nContent-Length: 0\r\n\r\n"
+				);
+			}
+			let end = to.parse::<usize>().unwrap_or(len - 1).min(len - 1);
+			let slice = &body[start..=end];
+			format!(
+				"HTTP/1.1 206 Partial Content\r\nContent-Range: bytes {start}-{end}/{len}\r\nContent-Length: {}\r\nAccept-Ranges: bytes\r\n\r\n{slice}",
+				slice.len()
+			)
+		}
+
+		/// **The bug that made this useless in the field**, and the reason it was invisible: asking
+		/// for 64 kB of a 14 kB document is a range past the end, the server answers `416 Range Not
+		/// Satisfiable`, and a failed sniff falls back to the name - so every remote TileJSON opened
+		/// as GeoJSON and said nothing about why. No fixed cap avoids it; a smaller document refuses
+		/// whatever the cap is.
+		///
+		/// Served over the loopback rather than mocked, because what has to be exercised is a real
+		/// server refusing a real range - which is precisely what a fake would have been written not
+		/// to do.
+		#[tokio::test]
+		async fn a_remote_tilejson_smaller_than_the_cap_is_still_read() {
+			let body = r#"{"tilejson":"3.0.0","tiles":["https://x/{z}/{x}/{y}.pbf"],"maxzoom":14}"#;
+
+			let served = serve(body).await;
+			let opening = opening_for(&format!("{served}/bm.json")).await;
+
+			assert_eq!(
+				opening.kind.as_ref().map(|kind| kind.id.as_str()),
+				Some("tilejson"),
+				"refused: {:?}",
+				opening.refused
+			);
 			assert!(opening.refused.is_none());
 		}
 
