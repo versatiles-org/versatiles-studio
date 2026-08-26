@@ -143,6 +143,9 @@ export function summarise(field: FieldInfo): string {
 		case 'bbox':
 			type = 'west, south, east, north';
 			break;
+		case 'color':
+			type = control.hex ? 'a colour, RRGGBB or RRGGBBAA' : 'a colour, r, g, b';
+			break;
 		case 'path':
 			type = 'a file path';
 			break;

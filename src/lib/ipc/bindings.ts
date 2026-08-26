@@ -837,6 +837,20 @@ export type Control = { kind: "text" } |
 /**  A fixed-size numeric array: a bbox is four, a colour or a centre three. */
 { kind: "numbers"; count: number } | 
 /**
+ *  A colour, in whichever way the operation spells one.
+ * 
+ *  **Two spellings, one control.** `from_color` takes `RRGGBB` or `RRGGBBAA` as a string, with no
+ *  leading `#`; `raster_flatten` takes `[r, g, b]`. Both are a colour to the person picking one,
+ *  and a swatch is the only control that says so - a hex field is a thing to get wrong, and three
+ *  numbers do not look like a colour at all.
+ */
+{ kind: "color"; 
+/**
+ *  Written as hex digits rather than as three numbers. Alpha survives a pick either way: a
+ *  native colour input has none, so an `AA` already there is kept.
+ */
+hex: boolean } | 
+/**
  *  `[west, south, east, north]` in WGS84 degrees - a rectangle the map can draw and a drag can
  *  fill in.
  * 

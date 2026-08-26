@@ -4,6 +4,7 @@
 	import type { HelpContent } from '../../state/help.svelte';
 	import { askForPath } from '../../common/import';
 	import { bboxField, formatBbox, parseBbox } from '../../state/bbox.svelte';
+	import ColorPicker from '../../common/ColorPicker.svelte';
 
 	// One argument of a node: its name, its help, its control, and whether it can be removed (C2).
 	//
@@ -64,6 +65,9 @@
 	/// The registry is the core's to read, and a test there holds the list against it when
 	/// upstream adds another (C2).
 	const isPath = $derived(control?.kind === 'path');
+
+	/// A colour field, in whichever way this operation spells one ([Q57]).
+	const colour = $derived(control?.kind === 'color' ? control : null);
 
 	/// A rectangle field: four degrees, and the map already knows how to draw one ([Q53]).
 	const isBbox = $derived(control?.kind === 'bbox');
@@ -180,7 +184,15 @@
 					{value}
 					title={value}
 					placeholder={hint ||
-						(isBbox ? 'west, south, east, north' : control?.kind === 'numbers' ? `${control.count} numbers` : '')}
+						(isBbox
+							? 'west, south, east, north'
+							: colour
+								? colour.hex
+									? 'RRGGBB'
+									: 'r, g, b'
+								: control?.kind === 'numbers'
+									? `${control.count} numbers`
+									: '')}
 					onfocus={isBbox ? claim : undefined}
 					list={suggestions.length > 0 ? listId : undefined}
 					spellcheck="false"
@@ -199,7 +211,9 @@
 						}
 					}}
 				/>
-				{#if isBbox}
+				{#if colour}
+					<ColorPicker {value} spelling={colour.hex ? 'hex' : 'rgb'} label={`Colour for ${name}`} onPick={onCommit} />
+				{:else if isBbox}
 					<!-- **The map is the helper.** Four degrees typed by hand are four chances to put a
 					     digit in the wrong place, and no way to see that you did until the pipeline runs
 					     over the wrong part of the world. The rectangle appears as soon as the field is

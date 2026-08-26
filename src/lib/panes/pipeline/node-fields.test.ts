@@ -193,6 +193,9 @@ describe('summarise', () => {
 		// "4 numbers" said nothing about which four, and the order is the one thing a person writing
 		// one by hand gets wrong.
 		expect(summarise(field({ control: { kind: 'bbox' } }))).toContain('west, south, east, north');
+		// Two spellings, so the popover says which this operation wants.
+		expect(summarise(field({ control: { kind: 'color', hex: true } }))).toContain('RRGGBB');
+		expect(summarise(field({ control: { kind: 'color', hex: false } }))).toContain('r, g, b');
 	});
 
 	it('always ends by saying whether it is required', () => {

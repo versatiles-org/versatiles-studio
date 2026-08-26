@@ -16,6 +16,16 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q57 - A colour parameter gets a swatch beside its field, not instead of it
+
+**Decided 2026-08-26.** The fourth of `semantics.rs`'s roles to be read rather than merely written.
+Two operations spell a colour two ways - `RRGGBB[AA]` with no `#`, or `[r, g, b]` - so
+`Control::Color` carries which, and one component owns the translation.
+
+**Beside, not instead**: a native colour input has no alpha, so the field stays, and picking keeps an
+alpha already there rather than silently making it opaque. An empty field gets a hatched swatch,
+because one defaulting to black would say the parameter is set to black.
+
 ### Q56 - A field with a short list of answers offers the list
 
 **Decided 2026-08-26.** `tile_size` is a `u32` by type and "`256` or `512`" by meaning: as a number box
@@ -59,10 +69,10 @@ corner of an extract.
 ### Q51 - A layer override applies on whatever basis the style was arrived at
 
 **Decided 2026-08-26.** The layer tree is offered for every vector source, so an override made there has
-to reach the style however that style was arrived at - not only through the preset path, which was the
-only one applying them. Gating the tree to preset styles instead is smaller and wrong: a container no
-preset can draw is where a per-layer control is worth most. The tree is also shown **one source, not the
-stack**, since the composed stack renames ids as soon as a second thing draws.
+to reach the style however that style was arrived at - not only through the preset path. Gating the tree
+to preset styles instead is smaller and wrong: a container no preset can draw is where a per-layer
+control is worth most. The tree is also shown **one source, not the stack**, since the composed stack
+renames ids as soon as a second thing draws.
 
 ### Q50 - Sources and Pipeline are two panes, and the sources list is where a stack is arranged
 
@@ -75,8 +85,6 @@ refused**, which was a list of `from_*` read nodes beside a graph that already d
 **The draw order moves into that list rather than being a second one.** The style pane's copy listed
 only sources that had built, so a graph that would not build vanished from the one control that could
 move it.
-
-_Amends [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)._
 
 ### Q49 - An eye means "this runs", at both scales; the pin is retired
 
@@ -118,17 +126,16 @@ silently, when `addSource` succeeded and a later `addLayer` threw.
 the background's OSM roads. A8 is "what is in _your_ tile"; the background is scenery. The query is
 restricted **by source**, the one thing true of Studio's tiles however they are drawn.
 
-**The layer list is worked out once per style, not once per mouse move.** `getStyle()` from `mousemove`
-broke crop drawing outright: listeners run in one ordered loop, so one registered ahead of others is
-not free to be slow.
+**The layer list is worked out once per style, not once per mouse move**, because `getStyle()` from
+`mousemove` broke crop drawing outright: listeners run in one ordered loop.
 
 ### Q44 - A crop being dragged is drawn as a rectangle; the dim is for a crop that exists
 
-**Decided 2026-08-23.** Dimming everything outside the crop is the right picture for a crop that
-exists - a crop is not a rectangle on the world, it is the part of the world that survives. It is the
-wrong picture for one being dragged: starting a small box turns the whole map dark, which reads as
-the map breaking and hides what you are aiming at. So the draft is its own overlay, dashed, and only
-ever one of the two is on screen.
+**Decided 2026-08-23.** Dimming everything outside the crop is the right picture for a crop that exists
+
+- a crop is not a rectangle on the world, it is the part of the world that survives. It is the wrong
+  picture for one being dragged: starting a small box turns the whole map dark, which reads as the map
+  breaking. So the draft is its own overlay, dashed, and only ever one of the two is on screen.
 
 ### Q43 - The crop folds away, and the Pipeline pane's three actions are centred and full size
 
@@ -175,11 +182,9 @@ itself said a one-item bar "would be chrome that switches between nothing and it
 ### Q38 - Views are named camera positions, they live on the map, and the inspector holds neither them nor a way in
 
 **Decided 2026-08-23.** The inspector had its own way in - an "Open a tile container…" button and a URL
-form, from when opening a container was all Studio did.
-
-**A7's bookmarks are named camera positions, and they moved to the map.** They store a camera and jump
-to it, which is the same act as the coordinate box and nothing to do with what a container turns out to
-be. The coupling gave it away: the save button was disabled whenever there was no map.
+form, from when opening a container was all Studio did. **A7's bookmarks are named camera positions,
+and they moved to the map**: they store a camera and jump to it, which is the same act as the
+coordinate box. The coupling gave it away - the save button was disabled whenever there was no map.
 
 ### Q37 - D3's expression editor edits filters, because that is where the expressions are
 
@@ -211,14 +216,13 @@ is created from whatever was opened.
 
 **Dated 2026-08-17.** `gdal-src` → `proj-sys` wants `libsqlite3-sys >=0.28, <0.36`;
 `versatiles_container` → `rusqlite` wants `^0.38`. `libsqlite3-sys` declares `links = "sqlite3"`, so
-cargo permits exactly one copy, the ranges are disjoint, and the dependency is optional in neither
-chain.
+cargo permits exactly one copy, and the ranges are disjoint.
 
-**The fix is upstream, and both routes were asked for:**
-[versatiles-rs#226](https://github.com/versatiles-org/versatiles-rs/issues/226) and
-[georust/proj#261](https://github.com/georust/proj/pull/261). Studio carries the patch meanwhile,
-pinned to a commit rather than a branch so a rebase cannot change what it builds, with the exit
-condition beside it: **remove it as soon as either lands.**
+The fix is upstream and both routes were asked for
+([versatiles-rs#226](https://github.com/versatiles-org/versatiles-rs/issues/226),
+[georust/proj#261](https://github.com/georust/proj/pull/261)). Studio carries the patch meanwhile,
+pinned to a commit so a rebase cannot change what it builds, with the exit condition beside it:
+**remove it as soon as either lands.**
 
 ### Q33 - The node form explains itself without symbols to learn
 
@@ -246,11 +250,8 @@ mount, the `style.json` source and the `.vpl` filename.
 **Dated 2026-08-18.** **The axis is document versus selection**: left is the structure of what you are
 building, right is the thing currently selected. Two alternatives lost against the feature inventory -
 _tile data / style_ leaves every analysis feature homeless, and _interaction / information_ does not
-survive contact, since A6 edits TileJSON.
-
-**Each pane owns what it emits**, which dissolves the Export section. **Amended by
-[Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form):** the Parameters pane is
-removed, since a node carrying its own arguments makes it a second view of the same thing.
+survive contact, since A6 edits TileJSON. **Each pane owns what it emits**, which dissolves the Export
+section.
 
 ### Q30 - A CSV import reads the header and fills in what it can
 
@@ -271,11 +272,10 @@ format, including ones Studio has never heard of.
 ### Q28 - One import catalogue, in the core, derived from the operation registry
 
 **Dated 2026-08-17.** The list of what Studio can open was in four places and already wrong, and none of
-them knew about `from_geo` - which the binary had all along.
-
-**The catalogue answers to the binary**, dropping any kind whose read operation is absent, so a card
-cannot offer something that fails on the first click. Not hypothetical: [E3](features.md)'s GDAL path is
-a build-time decision, and its card appeared with no UI change the moment GDAL linked.
+them knew about `from_geo` - which the binary had all along. **The catalogue answers to the binary**,
+dropping any kind whose read operation is absent, so a card cannot offer something that fails on the
+first click. Not hypothetical: [E3](features.md)'s GDAL card appeared with no UI change the moment GDAL
+linked.
 
 ### Q27 - The job runner has two lanes, and the preview runs in one of them
 
@@ -359,12 +359,11 @@ E3's claim to the contrary was wrong.
 
 ### Q19 - GDAL is statically bundled, with a deliberately narrow driver set
 
-E3 is required for M3, so GDAL cannot be optional and cannot be a system dependency.
-
-**The obvious blocker turns out to be solved.** PROJ normally needs `proj.db` on disk at runtime; RFC-8's
-`EMBED_RESOURCE_FILES` defaults to ON for static builds. Verified rather than assumed. **Why not the
-alternatives**: dynamic linking against a system GDAL costs ~70 Homebrew formulae, and "install GDAL
-first" is exactly the toolchain P1 and P2 will never get through.
+E3 is required for M3, so GDAL cannot be optional and cannot be a system dependency. **The obvious
+blocker turns out to be solved**: PROJ normally needs `proj.db` on disk at runtime, and RFC-8's
+`EMBED_RESOURCE_FILES` defaults to ON for static builds - verified rather than assumed. Dynamic linking
+against a system GDAL costs ~70 Homebrew formulae, and "install GDAL first" is exactly the toolchain
+step P1 and P2 will never get through.
 
 ### Q18 - Studio's Svelte components are written from scratch
 
@@ -426,10 +425,9 @@ M4 means node graph **plus** text editor. The catalogue assumed C1 was cheap bec
 exists" - it parses, but cannot write back: no serialiser, properties in a `BTreeMap` that reorders
 them, comments discarded.
 
-So the graph edits text through **span-based edits over a lossless syntax tree**. Regenerating from
-the AST would reformat the user's file and delete their comments on every interaction - the exact "GUI
-and file disagree" bug the source-of-truth principle exists to prevent. Built upstream in the end, see
-[Q23](#q23---the-vpl-syntax-tree-is-written-from-scratch-and-pinned-to-upstream-by-a-differential-test).
+So the graph edits text through **span-based edits over a lossless syntax tree**. Regenerating from the
+AST would reformat the user's file and delete their comments on every interaction - the exact "GUI and
+file disagree" bug the source-of-truth principle exists to prevent.
 
 ### Q4 - Analysis statistics live in memory, keyed by container identity
 
@@ -477,10 +475,9 @@ Control over Tauri IPC; data (tiles, glyphs, sprites) over the embedded HTTP ser
 Channels. **Forced, not stylistic**: Tauri serialises command returns as JSON and its own docs warn
 this is slow for large payloads.
 
-**Studio's own tiles take a detour through the webview.** MapLibre fetches through a `studio://`
-protocol holding a bounded queue, because MapLibre reports a tile as loading the moment it _issues_ a
-fetch. With the queue in the middle, "rendering" means the server has it and "queued" means nobody has
-started.
+**Studio's own tiles take a detour through the webview**, fetched through a `studio://` protocol
+holding a bounded queue - because MapLibre reports a tile as loading the moment it _issues_ a fetch,
+so only a queue in the middle can tell "the server has it" from "nobody has started".
 
 ### Q10 - Release 1 ships Linux packages and a Homebrew cask; signing comes later
 

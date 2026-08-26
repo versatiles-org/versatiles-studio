@@ -50,6 +50,16 @@ const CHOICE_FIELD = (over: Record<string, unknown> = {}) => ({
 	...over
 });
 
+/** `field_meta` for a colour - the core's `Control::Color`, in either spelling. */
+const COLOR_FIELD = (hex: boolean) => ({
+	name: 'color',
+	doc: '',
+	required: false,
+	sources: false,
+	default: null,
+	control: { kind: 'color' as const, hex }
+});
+
 const CONTAINER = {
 	id: 'container',
 	label: 'Tile container',
@@ -314,5 +324,70 @@ describe('a field with a set of answers', () => {
 		open({ required: true }, '512');
 		const select = screen.getByRole('combobox') as HTMLSelectElement;
 		expect([...select.options].map((option) => option.value)).not.toContain('');
+	});
+});
+
+/**
+ * The swatch beside a colour parameter ([Q57]).
+ *
+ * **Beside, not instead**: `RRGGBBAA` has an alpha a native colour input cannot express, so the field
+ * stays and the swatch is the way to choose rather than the only way to say.
+ */
+describe('a colour field', () => {
+	const open = (hex: boolean, value = '', onCommit: (raw: string) => void = () => {}) =>
+		render(NodeArgument, { name: 'color', field: COLOR_FIELD(hex), value, onCommit });
+
+	const swatch = () => screen.getByLabelText('Colour for color') as HTMLInputElement;
+
+	it('offers a swatch, and keeps the field beside it', () => {
+		open(true, 'ff8800');
+		expect(swatch().type).toBe('color');
+		expect(screen.getByRole('textbox')).toBeTruthy();
+	});
+
+	it('shows what the field holds, in either spelling', () => {
+		open(true, 'ff8800');
+		expect(swatch().value).toBe('#ff8800');
+		cleanup();
+		open(false, '255, 136, 0');
+		expect(swatch().value).toBe('#ff8800');
+	});
+
+	// An input defaulting to black would say the parameter is set to black.
+	it('says it has nothing to show rather than showing black', () => {
+		open(true);
+		expect(swatch().classList.contains('empty')).toBe(true);
+		expect(swatch().title).toMatch(/not set/);
+	});
+
+	it('writes hex without the # the operation does not want', () => {
+		const onCommit = vi.fn();
+		open(true, '000000', onCommit);
+		const input = swatch();
+		input.value = '#ff8800';
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		expect(onCommit).toHaveBeenCalledWith('ff8800');
+	});
+
+	it('writes three numbers for the operation that takes them', () => {
+		const onCommit = vi.fn();
+		open(false, '0, 0, 0', onCommit);
+		const input = swatch();
+		input.value = '#ff8800';
+		input.dispatchEvent(new Event('input', { bubbles: true }));
+		expect(onCommit).toHaveBeenCalledWith('255, 136, 0');
+	});
+
+	it('says how the field is written when it is empty', () => {
+		open(true);
+		expect(screen.getByPlaceholderText('RRGGBB')).toBeTruthy();
+		cleanup();
+		open(false);
+		expect(screen.getByPlaceholderText('r, g, b')).toBeTruthy();
+	});
+
+	it('offers none for a field that is not a colour', () => {
+		render(NodeArgument, { name: 'layer_name', value: 'roads', onCommit: () => {} });
+		expect(screen.queryByLabelText('Colour for layer_name')).toBeNull();
 	});
 });

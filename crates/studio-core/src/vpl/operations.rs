@@ -59,6 +59,17 @@ pub enum Control {
 		#[cfg_attr(feature = "bindings", specta(type = u32))]
 		count: usize,
 	},
+	/// A colour, in whichever way the operation spells one.
+	///
+	/// **Two spellings, one control.** `from_color` takes `RRGGBB` or `RRGGBBAA` as a string, with no
+	/// leading `#`; `raster_flatten` takes `[r, g, b]`. Both are a colour to the person picking one,
+	/// and a swatch is the only control that says so - a hex field is a thing to get wrong, and three
+	/// numbers do not look like a colour at all.
+	Color {
+		/// Written as hex digits rather than as three numbers. Alpha survives a pick either way: a
+		/// native colour input has none, so an `AA` already there is kept.
+		hex: bool,
+	},
 	/// `[west, south, east, north]` in WGS84 degrees - a rectangle the map can draw and a drag can
 	/// fill in.
 	///
@@ -110,13 +121,20 @@ fn control_for(operation: &str, name: &str, rust_type: &str, enum_variants: &[&'
 	if inner == "Vec<String>" {
 		return Control::List;
 	}
+	let role = role_of(operation, name);
+
 	if let Some(count) = fixed_array_len(inner) {
+		// Three numbers are a colour when the table says so, and a colour is not three numbers to
+		// anyone choosing one.
+		if count == 3 && role == Some(Role::Color) {
+			return Control::Color { hex: false };
+		}
 		// **The table says which four numbers are a rectangle**, and the type says they are four.
 		// Both, because either alone is wrong: every bbox in the registry is `[f64; 4]` and so is
 		// nothing else *today*, and `role_of` is a curated list that a new operation can be missing
 		// from. Requiring the shape as well means a field upstream retypes stops offering a map
 		// picker instead of offering one for whatever it became.
-		if count == 4 && role_of(operation, name) == Some(Role::GeoBBox) {
+		if count == 4 && role == Some(Role::GeoBBox) {
 			return Control::Bbox;
 		}
 		return Control::Numbers { count };
@@ -127,7 +145,11 @@ fn control_for(operation: &str, name: &str, rust_type: &str, enum_variants: &[&'
 	// `semantics.rs` and, like the rectangles, nothing had ever read it - the two spellings of "this
 	// field has a short list of answers" were a Rust enum, which arrives in `enum_variants` above,
 	// and a documented list on a plain number, which arrived nowhere.
-	if let Some(Role::Choice(options)) = role_of(operation, name) {
+	if role == Some(Role::Color) && inner == "String" {
+		return Control::Color { hex: true };
+	}
+
+	if let Some(Role::Choice(options)) = role {
 		return Control::Choice {
 			options: options.iter().map(|option| (*option).to_string()).collect(),
 		};
@@ -441,6 +463,54 @@ mod tests {
 		);
 	}
 
+	/// **Every colour the table names is offered as one**, whichever way the operation spells it. The
+	/// tripwire is the same as the paths' and the rectangles': held against the registry, so an
+	/// operation arriving with a colour nobody tabulated is caught rather than shown as a hex field or
+	/// as three bare numbers.
+	#[test]
+	fn every_colour_in_the_registry_is_a_swatch() {
+		let missed: Vec<String> = operations()
+			.iter()
+			.flat_map(|operation| {
+				operation
+					.fields
+					.iter()
+					.filter(|field| {
+						role_of(&operation.name, &field.name) == Some(Role::Color)
+							&& !matches!(field.control, Control::Color { .. })
+					})
+					.map(|field| format!("{}.{}", operation.name, field.name))
+			})
+			.collect();
+		assert!(missed.is_empty(), "these should offer a swatch: {missed:?}");
+	}
+
+	/// The two spellings, spelled out - so a change to either is a change to this line.
+	#[test]
+	fn a_colour_is_hex_or_three_numbers_depending_on_the_operation() {
+		assert_eq!(field("from_color", "color").control, Control::Color { hex: true });
+		assert_eq!(field("raster_flatten", "color").control, Control::Color { hex: false });
+	}
+
+	/// And a field named `color` that the table has never heard of is not assumed to be one.
+	#[test]
+	fn only_a_tabulated_colour_is_a_swatch() {
+		let wrong: Vec<String> = operations()
+			.iter()
+			.flat_map(|operation| {
+				operation
+					.fields
+					.iter()
+					.filter(|field| {
+						matches!(field.control, Control::Color { .. })
+							&& role_of(&operation.name, &field.name) != Some(Role::Color)
+					})
+					.map(|field| format!("{}.{}", operation.name, field.name))
+			})
+			.collect();
+		assert!(wrong.is_empty(), "not colours: {wrong:?}");
+	}
+
 	/// And the other way: the map's rectangle is offered only where the table says there is one.
 	#[test]
 	fn only_a_rectangle_is_drawn_on_the_map() {
@@ -460,9 +530,10 @@ mod tests {
 	}
 
 	#[test]
-	fn a_bbox_is_four_numbers_and_a_colour_three() {
+	fn a_fixed_array_the_table_says_nothing_about_is_bare_numbers() {
 		assert_eq!(field("from_csv", "bbox").control, Control::Bbox);
-		assert_eq!(field("raster_flatten", "color").control, Control::Numbers { count: 3 });
+		// A three-array that is not a colour stays three numbers: a centre is `[lon, lat, zoom]`.
+		assert_eq!(field("meta_update", "center").control, Control::Numbers { count: 3 });
 	}
 
 	#[test]
