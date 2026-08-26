@@ -4,12 +4,13 @@
  * The container reports its own format and real zoom range, so nothing here guesses.
  */
 
-import type { LayerSpecification, Map as MaplibreMap } from 'maplibre-gl';
+import type { LayerSpecification, Map as MaplibreMap, SourceSpecification } from 'maplibre-gl';
 import type { OpenedContainer } from '../ipc/commands';
 import { token } from '../styles/tokens';
 import { renderableAs } from './tile-format';
 import { role } from './theme';
 import { throughQueue } from './tile-queue';
+import { tilesOnly } from './tile-swap';
 
 /**
  * Which mount a layer belongs to, so removing one takes off this module's own work and nothing else.
@@ -32,25 +33,23 @@ export function addContainerToMap(
 	// container of `bin` tiles produced one decode error per tile and a blank map - see
 	// `tile-format.ts`.
 	const kind = renderableAs(info.tileFormat);
+	if (kind === null) {
+		if (map.getSource(name)) removeContainerFromMap(map, name);
+		return false;
+	}
+
+	const wanted = sourceFor(kind, tileUrl, info);
+	// **A rebuild is the same container reading from a new revision.** Taking it off the map and
+	// putting it back discards every tile on screen to fetch the same squares again - the same
+	// waste `tile-swap.ts` exists for, done by hand here rather than by a style diff.
+	if (swapInPlace(map, name, wanted, layerIdsFor(name, kind, info))) return true;
 
 	if (map.getSource(name)) removeContainerFromMap(map, name);
-	if (kind === null) return false;
 
 	// A source of that name surviving the line above is one this module did not add: the style is
 	// drawing the same mount, from the same graph's tiles. The layers below can sit on it - a second
 	// source under a name already taken is the one thing `addSource` throws on.
-	if (!map.getSource(name)) {
-		map.addSource(name, {
-			type: kind,
-			// Through Studio's own queue rather than straight at the server (S2.16): it is the only
-			// place that can tell a tile waiting for a slot from one the server is rendering, and the
-			// status bar says which.
-			tiles: [throughQueue(tileUrl)],
-			minzoom: info.minZoom,
-			maxzoom: info.maxZoom,
-			...(info.bbox ? { bounds: info.bbox } : {})
-		});
-	}
+	if (!map.getSource(name)) map.addSource(name, wanted);
 
 	if (kind === 'vector') {
 		// Until S1.5 knows the container's layers, draw every vector layer as a hairline. Deriving a
@@ -70,6 +69,58 @@ export function addContainerToMap(
 	}
 
 	return true;
+}
+
+/** The source this module would add for a container. */
+function sourceFor(kind: 'vector' | 'raster', tileUrl: string, info: OpenedContainer['info']): SourceSpecification {
+	return {
+		type: kind,
+		// Through Studio's own queue rather than straight at the server (S2.16): it is the only place
+		// that can tell a tile waiting for a slot from one the server is rendering, and the status
+		// bar says which.
+		tiles: [throughQueue(tileUrl)],
+		minzoom: info.minZoom,
+		maxzoom: info.maxZoom,
+		...(info.bbox ? { bounds: info.bbox } : {})
+	} as SourceSpecification;
+}
+
+/** The layers this module would add for a container, in the order it would add them. */
+function layerIdsFor(name: string, kind: 'vector' | 'raster', info: OpenedContainer['info']): string[] {
+	return kind === 'vector' ? vectorLayerIds(info).map((layer) => `${name}:${layer}`) : [`${name}:raster`];
+}
+
+/**
+ * Points a mount this module already owns at new tiles, or reports that it cannot.
+ *
+ * Three things have to hold, and each of them is a way this could otherwise be wrong:
+ *
+ * * **The layers are ours.** A source of that name with no layers of ours on it belongs to the
+ *   style, which draws the same graph's tiles from a source it added itself - and swapping that one
+ *   from here would be two owners writing to it.
+ * * **The layers are the same ones.** They come from the container's `vector_layers`, so a rebuild
+ *   that changes which layers a pipeline produces has to add and remove them, not keep them.
+ * * **Only the tiles moved on.** `minzoom`, `maxzoom` and `bounds` are on this source and none of
+ *   them has a setter, so a change to any of them is a source that has to be rebuilt.
+ */
+function swapInPlace(map: MaplibreMap, name: string, wanted: SourceSpecification, layers: string[]): boolean {
+	const source = map.getSource(name) as { setTiles?: (tiles: string[]) => void } | undefined;
+	if (typeof source?.setTiles !== 'function') return false;
+
+	// Once: serialising the style is not free, and both questions below are about the same instant.
+	const style = map.getStyle();
+	const ours = style.layers.filter((layer) => mountOf(layer) === name).map((layer) => layer.id);
+	if (ours.length !== layers.length || ours.some((id, index) => id !== layers[index])) return false;
+
+	const tiles = tilesOnly(style.sources?.[name], wanted);
+	if (!tiles) return false;
+
+	try {
+		source.setTiles(tiles);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /** How much of the window is left around a container's extent when framing it. */

@@ -70,13 +70,19 @@ function rest(style: StyleSpecification): Record<string, unknown> {
 }
 
 /**
- * Whether the two sources differ in their tiles and nothing else.
+ * The tiles to swap to, when the two sources differ in those and nothing else.
  *
  * Every other field is compared rather than listed, so a `minzoom`, a `bounds` or an `encoding`
  * that changed is a difference this refuses to call a tile swap - none of them has a setter, and
  * `setTiles` would leave the map claiming a range the source no longer has.
+ *
+ * `null` also when they are identical: there is nothing to swap, and a caller with one source to
+ * think about wants to know that as plainly as one comparing whole styles does.
+ *
+ * Exported because the hairlines add their own source rather than composing a style, and the
+ * question they have to answer about it is exactly this one.
  */
-function tilesOnly(before: unknown, after: unknown): string[] | null {
+export function tilesOnly(before: unknown, after: unknown): string[] | null {
 	if (typeof before !== 'object' || typeof after !== 'object' || !before || !after) return null;
 
 	const left = before as Record<string, unknown>;
