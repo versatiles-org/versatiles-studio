@@ -28,7 +28,7 @@
 
 import { openUrl } from '@tauri-apps/plugin-opener';
 import { CommandFailed } from '../ipc/failure';
-import { buildReport, gpuRenderer, issueUrl, type Local } from '../common/report';
+import { buildReport, fenced, gpuRenderer, issueUrl, type Local } from '../common/report';
 import { REPOSITORY } from '../common/repository';
 import {
 	clearDiagnostics,
@@ -187,7 +187,7 @@ export type Session = 'this' | 'previous';
  * Help menu - and a report that differed depending on which one you used would be the sort of bug
  * that only ever appears in someone else's issue.
  */
-export async function composeReport(session: Session): Promise<string> {
+export async function composeReport(session: Session, brief = false): Promise<string> {
 	const local: Local = {
 		userAgent: navigator.userAgent,
 		renderer: gpuRenderer(window.document.createElement('canvas'))
@@ -203,13 +203,14 @@ export async function composeReport(session: Session): Promise<string> {
 		// `$state` - there is nothing for a reactive wrapper to do but cost a subscription.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		at: new Date(),
-		session
+		session,
+		brief
 	});
 }
 
 /** Puts a report on the clipboard. `false` when the webview refused - the caller offers a fallback. */
 export async function copyReport(session: Session): Promise<boolean> {
-	const text = await composeReport(session);
+	const text = fenced(await composeReport(session));
 	try {
 		await navigator.clipboard.writeText(text);
 		return true;
@@ -225,16 +226,21 @@ export async function copyReport(session: Session): Promise<boolean> {
  * **Both, in that order.** A URL holds a few thousand characters and a report can be longer, so the
  * link carries what fits and says the rest is already copied - which is only true if the copying
  * happened first. Returns whether that copy worked, so a caller with somewhere to say so can.
+ *
+ * **Two reports, not one cut short.** The link gets the brief form - the header and a line per kind
+ * of problem - and the clipboard gets the whole thing. Truncating one report keeps whatever happened
+ * to be at the top of it, which is the least useful half; this way the issue reads as complete
+ * because it is, and the detail is one paste away.
  */
 export async function reportProblem(session: Session): Promise<boolean> {
-	const text = await composeReport(session);
+	const [full, brief] = await Promise.all([composeReport(session), composeReport(session, true)]);
 	const copied = await navigator.clipboard
-		.writeText(text)
+		.writeText(fenced(full))
 		.then(() => true)
 		.catch(() => false);
 	// In the system browser, not here: a webview that navigated to GitHub would be a window with the
 	// application gone from it and no way back. Same reason as the alpha ribbon's.
-	await openUrl(issueUrl(REPOSITORY, text));
+	await openUrl(issueUrl(REPOSITORY, brief));
 	return copied;
 }
 

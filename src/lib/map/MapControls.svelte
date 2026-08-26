@@ -181,24 +181,23 @@
 		}
 	}
 
-	button,
-	select {
+	button {
 		font-size: var(--text-sm);
 		padding: var(--space-2) var(--space-3);
 		background: var(--float-bg);
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);
 		box-shadow: var(--shadow);
-	}
 
-	button.on {
-		background: var(--accent);
-		border-color: var(--accent);
-		color: var(--accent-ink);
-	}
+		&.on {
+			background: var(--accent);
+			border-color: var(--accent);
+			color: var(--accent-ink);
+		}
 
-	button:disabled {
-		opacity: 0.5;
+		&:disabled {
+			opacity: 0.5;
+		}
 	}
 
 	/* One control, not three: the buttons share the border and the shadow that each of the others
