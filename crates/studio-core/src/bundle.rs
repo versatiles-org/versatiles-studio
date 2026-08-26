@@ -171,6 +171,8 @@ pub struct Source<'a> {
 	/// Whether it is drawn ([Q49]), carried for the same reason: a copy should open looking the
 	/// way the original looked.
 	pub enabled: bool,
+	/// Which of its operations are switched off ([Q49]), carried for that same reason.
+	pub disabled: Vec<Vec<u32>>,
 }
 
 /// Where a reference sits in one graph's text, and what it resolves to.
@@ -225,6 +227,7 @@ pub fn plan(sources: &[Source]) -> Result<Plan> {
 			vpl: rewrite(source, &rewrites)?,
 			crop: source.crop,
 			enabled: source.enabled,
+			disabled: source.disabled.clone(),
 		});
 	}
 
@@ -440,6 +443,7 @@ mod tests {
 			dir,
 			crop: crate::export::Bounds::default(),
 			enabled: true,
+			disabled: Vec::new(),
 		}
 	}
 

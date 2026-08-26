@@ -628,10 +628,11 @@ export const commands = {
 	 *  stopping at it, which is what tells this from the pin it replaces. Refused for the two nodes a
 	 *  chain cannot do without - see [`Graphs::set_node_enabled`].
 	 * 
-	 *  **Not durable, and not an edit.** The `.vpl` has no word for a bypassed node, so this is a way
-	 *  of looking at a pipeline rather than part of it: it belongs to the session, and an export runs
-	 *  the document in full. `path` is the node path the graph view already speaks - a node index, then
-	 *  pairs of source and node index.
+	 *  **Not an edit, and not in the `.vpl`.** The file stays the pipeline every tool runs; which of
+	 *  its operations Studio runs is recorded beside the crop in `project.yaml`, for the same reason
+	 *  the crop is. So it survives a reopen, and the preview, the style and an export all agree about
+	 *  it. `path` is the node path the graph view already speaks - a node index, then pairs of source
+	 *  and node index.
 	 */
 	setNodeEnabled: (graph: number, path: number[], enabled: boolean) => typedError<null, string>(__TAURI_INVOKE("set_node_enabled", { graph, path, enabled })),
 	/**
@@ -1008,9 +1009,9 @@ export type GraphInfo = {
 	/**
 	 *  Nodes switched off inside it, as paths ([Q49]).
 	 * 
-	 *  **Session state, not the project's.** A bypass is a way of looking at a pipeline, and the
-	 *  `.vpl` on disk has no word for it - so it dies with the window rather than saving a project
-	 *  whose file says one thing and whose map shows another.
+	 *  **In the project, beside the crop** - not in the `.vpl`, which stays the pipeline every tool
+	 *  runs. What Studio builds, draws and exports is this list applied to that file, so the three
+	 *  of them agree with each other and with what the manifest says.
 	 */
 	disabled: number[][],
 	/**  How many nodes the document has. */

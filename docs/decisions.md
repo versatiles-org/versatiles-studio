@@ -48,16 +48,24 @@ eyes. What remains is a mismatch between the tiles arriving at a node and what i
 that is the one check Studio cannot make statically — `compatible_transforms` needs a built source —
 so it arrives from the build rather than from the click.
 
-**What is durable, and what is not.** A graph's eye is in `project.yaml`: which sources a project
-draws is part of what it is, and someone who switched off a slow hillshade should not have it built
-again tomorrow. A node's eye is session state, because the `.vpl` has no word for a bypassed node —
-persisting it would save a project whose file says one thing and whose map shows another. The
-consequence is stated rather than hidden: **an export runs the document in full**, eyes or not.
+**Both eyes live in `project.yaml`, beside the crop — and neither is in the `.vpl`.** That is the
+rule the crop already states for itself: a crop is not part of the pipeline, the `.vpl` has to stay
+the thing `versatiles convert` runs, and writing it into the file would narrow every use of the
+graph rather than this one. Switched-off operations are the same kind of fact. Commenting them out
+of the file was the first plan and is the worse one: it makes the `.vpl` a different pipeline for
+every tool that reads it, and — because a commented-out node has no CST node behind it — its form
+could no longer be edited without a second, parallel editing path. A switched-off node keeps its
+form, which is worth more.
 
-**Phase 2, not yet built:** a bypassed node round-trips as a _commented-out_ node in the VPL, which
-the tree already preserves through formatting (S1.11). Then the file, the map and the export cannot
-disagree, undo covers it, and the caveat above goes away. The state is a set of node paths either
-way, so that is a change of storage rather than of model.
+**So the three things that run a graph agree**: the preview, the `style.json` a save writes, and an
+export all use `Graph::to_pipeline`, the document minus what is switched off. The one thing outside
+that agreement is a `.vpl` run by another tool, which runs every operation — exactly as it ignores
+the crop, and for the same reason.
+
+**An export is not stopped by a graph's own eye.** That eye answers "is this in the picture", which
+is a question about the map; an export names the graph it is about, so it has been answered by hand
+already. The node eyes are the other question — what the graph _is_ — and an export runs exactly
+that.
 
 **What this removed:** `Pinned` and its two commands, `preview_pipeline`, `preview::up_to`, the
 per-window `preview` mount, `feedsPreview`, and `stackFor`'s exclusive branch. Three concepts became

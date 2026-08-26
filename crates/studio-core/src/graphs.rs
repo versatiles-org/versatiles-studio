@@ -55,9 +55,9 @@ pub struct GraphInfo {
 	pub enabled: bool,
 	/// Nodes switched off inside it, as paths ([Q49]).
 	///
-	/// **Session state, not the project's.** A bypass is a way of looking at a pipeline, and the
-	/// `.vpl` on disk has no word for it - so it dies with the window rather than saving a project
-	/// whose file says one thing and whose map shows another.
+	/// **In the project, beside the crop** - not in the `.vpl`, which stays the pipeline every tool
+	/// runs. What Studio builds, draws and exports is this list applied to that file, so the three
+	/// of them agree with each other and with what the manifest says.
 	pub disabled: Vec<Vec<u32>>,
 	/// How many nodes the document has.
 	pub nodes: u32,
@@ -88,10 +88,10 @@ pub struct Graph {
 	/// Path and the text as last saved, so "is there anything to save" is answered by comparison
 	/// rather than by a flag someone has to remember to set.
 	pub file: Option<(PathBuf, String)>,
-	/// Whether the graph is drawn at all ([Q49]). Durable: it is in `project.yaml`, because which
-	/// sources a project draws is part of what the project is.
+	/// Whether the graph is drawn at all ([Q49]). In `project.yaml`, because which sources a project
+	/// draws is part of what the project is.
 	pub enabled: bool,
-	/// Nodes switched off inside it ([Q49]) - see [`GraphInfo::disabled`] for why this is not.
+	/// Nodes switched off inside it ([Q49]) - durable, see [`GraphInfo::disabled`].
 	pub disabled: BTreeSet<Vec<usize>>,
 	/// The bbox and zoom range an export of this graph is narrowed to (F2, S5.2).
 	///
@@ -130,21 +130,33 @@ impl Graph {
 			running: if self.enabled && self.disabled.is_empty() {
 				nodes
 			} else {
-				self.effective().as_ref().map_or(0, count)
+				self.drawn().as_ref().map_or(0, count)
 			},
 		}
 	}
 
-	/// The pipeline this graph actually runs - the document minus its switched-off nodes.
+	/// **What this graph runs**: the document minus the nodes whose eyes are off ([Q49]).
 	///
-	/// `None` when nothing is left to run, which is either the graph switched off or its head node
-	/// switched off. Everything that builds a graph goes through here, so the map, the style and
-	/// the server can never disagree about what a graph is.
+	/// `None` when nothing is left of it, which is what switching off the node a chain starts with
+	/// means. Everything that runs a graph goes through here - the preview, an export and its
+	/// estimate alike - so the tiles somebody looks at and the tiles they then write cannot come
+	/// from different pipelines.
+	///
+	/// **The graph's own eye is not part of this.** That one answers "is this in the picture", which
+	/// is a question about the map; an export names the graph it is about, so it has already been
+	/// answered by hand. [`drawn`](Self::drawn) is the one that asks it.
 	#[must_use]
-	pub fn effective(&self) -> Option<VPLPipeline> {
-		self
-			.enabled
-			.then(|| self.document.to_pipeline_without(&self.disabled))?
+	pub fn to_pipeline(&self) -> Option<VPLPipeline> {
+		self.document.to_pipeline_without(&self.disabled)
+	}
+
+	/// What the map draws: [`to_pipeline`](Self::to_pipeline), unless the graph is switched off.
+	///
+	/// `None` means there is nothing to build, mount, draw or name in a style - which is how an eye
+	/// that is off costs nothing when a project opens.
+	#[must_use]
+	pub fn drawn(&self) -> Option<VPLPipeline> {
+		self.enabled.then(|| self.to_pipeline())?
 	}
 }
 
@@ -400,9 +412,9 @@ mod tests {
 
 	// -- eyes ([Q49]) ---------------------------------------------------------------------------
 
-	/// What the graph runs, as VPL.
+	/// What the map draws for that graph, as VPL.
 	fn runs(graphs: &Graphs, id: GraphId) -> Option<String> {
-		graphs.get(id).unwrap().effective().map(|pipeline| pipeline.to_string())
+		graphs.get(id).unwrap().drawn().map(|pipeline| pipeline.to_string())
 	}
 
 	#[test]
@@ -550,14 +562,37 @@ mod tests {
 		assert_eq!(info.running, 3, "the branch's two nodes went with its head");
 	}
 
-	/// Off is off: no node of it is running, whatever its own eyes say.
+	/// Off is off: no node of it is drawn, whatever its own eyes say.
 	#[test]
-	fn a_graph_that_is_off_runs_none_of_its_nodes() {
+	fn a_graph_that_is_off_draws_none_of_its_nodes() {
 		let mut graphs = graphs();
 		let id = graphs.add("a", doc("from_debug format=png | raster_flatten"), None);
 		graphs.set_enabled(id, false);
 
 		assert_eq!(graphs.get(id).unwrap().info().running, 0);
+	}
+
+	/// **An export names the graph it is about**, so the graph's own eye - which answers "is this in
+	/// the picture" - is not a second refusal on top of that. The node eyes are a different
+	/// question: they say what the graph *is*, and an export of it runs exactly that.
+	#[test]
+	fn what_a_graph_runs_keeps_its_switched_off_nodes_out_and_its_own_eye_out_of_it() {
+		let mut graphs = graphs();
+		let id = graphs.add(
+			"a",
+			doc("from_debug format=png | filter level_max=5 | raster_flatten"),
+			None,
+		);
+		graphs.set_node_enabled(id, &[1], false).unwrap();
+		graphs.set_enabled(id, false);
+
+		let graph = graphs.get(id).unwrap();
+		assert_eq!(graph.drawn(), None, "nothing is drawn while its eye is off");
+		assert_eq!(
+			graph.to_pipeline().map(|pipeline| pipeline.to_string()),
+			Some("from_debug format=png | raster_flatten".to_string()),
+			"and an export of it still runs the operations that are switched on"
+		);
 	}
 
 	/// Two `places.geojson` files in different folders both want to be `places`.

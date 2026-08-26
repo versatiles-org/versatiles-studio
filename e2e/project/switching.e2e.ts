@@ -10,10 +10,20 @@
  * [Q49]: ../../docs/decisions.md
  */
 
+import { readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve } from 'node:path';
 import { browser, expect, $ } from '@wdio/globals';
 import { invoke, openProject } from '../support';
 
-type Graph = { id: number; name: string; enabled: boolean; nodes: number; running: number };
+type Graph = {
+	id: number;
+	name: string;
+	enabled: boolean;
+	nodes: number;
+	running: number;
+	disabled: number[][];
+};
 
 const graphs = () => invoke<Graph[]>('graphs');
 const only = async (): Promise<Graph> => (await graphs())[0];
@@ -97,10 +107,10 @@ describe('switching one operation off', () => {
 		await nothingBroke();
 	});
 
-	it('says that an export would run it anyway', async () => {
-		// The one place the eyes and an export disagree, said where the switch is.
-		await expect($('p*=1 of 2 operations are switched on')).toBeDisplayed();
-		await expect($('p*=An export runs all of them')).toBeDisplayed();
+	// The row in the sources list is the only place a half-run graph is visible when its chain is
+	// not on screen, so it has to say so there.
+	it('says on the row how much of the graph runs', async () => {
+		await expect($('span=1/2')).toBeDisplayed();
 	});
 
 	it('runs it again when the eye goes back on', async () => {
@@ -108,5 +118,54 @@ describe('switching one operation off', () => {
 
 		await until('the core never recorded the node as on again', (graph) => graph.running === 2);
 		await nothingBroke();
+
+		// Left off for the story below, which is about what a project remembers.
+		await $('button[aria-label="Switch off vector_repair"]').click();
+		await until('the node never went off again', (graph) => graph.running === 1);
+	});
+});
+
+describe('what a saved project remembers', () => {
+	/** Where this story writes its project, thrown away first so a rerun starts clean. */
+	const DIR = resolve(tmpdir(), 'studio-e2e-switching');
+
+	/** Whatever the stories above left behind, this one is about a graph with an operation off. */
+	before(async () => {
+		if ((await only()).running === 2) await $('button[aria-label="Switch off vector_repair"]').click();
+		await browser.waitUntil(async () => (await only()).running === 1, {
+			timeout: 10_000,
+			timeoutMsg: 'the node would not go off'
+		});
+	});
+
+	it('writes the switches into the manifest and leaves the .vpl alone', async () => {
+		rmSync(DIR, { recursive: true, force: true });
+		await invoke('save_project', { dir: DIR, style: null });
+
+		// Which of its operations Studio runs is beside the crop in the manifest, for the same
+		// reason the crop is there.
+		expect(readFileSync(resolve(DIR, 'project.yaml'), 'utf8')).toContain('disabled');
+
+		// **And the `.vpl` still holds the whole pipeline**, switched-off operation included: the
+		// file stays the thing `versatiles convert` runs, rather than becoming a different pipeline
+		// for every tool that reads it.
+		const vpl = readFileSync(resolve(DIR, 'debug.vpl'), 'utf8');
+		expect(vpl).toContain('vector_repair');
+		expect(vpl).not.toContain('# | vector_repair');
+	});
+
+	// Asserted against the core rather than the pane: `open_project` here is the command, not the
+	// gesture, so nothing has told this window to redraw - and what persistence is about is what
+	// came back, not what is on screen.
+	it('opens again with the same operations switched off', async () => {
+		await invoke('open_project', { dir: DIR });
+
+		await browser.waitUntil(async () => (await only()).nodes === 2, {
+			timeout: 20_000,
+			timeoutMsg: 'the project never came back'
+		});
+		const graph = await only();
+		expect(graph.running).toBe(1);
+		expect(graph.disabled).toEqual([[1]]);
 	});
 });

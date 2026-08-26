@@ -162,6 +162,17 @@ pub struct GraphRef {
 	/// written before this existed reads as every graph drawn, which is what it meant.
 	#[serde(default = "drawn", skip_serializing_if = "is_drawn")]
 	pub enabled: bool,
+	/// Which of its operations are switched off ([Q49]), as node paths.
+	///
+	/// **In the manifest and not in the `.vpl`**, for the same reason as `crop` above: it is not
+	/// part of the pipeline. The `.vpl` has to stay the thing `versatiles convert` runs, and a
+	/// pipeline with operations commented out of it would be a different pipeline for every tool
+	/// that reads it. What Studio builds, draws and exports is this list applied to that file.
+	///
+	/// Omitted when nothing is switched off, so a project nobody has touched this in has a manifest
+	/// that never mentions it.
+	#[serde(default, skip_serializing_if = "Vec::is_empty")]
+	pub disabled: Vec<Vec<u32>>,
 }
 
 /// A graph nobody has switched off. `serde`'s default for `bool` is `false`, which would read every
@@ -190,6 +201,8 @@ pub struct SavedGraph {
 	pub crop: crate::export::Bounds,
 	/// Whether the graph is drawn ([Q49]). `true` for everything that predates it.
 	pub enabled: bool,
+	/// Which of its operations are switched off ([Q49]), as node paths.
+	pub disabled: Vec<Vec<u32>>,
 }
 
 /// What `project.yaml` holds.
@@ -317,6 +330,7 @@ pub fn manifest_text(graphs: &[SavedGraph], recipe: &crate::style::Recipe) -> Re
 				file: format!("{}.vpl", graph.name),
 				crop: graph.crop,
 				enabled: graph.enabled,
+				disabled: graph.disabled.clone(),
 			})
 			.collect(),
 		style: recipe.clone(),
@@ -406,6 +420,7 @@ pub fn load(dir: &Path) -> Result<Loaded> {
 			vpl,
 			crop: graph.crop,
 			enabled: graph.enabled,
+			disabled: graph.disabled.clone(),
 		});
 	}
 
@@ -443,6 +458,7 @@ mod project_tests {
 				vpl: "from_debug format=png".to_string(),
 				crop: crate::export::Bounds::default(),
 				enabled: true,
+				disabled: Vec::new(),
 			},
 			SavedGraph {
 				name: "hillshade".to_string(),
@@ -453,6 +469,7 @@ mod project_tests {
 					max_zoom: Some(12),
 				},
 				enabled: false,
+				disabled: vec![vec![1]],
 			},
 		]
 	}
@@ -504,6 +521,23 @@ mod project_tests {
 		let text = std::fs::read_to_string(dir.join(MANIFEST_FILE)).unwrap();
 		let basemap = text.split("- name: hillshade").next().unwrap();
 		assert!(!basemap.contains("enabled"), "{basemap}");
+	}
+
+	/// Which operations are switched off comes back with the project ([Q49]) - the same rule as the
+	/// crop, and for the same reason: it is Studio's, not the `.vpl`'s.
+	#[test]
+	fn switched_off_operations_survive_the_manifest() {
+		let dir = crate::testing::dir("project-disabled");
+		save(&dir, &graphs(), &recipe(), None).unwrap();
+
+		let loaded = load(&dir).unwrap();
+		assert_eq!(loaded.graphs[0].disabled, Vec::<Vec<u32>>::new());
+		assert_eq!(loaded.graphs[1].disabled, vec![vec![1]]);
+
+		// And the `.vpl` beside it is untouched: it stays the pipeline `versatiles convert` runs.
+		let vpl = std::fs::read_to_string(dir.join("hillshade.vpl")).unwrap();
+		assert_eq!(vpl, "from_debug format=png | raster_overview level=2");
+		assert!(!vpl.contains('#'), "nothing is commented out of the file itself");
 	}
 
 	/// **A manifest written before [Q49] draws everything**, which is what it meant. `serde`'s

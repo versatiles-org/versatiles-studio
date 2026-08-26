@@ -160,7 +160,8 @@ shows what the data looks like without it. The map draws every graph that is swi
 _through_ it: the nodes after it carry on, because a bypass is not a truncation. That is what lets
 one branch of a `from_stacked` leave the bracket while the composite and everything after it keep
 running. Two eyes cannot be switched off — the node a chain starts with, which is the graph's own
-switch, and the last source a composite has. Containers are inputs; the map never shows one
+switch, and the last source a composite has. Both eyes are remembered in `project.yaml` beside the
+crop, and neither is written into the `.vpl`: that file stays the pipeline every tool runs. Containers are inputs; the map never shows one
 directly.
 
 **Undo is one stack for the whole document** (G6). The text editor, the parameter forms and the

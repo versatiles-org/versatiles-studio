@@ -4,7 +4,7 @@ use crate::state::AppState;
 use std::path::PathBuf;
 use studio_core::estimate::Estimate;
 use studio_core::export::Bounds;
-use studio_core::graphs::GraphId;
+use studio_core::graphs::{Graph, GraphId};
 use studio_core::jobs::{JobId, Lane};
 use tauri::State;
 
@@ -51,8 +51,11 @@ pub async fn export_graph(
 	let project = state.project(&window).await;
 	let (pipeline, dir) = {
 		let project = project.lock().await;
-		let Some(pipeline) = project.graphs.get(graph).map(|graph| graph.document.to_pipeline()) else {
-			return Err("that graph is no longer open".to_string());
+		// **What runs is what the eyes say** ([Q49]), so the tiles written are the tiles that were
+		// on the map. `None` is a graph switched off down to nothing, which there is no honest way
+		// to write.
+		let Some(pipeline) = project.graphs.get(graph).and_then(Graph::to_pipeline) else {
+			return Err("that graph is no longer open, or has nothing switched on".to_string());
 		};
 		// Relative paths in the VPL resolve against the project directory, exactly as they do for a
 		// preview - an export must not mean something different by `filename='berlin.mbtiles'`.
@@ -113,8 +116,9 @@ pub async fn estimate_export(
 	let project = state.project(&window).await;
 	let (pipeline, dir) = {
 		let project = project.lock().await;
-		let Some(pipeline) = project.graphs.get(graph).map(|graph| graph.document.to_pipeline()) else {
-			return Err("that graph is no longer open".to_string());
+		// The same pipeline the export will run, or the number would be about something else.
+		let Some(pipeline) = project.graphs.get(graph).and_then(Graph::to_pipeline) else {
+			return Err("that graph is no longer open, or has nothing switched on".to_string());
 		};
 		(pipeline, project.dir.clone())
 	};

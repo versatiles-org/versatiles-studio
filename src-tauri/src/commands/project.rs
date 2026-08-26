@@ -44,6 +44,7 @@ pub async fn save_project(
 				vpl: graph.document.text().to_string(),
 				crop: graph.crop,
 				enabled: graph.enabled,
+				disabled: graph.info().disabled,
 			})
 			.collect();
 		(graphs, project.style.clone())
@@ -119,11 +120,21 @@ pub async fn open_project(
 		let id = project
 			.graphs
 			.add(&saved.name, document, Some((file, saved.vpl.clone())));
-		// Restored with the graph rather than set afterwards: a crop is part of what the project is.
+		// Restored with the graph rather than set afterwards: a crop is part of what the project is,
+		// and so is which of its operations are switched on ([Q49]).
 		project
 			.graphs
 			.set_crop(id, saved.crop)
 			.map_err(|error| format!("{error:#}"))?;
+		project.graphs.set_enabled(id, saved.enabled);
+		for path in &saved.disabled {
+			let path: Vec<usize> = path.iter().map(|index| *index as usize).collect();
+			// **Refusals are ignored here, not reported.** A manifest is a file someone may have
+			// edited, and a path that no longer names a node - or that would leave a composite
+			// without a source - is a reason to open the project without that switch rather than to
+			// refuse the project.
+			let _ = project.graphs.set_node_enabled(id, &path, false);
+		}
 		// The baseline every document needs, so undo has somewhere to step back to.
 		project.history.push(Target::Graph(id), saved.vpl, EditKind::Replaced);
 	}
@@ -162,14 +173,15 @@ pub struct CopyPlan {
 /// A graph never saved has none, and falls back to `project_dir` - the same thing every other
 /// relative path in this window resolves against, so a copy and a run agree about what a bare
 /// `berlin.mbtiles` means.
-/// The last field is whether the graph is drawn ([Q49]), so a copy opens looking the way the
-/// original looked.
+/// The last two fields are the graph's eyes ([Q49]) - whether it is drawn, and which of its
+/// operations are switched off - so a copy opens looking the way the original looked.
 type Owned = (
 	String,
 	String,
 	Option<std::path::PathBuf>,
 	studio_core::export::Bounds,
 	bool,
+	Vec<Vec<u32>>,
 );
 
 fn sources(project: &Project) -> Vec<Owned> {
@@ -189,6 +201,7 @@ fn sources(project: &Project) -> Vec<Owned> {
 				Some(dir),
 				graph.crop,
 				graph.enabled,
+				graph.info().disabled,
 			)
 		})
 		.collect()
@@ -197,13 +210,16 @@ fn sources(project: &Project) -> Vec<Owned> {
 fn plan_of(owned: &[Owned]) -> Result<studio_core::bundle::Plan, String> {
 	let sources: Vec<studio_core::bundle::Source> = owned
 		.iter()
-		.map(|(name, text, dir, crop, enabled)| studio_core::bundle::Source {
-			name,
-			text,
-			dir: dir.as_deref(),
-			crop: *crop,
-			enabled: *enabled,
-		})
+		.map(
+			|(name, text, dir, crop, enabled, disabled)| studio_core::bundle::Source {
+				name,
+				text,
+				dir: dir.as_deref(),
+				crop: *crop,
+				enabled: *enabled,
+				disabled: disabled.clone(),
+			},
+		)
 		.collect();
 	studio_core::bundle::plan(&sources).map_err(|error| format!("{error:#}"))
 }

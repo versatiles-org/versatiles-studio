@@ -326,23 +326,6 @@
 			onAddOperation={nodeActions.addOperation}
 		/>
 	{/if}
-	<!-- **The one place the eyes and an export disagree** ([Q49]). A bypassed node lives in the
-	     session, not in the `.vpl`, and `export_graph` runs the document - so a graph with something
-	     switched off exports tiles nobody has looked at. Said here, under the chain that caused it,
-	     rather than in the export dialog: by then the decision has been made, and the switch that
-	     would change it is on this screen.
-	     
-	     In both tabs, not only the graph one: the VPL tab shows every node whether or not it runs,
-	     which is where someone is most likely to read the text as what an export will do.
-	     
-	     It goes when a bypassed node round-trips as a commented-out node ([Q49] phase 2), because
-	     then there is nothing left to disagree about. -->
-	{#if current && current.enabled && current.running < current.nodes}
-		<p class="caveat">
-			{current.running} of {current.nodes} operations are switched on. An export runs all of them.
-		</p>
-	{/if}
-
 	<!-- Below the chain and above the actions, which is where it belongs in the reading: this is
 	     what the graph will be narrowed to, between what it is and what to do with it. -->
 	{#if crop && pipeline}
@@ -472,18 +455,6 @@
 
 	.empty {
 		margin: var(--space-3) 0;
-		color: var(--ink-2);
-	}
-
-	/* Not an error: nothing is wrong, and something is worth knowing. It sits between the two - the
-	   secondary ink an ordinary note has, with the marked background of something that is only
-	   there sometimes. */
-	.caveat {
-		margin: var(--space-3) 0 0;
-		padding: var(--space-2) var(--space-3);
-		border-radius: var(--radius);
-		background: color-mix(in srgb, var(--accent) 8%, transparent);
-		font-size: var(--text-xs);
 		color: var(--ink-2);
 	}
 
