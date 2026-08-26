@@ -49,13 +49,21 @@
 		/** Which route produced `rendered` (S6.2). A preset that could not draw these tiles is
 		 *  replaced by derived layers, and the person who picked it should be told rather than left
 		 *  to notice the map does not match the preset they chose. */
-		basis = 'none'
-		/** Which source the pane is editing - the selected graph. */
+		basis = 'none',
+		/** The style the edited source drew on its own, before the stack renamed anything.
+		 *
+		 *  **Not `rendered`, which is the whole stack.** Everything this pane writes belongs to one
+		 *  graph's recipe and is keyed on the ids `styleFor` produced, and `composeStyle` prefixes
+		 *  those as soon as a second thing draws - a basemap is enough. A tree over the stack listed
+		 *  the other sources' layers, wrote ids nothing would ever match, and put them in the wrong
+		 *  recipe ([Q51]). Export still takes `rendered`: a `style.json` is the map, not one layer
+		 *  of it. */
+		own = null
 	}: {
 		rendered?: StyleSpecification | null;
 		source?: { tileFormat: string; tileSchema: string | null; layers: string[] } | null;
 		basis?: StyleBasis;
-		editing?: string | null;
+		own?: StyleSpecification | null;
 	} = $props();
 
 	const recipe = $derived(style.current);
@@ -76,7 +84,7 @@
 		sliderValue(HILLSHADE_SLIDERS, shade as Record<string, number | null>, key);
 
 	/// Layer ids the style on the map actually has, which is what an override can apply to.
-	const presentIds = $derived(rendered?.layers.map((layer) => layer.id) ?? []);
+	const presentIds = $derived(own?.layers.map((layer) => layer.id) ?? []);
 
 	/// Overrides with no layer to land on - invisible in the tree, because it lists layers.
 	const inert = $derived(inertOverrides(vectorAppearance?.overrides ?? {}, presentIds));
@@ -429,7 +437,7 @@
 				</p>
 			{/if}
 
-			<LayerTree {rendered} />
+			<LayerTree rendered={own} />
 		{/if}
 
 		<h2 class="section-label">Export</h2>

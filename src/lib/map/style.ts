@@ -493,8 +493,16 @@ function extentOf(entry: StackEntry): Extent {
 /** What a composed style drew, and from what. */
 export interface Composed {
 	style: StyleSpecification | null;
-	/** One per entry, in the order given, so the pane can say why a source is not on the map. */
-	bases: { name: string; basis: StyleBasis }[];
+	/**
+	 * One per entry, in the order given, so the pane can say why a source is not on the map - and
+	 * carrying the style that entry drew, before the ids below were prefixed.
+	 *
+	 * **The pane edits one source, and it has to be shown that source's own style.** Overrides
+	 * belong to one graph's recipe and are matched against the ids `styleFor` produced; the composed
+	 * stack renames those the moment a second thing draws. A tree over the stack therefore writes
+	 * ids nothing matches, into a recipe they do not belong to ([Q51]).
+	 */
+	bases: { name: string; basis: StyleBasis; style: StyleSpecification | null }[];
 }
 
 /**
@@ -522,7 +530,7 @@ export function composeStyle(
 	 */
 	background?: StyleSpecification | null
 ): Composed {
-	const bases: { name: string; basis: StyleBasis }[] = [];
+	const bases: Composed['bases'] = [];
 	const sources: Record<string, unknown> = {};
 	const layers: LayerSpecification[] = [];
 	let glyphs: string | undefined;
@@ -550,7 +558,7 @@ export function composeStyle(
 			[{ name: entry.name, tileUrl: entry.tileUrl }],
 			serverBaseUrl
 		);
-		bases.push({ name: entry.name, basis });
+		bases.push({ name: entry.name, basis, style });
 		if (style) drawn.push({ name: entry.name, style, extent: extentOf(entry) });
 	}
 

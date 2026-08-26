@@ -31,6 +31,23 @@ style it picked, before `composeStyle` prefixes any ids. Raster and hillshade ar
 draw one layer, and switching that off is the source's eye
 ([Q49](#q49---an-eye-means-this-runs-at-both-scales-the-pin-is-retired)), not a tree with one row.
 
+**And the tree is shown one source, not the stack.** Applying the overrides was necessary and not
+sufficient: the tree lists the ids of the style it is handed, that style was the composed stack, and
+`composeStyle` prefixes every id with its source name as soon as a second thing draws - a basemap is
+enough (S6.5). So the tree wrote `berlin/water` where the override is matched as `water`, and every
+eye was dead again in the ordinary case. The alternative, matching the overrides after prefixing,
+would key stored data on how many sources happen to draw: switch a basemap on and every override
+written before it stops applying. So `composeStyle` hands back the style each entry drew and the
+pane is shown the one it edits. That also ends a second bug nobody had reported - a tree over the
+stack offered the _other_ sources' layers, and wrote their overrides into the selected graph's
+recipe.
+
+**Underneath both sat a third**, which is why the eyes stayed dead after the first two were fixed: a
+source nobody had styled has no entry in the recipe at all, and `set_override` read the entry and
+gave up rather than creating it the way every other setter does. So the first click on an eye was
+dropped, and doing anything else to the style first made the same click work. Recorded here only
+because the three together are one story; the fix itself is ordinary and lives beside the code.
+
 ### Q50 - Sources and Pipeline are two panes, and the sources list is where a stack is arranged
 
 **Decided 2026-08-26.** The pane titled "Sources" held four groups - the graphs, the chain, the crop

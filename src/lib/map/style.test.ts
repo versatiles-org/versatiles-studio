@@ -440,6 +440,56 @@ describe('composeStyle', () => {
 	});
 
 	/**
+	 * **The tree writes the ids of the style it is shown, and overrides are matched before
+	 * prefixing.** Show it the composed stack and the moment a second thing draws - a basemap is
+	 * enough - every id it writes carries a `name/` that `styleFor` never sees, so every eye in the
+	 * tree goes dead. Overrides also belong to one graph's recipe, so a tree over the whole stack
+	 * writes the upper source's layers into the lower source's recipe ([Q51]).
+	 */
+	describe('the style each entry drew, for the pane that edits one of them', () => {
+		it('hands back one style per entry, with the ids the overrides are keyed on', () => {
+			const { bases } = composeStyle([entry('berlin'), entry('paris')], BASE);
+			const own = bases.find((base) => base.name === 'berlin')!.style!;
+			expect(own.layers.every((layer) => !layer.id.startsWith('berlin/'))).toBe(true);
+		});
+
+		it('applies an override written against those ids, however many sources are drawn', () => {
+			const own = composeStyle([entry('berlin')], BASE).bases[0].style!;
+			const id = own.layers.find((layer) => 'source-layer' in layer)!.id;
+			const hide = { [id]: { visible: false } };
+
+			// Alone, the composed style keeps the id as it was.
+			const alone = composeStyle([entry('berlin', { appearance: recipe({ overrides: hide }) })], BASE).style!;
+			expect(alone.layers.find((layer) => layer.id === id)).toMatchObject({ layout: { visibility: 'none' } });
+
+			// Stacked, the id gains a prefix - and the same override still has to reach the layer.
+			const stacked = composeStyle(
+				[entry('berlin', { appearance: recipe({ overrides: hide }) }), entry('paris')],
+				BASE
+			).style!;
+			expect(stacked.layers.find((layer) => layer.id === `berlin/${id}`)).toMatchObject({
+				layout: { visibility: 'none' }
+			});
+		});
+
+		// A basemap is a drawn entry like any other, which is what makes this the ordinary case
+		// rather than the two-source one: switching one on used to kill every eye in the tree.
+		it('is unaffected by a background being switched on', () => {
+			const background = composeStyle([entry('basemap')], BASE).style!;
+			const own = composeStyle([entry('berlin')], BASE, background).bases[0].style!;
+			const id = own.layers.find((layer) => 'source-layer' in layer)!.id;
+			const composed = composeStyle(
+				[entry('berlin', { appearance: recipe({ overrides: { [id]: { visible: false } } }) })],
+				BASE,
+				background
+			).style!;
+			expect(composed.layers.find((layer) => layer.id === `berlin/${id}`)).toMatchObject({
+				layout: { visibility: 'none' }
+			});
+		});
+	});
+
+	/**
 	 * The bug this pair exists for: every builder - Studio's own and `@versatiles/style`'s -
 	 * declares a source as a list of tile URLs and nothing else, so MapLibre asked for the whole
 	 * world at every zoom. A Berlin extract answered three of four requests at z1 with a 404, and
@@ -479,7 +529,7 @@ describe('composeStyle', () => {
 
 	it('draws one source exactly as it did before', () => {
 		const { style, bases } = composeStyle([entry('berlin')], BASE);
-		expect(bases).toEqual([{ name: 'berlin', basis: 'preset' }]);
+		expect(bases.map(({ name, basis }) => ({ name, basis }))).toEqual([{ name: 'berlin', basis: 'preset' }]);
 		// Unprefixed, because every exported style and every stored override refers to these ids.
 		expect(style!.layers.every((layer) => !layer.id.includes('/'))).toBe(true);
 	});
@@ -519,7 +569,7 @@ describe('composeStyle', () => {
 			[entry('broken', { tileFormat: 'bin' }), entry('places', { mountedLayers: ['places'] })],
 			BASE
 		);
-		expect(bases).toEqual([
+		expect(bases.map(({ name, basis }) => ({ name, basis }))).toEqual([
 			{ name: 'broken', basis: 'none' },
 			{ name: 'places', basis: 'fallback' }
 		]);

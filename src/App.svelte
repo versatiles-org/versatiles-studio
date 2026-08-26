@@ -542,6 +542,10 @@
 	const styleText = () => (styled ? JSON.stringify(forExport(styled), null, '\t') : null);
 	const previewDrawn = $derived(drawn(composed, preview.last?.name));
 
+	/// The stack entry for the source being edited, which is the one the style pane acts on - both
+	/// how it was drawn and the style it drew, whose ids its overrides are keyed on ([Q51]).
+	const editedEntry = $derived(composed.bases.find((entry) => entry.name === preview.last?.name));
+
 	// **One owner for the map's style**, and it composes rather than chooses.
 	//
 	// It used to choose: a styled recipe won, and the background was what an *unstyled* pipeline sat
@@ -928,7 +932,8 @@
 	{:else if id === 'style'}
 		<StylePane
 			rendered={styled}
-			basis={composed.bases.find((entry) => entry.name === preview.last?.name)?.basis ?? 'none'}
+			basis={editedEntry?.basis ?? 'none'}
+			own={editedEntry?.style ?? null}
 			source={preview.last
 				? {
 						tileFormat: preview.last.info.tileFormat,

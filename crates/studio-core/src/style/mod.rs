@@ -481,14 +481,26 @@ impl Recipe {
 	/// Does nothing for a raster source: there are no layers to override, and creating a vector
 	/// appearance to hold the patch would silently change what the source is.
 	pub fn set_override(&mut self, source: &str, layer: impl Into<String>, patch: LayerOverride) {
-		let Some(SourceStyle {
-			appearance: Appearance::Vector { overrides, .. },
-			..
-		}) = self.sources.get_mut(source)
-		else {
+		let layer = layer.into();
+
+		// **A source nobody has styled has no entry here at all**, and the pane still shows it the
+		// default vector appearance and a full layer tree - because that is what it will be drawn
+		// as. Every other setter creates the entry on the way past, through `source_mut`; this one
+		// read it and gave up, so the first click on an eye was the one edit that vanished, and
+		// doing anything else first made the same click work.
+		//
+		// Nothing is created for an empty patch: resetting a layer nobody changed is not an edit,
+		// and it must not write an entry into the file.
+		if patch.is_empty() && !self.sources.contains_key(source) {
+			return;
+		}
+
+		// `None`, so a source that has to be created is created as vector. An entry that already
+		// exists keeps whatever it is, which is what leaves a raster source alone below.
+		let Appearance::Vector { overrides, .. } = &mut self.source_mut(source, None).appearance else {
 			return;
 		};
-		let layer = layer.into();
+
 		if patch.is_empty() {
 			overrides.remove(&layer);
 		} else {
@@ -608,6 +620,40 @@ mod tests {
 		recipe.set_override(GRAPH, "water", LayerOverride::default());
 		assert!(overrides_of(&recipe).is_empty(), "a reset layer is not a stored layer");
 		assert_eq!(recipe.text(), baseline);
+	}
+
+	/// **The first click on an eye is the one that used to vanish.** A source nobody has styled has
+	/// no entry in the recipe at all - the pane shows it the default vector appearance and a full
+	/// layer tree, because that is what it will be drawn as. Every other setter creates the entry on
+	/// the way past; this one read it and gave up, so hiding a layer did nothing, and doing anything
+	/// else first made the same click work.
+	#[test]
+	fn the_first_override_on_a_source_nobody_has_styled_is_kept() {
+		let mut recipe = Recipe::default();
+		assert!(recipe.source(GRAPH).is_none(), "nothing has styled it yet");
+
+		recipe.set_override(
+			GRAPH,
+			"water",
+			LayerOverride {
+				visible: Some(false),
+				..LayerOverride::default()
+			},
+		);
+
+		assert_eq!(overrides_of(&recipe).len(), 1, "the click has to reach the recipe");
+		assert_eq!(overrides_of(&recipe)["water"].visible, Some(false));
+	}
+
+	/// Resetting a layer nobody changed is not an edit, and must not bring a source into the recipe
+	/// that was never styled - that would write an entry into the file for a click that did nothing.
+	#[test]
+	fn an_empty_override_does_not_create_a_source() {
+		let mut recipe = Recipe::default();
+		let before = recipe.text();
+		recipe.set_override(GRAPH, "water", LayerOverride::default());
+		assert!(recipe.source(GRAPH).is_none());
+		assert_eq!(recipe.text(), before);
 	}
 
 	/// A raster source has no layers to override, and inventing a vector appearance to hold a patch

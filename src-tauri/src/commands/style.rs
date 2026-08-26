@@ -261,7 +261,7 @@ pub async fn set_layer_override(
 	Ok(record(&mut project, recipe))
 }
 
-/// What Studio can write a style as/// What Studio can write a style as - the file dialog's filters come from here.
+/// What Studio can write a style as - the file dialog's filters come from here.
 #[tauri::command]
 #[specta::specta]
 pub fn style_formats() -> Vec<String> {

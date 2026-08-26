@@ -312,7 +312,7 @@ export const commands = {
 	 *  **On a blocking thread**: this reads two tar archives and writes a few hundred files.
 	 */
 	exportStyleBundle: (target: string, zip: boolean, contents: string, fonts: string[]) => typedError<string[], string>(__TAURI_INVOKE("export_style_bundle", { target, zip, contents, fonts })),
-	/**  What Studio can write a style as/// What Studio can write a style as - the file dialog's filters come from here. */
+	/**  What Studio can write a style as - the file dialog's filters come from here. */
 	styleFormats: () => __TAURI_INVOKE<string[]>("style_formats"),
 	/**
 	 *  Writes every graph, the style recipe, and the rendered style.
