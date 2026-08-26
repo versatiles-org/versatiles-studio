@@ -33,7 +33,7 @@
 			.filter(Boolean)
 			.map(Number);
 		if (parts.length < 2 || parts.length > 3 || parts.some(Number.isNaN)) return null;
-		const [lat, lng, zoom] = parts;
+		const [lng, lat, zoom] = parts;
 		if (Math.abs(lat) > 85.06 || Math.abs(lng) > 180) return null;
 		return { lat, lng, zoom };
 	}
@@ -44,7 +44,7 @@
 		bind:value={text}
 		oninput={() => (invalid = false)}
 		type="text"
-		placeholder="z/x/y or lat, lng"
+		placeholder="z/x/y or lng,lat"
 		spellcheck="false"
 		aria-label="Jump to coordinate or tile"
 	/>
@@ -63,7 +63,7 @@
 	   
 	   Mono stays. What is typed here is a coordinate, and the digits should line up. */
 	input {
-		width: 11rem;
+		width: 9rem;
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
 		background: var(--float-bg);
