@@ -15,6 +15,7 @@
 
 import type { Status } from '../shell/StatusBar.svelte';
 import { describe, record } from './diagnostics.svelte';
+import { headline } from '../common/message';
 
 let current = $state<Status>({ kind: 'idle' });
 
@@ -57,8 +58,15 @@ export const status = {
 	 */
 	fail(error: unknown): void {
 		const { message, detail } = describe(error);
-		current = { kind: 'error', message };
-		record({ level: 'error', origin: 'webview', message, detail });
+		// **The bar gets the cause; the panel gets the chain** ([Q59]). The core's errors arrive as a
+		// context stack joined with `": "`, and a bar that fits eighty characters was keeping the
+		// eighty every failure has in common while cutting off the part that differs. Nothing is lost:
+		// the whole message is the bar's `title`, and the problems panel is built for the long version.
+		const line = headline(message);
+		// `full` only when something was cut, so an ordinary one-sentence failure is the same shape it
+		// has always been and no tooltip repeats what is already on screen.
+		current = line === message ? { kind: 'error', message } : { kind: 'error', message: line, full: message };
+		record({ level: 'error', origin: 'webview', message: line, detail: detail ?? (line === message ? null : message) });
 	},
 
 	/** Clears whatever it is saying - the dismiss button, and nothing else. */

@@ -37,15 +37,71 @@ use std::collections::BTreeSet;
 use versatiles_pipeline::vpl::{CstFile, VPLNode, VPLPipeline, parse_cst};
 
 /// A parse failure, positioned. Upstream's error, narrowed to what an editor needs.
+///
+/// **The construct comes with it**, which is the difference between a shrug and an instruction.
+/// Upstream reports the innermost failure and, separately, the stack of things it was in the middle
+/// of - so `filename=/no/quotes/here.mbtiles` is `"unexpected character"` at byte 24, *inside*
+/// `parsing unquoted value`. Read alone the message says nothing anyone can act on; with the frame it
+/// says the value needs quoting, which is the commonest mistake in the language.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseError {
+	/// The innermost failure, as upstream words it.
 	pub message: String,
 	pub span: Span,
+	/// What the parser was in the middle of, innermost first. Empty for a failure inside no construct
+	/// - a trailing `|`, say.
+	pub context: Vec<Frame>,
+}
+
+/// One construct the parser was inside when it failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Frame {
+	/// Upstream's own words, e.g. `parsing unquoted value`.
+	pub label: String,
+	/// Where that construct starts, in bytes.
+	pub offset: usize,
+}
+
+impl ParseError {
+	/// A failure Studio found itself, which is inside no construct upstream named.
+	#[must_use]
+	pub fn at(message: impl Into<String>, span: Span) -> Self {
+		Self {
+			message: message.into(),
+			span,
+			context: Vec::new(),
+		}
+	}
+
+	/// The failure as a sentence, with the construct it happened in and what to do about it.
+	///
+	/// **The innermost frame only.** The stack ends `parsing node`, `parsing pipeline` for every
+	/// failure there is, so naming those says nothing; the first frame is the one that narrows.
+	#[must_use]
+	pub fn explain(&self) -> String {
+		let Some(frame) = self.context.first() else {
+			return self.message.clone();
+		};
+		let construct = frame.label.strip_prefix("parsing ").unwrap_or(&frame.label);
+
+		// **The one hint worth writing out.** A path, or any value with a space in it, is the mistake
+		// people make first and most often - `filename=/data/berlin.mbtiles` reads as obviously fine
+		// and is not - and "unexpected character in an unquoted value" is still a puzzle unless you
+		// already know that quoting is the answer.
+		if construct == "unquoted value" {
+			return format!(
+				"{} in an unquoted value - a path or a value with spaces needs quotes",
+				self.message
+			);
+		}
+
+		format!("{} in a {construct}", self.message)
+	}
 }
 
 impl std::fmt::Display for ParseError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{} (at byte {})", self.message, self.span.start)
+		write!(f, "{} (at byte {})", self.explain(), self.span.start)
 	}
 }
 
@@ -56,6 +112,14 @@ impl From<versatiles_pipeline::vpl::VplParseError> for ParseError {
 		Self {
 			message: error.message,
 			span: error.span.into(),
+			context: error
+				.context
+				.into_iter()
+				.map(|frame| Frame {
+					label: frame.label,
+					offset: frame.offset,
+				})
+				.collect(),
 		}
 	}
 }
@@ -143,15 +207,19 @@ impl Document {
 	/// comes back and the document is exactly as it was.
 	pub fn replace(&mut self, span: Span, replacement: &str) -> Result<(), ParseError> {
 		let mut candidate = String::with_capacity(self.text.len() + replacement.len());
-		candidate.push_str(self.text.get(..span.start).ok_or_else(|| ParseError {
-			message: "the span starts outside the document".to_string(),
-			span,
-		})?);
+		candidate.push_str(
+			self
+				.text
+				.get(..span.start)
+				.ok_or_else(|| ParseError::at("the span starts outside the document".to_string(), span))?,
+		);
 		candidate.push_str(replacement);
-		candidate.push_str(self.text.get(span.end..).ok_or_else(|| ParseError {
-			message: "the span ends outside the document".to_string(),
-			span,
-		})?);
+		candidate.push_str(
+			self
+				.text
+				.get(span.end..)
+				.ok_or_else(|| ParseError::at("the span ends outside the document".to_string(), span))?,
+		);
 
 		*self = Self::parse(candidate)?;
 		Ok(())
@@ -165,10 +233,7 @@ impl Document {
 	pub fn set_value(&mut self, span: Span, value: &str) -> Result<(), ParseError> {
 		let mut cst = self.cst.clone();
 		if !view::set_value_at(&mut cst, span, value) {
-			return Err(ParseError {
-				message: "no value at that position".to_string(),
-				span,
-			});
+			return Err(ParseError::at("no value at that position".to_string(), span));
 		}
 		*self = Self::rebuilt(cst);
 		Ok(())
@@ -182,10 +247,7 @@ impl Document {
 	pub fn set_property(&mut self, span: Span, key: &str, values: &[String]) -> Result<(), ParseError> {
 		let mut cst = self.cst.clone();
 		if !view::set_property_at(&mut cst, span, key, values) {
-			return Err(ParseError {
-				message: "no operation at that position".to_string(),
-				span,
-			});
+			return Err(ParseError::at("no operation at that position".to_string(), span));
 		}
 		*self = Self::rebuilt(cst);
 		Ok(())
@@ -214,10 +276,7 @@ impl Document {
 	pub fn remove_property(&mut self, span: Span) -> Result<(), ParseError> {
 		let mut cst = self.cst.clone();
 		if !view::remove_property_at(&mut cst, span) {
-			return Err(ParseError {
-				message: "no parameter at that position".to_string(),
-				span,
-			});
+			return Err(ParseError::at("no parameter at that position".to_string(), span));
 		}
 		*self = Self::rebuilt(cst);
 		Ok(())
@@ -243,10 +302,7 @@ impl Document {
 			.pipeline()
 			.node_at(span.start)
 			.map(|(_, node)| node.span.end)
-			.ok_or_else(|| ParseError {
-				message: "no operation at that position".to_string(),
-				span,
-			})?;
+			.ok_or_else(|| ParseError::at("no operation at that position".to_string(), span))?;
 		self.replace(Span { start: at, end: at }, &format!(" | {operation}"))
 	}
 
@@ -261,19 +317,16 @@ impl Document {
 	/// Refused when it would empty the chain: an empty pipeline does not parse, so the alternative
 	/// is an "unexpected character" error about a document the user never wrote.
 	pub fn remove_node(&mut self, span: Span) -> Result<(), ParseError> {
-		let missing = || ParseError {
-			message: "no operation at that position".to_string(),
-			span,
-		};
+		let missing = || ParseError::at("no operation at that position".to_string(), span);
 		let cut = {
 			let pipeline = self.pipeline();
 			let (path, _) = pipeline.node_at(span.start).ok_or_else(missing)?;
 			let (parent, index) = pipeline.parent_of(&path).ok_or_else(missing)?;
 			if parent.nodes.len() < 2 {
-				return Err(ParseError {
-					message: "a pipeline needs at least one operation".to_string(),
+				return Err(ParseError::at(
+					"a pipeline needs at least one operation".to_string(),
 					span,
-				});
+				));
 			}
 			if index > 0 {
 				Span {

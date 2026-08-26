@@ -66,3 +66,37 @@ describe('what the bar says', () => {
 		status.dismiss();
 	});
 });
+
+/**
+ * A chain in a bar that fits eighty characters ([Q59]).
+ *
+ * The core's errors arrive as a context stack joined with `": "`, and the eighty characters that
+ * survived truncation were the layers every failure has in common - so the bar reported the same
+ * thing whatever had gone wrong.
+ */
+describe('an error that arrives as a context chain', () => {
+	const CHAIN =
+		'Failed to build pipeline from VPL: Failed to create read operation from VPL node: ' +
+		'error sending request for url (https://example.org/tiles.json): Connection reset by peer';
+
+	it('says the cause in the bar', () => {
+		status.fail(new Error(CHAIN));
+		expect(status.current).toEqual({
+			kind: 'error',
+			message: 'Connection reset by peer',
+			full: CHAIN
+		});
+	});
+
+	// Nothing is only in the problems panel: the bar's tooltip carries what the line was cut from.
+	it('keeps the whole of it for the tooltip', () => {
+		status.fail(new Error(CHAIN));
+		expect((status.current as { full?: string }).full).toBe(CHAIN);
+	});
+
+	// A parse error is already one short sentence, and a tooltip repeating the line helps nobody.
+	it('leaves an ordinary failure exactly as it was', () => {
+		status.fail(new Error("expected '=', got end of input"));
+		expect(status.current).toEqual({ kind: 'error', message: "expected '=', got end of input" });
+	});
+});

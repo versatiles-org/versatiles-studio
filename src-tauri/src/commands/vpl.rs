@@ -26,7 +26,10 @@ pub struct VplError {
 impl From<ParseError> for VplError {
 	fn from(error: ParseError) -> Self {
 		Self {
-			message: error.message,
+			// **The sentence, not the fragment.** Upstream reports the innermost failure and the
+			// construct it happened in as two things; `"unexpected character"` alone is a shrug, and
+			// with the construct it is an instruction ([Q60]).
+			message: error.explain(),
 			span: error.span,
 		}
 	}

@@ -9,7 +9,13 @@
 	// in, which is exactly what a status bar is for, and covering the map to say so was never a
 	// good trade.
 	export type Status =
-		{ kind: 'idle' } | { kind: 'busy'; message: string; fraction?: number } | { kind: 'error'; message: string };
+		| { kind: 'idle' }
+		| { kind: 'busy'; message: string; fraction?: number }
+		/**
+		 * `message` is the line to show - the cause of a chain rather than the whole of it ([Q59]) -
+		 * and `full` is what it was cut from, for the tooltip. Equal when there was nothing to cut.
+		 */
+		| { kind: 'error'; message: string; full?: string };
 
 	/**
 	 * Which panel the bar has expanded, if any.
@@ -78,8 +84,16 @@
 	/// backwards. `fraction` is `undefined` - not zero - when nothing can say how far along it is;
 	/// pretending to know is worse than admitting it.
 	const line = $derived.by(
-		(): { message: string; fraction?: number; pace?: string; error?: boolean; cancel?: number } => {
-			if (status.kind === 'error') return { message: status.message, error: true };
+		(): {
+			message: string;
+			/** What the message was cut from, for the tooltip. */
+			full?: string;
+			fraction?: number;
+			pace?: string;
+			error?: boolean;
+			cancel?: number;
+		} => {
+			if (status.kind === 'error') return { message: status.message, full: status.full, error: true };
 			if (job) {
 				return {
 					message: job.message || job.label,
@@ -125,7 +139,11 @@
 
 	<!-- `alert` only for an error, so a screen reader hears a failure without hearing every step of
 	     a conversion it is not being asked about. -->
-	<span class="message truncate" role={line.error ? 'alert' : undefined} title={line.message}>{line.message}</span>
+	<!-- The tooltip carries the whole of a chain the line was cut from, so nothing is only in the
+	     problems panel ([Q59]). -->
+	<span class="message truncate" role={line.error ? 'alert' : undefined} title={line.full ?? line.message}>
+		{line.message}
+	</span>
 
 	<!-- Beside the message rather than inside it: the message changes with every stage and this
 	     changes with every update, and one string rebuilt from both would flicker in two rhythms. -->

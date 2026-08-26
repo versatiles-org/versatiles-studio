@@ -838,3 +838,70 @@ fn a_path_that_names_nothing_is_ignored() {
 	let vpl = "from_debug format=png | raster_flatten";
 	assert_eq!(without(vpl, &[&[7]]).unwrap(), "from_debug format=png | raster_flatten");
 }
+
+// -- what a parse failure says ------------------------------------------------------------------
+
+/// **The commonest mistake in the language, and what it used to say about it.** A path reads as
+/// obviously fine unquoted and is not; upstream reports `"unexpected character"`, which is true and
+/// useless. The construct it happened in is the half that turns it into an instruction ([Q60]).
+#[test]
+fn an_unquoted_path_says_what_to_do_about_it() {
+	let error = Document::parse("from_container filename=/data/berlin.mbtiles").unwrap_err();
+
+	assert_eq!(error.message, "unexpected character");
+	assert_eq!(
+		error.explain(),
+		"unexpected character in an unquoted value - a path or a value with spaces needs quotes"
+	);
+	// And the span is the character itself, so the editor underlines the `/` rather than the line.
+	assert_eq!(error.span.start, 24);
+}
+
+/// The stack ends `parsing node`, `parsing pipeline` for every failure there is, so naming those
+/// would say nothing. The innermost frame is the one that narrows.
+#[test]
+fn the_construct_named_is_the_innermost_one() {
+	let error = Document::parse("from_container filename").unwrap_err();
+
+	assert_eq!(
+		error
+			.context
+			.iter()
+			.map(|frame| frame.label.as_str())
+			.collect::<Vec<_>>(),
+		["parsing property", "parsing node", "parsing pipeline"]
+	);
+	assert_eq!(error.explain(), "expected '=', got end of input in a property");
+}
+
+/// Some failures happen inside no construct at all - a trailing separator is one - and there is
+/// nothing to add to those.
+#[test]
+fn a_failure_inside_nothing_is_left_as_it_was() {
+	let error = Document::parse("from_container filename=a | ").unwrap_err();
+
+	assert!(error.context.is_empty(), "{:?}", error.context);
+	assert_eq!(error.explain(), error.message);
+}
+
+/// Studio finds failures of its own - a span that is not on a value, say - and those are inside no
+/// construct upstream named either.
+#[test]
+fn a_failure_studio_found_itself_carries_no_construct() {
+	let mut document = Document::parse("from_container filename=a").unwrap();
+	let error = document.set_value(Span::new(999, 1000), "b").unwrap_err();
+
+	assert!(error.context.is_empty());
+	assert_eq!(error.explain(), error.message);
+}
+
+/// The position is in the sentence a `Display` produces, because a caller that only logs the error
+/// would otherwise have the construct and not the place.
+#[test]
+fn displaying_a_failure_keeps_both_halves() {
+	let error = Document::parse("from_container filename=/data/berlin.mbtiles").unwrap_err();
+	let shown = error.to_string();
+
+	assert!(shown.contains("needs quotes"), "{shown}");
+	assert!(shown.contains("at byte 24"), "{shown}");
+}

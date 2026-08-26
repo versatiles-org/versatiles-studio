@@ -16,6 +16,24 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q60 - A parse failure is reported with the construct it happened in
+
+**Decided 2026-08-27.** Upstream reports the innermost failure and the stack of constructs separately,
+and Studio kept only the first: `filename=/data/berlin.mbtiles` said `unexpected character`, useful for
+nothing. With the innermost frame it says the value needs quoting - the commonest mistake in the
+language. **The innermost only**, since every stack ends `parsing node`, `parsing pipeline`. Failures
+inside no construct are left as they were
+([versatiles-rs#258](https://github.com/versatiles-org/versatiles-rs/issues/258)).
+
+### Q59 - The status bar says the cause; the chain goes where a chain belongs
+
+**Decided 2026-08-27.** The core's errors arrive as `anyhow` context stacks joined with `": "` - a
+failed build is 250 characters across seven layers, and a bar fitting eighty showed the layers _every_
+failure has in common while cutting off the part that differs.
+
+It now shows the last layer; the whole of it is the bar's `title` and the panel's detail. **Three
+layers, not two**: `no such file: /home/anna/berlin.mbtiles` is one sentence naming a thing.
+
 ### Q58 - A popup covers rather than displaces, and there is one place that works out where
 
 **Decided 2026-08-27.** `＋ new graph…` revealed its two doors in flow, so opening it pushed the pane
@@ -24,8 +42,8 @@ fixed-position list, every way out, and arrows that walk only choosable rows. A 
 another list without closing, which is what `'keep'` says.
 
 **`popup.ts` is the shared part.** `Help`, `Picker` and the map's dropdown each measured a trigger and
-worked out a rectangle; the fourth copy is where that stops. Arithmetic can be tested against a window
-of a known size, which nothing that has to be rendered first can be.
+worked out a rectangle; the fourth copy is where that stops, and arithmetic can be tested where a
+rendered popup cannot.
 
 ### Q57 - A colour parameter gets a swatch beside its field, not instead of it
 
@@ -87,9 +105,8 @@ document-versus-selection line. **This is not the sources pane
 [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)
 refused**, which was a list of `from_*` read nodes beside a graph that already draws them.
 
-**The draw order moves into that list rather than being a second one.** The style pane's copy listed
-only sources that had built, so a graph that would not build vanished from the one control that could
-move it.
+**The draw order moves into that list.** The style pane's copy listed only sources that had built, so a
+graph that would not build vanished from the one control that could move it.
 
 ### Q49 - An eye means "this runs", at both scales; the pin is retired
 
@@ -114,8 +131,7 @@ same project, sharing an undo stack and a viewport. The core now holds a project
 
 **Decided 2026-08-25.** Five controls sat in the top-right corner - a menu bar drawn by hand, in the one
 corner of the window where a menu is not. Native menus get the accelerators and keyboard navigation for
-free. **The menu says which; the window says what**: `menu.rs` emits an item id and stops there, so every
-action stays beside the state it touches.
+free. **The menu says which; the window says what**: `menu.rs` emits an item id and stops there.
 
 ### Q46 - An overlay on the map is one helper with one test, not three copies of a pattern
 
@@ -131,7 +147,7 @@ the background's OSM roads. A8 is "what is in _your_ tile"; the background is sc
 restricted **by source**, the one thing true of Studio's tiles however they are drawn.
 
 **The layer list is worked out once per style, not once per mouse move**, because `getStyle()` from
-`mousemove` broke crop drawing outright: listeners run in one ordered loop.
+`mousemove` broke crop drawing outright.
 
 ### Q44 - A crop being dragged is drawn as a rectangle; the dim is for a crop that exists
 
@@ -152,24 +168,21 @@ nothing on screen to say why, is the serious failure.
 
 **Decided 2026-08-23. Corrected 2026-08-24.** The estimate runs the real pipeline over a stratified
 sample (S3.7) and is not cached. Where that buys a feedback loop it is worth paying unasked; in the
-export dialog there is none, because the crop is settled. So the dialog offers **Estimate size and
-time**. **What this costs:** someone can export without knowing what it will cost - a real loosening
-of C6.
+export dialog there is none, because the crop is settled. **What this costs:** someone can export
+without knowing what it will cost - a real loosening of C6.
 
 ### Q41 - What a graph produces is reported where it is about to matter: the export dialog
 
-**Decided 2026-08-23.** The Produces pane moves into `ExportDialog` and is removed. "Choose a file" is
-the last moment to notice that the layer you meant is missing or named after the wrong file.
-
-**The numbers had to change subject to be correct.** The pane read `preview.last`, which followed the
-pin, so with a node pinned it described _that node's_ output while an export always writes the graph.
+**Decided 2026-08-23.** The Produces pane moves into `ExportDialog` and is removed: "choose a file" is
+the last moment to notice that the layer you meant is missing. **The numbers had to change subject to
+be correct** - the pane read `preview.last`, which followed the pin, so with a node pinned it described
+_that node's_ output while an export always writes the graph.
 
 ### Q40 - C7 is dropped: four artefacts that never composed into one story
 
 **Decided 2026-08-23.** S5.5's "Run this elsewhere" dialog generated four files from the project. **It
-was sorted by file format, and people arrive with a verb.** Two tabs built tiles, two served them, and
-the halves contradicted each other - no path through the dialog built tiles and then served the built
-thing.
+was sorted by file format, and people arrive with a verb**: two tabs built tiles, two served them, and
+no path through the dialog built tiles and then served the built thing.
 
 _Drops [C7](features.md)._
 
@@ -185,10 +198,10 @@ itself said a one-item bar "would be chrome that switches between nothing and it
 
 ### Q38 - Views are named camera positions, they live on the map, and the inspector holds neither them nor a way in
 
-**Decided 2026-08-23.** The inspector had its own way in - an "Open a tile container…" button and a URL
-form, from when opening a container was all Studio did. **A7's bookmarks are named camera positions,
-and they moved to the map**: they store a camera and jump to it, which is the same act as the
-coordinate box. The coupling gave it away - the save button was disabled whenever there was no map.
+**Decided 2026-08-23.** The inspector had its own way in, from when opening a container was all Studio
+did. **A7's bookmarks are named camera positions, and they moved to the map**: they store a camera and
+jump to it, which is the same act as the coordinate box. The coupling gave it away - the save button was
+disabled whenever there was no map.
 
 ### Q37 - D3's expression editor edits filters, because that is where the expressions are
 
@@ -204,16 +217,14 @@ and one that cannot open what it is pointed at is worse than one showing the val
 **Decided 2026-08-21.** The core stores what the style is made from - preset, options and sparse
 per-layer overrides - not the rendered MapLibre style, **because the output does not fit the stack it
 would have to live on.** `history.rs` keeps whole-text snapshots on the grounds that "a pipeline is a
-few hundred bytes"; `colorful` is 125 kB across 324 layers, so 200 snapshots is 25 MB of undo history
-for one session.
+few hundred bytes"; `colorful` is 125 kB across 324 layers.
 
 ### Q35 - A graph's name is chosen once, and the core remembers work rather than cursors
 
 **Dated 2026-08-18.** **Saving to a new filename does not rename the graph.** Read as an invariant
 running both ways, Q32's name-is-identity would make saving `basemap` to `hillshade.vpl` move the
 server mount and rewrite the style's source name as a side effect of picking a filename. So the binding
-runs one way: the name supplies the default filename, never the reverse, and is chosen when the graph
-is created from whatever was opened.
+runs one way, and the name is chosen when the graph is created from whatever was opened.
 
 ### Q34 - Studio carries a pinned `proj-sys` fork until the `libsqlite3-sys` conflict resolves upstream
 
@@ -229,11 +240,10 @@ pinned to a commit so a rebase cannot change what it builds, with the exit condi
 
 ### Q33 - The node form explains itself without symbols to learn
 
-**Dated 2026-08-18.** **Parameter help sits beside the sidebar, over the map.** Measured before deciding:
-127 parameters, median 95 characters, p90 262 - three lines in a 280px sidebar and seven at the p90,
-overlaying the form being filled in; one and a half at 26rem beside it. **Hover to peek, click to pin**,
-and the trigger is the `?` rather than the row, or sweeping down a form would flash a popover per
-argument.
+**Dated 2026-08-18.** **Parameter help sits beside the sidebar, over the map.** Measured before
+deciding: 127 parameters, median 95 characters, p90 262 - three lines in a 280px sidebar and seven at
+the p90, overlaying the form being filled in. **Hover to peek, click to pin**, and the trigger is the
+`?` rather than the row, or sweeping down a form would flash a popover per argument.
 
 ### Q32 - A project holds several named graphs, and every node is a form
 
@@ -260,10 +270,9 @@ section.
 
 **Dated 2026-08-17.** [Q29](#q29---the-import-form-learns-the-data-by-probing-what-the-pipeline-produces)
 probes what the pipeline produces, which cannot work here: `from_csv` will not build until
-`lon_column` and `lat_column` are set. The header is read at import time instead.
-
-**Not `x` and `y`** - projected metres or a grid index often enough that a guess would sometimes produce
-a map of somewhere that does not exist, in a _required_ field.
+`lon_column` and `lat_column` are set. **Not `x` and `y`** - projected metres or a grid index often
+enough that a guess would sometimes produce a map of somewhere that does not exist, in a _required_
+field.
 
 ### Q29 - The import form learns the data by probing what the pipeline produces
 
@@ -277,8 +286,7 @@ format, including ones Studio has never heard of.
 **Dated 2026-08-17.** The list of what Studio can open was in four places and already wrong, and none of
 them knew about `from_geo` - which the binary had all along. **The catalogue answers to the binary**,
 dropping any kind whose read operation is absent, so a card cannot offer something that fails on the
-first click. Not hypothetical: [E3](features.md)'s GDAL card appeared with no UI change the moment GDAL
-linked.
+first click.
 
 ### Q27 - The job runner has two lanes, and the preview runs in one of them
 
@@ -321,14 +329,14 @@ be maintained action by action.
 `CstFile`, so Studio's own parser is gone - 700 lines removed for 250 added.
 
 The reasoning is kept because it is why the tree has the shape it does. **The text is the document:**
-spans point into the original, so parse-then-print is the identity. Comments and layout survive because
-they are never re-rendered - a property of the data structure, not of a formatter behaving well.
+spans point into the original, so parse-then-print is the identity, and comments survive because they
+are never re-rendered - a property of the data structure, not of a formatter behaving well.
 
 ### Q22 - One map surface, not four modes. The mode bar separates map work from non-map tools
 
 Explore, Pipeline, Style and Publish are merged into a **single surface**. The four modes asserted a
-separation the work does not have: tighten a filter, look at how it renders, adjust a colour, notice a
-missing layer - every one was a mode switch.
+separation the work does not have: tighten a filter, look at how it renders, adjust a colour - every one
+was a mode switch.
 
 **Supersedes [Q14](#q14---explore-and-pipeline-stay-separate-modes---superseded-by-q22)**; amended by
 [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits),
@@ -350,19 +358,17 @@ bookmarks are now views.
 ### Q20 - GDAL is raster-only in release 1; GeoPackage is not supported
 
 Vector reading is `from_geo`, which needs no GDAL at all, and **there is no GeoPackage path anywhere** -
-E3's claim to the contrary was wrong.
-
-**Accepted for release 1.** GeoPackage users convert with `ogr2ogr` first - precisely the toolchain step
-`vision.md` says P2 will not get through, and the sharpest instance of that tension in the release.
-**Revisit** by teaching `from_geo` to read it directly: it is SQLite, so that needs no new dependency.
+E3's claim to the contrary was wrong. GeoPackage users convert with `ogr2ogr` first, precisely the
+toolchain step `vision.md` says P2 will not get through, and the sharpest instance of that tension in
+the release. **Revisit** by teaching `from_geo` to read it directly: it is SQLite.
 
 ### Q19 - GDAL is statically bundled, with a deliberately narrow driver set
 
 E3 is required for M3, so GDAL cannot be optional and cannot be a system dependency. **The obvious
-blocker turns out to be solved**: PROJ normally needs `proj.db` on disk at runtime, and RFC-8's
+blocker turns out to be solved**: PROJ normally needs `proj.db` at runtime, and RFC-8's
 `EMBED_RESOURCE_FILES` defaults to ON for static builds - verified rather than assumed. Dynamic linking
-against a system GDAL costs ~70 Homebrew formulae, and "install GDAL first" is exactly the toolchain
-step P1 and P2 will never get through.
+against a system GDAL costs ~70 Homebrew formulae, which is exactly the toolchain step P1 and P2 will
+never get through.
 
 ### Q18 - Studio's Svelte components are written from scratch
 
@@ -376,10 +382,8 @@ needs distorting a library other projects depend on.
 No stacking several containers in one view with opacity, swipe and split. Dropped, not deferred:
 [Q14](#q14---explore-and-pipeline-stay-separate-modes---superseded-by-q22) removed the sources strip
 that would have held it, and [Q16](#q16---one-application-instance-one-window-per-project) mostly
-replaces it - comparing two containers is two windows side by side.
-
-**Release 1 therefore has no comparison view at all.** B5 is the first feature needing two, and it is
-post-1.0.
+replaces it - comparing two containers is two windows side by side. **Release 1 therefore has no
+comparison view at all.**
 
 ### Q16 - One application instance, one window per project
 
@@ -387,20 +391,20 @@ Not tabs, not separate application instances. Tabs share one WebGL budget and on
 separate instances fragment the job queue and the asset writer. **Tauri already gives us the
 isolation** - every webview is a separate OS process.
 
-**Nothing may live only in the webview**, so a crash is recoverable by reloading that one window.
-Narrowed by [Q35](#q35---a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)
-to _work you would have to redo by hand_, and made true by
+**Nothing may live only in the webview.** Narrowed by
+[Q35](#q35---a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors) to _work you
+would have to redo by hand_, and made true by
 [Q48](#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own).
 
 ### Q13 - Studio is a workbench. New projects start from a landing screen
 
 The workbench-versus-P1 tension resolves for the workbench: no simplified mode, and P1 is expected to
-cope. **The P1 risk is accepted, not overlooked** - `audiences.md` warns that "a rough edge a
-developer shrugs off will stop a journalist entirely", the mitigation is polish and good defaults,
-and if P1 adoption stalls this is the first decision to revisit.
+cope. **The P1 risk is accepted, not overlooked** - `audiences.md` warns that "a rough edge a developer
+shrugs off will stop a journalist entirely", and if P1 adoption stalls this is the first decision to
+revisit.
 
 _[Q48](#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own) made it a window of its
-own. Everything else stands._
+own._
 
 ### Q14 - Explore and Pipeline stay separate modes - **superseded by [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)**
 
@@ -422,11 +426,8 @@ switching is free because both are views over one syntax tree.
 
 M4 means node graph **plus** text editor. The catalogue assumed C1 was cheap because "the parser
 exists" - it parses, but cannot write back: no serialiser, properties in a `BTreeMap` that reorders
-them, comments discarded.
-
-So the graph edits text through **span-based edits over a lossless syntax tree**. Regenerating from the
-AST would reformat the user's file and delete their comments on every interaction - the exact "GUI and
-file disagree" bug the source-of-truth principle exists to prevent.
+them, comments discarded. So the graph edits text through **span-based edits over a lossless syntax
+tree**: regenerating from the AST would reformat the file and delete the comments on every interaction.
 
 ### Q4 - Analysis statistics live in memory, keyed by container identity
 
