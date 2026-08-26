@@ -66,11 +66,42 @@ describe('the inspector', () => {
 		expect(screen.getByRole('heading', { name: 'berlin.mbtiles' })).toBeTruthy();
 	});
 
-	// The result is what the map draws, so it is read first; the inputs explain it.
-	it('puts the result above the inputs', () => {
+	// The order the pipeline reads in, which is the order the chain beside it is written in.
+	it('puts the inputs above the result', () => {
 		render(Inspector, { containers: [info()], graph: 'berlin', result: info({ source: 'preview' }) });
 		const headings = screen.getAllByRole('heading').map((node) => node.textContent);
-		expect(headings.indexOf('berlin')).toBeLessThan(headings.indexOf('berlin.mbtiles'));
+		expect(headings.indexOf('berlin.mbtiles')).toBeLessThan(headings.indexOf('berlin'));
+	});
+
+	/**
+	 * **Open on the answer, folded on the question.** The inputs are usually already known - they are
+	 * the files someone chose - while the result is what they came to find out. Folding them keeps a
+	 * pipeline reading four containers from pushing the one interesting section off the pane.
+	 */
+	it('opens the result and folds the inputs', () => {
+		render(Inspector, { containers: [info()], graph: 'berlin', result: info({ source: 'preview' }) });
+		const fold = (name: string) => screen.getByRole('heading', { name }).closest('details') as HTMLDetailsElement;
+		expect(fold('berlin').open).toBe(true);
+		expect(fold('berlin.mbtiles').open).toBe(false);
+	});
+
+	// A graph that will not build still opens: the absence is the answer, and a fold would hide it.
+	it('opens the result even when there is nothing to report', () => {
+		render(Inspector, { containers: [], graph: 'berlin', result: null });
+		expect((screen.getByRole('heading', { name: 'berlin' }).closest('details') as HTMLDetailsElement).open).toBe(true);
+	});
+
+	/**
+	 * A fold with nothing to say it folds is a heading people click by accident and never on purpose.
+	 * The native `::marker` does not render here - the heading is a block, so the summary has no line
+	 * box for one - which is exactly the kind of silent absence a test is for.
+	 */
+	it('gives every fold a marker', () => {
+		render(Inspector, { containers: [info()], graph: 'berlin', result: info({ source: 'preview' }) });
+		// The section folds only - `JsonTree` renders its own, and keeps its own native marker.
+		const summaries = document.querySelectorAll('section > details > summary');
+		expect(summaries.length).toBe(2);
+		for (const summary of summaries) expect(summary.querySelector('.fold')).toBeTruthy();
 	});
 
 	// Both sides carry the same figures, which is what makes them comparable at a glance.
