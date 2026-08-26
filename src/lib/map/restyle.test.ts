@@ -13,6 +13,14 @@ import { restyler } from './restyle';
 /** A style, told apart by its one layer's id. */
 const style = (id: string) => ({ version: 8, sources: {}, layers: [{ id, type: 'background' }] }) as StyleSpecification;
 
+/** The same graph at a given revision: one source, one layer, and a URL that moves on. */
+const graph = (revision: number, layer = 'basemap:water') =>
+	({
+		version: 8,
+		sources: { basemap: { type: 'vector', tiles: [`studio://host/basemap/{z}/{x}/{y}?v=${revision}`] } },
+		layers: [{ id: layer, type: 'line', source: 'basemap' }]
+	}) as StyleSpecification;
+
 /**
  * The ids of the styles the map was actually given, in order.
  *
@@ -24,11 +32,14 @@ const style = (id: string) => ({ version: 8, sources: {}, layers: [{ id, type: '
  * * `nothing` - the diff found no operations to perform. `Style.setState` returns before firing
  *   anything, and the style already on the map is untouched and still loaded.
  */
-function fakeMap(applies: 'rebuild' | 'nothing' = 'rebuild') {
+function fakeMap(applies: 'rebuild' | 'nothing' = 'rebuild', sources: string[] = ['basemap']) {
 	const handlers: (() => void)[] = [];
 	const set: string[] = [];
 	/** What `isStyleLoaded` would answer - the flag MapLibre's diff insists on. */
 	let styleLoaded = false;
+
+	/** What each source was last pointed at, for the styles that go in as a tile swap. */
+	const swapped: string[] = [];
 
 	const map = {
 		on: (event: string, handler: () => void) => {
@@ -38,12 +49,15 @@ function fakeMap(applies: 'rebuild' | 'nothing' = 'rebuild') {
 			set.push(next.layers[0].id);
 			if (applies === 'rebuild') styleLoaded = false;
 		},
-		isStyleLoaded: () => styleLoaded
+		isStyleLoaded: () => styleLoaded,
+		getSource: (id: string) =>
+			sources.includes(id) ? { setTiles: (tiles: string[]) => void swapped.push(tiles[0]) } : undefined
 	};
 
 	return {
 		map: map as unknown as MaplibreMap,
 		set,
+		swapped,
 		/** What MapLibre fires when the style on the map has finished loading. */
 		loaded: () => {
 			styleLoaded = true;
@@ -170,5 +184,96 @@ describe('applying a style', () => {
 
 		fake.loaded();
 		expect(applied).toHaveBeenCalledTimes(1);
+	});
+});
+
+/**
+ * A rebuilt graph is the same sources and layers reading from a new revision of the same URLs, and
+ * `setStyle` answers that by taking the source off the map and putting it back - every tile on
+ * screen discarded to fetch the same squares again. See `tile-swap.ts`.
+ */
+describe('a style that only moved a source on', () => {
+	it('points the source at its new tiles instead of setting a style', () => {
+		const fake = fakeMap();
+		const apply = restyler(fake.map);
+		fake.loaded();
+
+		apply(graph(1));
+		expect(fake.set, 'the first one has to be a whole style').toEqual(['basemap:water']);
+		fake.loaded();
+
+		apply(graph(2));
+
+		expect(fake.set, 'and the second is not a style at all').toEqual(['basemap:water']);
+		expect(fake.swapped).toEqual(['studio://host/basemap/{z}/{x}/{y}?v=2']);
+	});
+
+	it('says nothing was applied, because nothing was discarded', () => {
+		const applied = vi.fn();
+		const fake = fakeMap();
+		const apply = restyler(fake.map, applied);
+		fake.loaded();
+		apply(graph(1));
+		fake.loaded();
+		applied.mockClear();
+
+		apply(graph(2));
+
+		// The callback exists so the caller can draw its own layers again. A swap leaves them alone.
+		expect(applied).not.toHaveBeenCalled();
+	});
+
+	it('is still ready for the style after it', () => {
+		const fake = fakeMap();
+		const apply = restyler(fake.map);
+		fake.loaded();
+		apply(graph(1));
+		fake.loaded();
+
+		apply(graph(2));
+		apply(graph(3, 'basemap:roads'));
+
+		expect(fake.set, 'a swap is not something to wait for').toEqual(['basemap:water', 'basemap:roads']);
+	});
+
+	it('falls back to a whole style when the source is not on the map', () => {
+		const fake = fakeMap('rebuild', []);
+		const apply = restyler(fake.map);
+		fake.loaded();
+		apply(graph(1));
+		fake.loaded();
+
+		apply(graph(2));
+
+		expect(fake.swapped).toEqual([]);
+		expect(fake.set, 'the style describes the end state, so it repairs whatever this was').toEqual([
+			'basemap:water',
+			'basemap:water'
+		]);
+	});
+
+	/**
+	 * **The one that would be a real bug.** Several styles can arrive while the map is loading and
+	 * only the last is applied - so an intermediate one never described what is on screen. Comparing
+	 * against it would call a change a tile swap on the strength of a style nobody ever saw, and
+	 * point sources the map may not even have at tiles it never asked for.
+	 */
+	it('compares against the style on the map, not one that was superseded', () => {
+		const fake = fakeMap();
+		const apply = restyler(fake.map);
+		fake.loaded();
+
+		// On the map: a graph whose layer is `basemap:water`, still loading.
+		apply(graph(1));
+		expect(fake.set).toEqual(['basemap:water']);
+
+		// Two more arrive while it loads. They differ from each other in nothing but the revision,
+		// and from what is on the map in the layer as well.
+		apply(graph(2, 'basemap:roads'));
+		apply(graph(3, 'basemap:roads'));
+		fake.loaded();
+
+		expect(fake.swapped, 'the layer changed, whatever the dropped style said').toEqual([]);
+		expect(fake.set).toEqual(['basemap:water', 'basemap:roads']);
 	});
 });
