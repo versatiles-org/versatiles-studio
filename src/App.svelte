@@ -28,6 +28,7 @@
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
+	import SourcesPane from './lib/panes/sources/SourcesPane.svelte';
 	import StylePane from './lib/panes/style/StylePane.svelte';
 	import AlphaRibbon from './lib/shell/AlphaRibbon.svelte';
 	import AssetsDialog from './lib/shell/AssetsDialog.svelte';
@@ -45,7 +46,8 @@
 	import Views from './lib/map/Views.svelte';
 	import { defaultStyle } from './lib/map/default-style';
 	import { fitToBounds } from './lib/map/add-source';
-	import { drawn, stackFor } from './lib/map/stack';
+	import { drawn, ordered, stackFor } from './lib/map/stack';
+	import { reordered } from './lib/panes/style/controls';
 
 	import { forExport } from './lib/map/style-code';
 	import {
@@ -499,6 +501,32 @@
 		});
 	});
 
+	/// The graphs in draw order, top of the list first.
+	///
+	/// **The list is the stack** ([Q49], [Q50]), so its order is the recipe's rather than the order
+	/// graphs happened to be created in. `ordered` is the same rule the map draws by, over every
+	/// graph rather than only the ones that built - a graph that will not build keeps its place in
+	/// the one control that can move it.
+	const stacked = $derived(
+		(() => {
+			const byName = new Map(graphs.list.map((graph) => [graph.name, graph]));
+			const names = styleRecipe.current ? ordered(styleRecipe.current, [...byName.keys()]) : [...byName.keys()];
+			return names
+				.map((name) => byName.get(name))
+				.filter((graph): graph is (typeof graphs.list)[number] => graph !== undefined)
+				.reverse();
+		})()
+	);
+
+	/// Moves a graph up or down the stack, `+1` being towards the top of the map.
+	async function reorderGraph(id: number, by: number) {
+		const name = graphs.nameOf(id);
+		if (!name) return;
+		// The recipe stores the order bottom-first, which is the reverse of the list.
+		const next = reordered(stacked.map((graph) => graph.name).reverse(), name, by);
+		if (next) await styleRecipe.setOrder(next);
+	}
+
 	const composed = $derived(
 		stackFor({
 			recipe: styleRecipe.current,
@@ -836,11 +864,26 @@
      with it. An id with no arm here renders nothing, which is how a pane can exist in the core
      before it exists in the webview. -->
 {#snippet paneContent(id: string)}
-	{#if id === 'pipeline'}
+	{#if id === 'sources'}
+		<SourcesPane
+			graphs={stacked}
+			current={currentGraph}
+			{operations}
+			actions={{
+				select: (id) => void selectGraph(id),
+				rename: (id, name) => void rename(id, name),
+				remove: (id) => void removeGraphById(id),
+				setEnabled: (id, enabled) => void toggleGraph(id, enabled),
+				reorder: (id, by) => void reorderGraph(id, by),
+				addNode: (operation) => void newGraph(operation),
+				openFile: () => void pick(kinds.find((kind) => kind.id === 'pipeline'))
+			}}
+		/>
+	{:else if id === 'pipeline'}
 		<PipelinePane
 			{kinds}
 			{operations}
-			graphs={graphs.list}
+			graph={stacked.find((entry) => entry.id === currentGraph) ?? null}
 			pipeline={document.current}
 			pipelineRevision={document.revision}
 			properties={producedProperties}
@@ -851,14 +894,6 @@
 				set: (bounds) => void changeCrop(bounds),
 				draw: () => (drawing = !drawing),
 				useView: cropToView
-			}}
-			graphActions={{
-				select: (id) => void selectGraph(id),
-				rename: (id, name) => void rename(id, name),
-				remove: (id) => void removeGraphById(id),
-				setEnabled: (id, enabled) => void toggleGraph(id, enabled),
-				addNode: (operation) => void newGraph(operation),
-				openFile: () => void pick(kinds.find((kind) => kind.id === 'pipeline'))
 			}}
 			nodeActions={{
 				setEnabled: (path, enabled) => void toggleNode(path, enabled),
@@ -894,12 +929,6 @@
 		<StylePane
 			rendered={styled}
 			basis={composed.bases.find((entry) => entry.name === preview.last?.name)?.basis ?? 'none'}
-			stack={composed.bases}
-			editing={graphs.nameOf(currentGraph ?? -1)}
-			onSelect={(name) => {
-				const found = graphs.list.find((graph) => graph.name === name);
-				if (found) void selectGraph(found.id);
-			}}
 			source={preview.last
 				? {
 						tileFormat: preview.last.info.tileFormat,

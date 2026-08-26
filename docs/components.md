@@ -71,6 +71,7 @@ src/App.svelte · src/Launcher.svelte   the two pages
 lib/shell/                             frame: AppShell, Sidebar, Pane, StatusBar, dialogs
 lib/map/                               the map surface and its overlays
 lib/panes/<pane>/                      one folder per pane, named for the pane
+                                       sources · pipeline · style · inspector
 lib/common/                            used by more than one owner
 ```
 

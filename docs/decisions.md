@@ -16,6 +16,42 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q50 - Sources and Pipeline are two panes, and the sources list is where a stack is arranged
+
+**Decided 2026-08-26.** The pane titled "Sources" held four groups - the graphs, the chain, the crop
+and the actions - scrolled, and was named after one of them. They are two objects at different
+levels: a list of graphs is the project, a chain is one document. That is
+[Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)'s document-versus-selection line, so
+they split along it. **Sources** keeps the list and `＋ new graph…`; **Pipeline** takes the tabs, the
+chain, the crop and the actions, since each pane owns what it emits.
+
+**This is not the sources pane [Q14](#q14---explore-and-pipeline-stay-separate-modes---superseded-by-q22)
+and [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)
+refused**, and the log reads as if it were. What they rejected was a list of `from_*` read nodes
+beside a graph that already draws them. A list of _graphs_ is not that list, and graphs did not exist
+until [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form).
+
+**The draw order moves into that list, rather than being a second one.** The style pane kept its own
+list of the same sources with ↑/↓ beside them - which was the layers panel, split across two panes,
+one half holding the eyes and the other the order. Now the row order _is_ the draw order. It also
+fixes what the copy got wrong: it listed only sources that had **built**, so a graph that would not
+build vanished from the one control that could move it.
+
+**A pane split out of another arrives beside it.** `reconcile_panes` appends a pane a stored layout
+has never heard of, which is right for something new and wrong here - it would put the list of
+graphs below the style pane, in a build where reordering panes by hand deliberately does not exist.
+A stored layout naming `pipeline` gains `sources` immediately above it, on the same side.
+
+**What this costs.** Four panes in the left sidebar is four headers of chrome, and the default order
+matters more than before because [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)
+deferred dragging them. **The style pane is still overloaded** - six sections after losing the draw
+order - and splitting it is the open question. Not as "Style and Layers": Q49 made the sources list
+the layers panel, and a second pane called Layers would put two meanings of the word one level apart
+on the same screen.
+
+_Amends [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)'s
+three sections and [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)'s pane list._
+
 ### Q49 - An eye means "this runs", at both scales; the pin is retired
 
 **Decided 2026-08-26.** One meaning at both scales: an eye says its row is processed. A graph's says

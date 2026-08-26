@@ -1,7 +1,6 @@
 <script lang="ts">
 	import VplEditor from './VplEditor.svelte';
 	import NodeChain from './NodeChain.svelte';
-	import GraphList from './GraphList.svelte';
 	import {
 		vplReview,
 		type VplToken,
@@ -14,7 +13,6 @@
 		type GraphInfo,
 		type Bounds
 	} from '../../ipc/commands';
-	import Picker from '../../common/Picker.svelte';
 	import CropSection from './CropSection.svelte';
 
 	// The Pipeline pane's contents (Q22, [Q31]).
@@ -34,12 +32,11 @@
 		properties = [],
 		fits = [],
 		suggestions = {},
-		graphs = [],
+		graph = null,
 		pipeline,
 		pipelineRevision,
 		crop,
 		cropActions,
-		graphActions,
 		nodeActions,
 		documentActions
 	}: {
@@ -54,8 +51,8 @@
 		/** Per-field values read from what a node points at (S3.4). */
 		/** By node path, then by field. */
 		suggestions?: Record<string, Record<string, string[]>>;
-		/** Every graph in the project ([Q32]). */
-		graphs?: GraphInfo[];
+		/** The graph being edited, as the sources list holds it - its eyes and its counts ([Q49]). */
+		graph?: GraphInfo | null;
 		/** This window's pipeline, owned by the core (Q25). */
 		pipeline: DocumentView | null;
 		/** What an export of this graph is narrowed to, and what that costs (F2, C6, S5.2). */
@@ -78,20 +75,6 @@
 			draw: () => void;
 			/** Crops to what the map is showing. */
 			useView: () => void;
-		};
-		/** Acting on the set of graphs. A graph *is* a source, so starting one is how sources
-		 *  arrive ([Q32]). */
-		graphActions: {
-			select: (id: number) => void;
-			rename: (id: number, name: string) => void;
-			/** Removes it for good - the history cannot restore a graph that is gone ([Q32]). */
-			remove: (id: number) => void;
-			/** Switches a graph on or off - the eye on its row ([Q49]). */
-			setEnabled: (id: number, enabled: boolean) => void;
-			/** Starts a graph on a `from_*` node, with nothing filled in yet. */
-			addNode: (operation: string) => void;
-			/** Opens a `.vpl` as a graph of its own. */
-			openFile: () => void;
 		};
 		/** Acting on a node or one of its arguments. */
 		nodeActions: {
@@ -118,29 +101,12 @@
 		};
 	} = $props();
 
-	/// What "from VPL node…" offers: every operation a chain can begin with.
-	///
-	/// From the registry rather than from the import catalogue, which is a different question. The
-	/// catalogue answers "what file have you got" - five cards, of which four differ only in the
-	/// extensions a dialog would show, and `importKindFor` reads that off the name anyway. This
-	/// answers "what should this graph read", which is the decision that actually has to be made
-	/// here, and it offers all of them: `from_debug`, `from_color` and `from_tilejson` open no file
-	/// at all and had no card to be chosen from.
-	const reads = $derived(
-		operations
-			.filter((operation) => operation.kind === 'read')
-			.sort((a, b) => a.name.localeCompare(b.name))
-			.map((operation) => ({ value: operation.name, description: operation.summary }))
-	);
-
-	/// This graph's row in the list, which is where its eyes live ([Q49]).
-	const current = $derived(graphs.find((graph) => graph.id === pipeline?.graph));
+	/// The row for the graph being shown, which is where its eyes live ([Q49]). The list itself
+	/// belongs to the Sources pane now ([Q50]); this pane needs one entry from it.
+	const current = $derived(graph);
 
 	// Q15: one pane, two tabs over one document - not two panes.
 	let tab = $state<'graph' | 'vpl'>('graph');
-	/// Whether "+ Add source" has been opened into its cards. Local: which way in someone is part
-	/// way through choosing is not worth remembering across a reload.
-	let adding = $state(false);
 
 	// **Neither tab moves a selection any more.** [Q15](../../../docs/decisions.md) had one running
 	// both ways between them, so that switching landed you on the node you were looking at. It was
@@ -190,62 +156,6 @@
 </script>
 
 <div class="pane">
-	<!-- The graphs, and the doors that "＋ new graph…" opens. One group: the doors are an answer to
-	     the row above them, so they sit at a group's distance from it rather than a section's. -->
-	<div class="sources">
-		<!-- The project's graphs, above the one being edited ([Q32]). -->
-		<GraphList
-			{graphs}
-			current={pipeline?.graph ?? null}
-			onSelect={graphActions.select}
-			onToggle={graphActions.setEnabled}
-			onRename={graphActions.rename}
-			onRemove={graphActions.remove}
-			onNew={() => (adding = !adding)}
-		/>
-
-		<!-- **Two doors, because a graph arrives in exactly two ways**: it is written here, or it was
-	     written already. Everything else is a parameter of the node the first door creates - which
-	     is a form the pane draws, with a file picker on every path field, rather than a dialog
-	     sequence in front of it.
-	     
-	     It was one card per import kind, from the catalogue. Four of the five differed only in the
-	     extensions their file dialog would show, and picking the wrong one was a decision with no
-	     consequence - `importKindFor` reads the kind off the name. What they cost was the operations
-	     that have no file to pick: `from_debug`, `from_color` and `from_tilejson` were unreachable
-	     from the one door that creates graphs.
-	     
-	     Folded away until asked for: a pane is not a launcher. -->
-		{#if adding}
-			<div class="doors">
-				<!-- Only once there is something behind it. `operations` is empty until the one-off fetch
-			     lands, and a door onto an empty list is worse than a door that is not there yet -
-			     the same rule `＋ operation…` follows on the rail. -->
-				{#if reads.length > 0}
-					<Picker
-						label="from VPL node…"
-						placeholder="Filter operations…"
-						items={reads}
-						onPick={(operation) => {
-							adding = false;
-							graphActions.addNode(operation);
-						}}
-					/>
-				{/if}
-				<button
-					type="button"
-					class="door"
-					onclick={() => {
-						adding = false;
-						graphActions.openFile();
-					}}
-				>
-					from VPL file…
-				</button>
-			</div>
-		{/if}
-	</div>
-
 	<!-- The tabs and what they switch between are one thing: a tab that floated a section's distance
 	     from its own body would name something it does not appear to own. -->
 	<div class="editor">
@@ -391,27 +301,6 @@
 		background: var(--surface);
 	}
 
-	/* Under the list rather than beside it: the two doors are what the row above just asked about,
-	   and a graph list that grew two buttons on its last row would read as a third graph. */
-	.doors {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: var(--space-1);
-		padding: 0 var(--space-2);
-	}
-
-	/* The same weight as the picker beside it, because they are the same offer made twice. */
-	.door {
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-
-		&:hover {
-			color: var(--ink);
-		}
-	}
-
-	.sources,
 	.editor {
 		display: flex;
 		flex-direction: column;

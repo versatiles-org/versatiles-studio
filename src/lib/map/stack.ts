@@ -66,7 +66,18 @@ export function entryFor(built: Preview, recipe: Recipe): StackEntry {
  * unnamed must not be invisible.
  */
 export function drawOrder(recipe: Recipe, built: Record<string, Preview>): string[] {
-	const names = Object.keys(built);
+	return ordered(recipe, Object.keys(built));
+}
+
+/**
+ * The same two rules over any set of names, bottom first.
+ *
+ * **The sources list draws itself from this too** ([Q50]). It lists every graph, built or not, and
+ * its order *is* the draw order - so a graph that will not build keeps its place in the stack
+ * rather than disappearing from the one control that could move it, which is what the style pane's
+ * own copy of this list did.
+ */
+export function ordered(recipe: Recipe, names: string[]): string[] {
 	const order = recipe.order.filter((name) => names.includes(name));
 	for (const name of [...names].sort()) if (!order.includes(name)) order.push(name);
 	return order;

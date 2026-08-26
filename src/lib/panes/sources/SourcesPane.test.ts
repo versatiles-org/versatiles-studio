@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 /**
- * What "＋ new graph…" offers ([Q32]).
+ * What "＋ new graph…" offers ([Q50]).
  *
  * **Two doors, and a test that says two.** This was one card per import kind, and the way that went
  * wrong was not a broken card - it was the operations no card named. A count is the only assertion
@@ -9,22 +9,13 @@
  *
  * The backend is stubbed - see `lib/testing/tauri.ts` for what that does and does not prove.
  *
- * [Q32]: ../../../../docs/decisions.md
+ * [Q50]: ../../../../docs/decisions.md
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/svelte';
-import PipelinePane from './PipelinePane.svelte';
+import SourcesPane from './SourcesPane.svelte';
 import { stubTauri, type TauriStub } from '../../testing/tauri';
-
-const CONTAINER = {
-	id: 'container',
-	label: 'Tile container',
-	detail: 'Tiles that have already been built',
-	extensions: ['versatiles'],
-	operation: 'from_container',
-	needs: []
-};
 
 const OPERATIONS = [
 	{ name: 'from_container', kind: 'read', summary: 'reads a container', details: '', fields: [] },
@@ -34,61 +25,29 @@ const OPERATIONS = [
 
 let tauri: TauriStub;
 
-const actions = () => ({
-	addNode: vi.fn(),
-	openFile: vi.fn()
-});
+const actions = () => ({ addNode: vi.fn(), openFile: vi.fn() });
 
 /** The pane over an empty project, with the graph list's ＋ row showing. */
-function open(graphActions: { addNode: () => void; openFile: () => void }) {
-	pane({ graphActions });
-	screen.getByText('＋ new graph…').click();
-}
-
-/** The pane itself, over whatever graphs and document are given. */
-function pane(over: { graphActions?: object; graphs?: object[]; pipeline?: object | null }) {
-	// The fixtures carry only what the pane reads; `render` wants the whole generated type.
-	const { graphActions = {}, graphs = [], pipeline = null } = over;
-	render(PipelinePane, {
-		kinds: [CONTAINER],
-		operations: OPERATIONS,
-		graphs: graphs as never,
-		pipeline: pipeline as never,
-		pipelineRevision: 0,
-		crop: null,
-		cropActions: { set: () => {}, draw: () => {}, useView: () => {} },
-		graphActions: {
+function open(extra: { addNode: () => void; openFile: () => void }) {
+	render(SourcesPane, {
+		operations: OPERATIONS as never,
+		graphs: [],
+		current: null,
+		actions: {
 			select: () => {},
 			rename: () => {},
 			remove: () => {},
 			setEnabled: () => {},
-			addNode: () => {},
-			openFile: () => {},
-			...graphActions
-		},
-		nodeActions: {
-			setEnabled: () => {},
-			addOperation: () => {},
-			remove: () => {},
-			commitValue: () => {},
-			removeProperty: () => {},
-			setProperty: () => {}
-		},
-		documentActions: {
-			change: () => {},
-			undo: () => {},
-			redo: () => {},
-			format: () => {},
-			save: () => {},
-			export: () => {}
+			reorder: () => {},
+			...extra
 		}
 	});
+	screen.getByText('＋ new graph…').click();
 }
 
 beforeEach(() => {
 	tauri = stubTauri();
-	// jsdom has no layout, so it has no `scrollIntoView` - the picker keeps the active row in view
-	// and would throw on the first arrow key. Nothing here asserts scrolling; it must only exist.
+	// jsdom has no layout, so it has no `scrollIntoView` - the picker keeps the active row in view.
 	Element.prototype.scrollIntoView = () => {};
 });
 

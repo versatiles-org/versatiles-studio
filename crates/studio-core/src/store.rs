@@ -308,7 +308,10 @@ impl From<&(&str, Side, bool)> for PaneState {
 /// [Q31](../../docs/decisions.md). The webview supplies the title and the contents for each id and
 /// ignores any it does not recognise, so the two halves can also land in either order.
 const PANES: &[(&str, Side, bool)] = &[
-	// Left: the documents. Open, because at S2 it is the only pane with anything in it.
+	// Left: the project's sources - which graphs there are, which are drawn, and in what order.
+	// Above the chain, because you choose here and edit there ([Q50](../../docs/decisions.md)).
+	("sources", Side::Left, true),
+	// The selected graph itself: its chain, its crop, and what it writes.
 	("pipeline", Side::Left, true),
 	// Below the pipeline, because it renders what the pipeline produces - the same order as the
 	// work ([Q22](../../docs/decisions.md)). Closed on a fresh install: a style has nothing to show
@@ -375,6 +378,14 @@ impl Layout {
 fn reconcile_panes(stored: Vec<PaneState>) -> Vec<PaneState> {
 	let mut panes: Vec<PaneState> = Vec::with_capacity(PANES.len());
 	for pane in stored {
+		// **A pane that was split out of another arrives beside it, not at the end.** Appending is
+		// right for a pane that is genuinely new, and wrong here: `sources` was the top half of
+		// `pipeline` until [Q50], so a stored layout that knows only `pipeline` should show the two
+		// in the order a fresh install does. Nothing else can put it there - reordering panes by
+		// hand is deliberately not built ([Q31]).
+		if pane.id == "pipeline" && !panes.iter().any(|kept| kept.id == "sources") {
+			panes.push(PaneState::from(&("sources", pane.side, true)));
+		}
 		let known = PANES.iter().any(|(id, _, _)| *id == pane.id);
 		if known && !panes.iter().any(|kept| kept.id == pane.id) {
 			panes.push(pane);
@@ -628,6 +639,7 @@ mod tests {
 		// A moved, reordered and collapsed pane - the three things the list exists to remember.
 		layout.panes = vec![
 			pane("inspector", Side::Left, false),
+			pane("sources", Side::Left, true),
 			pane("pipeline", Side::Left, true),
 			pane("style", Side::Right, false),
 		];
@@ -681,8 +693,9 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		assert_eq!(ids, ["pipeline", "style", "inspector"]);
-		assert!(!layout.panes[0].open, "the remembered pane kept its own state");
+		// `sources` arrives beside the pane it was split out of, not at the end - see below.
+		assert_eq!(ids, ["sources", "pipeline", "style", "inspector"]);
+		assert!(!layout.panes[1].open, "the remembered pane kept its own state");
 	}
 
 	/// A remembered order is the user's; a pane arriving in a new version has not earned a place in
@@ -696,8 +709,32 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		// The remembered one keeps its place; the arrivals follow in catalogue order.
-		assert_eq!(ids, ["inspector", "pipeline", "style"]);
+		// The remembered one keeps its place; the arrivals follow in catalogue order - except
+		// `sources`, which was split out of `pipeline` and belongs beside it.
+		assert_eq!(ids, ["inspector", "sources", "pipeline", "style"]);
+	}
+
+	/// **A pane split out of another is not a new pane.** `sources` was the top half of `pipeline`
+	/// until [Q50], so appending it - the right answer for something genuinely new - would put the
+	/// list of graphs below the style pane, in a build where reordering panes by hand does not
+	/// exist ([Q31]). It goes where a fresh install puts it: immediately above the half it left.
+	#[test]
+	fn a_pane_split_out_of_another_arrives_beside_it() {
+		let layout = Layout {
+			panes: vec![
+				pane("style", Side::Left, true),
+				pane("pipeline", Side::Left, false),
+				pane("inspector", Side::Right, true),
+			],
+			..Layout::default()
+		}
+		.normalised();
+
+		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
+		assert_eq!(ids, ["style", "sources", "pipeline", "inspector"]);
+
+		let sources = layout.panes.iter().find(|p| p.id == "sources").unwrap();
+		assert_eq!(sources.side, Side::Left, "and on the side the half it left was on");
 	}
 
 	/// Nothing produces a duplicate, but a hand-edited file can - and two panes with one id would

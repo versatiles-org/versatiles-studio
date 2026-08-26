@@ -16,6 +16,7 @@
 		current,
 		onSelect,
 		onToggle,
+		onReorder,
 		onRename,
 		onRemove,
 		onNew
@@ -26,6 +27,14 @@
 		onSelect: (id: number) => void;
 		/** Switches a graph on or off - built and drawn, or neither ([Q49]). */
 		onToggle: (id: number, enabled: boolean) => void;
+		/**
+		 * Moves a graph up or down the stack, `+1` being towards the top of the map ([Q50]).
+		 *
+		 * **The row order is the draw order**, so this list is the one place a stack is arranged.
+		 * The style pane used to carry a second list for it, over the sources that had *built* -
+		 * which left a graph that would not build with no way to be moved.
+		 */
+		onReorder: (id: number, by: number) => void;
 		/** Rejected by the core when another graph already has the name; the message comes back. */
 		onRename: (id: number, name: string) => void;
 		/** Removes the graph for good - see the confirmation below for why it is not one click. */
@@ -66,7 +75,7 @@
 </script>
 
 <ul class="graphs">
-	{#each graphs as graph (graph.id)}
+	{#each graphs as graph, index (graph.id)}
 		<li class:current={graph.id === current} class:off={!graph.enabled}>
 			<!-- The eye says whether this source is drawn; the row highlight says what you are
 			     editing. Different questions, so different marks - and a graph you cannot see is
@@ -148,6 +157,27 @@
 				<button type="button" class="edit" title="Rename {graph.name}" aria-label="Rename" onclick={() => start(graph)}>
 					✎
 				</button>
+				<!-- Up and down rather than drag: reachable from a keyboard, it cannot drop a source
+				     somewhere nobody meant, and a stack is short enough that two clicks is not a chore.
+				     Only when there is something to reorder against. -->
+				{#if graphs.length > 1}
+					<button
+						type="button"
+						class="edit nudge"
+						title="Draw {graph.name} above the one over it"
+						aria-label="Move {graph.name} up"
+						disabled={index === 0}
+						onclick={() => onReorder(graph.id, 1)}>↑</button
+					>
+					<button
+						type="button"
+						class="edit nudge"
+						title="Draw {graph.name} below the one under it"
+						aria-label="Move {graph.name} down"
+						disabled={index === graphs.length - 1}
+						onclick={() => onReorder(graph.id, -1)}>↓</button
+					>
+				{/if}
 				<button
 					type="button"
 					class="edit"
@@ -259,6 +289,14 @@
 		&:hover {
 			color: var(--ink);
 		}
+	}
+
+	/* At the ends of the stack there is nowhere to go, and a control that does nothing should look
+	   like it. Kept in place rather than hidden, so the row's controls do not shift under the
+	   pointer as a graph moves. */
+	.nudge:disabled {
+		opacity: 0.3;
+		cursor: default;
 	}
 
 	/* The name stops being a target while the row is asking: the only two answers are the buttons. */

@@ -13,7 +13,10 @@
 export const PANE_TITLES: Record<string, string> = {
 	// Named for what it holds rather than for the file format behind it: each row is a source of
 	// tiles, and the style pane names the same things (S6.5).
-	pipeline: 'Sources',
+	sources: 'Sources',
+	// The selected graph itself. It was the bottom half of Sources until [Q50], which is why the
+	// id and the title no longer match - the id is durable and appears in `layout.json`.
+	pipeline: 'Pipeline',
 	style: 'Style',
 	inspector: 'Inspector'
 };
