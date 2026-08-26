@@ -232,7 +232,13 @@ pub enum JsonShape {
 /// one to classify it would be the most expensive way to learn what its extension already said.
 /// Past this the head does not parse - it is a truncated document - and `Unknown` sends the caller
 /// back to the answer the name gave, which is the behaviour that was there before.
-const SNIFF_BYTES: u64 = 64 * 1024;
+///
+/// **32 kB because that is one request.** `DataReaderHttp` splits a larger range into 32 kB chunks,
+/// and for a 14 kB document the second chunk starts past the end - which the server answers `416`,
+/// correctly, costing 220 ms to learn nothing. A single chunk starting at 0 is satisfiable whatever
+/// the length: the server clamps and returns what exists, in one round trip. Sniffing this document
+/// went from 479 ms to about 90 ms by asking for less.
+const SNIFF_BYTES: u64 = 32 * 1024;
 
 /// Reads the shape out of a JSON document.
 ///
@@ -294,32 +300,8 @@ pub fn is_remote(source: &str) -> bool {
 
 /// The head of a document, local or remote, capped at [`SNIFF_BYTES`].
 async fn head_of(source: &str) -> Result<String> {
-	use versatiles_core::ByteRange;
-	use versatiles_core::io::{DataReaderHttp, DataReaderTrait};
-
 	let bytes = if is_remote(source) {
-		let url = url::Url::parse(source).with_context(|| format!("parsing {source}"))?;
-		let reader = DataReaderHttp::try_from(&url).with_context(|| format!("opening {source}"))?;
-		// A range, so a gigabyte of GeoJSON behind a URL costs one small request rather than a
-		// download nobody asked for.
-		//
-		// **And the whole file when that fails, which is not a fallback so much as the other half of
-		// the rule.** Asking for 64 kB of a 14 kB document is a range past the end, and a server that
-		// answers `416 Range Not Satisfiable` is right to - which failed the sniff for *every* remote
-		// TileJSON, since none of them is anywhere near the cap. No fixed range avoids this: whatever
-		// it is, a smaller document refuses it.
-		//
-		// So the refusal is the evidence. A document large enough for the cost to matter answers the
-		// range request; one that refuses it is smaller than the cap, and reading it whole is reading
-		// less than was already asked for.
-		match reader.read_range(&ByteRange::new(0, SNIFF_BYTES)).await {
-			Ok(blob) => blob.into_vec(),
-			Err(_) => reader
-				.read_all()
-				.await
-				.with_context(|| format!("reading the head of {source}"))?
-				.into_vec(),
-		}
+		return head_of_url(source).await;
 	} else {
 		use std::io::Read;
 		let file = std::fs::File::open(source).with_context(|| format!("opening {source}"))?;
@@ -332,6 +314,43 @@ async fn head_of(source: &str) -> Result<String> {
 	// decides whether the text is usable. Failing here instead would report an encoding problem for
 	// a document that is merely bigger than the cap.
 	Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// The head of a remote document: one request, and never more than [`SNIFF_BYTES`] of it.
+///
+/// **A client of our own, and this is the reason.** `DataReaderHttp` is built for reading
+/// containers, where a short read means the file is truncated - so it treats one as an error *and
+/// retries it with exponential backoff*, a second, then two, then four. Every TileJSON is smaller
+/// than any range worth asking for, so that failure was guaranteed: identifying this document took
+/// 8.3 seconds against a server having a slow moment, and the whole of it was sleeping between
+/// retries of a request that could not have succeeded.
+///
+/// Read in chunks and stopped rather than `bytes()`, so a gigabyte of GeoJSON behind a URL costs one
+/// connection and 32 kB of it. The response is dropped at that point, which closes the connection.
+async fn head_of_url(source: &str) -> Result<String> {
+	let client = reqwest::Client::builder()
+		.user_agent(concat!("versatiles-studio/", env!("CARGO_PKG_VERSION")))
+		.build()
+		.context("building an HTTP client")?;
+
+	let mut response = client
+		.get(source)
+		.send()
+		.await
+		.with_context(|| format!("requesting {source}"))?
+		.error_for_status()
+		.with_context(|| format!("requesting {source}"))?;
+
+	let mut head = Vec::new();
+	while let Some(chunk) = response.chunk().await.with_context(|| format!("reading {source}"))? {
+		head.extend_from_slice(&chunk);
+		if head.len() as u64 >= SNIFF_BYTES {
+			head.truncate(SNIFF_BYTES as usize);
+			break;
+		}
+	}
+
+	Ok(String::from_utf8_lossy(&head).into_owned())
 }
 
 /// What Studio will do with a chosen source.
@@ -643,6 +662,11 @@ mod tests {
 		/// Small enough to read, and the one rule that matters is the one a convenient fake would
 		/// have left out: a range starting past the end is *unsatisfiable*, not empty.
 		async fn serve(body: &'static str) -> String {
+			serve_counting(body, std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0))).await
+		}
+
+		/// The same server, with a tally of the requests it answered.
+		async fn serve_counting(body: &'static str, requests: std::sync::Arc<std::sync::atomic::AtomicUsize>) -> String {
 			use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 			let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -652,6 +676,7 @@ mod tests {
 					let mut buffer = [0_u8; 2048];
 					let read = socket.read(&mut buffer).await.unwrap_or(0);
 					let request = String::from_utf8_lossy(&buffer[..read]).into_owned();
+					requests.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 					let _ = socket.write_all(answer(&request, body).as_bytes()).await;
 					let _ = socket.shutdown().await;
 				}
@@ -706,6 +731,30 @@ mod tests {
 				opening.refused
 			);
 			assert!(opening.refused.is_none());
+		}
+
+		/// **A sniff is one request**, and the reason it is worth pinning.
+		///
+		/// It used to be three, two of which could never have succeeded: a ranged read for more bytes
+		/// than a small document has is an error to `DataReaderHttp`, which then *retries it with
+		/// exponential backoff* - a second, then two, then four. Identifying a 14 kB TileJSON took
+		/// **8.3 seconds** against a server having a slow moment, essentially all of it spent asleep
+		/// between retries. It is 0.16 s now.
+		#[tokio::test]
+		async fn identifying_a_document_costs_one_request() {
+			use std::sync::atomic::{AtomicUsize, Ordering};
+
+			let body = r#"{"tilejson":"3.0.0","tiles":["https://x/{z}/{x}/{y}.pbf"],"maxzoom":14}"#;
+			let requests = std::sync::Arc::new(AtomicUsize::new(0));
+			let served = serve_counting(body, requests.clone()).await;
+
+			let opening = opening_for(&format!("{served}/bm.json")).await;
+			assert_eq!(opening.kind.as_ref().map(|kind| kind.id.as_str()), Some("tilejson"));
+			assert_eq!(
+				requests.load(Ordering::Relaxed),
+				1,
+				"identifying a document is one GET - never a range that has to fail first"
+			);
 		}
 
 		/// Only `.json` is ambiguous, so only `.json` costs a read.
