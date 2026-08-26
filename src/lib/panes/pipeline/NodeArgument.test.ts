@@ -39,6 +39,17 @@ const BBOX_FIELD = {
 	control: { kind: 'bbox' as const }
 };
 
+/** `field_meta` for a field with a short list of answers - the core's `Control::Choice`. */
+const CHOICE_FIELD = (over: Record<string, unknown> = {}) => ({
+	name: 'tile_size',
+	doc: '',
+	required: false,
+	sources: false,
+	default: null,
+	control: { kind: 'choice' as const, options: ['256', '512'] },
+	...over
+});
+
 const CONTAINER = {
 	id: 'container',
 	label: 'Tile container',
@@ -247,5 +258,61 @@ describe('which parameters offer the map', () => {
 		view.unmount();
 		flushSync();
 		expect(bboxField.shown).toBeNull();
+	});
+});
+
+/**
+ * Fields with a short list of answers ([Q56]).
+ *
+ * A `tile_size` is a `u32` by type and "256 or 512" by meaning. Offered as a number box it accepts
+ * 400 and the operation refuses it later; offered as a list it cannot be got wrong.
+ */
+describe('a field with a set of answers', () => {
+	const open = (over: Record<string, unknown> = {}, value = '', onCommit: (raw: string) => void = () => {}) =>
+		render(NodeArgument, { name: 'tile_size', field: CHOICE_FIELD(over), value, onCommit });
+
+	it('offers the set rather than a box to type in', () => {
+		open();
+		const select = screen.getByRole('combobox') as HTMLSelectElement;
+		expect([...select.options].map((option) => option.value)).toContain('256');
+		expect([...select.options].map((option) => option.value)).toContain('512');
+	});
+
+	/**
+	 * A `<select>` shows its first entry when nothing matches, so an unset parameter displayed as
+	 * `256` while the document said nothing - and the first interaction wrote a value nobody chose.
+	 */
+	it('shows a field the document does not set as unset', () => {
+		open({ default: '512' });
+		const select = screen.getByRole('combobox') as HTMLSelectElement;
+		expect(select.value).toBe('');
+		expect(select.options[0].textContent).toContain('512');
+	});
+
+	it('says only that it is unset when there is no default to name', () => {
+		open();
+		expect((screen.getByRole('combobox') as HTMLSelectElement).options[0].textContent).toContain('—');
+	});
+
+	it('shows the value the document does set', () => {
+		open({}, '256');
+		expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('256');
+	});
+
+	// Clearing is what an empty box does everywhere else in this form.
+	it('can be put back to unset', () => {
+		const onCommit = vi.fn();
+		open({}, '256', onCommit);
+		const select = screen.getByRole('combobox') as HTMLSelectElement;
+		select.value = '';
+		select.dispatchEvent(new Event('change', { bubbles: true }));
+		expect(onCommit).toHaveBeenCalledWith('');
+	});
+
+	// A required field that already has a value has nothing to be unset to.
+	it('offers no empty entry for a required field that is set', () => {
+		open({ required: true }, '512');
+		const select = screen.getByRole('combobox') as HTMLSelectElement;
+		expect([...select.options].map((option) => option.value)).not.toContain('');
 	});
 });

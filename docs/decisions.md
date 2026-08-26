@@ -16,6 +16,26 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q56 - A field with a short list of answers offers the list
+
+**Decided 2026-08-26.** `tile_size` is a `u32` by type and "`256` or `512`" by meaning. Offered as a
+number box it accepts 400, and the operation refuses that when the pipeline builds - a long way from
+the field that caused it. There are two spellings of "this field has a few answers": a Rust enum
+upstream, which the form has always read, and a documented set on a plain number, which nothing read
+
+- the third table in `semantics.rs` that was written and never consulted, after the paths and the
+  rectangles ([Q53]).
+
+Scanning every field's own documentation for a finite set found seven candidates and confirmed the
+table already holds all three real ones; the rest describe a format (`RRGGBB or RRGGBBAA`) or a unit,
+not a set. A tripwire holds that against the registry, so an operation arriving with a new one is
+caught rather than quietly offered a number box.
+
+**And an unset field is not the first option.** A `<select>` shows its first entry when nothing
+matches, so a parameter the document did not set displayed as `256` while saying nothing, and the
+first interaction wrote a value nobody had chosen. It now carries an entry for what it actually is,
+naming the default where there is one.
+
 ### Q55 - A saved `.vpl` names its inputs relative to itself, when it can do so without `../`
 
 **Decided 2026-08-26.** Saving wrote the document's text verbatim. Two things followed from that.

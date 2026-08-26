@@ -139,7 +139,15 @@
 	</dt>
 	<dd>
 		{#if control?.kind === 'choice'}
+			<!-- **An unset field is not the first option.** A `<select>` shows its first entry when
+			     nothing matches, so a parameter the document does not set displayed as `256` while
+			     saying nothing - and the first thing anyone did with it wrote a value they had not
+			     chosen. The empty entry is what the field currently is, and picking it clears the
+			     parameter, which is what an empty box does everywhere else in this form. -->
 			<select {value} onchange={(event) => onCommit(event.currentTarget.value)}>
+				{#if !field?.required || value === ''}
+					<option value="">{field?.default ? `default (${field.default})` : '—'}</option>
+				{/if}
 				{#each control.options as option (option)}<option value={option}>{option}</option>{/each}
 			</select>
 		{:else if control?.kind === 'boolean'}

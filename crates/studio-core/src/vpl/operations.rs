@@ -121,6 +121,17 @@ fn control_for(operation: &str, name: &str, rust_type: &str, enum_variants: &[&'
 		}
 		return Control::Numbers { count };
 	}
+
+	// **A set, not a range.** `tile_size` is a `u32` by type and "`256` or `512`" by meaning, so the
+	// type alone offers a box that accepts 400 and an operation that then refuses it. The set is in
+	// `semantics.rs` and, like the rectangles, nothing had ever read it - the two spellings of "this
+	// field has a short list of answers" were a Rust enum, which arrives in `enum_variants` above,
+	// and a documented list on a plain number, which arrived nowhere.
+	if let Some(Role::Choice(options)) = role_of(operation, name) {
+		return Control::Choice {
+			options: options.iter().map(|option| (*option).to_string()).collect(),
+		};
+	}
 	// Checked after the shapes above rather than first: a name is the weakest evidence here, and a
 	// parameter that upstream types as a number or an enum is that whatever it is called.
 	if is_path(name) {
@@ -385,6 +396,49 @@ mod tests {
 			})
 			.collect();
 		assert!(missed.is_empty(), "add these to `ROLES` in semantics.rs: {missed:?}");
+	}
+
+	/// **Every documented set is offered as one.** `semantics.rs` is a curated table and the registry
+	/// is not: an operation arrives with a field that takes two values out of a hundred, nobody adds
+	/// it, and the form offers a number box that accepts all hundred. Held against the registry
+	/// rather than against a memory of it, the same way the paths and the rectangles are.
+	#[test]
+	fn every_tabulated_set_is_a_selection() {
+		let missed: Vec<String> = operations()
+			.iter()
+			.flat_map(|operation| {
+				operation
+					.fields
+					.iter()
+					.filter(|field| {
+						matches!(role_of(&operation.name, &field.name), Some(Role::Choice(_)))
+							&& !matches!(field.control, Control::Choice { .. })
+					})
+					.map(|field| format!("{}.{}", operation.name, field.name))
+			})
+			.collect();
+		assert!(missed.is_empty(), "these should offer their set: {missed:?}");
+	}
+
+	/// The one that exists today, spelled out - so a change to the set is a change to this line.
+	#[test]
+	fn a_tile_size_is_offered_as_two_sizes_rather_than_a_number() {
+		for operation in ["raster_tile_resize", "dem_tile_resize"] {
+			let control = field(operation, "tile_size").control;
+			assert_eq!(
+				control,
+				Control::Choice {
+					options: vec!["256".to_string(), "512".to_string()]
+				},
+				"{operation}"
+			);
+		}
+		assert_eq!(
+			field("from_color", "size").control,
+			Control::Choice {
+				options: vec!["256".to_string(), "512".to_string()]
+			}
+		);
 	}
 
 	/// And the other way: the map's rectangle is offered only where the table says there is one.
