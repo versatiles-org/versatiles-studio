@@ -30,7 +30,7 @@ Costs to watch: cache invalidation on every pipeline edit, and binding a free lo
 
 Settled by [Q3](decisions.md). The UI reaches the core three ways, chosen by what is being moved.
 
-The split is forced, not stylistic - [Q3](decisions.md#q3---three-planes-ipc-for-control-http-for-data-channels-for-events) has the reasoning. The consequence to remember here is that tile bytes must never travel over IPC, and that a one-off blob is the exception: `tauri::ipc::Response` returns an array buffer without JSON, which is how A4 reads a raw tile.
+The split is forced, not stylistic - [Q3](decisions.md#q3---three-planes-ipc-http-channels) has the reasoning. The consequence to remember here is that tile bytes must never travel over IPC, and that a one-off blob is the exception: `tauri::ipc::Response` returns an array buffer without JSON, which is how A4 reads a raw tile.
 
 ### Paths across the control plane
 

@@ -306,7 +306,7 @@ Release 2 made the style pane honest about what it is showing. This release make
 project** - which [Q16](decisions.md) decided at S0.8 and nothing since has actually built.
 
 The decision this implements, and what it supersedes, is
-[Q48](decisions.md#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own).
+[Q48](decisions.md#q48---a-window-is-a-project).
 
 ---
 
