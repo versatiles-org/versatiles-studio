@@ -18,588 +18,353 @@ All dated 2026-08-16 unless an entry says otherwise.
 
 ### Q56 - A field with a short list of answers offers the list
 
-**Decided 2026-08-26.** `tile_size` is a `u32` by type and "`256` or `512`" by meaning. Offered as a
-number box it accepts 400, and the operation refuses that when the pipeline builds - a long way from
-the field that caused it. There are two spellings of "this field has a few answers": a Rust enum
-upstream, which the form has always read, and a documented set on a plain number, which nothing read
-
-- the third table in `semantics.rs` that was written and never consulted, after the paths and the
-  rectangles ([Q53]).
-
-Scanning every field's own documentation for a finite set found seven candidates and confirmed the
-table already holds all three real ones; the rest describe a format (`RRGGBB or RRGGBBAA`) or a unit,
-not a set. A tripwire holds that against the registry, so an operation arriving with a new one is
-caught rather than quietly offered a number box.
-
-**And an unset field is not the first option.** A `<select>` shows its first entry when nothing
-matches, so a parameter the document did not set displayed as `256` while saying nothing, and the
-first interaction wrote a value nobody had chosen. It now carries an entry for what it actually is,
-naming the default where there is one.
+**Decided 2026-08-26.** `tile_size` is a `u32` by type and "`256` or `512`" by meaning: as a number box
+it accepts 400, and the operation refuses that only when the pipeline builds. A documented set on a
+plain number is the second spelling of "few answers", after a Rust enum, and `semantics.rs` was the only
+place that knew. **An unset field is not the first option**: a `<select>` shows its first entry when
+nothing matches, so a parameter nobody had set displayed as `256`.
 
 ### Q55 - A saved `.vpl` names its inputs relative to itself, when it can do so without `../`
 
-**Decided 2026-08-26.** Saving wrote the document's text verbatim. Two things followed from that.
-A pipeline saved above the data it reads kept absolute paths, so the `.vpl` and its inputs were not
-a thing anyone could move, copy or commit as a unit. And "save as" was wrong: the text went to the
-new file unchanged while [`project.dir`](../crates/studio-core/src/project.rs) - what a relative path
-_means_ - moved with it, so a pipeline saved from one directory to another quietly began looking for
-its inputs in the second.
-
-Saving now rewrites every file reference for where the file is going: relative below the
-destination, absolute for anything that would need `../`, since a path that climbs out is fragile in
-both directions and unreadable besides. URLs are untouched. `/` rather than the platform separator,
-since a `.vpl` is text that travels.
-
-**Not canonicalised** - resolving symlinks would rewrite a path someone chose into one they have
-never seen. The in-memory document becomes what was written, because `dirty` is a comparison against
-the saved text.
+**Decided 2026-08-26.** Relative below the destination, absolute for anything that would need `../`,
+because a path that climbs out is fragile in both directions. A `.vpl` above its data becomes a thing
+you can move as a unit. This also fixed "save as", which wrote the text unchanged while `project.dir` -
+what a relative path _means_ - moved with it. **Not canonicalised**: resolving symlinks would rewrite a
+path someone chose into one they have never seen.
 
 ### Q54 - An empty project keeps its panes
 
-**Decided 2026-08-26.** A window with no graphs hid both sidebars and every map control, leaving one
-line of text over a blank map. The intent was
-[Q48](#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own)'s - quiet, not a
-launcher - but it took the way in with it: `＋ new graph…` lives in the Sources pane, so the pane
-that creates the first source was hidden for exactly as long as there were no sources, and the File
-menu was the only door left. The note stays; the panes do too.
-
-**The map's controls stay as well.** They are about looking at the map, and a map with only a
-basemap on it is still a map somebody may want to move around, switch a background on, or read a
-grid over.
-
-The cost is three empty states nobody had drawn, because they were unreachable: an empty sources
-list, a style pane with nothing to style, a pipeline pane with no document. A blank column reads as a
-pane that failed rather than one nobody has filled in yet, so each says which it is.
+**Decided 2026-08-26.** A window with no graphs hid both sidebars and every map control. The intent was
+[Q48](#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own)'s - quiet, not a launcher -
+but it took the way in with it: `＋ new graph…` lives in the Sources pane, which was hidden for exactly
+as long as there were no sources. The cost is three empty states nobody had drawn, because they were
+unreachable.
 
 ### Q53 - A bbox field borrows the map's rectangle
 
-**Decided 2026-08-26.** `bbox=[13,52.3,13.8,52.7]` was four bare numbers in a form: four chances to
-put a digit in the wrong place, and no way to see that you had until the pipeline ran over the wrong
-part of the world. The map already draws rectangles - it is how a crop is set - so a bbox field now
-shows its own on focus and can be filled in from a drag.
-
-**The core already knew which fields these are.** `semantics.rs` has tabulated every field's role
-since it was written, `GeoBBox` among them, and nothing had ever read it: `role_of` was exported with
-no callers, and the webview was left inferring a rectangle from "four numbers", which is also what a
-colour and a centre look like. The control now comes from the table, corroborated by the type, so a
-field upstream retypes stops offering a map rather than offering one for whatever it became.
-
-**One rectangle, not two.** The overlay dims everything outside what it draws, and two of those at
-once are two crops as far as the eye is concerned - so a focused field displaces the crop while it
-holds the map and gives it back on blur. The alternative, a second overlay, would have meant two
-dimmed rectangles and a source id to parameterise for no gain.
-
-The awkward case is that pressing "draw" blurs the field that asked, so blur cannot be a release
-while a drag is in flight - the release would cancel the drawing before the first pointer-down.
+**Decided 2026-08-26.** Four bare numbers in a form are four chances to put a digit in the wrong place,
+with nothing to check them against until the pipeline runs over the wrong part of the world. The map
+already draws rectangles, so a bbox field shows its own on focus and can be filled in from a drag. Which
+fields these are comes from `semantics.rs`, whose `GeoBBox` role had been tabulated since it was written
+and never read.
 
 ### Q52 - The map's own controls are one stack down the top left
 
-**Decided 2026-08-26.** The saved views sat top left, the coordinate box bottom left and the
-background, grid and reset bottom right, each positioning itself. Three corners made the map's
-controls read as three unrelated things, every one of them had to know where the others were not,
-and a fourth had to find a free corner rather than a place in a list. They are now one column: the
-container places them and each control is in flow, as wide as what it says.
-
-**Left, not right**, because the right is where MapLibre puts its own controls and the attribution,
-and stacking over those is how the cluster came to wrap in the first place. **Top, not bottom**,
-because the status bar already owns the bottom edge of the window and a column growing upward from
-above it collides with what the bar is saying.
-
-The cost is that the controls now sit over the top left of the map, which is where a north-west
-corner of an extract usually is. Accepted: they are small, they are the things you reach for while
-looking at that map, and the alternative - keeping them scattered so no single area is covered - is
-what this replaced.
+**Decided 2026-08-26.** Three corners made the map's controls read as three unrelated things, each
+having to know where the others were not. One column now, placed by its container. **Left, not right**,
+where MapLibre puts its own controls and the attribution - stacking over those is why the cluster used
+to wrap; **top, not bottom**, which the status bar owns. The cost is that they sit over the north-west
+corner of an extract.
 
 ### Q51 - A layer override applies on whatever basis the style was arrived at
 
-**Decided 2026-08-26.** The layer tree is shown for every vector source, but only a preset style
-applied the overrides it wrote: `renderStyle` ran them, and `deriveStyle` - which is handed layers
-and sources, and never sees a recipe - could not. So on a
-derived or fallback style (S6.2) the eye closed, the recipe recorded it, the project saved it, and the map did not change.
-Colour, filter and zoom range were equally inert; visibility was just the one anyone would notice.
-
-The alternative was to gate the tree to preset styles, which is the smaller change and the wrong
-one: a container that no preset can draw is exactly the case where a per-layer control is worth
-most. So the overrides moved to the choke point instead - `styleFor` applies them to whichever
-style it picked, before `composeStyle` prefixes any ids. Raster and hillshade are untouched: they
-draw one layer, and switching that off is the source's eye
-([Q49](#q49---an-eye-means-this-runs-at-both-scales-the-pin-is-retired)), not a tree with one row.
-
-**And the tree is shown one source, not the stack.** Applying the overrides was necessary and not
-sufficient: the tree lists the ids of the style it is handed, that style was the composed stack, and
-`composeStyle` prefixes every id with its source name as soon as a second thing draws - a basemap is
-enough (S6.5). So the tree wrote `berlin/water` where the override is matched as `water`, and every
-eye was dead again in the ordinary case. The alternative, matching the overrides after prefixing,
-would key stored data on how many sources happen to draw: switch a basemap on and every override
-written before it stops applying. So `composeStyle` hands back the style each entry drew and the
-pane is shown the one it edits. That also ends a second bug nobody had reported - a tree over the
-stack offered the _other_ sources' layers, and wrote their overrides into the selected graph's
-recipe.
-
-**Underneath both sat a third**, which is why the eyes stayed dead after the first two were fixed: a
-source nobody had styled has no entry in the recipe at all, and `set_override` read the entry and
-gave up rather than creating it the way every other setter does. So the first click on an eye was
-dropped, and doing anything else to the style first made the same click work. Recorded here only
-because the three together are one story; the fix itself is ordinary and lives beside the code.
+**Decided 2026-08-26.** The layer tree is offered for every vector source, so an override made there has
+to reach the style however that style was arrived at - not only through the preset path, which was the
+only one applying them. Gating the tree to preset styles instead is smaller and wrong: a container no
+preset can draw is where a per-layer control is worth most. The tree is also shown **one source, not the
+stack**, since the composed stack renames ids as soon as a second thing draws.
 
 ### Q50 - Sources and Pipeline are two panes, and the sources list is where a stack is arranged
 
-**Decided 2026-08-26.** The pane titled "Sources" held four groups - the graphs, the chain, the crop
-and the actions - scrolled, and was named after one of them. They are two objects at different
-levels: a list of graphs is the project, a chain is one document. That is
-[Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)'s document-versus-selection line, so
-they split along it. **Sources** keeps the list and `＋ new graph…`; **Pipeline** takes the tabs, the
-chain, the crop and the actions, since each pane owns what it emits.
+**Decided 2026-08-26.** One pane held four groups at two levels: a list of graphs is the project, a chain
+is one document - [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)'s
+document-versus-selection line, so they split along it. **This is not the sources pane
+[Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)
+refused**, which was a list of `from_*` read nodes beside a graph that already draws them.
 
-**This is not the sources pane [Q14](#q14---explore-and-pipeline-stay-separate-modes---superseded-by-q22)
-and [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)
-refused**, and the log reads as if it were. What they rejected was a list of `from_*` read nodes
-beside a graph that already draws them. A list of _graphs_ is not that list, and graphs did not exist
-until [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form).
+**The draw order moves into that list rather than being a second one.** The style pane's copy listed
+only sources that had built, so a graph that would not build vanished from the one control that could
+move it.
 
-**The draw order moves into that list, rather than being a second one.** The style pane kept its own
-list of the same sources with ↑/↓ beside them - which was the layers panel, split across two panes,
-one half holding the eyes and the other the order. Now the row order _is_ the draw order. It also
-fixes what the copy got wrong: it listed only sources that had **built**, so a graph that would not
-build vanished from the one control that could move it.
-
-**A pane split out of another arrives beside it.** `reconcile_panes` appends a pane a stored layout
-has never heard of, which is right for something new and wrong here - it would put the list of
-graphs below the style pane, in a build where reordering panes by hand deliberately does not exist.
-A stored layout naming `pipeline` gains `sources` immediately above it, on the same side.
-
-**What this costs.** Four panes in the left sidebar is four headers of chrome, and the default order
-matters more than before because [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)
-deferred dragging them. **The style pane is still overloaded** - six sections after losing the draw
-order - and splitting it is the open question. Not as "Style and Layers": Q49 made the sources list
-the layers panel, and a second pane called Layers would put two meanings of the word one level apart
-on the same screen.
-
-_Amends [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)'s
-three sections and [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)'s pane list._
+_Amends [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)._
 
 ### Q49 - An eye means "this runs", at both scales; the pin is retired
 
-**Decided 2026-08-26.** One meaning at both scales: an eye says its row is processed. A graph's says
-it is built, mounted, drawn and named in `style.json`; a node's says that operation is in the
-pipeline that runs.
+**Decided 2026-08-26.** One meaning at both scales: an eye says its row is processed. **A bypass, not a
+cut** - node eyes are independent, so switching one off drops that node and the rest carry on. The pin
+could not express `from_stacked [ a, b ]` without `b`, which is what decided this. Two eyes cannot be
+switched off: the node a graph starts with, and a composite's last source.
 
-**A bypass, not a cut.** Node eyes are independent, so switching one off drops that node and the
-rest carry on. The pin could not express `from_stacked [ a, b ]` without `b` - it darkened `a`, the
-composite and everything after - which is what decided this. Two eyes cannot be switched off: the
-node a graph starts with, which _is_ the graph's own eye, and a composite's last source.
-
-**Amends [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form)**, whose pin
-this replaces. It also fixed what the pin took with it: saving while a node was pinned wrote a
-`style.json` naming that one source.
+**Amends [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form)**, whose pin this
+replaces.
 
 ### Q48 - A window is a project, and the launcher is a window of its own
 
-**Decided 2026-08-25.** The landing screen was a full-screen overlay shown whenever a window had no
-graphs ([Q13](#q13---studio-is-a-workbench-new-projects-start-from-a-landing-screen)). A launcher
-inside a project window makes the window two things, so "new project" comes to mean "empty this
-window out", and a second project cannot be started without abandoning the first.
+**Decided 2026-08-25.** A launcher inside a project window makes the window two things, so "new
+project" comes to mean "empty this window out", and a second project cannot be started without
+abandoning the first.
 
 **This is what finally makes [Q16](#q16---one-application-instance-one-window-per-project) true.**
 Every piece of project state was one application-wide `Mutex`, so ⌘N opened a second window onto the
-same project, sharing an undo stack and a viewport. The core now holds a project per window, keyed
-by the window's label; around forty commands gain the window they were called from.
+same project, sharing an undo stack and a viewport. The core now holds a project per window.
 
 ### Q47 - The verbs about the project live in a native menu, and ⌘S saves the project
 
-**Decided 2026-08-25.** Five controls sat in the top-right corner - a menu bar drawn by hand, in the
-one corner of the window where a menu is not. Native menus get the accelerators, conventions and
-keyboard navigation for free, and S0.1 had listed them as outstanding since the shell was built.
-
-**The menu says which; the window says what.** `menu.rs` emits `studio://menu` with an item id and
-stops there, so every action stays beside the state it touches - the shape `studio://opened`
-established. `New Window` and `Show Problem Log` answer themselves in the shell, since no window is
-involved in either.
+**Decided 2026-08-25.** Five controls sat in the top-right corner - a menu bar drawn by hand, in the one
+corner of the window where a menu is not. Native menus get the accelerators and keyboard navigation for
+free. **The menu says which; the window says what**: `menu.rs` emits an item id and stops there, so every
+action stays beside the state it touches.
 
 ### Q46 - An overlay on the map is one helper with one test, not three copies of a pattern
 
-**Decided 2026-08-24.** `TileGrid`, `TileActivity` and `CropOverlay` each hand-rolled the same
-lifecycle - a GeoJSON source, its layers, putting both back after a restyle, taking them away on
-teardown - and each had a different subset of it right. It is now `lib/map/overlay.ts`, with
-`lib/map/source-layers.ts` beside it.
-
-**What none of them had:** a source and its layers ensured _separately_. Guarding the whole overlay
-on its source meant `addSource` succeeding and a later `addLayer` throwing left it half-drawn for
-the life of the style, silently, because every later call returned early on the source it had just
-added. Anything still missing once the map is `idle` now says so with the error that stopped it.
-
-**`isStyleLoaded()` is not the guard it looks like.** `Style.loaded()` is false while _any_ tile is in flight, which with a background basemap is most of the time. `TileActivity` - the overlay _about_ tiles in flight - was gated on it. `addSource` throws only when there is no style at all, so the helper tries and lets the events bring it round.
+**Decided 2026-08-24.** `TileGrid`, `TileActivity` and `CropOverlay` each hand-rolled the same lifecycle
+and each had a different subset of it right. **What none of them had:** a source and its layers ensured
+_separately_ - guarding the whole overlay on its source left it half-drawn for the life of the style,
+silently, when `addSource` succeeded and a later `addLayer` threw.
 
 ### Q45 - The feature popup answers for Studio's tiles only, and stays inside the map
 
-**Decided 2026-08-23.** `queryRenderedFeatures` with no filter queries every layer, so a click
-returned the background's OSM roads and labels. A8 is "what is in _your_ tile"; the background is
-scenery. The query is restricted to the layers on the graph's mount - **matched by source**, which
-is the one thing true of Studio's tiles however they are drawn, since a graph's name is its mount
-and its style source at once.
+**Decided 2026-08-23.** `queryRenderedFeatures` with no filter queries every layer, so a click returned
+the background's OSM roads. A8 is "what is in _your_ tile"; the background is scenery. The query is
+restricted **by source**, the one thing true of Studio's tiles however they are drawn.
 
-**The layer list is worked out once per style, not once per mouse move.** Calling `getStyle()` from
-`mousemove` serialises every layer and source the style has, which broke crop drawing outright:
-listeners run in one ordered loop, and the rectangle's own handler never got a usable turn. A
-listener registered ahead of others is not free to be slow or to throw - which is also why the popup
-stands down entirely while a crop is being drawn.
+**The layer list is worked out once per style, not once per mouse move.** `getStyle()` from `mousemove`
+broke crop drawing outright: listeners run in one ordered loop, so one registered ahead of others is
+not free to be slow.
 
 ### Q44 - A crop being dragged is drawn as a rectangle; the dim is for a crop that exists
 
 **Decided 2026-08-23.** Dimming everything outside the crop is the right picture for a crop that
-exists - a crop is not a rectangle on the world, it is the part of the world that survives. It is
-the wrong picture for one being dragged: starting a small box turns the whole map dark, which reads
-as the map breaking, and hides what you are aiming at.
-
-So the draft is its own overlay, dashed where the real one is solid, and only ever one of the two is
-on screen. **A drag released off the map is abandoned** by a window-level listener, since MapLibre's
-`mouseup` fires only over the canvas.
+exists - a crop is not a rectangle on the world, it is the part of the world that survives. It is the
+wrong picture for one being dragged: starting a small box turns the whole map dark, which reads as
+the map breaking and hides what you are aiming at. So the draft is its own overlay, dashed, and only
+ever one of the two is on screen.
 
 ### Q43 - The crop folds away, and the Pipeline pane's three actions are centred and full size
 
-**Decided 2026-08-23.** Most graphs are exported whole, so a zoom row, four bbox fields, three
-buttons and an estimate sat under every chain for a decision nobody had made. Closed, it is one row -
-but **a crop that is set says so while it is closed**, because a graph narrowed to one city and
-exported as one city, with nothing on screen to say why, is the serious failure. Folding may hide
-the controls; it may not hide the state.
-
-**The fold is local**, unlike a pane's: a disclosure inside a pane is a gesture to restore, not work
-([Q35](#q35---a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)), and
-local is what makes "closed by default" true on every launch rather than only on a fresh install.
+**Decided 2026-08-23.** Most graphs are exported whole, so a zoom row, four bbox fields and an estimate
+sat under every chain for a decision nobody had made. Closed, it is one row - but **a crop that is set
+says so while it is closed**, because a graph narrowed to one city and exported as one city, with
+nothing on screen to say why, is the serious failure.
 
 ### Q42 - The estimate is asked for, in the one place that still shows it
 
 **Decided 2026-08-23. Corrected 2026-08-24.** The estimate runs the real pipeline over a stratified
-sample under a two-second budget (S3.7) and is not cached. Where that buys a feedback loop it is
-worth paying unasked; in the export dialog there is no loop, because the crop is settled and the
-dialog covers the pane that would change it. So the dialog offers **Estimate size and time**, and
-the answer replaces the button directly above the control that commits.
-
-**What this costs:** someone can export without knowing what it will cost - a real loosening of C6.
+sample (S3.7) and is not cached. Where that buys a feedback loop it is worth paying unasked; in the
+export dialog there is none, because the crop is settled. So the dialog offers **Estimate size and
+time**. **What this costs:** someone can export without knowing what it will cost - a real loosening
+of C6.
 
 ### Q41 - What a graph produces is reported where it is about to matter: the export dialog
 
-**Decided 2026-08-23.** The Produces pane held format, zoom, extent and the layers with their
-counts. It moves into `ExportDialog` and the pane is removed. "Choose a file" is the last moment to
-notice that the layer you meant is missing or named after the wrong file - the same kind of noticing
-that already made the dialog restate the crop.
+**Decided 2026-08-23.** The Produces pane moves into `ExportDialog` and is removed. "Choose a file" is
+the last moment to notice that the layer you meant is missing or named after the wrong file.
 
-**The numbers had to change subject to be correct.** The pane read `preview.last`, which followed
-the pin, so with a node pinned it described _that node's_ output while an export always writes the
-graph. The dialog asks for the graph's own preview by name when it opens.
+**The numbers had to change subject to be correct.** The pane read `preview.last`, which followed the
+pin, so with a node pinned it described _that node's_ output while an export always writes the graph.
 
 ### Q40 - C7 is dropped: four artefacts that never composed into one story
 
-**Decided 2026-08-23.** S5.5's "Run this elsewhere" dialog generated four files from the project. It
-is removed, with `deploy.rs` and the `deployment` command.
-
-**It was sorted by file format, and people arrive with a verb.** Two tabs built tiles, two served
-them, and the two halves contradicted each other: the workflow built containers and uploaded them,
-the Dockerfile ignored containers and served the `.vpl` live. No path through the dialog built tiles
-and then served the built thing - the one route most people want. Two of the four were not
-alternatives at all; the Dockerfile's first instruction copied the tab beside it.
+**Decided 2026-08-23.** S5.5's "Run this elsewhere" dialog generated four files from the project. **It
+was sorted by file format, and people arrive with a verb.** Two tabs built tiles, two served them, and
+the halves contradicted each other - no path through the dialog built tiles and then served the built
+thing.
 
 _Drops [C7](features.md)._
 
 ### Q39 - The asset manager is a dialog, and with it the mode bar goes
 
-**Decided 2026-08-23.** Built as a mode, it was one in name only: `AssetManager` rendered inside the
-map region while everything layered over that region kept rendering, so the font list came up with
-map buttons floating on top of it. A mode replaces a surface; this never replaced one.
-
-**It is an errand.** You leave the map to fetch something you will bring straight back, and you want
-the window as you left it. Closing the dialog stops nothing - an install is a job, and the list
-catches up when it lands.
+**Decided 2026-08-23.** Built as a mode it was one in name only: it rendered inside the map region
+while everything layered over that region kept rendering. A mode replaces a surface; this never
+replaced one. **It is an errand** - you leave the map to fetch something and want the window as you
+left it.
 
 **So the modes go**, since [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)
-itself said a one-item bar "would be chrome that switches between nothing and itself". The bar
-survives as an application bar, not a mode bar. Q22's actual finding - that non-map tools do not
-divide the map work - outlives the control it chose to express it with.
-
-_Amends [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)._
+itself said a one-item bar "would be chrome that switches between nothing and itself".
 
 ### Q38 - Views are named camera positions, they live on the map, and the inspector holds neither them nor a way in
 
-**Decided 2026-08-23.** Three S1-era surfaces in the right pane outlived the decisions that gave
-them a home.
+**Decided 2026-08-23.** The inspector had its own way in - an "Open a tile container…" button and a URL
+form, from when opening a container was all Studio did.
 
-**The inspector had its own way in** - an "Open a tile container…" button and a URL form, from when
-opening a container was all Studio did. [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form)
-made opening a file mean creating a graph, and the pipeline pane had already merged "+ Add source"
-into "＋ new graph…"; this was the other half of that merge, never done.
-
-**A7's bookmarks are named camera positions, and they moved to the map.** They store a camera and
-jump to it, which is the same act as the coordinate box and nothing to do with what a container
-turns out to be - the coupling gave it away: the save button was disabled whenever there was no map.
+**A7's bookmarks are named camera positions, and they moved to the map.** They store a camera and jump
+to it, which is the same act as the coordinate box and nothing to do with what a container turns out to
+be. The coupling gave it away: the save button was disabled whenever there was no map.
 
 ### Q37 - D3's expression editor edits filters, because that is where the expressions are
 
-**Decided 2026-08-23.** [S4.5](history.md) left "editing colour expressions" as its
-remaining half. Scoping it found the premise wrong: across the six presets' 1,503 layers there are
-1,825 colour paint properties and **not one is an expression**, while 1,475 of those layers carry a
-filter and **every one is**. `deriveStyle` writes plain colours too, and there is no style import -
-so a colour expression cannot occur by any path, and an editor for it would have had nothing to open.
+**Decided 2026-08-23.** Scoping [S4.5](history.md)'s remaining half found its premise wrong: across the
+six presets' 1,503 layers there are 1,825 colour paint properties and **not one is an expression**,
+while 1,475 layers carry a filter and **every one is**.
 
-Filters are the other half of the same D3 sentence and the one never built.
-
-**Text, not a builder.** The vocabulary is narrow enough that a row-per-clause editor would cover
-most filters and then refuse the rest, and an editor that cannot open what it is pointed at is worse
-than one showing the value as it is. **Validated by `featureFilter`**, the function MapLibre itself
-calls, so what the editor accepts is exactly what the map will draw.
+**Text, not a builder**, because the vocabulary is narrow enough that a row-per-clause editor would
+cover most filters and refuse the rest - and one that cannot open what it is pointed at is worse than
+one showing the value as it is.
 
 ### Q36 - The core owns the style's recipe, not the style
 
-**Decided 2026-08-21.** The core stores what the style is made from - preset, options, and sparse
-per-layer overrides - not the rendered MapLibre style. A few hundred bytes; the style is rendered
-from it in the webview, where the generator is.
-
-**Because the output does not fit the stack it would have to live on.** `history.rs` keeps
-whole-text snapshots on the grounds that "a pipeline is a few hundred bytes". True of a pipeline,
-false of a style: `colorful` is 125 kB across 324 layers, so 200 snapshots is 25 MB of undo history
+**Decided 2026-08-21.** The core stores what the style is made from - preset, options and sparse
+per-layer overrides - not the rendered MapLibre style, **because the output does not fit the stack it
+would have to live on.** `history.rs` keeps whole-text snapshots on the grounds that "a pipeline is a
+few hundred bytes"; `colorful` is 125 kB across 324 layers, so 200 snapshots is 25 MB of undo history
 for one session.
 
 ### Q35 - A graph's name is chosen once, and the core remembers work rather than cursors
 
-**Dated 2026-08-18.** **Saving to a new filename does not rename the graph.** Q32 made the name the
-identity in three places at once; read as an invariant running both ways, saving `basemap` to
-`hillshade.vpl` would move the server mount and rewrite the style's source name as a side effect of
-picking a filename. The strength of Q32's claim is what makes that unacceptable, so the binding runs
-one way: the name supplies the default filename, never the reverse.
-
-**The name is chosen when the graph is created, from whatever was opened** - the other half of the
-same decision, since a filename cannot correct it later. `berlin.mbtiles` makes a graph called
-`berlin`. The rule lives in the core so the two ways in cannot disagree, and `add_graph` takes the
-**source** rather than a name, since a caller passing a path produced `users-me-data-berlin-mbtiles`.
+**Dated 2026-08-18.** **Saving to a new filename does not rename the graph.** Read as an invariant
+running both ways, Q32's name-is-identity would make saving `basemap` to `hillshade.vpl` move the
+server mount and rewrite the style's source name as a side effect of picking a filename. So the binding
+runs one way: the name supplies the default filename, never the reverse, and is chosen when the graph
+is created from whatever was opened.
 
 ### Q34 - Studio carries a pinned `proj-sys` fork until the `libsqlite3-sys` conflict resolves upstream
 
 **Dated 2026-08-17.** `gdal-src` → `proj-sys` wants `libsqlite3-sys >=0.28, <0.36`;
 `versatiles_container` → `rusqlite` wants `^0.38`. `libsqlite3-sys` declares `links = "sqlite3"`, so
-cargo permits exactly one copy, the ranges are disjoint, and the dependency is not optional in
-either chain - no combination of features resolves it.
+cargo permits exactly one copy, the ranges are disjoint, and the dependency is optional in neither
+chain.
 
 **The fix is upstream, and both routes were asked for:**
-[versatiles-rs#226](https://github.com/versatiles-org/versatiles-rs/issues/226) to loosen the
-requirement, and [georust/proj#261](https://github.com/georust/proj/pull/261) to widen the ceiling -
-a one-line change, since `proj-sys` has no API surface at all.
-
-Studio carries that patch meanwhile, pinned to a commit rather than a branch so a rebase cannot
-change what it builds, with the exit condition beside it: **remove it as soon as either lands.** It
-is the only thing in the tree depending on a repository we control rather than a published crate.
+[versatiles-rs#226](https://github.com/versatiles-org/versatiles-rs/issues/226) and
+[georust/proj#261](https://github.com/georust/proj/pull/261). Studio carries the patch meanwhile,
+pinned to a commit rather than a branch so a rebase cannot change what it builds, with the exit
+condition beside it: **remove it as soon as either lands.**
 
 ### Q33 - The node form explains itself without symbols to learn
 
-**Dated 2026-08-18.** **Parameter help sits beside the sidebar, over the map.** Measured before
-deciding: 127 parameters, median 95 characters, p90 262, max 481. In a 280px sidebar that is three
-lines typically and seven at the p90, overlaying the form being filled in; at 26rem beside it, one
-and a half. One fixed-position element at application level, positioned from the trigger's measured
-rect, since the sidebar scrolls and clips.
-
-**Hover to peek, click to pin**, because scanning a form and copying an example out of it are
-different needs. Only the pinned state has a close control - a peek that needs dismissing is not a
-peek. The trigger is the `?`, not the row, or sweeping down a form would flash a popover per
-argument. The summary line comes from `field_meta` rather than the prose: `whole number 0-30 ·
-required` is frequently the whole answer and the part the prose buries.
+**Dated 2026-08-18.** **Parameter help sits beside the sidebar, over the map.** Measured before deciding:
+127 parameters, median 95 characters, p90 262 - three lines in a 280px sidebar and seven at the p90,
+overlaying the form being filled in; one and a half at 26rem beside it. **Hover to peek, click to pin**,
+and the trigger is the `?` rather than the row, or sweeping down a form would flash a popover per
+argument.
 
 ### Q32 - A project holds several named graphs, and every node is a form
 
-**Dated 2026-08-18.** [Wireframe](https://claude.ai/code/artifact/69159dd5-bfb3-4619-bbee-eb5a5c15497a).
-Supersedes [Q25](#q25---the-vpl-editor-is-a-textarea-with-a-highlight-overlay-over-one-document-per-window)'s
-"one pipeline document per window"; amended by
+**Dated 2026-08-18.** Supersedes
+[Q25](#q25---the-vpl-editor-is-a-textarea-with-a-highlight-overlay-over-one-document-per-window)'s "one
+pipeline document per window"; amended by
 [Q33](#q33---the-node-form-explains-itself-without-symbols-to-learn) and
 [Q49](#q49---an-eye-means-this-runs-at-both-scales-the-pin-is-retired).
 
 **Q25 answered a different question.** It offered several sources as `from_stacked [ a, b ]`, which
-merges inputs into **one** tile source. A map style needs the opposite: MapLibre's `sources` is a map
-of independently addressable sources, and a real style is vector tiles plus hillshade plus terrain,
-each named separately. `from_stacked` stays; it answers a different question.
-
-**A graph is a named VPL document producing one named tile source.** The name is the identity in
-three places at once - the server mount, the `style.json` source and the `.vpl` filename - which is
-what makes [Q6](#q6---a-project-is-a-directory-of-real-files-with-a-yaml-manifest)'s project directory
-read properly. **Renaming rewrites style references**, as one operation that either completes or does
-not; forbidding renames once a style points at a graph is worse, since that is when you most want to.
+merges inputs into **one** source; a map style needs the opposite. **A graph is a named VPL document
+producing one named tile source**, and that name is the identity in three places at once - the server
+mount, the `style.json` source and the `.vpl` filename.
 
 ### Q31 - Panes are a list, and each one owns what it emits
 
-**Dated 2026-08-18.** **The axis is document versus selection**: left is the structure of what you
-are building, right is the thing currently selected. Two alternatives lost against the full feature
-inventory - _left = tile data, right = style_ leaves every analysis feature homeless and re-creates
-modes as columns; _left = interaction, right = information_ has a home for everything but does not
-survive contact, since A6 edits TileJSON and B3 has a repair button.
+**Dated 2026-08-18.** **The axis is document versus selection**: left is the structure of what you are
+building, right is the thing currently selected. Two alternatives lost against the feature inventory -
+_tile data / style_ leaves every analysis feature homeless, and _interaction / information_ does not
+survive contact, since A6 edits TileJSON.
 
-**Each pane owns what it emits.** The Export section is dissolved: "export tiles" belongs to the
-Pipeline pane and "export style" (D8) to the Style pane. That closes a real gap - Q22 named one
-Export section, [ui.md](ui.md) defined it as tiles-only, and D8 therefore had no declared home.
-
-**Amended by [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form):** the
-Parameters pane is removed, since a node carrying its own arguments makes it a second view of the
-same thing - which moves the axis closer to _what you are building_ versus _what it turns out to be_,
-nearly the split rejected above.
+**Each pane owns what it emits**, which dissolves the Export section. **Amended by
+[Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form):** the Parameters pane is
+removed, since a node carrying its own arguments makes it a second view of the same thing.
 
 ### Q30 - A CSV import reads the header and fills in what it can
 
 **Dated 2026-08-17.** [Q29](#q29---the-import-form-learns-the-data-by-probing-what-the-pipeline-produces)
-teaches the form by probing what the pipeline produces, which cannot work here: `from_csv` will not
-build until `lon_column` and `lat_column` are set, so there is no output to look at. This is the one
-import where the question has to be asked of the input, so the header is read at import time and the
-answer written into the node.
+probes what the pipeline produces, which cannot work here: `from_csv` will not build until
+`lon_column` and `lat_column` are set. The header is read at import time instead.
 
-**Not `x` and `y`.** They are coordinates often enough to be tempting, and projected metres or a grid
-index often enough that a guess would sometimes produce a map of somewhere that does not exist. A
-guess here fills in a _required_ field, so a wrong one is worse than none.
+**Not `x` and `y`** - projected metres or a grid index often enough that a guess would sometimes produce
+a map of somewhere that does not exist, in a _required_ field.
 
 ### Q29 - The import form learns the data by probing what the pipeline produces
 
-**Dated 2026-08-17.** `from_geo` takes lists of property names, and the person filling them in has no
-way to know those names without opening the file in something else first. That was E1's "map
-columns", and it was the part of an import that sent you elsewhere.
-
-**Probed from the output, not parsed from the input.** `analysis::probe_layers` decodes one tile of
-the built preview and reports its layers and property keys, so one implementation serves every
-format - a GeoJSON, a shapefile and a CSV all arrive as vector tiles - including formats Studio has
-never heard of.
+**Dated 2026-08-17.** `from_geo` takes lists of property names, and nobody can know those names without
+opening the file in something else first - E1's "map columns", and the part of an import that sent you
+elsewhere. **Probed from the output, not parsed from the input**, so one implementation serves every
+format, including ones Studio has never heard of.
 
 ### Q28 - One import catalogue, in the core, derived from the operation registry
 
-**Dated 2026-08-17.** The list of what Studio can open was in four places and already wrong: the file
-dialog named four extensions, the drop handler repeated them, Save named `.vpl` a third time, and
-none knew about `from_geo` - which the binary had all along.
+**Dated 2026-08-17.** The list of what Studio can open was in four places and already wrong, and none of
+them knew about `from_geo` - which the binary had all along.
 
-**The catalogue answers to the binary.** `import::kinds()` consults the operation registry and drops
-any kind whose read operation is absent, so a card cannot offer something that fails on the first
-click. Not hypothetical: [E3](features.md)'s GDAL path is a build-time decision
-([Q19](#q19---gdal-is-statically-bundled-with-a-deliberately-narrow-driver-set)), and its card
-appeared with no UI change the moment GDAL linked.
+**The catalogue answers to the binary**, dropping any kind whose read operation is absent, so a card
+cannot offer something that fails on the first click. Not hypothetical: [E3](features.md)'s GDAL path is
+a build-time decision, and its card appeared with no UI change the moment GDAL linked.
 
 ### Q27 - The job runner has two lanes, and the preview runs in one of them
 
-**Dated 2026-08-17.** A conversion and a preview want opposite things. **`queued`** runs one job at a
-time in submission order, because conversions compete for the same disk and cores and two at once
-finish later than the same two in sequence. **`latest`** cancels whatever the lane was running: a
-preview of a pipeline that has since been edited is a machine warming up over a stale question. One
-FIFO serving both would make a preview wait behind a forty-minute export.
-
-**This moved a decision out of the webview.** `refreshPreview` held a token and discarded replies
-that arrived out of order - the work still ran to completion. Now the runner cancels it, and because
-_which preview is current_ is a fact the runner owns, the command reports `superseded` rather than
-the caller inferring it.
+**Dated 2026-08-17.** **`queued`** runs one job at a time, because conversions compete for the same disk
+and cores and two at once finish later than the same two in sequence. **`latest`** cancels whatever the
+lane was running: a preview of a pipeline that has since been edited is a machine warming up over a
+stale question. One FIFO serving both would make a preview wait behind a forty-minute export.
 
 ### Q26 - The IPC types are generated, and the generated file is committed
 
 **Dated 2026-08-17.** [Q3](#q3---three-planes-ipc-for-control-http-for-data-channels-for-events)
 deferred `tauri-specta` for being pre-1.0. The risk that avoided turned out smaller than the one it
-accepted: `svelte-check` flags a _use_ of a missing field, not a missing field, so 19 interfaces and
-26 wrappers were kept in step by hand and drift failed nothing until somebody read it.
+accepted: `svelte-check` flags a _use_ of a missing field, not a missing field, so 19 interfaces were
+kept in step by hand and drift failed nothing until somebody read it.
 
-**The generated file is committed, and a test fails when it is stale** - the same shape as
-`cargo fmt --check`. That is what makes a pre-1.0 generator acceptable: if `specta` breaks, the
-checked-in bindings keep working and only regeneration needs fixing.
-
-Specta refuses to emit any 64-bit integer to avoid precision loss, so every `usize` and `f64` that
-crosses carries an explicit representation. **It found things:** `JobEvent.fraction` was typed
-`number` by hand and is `number | null` in truth, because `serde_json` writes `null` for `NaN`.
+**The generated file is committed, and a test fails when it is stale** - which is what makes a pre-1.0
+generator acceptable: if `specta` breaks, the checked-in bindings keep working.
 
 ### Q25 - The VPL editor is a textarea with a highlight overlay, over one document per window
 
 **Dated 2026-08-17.** ~~One pipeline document per window~~ - superseded 2026-08-18 by
-[Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form): a project holds several
-named graphs. What survives is what the editor is built from.
+[Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form). What survives is what the
+editor is built from.
 
-**Not CodeMirror**, for three reasons. The hard part is already done - a highlighter needs to know
-where every token is, and [Q23](#q23---the-vpl-syntax-tree-is-written-from-scratch-and-pinned-to-upstream-by-a-differential-test)'s
-parser returns exactly that, so a second tokeniser would mean two definitions of the grammar in one
-application. Undo belongs to the document rather than the editor, since G6 wants one stack covering
-text _and_ structured edits. And the documents are short: a pipeline is a handful of nodes.
+**Not CodeMirror.** The hard part is already done - a highlighter needs to know where every token is,
+and [Q23](#q23---the-vpl-syntax-tree-is-written-from-scratch-and-pinned-to-upstream-by-a-differential-test)'s
+parser returns exactly that, so a second tokeniser would mean two definitions of the grammar. Undo
+belongs to the document rather than the editor, since G6 wants one stack covering text _and_
+structured edits.
 
 ### Q24 - G2 is dropped. The bottom bar shows status and progress
 
 **Dated 2026-08-17.** G2 promised that every GUI action displays its CLI equivalent. Most of Studio's
-actions have none and never will - collapsing a pane, selecting a node, panning the map. In practice
-one action wrote to the strip and every later action left that line sitting there, describing
-something done minutes ago.
+actions have none and never will - collapsing a pane, selecting a node, panning the map.
 
 **The need behind it is real and met better elsewhere.** G2 was for reproducibility, and
 [G1](features.md) delivers that properly: a directory of real `.vpl` and `style.json` files the CLI
-already consumes. A whole project the CLI can run beats a copyable one-liner, and does not have to
-be maintained action by action.
+already consumes. A whole project the CLI can run beats a copyable one-liner, and does not have to be
+maintained action by action.
 
 ### Q23 - The VPL syntax tree is written from scratch, and pinned to upstream by a differential test
 
-**Superseded in practice, 2026-08-17: upstream built it.** `versatiles_pipeline` 4.8.0 ships a
-`CstFile` - a lossless tree with spans, trivia, structural edits and a serialiser - so Studio's own
-parser is gone: `parse.rs`, `print.rs` and `differential.rs` deleted, around 700 lines removed for
-250 added, and the thing that needed a differential test no longer exists. What stayed is what
-upstream has no reason to carry: `validate.rs`, `tokens()` for highlighting, and `node_at`.
+**Superseded in practice, 2026-08-17: upstream built it.** `versatiles_pipeline` 4.8.0 ships a lossless
+`CstFile`, so Studio's own parser is gone - 700 lines removed for 250 added.
 
 The reasoning is kept because it is why the tree has the shape it does. **The text is the document:**
-spans point into the original rather than replacing it, so parse-then-print is the identity and a
-structured edit is a splice at a span. Comments and layout survive because they are never
-re-rendered - a property of the data structure, not of a formatter behaving well.
-
-**Two upstream behaviours were reproduced rather than corrected**, since diverging quietly is worse
-than either: a repeated key concatenates (`a=1 a=2` means `[1, 2]`), and VPL could not express an
-empty string. The second was a UI constraint until 4.8.0 lifted it - clearing a field still removes
-the parameter, but that is now a decision about the interface rather than a limit of the syntax.
+spans point into the original, so parse-then-print is the identity. Comments and layout survive because
+they are never re-rendered - a property of the data structure, not of a formatter behaving well.
 
 ### Q22 - One map surface, not four modes. The mode bar separates map work from non-map tools
 
-Explore, Pipeline, Style and Publish are merged into a **single surface**.
+Explore, Pipeline, Style and Publish are merged into a **single surface**. The four modes asserted a
+separation the work does not have: tighten a filter, look at how it renders, adjust a colour, notice a
+missing layer - every one was a mode switch.
 
-**Why.** The four modes asserted a separation the work does not have. Tighten a filter, look at how
-it renders, adjust a colour, notice a missing layer, go back to the filter - every one of those was a
-mode switch. **Explore was never a mode**: it is map-plus-inspector with no left pane, which is this
-surface with the sections collapsed. "I am not editing right now" is a pane state, not an activity.
-**Publish was not one either** - an action surface plus a temporary map tool for the crop rectangle.
-
-**Supersedes [Q14](#q14---explore-and-pipeline-stay-separate-modes---superseded-by-q22)** entirely.
-**Amended by [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)** (the sections become a
-list of panes, the Export section dissolves), by
-[Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form) (parameters move into the
-node) and by [Q39](#q39---the-asset-manager-is-a-dialog-and-with-it-the-mode-bar-goes) (the mode bar
-is retired, having been left with one mode - the state this entry itself called chrome that switches
-between nothing and itself).
+**Supersedes [Q14](#q14---explore-and-pipeline-stay-separate-modes---superseded-by-q22)**; amended by
+[Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits),
+[Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form) and
+[Q39](#q39---the-asset-manager-is-a-dialog-and-with-it-the-mode-bar-goes).
 
 ### Q21 - Recents and bookmarks are application state in JSON files, not project state
 
-A7 said view bookmarks are "stored in the project". They are not: both they and the recent-sources
-list live beside the application's data, in `app_data_dir()`, as JSON - `recents.json` disposable,
-`views.json` precious, `layout.json` added later by Q31.
+A7 said view bookmarks are "stored in the project". They are not: both they and the recent-sources list
+live beside the application's data, as JSON.
 
 **Why not SQLite**, even though `rusqlite` is already linked: its advantages are concurrency, partial
-updates and queries over large sets, and none apply - one writer, a dozen recents, nothing to query.
-What it would add is a schema and migrations, for state whose shape changes often. A JSON file the
-user can read, grep and back up also honours "nothing only exists inside Studio" in a way an opaque
-database does not.
+updates and queries over large sets, and none apply. What it would add is a schema and migrations, for
+state whose shape changes often.
 
 **Amended 2026-08-23 by [Q38](#q38---views-are-named-camera-positions-they-live-on-the-map-and-the-inspector-holds-neither-them-nor-a-way-in):**
-bookmarks are now views, and the file is read under its old name where an install predates the
-rename. Only the words changed.
+bookmarks are now views.
 
 ### Q20 - GDAL is raster-only in release 1; GeoPackage is not supported
 
-`from_gdal` has only `raster` and `dem` submodules. Vector reading is `from_geo`, which needs no GDAL
-at all, and **there is no GeoPackage path anywhere** - E3's claim to the contrary was wrong, and the
-catalogue is corrected.
+Vector reading is `from_geo`, which needs no GDAL at all, and **there is no GeoPackage path anywhere** -
+E3's claim to the contrary was wrong.
 
-**Accepted for release 1**, since GDAL covers M3's "image data" half. GeoPackage users convert with
-`ogr2ogr` first - which is precisely the toolchain step `vision.md` says P2 will not get through, and
-the sharpest instance of that tension in the release. **Revisit** by teaching `from_geo` to read
-GeoPackage directly: it is SQLite, so that needs no new native dependency.
+**Accepted for release 1.** GeoPackage users convert with `ogr2ogr` first - precisely the toolchain step
+`vision.md` says P2 will not get through, and the sharpest instance of that tension in the release.
+**Revisit** by teaching `from_geo` to read it directly: it is SQLite, so that needs no new dependency.
 
 ### Q19 - GDAL is statically bundled, with a deliberately narrow driver set
 
-E3 is required for M3, so GDAL cannot be optional and cannot be a system dependency. `gdal-src`
-compiles it from source during `cargo build` and produces static libraries.
+E3 is required for M3, so GDAL cannot be optional and cannot be a system dependency.
 
-**The obvious blocker turns out to be solved.** PROJ normally needs `proj.db` on disk at runtime,
-which would defeat a self-contained binary; RFC-8's `EMBED_RESOURCE_FILES` defaults to ON for static
-builds. Verified rather than assumed - a transform succeeds with `PROJ_DATA` unset and no `proj.db`
-present.
-
-**Why not the alternatives.** Dynamic linking against a system GDAL costs ~70 Homebrew formulae, and
-"install GDAL first" is exactly the toolchain P1 and P2 will never get through. Feature-detecting and
-greying out E3 fails M3, which requires it.
+**The obvious blocker turns out to be solved.** PROJ normally needs `proj.db` on disk at runtime; RFC-8's
+`EMBED_RESOURCE_FILES` defaults to ON for static builds. Verified rather than assumed. **Why not the
+alternatives**: dynamic linking against a system GDAL costs ~70 Homebrew formulae, and "install GDAL
+first" is exactly the toolchain P1 and P2 will never get through.
 
 ### Q18 - Studio's Svelte components are written from scratch
 
@@ -613,30 +378,21 @@ needs distorting a library other projects depend on.
 No stacking several containers in one view with opacity, swipe and split. Dropped, not deferred:
 [Q14](#q14---explore-and-pipeline-stay-separate-modes---superseded-by-q22) removed the sources strip
 that would have held it, and [Q16](#q16---one-application-instance-one-window-per-project) mostly
-replaces it - comparing two containers is two windows side by side. Not a swipe, but free and the
-platform convention.
+replaces it - comparing two containers is two windows side by side.
 
-**Release 1 therefore has no comparison view at all.** B5 (container diff) is the first feature
-needing two, and it is post-1.0, so a swipe control can be designed then.
+**Release 1 therefore has no comparison view at all.** B5 is the first feature needing two, and it is
+post-1.0.
 
 ### Q16 - One application instance, one window per project
 
-Not tabs, not separate application instances. Tabs share one WebGL budget and one crash blast
-radius; separate instances fragment the job queue and the asset writer, and cost a second core.
-
-**Tauri already gives us the isolation** - every webview is a separate OS process, and the core can
-restart one that goes invalid. So a window per project buys isolation we would otherwise engineer.
-**The server does not need duplicating:** `add_tile_source` works on a running server, so each graph
-and each preview is a named mount rather than a server of its own.
+Not tabs, not separate application instances. Tabs share one WebGL budget and one crash blast radius;
+separate instances fragment the job queue and the asset writer. **Tauri already gives us the
+isolation** - every webview is a separate OS process.
 
 **Nothing may live only in the webview**, so a crash is recoverable by reloading that one window.
-Promoted to an architectural principle - and narrowed by
-[Q35](#q35---a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors), which
-draws the line at _work you would have to redo by hand_ rather than at every piece of UI state.
-
-**Made true by [Q48](#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own)**, which
-built the per-window project the heading describes, gave each project its own job list, and made the
-launcher a window rather than what an empty project window shows.
+Narrowed by [Q35](#q35---a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)
+to _work you would have to redo by hand_, and made true by
+[Q48](#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own).
 
 ### Q13 - Studio is a workbench. New projects start from a landing screen
 
@@ -666,14 +422,13 @@ switching is free because both are views over one syntax tree.
 
 ### Q11 - The node graph (C1) is in release 1, and needs a lossless VPL syntax tree
 
-M4 means node graph **plus** text editor, not text editor alone. The catalogue assumed C1 was cheap
-because "the parser exists" - it parses, but cannot write back: no serialiser, properties in a
-`BTreeMap` that reorders them, comments discarded.
+M4 means node graph **plus** text editor. The catalogue assumed C1 was cheap because "the parser
+exists" - it parses, but cannot write back: no serialiser, properties in a `BTreeMap` that reorders
+them, comments discarded.
 
-So the graph edits text through **span-based edits over a lossless syntax tree**, not by reparsing
-and printing. Regenerating from the AST would reformat the user's file and delete their comments on
-every interaction - the exact "GUI and file disagree" bug the source-of-truth principle exists to
-prevent. Built upstream in the end, see
+So the graph edits text through **span-based edits over a lossless syntax tree**. Regenerating from
+the AST would reformat the user's file and delete their comments on every interaction - the exact "GUI
+and file disagree" bug the source-of-truth principle exists to prevent. Built upstream in the end, see
 [Q23](#q23---the-vpl-syntax-tree-is-written-from-scratch-and-pinned-to-upstream-by-a-differential-test).
 
 ### Q4 - Analysis statistics live in memory, keyed by container identity
@@ -704,11 +459,10 @@ strengthens the case for taking them first after release 1.
 Ship `v0.x` from stage 1; reserve the announcement for when all four milestones are in. **Releasing
 early is house style** - every versatiles repository that ships started small.
 
-**But the framing matters.** If the first public build is a viewer, Studio gets categorised as "a
-tile viewer", and first categorisations stick. So: GitHub releases only, an "under development"
-banner stating what works, an early audience of P3 and ourselves, and 1.0 with the announcement
-together. **Why not stay silent entirely:** the macOS Gatekeeper path cannot be tested by reading our
-own instructions, and malformed containers in the wild cannot be manufactured.
+**But the framing matters.** If the first public build is a viewer, Studio gets categorised as "a tile
+viewer", and first categorisations stick. So: GitHub releases only, an "under development" banner, and
+1.0 with the announcement together. **Why not stay silent entirely:** the macOS Gatekeeper path cannot
+be tested by reading our own instructions.
 
 ### Q6 - A project is a directory of real files with a YAML manifest
 
@@ -719,40 +473,30 @@ MapLibre. Embedding a text DSL in JSON would mean escaped newlines and unreadabl
 
 ### Q3 - Three planes: IPC for control, HTTP for data, Channels for events
 
-Control (open a container, start a job) over Tauri IPC; data (tiles, glyphs, sprites) over the
-embedded HTTP server; events (progress, warnings) over Tauri Channels.
+Control over Tauri IPC; data (tiles, glyphs, sprites) over the embedded HTTP server; events over Tauri
+Channels. **Forced, not stylistic**: Tauri serialises command returns as JSON and its own docs warn
+this is slow for large payloads.
 
-**Forced, not stylistic.** Tauri serialises command returns as JSON and its own docs warn this is
-slow for large payloads, so tile bytes must not travel over IPC.
-
-**Studio's own tiles take a detour through the webview.** They still travel over HTTP; what changed
-is who queues them. MapLibre fetches through a `studio://` protocol holding a queue bounded at the
-browser's own per-origin limit, because neither end could otherwise answer the question S2.16 needed:
-MapLibre reports a tile as loading the moment it _issues_ a fetch, and a counter inside the tile
-source would only see the handful the browser let through. With the queue in the middle, "rendering"
-means the server has it and "queued" means nobody has started. Only Studio's own tiles - queueing a
-background map's would report someone else's network as this pipeline being slow.
+**Studio's own tiles take a detour through the webview.** MapLibre fetches through a `studio://`
+protocol holding a bounded queue, because MapLibre reports a tile as loading the moment it _issues_ a
+fetch. With the queue in the middle, "rendering" means the server has it and "queued" means nobody has
+started.
 
 ### Q10 - Release 1 ships Linux packages and a Homebrew cask; signing comes later
 
 **Amended 2026-08-23: Windows x86_64 is built, and unsigned.** What costs money and lead time is the
-_certificate_, not the build, so Windows ships on the same terms macOS already does: an installer the
-platform warns about, and instructions for getting past the warning.
+_certificate_, not the build.
 
-**arm64 was attempted and dropped the same day.** `gdal-sys` ships prebuilt bindings for four
-targets, `aarch64 + windows` is not among them, and it generates none unless `bindgen` is on - which
-a bundled build cannot use. The upstream fix is one line, but applying it here means a second pinned
-fork on top of [Q34](#q34---studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)'s,
-and Windows on ARM runs the x64 build under emulation.
+**arm64 was attempted and dropped the same day.** `gdal-sys` ships prebuilt bindings for four targets,
+`aarch64 + windows` is not among them, and it generates none unless `bindgen` is on - which a bundled
+build cannot use. Windows on ARM runs the x64 build under emulation.
 
 ### Q2 - Scope of release 1 is set by the funding milestones
 
-Analysis audience or creation audience first? Moot - the four milestones are funded, spanning
-clusters A, D, E and C, and **cluster B is not in scope**. Four independent sources agree: of 76
-showcase projects 24 are tagged `journalism` and at least 21 come from news organisations; the
-documentation backlog is almost entirely creation workflows; `@versatiles/style` sees an order of
-magnitude more downloads than anything else; and by share of features building on existing machinery,
-the funded clusters are mid-range rather than cheap.
+Analysis audience or creation audience first? Moot - the four milestones are funded, spanning clusters
+A, D, E and C, and **cluster B is not in scope**. Four independent sources agree: of 76 showcase
+projects 24 are tagged `journalism`; the documentation backlog is almost entirely creation workflows;
+`@versatiles/style` sees an order of magnitude more downloads than anything else.
 
 ### Q9 - Fonts and sprites are fetched per family, and never unpacked
 
