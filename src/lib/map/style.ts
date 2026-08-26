@@ -570,18 +570,30 @@ export function composeStyle(
 
 		// **The source key collides too, not just the layer ids.** `@versatiles/style`'s builders
 		// name their source `versatiles-shortbread` whatever they were pointed at, so two preset
-		// sources merge into one and the second silently replaces the first's tiles. Each built style
-		// has exactly one source - it was built from one - so renaming it to the entry is safe, and
-		// the layers that referred to it follow.
-		const [built] = Object.keys(style.sources);
-		const key = prefix ? name : built;
-		// **With what the container says about itself, over what the builder assumed.** Studio's own
-		// builders declare a source as a list of tile URLs and nothing else; `@versatiles/style`'s
-		// declares `bounds` of the whole world and `maxzoom: 14`, which is true of Shortbread in
-		// general and false of the extract in front of you. Either way MapLibre asks for tiles that
-		// cannot exist - a Berlin extract answers three of four requests at z1 with a 404, and each
-		// of those takes one of the tile queue's six slots ahead of a tile that does.
-		sources[key] = { ...style.sources[built], ...extent };
+		// sources merge into one and the second silently replaces the first's tiles.
+		//
+		// **Every source, not the first one.** A pipeline entry has exactly one - it was built from
+		// one - and this took that for the rule, kept `Object.keys(...)[0]` and dropped the rest. The
+		// satellite background is two, imagery under a vector overlay: its imagery was thrown away on
+		// the way to the map and the layer that draws it left pointing at a source that no longer
+		// existed, so the background simply did not appear.
+		//
+		// A style with one source keeps the old spelling, `name`, which is what every exported
+		// `style.json` and every override written before this refers to. Only a style with several
+		// needs each one distinguished, and those are named for the source as well as the entry.
+		const owned = Object.keys(style.sources);
+		const renamed = (from: string) => (!prefix ? from : owned.length > 1 ? `${name}/${from}` : name);
+
+		for (const built of owned) {
+			// **With what the container says about itself, over what the builder assumed.** Studio's
+			// own builders declare a source as a list of tile URLs and nothing else;
+			// `@versatiles/style`'s declares `bounds` of the whole world and `maxzoom: 14`, which is
+			// true of Shortbread in general and false of the extract in front of you. Either way
+			// MapLibre asks for tiles that cannot exist - a Berlin extract answers three of four
+			// requests at z1 with a 404, and each of those takes one of the tile queue's six slots
+			// ahead of a tile that does.
+			sources[renamed(built)] = { ...style.sources[built], ...extent };
+		}
 
 		for (const layer of style.layers) {
 			if (!prefix) {
@@ -591,7 +603,9 @@ export function composeStyle(
 			layers.push({
 				...layer,
 				id: `${name}/${layer.id}`,
-				...('source' in layer ? { source: key } : {})
+				// Each layer follows *its own* source, which is the half that a single-source
+				// assumption also got wrong: every layer was pointed at the one key that survived.
+				...('source' in layer ? { source: renamed(layer.source) } : {})
 			} as LayerSpecification);
 		}
 	}
