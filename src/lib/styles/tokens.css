@@ -116,6 +116,18 @@
 	--space-5: 0.9rem;
 	--space-6: 1.4rem;
 
+	/* **What a gap separates, rather than how big it is.** Measured in the running application, every
+	   boundary in the pipeline pane came out at 26px: a parameter row inside a node, the join between
+	   a node and the rail below it, and the break between the chain and the crop section. Nothing was
+	   wrong with any single value - what was missing is that related things were no closer together
+	   than unrelated ones, so the pane read as one undifferentiated column.
+	
+	   Three roles, so the distance says what it means. Reach for these in a pane's own layout;
+	   `--space-*` stays right for padding inside a control. */
+	--gap-tight: var(--space-2); /* rows within one component, which a hairline already separates */
+	--gap-group: var(--space-4); /* parts of one thing: tabs and their body, a list and its doors */
+	--gap-section: var(--space-6); /* one section of a pane from the next */
+
 	/* -- Shape --------------------------------------------------------------------------------
 	 * Two radii. Small for controls and cards, large for floating surfaces. */
 	--radius: 3px;

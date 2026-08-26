@@ -27,18 +27,18 @@ rest carry on. The pin could not express `from_stacked [ a, b ]` without `b` - i
 composite and everything after - which is what decided this. Two eyes cannot be switched off: the
 node a graph starts with, which _is_ the graph's own eye, and a composite's last source.
 
-**Amends [Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)**, whose pin
+**Amends [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form)**, whose pin
 this replaces. It also fixed what the pin took with it: saving while a node was pinned wrote a
 `style.json` naming that one source.
 
 ### Q48 - A window is a project, and the launcher is a window of its own
 
 **Decided 2026-08-25.** The landing screen was a full-screen overlay shown whenever a window had no
-graphs ([Q13](#q13--studio-is-a-workbench-new-projects-start-from-a-landing-screen)). A launcher
+graphs ([Q13](#q13---studio-is-a-workbench-new-projects-start-from-a-landing-screen)). A launcher
 inside a project window makes the window two things, so "new project" comes to mean "empty this
 window out", and a second project cannot be started without abandoning the first.
 
-**This is what finally makes [Q16](#q16--one-application-instance-one-window-per-project) true.**
+**This is what finally makes [Q16](#q16---one-application-instance-one-window-per-project) true.**
 Every piece of project state was one application-wide `Mutex`, so ⌘N opened a second window onto the
 same project, sharing an undo stack and a viewport. The core now holds a project per window, keyed
 by the window's label; around forty commands gain the window they were called from.
@@ -102,7 +102,7 @@ exported as one city, with nothing on screen to say why, is the serious failure.
 the controls; it may not hide the state.
 
 **The fold is local**, unlike a pane's: a disclosure inside a pane is a gesture to restore, not work
-([Q35](#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)), and
+([Q35](#q35---a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)), and
 local is what makes "closed by default" true on every launch rather than only on a fresh install.
 
 ### Q42 - The estimate is asked for, in the one place that still shows it
@@ -149,12 +149,12 @@ map buttons floating on top of it. A mode replaces a surface; this never replace
 the window as you left it. Closing the dialog stops nothing - an install is a job, and the list
 catches up when it lands.
 
-**So the modes go**, since [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)
+**So the modes go**, since [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)
 itself said a one-item bar "would be chrome that switches between nothing and itself". The bar
 survives as an application bar, not a mode bar. Q22's actual finding - that non-map tools do not
 divide the map work - outlives the control it chose to express it with.
 
-_Amends [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)._
+_Amends [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)._
 
 ### Q38 - Views are named camera positions, they live on the map, and the inspector holds neither them nor a way in
 
@@ -162,7 +162,7 @@ _Amends [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-wo
 them a home.
 
 **The inspector had its own way in** - an "Open a tile container…" button and a URL form, from when
-opening a container was all Studio did. [Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form)
+opening a container was all Studio did. [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form)
 made opening a file mean creating a graph, and the pipeline pane had already merged "+ Add source"
 into "＋ new graph…"; this was the other half of that merge, never done.
 
@@ -242,10 +242,10 @@ required` is frequently the whole answer and the part the prose buries.
 ### Q32 - A project holds several named graphs, and every node is a form
 
 **Dated 2026-08-18.** [Wireframe](https://claude.ai/code/artifact/69159dd5-bfb3-4619-bbee-eb5a5c15497a).
-Supersedes [Q25](#q25--the-vpl-editor-is-a-textarea-with-a-highlight-overlay-over-one-document-per-window)'s
+Supersedes [Q25](#q25---the-vpl-editor-is-a-textarea-with-a-highlight-overlay-over-one-document-per-window)'s
 "one pipeline document per window"; amended by
-[Q33](#q33--the-node-form-explains-itself-without-symbols-to-learn) and
-[Q49](#q49--an-eye-means-this-runs-at-both-scales-the-pin-is-retired).
+[Q33](#q33---the-node-form-explains-itself-without-symbols-to-learn) and
+[Q49](#q49---an-eye-means-this-runs-at-both-scales-the-pin-is-retired).
 
 **Q25 answered a different question.** It offered several sources as `from_stacked [ a, b ]`, which
 merges inputs into **one** tile source. A map style needs the opposite: MapLibre's `sources` is a map
@@ -254,7 +254,7 @@ each named separately. `from_stacked` stays; it answers a different question.
 
 **A graph is a named VPL document producing one named tile source.** The name is the identity in
 three places at once - the server mount, the `style.json` source and the `.vpl` filename - which is
-what makes [Q6](#q6--a-project-is-a-directory-of-real-files-with-a-yaml-manifest)'s project directory
+what makes [Q6](#q6---a-project-is-a-directory-of-real-files-with-a-yaml-manifest)'s project directory
 read properly. **Renaming rewrites style references**, as one operation that either completes or does
 not; forbidding renames once a style points at a graph is worse, since that is when you most want to.
 
@@ -270,14 +270,14 @@ survive contact, since A6 edits TileJSON and B3 has a repair button.
 Pipeline pane and "export style" (D8) to the Style pane. That closes a real gap - Q22 named one
 Export section, [ui.md](ui.md) defined it as tiles-only, and D8 therefore had no declared home.
 
-**Amended by [Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form):** the
+**Amended by [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form):** the
 Parameters pane is removed, since a node carrying its own arguments makes it a second view of the
 same thing - which moves the axis closer to _what you are building_ versus _what it turns out to be_,
 nearly the split rejected above.
 
 ### Q30 - A CSV import reads the header and fills in what it can
 
-**Dated 2026-08-17.** [Q29](#q29--the-import-form-learns-the-data-by-probing-what-the-pipeline-produces)
+**Dated 2026-08-17.** [Q29](#q29---the-import-form-learns-the-data-by-probing-what-the-pipeline-produces)
 teaches the form by probing what the pipeline produces, which cannot work here: `from_csv` will not
 build until `lon_column` and `lat_column` are set, so there is no output to look at. This is the one
 import where the question has to be asked of the input, so the header is read at import time and the
@@ -307,7 +307,7 @@ none knew about `from_geo` - which the binary had all along.
 **The catalogue answers to the binary.** `import::kinds()` consults the operation registry and drops
 any kind whose read operation is absent, so a card cannot offer something that fails on the first
 click. Not hypothetical: [E3](features.md)'s GDAL path is a build-time decision
-([Q19](#q19--gdal-is-statically-bundled-with-a-deliberately-narrow-driver-set)), and its card
+([Q19](#q19---gdal-is-statically-bundled-with-a-deliberately-narrow-driver-set)), and its card
 appeared with no UI change the moment GDAL linked.
 
 ### Q27 - The job runner has two lanes, and the preview runs in one of them
@@ -325,7 +325,7 @@ the caller inferring it.
 
 ### Q26 - The IPC types are generated, and the generated file is committed
 
-**Dated 2026-08-17.** [Q3](#q3--three-planes-ipc-for-control-http-for-data-channels-for-events)
+**Dated 2026-08-17.** [Q3](#q3---three-planes-ipc-for-control-http-for-data-channels-for-events)
 deferred `tauri-specta` for being pre-1.0. The risk that avoided turned out smaller than the one it
 accepted: `svelte-check` flags a _use_ of a missing field, not a missing field, so 19 interfaces and
 26 wrappers were kept in step by hand and drift failed nothing until somebody read it.
@@ -341,11 +341,11 @@ crosses carries an explicit representation. **It found things:** `JobEvent.fract
 ### Q25 - The VPL editor is a textarea with a highlight overlay, over one document per window
 
 **Dated 2026-08-17.** ~~One pipeline document per window~~ - superseded 2026-08-18 by
-[Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form): a project holds several
+[Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form): a project holds several
 named graphs. What survives is what the editor is built from.
 
 **Not CodeMirror**, for three reasons. The hard part is already done - a highlighter needs to know
-where every token is, and [Q23](#q23--the-vpl-syntax-tree-is-written-from-scratch-and-pinned-to-upstream-by-a-differential-test)'s
+where every token is, and [Q23](#q23---the-vpl-syntax-tree-is-written-from-scratch-and-pinned-to-upstream-by-a-differential-test)'s
 parser returns exactly that, so a second tokeniser would mean two definitions of the grammar in one
 application. Undo belongs to the document rather than the editor, since G6 wants one stack covering
 text _and_ structured edits. And the documents are short: a pipeline is a handful of nodes.
@@ -390,11 +390,11 @@ mode switch. **Explore was never a mode**: it is map-plus-inspector with no left
 surface with the sections collapsed. "I am not editing right now" is a pane state, not an activity.
 **Publish was not one either** - an action surface plus a temporary map tool for the crop rectangle.
 
-**Supersedes [Q14](#q14--explore-and-pipeline-stay-separate-modes--superseded-by-q22)** entirely.
-**Amended by [Q31](#q31--panes-are-a-list-and-each-one-owns-what-it-emits)** (the sections become a
+**Supersedes [Q14](#q14---explore-and-pipeline-stay-separate-modes---superseded-by-q22)** entirely.
+**Amended by [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)** (the sections become a
 list of panes, the Export section dissolves), by
-[Q32](#q32--a-project-holds-several-named-graphs-and-every-node-is-a-form) (parameters move into the
-node) and by [Q39](#q39--the-asset-manager-is-a-dialog-and-with-it-the-mode-bar-goes) (the mode bar
+[Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form) (parameters move into the
+node) and by [Q39](#q39---the-asset-manager-is-a-dialog-and-with-it-the-mode-bar-goes) (the mode bar
 is retired, having been left with one mode - the state this entry itself called chrome that switches
 between nothing and itself).
 
@@ -410,7 +410,7 @@ What it would add is a schema and migrations, for state whose shape changes ofte
 user can read, grep and back up also honours "nothing only exists inside Studio" in a way an opaque
 database does not.
 
-**Amended 2026-08-23 by [Q38](#q38--views-are-named-camera-positions-they-live-on-the-map-and-the-inspector-holds-neither-them-nor-a-way-in):**
+**Amended 2026-08-23 by [Q38](#q38---views-are-named-camera-positions-they-live-on-the-map-and-the-inspector-holds-neither-them-nor-a-way-in):**
 bookmarks are now views, and the file is read under its old name where an install predates the
 rename. Only the words changed.
 
@@ -449,8 +449,8 @@ needs distorting a library other projects depend on.
 ### Q17 - A3, the multi-source layer stack, is dropped
 
 No stacking several containers in one view with opacity, swipe and split. Dropped, not deferred:
-[Q14](#q14--explore-and-pipeline-stay-separate-modes--superseded-by-q22) removed the sources strip
-that would have held it, and [Q16](#q16--one-application-instance-one-window-per-project) mostly
+[Q14](#q14---explore-and-pipeline-stay-separate-modes---superseded-by-q22) removed the sources strip
+that would have held it, and [Q16](#q16---one-application-instance-one-window-per-project) mostly
 replaces it - comparing two containers is two windows side by side. Not a swipe, but free and the
 platform convention.
 
@@ -469,10 +469,10 @@ and each preview is a named mount rather than a server of its own.
 
 **Nothing may live only in the webview**, so a crash is recoverable by reloading that one window.
 Promoted to an architectural principle - and narrowed by
-[Q35](#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors), which
+[Q35](#q35---a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors), which
 draws the line at _work you would have to redo by hand_ rather than at every piece of UI state.
 
-**Made true by [Q48](#q48--a-window-is-a-project-and-the-launcher-is-a-window-of-its-own)**, which
+**Made true by [Q48](#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own)**, which
 built the per-window project the heading describes, gave each project its own job list, and made the
 launcher a window rather than what an empty project window shows.
 
@@ -483,10 +483,10 @@ cope. **The P1 risk is accepted, not overlooked** - `audiences.md` warns that "a
 developer shrugs off will stop a journalist entirely", the mitigation is polish and good defaults,
 and if P1 adoption stalls this is the first decision to revisit.
 
-_[Q48](#q48--a-window-is-a-project-and-the-launcher-is-a-window-of-its-own) made it a window of its
+_[Q48](#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own) made it a window of its
 own. Everything else stands._
 
-### Q14 - Explore and Pipeline stay separate modes - **superseded by [Q22](#q22--one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)**
+### Q14 - Explore and Pipeline stay separate modes - **superseded by [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)**
 
 > Kept for the record, trimmed to what outlived it.
 
@@ -512,7 +512,7 @@ So the graph edits text through **span-based edits over a lossless syntax tree**
 and printing. Regenerating from the AST would reformat the user's file and delete their comments on
 every interaction - the exact "GUI and file disagree" bug the source-of-truth principle exists to
 prevent. Built upstream in the end, see
-[Q23](#q23--the-vpl-syntax-tree-is-written-from-scratch-and-pinned-to-upstream-by-a-differential-test).
+[Q23](#q23---the-vpl-syntax-tree-is-written-from-scratch-and-pinned-to-upstream-by-a-differential-test).
 
 ### Q4 - Analysis statistics live in memory, keyed by container identity
 
@@ -580,7 +580,7 @@ platform warns about, and instructions for getting past the warning.
 **arm64 was attempted and dropped the same day.** `gdal-sys` ships prebuilt bindings for four
 targets, `aarch64 + windows` is not among them, and it generates none unless `bindgen` is on - which
 a bundled build cannot use. The upstream fix is one line, but applying it here means a second pinned
-fork on top of [Q34](#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)'s,
+fork on top of [Q34](#q34---studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)'s,
 and Windows on ARM runs the x64 build under emulation.
 
 ### Q2 - Scope of release 1 is set by the funding milestones
@@ -608,8 +608,8 @@ Not a subcommand serving a browser UI. Native file dialogs, drag & drop, file ty
 being findable as an application outweigh the alternative.
 
 **Tauri v2**, not v1: the multi-window model of
-[Q16](#q16--one-application-instance-one-window-per-project), the Channels of
-[Q3](#q3--three-planes-ipc-for-control-http-for-data-channels-for-events) and `tauri-specta` all
+[Q16](#q16---one-application-instance-one-window-per-project), the Channels of
+[Q3](#q3---three-planes-ipc-for-control-http-for-data-channels-for-events) and `tauri-specta` all
 depend on it.
 
 **In exchange:** signing and notarisation costs, building auto-update ourselves, no path for running

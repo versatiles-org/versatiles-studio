@@ -171,16 +171,19 @@
 	/* The rail's content box matches the row's, so a percentage inside it is a percentage of the
 	   node above - which is what lets the stem sit under the node's middle rather than near its
 	   left edge. */
+	/* **A join, not a band.** The rail stood 24px tall while `＋ operation…` inside it is 15px, so a
+	   chain read as nodes and rails alternating at equal weight - and measured against the pane, the
+	   distance from a node to the next one was the same 26px as the distance from a parameter row to
+	   the one below it. Nothing said the two nodes were joined and the two rows merely adjacent.
+	
+	   Sized to its own content now, with a floor that keeps every rail equal: it used to grow only
+	   for the selected node's, which meant every click moved the rest of the chain. */
 	.rail {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-		min-height: 0.7rem;
+		min-height: var(--space-5);
 		padding-left: calc(var(--depth) * var(--space-4));
-
-		/* One height, always. It used to grow only for the selected node's rail, which meant every
-		   click moved the rest of the chain - the same restlessness the folding had. */
-		min-height: 1.5rem;
 	}
 
 	/* **The pipe, and the node's outline, are one object.** Same colour and same width, so a chain

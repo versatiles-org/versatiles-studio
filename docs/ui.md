@@ -39,7 +39,7 @@ True everywhere. These matter more than the arrangement.
 - **Nothing durable lives only in the webview** ([Q16](decisions.md)). The map camera, the graphs
   and their text, and the pane layout all come back from the core, so a reloaded window is looking
   where it was. **Scroll position** deliberately stays in the webview
-  ([Q35](decisions.md#q35--a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)):
+  ([Q35](decisions.md#q35---a-graphs-name-is-chosen-once-and-the-core-remembers-work-rather-than-cursors)):
   both cost a gesture to restore, not work.
 
 ## Panes and sections
@@ -88,7 +88,7 @@ Three regions, always present - **left pane, map, right pane** - over the status
 └────────────────────────────────────────────────────────────┘
 ```
 
-A launcher, not a wizard: everything on it is reachable from inside the workbench, and nothing on it gates anything. It opens when Studio starts with nothing to open and when ⌘N asks for a project, and it closes the moment something is opened from it ([Q48](decisions.md#q48--a-window-is-a-project-and-the-launcher-is-a-window-of-its-own), [S7.5](history.md)).
+A launcher, not a wizard: everything on it is reachable from inside the workbench, and nothing on it gates anything. It opens when Studio starts with nothing to open and when ⌘N asks for a project, and it closes the moment something is opened from it ([Q48](decisions.md#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own), [S7.5](history.md)).
 
 It was an overlay inside a project window until [S7.9](history.md), which made a window two different things depending on whether it happened to hold any graphs. A project window between documents now says one quiet line - where the way in is - rather than becoming a launcher.
 
@@ -131,7 +131,7 @@ Nothing is open yet, so there is nothing to show in the chain. Collapse every se
 
 Graph and VPL as tabs inside the section. A pipeline is mostly a chain, so it reads better stacked in a narrow column than spread across a wide canvas.
 
-Tabs, not a split - one pane is usable on a 13-inch laptop. Side by side existed to show that graph and file agree, so the tabs owe that back; [Q15](decisions.md#q15--the-pipeline-pane-tabs-between-graph-and-text) lists the four debts and this is where they are paid.
+Tabs, not a split - one pane is usable on a 13-inch laptop. Side by side existed to show that graph and file agree, so the tabs owe that back; [Q15](decisions.md#q15---the-pipeline-pane-tabs-between-graph-and-text) lists the four debts and this is where they are paid.
 
 ### S4 onward - Style joins the chain
 

@@ -190,18 +190,21 @@
 </script>
 
 <div class="pane">
-	<!-- The project's graphs, above the one being edited ([Q32]). -->
-	<GraphList
-		{graphs}
-		current={pipeline?.graph ?? null}
-		onSelect={graphActions.select}
-		onToggle={graphActions.setEnabled}
-		onRename={graphActions.rename}
-		onRemove={graphActions.remove}
-		onNew={() => (adding = !adding)}
-	/>
+	<!-- The graphs, and the doors that "＋ new graph…" opens. One group: the doors are an answer to
+	     the row above them, so they sit at a group's distance from it rather than a section's. -->
+	<div class="sources">
+		<!-- The project's graphs, above the one being edited ([Q32]). -->
+		<GraphList
+			{graphs}
+			current={pipeline?.graph ?? null}
+			onSelect={graphActions.select}
+			onToggle={graphActions.setEnabled}
+			onRename={graphActions.rename}
+			onRemove={graphActions.remove}
+			onNew={() => (adding = !adding)}
+		/>
 
-	<!-- **Two doors, because a graph arrives in exactly two ways**: it is written here, or it was
+		<!-- **Two doors, because a graph arrives in exactly two ways**: it is written here, or it was
 	     written already. Everything else is a parameter of the node the first door creates - which
 	     is a form the pane draws, with a file picker on every path field, rather than a dialog
 	     sequence in front of it.
@@ -213,119 +216,125 @@
 	     from the one door that creates graphs.
 	     
 	     Folded away until asked for: a pane is not a launcher. -->
-	{#if adding}
-		<div class="doors">
-			<!-- Only once there is something behind it. `operations` is empty until the one-off fetch
+		{#if adding}
+			<div class="doors">
+				<!-- Only once there is something behind it. `operations` is empty until the one-off fetch
 			     lands, and a door onto an empty list is worse than a door that is not there yet -
 			     the same rule `＋ operation…` follows on the rail. -->
-			{#if reads.length > 0}
-				<Picker
-					label="from VPL node…"
-					placeholder="Filter operations…"
-					items={reads}
-					onPick={(operation) => {
-						adding = false;
-						graphActions.addNode(operation);
-					}}
-				/>
-			{/if}
-			<button
-				type="button"
-				class="door"
-				onclick={() => {
-					adding = false;
-					graphActions.openFile();
-				}}
-			>
-				from VPL file…
-			</button>
-		</div>
-	{/if}
-
-	<div class="tabs" role="tablist" aria-label="Pipeline view">
-		{#each [['graph', 'Graph'], ['vpl', 'VPL']] as const as [id, label] (id)}
-			<button
-				type="button"
-				role="tab"
-				class="tab"
-				class:selected={tab === id}
-				aria-selected={tab === id}
-				onclick={() => (tab = id)}
-			>
-				{label}
-				<!-- Q15: the VPL tab carries the badge when the text does not parse (C4). -->
-				{#if id === 'vpl' && problems.length > 0}
-					<span class="badge" aria-label="{problems.length} problems">{problems.length}</span>
+				{#if reads.length > 0}
+					<Picker
+						label="from VPL node…"
+						placeholder="Filter operations…"
+						items={reads}
+						onPick={(operation) => {
+							adding = false;
+							graphActions.addNode(operation);
+						}}
+					/>
 				{/if}
-			</button>
-		{/each}
-		<div class="history">
-			<!-- In the VPL tab only: the graph tab has no layout of its own to tidy, and a button
+				<button
+					type="button"
+					class="door"
+					onclick={() => {
+						adding = false;
+						graphActions.openFile();
+					}}
+				>
+					from VPL file…
+				</button>
+			</div>
+		{/if}
+	</div>
+
+	<!-- The tabs and what they switch between are one thing: a tab that floated a section's distance
+	     from its own body would name something it does not appear to own. -->
+	<div class="editor">
+		<div class="tabs" role="tablist" aria-label="Pipeline view">
+			{#each [['graph', 'Graph'], ['vpl', 'VPL']] as const as [id, label] (id)}
+				<button
+					type="button"
+					role="tab"
+					class="tab"
+					class:selected={tab === id}
+					aria-selected={tab === id}
+					onclick={() => (tab = id)}
+				>
+					{label}
+					<!-- Q15: the VPL tab carries the badge when the text does not parse (C4). -->
+					{#if id === 'vpl' && problems.length > 0}
+						<span class="badge" aria-label="{problems.length} problems">{problems.length}</span>
+					{/if}
+				</button>
+			{/each}
+			<div class="history">
+				<!-- In the VPL tab only: the graph tab has no layout of its own to tidy, and a button
 			     that did nothing visible from there would read as broken. -->
-			{#if tab === 'vpl'}
+				{#if tab === 'vpl'}
+					<button
+						type="button"
+						class="step"
+						disabled={!pipeline}
+						title="Tidy the layout, keeping comments"
+						aria-label="Format"
+						onclick={documentActions.format}>¶</button
+					>
+				{/if}
 				<button
 					type="button"
 					class="step"
-					disabled={!pipeline}
-					title="Tidy the layout, keeping comments"
-					aria-label="Format"
-					onclick={documentActions.format}>¶</button
+					disabled={!pipeline?.canUndo}
+					title="Undo (⌘Z)"
+					aria-label="Undo"
+					onclick={documentActions.undo}>↺</button
 				>
-			{/if}
-			<button
-				type="button"
-				class="step"
-				disabled={!pipeline?.canUndo}
-				title="Undo (⌘Z)"
-				aria-label="Undo"
-				onclick={documentActions.undo}>↺</button
-			>
-			<button
-				type="button"
-				class="step"
-				disabled={!pipeline?.canRedo}
-				title="Redo (⇧⌘Z)"
-				aria-label="Redo"
-				onclick={documentActions.redo}>↻</button
-			>
+				<button
+					type="button"
+					class="step"
+					disabled={!pipeline?.canRedo}
+					title="Redo (⇧⌘Z)"
+					aria-label="Redo"
+					onclick={documentActions.redo}>↻</button
+				>
+			</div>
 		</div>
-	</div>
 
-	{#if tab === 'vpl'}
-		{#each problems as problem (problem.span.start + problem.message)}
-			<p class="error" role="alert">{problem.message}</p>
-		{/each}
-		<!-- Remounted only when the document changes from outside the editor, which is what lets the
+		{#if tab === 'vpl'}
+			{#each problems as problem (problem.span.start + problem.message)}
+				<p class="error" role="alert">{problem.message}</p>
+			{/each}
+			<!-- Remounted only when the document changes from outside the editor, which is what lets the
 			     editor own its buffer without the parent fighting it (Q25). -->
-		{#key pipelineRevision}
-			<VplEditor initialText={pipeline?.text ?? ''} {tokens} {problems} onInput={(next) => void type(next)} />
-		{/key}
-	{:else if draftError}
-		<!-- Q15: the graph never shows a stale render. While the text does not parse there is no
+			{#key pipelineRevision}
+				<VplEditor initialText={pipeline?.text ?? ''} {tokens} {problems} onInput={(next) => void type(next)} />
+			{/key}
+		{:else if draftError}
+			<!-- Q15: the graph never shows a stale render. While the text does not parse there is no
 			     tree to draw, and the last good one would be a picture of something that is no longer
 			     on screen. -->
-		<p class="error" role="alert">{draftError.message}</p>
-		<p class="empty">The graph returns when the text parses.</p>
-	{:else if !pipeline || pipeline.pipeline.nodes.length === 0}
-		<p class="empty">Nothing open yet.</p>
-	{:else}
-		<NodeChain
-			pipeline={pipeline.pipeline}
-			disabled={current?.disabled ?? []}
-			enabled={current?.enabled ?? true}
-			{operations}
-			{kinds}
-			{properties}
-			{fits}
-			{suggestions}
-			onToggle={nodeActions.setEnabled}
-			onCommit={nodeActions.commitValue}
-			onRemove={nodeActions.removeProperty}
-			onSet={(span, key, values) => nodeActions.setProperty(span, key, values)}
-			onRemoveNode={nodeActions.remove}
-			onAddOperation={nodeActions.addOperation}
-		/>
-	{/if}
+			<p class="error" role="alert">{draftError.message}</p>
+			<p class="empty">The graph returns when the text parses.</p>
+		{:else if !pipeline || pipeline.pipeline.nodes.length === 0}
+			<p class="empty">Nothing open yet.</p>
+		{:else}
+			<NodeChain
+				pipeline={pipeline.pipeline}
+				disabled={current?.disabled ?? []}
+				enabled={current?.enabled ?? true}
+				{operations}
+				{kinds}
+				{properties}
+				{fits}
+				{suggestions}
+				onToggle={nodeActions.setEnabled}
+				onCommit={nodeActions.commitValue}
+				onRemove={nodeActions.removeProperty}
+				onSet={(span, key, values) => nodeActions.setProperty(span, key, values)}
+				onRemoveNode={nodeActions.remove}
+				onAddOperation={nodeActions.addOperation}
+			/>
+		{/if}
+	</div>
+
 	<!-- Below the chain and above the actions, which is where it belongs in the reading: this is
 	     what the graph will be narrowed to, between what it is and what to do with it. -->
 	{#if crop && pipeline}
@@ -366,9 +375,14 @@
 	/* The pane lives in a fixed grid column. Without `min-width: 0` here and on every descendant
 	   that lays out children, a long path would set the column's content width and push the map off
 	   the edge - flex and grid children default to `min-width: auto`, not zero. */
+	/* **The pane states the hierarchy; its children no longer each bring their own margin.** Every
+	   boundary here measured 26px - a row inside a node, a node against its rail, the chain against
+	   the crop - so nothing said which of those was a break and which was a join. Four groups, one
+	   section gap between them, and the groups hold their own parts closer. */
 	.pane {
 		display: flex;
 		flex-direction: column;
+		gap: var(--gap-section);
 		height: 100%;
 		min-width: 0;
 		overflow-y: auto;
@@ -384,7 +398,7 @@
 		flex-direction: column;
 		align-items: flex-start;
 		gap: var(--space-1);
-		padding: var(--space-2) var(--space-2) 0;
+		padding: 0 var(--space-2);
 	}
 
 	/* The same weight as the picker beside it, because they are the same offer made twice. */
@@ -397,11 +411,19 @@
 		}
 	}
 
+	.sources,
+	.editor {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap-group);
+		min-width: 0;
+	}
+
 	.tabs {
 		display: flex;
 		align-items: center;
 		gap: var(--space-1);
-		margin: 0 0 var(--space-3);
+		margin: 0;
 		border-bottom: 1px solid var(--rule);
 	}
 
@@ -454,12 +476,12 @@
 	}
 
 	.empty {
-		margin: var(--space-3) 0;
+		margin: 0;
 		color: var(--ink-2);
 	}
 
 	.error {
-		margin: var(--space-3) 0;
+		margin: 0;
 		font-size: var(--text-xs);
 		color: var(--error);
 		/* An error can name a long path, and it must break rather than widen the pane. */
@@ -474,8 +496,8 @@
 		justify-content: center;
 		align-items: center;
 		gap: var(--space-2);
-		margin-top: var(--space-4);
-		padding-top: var(--space-4);
+		margin-top: 0;
+		padding-top: var(--gap-section);
 		border-top: 1px solid var(--rule);
 		min-width: 0;
 	}

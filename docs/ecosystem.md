@@ -70,11 +70,11 @@ removes a workaround.
 
 #### Still open
 
-| Issue                                                                | Asks for                                                   | What Studio does meanwhile                                                                                                                            |
-| -------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link              | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34--studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
-| [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x - **a PR, not an issue** | The pinned fork above                                                                                                                                 |
-| [vt#254](https://github.com/versatiles-org/versatiles-rs/issues/254) | Drop the open-ended CORS origin patterns                   | Nothing - Studio binds loopback and takes the default `ServerConfig`, so no origin pattern of ours is at stake. Deferred upstream to the next major.  |
+| Issue                                                                | Asks for                                                   | What Studio does meanwhile                                                                                                                             |
+| -------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [vt#226](https://github.com/versatiles-org/versatiles-rs/issues/226) | Loosen the `r2d2_sqlite` pin so GDAL can link              | Carries a pinned `proj-sys` fork ([Q34](decisions.md#q34---studio-carries-a-pinned-proj-sys-fork-until-the-libsqlite3-sys-conflict-resolves-upstream)) |
+| [proj#261](https://github.com/georust/proj/pull/261)                 | Widen `libsqlite3-sys` to any 0.x - **a PR, not an issue** | The pinned fork above                                                                                                                                  |
+| [vt#254](https://github.com/versatiles-org/versatiles-rs/issues/254) | Drop the open-ended CORS origin patterns                   | Nothing - Studio binds loopback and takes the default `ServerConfig`, so no origin pattern of ours is at stake. Deferred upstream to the next major.   |
 
 **Twelve more were filed and have landed**, in 4.8.0 through 4.10.0 - the lossless syntax tree
 ([Q23](decisions.md)), `check_pipeline`, `compatible_transforms`, a comment-preserving formatter,
