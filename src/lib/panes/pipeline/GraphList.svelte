@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import type { GraphInfo } from '../../ipc/commands';
 
 	// The project's graphs, one row each (S2.13, [Q32], [Q49]).
@@ -19,7 +20,7 @@
 		onReorder,
 		onRename,
 		onRemove,
-		onNew
+		newGraph
 	}: {
 		graphs: GraphInfo[];
 		/** The graph being edited. Its chain is what the pane shows below. */
@@ -39,7 +40,8 @@
 		onRename: (id: number, name: string) => void;
 		/** Removes the graph for good - see the confirmation below for why it is not one click. */
 		onRemove: (id: number) => void;
-		onNew: () => void;
+		/** The control that adds a source, rendered at the foot of the list. */
+		newGraph?: Snippet;
 	} = $props();
 
 	/// Which row is being renamed, and the text so far. Local: a half-typed name is not worth
@@ -197,9 +199,9 @@
 			{/if}
 		</li>
 	{/each}
-	<li class="new">
-		<button type="button" onclick={onNew}>＋ new graph…</button>
-	</li>
+	<!-- The way in keeps its place at the foot of the list, but what it opens is the caller's: the
+	     list knows about rows, not about the two ways a graph arrives ([Q58]). -->
+	<li class="new">{@render newGraph?.()}</li>
 </ul>
 
 <style>
@@ -333,13 +335,7 @@
 		}
 	}
 
-	.new button {
-		color: var(--ink-2);
-		font-size: var(--text-sm);
+	.new {
 		padding: var(--space-1) 0;
-	}
-
-	.new button:hover {
-		color: var(--ink);
 	}
 </style>

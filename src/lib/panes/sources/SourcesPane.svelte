@@ -1,6 +1,6 @@
 <script lang="ts">
 	import GraphList from '../pipeline/GraphList.svelte';
-	import Picker from '../../common/Picker.svelte';
+	import Menu, { type MenuItem } from '../../common/Menu.svelte';
 	import type { GraphInfo, OperationInfo } from '../../ipc/commands';
 
 	// The project's sources: which graphs there are, which are drawn, and in what order ([Q50]).
@@ -41,9 +41,12 @@
 		};
 	} = $props();
 
-	/// Whether "＋ new graph…" has been opened into its doors. Local: which way in someone is part
-	/// way through choosing is not worth remembering across a reload.
-	let adding = $state(false);
+	/// Which list the menu is showing: the two ways in, or the operations behind the first of them.
+	///
+	/// Local, and reset when the menu closes: which way in someone is part way through choosing is not
+	/// worth remembering across a reload, and reopening on a list they had walked into would be
+	/// answering a question they had not asked again.
+	let page = $state<'doors' | 'operations'>('doors');
 
 	/// What "from VPL node…" offers: every operation a chain can begin with.
 	///
@@ -54,8 +57,42 @@
 		operations
 			.filter((operation) => operation.kind === 'read')
 			.sort((a, b) => a.name.localeCompare(b.name))
-			.map((operation) => ({ value: operation.name, description: operation.summary }))
+			.map((operation) => ({ id: operation.name, label: operation.name, description: operation.summary }))
 	);
+
+	/// **Two doors, because a graph arrives in exactly two ways**: it is written here, or it was
+	/// written already. Everything else is a parameter of the node the first door creates - a form the
+	/// pane draws, with a picker on every path field, rather than a dialog sequence in front of it.
+	///
+	/// The first is disabled until the one-off fetch of the registry lands, since a door onto an empty
+	/// list is worse than one that says it is not ready.
+	const doors: MenuItem[] = $derived([
+		{
+			id: 'node',
+			label: 'From VPL node…',
+			description: 'Start a graph on a read operation',
+			disabled: reads.length === 0
+		},
+		{ id: 'file', label: 'From VPL file…', description: 'Open a pipeline that already exists' }
+	]);
+
+	const items = $derived(page === 'doors' ? doors : reads);
+
+	/// Returns `'keep'` where the choice leads to another list rather than doing something, which is
+	/// what leaves the menu open in place instead of closing and reopening under the same button.
+	function pick(id: string): void | 'keep' {
+		if (page === 'operations') {
+			actions.addNode(id);
+			page = 'doors';
+			return;
+		}
+		if (id === 'file') {
+			actions.openFile();
+			return;
+		}
+		page = 'operations';
+		return 'keep';
+	}
 </script>
 
 <div class="pane">
@@ -67,40 +104,20 @@
 		onReorder={actions.reorder}
 		onRename={actions.rename}
 		onRemove={actions.remove}
-		onNew={() => (adding = !adding)}
-	/>
-
-	<!-- **Two doors, because a graph arrives in exactly two ways**: it is written here, or it was
-	     written already. Everything else is a parameter of the node the first door creates - a form
-	     the pane draws, with a file picker on every path field, rather than a dialog sequence in
-	     front of it. Folded away until asked for: a pane is not a launcher. -->
-	{#if adding}
-		<div class="doors">
-			<!-- Only once there is something behind it. `operations` is empty until the one-off fetch
-			     lands, and a door onto an empty list is worse than a door that is not there yet. -->
-			{#if reads.length > 0}
-				<Picker
-					label="from VPL node…"
-					placeholder="Filter operations…"
-					items={reads}
-					onPick={(operation) => {
-						adding = false;
-						actions.addNode(operation);
-					}}
-				/>
-			{/if}
-			<button
-				type="button"
-				class="door"
-				onclick={() => {
-					adding = false;
-					actions.openFile();
-				}}
-			>
-				from VPL file…
-			</button>
-		</div>
-	{/if}
+	>
+		{#snippet newGraph()}
+			<!-- **A menu, not a fold.** Revealing the two ways in inside the layout pushed the pane
+			     below them down, so the choices moved while you read them and sat in the flow of the
+			     list they had appeared under. A popup covers rather than displaces ([Q58]). -->
+			<Menu
+				label="＋ new graph…"
+				title="Add a source to this project"
+				{items}
+				onPick={pick}
+				onClose={() => (page = 'doors')}
+			/>
+		{/snippet}
+	</GraphList>
 
 	{#if graphs.length > 1}
 		<p class="hint">The top of this list draws on top of the map.</p>
@@ -115,24 +132,6 @@
 		flex-direction: column;
 		gap: var(--gap-group);
 		min-width: 0;
-	}
-
-	.doors {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: var(--space-1);
-		padding: 0 var(--space-2);
-	}
-
-	/* The same weight as the picker beside it, because they are the same offer made twice. */
-	.door {
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-
-		&:hover {
-			color: var(--ink);
-		}
 	}
 
 	/* Said once, under the list, rather than on every row. Only when there is a stack to arrange -

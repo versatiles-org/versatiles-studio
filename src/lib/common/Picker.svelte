@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { grouped, matching, pickable, type PickerItem } from './picker';
+	import { place, windowSize } from './popup';
 	import { help } from '../state/help.svelte';
 	// The "add something" picker, in place of a `<select>`.
 	//
@@ -121,22 +122,9 @@
 
 	$effect(measure);
 
-	/// Where the list goes: under the trigger, pulled inside the window, and above it instead when
-	/// there is more room there - a node near the bottom of a long chain is the ordinary case, not
-	/// the exceptional one.
-	const position = $derived.by(() => {
-		if (!rect) return null;
-		const width = Math.max(rect.width, 240);
-		const left = Math.max(8, Math.min(rect.left, window.innerWidth - 8 - width));
-		const below = window.innerHeight - rect.bottom;
-		const flip = below < 220 && rect.top > below;
-		return {
-			left,
-			width,
-			top: flip ? undefined : rect.bottom + 4,
-			bottom: flip ? window.innerHeight - rect.top + 4 : undefined
-		};
-	});
+	/// Where the list goes. The arithmetic is `popup.ts`, shared with `Menu` rather than written out
+	/// twice - it is the same question, and the only part of a popup that can be tested on its own.
+	const position = $derived(rect ? place(rect, windowSize()) : null);
 
 	const isActive = (item: PickerItem) => walkable[active]?.value === item.value;
 

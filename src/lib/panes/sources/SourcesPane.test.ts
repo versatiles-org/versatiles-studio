@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 /**
- * What "＋ new graph…" offers ([Q50]).
+ * What "＋ new graph…" offers ([Q50]), and that it offers it in a popup ([Q58]).
  *
  * **Two doors, and a test that says two.** This was one card per import kind, and the way that went
  * wrong was not a broken card - it was the operations no card named. A count is the only assertion
@@ -60,10 +60,34 @@ describe('starting a graph', () => {
 	it('offers two doors and no third', async () => {
 		open(actions());
 
-		expect(await screen.findByText('from VPL node…')).toBeTruthy();
-		expect(screen.getByText('from VPL file…')).toBeTruthy();
+		expect(await screen.findByText('From VPL node…')).toBeTruthy();
+		expect(screen.getByText('From VPL file…')).toBeTruthy();
 		// The cards these replaced: a kind is not a way to start a graph any more.
 		expect(screen.queryByText('Tile container')).toBeNull();
+	});
+
+	/**
+	 * **The doors are not in the layout until they are asked for.** They used to be revealed in flow,
+	 * which pushed the pane below them down - so the choices moved while you read them, and sat in the
+	 * list they had appeared under as though they were part of it.
+	 */
+	it('shows nothing at all until the menu is opened', () => {
+		render(SourcesPane, {
+			operations: OPERATIONS as never,
+			graphs: [],
+			current: null,
+			actions: {
+				select: () => {},
+				rename: () => {},
+				remove: () => {},
+				setEnabled: () => {},
+				reorder: () => {},
+				...actions()
+			}
+		});
+
+		expect(screen.queryByText('From VPL node…')).toBeNull();
+		expect(screen.getByText('＋ new graph…')).toBeTruthy();
 	});
 
 	// Every operation a chain can begin with, including the three that open no file and so had no
@@ -71,18 +95,30 @@ describe('starting a graph', () => {
 	it('offers every read operation behind the node door, and no transform', async () => {
 		open(actions());
 
-		(await screen.findByText('from VPL node…')).click();
+		(await screen.findByText('From VPL node…')).click();
 
 		expect(await screen.findByText('from_container')).toBeTruthy();
 		expect(screen.getByText('from_debug')).toBeTruthy();
 		expect(screen.queryByText('raster_overview')).toBeNull();
 	});
 
+	// A door that leads to another list leaves the menu where it is, rather than closing and
+	// reopening under the same button.
+	it('stays open while walking into the operations', async () => {
+		open(actions());
+
+		(await screen.findByText('From VPL node…')).click();
+		await screen.findByText('from_container');
+
+		expect(screen.getByRole('menu')).toBeTruthy();
+		expect(screen.queryByText('From VPL file…')).toBeNull();
+	});
+
 	it('starts a graph on the operation that was picked', async () => {
 		const graphActions = actions();
 		open(graphActions);
 
-		(await screen.findByText('from VPL node…')).click();
+		(await screen.findByText('From VPL node…')).click();
 		(await screen.findByText('from_debug')).click();
 
 		expect(graphActions.addNode).toHaveBeenCalledWith('from_debug');
@@ -93,9 +129,20 @@ describe('starting a graph', () => {
 		const graphActions = actions();
 		open(graphActions);
 
-		(await screen.findByText('from VPL file…')).click();
+		(await screen.findByText('From VPL file…')).click();
 
 		expect(graphActions.openFile).toHaveBeenCalled();
 		expect(graphActions.addNode).not.toHaveBeenCalled();
+	});
+
+	// Reopening on a list somebody had walked into would answer a question they had not asked again.
+	it('comes back to the doors after it has been closed', async () => {
+		open(actions());
+		(await screen.findByText('From VPL node…')).click();
+
+		screen.getByText('＋ new graph…').click();
+		screen.getByText('＋ new graph…').click();
+
+		expect(await screen.findByText('From VPL node…')).toBeTruthy();
 	});
 });

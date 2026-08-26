@@ -38,8 +38,7 @@ function list(graphs: GraphInfo[], onToggle = vi.fn(), onSelect = vi.fn(), onReo
 		onToggle,
 		onReorder,
 		onRename: noop,
-		onRemove: noop,
-		onNew: noop
+		onRemove: noop
 	});
 	return { onToggle, onSelect, onReorder };
 }
@@ -146,12 +145,11 @@ describe('arranging the stack', () => {
  * door.
  */
 describe('a project with no sources', () => {
-	it('still offers the way in', () => {
-		const onNew = vi.fn();
-		render(GraphList, { graphs: [], current: null, onNew } as never);
-
-		screen.getByText(/new graph/).click();
-		expect(onNew).toHaveBeenCalled();
+	// The way in is the caller's control, rendered at the foot of the list ([Q58]) - so what this
+	// list owes is the place for it, whether or not there is anything above it.
+	it('still keeps the place the way in goes', () => {
+		render(GraphList, { graphs: [], current: null } as never);
+		expect(document.querySelector('li.new')).toBeTruthy();
 	});
 
 	// An empty `<ul>` above a `＋` reads as a list that failed to load, not as one nobody has filled

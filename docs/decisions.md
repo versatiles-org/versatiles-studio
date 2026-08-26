@@ -16,55 +16,60 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q58 - A popup covers rather than displaces, and there is one place that works out where
+
+**Decided 2026-08-27.** `＋ new graph…` revealed its two doors in flow, so opening it pushed the pane
+below down and the choices moved while you read them. `Menu` is the generic answer - a trigger, a
+fixed-position list, every way out, and arrows that walk only choosable rows. A choice may lead to
+another list without closing, which is what `'keep'` says.
+
+**`popup.ts` is the shared part.** `Help`, `Picker` and the map's dropdown each measured a trigger and
+worked out a rectangle; the fourth copy is where that stops. Arithmetic can be tested against a window
+of a known size, which nothing that has to be rendered first can be.
+
 ### Q57 - A colour parameter gets a swatch beside its field, not instead of it
 
-**Decided 2026-08-26.** The fourth of `semantics.rs`'s roles to be read rather than merely written.
-Two operations spell a colour two ways - `RRGGBB[AA]` with no `#`, or `[r, g, b]` - so
-`Control::Color` carries which, and one component owns the translation.
-
-**Beside, not instead**: a native colour input has no alpha, so the field stays, and picking keeps an
-alpha already there rather than silently making it opaque. An empty field gets a hatched swatch,
-because one defaulting to black would say the parameter is set to black.
+**Decided 2026-08-26.** Two operations spell a colour two ways - `RRGGBB[AA]` with no `#`, or
+`[r, g, b]` - so `Control::Color` carries which, and one component owns the translation. **Beside, not
+instead**: a native colour input has no alpha, so the field stays, and picking keeps an alpha already
+there rather than silently making it opaque. An empty field gets a hatched swatch, because one
+defaulting to black would say the parameter is set to black.
 
 ### Q56 - A field with a short list of answers offers the list
 
 **Decided 2026-08-26.** `tile_size` is a `u32` by type and "`256` or `512`" by meaning: as a number box
 it accepts 400, and the operation refuses that only when the pipeline builds. A documented set on a
-plain number is the second spelling of "few answers", after a Rust enum, and `semantics.rs` was the only
-place that knew. **An unset field is not the first option**: a `<select>` shows its first entry when
-nothing matches, so a parameter nobody had set displayed as `256`.
+plain number is the second spelling of "few answers", after a Rust enum. **An unset field is not the
+first option**: a `<select>` shows its first entry when nothing matches, so a parameter nobody had set
+displayed as `256`.
 
 ### Q55 - A saved `.vpl` names its inputs relative to itself, when it can do so without `../`
 
 **Decided 2026-08-26.** Relative below the destination, absolute for anything that would need `../`,
-because a path that climbs out is fragile in both directions. A `.vpl` above its data becomes a thing
-you can move as a unit. This also fixed "save as", which wrote the text unchanged while `project.dir` -
-what a relative path _means_ - moved with it. **Not canonicalised**: resolving symlinks would rewrite a
-path someone chose into one they have never seen.
+because a path that climbs out is fragile in both directions. This also fixed "save as", which wrote the
+text unchanged while `project.dir` - what a relative path _means_ - moved with it. **Not canonicalised**:
+resolving symlinks would rewrite a path someone chose into one they have never seen.
 
 ### Q54 - An empty project keeps its panes
 
 **Decided 2026-08-26.** A window with no graphs hid both sidebars and every map control. The intent was
 [Q48](#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own)'s - quiet, not a launcher -
 but it took the way in with it: `＋ new graph…` lives in the Sources pane, which was hidden for exactly
-as long as there were no sources. The cost is three empty states nobody had drawn, because they were
-unreachable.
+as long as there were no sources. The cost is three empty states nobody had drawn.
 
 ### Q53 - A bbox field borrows the map's rectangle
 
 **Decided 2026-08-26.** Four bare numbers in a form are four chances to put a digit in the wrong place,
 with nothing to check them against until the pipeline runs over the wrong part of the world. The map
 already draws rectangles, so a bbox field shows its own on focus and can be filled in from a drag. Which
-fields these are comes from `semantics.rs`, whose `GeoBBox` role had been tabulated since it was written
-and never read.
+fields these are comes from `semantics.rs`, tabulated since it was written and never read.
 
 ### Q52 - The map's own controls are one stack down the top left
 
 **Decided 2026-08-26.** Three corners made the map's controls read as three unrelated things, each
 having to know where the others were not. One column now, placed by its container. **Left, not right**,
-where MapLibre puts its own controls and the attribution - stacking over those is why the cluster used
-to wrap; **top, not bottom**, which the status bar owns. The cost is that they sit over the north-west
-corner of an extract.
+where MapLibre puts its own controls and the attribution; **top, not bottom**, which the status bar
+owns. The cost is that they sit over the north-west corner of an extract.
 
 ### Q51 - A layer override applies on whatever basis the style was arrived at
 
@@ -78,7 +83,7 @@ renames ids as soon as a second thing draws.
 
 **Decided 2026-08-26.** One pane held four groups at two levels: a list of graphs is the project, a chain
 is one document - [Q31](#q31---panes-are-a-list-and-each-one-owns-what-it-emits)'s
-document-versus-selection line, so they split along it. **This is not the sources pane
+document-versus-selection line. **This is not the sources pane
 [Q22](#q22---one-map-surface-not-four-modes-the-mode-bar-separates-map-work-from-non-map-tools)
 refused**, which was a list of `from_*` read nodes beside a graph that already draws them.
 
@@ -93,8 +98,7 @@ cut** - node eyes are independent, so switching one off drops that node and the 
 could not express `from_stacked [ a, b ]` without `b`, which is what decided this. Two eyes cannot be
 switched off: the node a graph starts with, and a composite's last source.
 
-**Amends [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form)**, whose pin this
-replaces.
+**Amends [Q32](#q32---a-project-holds-several-named-graphs-and-every-node-is-a-form).**
 
 ### Q48 - A window is a project, and the launcher is a window of its own
 
@@ -192,9 +196,8 @@ coordinate box. The coupling gave it away - the save button was disabled wheneve
 six presets' 1,503 layers there are 1,825 colour paint properties and **not one is an expression**,
 while 1,475 layers carry a filter and **every one is**.
 
-**Text, not a builder**, because the vocabulary is narrow enough that a row-per-clause editor would
-cover most filters and refuse the rest - and one that cannot open what it is pointed at is worse than
-one showing the value as it is.
+**Text, not a builder**, because a row-per-clause editor would cover most filters and refuse the rest -
+and one that cannot open what it is pointed at is worse than one showing the value as it is.
 
 ### Q36 - The core owns the style's recipe, not the style
 
@@ -288,11 +291,9 @@ stale question. One FIFO serving both would make a preview wait behind a forty-m
 
 **Dated 2026-08-17.** [Q3](#q3---three-planes-ipc-for-control-http-for-data-channels-for-events)
 deferred `tauri-specta` for being pre-1.0. The risk that avoided turned out smaller than the one it
-accepted: `svelte-check` flags a _use_ of a missing field, not a missing field, so 19 interfaces were
-kept in step by hand and drift failed nothing until somebody read it.
-
-**The generated file is committed, and a test fails when it is stale** - which is what makes a pre-1.0
-generator acceptable: if `specta` breaks, the checked-in bindings keep working.
+accepted: `svelte-check` flags a _use_ of a missing field, not a missing field, so drift failed nothing
+until somebody read it. **The generated file is committed, and a test fails when it is stale** - which
+is what makes a pre-1.0 generator acceptable.
 
 ### Q25 - The VPL editor is a textarea with a highlight overlay, over one document per window
 
@@ -309,12 +310,10 @@ structured edits.
 ### Q24 - G2 is dropped. The bottom bar shows status and progress
 
 **Dated 2026-08-17.** G2 promised that every GUI action displays its CLI equivalent. Most of Studio's
-actions have none and never will - collapsing a pane, selecting a node, panning the map.
-
-**The need behind it is real and met better elsewhere.** G2 was for reproducibility, and
-[G1](features.md) delivers that properly: a directory of real `.vpl` and `style.json` files the CLI
-already consumes. A whole project the CLI can run beats a copyable one-liner, and does not have to be
-maintained action by action.
+actions have none and never will - collapsing a pane, selecting a node, panning the map. The need
+behind it was reproducibility, and [G1](features.md) delivers that properly: a directory of real `.vpl`
+and `style.json` files the CLI already consumes, which beats a copyable one-liner and does not have to
+be maintained action by action.
 
 ### Q23 - The VPL syntax tree is written from scratch, and pinned to upstream by a differential test
 
@@ -454,13 +453,10 @@ strengthens the case for taking them first after release 1.
 
 ### Q8 - Release early under v0.x, aimed at the tile audience
 
-Ship `v0.x` from stage 1; reserve the announcement for when all four milestones are in. **Releasing
-early is house style** - every versatiles repository that ships started small.
-
-**But the framing matters.** If the first public build is a viewer, Studio gets categorised as "a tile
-viewer", and first categorisations stick. So: GitHub releases only, an "under development" banner, and
-1.0 with the announcement together. **Why not stay silent entirely:** the macOS Gatekeeper path cannot
-be tested by reading our own instructions.
+Ship `v0.x` from stage 1; reserve the announcement for when all four milestones are in. **But the
+framing matters**: if the first public build is a viewer, Studio gets categorised as "a tile viewer",
+and first categorisations stick. **Why not stay silent entirely:** the macOS Gatekeeper path cannot be
+tested by reading our own instructions.
 
 ### Q6 - A project is a directory of real files with a YAML manifest
 
@@ -472,12 +468,12 @@ MapLibre. Embedding a text DSL in JSON would mean escaped newlines and unreadabl
 ### Q3 - Three planes: IPC for control, HTTP for data, Channels for events
 
 Control over Tauri IPC; data (tiles, glyphs, sprites) over the embedded HTTP server; events over Tauri
-Channels. **Forced, not stylistic**: Tauri serialises command returns as JSON and its own docs warn
+Channels. **Forced, not stylistic**: Tauri serialises command returns as JSON, and its own docs warn
 this is slow for large payloads.
 
-**Studio's own tiles take a detour through the webview**, fetched through a `studio://` protocol
-holding a bounded queue - because MapLibre reports a tile as loading the moment it _issues_ a fetch,
-so only a queue in the middle can tell "the server has it" from "nobody has started".
+**Studio's own tiles take a detour through the webview**, fetched through a `studio://` protocol holding
+a bounded queue - because MapLibre reports a tile as loading the moment it _issues_ a fetch, so only a
+queue in the middle can tell "the server has it" from "nobody has started".
 
 ### Q10 - Release 1 ships Linux packages and a Homebrew cask; signing comes later
 
