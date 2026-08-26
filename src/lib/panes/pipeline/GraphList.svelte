@@ -74,6 +74,13 @@
 	}
 </script>
 
+<!-- **An empty list still says what it is.** The pane used to be hidden entirely while a project
+     had no sources ([Q54]), so this case had never been drawn; an empty `<ul>` above a `＋` reads as
+     a list that failed to load rather than as one nobody has filled in yet. -->
+{#if graphs.length === 0}
+	<p class="none">No sources yet.</p>
+{/if}
+
 <ul class="graphs">
 	{#each graphs as graph, index (graph.id)}
 		<li class:current={graph.id === current} class:off={!graph.enabled}>
@@ -196,6 +203,13 @@
 </ul>
 
 <style>
+	.none {
+		margin: 0;
+		padding: 0 var(--space-2);
+		font-size: var(--text-sm);
+		color: var(--ink-2);
+	}
+
 	.graphs {
 		margin: 0;
 		padding: 0;

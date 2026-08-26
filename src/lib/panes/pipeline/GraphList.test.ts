@@ -138,3 +138,31 @@ describe('arranging the stack', () => {
 		expect(screen.queryByLabelText('Move only up')).toBeNull();
 	});
 });
+
+/**
+ * **The case that had never been drawn.** Both sidebars were hidden while a project had no sources
+ * ([Q54]), so an empty list was unreachable - and the way in is `＋ new graph…`, which lives in this
+ * list. Hiding it for exactly as long as there was nothing to list left the File menu as the only
+ * door.
+ */
+describe('a project with no sources', () => {
+	it('still offers the way in', () => {
+		const onNew = vi.fn();
+		render(GraphList, { graphs: [], current: null, onNew } as never);
+
+		screen.getByText(/new graph/).click();
+		expect(onNew).toHaveBeenCalled();
+	});
+
+	// An empty `<ul>` above a `＋` reads as a list that failed to load, not as one nobody has filled
+	// in yet.
+	it('says the list is empty rather than showing an empty list', () => {
+		render(GraphList, { graphs: [], current: null } as never);
+		expect(screen.getByText('No sources yet.')).toBeTruthy();
+	});
+
+	it('says nothing of the sort once there is a source', () => {
+		render(GraphList, { graphs: [graph({ id: 1, name: 'berlin' })], current: 1 } as never);
+		expect(screen.queryByText('No sources yet.')).toBeNull();
+	});
+});

@@ -252,7 +252,12 @@
 	>
 {/snippet}
 
-{#if recipe}
+<!-- **Says so rather than drawing nothing.** With no source there is no reading, no preset and
+     nothing to export, and every section below falls away - which left an empty column once this
+     pane stopped being hidden along with the rest ([Q54]). -->
+{#if !source}
+	<p class="nothing">Nothing to style yet. Add a source to see how it is drawn.</p>
+{:else if recipe}
 	<section class="style-pane">
 		{#if reading}
 			<h2 class="section-label">These tiles</h2>
@@ -483,6 +488,13 @@
 {/if}
 
 <style>
+	.nothing {
+		margin: 0;
+		font-size: var(--text-sm);
+		color: var(--ink-2);
+		line-height: 1.5;
+	}
+
 	.style-pane {
 		display: flex;
 		flex-direction: column;

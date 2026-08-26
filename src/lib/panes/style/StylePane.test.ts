@@ -125,3 +125,26 @@ describe('what the pane says about the tiles', () => {
 		expect(screen.getByText('you set this.')).toBeTruthy();
 	});
 });
+
+/**
+ * The pane with nothing open ([Q54]). It used to be unreachable - the whole sidebar was hidden while
+ * a project had no sources - and every section here is conditional on a source, so what was left
+ * once the sidebar stayed was an empty column.
+ */
+describe('a project with no sources', () => {
+	it('says there is nothing to style rather than drawing nothing', async () => {
+		tauri.answer('style', recipe(null, VECTOR));
+		await style.load();
+		render(StylePane, { source: null, basis: 'none' });
+
+		expect(screen.getByText(/Nothing to style yet/)).toBeTruthy();
+	});
+
+	it('offers no export of a style that does not exist', async () => {
+		tauri.answer('style', recipe(null, VECTOR));
+		await style.load();
+		render(StylePane, { source: null, basis: 'none' });
+
+		expect(screen.queryByRole('button', { name: /export/i })).toBeNull();
+	});
+});

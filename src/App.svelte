@@ -1004,12 +1004,12 @@
 {/snippet}
 
 <AppShell
-	leftPane={empty || !layout.current ? undefined : leftPaneContent}
+	leftPane={layout.current ? leftPaneContent : undefined}
 	leftWidth={layout.current?.leftWidth}
 	onLeftResize={(width, done) => layout.resize('left', width, done)}
 	rightWidth={layout.current?.rightWidth}
 	onRightResize={(width, done) => layout.resize('right', width, done)}
-	rightPane={empty ? undefined : rightPaneContent}
+	rightPane={rightPaneContent}
 >
 	{#snippet mapPane()}
 		<!-- The map inside a boundary of its own, for the same reason the panes are: a style or a
@@ -1062,34 +1062,40 @@
 				<!-- **Quiet, and not a launcher** (S7.9, [Q48]). The launcher is a window now; putting
 				     one inside a window that is already a project is what made a project window two
 				     different things depending on its contents. This is a window between documents -
-				     it says where the way in is and gets out of the way. -->
+				     it says where the way in is and gets out of the way.
+				
+				     It no longer takes the panes with it ([Q54]): the door it points at is not the only
+				     one, and the other is `＋ new graph…` in the Sources pane - which this used to
+				     hide, for exactly as long as there was nothing to list. -->
 				<p class="nothing">
 					Nothing is open. <strong>File → Open…</strong> brings a container, a pipeline or a table into this window.
 				</p>
-			{:else}
-				<!-- **One stack, top left** ([Q52]). The three of these used to place themselves in three
-				     different corners, which meant the map's own controls had to be read as three
-				     unrelated things and each one had to know where the others were not. Down one edge
-				     they are one list, and adding a fourth is a line here rather than a free corner to
-				     find. Left over the right, which is where the attribution and MapLibre's own
-				     controls sit. -->
-				<div class="map-controls">
-					<MapControls
-						{background}
-						{showGrid}
-						{gridLevel}
-						gridNudged={gridOffset !== 0}
-						canReset={Boolean(preview.last?.info.bbox)}
-						onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
-						onToggleGrid={() => (showGrid = !showGrid)}
-						onGridLevel={(by) => (gridOffset = by === 0 ? 0 : gridOffset + by)}
-						onReset={resetView}
-					>
-						{#snippet views()}<Views {map} />{/snippet}
-						{#snippet jump()}<CoordinateJump {map} />{/snippet}
-					</MapControls>
-				</div>
 			{/if}
+			<!-- **One stack, top left** ([Q52]). The three of these used to place themselves in three
+			     different corners, which meant the map's own controls had to be read as three
+			     unrelated things and each one had to know where the others were not. Down one edge
+			     they are one list, and adding a fourth is a line here rather than a free corner to
+			     find. Left over the right, which is where the attribution and MapLibre's own
+			     controls sit.
+			
+			     Shown with nothing open too ([Q54]): they are about looking at the map, and a map with
+			     only a basemap on it is still a map somebody may want to move around. -->
+			<div class="map-controls">
+				<MapControls
+					{background}
+					{showGrid}
+					{gridLevel}
+					gridNudged={gridOffset !== 0}
+					canReset={Boolean(preview.last?.info.bbox)}
+					onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
+					onToggleGrid={() => (showGrid = !showGrid)}
+					onGridLevel={(by) => (gridOffset = by === 0 ? 0 : gridOffset + by)}
+					onReset={resetView}
+				>
+					{#snippet views()}<Views {map} />{/snippet}
+					{#snippet jump()}<CoordinateJump {map} />{/snippet}
+				</MapControls>
+			</div>
 		</Boundary>
 	{/snippet}
 	{#snippet statusBar()}

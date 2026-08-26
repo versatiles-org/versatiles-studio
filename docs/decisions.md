@@ -16,6 +16,23 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q54 - An empty project keeps its panes
+
+**Decided 2026-08-26.** A window with no graphs hid both sidebars and every map control, leaving one
+line of text over a blank map. The intent was
+[Q48](#q48---a-window-is-a-project-and-the-launcher-is-a-window-of-its-own)'s - quiet, not a
+launcher - but it took the way in with it: `＋ new graph…` lives in the Sources pane, so the pane
+that creates the first source was hidden for exactly as long as there were no sources, and the File
+menu was the only door left. The note stays; the panes do too.
+
+**The map's controls stay as well.** They are about looking at the map, and a map with only a
+basemap on it is still a map somebody may want to move around, switch a background on, or read a
+grid over.
+
+The cost is three empty states nobody had drawn, because they were unreachable: an empty sources
+list, a style pane with nothing to style, a pipeline pane with no document. A blank column reads as a
+pane that failed rather than one nobody has filled in yet, so each says which it is.
+
 ### Q53 - A bbox field borrows the map's rectangle
 
 **Decided 2026-08-26.** `bbox=[13,52.3,13.8,52.7]` was four bare numbers in a form: four chances to
