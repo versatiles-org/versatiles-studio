@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { tileForLngLat, tileToLngLat } from './tile-grid';
+import { tileCenter, tileForLngLat, tileRing, tileToLngLat } from './tile-grid';
 
 // Web Mercator arithmetic is easy to get subtly wrong, so these check against values that can be
 // verified by hand rather than against whatever the implementation happens to produce.
@@ -44,5 +44,25 @@ describe('tileToLngLat', () => {
 			expect(s).toBeLessThanOrEqual(52.52);
 			expect(n).toBeGreaterThan(52.52);
 		}
+	});
+});
+
+describe('tileCenter', () => {
+	// The whole world is one tile at z0, and its middle is the origin.
+	it('is the middle of the tile', () => {
+		expect(tileCenter(0, 0, 0)).toEqual([0, 0]);
+	});
+
+	// Half a tile east and south of its own corner, whatever the zoom - the check that catches a
+	// centre computed by averaging degrees, which Mercator does not allow for latitude.
+	it('sits inside its own ring', () => {
+		const [lng, lat] = tileCenter(3, 5, 4);
+		const ring = tileRing(3, 5, 4)[0];
+		const lngs = ring.map(([x]) => x);
+		const lats = ring.map(([, y]) => y);
+		expect(lng).toBeGreaterThan(Math.min(...lngs));
+		expect(lng).toBeLessThan(Math.max(...lngs));
+		expect(lat).toBeGreaterThan(Math.min(...lats));
+		expect(lat).toBeLessThan(Math.max(...lats));
 	});
 });

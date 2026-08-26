@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { PATIENCE, fetchTile, tiles } from './tiles.svelte';
+import { MAP_PATIENCE, PATIENCE, fetchTile, tiles } from './tiles.svelte';
 import { SCHEME } from '../map/tile-queue';
 
 /**
@@ -112,28 +112,50 @@ describe('tile activity', () => {
 		expect([tiles.rendering, tiles.queued]).toEqual([0, 0]);
 	});
 
-	// The other half of the indicator: the overlay draws these, so "no features" and "no overlay"
+	// The other half of the indicator: the markers draw these, so "nothing busy" and "no marker"
 	// are the same bug seen from two ends.
-	it('gives the map a square per pending tile, saying which state it is in', async () => {
+	it('gives the map a point per pending tile, saying which state it is in', async () => {
 		const tile = pending();
 		vi.stubGlobal('fetch', tile.fetch);
 
 		const all = Array.from({ length: 8 }, (_, n) => request(n));
-		await vi.advanceTimersByTimeAsync(PATIENCE);
+		await vi.advanceTimersByTimeAsync(MAP_PATIENCE);
 
-		const features = tiles.features;
-		expect(features).toHaveLength(8);
-		expect(features.map((f) => f.properties.state).filter((state) => state === 'rendering')).toHaveLength(6);
-		expect(features.map((f) => f.properties.state).filter((state) => state === 'queued')).toHaveLength(2);
+		const busy = tiles.busy;
+		expect(busy).toHaveLength(8);
+		expect(busy.map((t) => t.state).filter((state) => state === 'rendering')).toHaveLength(6);
+		expect(busy.map((t) => t.state).filter((state) => state === 'queued')).toHaveLength(2);
 
-		// A ring of five points, closed - a polygon MapLibre will accept.
-		const ring = features[0].geometry.coordinates[0];
-		expect(ring).toHaveLength(5);
-		expect(ring[0]).toEqual(ring[4]);
+		// Somewhere a marker can be put, rather than a ring to shade.
+		const [lng, lat] = busy[0].center;
+		expect(Number.isFinite(lng) && Number.isFinite(lat)).toBe(true);
 
 		tile.deliver();
 		await Promise.all(all);
-		expect(tiles.features).toHaveLength(0);
+		expect(tiles.busy).toHaveLength(0);
+	});
+
+	/**
+	 * **Two waits, because they interrupt differently.** A line in the status bar is quiet enough to
+	 * appear as soon as a wait is noticeable; a spinner sits on top of the map, over the thing being
+	 * looked at, so it waits until the tile is late rather than merely slow. Panning a pipeline that
+	 * answers in half a second should leave the map alone entirely.
+	 */
+	it('says something in the bar well before it marks the map', async () => {
+		const tile = pending();
+		vi.stubGlobal('fetch', tile.fetch);
+
+		const all = Array.from({ length: 2 }, (_, n) => request(n));
+
+		await vi.advanceTimersByTimeAsync(PATIENCE);
+		expect(tiles.message, 'the bar speaks first').toBeTruthy();
+		expect(tiles.busy, 'and the map stays clear').toHaveLength(0);
+
+		await vi.advanceTimersByTimeAsync(MAP_PATIENCE - PATIENCE);
+		expect(tiles.busy).toHaveLength(2);
+
+		tile.deliver();
+		await Promise.all(all);
 	});
 
 	/**
@@ -150,19 +172,19 @@ describe('tile activity', () => {
 
 			const old = revision(1, 1);
 			const next = revision(1, 2);
-			await vi.advanceTimersByTimeAsync(PATIENCE);
-			expect(tiles.features).toHaveLength(1);
+			await vi.advanceTimersByTimeAsync(MAP_PATIENCE);
+			expect(tiles.busy).toHaveLength(1);
 
 			// The outgoing one is abandoned, as MapLibre abandons it when it reloads the tile.
 			old.abort();
 			await expect(old.done).rejects.toThrow();
 
-			expect(tiles.features, 'the newer request is still waiting for this tile').toHaveLength(1);
+			expect(tiles.busy, 'the newer request is still waiting for this tile').toHaveLength(1);
 			expect(tiles.rendering).toBe(1);
 
 			tile.deliver();
 			await next.done;
-			expect(tiles.features).toHaveLength(0);
+			expect(tiles.busy).toHaveLength(0);
 		});
 
 		// Two requests, one tile: the map draws where it is, not how many times it was asked for.
@@ -172,15 +194,15 @@ describe('tile activity', () => {
 
 			const first = revision(1, 1);
 			const second = revision(1, 2);
-			await vi.advanceTimersByTimeAsync(PATIENCE);
+			await vi.advanceTimersByTimeAsync(MAP_PATIENCE);
 
-			expect(tiles.features).toHaveLength(1);
+			expect(tiles.busy).toHaveLength(1);
 			// Both are being served, and the count is of requests - which is what the queue holds.
 			expect(tiles.rendering).toBe(2);
 
 			tile.deliver();
 			await Promise.all([first.done, second.done]);
-			expect(tiles.features).toHaveLength(0);
+			expect(tiles.busy).toHaveLength(0);
 		});
 
 		// `rendering` and `queued` answer "is anyone working on this tile", so one request waiting
@@ -194,11 +216,11 @@ describe('tile activity', () => {
 			const inFlight = revision(2, 1);
 			const others = Array.from({ length: 5 }, (_, n) => request(n + 10));
 			const queuedAgain = revision(2, 2);
-			await vi.advanceTimersByTimeAsync(PATIENCE);
+			await vi.advanceTimersByTimeAsync(MAP_PATIENCE);
 
 			expect([tiles.rendering, tiles.queued]).toEqual([6, 1]);
-			const square = tiles.features.find((feature) => feature.id === '1/2/1');
-			expect(square?.properties.state).toBe('rendering');
+			const marker = tiles.busy.find((entry) => entry.key === '1/2/1');
+			expect(marker?.state).toBe('rendering');
 
 			tile.deliver();
 			await Promise.all([...others, queuedAgain.done, inFlight.done]);
@@ -212,7 +234,7 @@ describe('tile activity', () => {
 		await vi.advanceTimersByTimeAsync(PATIENCE - 1);
 
 		expect(tiles.rendering).toBe(1);
-		expect(tiles.features).toEqual([]);
+		expect(tiles.busy).toEqual([]);
 
 		tile.deliver();
 		await inFlight;

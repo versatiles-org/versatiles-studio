@@ -14,7 +14,7 @@
 
 import { addProtocol, type AddProtocolAction } from 'maplibre-gl';
 import { coordFromUrl, SCHEME, TileQueue, type TileCoord } from '../map/tile-queue';
-import { tileRing } from '../map/tile-grid';
+import { tileCenter } from '../map/tile-grid';
 
 /**
  * How long the map may be busy before the bar mentions it.
@@ -24,6 +24,17 @@ import { tileRing } from '../map/tile-grid';
  * before it said anything.
  */
 export const PATIENCE = 300;
+
+/**
+ * How long before the map itself marks the tiles it is waiting for.
+ *
+ * **Longer than [`PATIENCE`], because the two interrupt differently.** A line of text in the status
+ * bar is quiet: it sits where messages already are, and reading it is optional. A marker sits on top
+ * of the map, over the very thing being looked at, so it waits until a tile is *late* rather than
+ * merely slow. Panning across a pipeline that answers in half a second leaves the map alone
+ * entirely, which is the ordinary case and should look like nothing happened.
+ */
+export const MAP_PATIENCE = 1000;
 
 let rendering = $state(0);
 let queued = $state(0);
@@ -83,8 +94,11 @@ const doingOf = (entry: Pending): Doing => (Object.values(entry.doing).includes(
 /// Whether the wait has gone on long enough to be worth saying. Separate from the counts, so the
 /// numbers stay live while the decision to show them does not flicker.
 let patient = $state(false);
+/// The same decision for the map, which waits longer ([`MAP_PATIENCE`]).
+let marked = $state(false);
 
 let timer: ReturnType<typeof setTimeout> | undefined;
+let mapTimer: ReturnType<typeof setTimeout> | undefined;
 
 const queue = new TileQueue(undefined, () => {
 	rendering = queue.running;
@@ -92,14 +106,18 @@ const queue = new TileQueue(undefined, () => {
 
 	if (rendering + queued === 0) {
 		clearTimeout(timer);
+		clearTimeout(mapTimer);
 		timer = undefined;
+		mapTimer = undefined;
 		patient = false;
+		marked = false;
 		return;
 	}
 	// One timer for a continuous run of activity, not one per tile: a viewport's worth of tiles
 	// starting a few milliseconds apart is one wait, and restarting the clock for each would mean a
 	// steadily busy map never reached the threshold at all.
 	if (timer === undefined) timer = setTimeout(() => (patient = true), PATIENCE);
+	if (mapTimer === undefined) mapTimer = setTimeout(() => (marked = true), MAP_PATIENCE);
 });
 
 export const tiles = {
@@ -111,19 +129,21 @@ export const tiles = {
 	},
 
 	/**
-	 * The pending tiles as map features, or none while there is nothing worth drawing.
+	 * Where the map should mark that it is waiting, and for what - empty while nothing is late.
 	 *
-	 * Behind the same patience as the message: a square flashing over every tile of every pan would
-	 * be worse than the silence it replaced, and this exists for the pipeline that takes its time
-	 * rather than the one that does not.
+	 * **A point per tile, not the tile.** This used to shade the whole square, which put a grey
+	 * wash over the map precisely where someone was looking and made a slow pipeline look like a
+	 * broken one - the tile underneath was often still perfectly readable, and the shading hid it.
+	 * A marker at the middle says the same thing while covering almost nothing.
+	 *
+	 * Behind a longer patience than the message ([`MAP_PATIENCE`]).
 	 */
-	get features() {
-		if (!patient) return [];
+	get busy(): { key: string; center: [number, number]; state: Doing }[] {
+		if (!marked) return [];
 		return Object.entries(waiting).map(([key, entry]) => ({
-			type: 'Feature' as const,
-			id: key,
-			geometry: { type: 'Polygon' as const, coordinates: tileRing(entry.coord.x, entry.coord.y, entry.coord.z) },
-			properties: { state: doingOf(entry) }
+			key,
+			center: tileCenter(entry.coord.x, entry.coord.y, entry.coord.z),
+			state: doingOf(entry)
 		}));
 	},
 

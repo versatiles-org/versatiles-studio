@@ -37,10 +37,22 @@ export function tileToLngLat(x: number, y: number, z: number): [number, number] 
  * frame that draws them.
  */
 /**
+ * The middle of one tile, in degrees.
+ *
+ * Where a marker for that tile goes ([S2.16](../../../docs/history.md)). `tileToLngLat` takes the
+ * fraction happily, so the centre is the corner half a tile along - which keeps the marker and the
+ * grid reading the same projection rather than two spellings of it.
+ */
+export function tileCenter(x: number, y: number, z: number): [number, number] {
+	return tileToLngLat(x + 0.5, y + 0.5, z);
+}
+
+/**
  * The four corners of one tile, as a GeoJSON ring.
  *
- * Shared by the grid and by the pending overlay (S2.16), so the two cannot disagree about where a
- * tile is - a shaded square half a tile off its outline would be worse than no shading.
+ * The grid's own. The pending tiles used to be shaded with these too, which is why this was written
+ * to be shared; they are marked at their centre now (S2.16), and `tileCenter` is the half of that
+ * agreement which survived.
  */
 export function tileRing(x: number, y: number, z: number): [number, number][][] {
 	const [w, n] = tileToLngLat(x, y, z);
