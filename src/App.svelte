@@ -1139,7 +1139,9 @@
 		position: absolute;
 		top: var(--space-4);
 		left: var(--space-4);
-		z-index: 4;
+		/* Over the feature popup, which sits at 5. These are the map's chrome and the popup is its
+		   content: a panel opening behind the thing it was opened from is never what was meant. */
+		z-index: 6;
 		display: flex;
 		flex-direction: column;
 		align-items: flex-start;

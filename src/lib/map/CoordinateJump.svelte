@@ -56,10 +56,18 @@
 		display: block;
 	}
 
+	/* The same surface as the buttons beside it ([Q52]): `base.css` gives every input the panel
+	   background and no shadow, which is right in a pane and wrong on a map - it read as a form field
+	   dropped into a row of floating controls. Border, radius and padding already matched; the size
+	   and the shadow were what set it apart.
+	   
+	   Mono stays. What is typed here is a coordinate, and the digits should line up. */
 	input {
 		width: 11rem;
 		font-family: var(--font-mono);
+		font-size: var(--text-sm);
 		background: var(--float-bg);
+		box-shadow: var(--shadow);
 	}
 
 	.invalid input {

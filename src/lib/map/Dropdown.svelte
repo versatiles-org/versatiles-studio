@@ -51,7 +51,7 @@
 	}}
 />
 
-<div class="dropdown" bind:this={root}>
+<div class="dropdown" class:open bind:this={root}>
 	<button
 		type="button"
 		class="toggle"
@@ -72,11 +72,18 @@
 </div>
 
 <style>
-	/* The anchor for the panel, and above its siblings in the control stack ([Q52]) so an open panel
-	   is not painted over by the controls underneath it. */
+	/* The anchor for the panel.
+	   
+	   **Lifted only while open**, which is the whole of it: a constant `z-index` put every dropdown
+	   on the same layer, so the *later* one in the stack painted its toggle over the *earlier* one's
+	   open panel - the saved views disappearing behind the background button. Raising the open one
+	   needs no coordination, because opening a second dropdown dismisses the first. */
 	.dropdown {
 		position: relative;
-		z-index: 1;
+
+		&.open {
+			z-index: 2;
+		}
 	}
 
 	.toggle {
