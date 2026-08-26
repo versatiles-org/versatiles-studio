@@ -136,6 +136,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::vpl::vpl_operations,
 		commands::vpl::import_kinds,
 		commands::vpl::import_kind_for,
+		commands::vpl::import_opening,
 		commands::vpl::import_read_node,
 		commands::vpl::field_suggestions,
 		commands::vpl::graphs,

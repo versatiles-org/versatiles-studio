@@ -380,7 +380,9 @@ pub fn read_node(operation: &str, source: &str) -> String {
 pub fn read_node_with(operation: &str, source: &str, extra: &[(&str, &str)]) -> String {
 	use versatiles_pipeline::vpl::{CstNode, CstPipeline, CstToken, Punctuated};
 	let mut node = CstNode::new(operation);
-	node.set_property("filename", source);
+	// Which parameter the source answers is the operation's to say: `from_tilejson` takes a `url`
+	// and would not parse with a `filename`.
+	node.set_property(&crate::import::source_parameter(operation), source);
 	for (key, value) in extra {
 		node.set_property(key, value);
 	}

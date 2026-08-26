@@ -480,6 +480,18 @@ export const commands = {
 	needs: string[],
 } | null>("import_kind_for", { path }),
 	/**
+	 *  How to open a chosen source, having looked inside it when its name was not enough.
+	 * 
+	 *  **Only `.json` needs this**, and it is the reason it exists: three formats wear that extension -
+	 *  GeoJSON, TileJSON and a MapLibre style - and every one of them used to open as `from_geo` and
+	 *  fail somewhere downstream. A refusal here names what the document turned out to be, which is a
+	 *  different thing from an error and is not one.
+	 * 
+	 *  Separate from [`import_kind_for`], which stays a pure question about a name: it answers for
+	 *  dialog filters and drop targets, where reading every candidate file would be absurd.
+	 */
+	importOpening: (source: string) => __TAURI_INVOKE<Opening>("import_opening", { source }),
+	/**
 	 *  The read node a chosen file becomes - `from_geo filename='…'`, quoting included.
 	 * 
 	 *  The quoting is the core's, for the reason [`vpl_set_value`] gives: a second implementation of
@@ -1414,6 +1426,20 @@ export type OpenedContainer = {
 	/**  The `from_container` node this container corresponds to in the pipeline (Q22). */
 	vpl: string,
 	info: ContainerInfo,
+};
+
+/**
+ *  What Studio will do with a chosen source.
+ * 
+ *  Two answers rather than one, because "no" and "no, and here is why" are different things to a
+ *  person who has just picked a file. A refusal names what the document turned out to be; it is not
+ *  an error, and nothing has gone wrong.
+ */
+export type Opening = {
+	/**  How to open it, or `None`. */
+	kind: ImportKind | null,
+	/**  Why not, when Studio knows what the file is and still cannot open it. */
+	refused: string | null,
 };
 
 /**  One operation, ready to render. */

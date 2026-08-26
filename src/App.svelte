@@ -78,7 +78,7 @@
 		type OperationInfo,
 		type Span,
 		importKinds,
-		importKindFor,
+		importOpening,
 		isProject,
 		type Recipe,
 		importReadNode,
@@ -862,7 +862,15 @@
 		// A remote container reads its index over the network, so this is not always instant.
 		status.busy(`Opening ${filename(source)}…`);
 		try {
-			const kind = await importKindFor(source);
+			// **What it is, not what it is called.** Three formats wear `.json`, so the kind comes
+			// from reading the document when its name cannot settle it - and a TileJSON on disk is
+			// refused with a sentence rather than opened as GeoJSON and failed three steps later.
+			const opening = await importOpening(source);
+			if (opening.refused !== null) {
+				status.fail(opening.refused);
+				return;
+			}
+			const kind = opening.kind;
 			if (kind === null) {
 				status.fail(`Studio has no way to open ${filename(source)}`);
 				return;

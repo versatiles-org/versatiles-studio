@@ -14,7 +14,7 @@
 	// **Four doors, by where the thing is** - a local file, a remote one, a project folder, and
 	// nothing at all. It was seven: one card per import kind, plus a project card, plus a URL form.
 	// Those five differed only in which extensions the file dialog would show, which is not a
-	// decision anyone arrives wanting to make - `importKindFor` reads the kind off the extension
+	// decision anyone arrives wanting to make - `importOpening` reads the kind off the extension, and off the document where three formats share one
 	// anyway. What is left differ in mechanism: a file dialog, a text field, a directory dialog, and
 	// a window with nothing in it. The last is under a rule because it is the only one that opens
 	// nothing, and it is last because it is the rarest way to start.

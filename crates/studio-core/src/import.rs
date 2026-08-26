@@ -17,6 +17,7 @@
 //! wizard at S3.4.
 
 use crate::vpl::operations;
+use anyhow::{Context, Result};
 use serde::Serialize;
 
 /// One way of bringing data in.
@@ -88,6 +89,20 @@ const CANDIDATES: &[Candidate] = &[
 		operation: Some("from_geo"),
 	},
 	Candidate {
+		// **Never reached by extension**, and deliberately after `vector`: `kind_for` is first match
+		// wins, so a `.json` still resolves to `from_geo` on its name alone. This entry is what
+		// `opening_for` looks up once it has read the file and knows better.
+		id: "tilejson",
+		label: "Tile server",
+		detail: "A TileJSON endpoint describing where tiles are served",
+		// **No extensions, deliberately.** A `.json` is a GeoJSON as far as its name goes, and one
+		// extension belongs to one kind - `no_extension_belongs_to_two_kinds` holds that, and it is
+		// what makes `kind_for`'s first-match rule unambiguous. This entry is reached only by
+		// `opening_for`, which has read the document and knows what the name could not say.
+		extensions: &[],
+		operation: Some("from_tilejson"),
+	},
+	Candidate {
 		id: "table",
 		label: "Table of points",
 		detail: "A CSV with longitude and latitude columns",
@@ -133,7 +148,7 @@ pub fn kinds() -> Vec<ImportKind> {
 					operation
 						.fields
 						.iter()
-						.filter(|field| field.required && field.name != "filename")
+						.filter(|field| field.required && field.name != source_parameter(name))
 						.map(|field| field.name.clone())
 						.collect()
 				}
@@ -150,6 +165,37 @@ pub fn kinds() -> Vec<ImportKind> {
 		.collect()
 }
 
+/// The parameter a chosen source fills in.
+///
+/// **`filename` for everything that reads a file, `url` for the one that fetches.** `from_tilejson`
+/// takes a URL and nothing else - it does an HTTP GET for the document and re-reads it every time
+/// the pipeline is built - so a card that wrote `filename=` for it would produce a node that cannot
+/// parse, and `needs` would list `url` as something still to be asked for when the source *is* the
+/// url.
+///
+/// Both spellings are checked against the registry rather than assumed, so an operation that has
+/// neither falls back to its first required field instead of silently writing a parameter it has
+/// never heard of.
+#[must_use]
+pub fn source_parameter(operation: &str) -> String {
+	let all = operations();
+	let Some(found) = all.iter().find(|op| op.name == operation) else {
+		return "filename".to_string();
+	};
+	let required = |name: &str| found.fields.iter().any(|field| field.required && field.name == name);
+	if required("filename") {
+		return "filename".to_string();
+	}
+	if required("url") {
+		return "url".to_string();
+	}
+	found
+		.fields
+		.iter()
+		.find(|field| field.required)
+		.map_or_else(|| "filename".to_string(), |field| field.name.clone())
+}
+
 /// The kind an extension belongs to, or `None` for a file Studio has no way in for.
 ///
 /// First match wins, which is why `json` sits under `vector` - `from_geo` is what reads it, and no
@@ -160,6 +206,182 @@ pub fn kind_for(path: &str) -> Option<ImportKind> {
 	kinds()
 		.into_iter()
 		.find(|kind| kind.extensions.iter().any(|ext| lower.ends_with(&format!(".{ext}"))))
+}
+
+/// What a document under a `.json` turned out to hold.
+///
+/// **Three formats share the extension**, and the catalogue said so from the day `.json` was added
+/// to the vector card: *"it will collide with `style.json`, and this list is where that gets
+/// resolved - by looking inside the file, which is the only thing that can actually tell them
+/// apart."* This is that.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JsonShape {
+	/// A TileJSON: tiles someone else is serving.
+	TileJson,
+	/// GeoJSON, which is what `.json` resolves to on its name alone.
+	GeoJson,
+	/// A MapLibre style. Not data at all - it describes how to draw somebody else's.
+	Style,
+	/// None of the three, or not JSON, or more of it than is worth reading.
+	Unknown,
+}
+
+/// How much of a document is read to find out.
+///
+/// A TileJSON is a few kilobytes and a style is tens; a GeoJSON is routinely gigabytes, and reading
+/// one to classify it would be the most expensive way to learn what its extension already said.
+/// Past this the head does not parse - it is a truncated document - and `Unknown` sends the caller
+/// back to the answer the name gave, which is the behaviour that was there before.
+const SNIFF_BYTES: u64 = 64 * 1024;
+
+/// Reads the shape out of a JSON document.
+///
+/// Parsed rather than scanned for a substring: a GeoJSON feature is free to carry a property called
+/// `tilejson`, and a report of what a file *is* should not be decided by what it happens to contain.
+#[must_use]
+pub fn json_shape(text: &str) -> JsonShape {
+	let Ok(serde_json::Value::Object(object)) = serde_json::from_str::<serde_json::Value>(text) else {
+		return JsonShape::Unknown;
+	};
+
+	// `tilejson` is required by the spec, and `tiles` is what the operation actually needs - a
+	// document with templates and no version is still a tile server, and they are out there.
+	if object.contains_key("tilejson") || has_tile_templates(&object) {
+		return JsonShape::TileJson;
+	}
+
+	if let Some(kind) = object.get("type").and_then(serde_json::Value::as_str)
+		&& matches!(
+			kind,
+			"FeatureCollection"
+				| "Feature"
+				| "GeometryCollection"
+				| "Point"
+				| "MultiPoint"
+				| "LineString"
+				| "MultiLineString"
+				| "Polygon"
+				| "MultiPolygon"
+		) {
+		return JsonShape::GeoJson;
+	}
+
+	// A style is version 8 with layers. Checked after TileJSON because a style's `sources` may hold
+	// TileJSON-shaped objects, and the outer document is what is being named here.
+	if object.get("version").and_then(serde_json::Value::as_u64) == Some(8) && object.contains_key("layers") {
+		return JsonShape::Style;
+	}
+
+	JsonShape::Unknown
+}
+
+/// Whether `tiles` holds URL templates, which is the one thing every TileJSON has.
+fn has_tile_templates(object: &serde_json::Map<String, serde_json::Value>) -> bool {
+	object
+		.get("tiles")
+		.and_then(serde_json::Value::as_array)
+		.and_then(|tiles| tiles.first())
+		.and_then(serde_json::Value::as_str)
+		.is_some_and(|template| template.contains("{z}") && template.contains("{x}") && template.contains("{y}"))
+}
+
+/// Whether a source is somewhere on the network rather than on this machine.
+#[must_use]
+pub fn is_remote(source: &str) -> bool {
+	let lower = source.to_lowercase();
+	lower.starts_with("http://") || lower.starts_with("https://")
+}
+
+/// The head of a document, local or remote, capped at [`SNIFF_BYTES`].
+async fn head_of(source: &str) -> Result<String> {
+	use versatiles_core::ByteRange;
+	use versatiles_core::io::{DataReaderHttp, DataReaderTrait};
+
+	let bytes = if is_remote(source) {
+		let url = url::Url::parse(source).with_context(|| format!("parsing {source}"))?;
+		let reader = DataReaderHttp::try_from(&url).with_context(|| format!("opening {source}"))?;
+		// A range, so a gigabyte of GeoJSON behind a URL costs one small request rather than a
+		// download nobody asked for.
+		reader
+			.read_range(&ByteRange::new(0, SNIFF_BYTES))
+			.await
+			.with_context(|| format!("reading the head of {source}"))?
+			.into_vec()
+	} else {
+		use std::io::Read;
+		let file = std::fs::File::open(source).with_context(|| format!("opening {source}"))?;
+		let mut head = Vec::new();
+		file.take(SNIFF_BYTES).read_to_end(&mut head)?;
+		head
+	};
+
+	// Lossy: a truncated head can cut a multi-byte character in half, and the parse below is what
+	// decides whether the text is usable. Failing here instead would report an encoding problem for
+	// a document that is merely bigger than the cap.
+	Ok(String::from_utf8_lossy(&bytes).into_owned())
+}
+
+/// What Studio will do with a chosen source.
+///
+/// Two answers rather than one, because "no" and "no, and here is why" are different things to a
+/// person who has just picked a file. A refusal names what the document turned out to be; it is not
+/// an error, and nothing has gone wrong.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct Opening {
+	/// How to open it, or `None`.
+	pub kind: Option<ImportKind>,
+	/// Why not, when Studio knows what the file is and still cannot open it.
+	pub refused: Option<String>,
+}
+
+impl Opening {
+	fn open(kind: Option<ImportKind>) -> Self {
+		Self { kind, refused: None }
+	}
+
+	fn refuse(reason: impl Into<String>) -> Self {
+		Self {
+			kind: None,
+			refused: Some(reason.into()),
+		}
+	}
+}
+
+/// How to open a source, having looked inside it when its name was not enough.
+///
+/// **Only `.json` is ambiguous**, so only `.json` is read. Every other extension belongs to exactly
+/// one kind - `no_extension_belongs_to_two_kinds` holds that - and opening a file to confirm what
+/// its name already settled would be a read per import for no answer.
+///
+/// A sniff that fails for any reason falls back to the name's answer. Being unable to read the head
+/// is not a reason to refuse a file that would have opened before.
+pub async fn opening_for(source: &str) -> Opening {
+	let by_name = kind_for(source);
+	if !source.to_lowercase().ends_with(".json") {
+		return Opening::open(by_name);
+	}
+
+	let Ok(head) = head_of(source).await else {
+		return Opening::open(by_name);
+	};
+
+	match json_shape(&head) {
+		JsonShape::TileJson if is_remote(source) => Opening::open(kinds().into_iter().find(|kind| kind.id == "tilejson")),
+		// **The one Studio knows and cannot open.** `from_tilejson` fetches its document over HTTP -
+		// it has no file branch at all - so a TileJSON on disk has no operation behind it. Saying so
+		// here beats `from_geo` failing three steps later with a message about features.
+		JsonShape::TileJson => Opening::refuse(
+			"This is a TileJSON: it describes tiles a server is publishing, rather than holding any. \
+			 Studio reads those from the address they are served at, not from a copy on disk.",
+		),
+		JsonShape::Style => Opening::refuse(
+			"This is a MapLibre style, not data. It describes how to draw tiles that are somewhere \
+			 else - open those, and load this under the style pane.",
+		),
+		JsonShape::GeoJson | JsonShape::Unknown => Opening::open(by_name),
+	}
 }
 
 /// The extensions a pipeline file may have - one place, so a dialog's filter and a command's
@@ -292,6 +514,122 @@ mod tests {
 					"{name} is offered for .{extension}, which its documentation does not mention"
 				);
 			}
+		}
+	}
+
+	/// **The collision the catalogue predicted.** Three formats wear `.json`, and the name settles
+	/// none of them - so what a document *is* has to come from inside it.
+	mod what_a_json_turns_out_to_be {
+		use super::*;
+
+		#[test]
+		fn a_tilejson_is_one_by_its_version() {
+			let text = r#"{"tilejson":"3.0.0","tiles":["https://x/{z}/{x}/{y}.pbf"]}"#;
+			assert_eq!(json_shape(text), JsonShape::TileJson);
+		}
+
+		/// Plenty of them in the wild omit the version and are still tile servers, and `tiles` is
+		/// what the operation actually needs.
+		#[test]
+		fn a_tilejson_is_one_by_its_templates_alone() {
+			let text = r#"{"name":"osm","tiles":["https://x/{z}/{x}/{y}.pbf"],"maxzoom":14}"#;
+			assert_eq!(json_shape(text), JsonShape::TileJson);
+		}
+
+		#[test]
+		fn a_geojson_is_one_whichever_shape_it_holds() {
+			for kind in ["FeatureCollection", "Feature", "Point", "Polygon", "GeometryCollection"] {
+				let text = format!(r#"{{"type":"{kind}","features":[]}}"#);
+				assert_eq!(json_shape(&text), JsonShape::GeoJson, "{kind}");
+			}
+		}
+
+		#[test]
+		fn a_style_is_neither() {
+			let text = r#"{"version":8,"sources":{},"layers":[]}"#;
+			assert_eq!(json_shape(text), JsonShape::Style);
+		}
+
+		/// **Parsed, not scanned.** A feature is free to carry a property called `tilejson`, and what
+		/// a file *is* must not be decided by what it happens to contain.
+		#[test]
+		fn a_geojson_carrying_the_word_is_still_a_geojson() {
+			let text = r#"{"type":"FeatureCollection","features":[
+				{"type":"Feature","properties":{"tilejson":"3.0.0","tiles":["{z}/{x}/{y}"]},"geometry":null}]}"#;
+			assert_eq!(json_shape(text), JsonShape::GeoJson);
+		}
+
+		/// A head cut at [`SNIFF_BYTES`] does not parse, which is the answer: nothing that big is a
+		/// TileJSON, and the caller falls back to what the name said.
+		#[test]
+		fn a_document_too_big_to_read_is_unknown() {
+			assert_eq!(
+				json_shape(r#"{"type":"FeatureCollection","features":[{"type":"Fea"#),
+				JsonShape::Unknown
+			);
+			assert_eq!(json_shape(""), JsonShape::Unknown);
+			assert_eq!(json_shape("[1,2,3]"), JsonShape::Unknown);
+			assert_eq!(json_shape("not json at all"), JsonShape::Unknown);
+		}
+
+		#[tokio::test]
+		async fn a_local_tilejson_is_refused_with_a_reason() {
+			let dir = crate::testing::dir("tilejson-local");
+			let path = dir.join("tiles.json");
+			std::fs::write(&path, r#"{"tilejson":"3.0.0","tiles":["https://x/{z}/{x}/{y}.pbf"]}"#).unwrap();
+
+			let opening = opening_for(&path.to_string_lossy()).await;
+			assert!(opening.kind.is_none());
+			assert!(
+				opening.refused.as_deref().unwrap_or_default().contains("TileJSON"),
+				"{:?}",
+				opening.refused
+			);
+		}
+
+		/// The case that has an operation behind it. `from_tilejson` fetches, so the source has to be
+		/// somewhere it can fetch from.
+		#[test]
+		fn the_tilejson_card_reads_a_url_rather_than_a_file() {
+			let card = kinds().into_iter().find(|kind| kind.id == "tilejson").unwrap();
+			assert_eq!(card.operation.as_deref(), Some("from_tilejson"));
+			assert_eq!(source_parameter("from_tilejson"), "url");
+			// And nothing is left to ask for: the source answers the operation's only requirement.
+			assert!(card.needs.is_empty(), "{:?}", card.needs);
+		}
+
+		#[test]
+		fn everything_else_still_reads_a_filename() {
+			for operation in ["from_container", "from_geo", "from_csv"] {
+				assert_eq!(source_parameter(operation), "filename", "{operation}");
+			}
+		}
+
+		#[tokio::test]
+		async fn a_geojson_opens_as_it_always_did() {
+			let dir = crate::testing::dir("geojson-local");
+			let path = dir.join("places.json");
+			std::fs::write(&path, r#"{"type":"FeatureCollection","features":[]}"#).unwrap();
+
+			let opening = opening_for(&path.to_string_lossy()).await;
+			assert_eq!(opening.kind.map(|kind| kind.id), Some("vector".to_string()));
+			assert!(opening.refused.is_none());
+		}
+
+		/// A file that cannot be read at all is not a reason to refuse an import that would have
+		/// worked before: the name's answer stands.
+		#[tokio::test]
+		async fn an_unreadable_json_falls_back_to_its_name() {
+			let opening = opening_for("/nowhere/at/all/places.json").await;
+			assert_eq!(opening.kind.map(|kind| kind.id), Some("vector".to_string()));
+			assert!(opening.refused.is_none());
+		}
+
+		/// Only `.json` is ambiguous, so only `.json` costs a read.
+		#[tokio::test]
+		async fn an_unambiguous_extension_is_not_opened_to_be_sure() {
+			let opening = opening_for("/nowhere/berlin.mbtiles").await;
+			assert_eq!(opening.kind.map(|kind| kind.id), Some("container".to_string()));
 		}
 	}
 

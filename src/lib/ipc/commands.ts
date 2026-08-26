@@ -421,6 +421,14 @@ export const importKinds = () => commands.importKinds();
 export const importKindFor = (path: string) => commands.importKindFor(path);
 
 /**
+ * How to open a chosen source, having read it when its name was not enough.
+ *
+ * Not `importKindFor`, which answers for a name alone - that is the right question for a dialog
+ * filter and the wrong one at the moment somebody has actually picked something.
+ */
+export const importOpening = (source: string) => commands.importOpening(source);
+
+/**
  * The read node a chosen file becomes, quoting included - and, for a CSV, its coordinate columns
  * already filled in when the header names them unambiguously (S3.4). Both are the core's decisions.
  */

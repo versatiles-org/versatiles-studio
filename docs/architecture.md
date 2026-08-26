@@ -76,7 +76,8 @@ versatiles-studio/
 │           ├── export.rs       writing the result to a container         (F2)
 │           ├── estimate.rs     what that write will cost, before it runs (C6)
 │           ├── style/          the recipe, and the bundle a style ships in (Q36, D8)
-│           ├── import.rs       the catalogue of ways in                  (E1-E3)
+│           ├── import.rs       the catalogue of ways in, and what a .json    (E1-E3)
+│           │                    turns out to hold
 │           ├── tabular.rs      a delimited file's header                 (E2)
 │           ├── suggest.rs      values a field could take                 (E2)
 │           ├── analysis.rs     probe stats, in-memory per container      (Q4)

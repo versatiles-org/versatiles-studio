@@ -31,7 +31,12 @@ export async function askForSource(kinds: ImportKind[], kind?: ImportKind): Prom
 		? [{ name: kind.label, extensions: kind.extensions }]
 		: [
 				{ name: 'Everything Studio can open', extensions: anyExtension(kinds) },
-				...kinds.map((each) => ({ name: each.label, extensions: each.extensions }))
+				// A kind with no extensions is not something a dialog can offer: `tilejson` is
+				// reached by reading a `.json`, never by its name, so a filter for it would be an
+				// entry that matches nothing.
+				...kinds
+					.filter((each) => each.extensions.length > 0)
+					.map((each) => ({ name: each.label, extensions: each.extensions }))
 			];
 	const picked = await open({ multiple: false, filters });
 	return typeof picked === 'string' ? picked : null;
