@@ -446,6 +446,63 @@ fn a_parameter_can_be_added_to_a_node_that_does_not_have_it() {
 	);
 }
 
+/// **What the map writes has to come back out as four numbers.**
+///
+/// The webview formats a drawn rectangle as `13, 52.3, 13.8, 52.7` and hands the parts over ([Q53]).
+/// Written as one value instead, VPL quotes it - `bbox='13, 52.3, 13.8, 52.7'` parses, and then
+/// fails to be a bbox at the point where the pipeline is built, which is the worst place to find
+/// out. So this asserts the whole way through: the parts go in, the document parses, and upstream
+/// decodes the parameter as the four numbers that were drawn.
+#[test]
+fn a_drawn_rectangle_is_four_numbers_by_the_time_the_pipeline_reads_it() {
+	let drawn = ["13", "52.3", "13.8", "52.7"].map(String::from);
+
+	// The route a parameter takes the first time it is filled in - which is when a drawn rectangle
+	// arrives, since a node rarely has a `bbox=` already.
+	let mut document = Document::parse("from_csv filename=x.csv").unwrap();
+	let span = document.pipeline().nodes[0].name_span;
+	document.set_property(span, "bbox", &drawn).unwrap();
+
+	// An array, not a quoted string. The spacing inside is the tree's to choose; the brackets are
+	// the difference between four numbers and one value that looks like four.
+	assert!(
+		document.text().contains("bbox=[") && !document.text().contains("bbox='"),
+		"an array, not a quoted string: {:?}",
+		document.text()
+	);
+
+	// It still parses, and it parses as the same document.
+	let reparsed = Document::parse(document.text().to_string()).unwrap();
+	assert_eq!(reparsed.text(), document.text());
+
+	// And upstream reads it as a rectangle rather than as a string that looks like one.
+	let pipeline = document.to_pipeline();
+	let node = &pipeline.pipeline[0];
+	assert_eq!(
+		node.property_number_array_option::<f64, 4>("bbox").unwrap().unwrap(),
+		[13.0, 52.3, 13.8, 52.7]
+	);
+}
+
+/// The other route: a rectangle drawn over a `bbox=` the node already had.
+#[test]
+fn redrawing_a_rectangle_leaves_it_an_array() {
+	let mut document = Document::parse("from_csv filename=x.csv bbox=[1,2,3,4]").unwrap();
+	let span = document.pipeline().nodes[0].name_span;
+	document
+		.set_property(span, "bbox", &["13", "52.3", "13.8", "52.7"].map(String::from))
+		.unwrap();
+
+	let pipeline = document.to_pipeline();
+	assert_eq!(
+		pipeline.pipeline[0]
+			.property_number_array_option::<f64, 4>("bbox")
+			.unwrap()
+			.unwrap(),
+		[13.0, 52.3, 13.8, 52.7]
+	);
+}
+
 #[test]
 fn several_values_become_an_array() {
 	let mut document = Document::parse("vector_filter_layers filter=a").unwrap();

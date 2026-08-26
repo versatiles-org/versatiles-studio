@@ -111,6 +111,19 @@ describe('what an edit means', () => {
 		});
 	});
 
+	/**
+	 * A rectangle is four numbers, and it stopped being written as four the moment `bbox` became a
+	 * control of its own so the map could be offered for it ([Q53]). Written as one value, VPL quotes
+	 * it - `bbox='13, 52.3, 13.8, 52.7'` parses, and then fails to be a bbox where the pipeline is
+	 * built, which is a long way from the field that caused it.
+	 */
+	it('rewrites the whole property for a rectangle, which is four numbers', () => {
+		expect(editFor(single('a'), '13, 52.3, 13.8, 52.7', { kind: 'bbox' })).toEqual({
+			kind: 'parts',
+			values: ['13', '52.3', '13.8', '52.7']
+		});
+	});
+
 	it('replaces one value in place otherwise, which keeps the surrounding text', () => {
 		expect(editFor(single('a'), 'b', { kind: 'text' })).toEqual({ kind: 'value', value: 'b' });
 	});
@@ -125,6 +138,16 @@ describe('filling in a required parameter', () => {
 	it('writes one value, or several for a list', () => {
 		expect(requiredEdit(' berlin.csv ', { kind: 'text' })).toEqual(['berlin.csv']);
 		expect(requiredEdit('poi, place', { kind: 'list' })).toEqual(['poi', 'place']);
+	});
+
+	/**
+	 * **The route a drawn rectangle actually takes.** A node rarely has a `bbox=` already, so the
+	 * first thing a drag does is fill a parameter in for the first time - and this is that path. It
+	 * handled `list` and nothing else, so a rectangle arrived here as one string.
+	 */
+	it('writes several for anything that is a list of values, including a rectangle', () => {
+		expect(requiredEdit('13, 52.3, 13.8, 52.7', { kind: 'bbox' })).toEqual(['13', '52.3', '13.8', '52.7']);
+		expect(requiredEdit('1, 2, 3', { kind: 'numbers', count: 3 })).toEqual(['1', '2', '3']);
 	});
 });
 
@@ -167,6 +190,9 @@ describe('summarise', () => {
 		expect(summarise(field({ control: { kind: 'numbers', count: 4 } }))).toContain('4 numbers');
 		expect(summarise(field({ control: { kind: 'text' } }))).toContain('text');
 		expect(summarise(field({ control: { kind: 'path' } }))).toContain('a file path');
+		// "4 numbers" said nothing about which four, and the order is the one thing a person writing
+		// one by hand gets wrong.
+		expect(summarise(field({ control: { kind: 'bbox' } }))).toContain('west, south, east, north');
 	});
 
 	it('always ends by saying whether it is required', () => {

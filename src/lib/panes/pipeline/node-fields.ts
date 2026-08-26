@@ -88,7 +88,11 @@ export type Edit =
 export function editFor(property: VplProperty, raw: string, control: FieldInfo['control'] | undefined): Edit {
 	if (raw === valueText(property)) return { kind: 'unchanged' };
 	if (raw.trim() === '') return { kind: 'remove' };
-	if (control?.kind === 'list' || control?.kind === 'numbers' || isArray(property)) {
+	// `bbox` alongside `numbers`: it *is* four numbers, and separating the two controls so the map
+	// could be offered for one of them left this branch testing for the old name only. A rectangle
+	// then went in as a single value, which VPL quotes - `bbox="13, 52.3, 13.8, 52.7"` parses and
+	// then fails to be four numbers, which is the worst of both.
+	if (control?.kind === 'list' || control?.kind === 'numbers' || control?.kind === 'bbox' || isArray(property)) {
 		return { kind: 'parts', values: parts(raw) };
 	}
 	return { kind: 'value', value: raw };
@@ -102,7 +106,10 @@ export function editFor(property: VplProperty, raw: string, control: FieldInfo['
 export function requiredEdit(raw: string, control: FieldInfo['control'] | undefined): string[] | null {
 	const value = raw.trim();
 	if (!value) return null;
-	return control?.kind === 'list' ? parts(value) : [value];
+	// The same list as `editFor`'s, and for the same reason - this is the route a parameter takes
+	// the *first* time it is filled in, which is exactly when a drawn rectangle arrives.
+	const many = control?.kind === 'list' || control?.kind === 'numbers' || control?.kind === 'bbox';
+	return many ? parts(value) : [value];
 }
 
 /**
@@ -132,6 +139,9 @@ export function summarise(field: FieldInfo): string {
 			break;
 		case 'numbers':
 			type = `${control.count} numbers`;
+			break;
+		case 'bbox':
+			type = 'west, south, east, north';
 			break;
 		case 'path':
 			type = 'a file path';
