@@ -12,8 +12,20 @@ function pending() {
 	let release!: () => void;
 	const gate = new Promise<void>((resolve) => (release = resolve));
 	return {
-		fetch: async () => {
-			await gate;
+		// **The signal is honoured**, because the real one is: a request MapLibre abandons rejects
+		// rather than hanging, and a fake that ignores it cannot show what an abandoned tile does to
+		// the squares on the map.
+		fetch: async (_url: string, init?: { signal?: AbortSignal }) => {
+			await Promise.race([
+				gate,
+				new Promise<never>((_resolve, reject) => {
+					const signal = init?.signal;
+					if (signal?.aborted) reject(new DOMException('aborted', 'AbortError'));
+					signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), {
+						once: true
+					});
+				})
+			]);
 			return new Response(new ArrayBuffer(8), { status: 200, headers: { 'cache-control': 'max-age=60' } });
 		},
 		deliver: () => release()
@@ -25,6 +37,21 @@ function request(n: number) {
 		{ url: `${SCHEME}://127.0.0.1:1/tiles/g/1/${n}/1` } as never,
 		new AbortController() as never
 	) as Promise<unknown>;
+}
+
+/**
+ * One coordinate, asked for at a given revision, with a controller the caller can abort.
+ *
+ * The revision is what a rebuild changes: replacing a source's tiles in place asks for the same
+ * `z/x/y` again under a new `?v=`, while the outgoing request is still settling.
+ */
+function revision(n: number, v: number) {
+	const controller = new AbortController();
+	const done = fetchTile(
+		{ url: `${SCHEME}://127.0.0.1:1/tiles/g/1/${n}/1?v=${v}` } as never,
+		controller as never
+	) as Promise<unknown>;
+	return { done, abort: () => controller.abort() };
 }
 
 describe('tile activity', () => {
@@ -107,6 +134,75 @@ describe('tile activity', () => {
 		tile.deliver();
 		await Promise.all(all);
 		expect(tiles.features).toHaveLength(0);
+	});
+
+	/**
+	 * **The overlay's job is to be believed.** Replacing a source's tiles in place - which is what a
+	 * rebuild does rather than tearing the source down - leaves the outgoing request for a
+	 * coordinate settling while the incoming one starts. The square belongs to the coordinate, but
+	 * the *waiting* belongs to each request, and conflating the two made the first to finish take
+	 * the square away from the second.
+	 */
+	describe('one coordinate asked for twice at once', () => {
+		it('keeps the square while the newer request is still waiting', async () => {
+			const tile = pending();
+			vi.stubGlobal('fetch', tile.fetch);
+
+			const old = revision(1, 1);
+			const next = revision(1, 2);
+			await vi.advanceTimersByTimeAsync(PATIENCE);
+			expect(tiles.features).toHaveLength(1);
+
+			// The outgoing one is abandoned, as MapLibre abandons it when it reloads the tile.
+			old.abort();
+			await expect(old.done).rejects.toThrow();
+
+			expect(tiles.features, 'the newer request is still waiting for this tile').toHaveLength(1);
+			expect(tiles.rendering).toBe(1);
+
+			tile.deliver();
+			await next.done;
+			expect(tiles.features).toHaveLength(0);
+		});
+
+		// Two requests, one tile: the map draws where it is, not how many times it was asked for.
+		it('draws one square rather than two stacked on each other', async () => {
+			const tile = pending();
+			vi.stubGlobal('fetch', tile.fetch);
+
+			const first = revision(1, 1);
+			const second = revision(1, 2);
+			await vi.advanceTimersByTimeAsync(PATIENCE);
+
+			expect(tiles.features).toHaveLength(1);
+			// Both are being served, and the count is of requests - which is what the queue holds.
+			expect(tiles.rendering).toBe(2);
+
+			tile.deliver();
+			await Promise.all([first.done, second.done]);
+			expect(tiles.features).toHaveLength(0);
+		});
+
+		// `rendering` and `queued` answer "is anyone working on this tile", so one request waiting
+		// for a slot does not make that false while another is being served.
+		it('says rendering while any of them is being served', async () => {
+			const tile = pending();
+			vi.stubGlobal('fetch', tile.fetch);
+
+			// One slot for the outgoing request, five for other tiles, and the incoming ask for the
+			// same coordinate is left waiting for a slot.
+			const inFlight = revision(2, 1);
+			const others = Array.from({ length: 5 }, (_, n) => request(n + 10));
+			const queuedAgain = revision(2, 2);
+			await vi.advanceTimersByTimeAsync(PATIENCE);
+
+			expect([tiles.rendering, tiles.queued]).toEqual([6, 1]);
+			const square = tiles.features.find((feature) => feature.id === '1/2/1');
+			expect(square?.properties.state).toBe('rendering');
+
+			tile.deliver();
+			await Promise.all([...others, queuedAgain.done, inFlight.done]);
+		});
 	});
 
 	it('says nothing to draw until the wait has lasted long enough', async () => {

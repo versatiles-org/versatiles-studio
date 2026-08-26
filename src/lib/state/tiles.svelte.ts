@@ -28,25 +28,58 @@ export const PATIENCE = 300;
 let rendering = $state(0);
 let queued = $state(0);
 
+/** What a pending tile is doing. */
+type Doing = 'queued' | 'rendering';
+
 /**
- * Where the pending tiles are, so the map can show *which* ones are slow rather than only how many.
+ * One square on the map, and every request currently keeping it there.
  *
- * Keyed by `z/x/y` because that is what a tile is: the same coordinate asked for twice - a repaint
- * after a style change, say - is one square on the map, not two stacked on each other.
+ * **The square is per coordinate; the waiting is per request.** Those used to be the same thing,
+ * and the difference only shows when one coordinate has two requests in flight at once - which is
+ * exactly what replacing a source's tiles in place does: the outgoing request for `3/4/2` is still
+ * settling while the incoming one starts. Sharing one entry, whichever finished first took the
+ * square away and dropped the count, so the overlay went quiet while the map was still waiting.
+ *
+ * Two stacked squares would be the other wrong answer - the same coordinate asked for twice is one
+ * tile on screen. So the entry stays keyed by `z/x/y` and leaves when its last request does.
  */
-let waiting = $state<Record<string, { coord: TileCoord; state: 'queued' | 'rendering' }>>({});
+interface Pending {
+	coord: TileCoord;
+	/** By request, since no URL is unique: a reload can ask for the same one twice. */
+	doing: Record<string, Doing>;
+}
+
+let waiting = $state<Record<string, Pending>>({});
+
+/// Tells one request from another. A counter rather than the URL, because a reload that does not
+/// change the URL - a layer added to a vector source - asks for the identical one.
+let requests = 0;
 
 /// Reassigned rather than mutated: this is read by a getter that builds GeoJSON, and mutating in
 /// place would leave it holding the previous frame's squares.
-function mark(key: string, coord: TileCoord, state: 'queued' | 'rendering') {
-	waiting = { ...waiting, [key]: { coord, state } };
+function mark(key: string, request: string, coord: TileCoord, state: Doing) {
+	const entry = waiting[key];
+	waiting = { ...waiting, [key]: { coord, doing: { ...entry?.doing, [request]: state } } };
 }
 
-function unmark(key: string) {
-	if (!(key in waiting)) return;
-	const { [key]: _gone, ...rest } = waiting;
+/// Drops one request's claim on a square, and the square with the last of them.
+function unmark(key: string, request: string) {
+	const entry = waiting[key];
+	if (!entry || !(request in entry.doing)) return;
+	const { [request]: _gone, ...doing } = entry.doing;
+	if (Object.keys(doing).length > 0) {
+		waiting = { ...waiting, [key]: { coord: entry.coord, doing } };
+		return;
+	}
+	const { [key]: _dropped, ...rest } = waiting;
 	waiting = rest;
 }
+
+/// What a square says while several requests own it.
+///
+/// **`rendering` wins.** The two states answer "is anyone working on this tile", and one request
+/// waiting for a slot does not make that false while another is being served.
+const doingOf = (entry: Pending): Doing => (Object.values(entry.doing).includes('rendering') ? 'rendering' : 'queued');
 /// Whether the wait has gone on long enough to be worth saying. Separate from the counts, so the
 /// numbers stay live while the decision to show them does not flicker.
 let patient = $state(false);
@@ -90,7 +123,7 @@ export const tiles = {
 			type: 'Feature' as const,
 			id: key,
 			geometry: { type: 'Polygon' as const, coordinates: tileRing(entry.coord.x, entry.coord.y, entry.coord.z) },
-			properties: { state: entry.state }
+			properties: { state: doingOf(entry) }
 		}));
 	},
 
@@ -152,11 +185,12 @@ export const fetchTile: AddProtocolAction = async (params, controller) => {
 	// A URL with no coordinates in it is still queued and still counted - it just cannot be drawn.
 	// Nothing routed here should lack them, and inventing a square would be worse than the gap.
 	const key = coord && `${coord.z}/${coord.x}/${coord.y}`;
-	if (key && coord) mark(key, coord, 'queued');
+	const request = String((requests += 1));
+	if (key && coord) mark(key, request, coord, 'queued');
 
 	try {
 		return await queue.run(async () => {
-			if (key && coord) mark(key, coord, 'rendering');
+			if (key && coord) mark(key, request, coord, 'rendering');
 			const response = await fetch(url, { signal: controller.signal });
 			if (!response.ok) throw new TileError(response, url);
 			return {
@@ -170,6 +204,9 @@ export const fetchTile: AddProtocolAction = async (params, controller) => {
 	} finally {
 		// Outside `run`, not inside it: a tile cancelled while still queued never enters the task,
 		// so a cleanup in there would leave its square on the map for good.
-		if (key) unmark(key);
+		//
+		// **This request's claim, not the square.** Another request may have taken the same
+		// coordinate over while this one was on its way out, and it is still waiting.
+		if (key) unmark(key, request);
 	}
 };
