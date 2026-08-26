@@ -16,6 +16,27 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q53 - A bbox field borrows the map's rectangle
+
+**Decided 2026-08-26.** `bbox=[13,52.3,13.8,52.7]` was four bare numbers in a form: four chances to
+put a digit in the wrong place, and no way to see that you had until the pipeline ran over the wrong
+part of the world. The map already draws rectangles - it is how a crop is set - so a bbox field now
+shows its own on focus and can be filled in from a drag.
+
+**The core already knew which fields these are.** `semantics.rs` has tabulated every field's role
+since it was written, `GeoBBox` among them, and nothing had ever read it: `role_of` was exported with
+no callers, and the webview was left inferring a rectangle from "four numbers", which is also what a
+colour and a centre look like. The control now comes from the table, corroborated by the type, so a
+field upstream retypes stops offering a map rather than offering one for whatever it became.
+
+**One rectangle, not two.** The overlay dims everything outside what it draws, and two of those at
+once are two crops as far as the eye is concerned - so a focused field displaces the crop while it
+holds the map and gives it back on blur. The alternative, a second overlay, would have meant two
+dimmed rectangles and a source id to parameterise for no gain.
+
+The awkward case is that pressing "draw" blurs the field that asked, so blur cannot be a release
+while a drag is in flight - the release would cancel the drawing before the first pointer-down.
+
 ### Q52 - The map's own controls are one stack down the top left
 
 **Decided 2026-08-26.** The saved views sat top left, the coordinate box bottom left and the

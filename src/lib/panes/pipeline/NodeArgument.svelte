@@ -3,6 +3,7 @@
 	import HelpTrigger from '../../common/HelpTrigger.svelte';
 	import type { HelpContent } from '../../state/help.svelte';
 	import { askForPath } from '../../common/import';
+	import { bboxField, formatBbox, parseBbox } from '../../state/bbox.svelte';
 
 	// One argument of a node: its name, its help, its control, and whether it can be removed (C2).
 	//
@@ -64,6 +65,27 @@
 	/// upstream adds another (C2).
 	const isPath = $derived(control?.kind === 'path');
 
+	/// A rectangle field: four degrees, and the map already knows how to draw one ([Q53]).
+	const isBbox = $derived(control?.kind === 'bbox');
+	/// This row, told from every other. Two nodes can hold the same parameter name, so neither the
+	/// claim on the map nor the datalist below can be keyed on it.
+	const rowId = $props.id();
+	const drawn = $derived(parseBbox(value));
+
+	/// Takes the map for this field, showing whatever it currently holds.
+	const claim = () => bboxField.focus(rowId, drawn, (bbox) => onCommit(formatBbox(bbox)));
+
+	/// **Claims first.** The click that reaches this button has already blurred the input, which
+	/// released the map - so the button takes it back before asking to draw on it.
+	function draw() {
+		claim();
+		bboxField.toggleDraw(rowId);
+	}
+
+	// Gives the map back when the row goes: a node closed while its rectangle was on screen would
+	// otherwise leave it there with nothing to edit it.
+	$effect(() => () => bboxField.release(rowId));
+
 	/// What the empty box says.
 	///
 	/// **A default beats whatever the caller suggested** ([vt#253]). "a value" is a restatement of
@@ -101,8 +123,8 @@
 		if (picked !== null) onCommit(picked);
 	}
 
-	/** A datalist needs an id, and two nodes can hold the same parameter name. */
-	const listId = $props.id();
+	/** A datalist needs an id of its own. */
+	const listId = rowId;
 
 	function toggle(name: string) {
 		const next = chosen.includes(name) ? chosen.filter((each) => each !== name) : [...chosen, name];
@@ -146,14 +168,21 @@
 			<div class="line">
 				<input
 					type="text"
-					class:path={isPath}
+					class:path={isPath || isBbox}
 					{value}
 					title={value}
-					placeholder={hint || (control?.kind === 'numbers' ? `${control.count} numbers` : '')}
+					placeholder={hint ||
+						(isBbox ? 'west, south, east, north' : control?.kind === 'numbers' ? `${control.count} numbers` : '')}
+					onfocus={isBbox ? claim : undefined}
 					list={suggestions.length > 0 ? listId : undefined}
 					spellcheck="false"
 					autocomplete="off"
-					onblur={(event) => onCommit(event.currentTarget.value)}
+					onblur={(event) => {
+						onCommit(event.currentTarget.value);
+						// Gives the map back - unless a drag is in progress, which is what starts by
+						// blurring this very field.
+						if (isBbox) bboxField.release(rowId);
+					}}
 					onkeydown={(event) => {
 						if (event.key === 'Enter') event.currentTarget.blur();
 						if (event.key === 'Escape') {
@@ -162,7 +191,23 @@
 						}
 					}}
 				/>
-				{#if isPath}
+				{#if isBbox}
+					<!-- **The map is the helper.** Four degrees typed by hand are four chances to put a
+					     digit in the wrong place, and no way to see that you did until the pipeline runs
+					     over the wrong part of the world. The rectangle appears as soon as the field is
+					     focused, and this fills it in from a drag. -->
+					<button
+						type="button"
+						class="browse"
+						class:on={bboxField.drawing && bboxField.holds(rowId)}
+						aria-pressed={bboxField.drawing && bboxField.holds(rowId)}
+						title={bboxField.drawing && bboxField.holds(rowId) ? 'Drag a rectangle on the map' : 'Draw on the map'}
+						aria-label={`Draw ${name} on the map`}
+						onclick={draw}
+					>
+						▭
+					</button>
+				{:else if isPath}
 					<!-- `…` rather than a folder: it is what a field that opens a dialog has said
 					     everywhere for thirty years, and it stays legible at the size this row is. -->
 					<button

@@ -16,6 +16,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/svelte';
 import NodeArgument from './NodeArgument.svelte';
 import { stubTauri, type TauriStub } from '../../testing/tauri';
+import { bboxField } from '../../state/bbox.svelte';
+import { flushSync } from 'svelte';
 
 /** `field_meta` for a parameter that names a file - the core's `Control::Path`. */
 const PATH_FIELD = (name: string) => ({
@@ -26,6 +28,16 @@ const PATH_FIELD = (name: string) => ({
 	default: null,
 	control: { kind: 'path' as const }
 });
+
+/** `field_meta` for a rectangle - the core's `Control::Bbox`. */
+const BBOX_FIELD = {
+	name: 'bbox',
+	doc: '',
+	required: false,
+	sources: false,
+	default: null,
+	control: { kind: 'bbox' as const }
+};
 
 const CONTAINER = {
 	id: 'container',
@@ -162,5 +174,78 @@ describe('what the picker does with what it gets', () => {
 			filters?: unknown;
 		};
 		expect(options.filters).toBeUndefined();
+	});
+});
+
+/**
+ * The map behind a bbox parameter ([Q53]).
+ *
+ * Four degrees typed by hand are four chances to put a digit in the wrong place, and no way to see
+ * that you did until the pipeline runs over the wrong part of the world. The map already draws
+ * rectangles; this is the field reaching it.
+ */
+describe('which parameters offer the map', () => {
+	const open = (value = '', onCommit: (raw: string) => void = () => {}) =>
+		render(NodeArgument, { name: 'bbox', field: BBOX_FIELD, value, onCommit });
+
+	const button = () => screen.getByLabelText('Draw bbox on the map');
+
+	it('offers a rectangle for a bbox field', () => {
+		open();
+		expect(button()).toBeTruthy();
+	});
+
+	it('offers none for four numbers that are not a rectangle', () => {
+		render(NodeArgument, {
+			name: 'rgb',
+			field: { ...BBOX_FIELD, name: 'rgb', control: { kind: 'numbers' as const, count: 4 } },
+			value: '',
+			onCommit: () => {}
+		});
+		expect(screen.queryByLabelText('Draw rgb on the map')).toBeNull();
+	});
+
+	it('says what to type when the field is empty', () => {
+		open();
+		expect(screen.getByPlaceholderText('west, south, east, north')).toBeTruthy();
+	});
+
+	// Focusing is enough to see it: no button press to find out where in the world the value is.
+	it('puts what the field holds on the map when it is focused', () => {
+		open('[13, 52.3, 13.8, 52.7]');
+		screen.getByRole('textbox').focus();
+		flushSync();
+		expect(bboxField.shown).toEqual([13, 52.3, 13.8, 52.7]);
+	});
+
+	it('asks the map to draw, and marks the button while it is', () => {
+		open();
+		button().click();
+		flushSync();
+		expect(bboxField.drawing).toBe(true);
+		expect(button().getAttribute('aria-pressed')).toBe('true');
+	});
+
+	it('writes a drawn rectangle into the field', () => {
+		const onCommit = vi.fn();
+		open('', onCommit);
+		button().click();
+		flushSync();
+
+		bboxField.finish([13, 52.3, 13.8, 52.7]);
+		expect(onCommit).toHaveBeenCalledWith('13, 52.3, 13.8, 52.7');
+	});
+
+	// A node closed while its rectangle was on screen would otherwise leave it there with nothing
+	// left to edit it.
+	it('gives the map back when the row goes', () => {
+		const view = open('[13, 52.3, 13.8, 52.7]');
+		screen.getByRole('textbox').focus();
+		flushSync();
+		expect(bboxField.shown).not.toBeNull();
+
+		view.unmount();
+		flushSync();
+		expect(bboxField.shown).toBeNull();
 	});
 });

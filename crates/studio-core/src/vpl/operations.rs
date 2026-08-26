@@ -9,6 +9,7 @@
 //! operation upstream appears in Studio's forms with no work here at all - which is the point of
 //! generating them ([architecture](../../../docs/architecture.md)).
 
+use super::semantics::{Role, role_of};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::OnceLock;
@@ -58,6 +59,13 @@ pub enum Control {
 		#[cfg_attr(feature = "bindings", specta(type = u32))]
 		count: usize,
 	},
+	/// `[west, south, east, north]` in WGS84 degrees - a rectangle the map can draw and a drag can
+	/// fill in.
+	///
+	/// Four numbers by shape, like a colour is three, and a form that only knew the shape offered
+	/// the same bare row of numbers for both. The map already draws rectangles - it is how a crop is
+	/// set - so the one field where that machinery is the obvious answer had no way to reach it.
+	Bbox,
 }
 
 /// Whether a parameter names a file on this machine.
@@ -84,7 +92,7 @@ fn is_path(name: &str) -> bool {
 /// Unknown types fall back to text rather than failing. A parameter upstream adds in a shape we do
 /// not recognise should still be editable - as the string it is written as, which is what VPL
 /// stores anyway.
-fn control_for(name: &str, rust_type: &str, enum_variants: &[&'static str]) -> Control {
+fn control_for(operation: &str, name: &str, rust_type: &str, enum_variants: &[&'static str]) -> Control {
 	if !enum_variants.is_empty() {
 		return Control::Choice {
 			options: enum_variants.iter().map(|v| (*v).to_string()).collect(),
@@ -103,6 +111,14 @@ fn control_for(name: &str, rust_type: &str, enum_variants: &[&'static str]) -> C
 		return Control::List;
 	}
 	if let Some(count) = fixed_array_len(inner) {
+		// **The table says which four numbers are a rectangle**, and the type says they are four.
+		// Both, because either alone is wrong: every bbox in the registry is `[f64; 4]` and so is
+		// nothing else *today*, and `role_of` is a curated list that a new operation can be missing
+		// from. Requiring the shape as well means a field upstream retypes stops offering a map
+		// picker instead of offering one for whatever it became.
+		if count == 4 && role_of(operation, name) == Some(Role::GeoBBox) {
+			return Control::Bbox;
+		}
 		return Control::Numbers { count };
 	}
 	// Checked after the shapes above rather than first: a name is the weakest evidence here, and a
@@ -215,7 +231,7 @@ pub fn operations() -> Vec<OperationInfo> {
 					doc: field.doc.clone(),
 					required: field.is_required,
 					sources: field.is_sources,
-					control: control_for(&field.name, &field.rust_type, &field.enum_variants),
+					control: control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants),
 					default: field.default.clone(),
 				})
 				.collect(),
@@ -347,9 +363,51 @@ mod tests {
 		);
 	}
 
+	/// **The tripwire for the table.** `role_of` is a curated list and the registry is not - a new
+	/// operation arrives carrying a rectangle, nobody adds it, and the form quietly offers four bare
+	/// numbers where every other rectangle offers the map. Held the same way
+	/// `path_fields_are_all_named` holds the path list: against the whole registry rather than
+	/// against a memory of it.
+	///
+	/// By name here, because a name is the only evidence available *before* somebody writes the
+	/// table entry - which is the case being guarded against. `bounds` as well as `bbox`:
+	/// `meta_update` spells it the other way, which this test is how we found out.
+	#[test]
+	fn every_rectangle_in_the_registry_can_be_drawn() {
+		let missed: Vec<String> = operations()
+			.iter()
+			.flat_map(|operation| {
+				operation
+					.fields
+					.iter()
+					.filter(|field| matches!(field.name.as_str(), "bbox" | "bounds") && field.control != Control::Bbox)
+					.map(|field| format!("{}.{}", operation.name, field.name))
+			})
+			.collect();
+		assert!(missed.is_empty(), "add these to `ROLES` in semantics.rs: {missed:?}");
+	}
+
+	/// And the other way: the map's rectangle is offered only where the table says there is one.
+	#[test]
+	fn only_a_rectangle_is_drawn_on_the_map() {
+		let wrong: Vec<String> = operations()
+			.iter()
+			.flat_map(|operation| {
+				operation
+					.fields
+					.iter()
+					.filter(|field| {
+						field.control == Control::Bbox && role_of(&operation.name, &field.name) != Some(Role::GeoBBox)
+					})
+					.map(|field| format!("{}.{}", operation.name, field.name))
+			})
+			.collect();
+		assert!(wrong.is_empty(), "not rectangles: {wrong:?}");
+	}
+
 	#[test]
 	fn a_bbox_is_four_numbers_and_a_colour_three() {
-		assert_eq!(field("from_csv", "bbox").control, Control::Numbers { count: 4 });
+		assert_eq!(field("from_csv", "bbox").control, Control::Bbox);
 		assert_eq!(field("raster_flatten", "color").control, Control::Numbers { count: 3 });
 	}
 
@@ -393,8 +451,11 @@ mod tests {
 	/// An unrecognised type is still editable, as the string VPL stores anyway.
 	#[test]
 	fn an_unknown_type_falls_back_to_text() {
-		assert_eq!(control_for("whatever", "Option<SomethingNew>", &[]), Control::Text);
-		assert_eq!(control_for("whatever", "[String;2]", &[]), Control::Text);
+		assert_eq!(
+			control_for("from_csv", "whatever", "Option<SomethingNew>", &[]),
+			Control::Text
+		);
+		assert_eq!(control_for("from_csv", "whatever", "[String;2]", &[]), Control::Text);
 	}
 
 	#[test]

@@ -823,7 +823,16 @@ export type Control = { kind: "text" } |
 /**  `Vec<String>` - a list of values, written as a VPL array. */
 { kind: "list" } | 
 /**  A fixed-size numeric array: a bbox is four, a colour or a centre three. */
-{ kind: "numbers"; count: number };
+{ kind: "numbers"; count: number } | 
+/**
+ *  `[west, south, east, north]` in WGS84 degrees - a rectangle the map can draw and a drag can
+ *  fill in.
+ * 
+ *  Four numbers by shape, like a colour is three, and a form that only knew the shape offered
+ *  the same bare row of numbers for both. The map already draws rectangles - it is how a crop is
+ *  set - so the one field where that machinery is the obvious answer had no way to reach it.
+ */
+{ kind: "bbox" };
 
 /**  What a copy of this project would carry (S5.1). */
 export type CopyPlan = {

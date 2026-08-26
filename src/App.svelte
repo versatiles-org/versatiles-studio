@@ -41,6 +41,7 @@
 	import { requestedZoom } from './lib/map/tile-grid';
 	import TileActivity from './lib/map/TileActivity.svelte';
 	import CropOverlay from './lib/map/CropOverlay.svelte';
+	import { bboxField } from './lib/state/bbox.svelte';
 	import MapControls from './lib/map/MapControls.svelte';
 	import { buildBackground } from './lib/map/background';
 	import CoordinateJump from './lib/map/CoordinateJump.svelte';
@@ -1040,11 +1041,19 @@
 			<TileActivity {map} />
 			<!-- Always mounted: with no crop it draws nothing, and drawing mode is a prop rather than a
 		     mount, so leaving it does not have to tear down the rectangle it just made. -->
+			<!-- **One rectangle on the map, whoever is asking for it** ([Q53]). The crop sets it, and so
+			     does a `bbox=` in a node's form - the same overlay either way, because two dimmed
+			     rectangles at once are two crops as far as the eye is concerned. A field that has taken
+			     the map displaces the crop while it holds it, and gives it back on blur. -->
 			<CropOverlay
 				{map}
-				bbox={crop.bbox ?? null}
-				{drawing}
+				bbox={bboxField.shown ?? crop.bbox ?? null}
+				drawing={bboxField.drawing || drawing}
 				onDrawn={(bbox) => {
+					if (bboxField.drawing) {
+						bboxField.finish(bbox);
+						return;
+					}
 					drawing = false;
 					void changeCrop({ bbox, minZoom: crop.minZoom ?? null, maxZoom: crop.maxZoom ?? null });
 				}}
