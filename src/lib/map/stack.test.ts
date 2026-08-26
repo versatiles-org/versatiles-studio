@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { drawOrder, drawn, entryFor, stackFor } from './stack';
+import { drawableLayers, drawOrder, drawn, entryFor, stackFor } from './stack';
 import type { Preview, Recipe } from '../ipc/commands';
 
 const BASE = 'http://127.0.0.1:8080';
@@ -139,5 +139,76 @@ describe('drawn', () => {
 		const notDrawn = { style: {} as never, bases: [{ name: 'places', basis: 'none' as const, style: null }] };
 		expect(notDrawn.style).not.toBeNull();
 		expect(drawn(notDrawn, 'places')).toBe(false);
+	});
+});
+
+/**
+ * **Every layer the source has, not the ones a probe happened to see.**
+ *
+ * `probe_layers` decodes one tile - the middle of the bounds at the source's *lowest* zoom, which is
+ * the emptiest tile in the pyramid. A basemap declaring 34 layers has two at z0, so the derived
+ * style drew two hairlines and the layer tree listed two, for a source with 34. The report itself is
+ * honest (the export dialog shows its counts); using it as the list of what exists is what was
+ * wrong.
+ */
+describe('which layers a derived style is given', () => {
+	const DECLARED = ['Gewaesserflaeche', 'Grenze_Linie', 'Name_Punkt', 'Verkehrslinie'];
+
+	/** A source whose TileJSON declares four layers and whose sampled tile held one. */
+	const basemap = () =>
+		built('basemap', {
+			layers: [{ name: 'Grenze_Linie', geometry: 'line' }],
+			info: { tileFormat: 'mvt', tileSchema: null, tileJson: { vector_layers: DECLARED.map((id) => ({ id })) } }
+		});
+
+	it('is every layer the container declares', () => {
+		expect(drawableLayers(basemap()).map((layer) => layer.name)).toEqual(DECLARED);
+	});
+
+	// The sample is still the only thing that knows what a layer is made of.
+	it('keeps the geometry of the layers the probe did see', () => {
+		const drawn = drawableLayers(basemap());
+		expect(drawn.find((layer) => layer.name === 'Grenze_Linie')?.geometry).toBe('line');
+	});
+
+	// A hairline is the right thing to draw for a layer nobody has looked at yet - and `unknown` is
+	// what `deriveStyle` turns into one.
+	it('leaves the rest unknown rather than guessing', () => {
+		const drawn = drawableLayers(basemap());
+		expect(drawn.find((layer) => layer.name === 'Name_Punkt')?.geometry).toBe('unknown');
+	});
+
+	// A pipeline that builds its own tiles has no TileJSON to declare anything, and then the probe
+	// is all there is.
+	it('falls back to the probe when nothing is declared', () => {
+		const home = built('csv', {
+			layers: [{ name: 'points', geometry: 'point' }],
+			info: { tileFormat: 'mvt', tileSchema: null, tileJson: {} }
+		});
+		expect(drawableLayers(home)).toEqual([{ name: 'points', geometry: 'point' }]);
+	});
+
+	/**
+	 * The end of it, and the assertion worth keeping: what reaches the map draws every layer the
+	 * source said it has. Everything above is how; this is what.
+	 */
+	it('ends with a layer on the map for every layer the source has', () => {
+		const { style } = stackFor({
+			recipe: recipe({
+				sources: {
+					basemap: { kind: null, appearance: { type: 'vector', preset: 'derived', recolor: {}, overrides: {} } }
+				}
+			} as never),
+			built: { basemap: basemap() },
+			serverUrl: BASE,
+			background: null
+		});
+
+		const drawnFrom = new Set(
+			style!.layers
+				.map((layer) => (layer as { 'source-layer'?: string })['source-layer'])
+				.filter((name): name is string => typeof name === 'string')
+		);
+		expect([...drawnFrom].sort()).toEqual([...DECLARED].sort());
 	});
 });

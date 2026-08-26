@@ -36,6 +36,33 @@ export function layersOf(built: Preview): string[] {
 		.filter((id): id is string => typeof id === 'string');
 }
 
+/**
+ * The layers a derived style should draw: **every layer the source declares**, not the ones a probe
+ * happened to see.
+ *
+ * `Preview.layers` is a report about one tile - `probe_layers` decodes the middle of the bounds at
+ * the source's *lowest* zoom, which is the emptiest tile in the pyramid. A German basemap declaring
+ * 34 layers has two at z0, so the derived style drew two hairlines and the layer tree listed two,
+ * for a source with 34. The counts and byte sizes in that report are honest and are what the export
+ * dialog shows; what is wrong is using it as the list of what exists.
+ *
+ * The TileJSON's `vector_layers` is that list, and it is what `add-source.ts` has always used for a
+ * mounted container - so the two paths agreed about a container and disagreed about a pipeline
+ * reading the same tiles.
+ *
+ * **Geometry still comes from the sample**, because `vector_layers` does not carry it. A layer the
+ * probe did not see is drawn as `unknown`, which `deriveStyle` renders as a line - a hairline, which
+ * is the right thing to draw for a layer nobody has looked at yet.
+ */
+export function drawableLayers(built: Preview): { name: string; geometry: string }[] {
+	const declared = layersOf(built);
+	if (declared.length === 0) {
+		return built.layers.map(({ name, geometry }) => ({ name, geometry }));
+	}
+	const sampled = new Map(built.layers.map((layer) => [layer.name, layer.geometry]));
+	return declared.map((name) => ({ name, geometry: sampled.get(name) ?? 'unknown' }));
+}
+
 /** One source's place in the stack, from what was built and how the recipe says to draw it. */
 export function entryFor(built: Preview, recipe: Recipe): StackEntry {
 	const style = recipe.sources[built.name] ?? UNSTYLED_SOURCE;
@@ -47,7 +74,7 @@ export function entryFor(built: Preview, recipe: Recipe): StackEntry {
 		kind: sourceKind(built.info.tileFormat, built.info.tileSchema, layers, style.kind).kind,
 		tileFormat: built.info.tileFormat,
 		tileSchema: built.info.tileSchema,
-		layers: built.layers,
+		layers: drawableLayers(built),
 		mountedLayers: layers,
 		// What the container says about itself, passed through so the composed style can tell
 		// MapLibre where to stop asking - see `extentOf`.
