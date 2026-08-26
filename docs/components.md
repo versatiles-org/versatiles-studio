@@ -39,7 +39,7 @@ lib/panes/pipeline/   PipelinePane and its parts: GraphList · NodeChain · Node
 lib/panes/style/      StylePane · LayerTree
 lib/panes/project/    CopyDialog
 lib/panes/inspector/  Inspector
-lib/map/              MapCanvas · MapControls · TileGrid · TileActivity · CoordinateJump · Views · FeaturePopup · CropOverlay
+lib/map/              MapCanvas · MapControls · Dropdown · TileGrid · TileActivity · CoordinateJump · Views · FeaturePopup · CropOverlay
 lib/common/           used by more than one owner: Help · HelpTrigger · Picker · JsonTree · Modal · LandingScreen
 ```
 

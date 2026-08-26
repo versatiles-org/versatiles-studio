@@ -16,6 +16,24 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 All dated 2026-08-16 unless an entry says otherwise.
 
+### Q52 - The map's own controls are one stack down the top left
+
+**Decided 2026-08-26.** The saved views sat top left, the coordinate box bottom left and the
+background, grid and reset bottom right, each positioning itself. Three corners made the map's
+controls read as three unrelated things, every one of them had to know where the others were not,
+and a fourth had to find a free corner rather than a place in a list. They are now one column: the
+container places them and each control is in flow, as wide as what it says.
+
+**Left, not right**, because the right is where MapLibre puts its own controls and the attribution,
+and stacking over those is how the cluster came to wrap in the first place. **Top, not bottom**,
+because the status bar already owns the bottom edge of the window and a column growing upward from
+above it collides with what the bar is saying.
+
+The cost is that the controls now sit over the top left of the map, which is where a north-west
+corner of an extract usually is. Accepted: they are small, they are the things you reach for while
+looking at that map, and the alternative - keeping them scattered so no single area is covered - is
+what this replaced.
+
 ### Q51 - A layer override applies on whatever basis the style was arrived at
 
 **Decided 2026-08-26.** The layer tree is shown for every vector source, but only a preset style

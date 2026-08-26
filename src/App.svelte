@@ -1058,19 +1058,28 @@
 					Nothing is open. <strong>File → Open…</strong> brings a container, a pipeline or a table into this window.
 				</p>
 			{:else}
-				<CoordinateJump {map} />
-				<Views {map} />
-				<MapControls
-					{background}
-					{showGrid}
-					{gridLevel}
-					gridNudged={gridOffset !== 0}
-					canReset={Boolean(preview.last?.info.bbox)}
-					onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
-					onToggleGrid={() => (showGrid = !showGrid)}
-					onGridLevel={(by) => (gridOffset = by === 0 ? 0 : gridOffset + by)}
-					onReset={resetView}
-				/>
+				<!-- **One stack, top left** ([Q52]). The three of these used to place themselves in three
+				     different corners, which meant the map's own controls had to be read as three
+				     unrelated things and each one had to know where the others were not. Down one edge
+				     they are one list, and adding a fourth is a line here rather than a free corner to
+				     find. Left over the right, which is where the attribution and MapLibre's own
+				     controls sit. -->
+				<div class="map-controls">
+					<MapControls
+						{background}
+						{showGrid}
+						{gridLevel}
+						gridNudged={gridOffset !== 0}
+						canReset={Boolean(preview.last?.info.bbox)}
+						onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
+						onToggleGrid={() => (showGrid = !showGrid)}
+						onGridLevel={(by) => (gridOffset = by === 0 ? 0 : gridOffset + by)}
+						onReset={resetView}
+					>
+						{#snippet views()}<Views {map} />{/snippet}
+						{#snippet jump()}<CoordinateJump {map} />{/snippet}
+					</MapControls>
+				</div>
 			{/if}
 		</Boundary>
 	{/snippet}
@@ -1117,6 +1126,26 @@
 <Help />
 
 <style>
+	/* Everything the map is controlled by, down its top left edge ([Q52]).
+	   
+	   `align-items: flex-start` rather than a width: each control is as wide as what it says, so the
+	   stack is a list of separate things rather than a panel - and the map stays visible beside the
+	   short ones.
+	   
+	   No `overflow` of its own, deliberately: the saved-views panel opens *out* of this box, and a
+	   scroll container would clip it on both axes rather than let it hang over the map. The stack is
+	   a handful of rows, so there is nothing to scroll. */
+	.map-controls {
+		position: absolute;
+		top: var(--space-4);
+		left: var(--space-4);
+		z-index: 4;
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--space-2);
+	}
+
 	/* A window between documents. Over the map rather than replacing it - the map keeps running, so
 	   opening something does not have to build one - and small enough to read as a note rather than
 	   as a screen (S7.9). */

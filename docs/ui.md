@@ -99,11 +99,11 @@ It was an overlay inside a project window until [S7.9](history.md), which made a
 ┌───────────────────────────────────────────────────────────┐
 │ ≡  MyProject                                              │
 ├─────────────────────────────────────────┬─────────────────┤
-│ [Views ▾] (A7)                          │ INSPECTOR       │
-│                  MAP                    │ format, zooms   │
-│            grid overlay (A5)            │ TileJSON (A6)   │
-│            feature popup (A8)           │                 │
-│ [z/x/y jump] (A5)   [grid][- z14 +][reset] │              │
+│ [Views ▾] [reset] (A7)                  │ INSPECTOR       │
+│ [z/x/y or lat,lng] (A5)   MAP           │ format, zooms   │
+│ [No background ▾]                       │ TileJSON (A6)   │
+│ [grid] [- z14 +]       feature popup    │                 │
+│                                    (A8) │                 │
 ├─────────────────────────────────────────┴─────────────────┤
 │ $ versatiles probe osm.versatiles -d              [copy]  │
 └───────────────────────────────────────────────────────────┘

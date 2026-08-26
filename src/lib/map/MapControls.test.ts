@@ -11,6 +11,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/svelte';
+import { flushSync } from 'svelte';
 import MapControls from './MapControls.svelte';
 
 afterEach(cleanup);
@@ -32,6 +33,70 @@ function open(over: Record<string, unknown> = {}) {
 }
 
 const level = () => screen.getByRole('button', { name: /^z\d+$/ });
+
+describe('the cluster', () => {
+	// "Reset view" said what it does twice: it sits beside the views dropdown, which is the other
+	// half of "where am I looking".
+	it('offers reset beside the views, and only with something to fit', () => {
+		open({ canReset: true });
+		expect((screen.getByRole('button', { name: 'reset' }) as HTMLButtonElement).disabled).toBe(false);
+		cleanup();
+		open();
+		expect((screen.getByRole('button', { name: 'reset' }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	// The z/x/y is in the grid's own labels and in the box below it; the button only has to say
+	// which overlay it is.
+	it('calls the grid button “grid”', () => {
+		open();
+		expect(screen.getByRole('button', { name: 'grid' })).toBeTruthy();
+	});
+});
+
+/**
+ * The background picker was a native `<select>`, which on macOS opens a popup obeying none of the
+ * map's chrome. It is the saved views' own `Dropdown` now, so what is asserted here is that it
+ * behaves like one: closed until asked, reports the current choice, and shuts on choosing.
+ */
+describe('the background picker', () => {
+	const toggle = () => screen.getByRole('button', { name: /No background|Positron|Dark/ });
+
+	it('says which background is on rather than only what it opens', () => {
+		open({ background: 'none' });
+		expect(toggle().textContent).toContain('No background');
+	});
+
+	it('opens a panel of the choices', () => {
+		open();
+		expect(screen.queryByRole('group', { name: 'Background map' })).toBeNull();
+		toggle().click();
+		flushSync();
+		expect(screen.getByRole('group', { name: 'Background map' })).toBeTruthy();
+	});
+
+	it('chooses one and closes', () => {
+		const onBackground = vi.fn();
+		render(MapControls, {
+			background: 'none',
+			showGrid: false,
+			gridLevel: 14,
+			canReset: false,
+			onBackground,
+			onToggleGrid: () => {},
+			onGridLevel: () => {},
+			onReset: () => {}
+		} as never);
+		screen.getByRole('button', { name: /No background/ }).click();
+		flushSync();
+
+		const pick = screen.getAllByRole('button').find((node) => node.classList.contains('option'))!;
+		pick.click();
+		flushSync();
+
+		expect(onBackground).toHaveBeenCalled();
+		expect(screen.queryByRole('group', { name: 'Background map' })).toBeNull();
+	});
+});
 
 describe('the grid level stepper', () => {
 	// Off, the cluster is one button doing one thing - which is what it was before this existed.

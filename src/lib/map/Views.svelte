@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import { deleteView, listViews, reorderViews, saveView, type Camera, type View } from '../ipc/commands';
+	import Dropdown from './Dropdown.svelte';
 
 	// A7's named views, application-wide rather than project-scoped ([Q21]): a place you want to
 	// come back to is worth keeping whether or not a project exists.
@@ -18,12 +19,9 @@
 	let { map }: { map: MaplibreMap | undefined } = $props();
 
 	let views = $state<View[]>([]);
-	let open = $state(false);
 	let naming = $state(false);
 	let name = $state('');
 	let error = $state<string | null>(null);
-	/// The whole control, so a pointer landing anywhere inside it does not count as clicking away.
-	let root = $state<HTMLDivElement>();
 
 	/// Where the camera is now, so the list can say which view you are on.
 	///
@@ -100,7 +98,6 @@
 			bearing: view.bearing ?? 0,
 			pitch: view.pitch ?? 0
 		});
-		close();
 	}
 
 	async function save(event: SubmitEvent) {
@@ -142,32 +139,22 @@
 		}
 	}
 
-	/// Closes, and forgets a half-typed name.
+	/// Forgets a half-typed name, whenever the panel closes.
 	///
 	/// Reopening on the input you abandoned would offer to name a view at a camera you have since
 	/// moved away from, which is not the view you were naming.
-	function close() {
-		open = false;
+	function forget() {
 		naming = false;
 		name = '';
 		error = null;
 	}
-
-	function dismiss(event: MouseEvent) {
-		if (open && root && !root.contains(event.target as Node)) close();
-	}
 </script>
 
-<svelte:window
-	onkeydown={(event) => {
-		if (event.key === 'Escape' && open) close();
-	}}
-	onpointerdown={dismiss}
-/>
-
-<div class="views" bind:this={root}>
-	{#if open}
-		<div class="panel" role="group" aria-label="Saved views">
+<Dropdown label={here ? here.name : 'Views'} title="Saved views - jump back to a place you named" onClose={forget}>
+	<!-- The toggle says the view you are on, so it reports where you are rather than only what it
+	     opens - which is why the label above is the current view's name. -->
+	{#snippet panel(close: () => void)}
+		<div role="group" aria-label="Saved views">
 			{#if views.length === 0}
 				<p class="empty">No saved views yet.</p>
 			{/if}
@@ -178,7 +165,10 @@
 						<button
 							type="button"
 							class="go"
-							onclick={() => go(view)}
+							onclick={() => {
+								go(view);
+								close();
+							}}
 							title={view === here ? 'You are here' : `Jump to ${view.name}`}
 						>
 							<span class="name truncate">{view.name}</span>
@@ -238,69 +228,10 @@
 
 			{#if error}<p class="err">{error}</p>{/if}
 		</div>
-	{/if}
-
-	<button
-		type="button"
-		class="toggle"
-		class:on={open}
-		aria-expanded={open}
-		title="Saved views - jump back to a place you named"
-		onclick={() => (open ? close() : (open = true))}
-	>
-		<!-- The name of the view you are on, so the button says where you are rather than only what
-		     it opens. -->
-		<span class="truncate">{here ? here.name : 'Views'}</span>
-		<span class="caret" aria-hidden="true">▾</span>
-	</button>
-</div>
+	{/snippet}
+</Dropdown>
 
 <style>
-	.views {
-		position: absolute;
-		top: 0.5rem;
-		left: 0.5rem;
-		z-index: 4;
-	}
-
-	.toggle {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		max-width: 11rem;
-		font-size: var(--text-sm);
-		padding: var(--space-2) var(--space-3);
-		background: var(--float-bg);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		box-shadow: var(--shadow);
-
-		&.on {
-			border-color: var(--accent);
-		}
-	}
-
-	.caret {
-		color: var(--ink-2);
-		flex: none;
-	}
-
-	/* Opens downward, away from the edge the button sits on. */
-	.panel {
-		position: absolute;
-		top: calc(100% + var(--space-2));
-		left: 0;
-		width: 15rem;
-		max-height: 60vh;
-		overflow-y: auto;
-		overscroll-behavior: contain;
-		padding: var(--space-3);
-		background: var(--float-bg);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		box-shadow: var(--shadow);
-	}
-
 	ul {
 		margin: 0;
 		padding: 0;

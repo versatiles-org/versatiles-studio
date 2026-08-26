@@ -51,11 +51,9 @@
 </form>
 
 <style>
+	/* Placed by the map's control stack ([Q52]), not by itself. */
 	form {
-		position: absolute;
-		left: 0.5rem;
-		bottom: 0.5rem;
-		z-index: 4;
+		display: block;
 	}
 
 	input {
