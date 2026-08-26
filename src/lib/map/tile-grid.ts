@@ -37,6 +37,32 @@ export function tileToLngLat(x: number, y: number, z: number): [number, number] 
  * frame that draws them.
  */
 /**
+ * The zoom level MapLibre asks a source for, at a given map zoom (A5).
+ *
+ * **MapLibre's own rule, not a guess.** `Transform.coveringZoomLevel` is
+ * `(roundZoom ? round : floor)(zoom + log2(512 / tileSize))`, and there is no `devicePixelRatio`
+ * anywhere in it - a retina screen is where this gets *noticed*, not where it comes from. Two things
+ * move the answer:
+ *
+ * - **Tile size.** 512 is MapLibre's own unit, so a 256px source is asked for one level deeper. A
+ *   pipeline ending in `raster_tile_resize tile_size=256` produces exactly that.
+ * - **Rounding.** `RasterTileSource` sets `roundZoom = true` and `RasterDEMTileSource` inherits it;
+ *   vector sources leave it false. So imagery changes level at the half, and vector at the whole.
+ *
+ * The grid drew `floor(zoom)` regardless, which is right for one of the four combinations. A grid
+ * one level out is worse than no grid: it labels tiles that were never requested.
+ *
+ * `null` for a map with nothing of ours on it - there is no source to follow, so the map's own zoom
+ * is the only answer available.
+ */
+export function requestedZoom(mapZoom: number, source: { type: string; tileSize?: number } | null | undefined): number {
+	if (!source) return Math.max(0, Math.floor(mapZoom));
+	const rounds = source.type === 'raster' || source.type === 'raster-dem';
+	const shift = Math.log2(512 / (source.tileSize ?? 512));
+	return Math.max(0, (rounds ? Math.round : Math.floor)(mapZoom + shift));
+}
+
+/**
  * The middle of one tile, in degrees.
  *
  * Where a marker for that tile goes ([S2.16](../../../docs/history.md)). `tileToLngLat` takes the

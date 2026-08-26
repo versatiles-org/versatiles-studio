@@ -46,8 +46,8 @@
 	   rather than CSS. Deliberately separate from the chrome palette above - a grid over a dark
 	   basemap is a different decision from a focus ring, even where the value matches today. */
 	--map-bg: #f2f1ec; /* the map's background layer, and the element behind the canvas */
-	--map-grid: #0e7c7b; /* z/x/y grid lines and labels (A5) */
-	--map-grid-halo: #ffffff;
+	--map-grid: #000; /* z/x/y grid lines and labels (A5) */
+	--map-grid-halo: #fff7;
 	--map-feature: #2b6cb0; /* the hairline every vector layer gets until D2 */
 	/* Tiles the map is still waiting for (S2.16). Amber rather than another blue or teal: it has to
 	   read as *work in progress* over whatever the tiles underneath happen to be, and be told apart
@@ -182,8 +182,8 @@
 		--map-shade-highlight: #b9cdd8;
 		--map-shade-accent: #0b1418;
 		--map-bg: #1b1f22;
-		--map-grid: #45c3b3;
-		--map-grid-halo: #0d1113;
+		--map-grid: #fff;
+		--map-grid-halo: #0007;
 		--map-feature: #6fa8dc;
 		--map-pending: #777777;
 		--map-label: #e4eae8;

@@ -103,7 +103,7 @@ It was an overlay inside a project window until [S7.9](history.md), which made a
 │                  MAP                    │ format, zooms   │
 │            grid overlay (A5)            │ TileJSON (A6)   │
 │            feature popup (A8)           │                 │
-│ [z/x/y jump] (A5)         [grid][reset] │                 │
+│ [z/x/y jump] (A5)   [grid][- z14 +][reset] │              │
 ├─────────────────────────────────────────┴─────────────────┤
 │ $ versatiles probe osm.versatiles -d              [copy]  │
 └───────────────────────────────────────────────────────────┘

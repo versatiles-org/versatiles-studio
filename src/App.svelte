@@ -38,6 +38,7 @@
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
 	import TileGrid from './lib/map/TileGrid.svelte';
+	import { requestedZoom } from './lib/map/tile-grid';
 	import TileActivity from './lib/map/TileActivity.svelte';
 	import CropOverlay from './lib/map/CropOverlay.svelte';
 	import MapControls from './lib/map/MapControls.svelte';
@@ -154,6 +155,41 @@
 	const editSelected = (run: (text: string) => Promise<string>) =>
 		edit(async (doc) => setPipelineText(await run(doc.text), 'structured'));
 	let showGrid = $state(false);
+
+	/// The map's zoom, as of the last gesture that ended.
+	///
+	/// From `onMove` rather than from `map.getZoom()`, so it is reactive: the grid's level and the
+	/// number in the control that sets it are derived from this, and both have to move when the map
+	/// does. `moveend` is enough - the grid itself only redraws then.
+	let mapZoom = $state(0);
+
+	/// How far the grid has been walked off the level the source is actually requesting (A5).
+	let gridOffset = $state(0);
+
+	/// The source the grid follows: the one the selected graph drew.
+	///
+	/// Its own style rather than the composed stack, because the stack renames the source key when
+	/// more than one thing draws and the *type* and tile size are what decide the level ([Q51] made
+	/// the entry's own style available for the same reason).
+	const gridSource = $derived.by(() => {
+		const style = editedEntry?.style;
+		if (!style) return null;
+		const [key] = Object.keys(style.sources);
+		return (style.sources[key] ?? null) as { type: string; tileSize?: number } | null;
+	});
+
+	/// What MapLibre is asking that source for, and what the grid draws once a nudge is applied.
+	const gridBase = $derived(requestedZoom(mapZoom, gridSource));
+	const gridLevel = $derived(Math.max(0, gridBase + gridOffset));
+
+	// **A nudge belongs to the source it was made on.** The offset exists because one rule cannot
+	// answer for a stack whose sources disagree; carrying it to the next pipeline would silently
+	// re-introduce the off-by-one this control was added to end.
+	$effect(() => {
+		void gridSource?.type;
+		void gridSource?.tileSize;
+		gridOffset = 0;
+	});
 
 	/// What each node's fields could be set to, by the node's path (S3.4).
 	///
@@ -984,7 +1020,10 @@
 					{style}
 					bind:map
 					initialView={layout.current?.view ?? null}
-					onMove={(view) => layout.rememberView(view)}
+					onMove={(view) => {
+						mapZoom = view.zoom;
+						layout.rememberView(view);
+					}}
 					onStyleLoad={() => preview.restore(map, previewDrawn)}
 				/>
 			{/if}
@@ -995,7 +1034,7 @@
 				source={preview.containers.at(-1)?.info.source ?? null}
 				mount={preview.last?.name ?? null}
 			/>
-			<TileGrid {map} visible={showGrid} />
+			<TileGrid {map} visible={showGrid} level={gridLevel} />
 			<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
 		     has no visibility of its own to toggle. -->
 			<TileActivity {map} />
@@ -1024,9 +1063,12 @@
 				<MapControls
 					{background}
 					{showGrid}
+					{gridLevel}
+					gridNudged={gridOffset !== 0}
 					canReset={Boolean(preview.last?.info.bbox)}
 					onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
 					onToggleGrid={() => (showGrid = !showGrid)}
+					onGridLevel={(by) => (gridOffset = by === 0 ? 0 : gridOffset + by)}
 					onReset={resetView}
 				/>
 			{/if}
