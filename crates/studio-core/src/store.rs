@@ -380,20 +380,28 @@ impl Layout {
 /// * **A duplicate** keeps its first appearance. Nothing produces one, but a hand-edited file can,
 ///   and two panes with one id would render the same content twice and toggle together.
 fn reconcile_panes(stored: Vec<PaneState>) -> Vec<PaneState> {
+	// **What the file knows, decided before anything is kept.** The arrivals below ask whether a
+	// pane is missing, and asking the half-built list instead answers "yes" for a pane the file
+	// holds *later* - so `layers`, which a stored layout lists after `style`, was replaced by a
+	// fresh default on every load and the stored one dropped as a duplicate. Open it, and it came
+	// back closed the moment the core answered.
+	let known_here: std::collections::BTreeSet<&str> = stored.iter().map(|pane| pane.id.as_str()).collect();
+	let missing = |id: &str| !known_here.contains(id);
+
 	let mut panes: Vec<PaneState> = Vec::with_capacity(PANES.len());
-	for pane in stored {
+	for pane in stored.iter().cloned() {
 		// **A pane that was split out of another arrives beside it, not at the end.** Appending is
 		// right for a pane that is genuinely new, and wrong here: `sources` was the top half of
 		// `pipeline` until [Q50], so a stored layout that knows only `pipeline` should show the two
 		// in the order a fresh install does. Nothing else can put it there - reordering panes by
 		// hand is deliberately not built ([Q31]).
-		if pane.id == "pipeline" && !panes.iter().any(|kept| kept.id == "sources") {
+		if pane.id == "pipeline" && missing("sources") {
 			panes.push(PaneState::from(&("sources", pane.side, true)));
 		}
 		// **And the layer tree arrives below the pane it was taken out of**, for the same reason: it
 		// was the bottom of `style` until the stack became project-wide, so a stored layout that
 		// knows only `style` should show the two in the order a fresh install does.
-		if pane.id == "style" && !panes.iter().any(|kept| kept.id == "layers") {
+		if pane.id == "style" && missing("layers") {
 			panes.push(pane.clone());
 			panes.push(PaneState::from(&("layers", pane.side, false)));
 			continue;
@@ -772,6 +780,34 @@ mod tests {
 		let layers = layout.panes.iter().find(|p| p.id == "layers").unwrap();
 		assert_eq!(layers.side, Side::Left);
 		assert!(!layers.open, "and closed, the way a fresh install has it");
+	}
+
+	/// **A layout that already knows a pane keeps what it says about it.** The arrival rules ask
+	/// whether a pane is missing, and asking the half-built list rather than the file answers "yes"
+	/// for one the file lists *later* - so `layers`, which sits after `style`, was replaced by a
+	/// fresh default on every load and the stored one dropped as a duplicate. Opening the pane and
+	/// finding it shut again the moment the core answered is what that looked like.
+	#[test]
+	fn a_stored_pane_keeps_its_state_even_when_an_arrival_rule_names_it() {
+		let layout = Layout {
+			panes: vec![
+				pane("sources", Side::Left, true),
+				pane("pipeline", Side::Left, true),
+				pane("style", Side::Left, true),
+				pane("layers", Side::Left, true),
+				pane("inspector", Side::Right, true),
+			],
+			..Layout::default()
+		}
+		.normalised();
+
+		let layers = layout.panes.iter().find(|p| p.id == "layers").unwrap();
+		assert!(layers.open, "the file said open, and nothing here may say otherwise");
+		assert_eq!(
+			layout.panes.iter().filter(|p| p.id == "layers").count(),
+			1,
+			"and it is not there twice"
+		);
 	}
 
 	/// Nothing produces a duplicate, but a hand-edited file can - and two panes with one id would
