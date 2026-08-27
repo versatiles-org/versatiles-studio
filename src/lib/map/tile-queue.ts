@@ -66,6 +66,17 @@ interface Waiter {
 	resolve: () => void;
 	reject: (error: unknown) => void;
 	cancel: () => void;
+	/**
+	 * Lets go of the caller's signal.
+	 *
+	 * **However the waiter leaves the queue, not only when it is cancelled.** A tile that waited and
+	 * then got its slot is still being fetched, and MapLibre aborts that signal as soon as the tile
+	 * leaves the viewport - which used to run `cancel` on a waiter that was no longer in the queue:
+	 * a `reject` on a settled promise, which does nothing, and a `#changed()`, which reports a queue
+	 * length that has not changed. One stale listener and one spurious count per queued tile, for as
+	 * long as the signal lived.
+	 */
+	detach: () => void;
 }
 
 /** The error a cancelled tile rejects with. MapLibre treats an `AbortError` as "never mind". */
@@ -126,7 +137,8 @@ export class TileQueue {
 					if (index >= 0) this.#waiting.splice(index, 1);
 					this.#changed();
 					reject(aborted());
-				}
+				},
+				detach: () => signal?.removeEventListener('abort', waiter.cancel)
 			};
 			this.#waiting.push(waiter);
 			signal?.addEventListener('abort', waiter.cancel, { once: true });
@@ -139,6 +151,8 @@ export class TileQueue {
 		const next = this.#waiting.shift();
 		if (next) {
 			this.#running += 1;
+			// Off the queue, so its cancellation is no longer this queue's business - see `detach`.
+			next.detach();
 			next.resolve();
 		}
 		this.#changed();

@@ -78,6 +78,38 @@ describe('TileQueue', () => {
 			expect([queue.running, queue.queued]).toEqual([0, 0]);
 		});
 
+		/**
+		 * A tile that waited and then got its slot is no longer the queue's business.
+		 *
+		 * MapLibre aborts a tile's signal as soon as it leaves the viewport, which is routine and
+		 * happens long after most tiles have been served. While the listener stayed attached that
+		 * arrived as a cancellation of a waiter no longer in the queue: a `reject` on a promise that
+		 * had already resolved, and a change notification reporting a count that had not changed.
+		 */
+		it('lets go of the signal once the tile has taken its slot', async () => {
+			let changes = 0;
+			const queue = new TileQueue(1, () => (changes += 1));
+			const a = held();
+			const b = held();
+			const controller = new AbortController();
+
+			void queue.run(a.task);
+			const waited = queue.run(b.task, controller.signal);
+			await Promise.resolve();
+			expect(queue.queued).toBe(1);
+
+			// `b` stops waiting and starts running.
+			a.finish();
+			await vi.waitFor(() => expect(queue.queued).toBe(0));
+
+			const settled = changes;
+			controller.abort();
+			expect(changes, 'the queue is still listening to a signal that is no longer its business').toBe(settled);
+
+			b.finish();
+			await expect(waited).resolves.toBeUndefined();
+		});
+
 		it('a cancelled tile does not consume the slot it never took', async () => {
 			const queue = new TileQueue(1);
 			const a = held();
