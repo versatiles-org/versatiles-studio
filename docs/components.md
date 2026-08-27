@@ -91,6 +91,12 @@ lib/common/                            used by more than one owner
 - **Presentational components take data, not services.** Anything touching IPC goes through a thin
   layer above them, so components stay testable without a Tauri runtime - the same rule the Rust core
   follows ([Q3](decisions.md)).
+- **A rule does not live in the page root.** `App.svelte` is wiring and markup; anything that decides
+  something goes to the module it is about - `map/composition.svelte.ts` for what the map draws,
+  `shell/window-events.svelte.ts` for what reaches a window from outside it,
+  `state/workbench.svelte.ts` for opening things and the order that keeps every view agreeing. A rule
+  inside a component can only be checked by opening the application and looking, which is how the
+  background map came to be unreachable however it was set, for three releases, with nothing failing.
 - **The right pane never shows global settings.** Those belong to the asset manager or project
   settings, or the pane becomes a junk drawer.
 

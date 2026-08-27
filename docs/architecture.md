@@ -113,10 +113,11 @@ versatiles-studio/
 │   └── lib/
 │       ├── shell/              the frame: AppShell · Sidebar · Pane · bars
 │       ├── panes/<pane>/       each pane and its own parts               (Q31)
-│       ├── map/                the map's components and its helpers
+│       ├── map/                its components, its helpers, and what it draws
 │       ├── common/             used by more than one owner
 │       ├── ipc/                bindings.ts (generated) + typed wrappers
-│       ├── state/              view state, and mirrors of core state     (Q16)
+│       ├── state/              view state, mirrors of the core's, and the
+│       │                      sequencing that keeps them agreeing      (Q16)
 │       ├── styles/             tokens, base, and reading tokens from JS
 │       └── vpl/                parsing and highlighting, for the editor
 │
