@@ -224,8 +224,9 @@ samp {
 /*
  * One line, clipped with an ellipsis. Written out in full in seven places before this existed.
  *
- * This is the only utility class, and the bar for a second one is high: a utility has to be
+ * The only utility class of our own, and the bar for a second is high: a utility has to be
  * remembered in the markup, which is a second mechanism to keep in your head alongside scoped CSS.
+ * (`.visually-hidden` below is a utility too, but it is the standard recipe rather than a decision.)
  * `min-width: 0` was a candidate and did not make it - it is one declaration, it belongs with the
  * layout rules that make it necessary, and applying it through markup at every level of a nesting
  * chain would be easier to get wrong, not harder.
