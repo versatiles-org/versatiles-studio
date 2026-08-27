@@ -8,10 +8,9 @@
  * `App.svelte` - what a reader gets back, and when there is nothing to give them.
  *
  * The derivations below it - which graphs are in the stack, in what order, and which one the pane is
- * acting on - are `stack.ts`'s rules applied to module state, and asserting them here would need a
- * reactive source this file cannot have: no test in this repository is compiled with runes, so a
- * mocked getter is not tracked and a `$derived` over it never invalidates. They are covered where
- * the rules live.
+ * acting on - need a *reactive* source to be worth asserting: a `$derived` over a plain mocked getter
+ * is computed once and cached, so a test that mutated one would be reading the first answer forever.
+ * `fixture` is `$state`, which is what makes the reads below track.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -20,16 +19,70 @@ const ipc = vi.hoisted(() => ({ serverBaseUrl: vi.fn() }));
 vi.mock('../ipc/commands', () => ipc);
 vi.mock('./background', () => ({ buildBackground: vi.fn() }));
 
-vi.mock('../state/graphs.svelte', () => ({ graphs: { list: [], nameOf: () => null } }));
-vi.mock('../state/document.svelte', () => ({ document: { graph: null } }));
-vi.mock('../state/preview.svelte', () => ({ preview: { built: {} } }));
+/** What the state modules would hold. `$state`, so a `$derived` over it invalidates. */
+const fixture = $state({
+	graphs: [] as { id: number; name: string }[],
+	recipe: null as unknown,
+	built: {} as Record<string, unknown>,
+	graph: null as number | null
+});
+
+vi.mock('../state/graphs.svelte', () => ({
+	graphs: {
+		get list() {
+			return fixture.graphs;
+		},
+		nameOf: (id: number) => fixture.graphs.find((graph) => graph.id === id)?.name ?? null
+	}
+}));
+vi.mock('../state/document.svelte', () => ({
+	document: {
+		get graph() {
+			return fixture.graph;
+		}
+	}
+}));
+vi.mock('../state/preview.svelte', () => ({
+	preview: {
+		get built() {
+			return fixture.built;
+		}
+	}
+}));
+vi.mock('../state/style.svelte', () => ({
+	style: {
+		get current() {
+			return fixture.recipe;
+		}
+	}
+}));
 vi.mock('../state/layout.svelte', () => ({ layout: { background: 'none' } }));
-vi.mock('../state/style.svelte', () => ({ style: { current: null } }));
 vi.mock('../state/status.svelte', () => ({ status: { fail: vi.fn() } }));
 
 const { composition } = await import('./composition.svelte');
 
-beforeEach(() => vi.clearAllMocks());
+/** A built graph, with only the fields the composition reads. */
+const build = (name: string) => ({
+	name,
+	tileUrl: `http://x/${name}/{z}/{x}/{y}`,
+	layers: [{ name: 'water', geometry: 'polygon' }],
+	info: {
+		tileFormat: 'mvt',
+		tileSchema: null,
+		bbox: null,
+		minZoom: 0,
+		maxZoom: 14,
+		tileJson: { vector_layers: [{ id: 'water' }] }
+	}
+});
+
+beforeEach(() => {
+	fixture.graphs = [];
+	fixture.recipe = null;
+	fixture.built = {};
+	fixture.graph = null;
+	vi.clearAllMocks();
+});
 
 describe('the style the map is given', () => {
 	// Every tile URL names the server's port, and the port is ephemeral - so until it answers there
@@ -71,5 +124,61 @@ describe('the style the map is given', () => {
 	// than the window opening onto nothing (Q54).
 	it('falls back to the default when nothing is built', () => {
 		expect(composition.style?.layers.length).toBeGreaterThan(0);
+	});
+});
+
+describe('which source the pane acts on', () => {
+	/**
+	 * The bug [Q51] describes, one level up: selecting a graph rebuilds nothing, so the pane went on
+	 * showing the previous graph's layers while every control wrote into the newly selected one's
+	 * recipe, keyed on ids it did not have. Both halves have to follow the *selection*.
+	 */
+	it('follows the selection rather than the last thing built', async () => {
+		ipc.serverBaseUrl.mockResolvedValue('http://127.0.0.1:9000');
+		await composition.load();
+		fixture.graphs = [
+			{ id: 1, name: 'basemap' },
+			{ id: 2, name: 'places' }
+		];
+		fixture.built = { basemap: build('basemap'), places: build('places') };
+		fixture.recipe = { sources: {}, order: [] };
+
+		fixture.graph = 1;
+		expect(composition.editedName).toBe('basemap');
+		expect(composition.edited?.name).toBe('basemap');
+
+		fixture.graph = 2;
+		expect(composition.editedName).toBe('places');
+		expect(composition.edited?.name).toBe('places');
+	});
+});
+
+describe('the graphs in draw order', () => {
+	// Top of the list first, which is the reverse of the order the layers are emitted in.
+	it('lists them top of the map first', () => {
+		fixture.graphs = [
+			{ id: 1, name: 'basemap' },
+			{ id: 2, name: 'places' }
+		];
+		fixture.recipe = {
+			sources: {},
+			order: [
+				{ source: 'basemap', from: null },
+				{ source: 'places', from: null }
+			]
+		};
+
+		expect(composition.stacked.map((graph) => graph.name)).toEqual(['places', 'basemap']);
+	});
+
+	/// A graph that will not build keeps its place in the one control that can move it ([Q50]).
+	it('keeps a graph that has never been built', () => {
+		fixture.graphs = [
+			{ id: 1, name: 'basemap' },
+			{ id: 2, name: 'broken' }
+		];
+		fixture.built = { basemap: build('basemap') };
+
+		expect(composition.stacked.map((graph) => graph.name)).toContain('broken');
 	});
 });

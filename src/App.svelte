@@ -1,10 +1,6 @@
 <script lang="ts">
 	import { save } from '@tauri-apps/plugin-dialog';
 	import { untrack } from 'svelte';
-	import { getCurrentWebview } from '@tauri-apps/api/webview';
-	import { listen } from '@tauri-apps/api/event';
-	import { openUrl } from '@tauri-apps/plugin-opener';
-	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import AppShell from './lib/shell/AppShell.svelte';
 	import StatusBar from './lib/shell/StatusBar.svelte';
@@ -13,7 +9,6 @@
 	import { connectJobs } from './lib/state/jobs.svelte';
 	import { refresh as refreshProblems, reportProblem, watch as watchForProblems } from './lib/state/diagnostics.svelte';
 	import { panels } from './lib/shell/StatusBar.svelte';
-	import { REPOSITORY } from './lib/common/repository';
 	import { anyExtension, askForSource } from './lib/common/import';
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
@@ -29,6 +24,7 @@
 	import LayersPane from './lib/panes/layers/LayersPane.svelte';
 	import { move, segmentsFrom } from './lib/panes/layers/move';
 	import Sidebar from './lib/shell/Sidebar.svelte';
+	import { windowEvents } from './lib/shell/window-events.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
 	import SourcesPane from './lib/panes/sources/SourcesPane.svelte';
 	import StylePane from './lib/panes/style/StylePane.svelte';
@@ -51,10 +47,6 @@
 	import { declaredLayers } from './lib/map/tile-json';
 	import { composition } from './lib/map/composition.svelte';
 	import {
-		takeOpened,
-		OPENED_EVENT,
-		MENU_EVENT,
-		refreshMenu,
 		setCrop,
 		addGraph,
 		setGraph,
@@ -275,42 +267,6 @@
 	// `composition.follow`.
 	composition.follow();
 
-	// ⌘Z / ⇧⌘Z reach the document from anywhere, because there is one stack for every view (G6).
-	//
-	// A focused `<input>` or `<select>` keeps its own undo: the user is mid-edit in a parameter
-	// field and has not committed anything yet, so the document has nothing to step back to. The VPL
-	// textarea is deliberately *not* excluded - its text is the document, and letting the browser
-	// undo it locally would leave the two disagreeing until the next keystroke.
-	$effect(() => {
-		const onKey = (event: KeyboardEvent) => {
-			if (!(event.metaKey || event.ctrlKey)) return;
-			const key = event.key.toLowerCase();
-			const tag = (event.target as HTMLElement | null)?.tagName;
-			// **⌘S is the menu's now, and it saves the project.** It used to save the current `.vpl`
-			// from here, which was right when a window held one document and became quietly wrong
-			// when a project became the thing you open and share ([Q6]). The pipeline keeps its own
-			// Save and Save as… buttons in the pane that owns it ([Q31]).
-			//
-			// Undo stays here on purpose: a menu accelerator is handled before the webview sees the
-			// key, so a ⌘Z item would take the keystroke away from the rule below and hand it to
-			// whichever text box had focus.
-			if (key !== 'z' || tag === 'INPUT' || tag === 'SELECT') return;
-			event.preventDefault();
-			void stepHistory(!event.shiftKey);
-		};
-		window.addEventListener('keydown', onKey);
-		return () => window.removeEventListener('keydown', onKey);
-	});
-
-	// The window title says which container this window holds - the native equivalent of the in-app
-	// strip that used to repeat the application name back at the OS title bar. One window per
-	// project (Q16), so the window is the right place to name it.
-	$effect(() => {
-		const newest = preview.containers.at(-1)?.info.source;
-		const name = newest ? (newest.split(/[/\\]/).pop() ?? newest) : null;
-		void getCurrentWindow().setTitle(name ? `${name} - VersaTiles Studio` : 'VersaTiles Studio');
-	});
-
 	// Applied locally first so a collapse paints without waiting on the round trip, then persisted.
 	// The core clamps, so what comes back is authoritative and replaces the optimistic copy.
 	/// Writes text into the current graph, creating one if this is the first thing opened.
@@ -509,89 +465,30 @@
 		if (map && bbox) fitToBounds(map, bbox, true);
 	}
 
-	/// What a native menu choice does (S0.1).
-	///
-	/// **The menu says which, and this says what.** Every one of these already existed as a button
-	/// or a shortcut; the switch is the whole of the wiring, and the actions stay where the state
-	/// they touch is. `new-window` is absent because the shell answers that one itself - no window
-	/// is involved in opening a window.
-	$effect(() => {
-		const unlisten = listen<string>(MENU_EVENT, ({ payload }) => {
-			switch (payload) {
-				case 'open':
-					void pick();
-					return;
-				case 'open-project':
-					void openProjectDir();
-					return;
-				case 'save-project':
-					void project.save(() => composition.text());
-					return;
-				case 'save-project-as':
-					void project.saveAs(() => composition.text());
-					return;
-				case 'save-copy':
-					void project.showCopy();
-					return;
-				case 'fonts':
-					assets = true;
-					return;
-				case 'check-updates':
-					updating = true;
-					return;
-				case 'problems':
-					panels.show('problems');
-					return;
-				case 'report-problem':
-					void reportProblem('this').catch((error: unknown) => status.fail(error));
-					return;
-				case 'repository':
-					void openUrl(REPOSITORY).catch((error: unknown) => status.fail(error));
-					return;
-			}
-		});
-		return () => void unlisten.then((stop) => stop());
-	});
-
-	/// Keeps the menu's Save items in step with whether there is anything to save.
-	///
-	/// A native menu cannot read a `$derived`, so the moment the answer changes has to be *said* -
-	/// but not the answer itself, which the core already holds (S7.8). Failing is left to the problem
-	/// log rather than the status bar: a menu item that stays enabled is a message someone gets when
-	/// they use it, not something to interrupt them with now.
-	$effect(() => {
-		void graphs.empty;
-		void refreshMenu();
-	});
-
-	// A file double-clicked in Finder or passed on the command line. It can arrive before this
-	// window exists, so the queue is drained on start as well as on the event - the event alone
-	// would miss the launch case entirely.
-	$effect(() => {
-		void drainOpened();
-		const unlisten = listen(OPENED_EVENT, () => void drainOpened());
-		return () => void unlisten.then((stop) => stop());
-	});
-
-	async function drainOpened() {
-		for (const path of await takeOpened().catch(() => [])) {
-			// **A project folder is not a file to import** (S7.5). The launcher hands one over the
-			// same queue a double-clicked container arrives on, and everything here used to go to
-			// `load`, which asks the catalogue for a read node and gets none for a directory.
+	/// Everything that reaches this window from outside it - see `window-events.svelte.ts`.
+	windowEvents.listen({
+		open: () => void pick(),
+		openProject: () => void openProjectDir(),
+		saveProject: () => void project.save(() => composition.text()),
+		saveProjectAs: () => void project.saveAs(() => composition.text()),
+		saveCopy: () => void project.showCopy(),
+		showAssets: () => (assets = true),
+		showUpdates: () => (updating = true),
+		showProblems: () => panels.show('problems'),
+		reportProblem: () => void reportProblem('this').catch((error: unknown) => status.fail(error)),
+		// **A project folder is not a file to import** (S7.5). The launcher hands one over the same
+		// queue a double-clicked container arrives on, and everything here used to go to `load`, which
+		// asks the catalogue for a read node and gets none for a directory.
+		openPath: async (path) => {
 			if (await isProject(path).catch(() => false)) await adopt(() => project.at(path));
 			else await load(path);
+		},
+		accepts: (path) => accepted.some((ext) => path.toLowerCase().endsWith(`.${ext}`)),
+		stepHistory: (back) => void stepHistory(back),
+		title: () => {
+			const newest = preview.containers.at(-1)?.info.source;
+			return newest ? (newest.split(/[/\\]/).pop() ?? newest) : null;
 		}
-	}
-
-	// Drag & drop is a shell affordance, so it goes through the same path as the file dialog.
-	$effect(() => {
-		const unlisten = getCurrentWebview().onDragDropEvent((event) => {
-			if (event.payload.type !== 'drop') return;
-			for (const path of event.payload.paths) {
-				if (accepted.some((ext) => path.toLowerCase().endsWith(`.${ext}`))) void load(path);
-			}
-		});
-		return () => void unlisten.then((f) => f());
 	});
 
 	/// Opens the file dialog, narrowed to one import kind when the caller knows which.
