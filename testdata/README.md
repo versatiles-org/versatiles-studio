@@ -33,9 +33,17 @@ named them anything else would be the other case, and is worth adding when somet
 
 ## Sidecars
 
-`farmland.jpg` and `bluemarble.png` carry a world file (`.jgw`, `.pgw`) and a `.prj`, because neither
-format holds georeferencing itself and a raster with no extent cannot be tiled. `places.shp` carries
-the `.shx`, `.dbf`, `.cpg` and `.prj` a shapefile is not a shapefile without.
+`farmland.jpg` and `bluemarble.png` carry a world file (`.jgw`, `.pgw`) **and a `.aux.xml`**, because
+neither format holds georeferencing itself and a raster with no extent and no CRS cannot be tiled.
+`places.shp` carries the `.shx`, `.dbf`, `.cpg` and `.prj` a shapefile is not a shapefile without.
+
+**The world file is the extent; the `.aux.xml` is the CRS**, and it is easy to get this wrong because
+the failure is so quiet. These two were first written with a world file and a `.prj` - the ESRI
+convention - which GDAL's JPEG and PNG drivers do not read. `gdalinfo` then reports an origin and a
+pixel size and no coordinate system, which looks close enough to right, and `from_gdal_raster` refuses
+the file with `Unable to get a spatial reference`. So keep the `.aux.xml` that `gdal_translate -a_srs`
+writes beside these two; deleting it as clutter is what broke them. `crates/studio-core/tests/testdata.rs`
+now fails if either goes missing.
 
 **`aerial-northwest.vrt` references `aerial.tif` by a relative path**, which is what a VRT normally
 does and what makes this folder movable as a whole. It is also the case worth having: a path inside a
