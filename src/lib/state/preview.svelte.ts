@@ -77,43 +77,59 @@ export interface Context {
 	restored: boolean;
 }
 
-/** The opened containers, each with the read node it corresponds to (Q22). */
-let containers = $state<OpenedContainer[]>([]);
-
 /**
- * The preview this module draws as hairlines, and whether they are on the map right now.
+ * Everything this module holds, as one record.
  *
- * **One record, because it used to be two and they could disagree.** `last` was "the preview that
- * was built" and `mountedName` was "what is on the map", and only the second was ever cleared -
- * so `forget` and `clear` left the first pointing at a graph that had just been switched off or
- * deleted, and the next style swap put its tiles back through [`restore`]. Since switching a graph
- * off does not unmount it on the server, those tiles really did come back.
- *
- * `onMap` is false between a build and the layers going on, and stays false for a preview a style
- * is drawing - the recipe's own source and layers are on the map then, and they are not this
- * module's to take off again.
+ * **Together, so `reset` cannot fall behind them.** These were four separate `let`s and the test
+ * seam listed them by hand - which it got wrong once already: `built` arrived with the source stack
+ * (S6.5) and was not added there, so graphs mounted by one case were still in the stack for the
+ * next. Naming them once means a field added next year is reset by the line that already exists.
  */
-let hairlines = $state<{ preview: Preview; onMap: boolean } | null>(null);
+function empty() {
+	return {
+		/** The opened containers, each with the read node it corresponds to (Q22). */
+		containers: [] as OpenedContainer[],
 
-/**
- * Every graph built this session, by name ([S6.5](../../../docs/history.md)).
- *
- * **What the stack is drawn from.** A style names several sources now, so the map needs every
- * graph's tiles and not only the one being edited. Built once - [`mountAll`] does it when a project
- * opens, where a person already expects to wait - and refreshed one at a time afterwards, so typing
- * costs exactly what it costs today rather than a job per graph per keystroke.
- */
-let built = $state<Record<string, Preview>>({});
+		/**
+		 * The preview this module draws as hairlines, and whether they are on the map right now.
+		 *
+		 * **One record, because it used to be two and they could disagree.** `last` was "the preview
+		 * that was built" and `mountedName` was "what is on the map", and only the second was ever
+		 * cleared - so `forget` and `clear` left the first pointing at a graph that had just been
+		 * switched off or deleted, and the next style swap put its tiles back through [`restore`].
+		 * Since switching a graph off does not unmount it on the server, those tiles really did come
+		 * back.
+		 *
+		 * `onMap` is false between a build and the layers going on, and stays false for a preview a
+		 * style is drawing - the recipe's own source and layers are on the map then, and they are not
+		 * this module's to take off again.
+		 */
+		hairlines: null as { preview: Preview; onMap: boolean } | null,
 
-/**
- * Whether the camera has already been sent to the data.
- *
- * Its own field rather than a reading of the one above, because the rule it decides - "frame the
- * data when it first appears, and never again" - is about what a person can *see*. A styled preview
- * counts even though this module drew none of it, so asking whether the hairlines are on the map
- * would refit the map the moment a style was switched off.
- */
-let framed = $state(false);
+		/**
+		 * Every graph built this session, by name ([S6.5](../../../docs/history.md)).
+		 *
+		 * **What the stack is drawn from.** A style names several sources now, so the map needs every
+		 * graph's tiles and not only the one being edited. Built once - [`mountAll`] does it when a
+		 * project opens, where a person already expects to wait - and refreshed one at a time
+		 * afterwards, so typing costs exactly what it costs today rather than a job per graph per
+		 * keystroke.
+		 */
+		built: {} as Record<string, Preview>,
+
+		/**
+		 * Whether the camera has already been sent to the data.
+		 *
+		 * Its own field rather than a reading of the one above, because the rule it decides - "frame
+		 * the data when it first appears, and never again" - is about what a person can *see*. A
+		 * styled preview counts even though this module drew none of it, so asking whether the
+		 * hairlines are on the map would refit the map the moment a style was switched off.
+		 */
+		framed: false
+	};
+}
+
+let held = $state(empty());
 
 /**
  * Opens a container and remembers it.
@@ -123,7 +139,7 @@ let framed = $state(false);
  */
 async function mount(source: string): Promise<OpenedContainer> {
 	const result = await openContainer(source);
-	containers = [...containers.filter((c) => c.info.source !== result.info.source), result];
+	held.containers = [...held.containers.filter((c) => c.info.source !== result.info.source), result];
 	return result;
 }
 
@@ -135,9 +151,9 @@ async function mount(source: string): Promise<OpenedContainer> {
  * again" clear the record themselves.
  */
 function takeOff(map: MaplibreMap | undefined): void {
-	if (!hairlines?.onMap) return;
-	if (map) removeContainerFromMap(map, hairlines.preview.name);
-	hairlines = { preview: hairlines.preview, onMap: false };
+	if (!held.hairlines?.onMap) return;
+	if (map) removeContainerFromMap(map, held.hairlines.preview.name);
+	held.hairlines = { preview: held.hairlines.preview, onMap: false };
 }
 
 /**
@@ -152,26 +168,26 @@ function takeOff(map: MaplibreMap | undefined): void {
  * follows, which is why this needs no map: see the invariant in the module header.
  */
 function forget(name: string): void {
-	if (hairlines?.preview.name === name) hairlines = null;
-	if (!(name in built)) return;
-	const next = { ...built };
+	if (held.hairlines?.preview.name === name) held.hairlines = null;
+	if (!(name in held.built)) return;
+	const next = { ...held.built };
 	delete next[name];
-	built = next;
+	held.built = next;
 }
 
 export const preview = {
 	get containers(): OpenedContainer[] {
-		return containers;
+		return held.containers;
 	},
 
 	/** The preview this module would draw as hairlines, or `null` when there is none. */
 	get hairlines(): Preview | null {
-		return hairlines?.preview ?? null;
+		return held.hairlines?.preview ?? null;
 	},
 
 	/** Every graph built this session, by name - the stack a style is composed over (S6.5). */
 	get built(): Record<string, Preview> {
-		return built;
+		return held.built;
 	},
 
 	/**
@@ -194,11 +210,11 @@ export const preview = {
 					.catch(() => null)
 			)
 		);
-		const next = { ...built };
+		const next = { ...held.built };
 		for (const result of results) {
 			if (result) next[result.name] = result;
 		}
-		built = next;
+		held.built = next;
 	},
 
 	/**
@@ -219,7 +235,7 @@ export const preview = {
 	async rebuild(id: number, name: string | null): Promise<void> {
 		const mounted = await mountGraph(id).catch(() => null);
 		if (!mounted) return;
-		if (mounted.type === 'tiles') built = { ...built, [mounted.preview.name]: mounted.preview };
+		if (mounted.type === 'tiles') held.built = { ...held.built, [mounted.preview.name]: mounted.preview };
 		else if (mounted.type === 'notDrawn' && name !== null) forget(name);
 	},
 
@@ -275,7 +291,7 @@ export const preview = {
 			// The record goes too, not just the layers: there is nothing here for `restore` to put back
 			// after the style swap that this is about to cause.
 			takeOff(map);
-			hairlines = null;
+			held.hairlines = null;
 			return { kind: 'nothing' };
 		}
 
@@ -283,17 +299,17 @@ export const preview = {
 
 		// **Whether anything was already drawn, read before it is cleared.** It decides the camera
 		// below, and two lines from now the answer is gone.
-		const wasFramed = framed;
+		const wasFramed = held.framed;
 
 		// Off the map before the record is overwritten - afterwards there is nothing left to remove it
 		// with, and the layer stays on the map for the rest of the session.
 		takeOff(map);
 
-		hairlines = { preview: result, onMap: false };
+		held.hairlines = { preview: result, onMap: false };
 		// The edited graph's entry in the stack follows what was just built, so the map shows the
 		// edit rather than what this graph looked like when the project opened.
-		built = { ...built, [result.name]: result };
-		framed = true;
+		held.built = { ...held.built, [result.name]: result };
+		held.framed = true;
 
 		// **The camera moves when tiles first appear, and never again on its own.** Every edit to
 		// the VPL rebuilds the preview, so refitting here would drag the map back to the data's
@@ -325,7 +341,7 @@ export const preview = {
 			return { kind: 'unrenderable', message: whyNotRenderable(result.info.tileFormat) };
 		}
 
-		hairlines = { preview: result, onMap: true };
+		held.hairlines = { preview: result, onMap: true };
 		return { kind: 'shown' };
 	},
 
@@ -350,10 +366,10 @@ export const preview = {
 			if (property?.value.kind === 'single' && property.value.value) wanted.add(property.value.value);
 		}
 
-		containers = containers.filter((c) => wanted.has(c.info.source));
+		held.containers = held.containers.filter((c) => wanted.has(c.info.source));
 
 		for (const source of wanted) {
-			if (containers.some((c) => c.info.source === source)) continue;
+			if (held.containers.some((c) => c.info.source === source)) continue;
 			onOpening(source);
 			await mount(source);
 		}
@@ -369,10 +385,10 @@ export const preview = {
 	restore(map: MaplibreMap | undefined, styled: boolean): void {
 		// Whatever was on the map went with the old style, so it is no longer this module's to remove -
 		// and the new style may well own a source of that same name.
-		if (!hairlines) return;
-		const { preview } = hairlines;
-		hairlines = { preview, onMap: false };
-		if (map && !styled && addContainerToMap(map, preview)) hairlines = { preview, onMap: true };
+		if (!held.hairlines) return;
+		const { preview } = held.hairlines;
+		held.hairlines = { preview, onMap: false };
+		if (map && !styled && addContainerToMap(map, preview)) held.hairlines = { preview, onMap: true };
 	},
 
 	/**
@@ -383,21 +399,19 @@ export const preview = {
 	 */
 	clear(map: MaplibreMap | undefined): void {
 		takeOff(map);
-		hairlines = null;
-		framed = false;
+		held.hairlines = null;
+		held.framed = false;
 	},
 
 	/**
 	 * Test seam: the module is a singleton, and state from one case must not reach the next.
 	 *
-	 * **Every field, or the seam lies.** `built` was added with the source stack (S6.5) and not added
-	 * here, so graphs mounted by one case were still in the stack for the next - which a test only
-	 * notices if it happens to assert on the whole of it.
+	 * **Every field, and it cannot be otherwise now.** This used to list them by hand and got it
+	 * wrong once: `built` arrived with the source stack (S6.5) and was not added here, so graphs
+	 * mounted by one case were still in the stack for the next - which a test only notices if it
+	 * happens to assert on the whole of it. `empty()` is the one list, and this is the one line.
 	 */
 	reset(): void {
-		containers = [];
-		hairlines = null;
-		framed = false;
-		built = {};
+		held = empty();
 	}
 };
