@@ -152,6 +152,8 @@ Which component lives in which of those folders, and why, is [Svelte Components]
 
 **And a new revision is a swap, not a new source.** The webview owns the other half of that: handing MapLibre a whole style makes its diff take a source whose tile URL changed off the map and put it back, discarding every rendered tile to fetch the same squares again. `map/tile-swap.ts` recognises the case where a change is nothing but tile URLs and calls `setTiles`, which reloads each tile in view while it keeps drawing the one it has. Everything else - a layer added, a preset, a source arriving or leaving, a background - still goes through `setStyle`, because the rule is _when in doubt, full_: mistaking a real change for a swap would leave the map wrong, mistaking a swap for a real change only costs the flash it used to cost anyway.
 
+**And a reorder is neither.** The style specification's diff has no `moveLayer` command, so putting one category of a preset above another source comes out as dozens of removes and adds - and re-adding a layer that was just removed makes MapLibre re-tessellate every tile of that source. `map/reorder.ts` is `tile-swap.ts`'s sibling under the same rule: it recognises the same layers in a different order and issues the fewest moves that produce it ([Q65](decisions.md)).
+
 ## Principles
 
 **The text is the source of truth.** The VPL text, the style JSON and the project file are the real artefacts; the node graph, style panels and layer tree are views onto them. This is what makes projects diffable, reviewable and handable to a CLI user.

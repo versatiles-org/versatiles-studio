@@ -29,8 +29,8 @@ True everywhere. These matter more than the arrangement.
   evicts the oldest silently. Release 1 needs one map, so this is a habit to establish before B5
   adds a second.
 - **Sections collapse independently and remember it.** Load-bearing, not polish: the left pane
-  carries the pipeline, the style tree and export options at once, and a 13-inch laptop is the
-  machine to protect ([Q22](decisions.md)).
+  carries the pipeline, the style, the layer tree and export options at once, and a 13-inch laptop
+  is the machine to protect ([Q22](decisions.md)).
 - **Undo is global** ([Q11](decisions.md) → G6).
 - **Jobs are never modal**, and the job bar expands into a drawer with a per-job log. A conversion
   that fails at minute 40 has to say why; a failed job stays until dismissed.
@@ -46,22 +46,25 @@ True everywhere. These matter more than the arrangement.
 
 | Region         | Holds                                                                                                                                                                    |
 | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Left pane**  | The chain, as collapsible sections: **Pipeline · Style · Export**                                                                                                        |
+| **Left pane**  | The chain, as collapsible sections: **Sources · Pipeline · Style · Layers**                                                                                              |
 | **Map**        | The subject, the preview, an input device for the crop rectangle (F2), and the controls that move the camera - coordinate jump and named views (A7, [Q38](decisions.md)) |
 | **Right pane** | What things turn out to be - the pipeline's output, and an opened container's own metadata. Not parameters ([Q32](decisions.md))                                         |
 
 | Pane          | Contains                                                                                                                                                                                                                                                                                                                       | Arrives |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
-| **Sources**   | One row per graph: the eye that says whether it is drawn, the name, how much of it runs, and ↑/↓ - the row order is the draw order ([Q49](decisions.md), [Q50](decisions.md)). `＋ new graph…` opens its two doors here                                                                                                        | S2      |
+| **Sources**   | What data exists: one row per graph, the eye that says whether it is drawn, the name, how much of it runs. A set, not a stack - order lives in Layers ([Q62](decisions.md)). `＋ new graph…` opens its two doors here                                                                                                          | S2      |
 | **Pipeline**  | The selected graph's chain, with Graph / VPL tabs ([Q15](decisions.md)), C1 and C4, its crop, and what it writes ([Q50](decisions.md))                                                                                                                                                                                         | S2      |
-| **Style**     | Preset and the adjustments over it (D1); the layer tree (D3) and its own export (D8). The core owns the **recipe** it is rendered from, not the style ([Q36](decisions.md))                                                                                                                                                    | S4      |
+| **Style**     | How one source is drawn: preset and the adjustments over it (D1), and its own export (D8). The core owns the **recipe** it is rendered from, not the style ([Q36](decisions.md)). The layer tree left for Layers ([Q62](decisions.md))                                                                                         | S4      |
+| **Layers**    | What the map paints: every source's layers in paint order, as categories over runs ([Q63](decisions.md)). Where the eyes (D3, [Q64](decisions.md)) and the arranging are, and the only place order lives                                                                                                                       | S4      |
 | **Inspector** | Both sides of the selected graph, in the order the pipeline runs: the containers it reads, folded, then what it produced, open. Each with its metadata and TileJSON (A6). The eyes choose where in the chain the result is read from ([Q49](decisions.md)). Nothing else - no way in, and no named views ([Q38](decisions.md)) | S1      |
 
 Three regions, always present - **left pane, map, right pane** - over the status and job bar. What is about Studio or the project is in the native menu above all of them, not in the window ([Q47](decisions.md)).
 
-**The left pane is the chain from data to pixels.** Sources feed the pipeline, the pipeline produces tiles, the style renders them, export writes them out - steps that used to be a mode switch apart, which is the point of merging the modes.
+**The left pane is the chain from data to pixels.** Sources feed the pipeline, the pipeline produces tiles, the style says how each source is drawn, and the layers say in what order they are painted - steps that used to be a mode switch apart, which is the point of merging the modes.
 
-**The sources list is the layers panel** ([Q49](decisions.md)). One row per graph, an eye that says whether it is drawn, and a highlight that says which one you are editing - two questions, kept apart: a graph you cannot see is still one you can work on. Inside a graph, each node has an eye of its own saying whether that operation runs.
+**The sources list says what data exists; the layers list says what is painted** ([Q62](decisions.md)). One row per graph, an eye that says whether it is drawn, and a highlight that says which one you are editing - two questions, kept apart: a graph you cannot see is still one you can work on. Inside a graph, each node has an eye of its own saying whether that operation runs.
+
+**A source is not a place on the map.** Its layers are, and they need not be together: the Layers pane holds one ordered list over every source, so a data visualisation can sit between a basemap's roads and its labels. Moving a run there is the only way the stack is arranged, and clicking one selects its source, so Pipeline and Style follow what was clicked.
 
 **A switched-off node is a ghost, not a gap.** It keeps its place and its form, and the pipe runs _through_ it: the nodes after it carry on, because a bypass is not a truncation. That is what lets one branch of a `from_stacked` leave the bracket while the composite and everything after it keep running. Two eyes cannot be switched off - the node a chain starts with, which is the graph's own switch, and the last source a composite has. Both eyes are remembered in `project.yaml` beside the crop, and neither is written into the `.vpl`: that file stays the pipeline every tool runs. Containers are inputs; the map never shows one directly.
 
@@ -134,7 +137,7 @@ Graph and VPL as tabs inside the section. A pipeline is mostly a chain, so it re
 
 Tabs, not a split - one pane is usable on a 13-inch laptop. Side by side existed to show that graph and file agree, so the tabs owe that back; [Q15](decisions.md#q15---the-pipeline-pane-tabs-graph-and-text) lists the four debts and this is where they are paid.
 
-### S4 onward - Style joins the chain
+### S4 onward - Style and Layers join the chain
 
 ```text
 ┌───────────────────────────────────────────────────────────┐
@@ -153,9 +156,12 @@ Tabs, not a split - one pane is usable on a 13-inch laptop. Side by side existed
 │     ＋ parameter…  │                      │                │
 │   ╰ ＋ operation…  │                      │                │
 │   [Save][Export]  │                      │                │
-│ ▾ STYLE      (D3) │                      │                │
-│   ▸ water · roads │                      │                │
+│ ▾ STYLE      (D1) │                      │                │
+│   [Colorful] …    │                      │                │
 │   [Export style]  │                      │                │
+│ ▾ LAYERS     (D3) │                      │                │
+│  ▸◉ basemap  324↑↓│                      │                │
+│  ▸◉ places     2↑↓│                      │                │
 ├───────────────────┴──────────────────────┴────────────────┤
 │ Jobs (1) ▸        Writing basemap.versatiles - 47%  Cancel │
 └───────────────────────────────────────────────────────────┘

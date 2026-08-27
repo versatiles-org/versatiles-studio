@@ -184,7 +184,9 @@ filled in. **Hover to peek, click to pin**, with the `?` as the trigger rather t
 One meaning at both scales: an eye says its row is processed. **A bypass, not a cut** - node eyes are
 independent, so switching one off drops that node and the rest carry on. The pin could not express
 `from_stacked [ a, b ]` without `b`, which is what decided it. **Amends
-[Q32](#q32---a-project-holds-several-named-graphs).**
+[Q32](#q32---a-project-holds-several-named-graphs)**, and is itself amended by
+[Q62](#q62---order-belongs-to-the-map-not-to-a-source): the eye stays, the claim that this list is
+the layers panel does not.
 
 ### Q53 - A bbox field borrows the map's rectangle
 
@@ -307,6 +309,18 @@ having to know where the others were not. One column now, placed by its containe
 where MapLibre puts its own controls and the attribution; **top, not bottom**, which the status bar
 owns. The cost is that they sit over the north-west corner of an extract.
 
+### Q65 - A reorder is moves, not a restyle
+
+The style specification's diff has no `moveLayer` command at all: a pure reorder comes out as
+`removeLayer` and `addLayer` in pairs - 66 commands to lift one category of `colorful` past a
+three-layer source, 462 for its roads - and re-adding a layer that was just removed sets that
+source to `reload`, which re-tessellates every tile on screen for a change that moved nothing.
+
+So `reorder.ts` recognises the case and issues the fewest moves that produce it: the layers **outside
+a longest increasing subsequence** of the old order read through the new one, which is three calls
+rather than thirty-three, because moving the small source is the same picture as moving the large
+category. `tile-swap.ts`'s sibling, and the same rule - **when in doubt, full**.
+
 ## The style
 
 ### Q36 - The core owns the recipe
@@ -329,6 +343,43 @@ The layer tree is offered for every vector source, so an override made there has
 however that style was arrived at - not only through the preset path. Gating the tree to preset styles
 instead is smaller and wrong: a container no preset can draw is where a per-layer control is worth
 most.
+
+### Q62 - Order belongs to the map, not to a source
+
+The recipe's draw order was a list of source _names_ and the composed style was each source's whole
+layer list, one after another - so a source owned a contiguous block of the map, and "OSM, then a
+data visualisation, then OSM's labels on top" could not be said at all. **`order` becomes a list of
+segments**: a source may appear more than once, and where a run begins is a layer id.
+
+**The order is an interleaving of per-source sequences.** Within a source the relative order of its
+layers is the style's, not the user's, so a run may never pass a sibling of its own source - which is
+what makes `osm ▸ Labels` below `osm ▸ Roads & rails` unreachable rather than merely unusual, and is
+a property a test can ask about. **Amends [Q49](#q49---an-eye-means-this-runs) and
+[Q50](#q50---sources-and-pipeline-are-two-panes)**: the sources list stops being the layers panel and
+loses its ↑/↓, because a source with no single place cannot be moved by one control.
+
+### Q63 - The layer tree is categories over runs
+
+**Runs, not buckets.** Prefixes taken globally are not faithful to paint order - in `colorful`,
+`label` is 24 layers spanning positions 291-323 with `marking-oneway` and seven `symbol-transit-*`
+inside that span - so every node is a run of _consecutive_ layers and a name may legitimately appear
+twice. That is also what makes a node draggable: it is a contiguous range.
+
+**And the id level alone is unreadable**: 22 rows for one source, six of them repeated names, which
+is z-order engineering rather than a category anyone thinks in. Sixteen prefixes mapped onto nine
+categories collapse `colorful` to nine rows and `neutrino` to seven, breaking no run in either. **The
+table belongs upstream** - `@versatiles/style` already keys its own rule tables on these prefixes -
+and until it exports one, this copy is checked against the real presets by a test.
+
+### Q64 - An eye is stored as a path, not as a range
+
+`osm ▸ Labels` is a name that survives a preset switch and a reordering; "the second run of labels"
+is a position, and positions move. Twenty bytes, against the 10.5 kB that writing `visible: false`
+onto the leaves would cost to switch off one category of `colorful` - in a struct the undo stack
+snapshots whole ([Q36](#q36---the-core-owns-the-recipe)).
+
+A category split across two places therefore has **one** eye, and it hides both parts: visibility
+belongs to the layers, position to the segments, and neither moves when the other changes.
 
 ## The interface
 
@@ -376,8 +427,9 @@ free. **The menu says which; the window says what**: `menu.rs` emits an item id 
 One pane held four groups at two levels: a list of graphs is the project, a chain is one document -
 [Q31](#q31---panes-are-a-list-each-owning-its-output)'s document-versus-selection line. **This is not
 the sources pane [Q22](#q22---one-map-surface-not-four-modes) refused**, which was a list of `from_*`
-read nodes beside a graph that already draws them. The draw order moves into that list rather than being
-a second one.
+read nodes beside a graph that already draws them. The draw order moved into that list rather than
+being a second one - and out again at [Q62](#q62---order-belongs-to-the-map-not-to-a-source), which
+took it to the pane that can arrange a source in parts.
 
 ### Q54 - An empty project keeps its panes
 
