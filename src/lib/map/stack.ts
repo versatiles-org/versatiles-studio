@@ -15,6 +15,7 @@
 import type { StyleSpecification } from 'maplibre-gl';
 import type { Preview, Recipe, Segment, SourceStyle } from '../ipc/commands';
 import { sourceKind } from './source-kind';
+import { declaredLayers } from './tile-json';
 import { composeStyle, type Composed, type StackEntry } from './style';
 
 /**
@@ -28,13 +29,6 @@ export const UNSTYLED_SOURCE: SourceStyle = {
 	kind: null,
 	appearance: { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} }
 };
-
-/** The vector layers a preview's tiles contain, for deciding what can draw them. */
-export function layersOf(built: Preview): string[] {
-	return ((built.info.tileJson?.vector_layers ?? []) as { id?: string }[])
-		.map((layer) => layer.id)
-		.filter((id): id is string => typeof id === 'string');
-}
 
 /**
  * The layers a derived style should draw: **every layer the source declares**, not the ones a probe
@@ -55,7 +49,7 @@ export function layersOf(built: Preview): string[] {
  * is the right thing to draw for a layer nobody has looked at yet.
  */
 export function drawableLayers(built: Preview): { name: string; geometry: string }[] {
-	const declared = layersOf(built);
+	const declared = declaredLayers(built.info);
 	if (declared.length === 0) {
 		return built.layers.map(({ name, geometry }) => ({ name, geometry }));
 	}
@@ -67,7 +61,7 @@ export function drawableLayers(built: Preview): { name: string; geometry: string
 export function entryFor(built: Preview, recipe: Recipe): StackEntry {
 	const style = recipe.sources[built.name] ?? UNSTYLED_SOURCE;
 	const hidden = recipe.sources[built.name]?.hidden ?? [];
-	const layers = layersOf(built);
+	const layers = declaredLayers(built.info);
 	return {
 		name: built.name,
 		tileUrl: built.tileUrl,

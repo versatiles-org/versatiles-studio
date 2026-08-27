@@ -36,7 +36,7 @@
 import type { Map as MaplibreMap } from 'maplibre-gl';
 import { addContainerToMap, fitToBounds, removeContainerFromMap } from '../map/add-source';
 import { whyNotRenderable } from '../map/tile-format';
-import { walk } from '../vpl/node-at';
+import { walk } from '../vpl/nodes';
 import { mountGraph, openContainer, type DocumentView, type OpenedContainer, type Preview } from '../ipc/commands';
 
 /** What a refresh did, for the caller to say in the status bar. */
@@ -114,15 +114,6 @@ let built = $state<Record<string, Preview>>({});
  * would refit the map the moment a style was switched off.
  */
 let framed = $state(false);
-
-/** The vector layers a preview's tiles actually contain, for deciding whether a preset can draw. */
-export function layersIn(preview: Preview | null | undefined): string[] {
-	return ((preview?.info.tileJson?.vector_layers ?? []) as { id?: string }[])
-		.map((layer) => layer.id)
-		.filter((id): id is string => typeof id === 'string');
-}
-
-/** The layers the mounted tiles actually contain, for deciding whether a preset can draw them. */
 
 /**
  * Opens a container and remembers it.

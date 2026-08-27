@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Fit, ImportKind, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
-	import { walk, isChainHead, isOn } from '../../vpl/node-at';
+	import { walk, isChainHead, isOn } from '../../vpl/nodes';
 	import NodeCard from './NodeCard.svelte';
 	import Picker from '../../common/Picker.svelte';
 

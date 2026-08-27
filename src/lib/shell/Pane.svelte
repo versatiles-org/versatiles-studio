@@ -20,14 +20,11 @@
 	let {
 		title,
 		open,
-		count,
 		onToggle,
 		children
 	}: {
 		title: string;
 		open: boolean;
-		/** Shown beside the title when there is something to count. */
-		count?: number;
 		onToggle: (open: boolean) => void;
 		children: Snippet;
 	} = $props();
@@ -40,7 +37,6 @@
 		<button type="button" aria-expanded={open} aria-controls={id} onclick={() => onToggle(!open)}>
 			<span class="chevron" aria-hidden="true">▸</span>
 			<span class="title section-label">{title}</span>
-			{#if count !== undefined}<span class="count">{count}</span>{/if}
 		</button>
 	</h2>
 	<!-- Kept in the DOM while collapsed would mean rebuilding editor state on every toggle; removed
@@ -99,13 +95,6 @@
 		font-size: var(--text-xs);
 		transition: transform 120ms ease;
 		color: var(--ink-2);
-	}
-
-	.count {
-		margin-left: auto;
-		font-size: var(--text-xs);
-		color: var(--ink-2);
-		font-variant-numeric: tabular-nums;
 	}
 
 	.body {

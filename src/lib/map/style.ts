@@ -24,8 +24,7 @@ import type {
 	LayerOverride,
 	RasterAdjust,
 	Segment,
-	SourceKind,
-	SourceStyle
+	SourceKind
 } from '../ipc/commands';
 import { hiddenBy } from './categories';
 import { throughQueue } from './tile-queue';
@@ -33,11 +32,6 @@ import { renderableAs } from './tile-format';
 
 /** The vector half of [`Appearance`], which is what a preset and a layer tree need. */
 export type VectorAppearance = Extract<Appearance, { type: 'vector' }>;
-
-/** A source's style, or the default appearance when it has never been styled. */
-export function appearanceOf(source: SourceStyle | null | undefined): Appearance {
-	return source?.appearance ?? { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} };
-}
 
 /** The six builders, by the name the core stores. */
 const BUILDERS = { colorful, eclipse, graybeard, neutrino, satellite, shadow } as const;

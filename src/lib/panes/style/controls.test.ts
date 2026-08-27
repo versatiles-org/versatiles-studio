@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-	DRAWN_AS,
 	HILLSHADE_SLIDERS,
 	RASTER_SLIDERS,
 	RECOLOR_SLIDERS,
@@ -8,11 +7,9 @@ import {
 	encodingChoice,
 	inertOverrides,
 	isAdjusted,
-	isSet,
 	kindChoice,
 	resamplingChoice,
 	sliderValue,
-	stackRows,
 	withSlider
 } from './controls';
 
@@ -74,12 +71,6 @@ describe('what counts as changed', () => {
 		expect(isAdjusted({ rotate: 0 })).toBe(true);
 		expect(isAdjusted({ resampling: 'nearest' })).toBe(true);
 	});
-
-	it('answers per field for the per-field resets', () => {
-		expect(isSet({ rotate: 0 }, 'rotate')).toBe(true);
-		expect(isSet({ rotate: undefined }, 'rotate')).toBe(false);
-		expect(isSet(undefined, 'rotate')).toBe(false);
-	});
 });
 
 describe('the pickers', () => {
@@ -105,22 +96,7 @@ describe('the pickers', () => {
 	});
 });
 
-describe('the stack list', () => {
-	// `order` is bottom-first because that is the order layers are emitted in; a list of what covers
-	// what reads top-first.
-	it('shows the top of the map first', () => {
-		expect(stackRows(['basemap', 'places'])).toEqual(['places', 'basemap']);
-	});
-});
-
 describe('what the pane says out loud', () => {
-	// A source that drew nothing must say so; one drawn by its chosen preset needs no explanation.
-	it('has a phrase for every way a source can be drawn', () => {
-		expect(DRAWN_AS.none).toBe('not drawn');
-		expect(DRAWN_AS.preset).toBe('');
-		expect(Object.values(DRAWN_AS).every((phrase) => typeof phrase === 'string')).toBe(true);
-	});
-
 	// Kept rather than dropped, because the presets share a namespace - so they need saying out loud
 	// or they are invisible, since the tree lists layers rather than overrides.
 	it('names the overrides with no layer to land on', () => {

@@ -511,7 +511,6 @@
 		background: var(--surface);
 		color: var(--ink-2);
 		font-size: var(--text-sm);
-		cursor: pointer;
 
 		&:hover {
 			color: var(--ink);
@@ -525,11 +524,7 @@
 
 	.reset {
 		margin-left: var(--space-2);
-		border: 0;
-		background: none;
 		color: var(--accent);
-		font: inherit;
-		cursor: pointer;
 	}
 
 	.toggle {

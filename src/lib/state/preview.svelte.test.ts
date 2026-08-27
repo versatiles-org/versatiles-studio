@@ -24,7 +24,7 @@ const ipc = vi.hoisted(() => ({
 }));
 vi.mock('../ipc/commands', () => ipc);
 
-const { preview, layersIn } = await import('./preview.svelte');
+const { preview } = await import('./preview.svelte');
 
 /** A built preview under a given mount name. Only the fields this module reads are filled in. */
 function built(name: string) {
@@ -477,16 +477,5 @@ describe('putting the preview back after a style swap', () => {
 	it('does nothing before there is a map', () => {
 		preview.restore(undefined, false);
 		expect(added).toEqual([]);
-	});
-});
-
-describe('what a preview’s tiles contain', () => {
-	it('reads the layer names out of its TileJSON', () => {
-		expect(layersIn(built('berlin') as never)).toEqual(['water']);
-	});
-
-	it('says nothing for a preview that has none, or none at all', () => {
-		expect(layersIn(null)).toEqual([]);
-		expect(layersIn({ info: {} } as never)).toEqual([]);
 	});
 });

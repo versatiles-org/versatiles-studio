@@ -18,7 +18,7 @@
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
-	import { layersIn, preview } from './lib/state/preview.svelte';
+	import { preview } from './lib/state/preview.svelte';
 	import { layout } from './lib/state/layout.svelte';
 	import { document } from './lib/state/document.svelte';
 	import { graphs } from './lib/state/graphs.svelte';
@@ -51,6 +51,7 @@
 	import { defaultStyle } from './lib/map/default-style';
 	import { fitToBounds } from './lib/map/add-source';
 	import { drawn, ordered, stackFor } from './lib/map/stack';
+	import { declaredLayers } from './lib/map/tile-json';
 
 	import { forExport } from './lib/map/style-code';
 	import {
@@ -1023,7 +1024,7 @@
 				? {
 						tileFormat: currentBuild.info.tileFormat,
 						tileSchema: currentBuild.info.tileSchema,
-						layers: layersIn(currentBuild)
+						layers: declaredLayers(currentBuild.info)
 					}
 				: null}
 		/>

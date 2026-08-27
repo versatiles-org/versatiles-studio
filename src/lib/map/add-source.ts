@@ -11,6 +11,7 @@ import { renderableAs } from './tile-format';
 import { role } from './theme';
 import { throughQueue } from './tile-queue';
 import { tilesOnly } from './tile-swap';
+import { declaredLayers } from './tile-json';
 
 /**
  * Which mount a layer belongs to, so removing one takes off this module's own work and nothing else.
@@ -54,7 +55,7 @@ export function addContainerToMap(
 	if (kind === 'vector') {
 		// Until S1.5 knows the container's layers, draw every vector layer as a hairline. Deriving a
 		// real style from the layers actually present is D2, and it needs A4's introspection first.
-		for (const layer of vectorLayerIds(info)) {
+		for (const layer of declaredLayers(info)) {
 			map.addLayer({
 				id: `${name}:${layer}`,
 				type: 'line',
@@ -87,7 +88,7 @@ function sourceFor(kind: 'vector' | 'raster', tileUrl: string, info: OpenedConta
 
 /** The layers this module would add for a container, in the order it would add them. */
 function layerIdsFor(name: string, kind: 'vector' | 'raster', info: OpenedContainer['info']): string[] {
-	return kind === 'vector' ? vectorLayerIds(info).map((layer) => `${name}:${layer}`) : [`${name}:raster`];
+	return kind === 'vector' ? declaredLayers(info).map((layer) => `${name}:${layer}`) : [`${name}:raster`];
 }
 
 /**
@@ -160,11 +161,4 @@ export function removeContainerFromMap(map: MaplibreMap, name: string): void {
 /** The mount a layer was added for, or `undefined` for one this module did not add. */
 function mountOf(layer: LayerSpecification): string | undefined {
 	return (layer.metadata as { [MOUNT]?: string } | undefined)?.[MOUNT];
-}
-
-/** TileJSON's `vector_layers`, which every well-formed vector container publishes. */
-function vectorLayerIds(info: OpenedContainer['info']): string[] {
-	const layers = info.tileJson?.vector_layers;
-	if (!Array.isArray(layers)) return [];
-	return layers.map((l) => (l as { id?: string }).id).filter((id): id is string => typeof id === 'string');
 }

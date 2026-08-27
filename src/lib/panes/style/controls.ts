@@ -14,7 +14,6 @@
 
 import type { DemEncoding, Hillshade, Preset, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
 import type { KindBasis } from '../../map/source-kind';
-import type { StyleBasis } from '../../map/style';
 import type { MapToken } from '../../styles/tokens';
 
 /** One slider: its range, and the value that means "unchanged". */
@@ -134,11 +133,6 @@ export function isAdjusted(held: object | null | undefined): boolean {
 	return Object.values(held ?? {}).some((value) => value != null);
 }
 
-/** Whether one field has been set, which is what its own little reset appears for. */
-export function isSet(held: Record<string, unknown> | undefined, key: string): boolean {
-	return held?.[key] != null;
-}
-
 // -- the pickers ---------------------------------------------------------------------------------
 
 /**
@@ -162,30 +156,7 @@ export function encodingChoice(chosen: string): DemEncoding | null {
 	return chosen === 'mapbox' || chosen === 'terrarium' ? chosen : null;
 }
 
-// -- the stack -----------------------------------------------------------------------------------
-
-/**
- * The stack as the list shows it: top of the map first.
- *
- * `Recipe.order` is bottom-first, because that is the order layers are emitted in. A person reading
- * a list of what covers what expects the top at the top, so it is reversed here rather than stored
- * that way - which keeps the file matching the render.
- */
-export function stackRows<T>(stack: T[]): T[] {
-	return [...stack].reverse();
-}
-
 // -- what the pane says out loud -----------------------------------------------------------------
-
-/** What a source is contributing, said plainly rather than as a term of art. */
-export const DRAWN_AS: Record<StyleBasis, string> = {
-	preset: '',
-	derived: 'from its own layers',
-	fallback: 'from its own layers',
-	raster: 'as an image',
-	hillshade: 'as relief',
-	none: 'not drawn'
-};
 
 /** Why the pane is showing this reading of what the tiles are. */
 export const BASIS_NOTE: Record<KindBasis, string> = {

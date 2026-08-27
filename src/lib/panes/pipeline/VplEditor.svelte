@@ -18,9 +18,7 @@
 		initialText,
 		tokens,
 		problems,
-		selection,
-		onInput,
-		onCaret
+		onInput
 	}: {
 		/** Read once. Change the key to load a different document. */
 		initialText: string;
@@ -28,11 +26,7 @@
 		tokens: VplToken[];
 		/** Marked inline, and listed above the editor (C4). Several at once is normal. */
 		problems?: { message: string; span: Span }[];
-		/** A span to reveal and select - how a graph selection lands in the text (Q15). */
-		selection?: Span | null;
 		onInput: (text: string) => void;
-		/** Fired with the caret offset, so the graph can follow the text (Q15). */
-		onCaret?: (offset: number) => void;
 	} = $props();
 
 	let textarea = $state<HTMLTextAreaElement>();
@@ -69,13 +63,6 @@
 		return out;
 	});
 
-	$effect(() => {
-		if (!selection || !textarea) return;
-		const field = textarea;
-		field.focus();
-		field.setSelectionRange(selection.start, selection.end);
-	});
-
 	function sync() {
 		if (!pre || !textarea) return;
 		pre.scrollTop = textarea.scrollTop;
@@ -100,10 +87,7 @@
 		autocapitalize="off"
 		aria-label="VPL pipeline"
 		aria-invalid={(problems?.length ?? 0) > 0}
-		onscroll={sync}
-		onselect={() => onCaret?.(textarea?.selectionStart ?? 0)}
-		onkeyup={() => onCaret?.(textarea?.selectionStart ?? 0)}
-		onclick={() => onCaret?.(textarea?.selectionStart ?? 0)}>{initialText}</textarea
+		onscroll={sync}>{initialText}</textarea
 	>
 </div>
 
