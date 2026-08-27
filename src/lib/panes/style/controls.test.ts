@@ -10,7 +10,6 @@ import {
 	isAdjusted,
 	isSet,
 	kindChoice,
-	reordered,
 	resamplingChoice,
 	sliderValue,
 	stackRows,
@@ -111,23 +110,6 @@ describe('the stack list', () => {
 	// what reads top-first.
 	it('shows the top of the map first', () => {
 		expect(stackRows(['basemap', 'places'])).toEqual(['places', 'basemap']);
-	});
-
-	it('returns the whole order after a move, because that is what the command takes', () => {
-		expect(reordered(['a', 'b', 'c'], 'a', 1)).toEqual(['b', 'a', 'c']);
-		expect(reordered(['a', 'b', 'c'], 'c', -1)).toEqual(['a', 'c', 'b']);
-	});
-
-	it('refuses a move off either end rather than wrapping', () => {
-		expect(reordered(['a', 'b'], 'a', -1)).toBeNull();
-		expect(reordered(['a', 'b'], 'b', 1)).toBeNull();
-		expect(reordered(['a', 'b'], 'missing', 1)).toBeNull();
-	});
-
-	it('does not mutate the order it was given', () => {
-		const order = ['a', 'b'];
-		reordered(order, 'a', 1);
-		expect(order).toEqual(['a', 'b']);
 	});
 });
 

@@ -30,17 +30,16 @@ const graph = (over: Partial<GraphInfo> & { id: number; name: string }): GraphIn
 
 const noop = () => {};
 
-function list(graphs: GraphInfo[], onToggle = vi.fn(), onSelect = vi.fn(), onReorder = vi.fn()) {
+function list(graphs: GraphInfo[], onToggle = vi.fn(), onSelect = vi.fn()) {
 	render(GraphList, {
 		graphs,
 		current: graphs[0]?.id ?? null,
 		onSelect,
 		onToggle,
-		onReorder,
 		onRename: noop,
 		onRemove: noop
 	});
-	return { onToggle, onSelect, onReorder };
+	return { onToggle, onSelect };
 }
 
 afterEach(cleanup);
@@ -105,36 +104,16 @@ describe('what a row says about the nodes inside it', () => {
 });
 
 /**
- * **The row order is the draw order** ([Q50]). The style pane used to keep a second list for this,
- * over the sources that had built - so a graph that would not build had no way to be moved.
+ * **The list stopped being the stack** ([the layer stack](../../../../docs/layers.md)). A source no
+ * longer owns a contiguous block of the map, so where its layers are drawn is the Layers pane's
+ * question - and a ↑ here could only ever have moved all of it at once.
  */
 describe('arranging the stack', () => {
-	it('moves a graph up or down', () => {
-		const { onReorder } = list([graph({ id: 1, name: 'labels' }), graph({ id: 2, name: 'basemap' })]);
-
-		screen.getByLabelText('Move basemap up').click();
-		expect(onReorder).toHaveBeenCalledWith(2, 1);
-
-		screen.getByLabelText('Move labels down').click();
-		expect(onReorder).toHaveBeenCalledWith(1, -1);
-	});
-
-	// At the ends there is nowhere to go. Disabled rather than hidden, so the controls in a row do
-	// not shift under the pointer as a graph moves.
-	it('offers no move past either end', () => {
+	it('offers no reordering, because a source has no single place any more', () => {
 		list([graph({ id: 1, name: 'labels' }), graph({ id: 2, name: 'basemap' })]);
 
-		const disabled = (label: string) => (screen.getByLabelText(label) as HTMLButtonElement).disabled;
-		expect(disabled('Move labels up')).toBe(true);
-		expect(disabled('Move basemap down')).toBe(true);
-		expect(disabled('Move labels down')).toBe(false);
-	});
-
-	// One source has no top to be on.
-	it('offers no reordering at all for a single graph', () => {
-		list([graph({ id: 1, name: 'only' })]);
-
-		expect(screen.queryByLabelText('Move only up')).toBeNull();
+		expect(screen.queryByLabelText('Move basemap up')).toBeNull();
+		expect(screen.queryByLabelText('Move labels down')).toBeNull();
 	});
 });
 

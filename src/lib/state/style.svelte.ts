@@ -28,6 +28,7 @@ import {
 	type Preset,
 	type Recipe,
 	type Recolor,
+	type Segment,
 	type SourceKind,
 	type RasterAdjust,
 	type SourceStyle,
@@ -192,6 +193,11 @@ export const style = {
 	 */
 	async setOrder(order: string[]): Promise<void> {
 		recipe = await setStyleOrder(order.map((source) => ({ source, from: null })));
+	},
+
+	/** The order as runs - what the Layers pane produces when something is moved. */
+	async setSegments(order: Segment[]): Promise<void> {
+		recipe = await setStyleOrder(order);
 	},
 
 	async setLayer(layer: string, patch: LayerOverride): Promise<void> {

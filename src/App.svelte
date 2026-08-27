@@ -27,6 +27,7 @@
 	import { status } from './lib/state/status.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import LayersPane from './lib/panes/layers/LayersPane.svelte';
+	import { move, segmentsFrom } from './lib/panes/layers/move';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
 	import SourcesPane from './lib/panes/sources/SourcesPane.svelte';
@@ -50,7 +51,6 @@
 	import { defaultStyle } from './lib/map/default-style';
 	import { fitToBounds } from './lib/map/add-source';
 	import { drawn, ordered, stackFor } from './lib/map/stack';
-	import { reordered } from './lib/panes/style/controls';
 
 	import { forExport } from './lib/map/style-code';
 	import {
@@ -564,13 +564,14 @@
 		})()
 	);
 
-	/// Moves a graph up or down the stack, `+1` being towards the top of the map.
-	async function reorderGraph(id: number, by: number) {
-		const name = graphs.nameOf(id);
-		if (!name) return;
-		// The recipe stores the order bottom-first, which is the reverse of the list.
-		const next = reordered(stacked.map((graph) => graph.name).reverse(), name, by);
-		if (next) await styleRecipe.setOrder(next);
+	/// Moves a run of the stack, which is the whole of reordering ([the layer stack](docs/layers.md)).
+	///
+	/// **The segments are derived from the result, not edited towards it.** `move` produces the rows
+	/// in their new order and `segmentsFrom` reads the runs back off them, so the boundaries are
+	/// ascending by construction and there is no second place the invariant could be broken.
+	async function reorderStack(range: [number, number], at: number) {
+		const next = segmentsFrom(move(composed.rows, range, at));
+		await styleRecipe.setSegments(next);
 	}
 
 	const composed = $derived(
@@ -956,7 +957,6 @@
 				rename: (id, name) => void rename(id, name),
 				remove: (id) => void removeGraphById(id),
 				setEnabled: (id, enabled) => void toggleGraph(id, enabled),
-				reorder: (id, by) => void reorderGraph(id, by),
 				addNode: (operation) => void newGraph(operation),
 				openFile: () => void pick(kinds.find((kind) => kind.id === 'pipeline'))
 			}}
@@ -1027,7 +1027,8 @@
 			actions={{
 				setHidden: (graph, path, hidden) => void styleRecipe.setHidden(graph, path, hidden).then(refreshPreview),
 				setOverride: (graph, layer, patch) => void styleRecipe.setLayerFor(graph, layer, patch),
-				select: (graph) => void selectGraph(graph)
+				select: (graph) => void selectGraph(graph),
+				reorder: (range, at) => void reorderStack(range, at)
 			}}
 		/>
 	{:else if id === 'inspector'}

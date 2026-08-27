@@ -25,7 +25,7 @@ const rowsOf = (source: string, hidden: (id: string) => string | null = () => nu
 	}));
 
 function draw(over: Partial<Parameters<typeof render>[1]> = {}) {
-	const actions = { setHidden: vi.fn(), setOverride: vi.fn(), select: vi.fn() };
+	const actions = { setHidden: vi.fn(), setOverride: vi.fn(), select: vi.fn(), reorder: vi.fn() };
 	render(LayersPane, {
 		rows: rowsOf('osm'),
 		sources: { osm: { graph: 1, hidden: [], overrides: {}, style: own } },
@@ -99,6 +99,49 @@ describe('the eye', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Show Labels' }));
 
 		expect(actions.setHidden).toHaveBeenCalledWith(1, 'Labels', false);
+	});
+});
+
+describe('the nudges', () => {
+	/** `osm` under a one-layer source, which is the arrangement the whole design is about. */
+	const withData = {
+		rows: [...rowsOf('osm'), { id: 'data/cases', ownId: 'cases', source: 'data', type: 'fill', hidden: null }],
+		sources: {
+			osm: { graph: 1, hidden: [], overrides: {}, style: own },
+			data: { graph: 2, hidden: [], overrides: {}, style: null }
+		}
+	};
+
+	// The headline gesture, as two clicks: open the source, send its labels up past the data.
+	it('sends a category past the source above it', async () => {
+		const actions = draw(withData as never);
+		await fireEvent.click(screen.getByRole('button', { name: 'Expand osm' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Move Labels up' }));
+
+		// The 33 label layers are the tail of colorful, and the gap above `data` is the end of the
+		// stack - so this is exactly "draw the labels over everything".
+		expect(actions.reorder).toHaveBeenCalledWith([291, 324], 325);
+	});
+
+	// A source's own layers keep the style's order, so the bottom category has nowhere below it and
+	// says so rather than offering a move that would be refused.
+	it('offers no move where the invariant forbids one', async () => {
+		draw(withData as never);
+		await fireEvent.click(screen.getByRole('button', { name: 'Expand osm' }));
+
+		const disabled = (label: string) => (screen.getByLabelText(label) as HTMLButtonElement).disabled;
+		expect(disabled('Move Background down')).toBe(true);
+		expect(disabled('Move Labels down')).toBe(true);
+	});
+
+	// One source has nothing to interleave with, and its own order is not the user's to set.
+	it('offers nothing at all with a single source', async () => {
+		draw();
+		await fireEvent.click(screen.getByRole('button', { name: 'Expand osm' }));
+
+		const disabled = (label: string) => (screen.getByLabelText(label) as HTMLButtonElement).disabled;
+		expect(disabled('Move Labels up')).toBe(true);
+		expect(disabled('Move Labels down')).toBe(true);
 	});
 });
 

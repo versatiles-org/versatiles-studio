@@ -175,22 +175,6 @@ export function stackRows<T>(stack: T[]): T[] {
 	return [...stack].reverse();
 }
 
-/**
- * The draw order after moving one source, or `null` when it cannot move.
- *
- * Takes the bottom-first order and returns the whole list, because that is what the command takes:
- * a reorder is one gesture with one result, and "move this one up" would need the two ends to agree
- * about what the list was beforehand.
- */
-export function reordered(order: string[], name: string, by: number): string[] | null {
-	const at = order.indexOf(name);
-	const to = at + by;
-	if (at < 0 || to < 0 || to >= order.length) return null;
-	const next = [...order];
-	[next[at], next[to]] = [next[to], next[at]];
-	return next;
-}
-
 // -- what the pane says out loud -----------------------------------------------------------------
 
 /** What a source is contributing, said plainly rather than as a term of art. */

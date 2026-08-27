@@ -80,6 +80,7 @@ describe('planning', () => {
 		expect(planSwap(style(), next)).toEqual({ kind: 'full' });
 	});
 
+	// Full *from here*: a reorder is `reorder.ts`'s, which `restyle.ts` asks after this declines.
 	it('is full when the layers were only reordered', () => {
 		const two = {
 			...style(),

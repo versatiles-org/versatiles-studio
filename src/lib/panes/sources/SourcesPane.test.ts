@@ -38,7 +38,6 @@ function open(extra: { addNode: () => void; openFile: () => void }) {
 			rename: () => {},
 			remove: () => {},
 			setEnabled: () => {},
-			reorder: () => {},
 			...extra
 		}
 	});
@@ -81,7 +80,6 @@ describe('starting a graph', () => {
 				rename: () => {},
 				remove: () => {},
 				setEnabled: () => {},
-				reorder: () => {},
 				...actions()
 			}
 		});

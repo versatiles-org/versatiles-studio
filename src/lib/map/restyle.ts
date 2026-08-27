@@ -39,6 +39,7 @@
  */
 
 import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
+import { applyMoves, planReorder } from './reorder';
 import { planSwap, swapTiles } from './tile-swap';
 
 /**
@@ -90,6 +91,18 @@ export function restyler(map: MaplibreMap, onApplied?: () => void): (style: Styl
 		const swap = planSwap(applied, next);
 		if (swap.kind === 'none') return;
 		if (swap.kind === 'tiles' && swapTiles(map, swap.updates)) {
+			applied = next;
+			return;
+		}
+
+		// **And a reorder is not the whole style either.** The style specification's diff has no
+		// `moveLayer` command, so moving one category of a preset comes out as sixty-six removes and
+		// adds - and re-adding a layer that was just removed puts its source into `reload`, which
+		// re-tessellates every tile on screen. `reorder.ts` recognises the case where nothing changed
+		// but the order and issues the handful of moves that produce it.
+		const shuffle = planReorder(applied, next);
+		if (shuffle) {
+			applyMoves(map, shuffle.moves);
 			applied = next;
 			return;
 		}

@@ -2,6 +2,7 @@
 	import type { StyleSpecification } from 'maplibre-gl';
 	import type { LayerOverride } from '../../ipc/commands';
 	import { tree, type Group, type Node } from './tree';
+	import { canMove, step, type Range } from './move';
 	import LayerRow from './LayerRow.svelte';
 
 	// What the map paints, project-wide ([the layer stack](../../../../docs/layers.md)).
@@ -15,7 +16,10 @@
 	// paint order and knows which source each layer came from, so this draws what is on the map
 	// rather than a second opinion about it.
 	//
-	// Reordering is not here yet: this step is the tree, and a drag needs `reorder.ts` behind it.
+	// **↑/↓ before dragging.** A drag in a tall collapsible tree is the hardest interaction here -
+	// autoscroll, drop indicators at four depths, and no keyboard path at all - and it is not the
+	// gesture that has to exist first. Two buttons reach every arrangement the model can hold, from a
+	// keyboard, today; the drag is the fast path over the same `move.ts`.
 	let {
 		rows = [],
 		sources = {},
@@ -34,6 +38,8 @@
 			setOverride: (graph: number, layer: string, patch: LayerOverride) => void;
 			/** Clicking a row selects its source, so Pipeline and Style follow the one selection. */
 			select: (graph: number) => void;
+			/** Moves the rows `[from, to)` to the gap at `at` - the whole reorder, as one gesture. */
+			reorder: (range: Range, at: number) => void;
 		};
 	} = $props();
 
@@ -72,6 +78,22 @@
 		return hidden.find((path) => node.path === path || node.path.startsWith(`${path}/`)) ?? null;
 	};
 
+	/// Where each node's layers sit in the stack, so a move knows what it is moving.
+	///
+	/// Read off the rows rather than carried down the tree: the tree is built from the same rows in
+	/// the same order, so a node's range is where its first layer is and how many it has.
+	const rangeOf = (node: Group): Range => {
+		const start = rows.findIndex((row) => row.source === node.source && row.ownId === node.from);
+		return [start, start + node.count];
+	};
+
+	const stepOf = (node: Group, direction: 1 | -1) => {
+		const range = rangeOf(node);
+		if (range[0] < 0) return null;
+		const at = step(rows, range, direction);
+		return at !== null && canMove(rows, range, at) ? { range, at } : null;
+	};
+
 	function toggleGroup(node: Group) {
 		const graph = sources[node.source]?.graph;
 		if (graph === undefined) return;
@@ -104,6 +126,8 @@
 				{@const key = keyOf(node, `${at}/${index}`)}
 				{@const closed = closedOn(node)}
 				{@const shown = isOpen(node, key)}
+				{@const up = stepOf(node, 1)}
+				{@const down = stepOf(node, -1)}
 				<div class="row group" style="--depth: {depth}">
 					<button
 						type="button"
@@ -137,6 +161,24 @@
 						{node.label}
 					</button>
 					<span class="count">{node.count}</span>
+					<!-- Always rendered, disabled where there is nowhere to go: a control that appears and
+					     disappears as the stack changes is one you cannot learn the position of. -->
+					<button
+						type="button"
+						class="nudge"
+						disabled={up === null}
+						aria-label="Move {node.label} up"
+						title="Draw {node.label} over what is above it"
+						onclick={() => up && actions.reorder(up.range, up.at)}>↑</button
+					>
+					<button
+						type="button"
+						class="nudge"
+						disabled={down === null}
+						aria-label="Move {node.label} down"
+						title="Draw {node.label} under what is below it"
+						onclick={() => down && actions.reorder(down.range, down.at)}>↓</button
+					>
 				</div>
 				{#if shown}
 					{@render nodes(node.children, key, depth + 1)}
@@ -205,6 +247,16 @@
 			&.hidden {
 				color: var(--ink-2);
 				text-decoration: line-through;
+			}
+		}
+
+		.nudge {
+			flex: none;
+			color: var(--ink-2);
+			font-size: var(--text-xs);
+
+			&:disabled {
+				opacity: 0.35;
 			}
 		}
 

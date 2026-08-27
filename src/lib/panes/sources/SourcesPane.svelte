@@ -10,10 +10,10 @@
 	// carried four groups, scrolled, and was named after one of them. Split, each folds on its own,
 	// and the title says what the pane holds.
 	//
-	// **And it is the layers panel** ([Q49]). One row per source, an eye for drawn, a highlight for
-	// the one being edited, and the row order *is* the draw order. The style pane used to keep a
-	// second list for that order, over the sources that had built - so a graph that would not build
-	// vanished from the only control that could move it.
+	// **What data exists, not where it is drawn** ([the layer stack](../../../../docs/layers.md)).
+	// One row per source, an eye for drawn, a highlight for the one being edited - and no order. A
+	// source became a thing the map draws *from* rather than a thing on the map, so the stack is the
+	// Layers pane's, which is the only place a source can be arranged in parts.
 	let {
 		graphs = [],
 		current = null,
@@ -32,8 +32,6 @@
 			remove: (id: number) => void;
 			/** Switches a graph on or off - the eye on its row ([Q49]). */
 			setEnabled: (id: number, enabled: boolean) => void;
-			/** Moves it up or down the stack, `+1` being towards the top of the map. */
-			reorder: (id: number, by: number) => void;
 			/** Starts a graph on a `from_*` node, with nothing filled in yet. */
 			addNode: (operation: string) => void;
 			/** Opens a `.vpl` as a graph of its own. */
@@ -101,7 +99,6 @@
 		{current}
 		onSelect={actions.select}
 		onToggle={actions.setEnabled}
-		onReorder={actions.reorder}
 		onRename={actions.rename}
 		onRemove={actions.remove}
 	>
