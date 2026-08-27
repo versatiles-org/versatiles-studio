@@ -243,6 +243,38 @@ describe('design tokens', () => {
 		expect([...new Set(flat)], 'nest it with `&` instead - see docs/styling.md rule 6').toEqual([]);
 	});
 
+	/**
+	 * Every `var(--token)` names a token that exists.
+	 *
+	 * **The gap the other checks left.** They police the *values* a component writes - no raw hex, no
+	 * raw radius, no fallback - so a component that reaches for a token nobody defined passes all
+	 * three. `var()` with an undefined property and no fallback is invalid at computed-value time, so
+	 * the declaration is dropped: the corner is square, the colour is inherited, and nothing anywhere
+	 * says so. `--radius-sm` and `--radius-md` were both live, and neither has ever existed.
+	 *
+	 * **A property the same file sets is its own**, which is what keeps this from needing a list
+	 * somebody has to remember to extend. `--depth` on a tree row and `--left-width` on the shell are
+	 * set in markup and read in CSS, and both spellings are here: `--x:` for CSS and
+	 * `style="--x: …"`, `--x=` for `style:--x={…}`.
+	 */
+	it('reference a token that exists', () => {
+		const tokens = new Set(
+			[...readFileSync(join(SRC, TOKENS), 'utf8').matchAll(/^\s*(--[\w-]+)\s*:/gm)].map((match) => match[1])
+		);
+		expect(tokens.size, `no token definitions matched in ${TOKENS}`).toBeGreaterThan(20);
+
+		const offenders = styled.flatMap((path) => {
+			const file = withoutComments(readFileSync(join(SRC, path), 'utf8'));
+			const own = new Set([...file.matchAll(/(--[\w-]+)\s*[:=]/g)].map((match) => match[1]));
+			return [...withoutComments(styleBlocks(path)).matchAll(/var\(\s*(--[\w-]+)/g)]
+				.map((match) => match[1])
+				.filter((name) => !tokens.has(name) && !own.has(name))
+				.map((name) => `${path}: var(${name})`);
+		});
+
+		expect([...new Set(offenders)].sort(), `add it to ${TOKENS}, or set it in the component that reads it`).toEqual([]);
+	});
+
 	/// Every `MapToken` is a token that exists.
 	///
 	/// `token()` is the one reader the compiler cannot help: the union in `tokens.ts` names what a

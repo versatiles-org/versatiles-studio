@@ -507,7 +507,7 @@
 	.preset {
 		padding: var(--space-2);
 		border: 1px solid var(--rule);
-		border-radius: var(--radius-md);
+		border-radius: var(--radius);
 		background: var(--surface);
 		color: var(--ink-2);
 		font-size: var(--text-sm);

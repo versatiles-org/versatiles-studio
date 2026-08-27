@@ -285,7 +285,7 @@
 			width: 100%;
 			padding: var(--space-1);
 			border: 1px solid var(--rule);
-			border-radius: var(--radius-sm);
+			border-radius: var(--radius);
 			background: var(--surface);
 			color: var(--ink);
 			font-family: var(--font-mono);
