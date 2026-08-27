@@ -79,7 +79,7 @@
 		"@tauri-apps/plugin-process": "^2.3.1",
 		"@tauri-apps/plugin-updater": "^2.10.1",
 		"@versatiles/style": "^5.13.1",
-		"maplibre-gl": "6.4.1"
+		"maplibre-gl": "6.5.0"
 	},
 	"allowScripts": {
 		"esbuild": true,
