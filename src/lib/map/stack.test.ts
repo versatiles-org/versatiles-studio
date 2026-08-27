@@ -49,13 +49,24 @@ describe('entryFor', () => {
 
 describe('drawOrder', () => {
 	it('puts what the order names first, then the rest by name', () => {
-		const order = drawOrder(recipe({ order: ['basemap'] }), { places: built('places'), basemap: built('basemap') });
+		const order = drawOrder(recipe({ order: [{ source: 'basemap', from: null }] }), {
+			places: built('places'),
+			basemap: built('basemap')
+		});
 		expect(order).toEqual(['basemap', 'places']);
 	});
 
 	// `order` is a preference, not a register - the same two rules the core's `draw_order` applies.
 	it('ignores a name nothing built, and never hides one that was', () => {
-		const order = drawOrder(recipe({ order: ['gone', 'basemap'] }), { basemap: built('basemap'), late: built('late') });
+		const order = drawOrder(
+			recipe({
+				order: [
+					{ source: 'gone', from: null },
+					{ source: 'basemap', from: null }
+				]
+			}),
+			{ basemap: built('basemap'), late: built('late') }
+		);
 		expect(order).toEqual(['basemap', 'late']);
 	});
 

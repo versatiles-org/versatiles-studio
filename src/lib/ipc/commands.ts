@@ -38,7 +38,8 @@ import type {
 	RasterAdjust_Serialize as RasterAdjust,
 	Hillshade_Serialize as Hillshade,
 	Recolor_Serialize as Recolor,
-	LayerOverride_Serialize as LayerOverride
+	LayerOverride_Serialize as LayerOverride,
+	Segment_Serialize as Segment
 } from './bindings';
 
 export * from './bindings';
@@ -69,6 +70,7 @@ export type {
 	SourceKind,
 	Hillshade_Serialize as Hillshade,
 	DemEncoding,
+	Segment_Serialize as Segment,
 	SourceStyle_Serialize as SourceStyle,
 	Appearance_Serialize as Appearance,
 	LayerOverride_Serialize as LayerOverride,
@@ -300,7 +302,11 @@ export const setStyleKind = (graph: number, kind: SourceKind | null) => unwrap(c
 export const setStyleRaster = (graph: number, raster: RasterAdjust) => unwrap(commands.setStyleRaster(graph, raster));
 
 /** Sets the draw order, bottom first (S6.5). The whole list, not a move. */
-export const setStyleOrder = (order: string[]) => unwrap(commands.setStyleOrder(order));
+export const setStyleOrder = (order: Segment[]) => unwrap(commands.setStyleOrder(order));
+
+/** Switches one path of the layer tree on or off - the eye, at whatever depth it was pressed. */
+export const setLayerHidden = (graph: number, path: string, hidden: boolean) =>
+	unwrap(commands.setLayerHidden(graph, path, hidden));
 
 /** Sets the hillshade settings for an elevation source (S6.6, D12). */
 export const setStyleHillshade = (graph: number, shade: Hillshade) => unwrap(commands.setStyleHillshade(graph, shade));

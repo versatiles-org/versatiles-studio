@@ -275,6 +275,7 @@ fn migrate_v1(old: RecipeV1, graphs: &[GraphRef]) -> crate::style::Recipe {
 		SourceStyle {
 			kind: old.kind,
 			appearance,
+			hidden: Default::default(),
 		},
 	);
 	recipe
@@ -446,6 +447,7 @@ mod project_tests {
 					},
 					overrides: std::collections::BTreeMap::new(),
 				},
+				hidden: Default::default(),
 			},
 		);
 		recipe
@@ -558,6 +560,33 @@ mod project_tests {
 
 		assert_eq!(loaded.graphs.len(), 1);
 		assert!(loaded.graphs[0].enabled);
+	}
+
+	/// **A manifest whose `order` is a list of names still opens.** Every project on disk was written
+	/// before segments existed, and `order` is YAML there rather than the JSON the undo stack holds -
+	/// so the lenient deserialiser has to work through `serde_yaml` as well, which is exactly the
+	/// sort of thing an untagged enum can quietly fail to do.
+	#[test]
+	fn a_manifest_whose_order_is_names_reads_as_whole_segments() {
+		use crate::style::Segment;
+
+		let dir = crate::testing::dir("project-order-names");
+		std::fs::create_dir_all(&dir).unwrap();
+		std::fs::write(dir.join("basemap.vpl"), "from_debug format=png").unwrap();
+		std::fs::write(dir.join("places.vpl"), "from_debug format=png").unwrap();
+		std::fs::write(
+			dir.join(MANIFEST_FILE),
+			"version: 2\ngraphs:\n  - name: basemap\n    file: basemap.vpl\n  - name: places\n    file: places.vpl\nstyle:\n  sources: {}\n  order:\n    - basemap\n    - places\n",
+		)
+		.unwrap();
+
+		let loaded = load(&dir).unwrap();
+
+		assert_eq!(
+			loaded.manifest.style.order,
+			vec![Segment::whole("basemap"), Segment::whole("places")],
+			"the names became whole segments, in the order they were written"
+		);
 	}
 
 	/// **The one thing S6.4 could get wrong quietly.** A version-1 project must keep opening, and its

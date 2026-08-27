@@ -105,7 +105,13 @@ export function drawOrder(recipe: Recipe, built: Record<string, Preview>): strin
  * own copy of this list did.
  */
 export function ordered(recipe: Recipe, names: string[]): string[] {
-	const order = recipe.order.filter((name) => names.includes(name));
+	// **Each source once, where it first draws.** `order` holds segments, so a source that is drawn
+	// in two places names itself twice; this answers about sources - which mounts there are and in
+	// what order they were introduced - and the composition below is what reads the runs themselves.
+	const order: string[] = [];
+	for (const segment of recipe.order) {
+		if (names.includes(segment.source) && !order.includes(segment.source)) order.push(segment.source);
+	}
 	for (const name of [...names].sort()) if (!order.includes(name)) order.push(name);
 	return order;
 }

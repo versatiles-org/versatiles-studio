@@ -252,10 +252,14 @@ export const commands = {
 	 *  would need the two ends to agree about what the list was before it - which is the disagreement
 	 *  `set_style_recolor` avoids the same way.
 	 * 
-	 *  Names that no graph has are kept rather than filtered. `Recipe::draw_order` ignores them, and
+	 *  Sources that no graph has are kept rather than filtered. `Recipe::segments` ignores them, and
 	 *  dropping them here would lose a position for a graph that is only temporarily absent.
+	 * 
+	 *  **Segments, so one source can be drawn in two places** ([the layer stack](../../../docs/layers.md)).
+	 *  Where a run begins is a layer id, and this end never looks at it: which layer comes before which
+	 *  is a fact about a rendered style, which lives in the webview ([Q36]).
 	 */
-	setStyleOrder: (order: string[]) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_order", { order })),
+	setStyleOrder: (order: Segment_Deserialize[]) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_order", { order })),
 	/**
 	 *  Sets the hillshade settings for an elevation source ([S6.6](../../../docs/history.md), D12).
 	 * 
@@ -283,6 +287,14 @@ export const commands = {
 	setStyleRecolor: (graph: number, recolor: Recolor_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_recolor", { graph, recolor })),
 	/**  Changes one layer of a vector source (D3, S4.5). */
 	setLayerOverride: (graph: number, layer: string, patch: LayerOverride_Deserialize) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_layer_override", { graph, layer, patch })),
+	/**
+	 *  Switches one path of the layer tree on or off - the eye, at whatever depth it was pressed.
+	 * 
+	 *  **A path rather than the layers under it**, so the cost is one string however large the branch,
+	 *  and so it survives a preset switch and a reordering that a range of layer ids would not. What a
+	 *  path means is the webview's business; this stores it.
+	 */
+	setLayerHidden: (graph: number, path: string, hidden: boolean) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_layer_hidden", { graph, path, hidden })),
 	/**
 	 *  Writes a style someone chose a destination for (S4.6, D8).
 	 * 
@@ -1719,10 +1731,15 @@ export type Recipe_Deserialize = {
 	 * 
 	 *  **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
 	 *  drag that has to renumber every sibling is how two entries end up claiming one position.
-	 *  Names absent from it are drawn after those in it, in name order - so a source that arrives
+	 *  Sources absent from it are drawn after those in it, in name order - so a source that arrives
 	 *  while nobody is looking appears on top rather than vanishing.
+	 * 
+	 *  **Segments rather than names** ([the layer stack](../../../docs/layers.md)): a source may
+	 *  appear more than once, so that another source can be drawn between two of its parts. One
+	 *  entry per source with no boundary is what every recipe written before this said, and is what
+	 *  such a file still deserialises to.
 	 */
-	order?: string[],
+	order?: Segment_Deserialize[],
 };
 
 /**
@@ -1746,10 +1763,15 @@ export type Recipe_Serialize = {
 	 * 
 	 *  **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
 	 *  drag that has to renumber every sibling is how two entries end up claiming one position.
-	 *  Names absent from it are drawn after those in it, in name order - so a source that arrives
+	 *  Sources absent from it are drawn after those in it, in name order - so a source that arrives
 	 *  while nobody is looking appears on top rather than vanishing.
+	 * 
+	 *  **Segments rather than names** ([the layer stack](../../../docs/layers.md)): a source may
+	 *  appear more than once, so that another source can be drawn between two of its parts. One
+	 *  entry per source with no boundary is what every recipe written before this said, and is what
+	 *  such a file still deserialises to.
 	 */
-	order: string[],
+	order: Segment_Serialize[],
 };
 
 /**
@@ -1897,6 +1919,43 @@ export type Review = {
 	diagnostics: Diagnostic[],
 };
 
+/**
+ *  One run of one source's layers, at a place in the stack.
+ * 
+ *  `from` names the layer the run begins at; `None` means the source's first layer. Where it *ends*
+ *  is never stored - the next segment of the same source begins there, and the last one runs to the
+ *  end. Storing both would be two facts to keep in step about one boundary.
+ */
+export type Segment = Segment_Serialize | Segment_Deserialize;
+
+/**
+ *  One run of one source's layers, at a place in the stack.
+ * 
+ *  `from` names the layer the run begins at; `None` means the source's first layer. Where it *ends*
+ *  is never stored - the next segment of the same source begins there, and the last one runs to the
+ *  end. Storing both would be two facts to keep in step about one boundary.
+ */
+export type Segment_Deserialize = {
+	/**  The graph whose layers this draws. */
+	source: string,
+	/**  The layer id it starts at, or `None` for the whole source from its first layer. */
+	from?: string | null,
+};
+
+/**
+ *  One run of one source's layers, at a place in the stack.
+ * 
+ *  `from` names the layer the run begins at; `None` means the source's first layer. Where it *ends*
+ *  is never stored - the next segment of the same source begins there, and the last one runs to the
+ *  end. Storing both would be two facts to keep in step about one boundary.
+ */
+export type Segment_Serialize = {
+	/**  The graph whose layers this draws. */
+	source: string,
+	/**  The layer id it starts at, or `None` for the whole source from its first layer. */
+	from?: string | null,
+};
+
 /**  Which sidebar a pane sits in. */
 export type Side = "left" | "right";
 
@@ -1937,6 +1996,23 @@ export type SourceStyle_Deserialize = {
 	/**  What someone said these tiles are, when the derived reading was wrong (S6.1). */
 	kind?: SourceKind | null,
 	appearance?: Appearance_Deserialize,
+	/**
+	 *  Tree paths this source does not paint - the eyes in the layer tree.
+	 * 
+	 *  **A path, not a range.** `Labels` is a name that survives a preset switch and a reordering;
+	 *  "the second run of labels" is a position, and positions move. Writing `visible: false` onto
+	 *  every leaf instead would say the same thing and cost 10.5 kB to switch off one category of
+	 *  `colorful`, in a struct the undo stack snapshots whole.
+	 * 
+	 *  A layer is hidden when its own override says so **or** any ancestor path is in here, which
+	 *  is why a category split across two places has one eye and it hides both parts: visibility
+	 *  belongs to the layers, position to the segments.
+	 * 
+	 *  The paths themselves are the webview's vocabulary - this module never renders a style and so
+	 *  never sees a layer id. It stores the strings and moves them with a rename; what they mean is
+	 *  decided where the tree is built.
+	 */
+	hidden?: string[],
 };
 
 /**  One source's style: what it is, and how it is drawn. */
@@ -1944,6 +2020,23 @@ export type SourceStyle_Serialize = {
 	/**  What someone said these tiles are, when the derived reading was wrong (S6.1). */
 	kind: SourceKind | null,
 	appearance: Appearance_Serialize,
+	/**
+	 *  Tree paths this source does not paint - the eyes in the layer tree.
+	 * 
+	 *  **A path, not a range.** `Labels` is a name that survives a preset switch and a reordering;
+	 *  "the second run of labels" is a position, and positions move. Writing `visible: false` onto
+	 *  every leaf instead would say the same thing and cost 10.5 kB to switch off one category of
+	 *  `colorful`, in a struct the undo stack snapshots whole.
+	 * 
+	 *  A layer is hidden when its own override says so **or** any ancestor path is in here, which
+	 *  is why a category split across two places has one eye and it hides both parts: visibility
+	 *  belongs to the layers, position to the segments.
+	 * 
+	 *  The paths themselves are the webview's vocabulary - this module never renders a style and so
+	 *  never sees a layer id. It stores the strings and moves them with a rename; what they mean is
+	 *  decided where the tree is built.
+	 */
+	hidden?: string[],
 };
 
 /**

@@ -171,8 +171,13 @@ describe('the rest of the edits', () => {
 	});
 
 	// The order is the project's, not a source's, so it needs no graph.
+	// Widened to whole segments on the way out: the core stores runs so that a source can be drawn
+	// in two places, and every caller today moves whole sources.
 	it('sets the draw order without one', async () => {
 		await style.setOrder(['places', 'berlin']);
-		expect(ipc.setStyleOrder).toHaveBeenCalledWith(['places', 'berlin']);
+		expect(ipc.setStyleOrder).toHaveBeenCalledWith([
+			{ source: 'places', from: null },
+			{ source: 'berlin', from: null }
+		]);
 	});
 });

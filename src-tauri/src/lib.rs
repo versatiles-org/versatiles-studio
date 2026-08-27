@@ -112,6 +112,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::style::prune_style_overrides,
 		commands::style::set_style_recolor,
 		commands::style::set_layer_override,
+		commands::style::set_layer_hidden,
 		commands::style::export_style,
 		commands::style::export_style_bundle,
 		commands::style::style_formats,

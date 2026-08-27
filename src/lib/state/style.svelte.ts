@@ -182,9 +182,15 @@ export const style = {
 		if (graph) recipe = await pruneStyleOverrides(graph.id, present);
 	},
 
-	/** Sets the draw order, bottom first (S6.5). */
+	/**
+	 * Sets the draw order, bottom first (S6.5).
+	 *
+	 * **Named sources, until something can split one.** The core stores segments so that a source can
+	 * be drawn in two places, and every caller today moves whole sources - so the names are widened
+	 * here rather than at each call site, and the day a run is dragged this takes segments instead.
+	 */
 	async setOrder(order: string[]): Promise<void> {
-		recipe = await setStyleOrder(order);
+		recipe = await setStyleOrder(order.map((source) => ({ source, from: null })));
 	},
 
 	async setLayer(layer: string, patch: LayerOverride): Promise<void> {

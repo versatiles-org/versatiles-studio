@@ -347,6 +347,22 @@ pub struct SourceStyle {
 	/// What someone said these tiles are, when the derived reading was wrong (S6.1).
 	pub kind: Option<SourceKind>,
 	pub appearance: Appearance,
+	/// Tree paths this source does not paint - the eyes in the layer tree.
+	///
+	/// **A path, not a range.** `Labels` is a name that survives a preset switch and a reordering;
+	/// "the second run of labels" is a position, and positions move. Writing `visible: false` onto
+	/// every leaf instead would say the same thing and cost 10.5 kB to switch off one category of
+	/// `colorful`, in a struct the undo stack snapshots whole.
+	///
+	/// A layer is hidden when its own override says so **or** any ancestor path is in here, which
+	/// is why a category split across two places has one eye and it hides both parts: visibility
+	/// belongs to the layers, position to the segments.
+	///
+	/// The paths themselves are the webview's vocabulary - this module never renders a style and so
+	/// never sees a layer id. It stores the strings and moves them with a rename; what they mean is
+	/// decided where the tree is built.
+	#[serde(skip_serializing_if = "std::collections::BTreeSet::is_empty")]
+	pub hidden: std::collections::BTreeSet<String>,
 }
 
 /// The whole style, as the core holds it.
@@ -370,9 +386,76 @@ pub struct Recipe {
 	///
 	/// **A list beside the map rather than a number on each entry.** Reordering is a drag, and a
 	/// drag that has to renumber every sibling is how two entries end up claiming one position.
-	/// Names absent from it are drawn after those in it, in name order - so a source that arrives
+	/// Sources absent from it are drawn after those in it, in name order - so a source that arrives
 	/// while nobody is looking appears on top rather than vanishing.
-	pub order: Vec<String>,
+	///
+	/// **Segments rather than names** ([the layer stack](../../../docs/layers.md)): a source may
+	/// appear more than once, so that another source can be drawn between two of its parts. One
+	/// entry per source with no boundary is what every recipe written before this said, and is what
+	/// such a file still deserialises to.
+	//
+	// **The lenient deserialiser never reaches the wire.** A `Recipe` crosses the boundary outward
+	// only - the webview is handed one and sends back segments - and what this end *writes* is always
+	// segments. Specta cannot know that a `deserialize_with` accepting two shapes is a file-format
+	// concern, so it is told the type it would have inferred without it.
+	#[cfg_attr(feature = "bindings", specta(type = Vec<Segment>))]
+	#[serde(deserialize_with = "segments_or_names")]
+	pub order: Vec<Segment>,
+}
+
+/// One run of one source's layers, at a place in the stack.
+///
+/// `from` names the layer the run begins at; `None` means the source's first layer. Where it *ends*
+/// is never stored - the next segment of the same source begins there, and the last one runs to the
+/// end. Storing both would be two facts to keep in step about one boundary.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct Segment {
+	/// The graph whose layers this draws.
+	pub source: String,
+	/// The layer id it starts at, or `None` for the whole source from its first layer.
+	#[serde(default, skip_serializing_if = "Option::is_none")]
+	pub from: Option<String>,
+}
+
+impl Segment {
+	/// A whole source, undivided - what a project that has never been rearranged is made of.
+	#[must_use]
+	pub fn whole(source: impl Into<String>) -> Self {
+		Self {
+			source: source.into(),
+			from: None,
+		}
+	}
+}
+
+/// Reads `order` from either shape: the list of names written before segments existed, or segments.
+///
+/// **In the deserialiser rather than in `project.rs`.** The same `Recipe` is the manifest's `style:`
+/// block *and* what the undo stack snapshots as text, so a migration living in the project loader
+/// would leave the other path reading a file it could not parse. One implementation covers both,
+/// and there is no version to bump: the two shapes are told apart by what they are.
+fn segments_or_names<'de, D>(deserializer: D) -> std::result::Result<Vec<Segment>, D::Error>
+where
+	D: serde::Deserializer<'de>,
+{
+	use serde::Deserialize;
+
+	#[derive(Deserialize)]
+	#[serde(untagged)]
+	enum Entry {
+		Name(String),
+		Segment(Segment),
+	}
+
+	Ok(Vec::<Entry>::deserialize(deserializer)?
+		.into_iter()
+		.map(|entry| match entry {
+			Entry::Name(name) => Segment::whole(name),
+			Entry::Segment(segment) => segment,
+		})
+		.collect())
 }
 
 impl Recipe {
@@ -391,23 +474,43 @@ impl Recipe {
 		serde_json::from_str(text).context("reading the style")
 	}
 
-	/// The sources to draw, bottom first.
+	/// The segments to draw, bottom first.
 	///
-	/// Everything `order` names and still exists, then everything else in name order. Two rules,
-	/// because `order` is a preference rather than a register: a graph removed while a project was
-	/// closed must not leave a hole, and one added must not be invisible.
+	/// Everything `order` names and still exists, then a whole segment for every source it does not
+	/// name. Two rules, because `order` is a preference rather than a register: a graph removed while
+	/// a project was closed must not leave a hole, and one added must not be invisible.
+	///
+	/// **What this cannot check is the boundaries.** Whether one source's segments are in ascending
+	/// order is a question about the rendered style's layer order, and this module never renders one
+	/// ([Q36]) - it does not know which of two layer ids comes first. The webview composes, so the
+	/// webview is where that invariant is enforced; here a boundary is an opaque string.
 	#[must_use]
-	pub fn draw_order<'a>(&self, present: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+	pub fn segments<'a>(&self, present: impl IntoIterator<Item = &'a str>) -> Vec<Segment> {
 		let present: std::collections::BTreeSet<&str> = present.into_iter().collect();
-		let mut out: Vec<String> = self
+		let mut out: Vec<Segment> = self
 			.order
 			.iter()
-			.filter(|name| present.contains(name.as_str()))
+			.filter(|segment| present.contains(segment.source.as_str()))
 			.cloned()
 			.collect();
 		for name in &present {
-			if !out.iter().any(|seen| seen == name) {
-				out.push((*name).to_string());
+			if !out.iter().any(|segment| segment.source == *name) {
+				out.push(Segment::whole(*name));
+			}
+		}
+		out
+	}
+
+	/// The sources to draw, bottom first, each once - the order in which a source *first* appears.
+	///
+	/// For the callers that ask about sources rather than about runs: which mounts a style needs,
+	/// and in what order they were introduced.
+	#[must_use]
+	pub fn draw_order<'a>(&self, present: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+		let mut out: Vec<String> = Vec::new();
+		for segment in self.segments(present) {
+			if !out.contains(&segment.source) {
+				out.push(segment.source);
 			}
 		}
 		out
@@ -427,6 +530,7 @@ impl Recipe {
 		self.sources.entry(name.to_string()).or_insert_with(|| SourceStyle {
 			kind: None,
 			appearance: Appearance::for_kind(kind),
+			hidden: std::collections::BTreeSet::new(),
 		})
 	}
 
@@ -465,10 +569,28 @@ impl Recipe {
 		if let Some(style) = self.sources.remove(from) {
 			self.sources.insert(to.to_string(), style);
 		}
-		for name in &mut self.order {
-			if name == from {
-				*name = to.to_string();
+		for segment in &mut self.order {
+			if segment.source == from {
+				segment.source = to.to_string();
 			}
+		}
+	}
+
+	/// Switches one tree path of one source on or off - an eye in the layer tree.
+	///
+	/// Hiding creates the source's entry if it has none, the way every other setter does: a source
+	/// nobody has styled still draws, and the first thing done to it must not be the one edit that
+	/// vanishes. Showing something that was never hidden writes nothing, so "reset" and "never
+	/// touched" stay the same state.
+	pub fn set_hidden(&mut self, source: &str, path: &str, hidden: bool) {
+		if !hidden && !self.sources.contains_key(source) {
+			return;
+		}
+		let entry = self.source_mut(source, None);
+		if hidden {
+			entry.hidden.insert(path.to_string());
+		} else {
+			entry.hidden.remove(path);
 		}
 	}
 
@@ -530,6 +652,7 @@ mod tests {
 					},
 					overrides: BTreeMap::new(),
 				},
+				hidden: Default::default(),
 			},
 		);
 		recipe.set_override(
@@ -690,7 +813,7 @@ mod tests {
 	#[test]
 	fn the_draw_order_survives_sources_coming_and_going() {
 		let recipe = Recipe {
-			order: vec!["basemap".into(), "gone".into()],
+			order: vec![Segment::whole("basemap"), Segment::whole("gone")],
 			..Recipe::default()
 		};
 
@@ -707,13 +830,139 @@ mod tests {
 		);
 	}
 
+	/// The gesture the whole design exists for: one source drawn in two places, with another
+	/// between them. Both of its segments have to survive `segments`, in the order they were put in.
+	#[test]
+	fn a_source_may_be_drawn_in_two_places() {
+		let recipe = Recipe {
+			order: vec![
+				Segment::whole("osm"),
+				Segment::whole("dataviz"),
+				Segment {
+					source: "osm".into(),
+					from: Some("label-place-city".into()),
+				},
+			],
+			..Recipe::default()
+		};
+
+		let drawn = recipe.segments(["osm", "dataviz"]);
+		assert_eq!(drawn.len(), 3, "the source's second run is not deduplicated away");
+		assert_eq!(drawn[2].source, "osm");
+		assert_eq!(drawn[2].from.as_deref(), Some("label-place-city"));
+
+		assert_eq!(
+			recipe.draw_order(["osm", "dataviz"]),
+			vec!["osm".to_string(), "dataviz".to_string()],
+			"asked about sources rather than runs, a source appears once, where it first draws"
+		);
+	}
+
+	/// A source that arrives while nobody is looking is drawn whole, on top - the same rule the list
+	/// of names had, now that the entries are segments.
+	#[test]
+	fn a_source_nothing_names_is_drawn_whole() {
+		let recipe = Recipe {
+			order: vec![Segment::whole("osm")],
+			..Recipe::default()
+		};
+		assert_eq!(
+			recipe.segments(["osm", "new"]),
+			vec![Segment::whole("osm"), Segment::whole("new")]
+		);
+	}
+
+	/// **The file written before segments existed still opens.** `order` was a list of names, and the
+	/// same `Recipe` is both the manifest's `style:` block and what the undo stack snapshots - so
+	/// this one deserialiser is what keeps every project on disk readable.
+	#[test]
+	fn an_order_of_names_reads_as_whole_segments() {
+		let recipe = Recipe::parse(r#"{"sources":{},"order":["basemap","places"]}"#).unwrap();
+		assert_eq!(recipe.order, vec![Segment::whole("basemap"), Segment::whole("places")]);
+
+		// And what it writes is the new shape, which reads back unchanged.
+		let round_tripped = Recipe::parse(&recipe.text()).unwrap();
+		assert_eq!(round_tripped, recipe);
+	}
+
+	/// A boundary is stored, and a segment without one carries no `from` key at all - so a project
+	/// that has never been rearranged reads exactly as it did before segments existed.
+	#[test]
+	fn a_whole_segment_writes_no_boundary() {
+		let recipe = Recipe {
+			order: vec![Segment::whole("basemap")],
+			..Recipe::default()
+		};
+		assert_eq!(recipe.text(), r#"{"sources":{},"order":[{"source":"basemap"}]}"#);
+	}
+
 	/// A rename must move the position as well as the style, or renaming sends a source to the top.
 	#[test]
 	fn a_rename_carries_the_position_over() {
 		let mut recipe = edited();
-		recipe.order = vec![GRAPH.into(), "other".into()];
+		recipe.order = vec![
+			Segment::whole(GRAPH),
+			Segment::whole("other"),
+			Segment {
+				source: GRAPH.into(),
+				from: Some("label-place-city".into()),
+			},
+		];
 		recipe.rename_source(GRAPH, "streets");
-		assert_eq!(recipe.order, vec!["streets".to_string(), "other".to_string()]);
+		assert_eq!(
+			recipe.order,
+			vec![
+				Segment::whole("streets"),
+				Segment::whole("other"),
+				Segment {
+					source: "streets".into(),
+					from: Some("label-place-city".into()),
+				},
+			],
+			"every run of the renamed source moves, not just the first"
+		);
+	}
+
+	/// An eye is a path, so what it costs is one string however many layers are under it - and it
+	/// survives the reordering and the preset switch that a range could not.
+	#[test]
+	fn an_eye_stores_the_path_it_was_pressed_on() {
+		let mut recipe = Recipe::default();
+		recipe.set_hidden(GRAPH, "Labels", true);
+		assert!(recipe.source(GRAPH).unwrap().hidden.contains("Labels"));
+
+		recipe.set_hidden(GRAPH, "Labels", false);
+		assert!(
+			recipe.source(GRAPH).unwrap().hidden.is_empty(),
+			"showing it again leaves no trace, so reset and never-touched are one state"
+		);
+	}
+
+	/// The first thing done to a source must not be the edit that vanishes - the bug `set_override`
+	/// already carries a comment about, in the one other setter that reads before it writes.
+	#[test]
+	fn hiding_something_on_an_unstyled_source_still_records_it() {
+		let mut recipe = Recipe::default();
+		assert!(recipe.source(GRAPH).is_none());
+		recipe.set_hidden(GRAPH, "Roads & rails", true);
+		assert!(recipe.source(GRAPH).is_some());
+	}
+
+	/// Un-hiding a source nobody has touched is not an edit, and must not write an entry for one.
+	#[test]
+	fn showing_something_never_hidden_writes_nothing() {
+		let mut recipe = Recipe::default();
+		let before = recipe.text();
+		recipe.set_hidden(GRAPH, "Labels", false);
+		assert_eq!(recipe.text(), before);
+	}
+
+	/// An empty set is absent from the text rather than present and empty: the undo stack compares
+	/// snapshots, and a recipe that grew a key by being looked at would record an edit for nothing.
+	#[test]
+	fn an_empty_hidden_set_is_not_written() {
+		let recipe = edited();
+		assert!(!recipe.text().contains("hidden"));
 	}
 
 	/// Overrides outlive a preset switch on purpose - the presets share a namespace, and one that

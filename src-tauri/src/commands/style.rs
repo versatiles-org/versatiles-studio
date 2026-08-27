@@ -15,7 +15,9 @@
 use crate::state::{AppState, Project};
 use studio_core::graphs::GraphId;
 use studio_core::history::{EditKind, Target};
-use studio_core::style::{Appearance, Hillshade, LayerOverride, Preset, RasterAdjust, Recipe, Recolor, SourceKind};
+use studio_core::style::{
+	Appearance, Hillshade, LayerOverride, Preset, RasterAdjust, Recipe, Recolor, Segment, SourceKind,
+};
 use tauri::{AppHandle, State};
 
 /// The recipe as it stands.
@@ -179,14 +181,18 @@ pub async fn set_style_hillshade(
 /// would need the two ends to agree about what the list was before it - which is the disagreement
 /// `set_style_recolor` avoids the same way.
 ///
-/// Names that no graph has are kept rather than filtered. `Recipe::draw_order` ignores them, and
+/// Sources that no graph has are kept rather than filtered. `Recipe::segments` ignores them, and
 /// dropping them here would lose a position for a graph that is only temporarily absent.
+///
+/// **Segments, so one source can be drawn in two places** ([the layer stack](../../../docs/layers.md)).
+/// Where a run begins is a layer id, and this end never looks at it: which layer comes before which
+/// is a fact about a rendered style, which lives in the webview ([Q36]).
 #[tauri::command]
 #[specta::specta]
 pub async fn set_style_order(
 	window: tauri::Window,
 	state: State<'_, AppState>,
-	order: Vec<String>,
+	order: Vec<Segment>,
 ) -> Result<Recipe, String> {
 	let project = state.project(&window).await;
 	let mut project = project.lock().await;
@@ -258,6 +264,28 @@ pub async fn set_layer_override(
 	let name = source_name(&project, graph)?;
 	let mut recipe = project.style.clone();
 	recipe.set_override(&name, layer, patch);
+	Ok(record(&mut project, recipe))
+}
+
+/// Switches one path of the layer tree on or off - the eye, at whatever depth it was pressed.
+///
+/// **A path rather than the layers under it**, so the cost is one string however large the branch,
+/// and so it survives a preset switch and a reordering that a range of layer ids would not. What a
+/// path means is the webview's business; this stores it.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_layer_hidden(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	graph: GraphId,
+	path: String,
+	hidden: bool,
+) -> Result<Recipe, String> {
+	let project = state.project(&window).await;
+	let mut project = project.lock().await;
+	let name = source_name(&project, graph)?;
+	let mut recipe = project.style.clone();
+	recipe.set_hidden(&name, &path, hidden);
 	Ok(record(&mut project, recipe))
 }
 
