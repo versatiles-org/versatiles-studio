@@ -27,7 +27,7 @@ const CROP = { bbox: null, minZoom: null, maxZoom: null } as never;
 beforeEach(async () => {
 	vi.clearAllMocks();
 	ipc.writableFormats.mockResolvedValue(['versatiles', 'mbtiles', 'pmtiles']);
-	ipc.mountGraph.mockResolvedValue({ name: 'berlin' });
+	ipc.mountGraph.mockResolvedValue({ type: 'tiles', preview: { name: 'berlin' } });
 	ipc.exportGraph.mockResolvedValue(1);
 	dialog.save.mockResolvedValue('/tmp/out.versatiles');
 	await exporting.loadFormats();

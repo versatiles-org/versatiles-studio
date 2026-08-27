@@ -41,6 +41,9 @@ function built(name: string) {
 	};
 }
 
+/** What `mount_graph` answers for a graph that built: those tiles, tagged. */
+const mounted = (name: string) => ({ type: 'tiles', preview: built(name) });
+
 /** A valid document. `diagnostics` is what decides whether it is built at all. */
 function document(diagnostics: unknown[] = []) {
 	return { graph: 1, diagnostics, pipeline: { nodes: [] } } as never;
@@ -59,11 +62,11 @@ beforeEach(() => {
 
 describe('the preview on the map', () => {
 	it('takes the old layer off before it forgets what it was called', async () => {
-		ipc.mountGraph.mockResolvedValueOnce(built('first'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('first'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		expect(removed).toEqual([]);
 
-		ipc.mountGraph.mockResolvedValueOnce(built('second'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('second'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 
 		// Without this the first mount stays on the map for the rest of the session: the only handle
@@ -72,23 +75,39 @@ describe('the preview on the map', () => {
 		expect(preview.last?.name).toBe('second');
 	});
 
-	/// A build that comes back with nothing changes nothing.
+	/// A superseded build changes nothing on its way out.
 	///
-	/// Two ways that happens and they want the same answer: a newer build of this graph superseded
-	/// it, or the graph has no tiles to serve because its eye is off ([Q49]). Either way the map is
-	/// somebody else's now - a build that tidied up after itself would take the newer preview off
-	/// it, and switching a graph off is `forget`'s job, not a failed build's.
-	it('lets a build that came back with nothing change nothing on its way out', async () => {
-		ipc.mountGraph.mockResolvedValueOnce(built('current'));
+	/// The map belongs to the newer build of the same graph, which is still running: a cancelled one
+	/// that tidied up after itself would take the newer preview off it. The bar is that build's too,
+	/// which is why this is not `nothing`.
+	it('lets a superseded build change nothing on its way out', async () => {
+		ipc.mountGraph.mockResolvedValueOnce(mounted('current'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 
-		ipc.mountGraph.mockResolvedValueOnce(null);
+		ipc.mountGraph.mockResolvedValueOnce({ type: 'superseded' });
 		const outcome = await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 
-		expect(outcome).toEqual({ kind: 'nothing' });
+		expect(outcome).toEqual({ kind: 'superseded' });
 		expect(preview.last?.name).toBe('current');
 		expect(removed).toEqual([]);
 		expect(added).toHaveLength(1);
+	});
+
+	/// A graph that serves nothing has its layers taken off.
+	///
+	/// The other half of the same answer, and the reason the two had to be told apart: its eye is
+	/// off, or its nodes are off down to nothing ([Q49]), so what it drew is stale. While both
+	/// arrived as `null` this could only leave the map alone, and a graph switched off went on
+	/// drawing until something else replaced the style.
+	it('takes the layers off when the graph stops serving anything', async () => {
+		ipc.mountGraph.mockResolvedValueOnce(mounted('current'));
+		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
+
+		ipc.mountGraph.mockResolvedValueOnce({ type: 'notDrawn' });
+		const outcome = await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
+
+		expect(outcome).toEqual({ kind: 'nothing' });
+		expect(removed).toEqual(['current']);
 	});
 
 	it('does not build a document that does not validate, and still quiets the bar', async () => {
@@ -118,7 +137,7 @@ describe('the preview on the map', () => {
 	});
 
 	it('leaves the hairlines off when a style is drawing these tiles', async () => {
-		ipc.mountGraph.mockResolvedValueOnce(built('styled-one'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('styled-one'));
 		const outcome = await preview.refresh({
 			map,
 			pipeline: document(),
@@ -142,15 +161,15 @@ describe('the preview on the map', () => {
 	 * reach MapLibre instead of failing to find anything.
 	 */
 	it('has nothing to take off again when a style drew the tiles', async () => {
-		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('pipeline'));
 		await preview.refresh({ map, pipeline: document(), styled: () => true, restored: false });
 
-		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('pipeline'));
 		await preview.refresh({ map, pipeline: document(), styled: () => true, restored: false });
 		expect(removed).toEqual([]);
 
 		// And the same on the way back out of a style: still nothing of this module's on the map.
-		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('pipeline'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		expect(removed).toEqual([]);
 		expect(added).toHaveLength(1);
@@ -160,26 +179,26 @@ describe('the preview on the map', () => {
 		// `restore` is called once the new style is in place. Setting a style discards every layer
 		// added to the old one, so a name kept across it points at layers that are already gone -
 		// and quite possibly at a source the *new* style owns.
-		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('pipeline'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 
 		preview.restore(map, true);
 		expect(added, 'not over a styled map').toHaveLength(1);
 
-		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('pipeline'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		expect(removed).toEqual([]);
 	});
 
 	it('puts the preview back after a style swap, and knows it is there', async () => {
-		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('pipeline'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 
 		preview.restore(map, false);
 		expect(added).toHaveLength(2);
 
 		// Drawn again means mounted again: the next refresh has to take those layers off.
-		ipc.mountGraph.mockResolvedValueOnce(built('pipeline'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('pipeline'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		expect(removed).toEqual(['pipeline']);
 	});
@@ -187,7 +206,7 @@ describe('the preview on the map', () => {
 	it('asks about the style after the build, not before', async () => {
 		// `styled` is derived from the preview this call produces, so a value read up front is the
 		// previous build's answer - which puts hairlines over a styled map every other refresh.
-		ipc.mountGraph.mockResolvedValueOnce(built('one'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('one'));
 		const seen: (string | null)[] = [];
 		await preview.refresh({
 			map,
@@ -199,7 +218,7 @@ describe('the preview on the map', () => {
 	});
 
 	it('frames the data when tiles first appear', async () => {
-		ipc.mountGraph.mockResolvedValueOnce(built('first'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('first'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		expect(fitted).toEqual([[13, 52, 14, 53]]);
 	});
@@ -210,12 +229,12 @@ describe('the preview on the map', () => {
 	 * straight back out of it.
 	 */
 	it('leaves the camera alone on every rebuild after that', async () => {
-		ipc.mountGraph.mockResolvedValueOnce(built('first'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('first'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		expect(fitted).toHaveLength(1);
 
 		for (const name of ['second', 'third']) {
-			ipc.mountGraph.mockResolvedValueOnce(built(name));
+			ipc.mountGraph.mockResolvedValueOnce(mounted(name));
 			await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		}
 		expect(fitted, 'a rebuild must not move the map').toHaveLength(1);
@@ -223,11 +242,11 @@ describe('the preview on the map', () => {
 
 	it('frames again once the map has been emptied', async () => {
 		// `clear` is the last graph going; whatever comes next is a first appearance again.
-		ipc.mountGraph.mockResolvedValueOnce(built('first'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('first'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		preview.clear(map);
 
-		ipc.mountGraph.mockResolvedValueOnce(built('next'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('next'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		expect(fitted).toHaveLength(2);
 	});
@@ -240,7 +259,7 @@ describe('the preview on the map', () => {
 	 * window - opened at null island and stayed there until somebody pressed Reset view.
 	 */
 	it('frames the data whoever is drawing it', async () => {
-		ipc.mountGraph.mockResolvedValueOnce(built('styled-two'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('styled-two'));
 		await preview.refresh({ map, pipeline: document(), styled: () => true, restored: false });
 
 		expect(fitted).toEqual([[13, 52, 14, 53]]);
@@ -253,7 +272,7 @@ describe('the preview on the map', () => {
 	 * window that came back exactly where it was, looking at the same place.
 	 */
 	it('does not frame over a camera the window already has', async () => {
-		ipc.mountGraph.mockResolvedValueOnce(built('reopened'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('reopened'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: true });
 
 		expect(fitted).toEqual([]);
@@ -264,17 +283,17 @@ describe('the preview on the map', () => {
 		// The tiles were on screen the whole time - the recipe was drawing them - so the hairlines
 		// taking over is not a first appearance. Asking "did *this module* mount anything" instead
 		// would throw the camera back to the data's extent on the way out of a style.
-		ipc.mountGraph.mockResolvedValueOnce(built('styled-three'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('styled-three'));
 		await preview.refresh({ map, pipeline: document(), styled: () => true, restored: false });
 		expect(fitted, 'framed once, when the data first appeared').toHaveLength(1);
 
-		ipc.mountGraph.mockResolvedValueOnce(built('styled-three'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('styled-three'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		expect(fitted, 'and not again for a change of who draws it').toHaveLength(1);
 	});
 
 	it('forgets the mount when the last graph goes', async () => {
-		ipc.mountGraph.mockResolvedValueOnce(built('only'));
+		ipc.mountGraph.mockResolvedValueOnce(mounted('only'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 
 		preview.clear(map);
@@ -342,7 +361,7 @@ describe('the containers the document reads', () => {
 
 describe('the stack of built graphs', () => {
 	it('builds each one and files it under its name', async () => {
-		ipc.mountGraph.mockImplementation((id: number) => Promise.resolve(built(`graph-${id}`)));
+		ipc.mountGraph.mockImplementation((id: number) => Promise.resolve(mounted(`graph-${id}`)));
 		await preview.mountAll([1, 2]);
 		expect(Object.keys(preview.built).sort()).toEqual(['graph-1', 'graph-2']);
 	});
@@ -351,14 +370,14 @@ describe('the stack of built graphs', () => {
 	// its own problems through `refresh`.
 	it('keeps the graphs that did build when one fails', async () => {
 		ipc.mountGraph.mockImplementation((id: number) =>
-			id === 1 ? Promise.reject(new Error('no')) : Promise.resolve(built('places'))
+			id === 1 ? Promise.reject(new Error('no')) : Promise.resolve(mounted('places'))
 		);
 		await preview.mountAll([1, 2]);
 		expect(Object.keys(preview.built)).toEqual(['places']);
 	});
 
 	it('forgets a graph that has been removed', async () => {
-		ipc.mountGraph.mockResolvedValue(built('places'));
+		ipc.mountGraph.mockResolvedValue(mounted('places'));
 		await preview.mountAll([1]);
 		preview.forget('places');
 		expect(preview.built).toEqual({});
@@ -368,12 +387,34 @@ describe('the stack of built graphs', () => {
 		preview.forget('never-existed');
 		expect(preview.built).toEqual({});
 	});
+
+	/// Switching a graph's last node off empties it, and the entry has to go with it - otherwise the
+	/// stack keeps a source drawing from tiles the graph no longer produces.
+	it('drops a graph that rebuilt into nothing', async () => {
+		ipc.mountGraph.mockResolvedValueOnce(mounted('places'));
+		await preview.mountAll([1]);
+
+		ipc.mountGraph.mockResolvedValueOnce({ type: 'notDrawn' });
+		await preview.rebuild(1, 'places');
+		expect(preview.built).toEqual({});
+	});
+
+	/// The opposite case, and the reason `rebuild` cannot just drop the entry whenever it gets no
+	/// tiles: a newer build of this graph is still running and its answer is the one to keep.
+	it('keeps a graph whose rebuild was superseded', async () => {
+		ipc.mountGraph.mockResolvedValueOnce(mounted('places'));
+		await preview.mountAll([1]);
+
+		ipc.mountGraph.mockResolvedValueOnce({ type: 'superseded' });
+		await preview.rebuild(1, 'places');
+		expect(Object.keys(preview.built)).toEqual(['places']);
+	});
 });
 
 describe('putting the preview back after a style swap', () => {
 	// A style swap discards every layer added to the old style, so the preview has to go back on.
 	it('re-adds the hairlines when nothing else is drawing these tiles', async () => {
-		ipc.mountGraph.mockResolvedValue(built('berlin'));
+		ipc.mountGraph.mockResolvedValue(mounted('berlin'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		added.length = 0;
 
@@ -384,7 +425,7 @@ describe('putting the preview back after a style swap', () => {
 	// They are the fallback for a preset that matches nothing; over a styled map they would put a
 	// line over every feature the style just drew.
 	it('leaves them off when a style is drawing them', async () => {
-		ipc.mountGraph.mockResolvedValue(built('berlin'));
+		ipc.mountGraph.mockResolvedValue(mounted('berlin'));
 		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 		added.length = 0;
 

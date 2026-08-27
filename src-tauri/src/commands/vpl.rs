@@ -462,6 +462,32 @@ pub struct Preview {
 	pub fits: Vec<studio_core::analysis::Fit>,
 }
 
+/// What a build of one graph came to.
+///
+/// **Three outcomes, because two of them used to be one.** `mount_graph` answered `Option<Preview>`,
+/// and `None` meant either *this graph has nothing to serve* or *a newer build took the lane* - two
+/// situations that want opposite things from the map. The first says the tiles on screen are stale
+/// and have to come off; the second says a build that is still running owns them and nothing here
+/// should touch them. With one answer for both, the webview could only pick a side: it left the
+/// layers on, so switching a graph off left its tiles drawn until something else replaced the style.
+#[derive(serde::Serialize, Clone)]
+#[serde(tag = "type", rename_all = "camelCase")]
+#[derive(specta::Type)]
+pub enum Mounted {
+	/// Built and mounted. These are the tiles to draw.
+	///
+	/// Boxed because the other two variants carry nothing, and a `Preview` is large enough that an
+	/// unboxed one would make every `NotDrawn` the same size as a whole build report. Serde and
+	/// specta both see straight through the box, so the shape on the wire is unchanged.
+	Tiles { preview: Box<Preview> },
+	/// This graph serves nothing: it does not exist, its eye is off, or its nodes are off down to
+	/// nothing ([Q49]). Whatever it had on the map is stale.
+	NotDrawn,
+	/// A newer build of the same graph superseded this one. Its answer is the current one, and this
+	/// call must not act on the map on its way out.
+	Superseded,
+}
+
 /// The last preview built for a graph, so an edit that changes nothing rebuilds nothing ([Q61]).
 ///
 /// **Keyed on the effective pipeline, not on the document.** Editing a comment, reformatting, or
@@ -732,18 +758,18 @@ pub async fn mount_graph(
 	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
-) -> Result<Option<Preview>, String> {
+) -> Result<Mounted, String> {
 	let held = state.project(&window).await;
 	let (name, mount, pipeline, dir) = {
 		let project = held.lock().await;
 		let Some(found) = project.graphs.get(graph) else {
-			return Ok(None);
+			return Ok(Mounted::NotDrawn);
 		};
 		let name = found.name.clone();
 		// Switched off, or switched off down to nothing: there are no tiles to serve, and saying so
 		// is what keeps an off graph out of the stack and out of the style.
 		let Some(pipeline) = found.drawn() else {
-			return Ok(None);
+			return Ok(Mounted::NotDrawn);
 		};
 		let mount = project.mount(&name);
 		(name, mount, pipeline, project.dir.clone())
@@ -772,10 +798,13 @@ pub async fn mount_graph(
 		});
 
 	match rx.await {
-		Ok(Ok(preview)) => Ok(Some(preview)),
+		Ok(Ok(preview)) => Ok(Mounted::Tiles {
+			preview: Box::new(preview),
+		}),
 		Ok(Err(error)) => Err(error),
-		// Superseded by a newer build of the same graph; its answer is the current one.
-		Err(_) => Ok(None),
+		// The sender was dropped, which happens when `Lane::Latest` cancelled this build for a newer
+		// one of the same graph. Told apart from `NotDrawn` because the map is that build's now.
+		Err(_) => Ok(Mounted::Superseded),
 	}
 }
 

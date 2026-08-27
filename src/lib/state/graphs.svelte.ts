@@ -129,6 +129,8 @@ export const graphs = {
 	async setNodeEnabled(id: number, path: number[], enabled: boolean): Promise<void> {
 		await setNodeEnabled(id, path, enabled);
 		await this.refresh();
-		await preview.rebuild(id);
+		// The name goes with it: a rebuild that comes back with no tiles has none to report, and
+		// dropping the entry from the stack is the whole point of telling it.
+		await preview.rebuild(id, this.nameOf(id));
 	}
 };

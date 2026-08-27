@@ -127,6 +127,20 @@ async function mount(source: string): Promise<OpenedContainer> {
 	return result;
 }
 
+/**
+ * Forgets a graph's tiles - for one that has been removed, switched off, or emptied.
+ *
+ * A free function rather than only a method, because `rebuild` below has to call it: a graph that
+ * comes back `notDrawn` has just stopped serving anything, and the entry it left in the stack is
+ * what the map would otherwise go on drawing.
+ */
+function forget(name: string): void {
+	if (!(name in built)) return;
+	const next = { ...built };
+	delete next[name];
+	built = next;
+}
+
 export const preview = {
 	get containers(): OpenedContainer[] {
 		return containers;
@@ -152,7 +166,15 @@ export const preview = {
 	 * arriving, and the one being edited reports its own problems through `refresh`.
 	 */
 	async mountAll(ids: number[]): Promise<void> {
-		const results = await Promise.all(ids.map((id) => mountGraph(id).catch(() => null)));
+		// Only the tiles matter here: a graph switched off and a build that was superseded both leave
+		// this with nothing to file, and neither is news to a stack that is not on screen.
+		const results = await Promise.all(
+			ids.map((id) =>
+				mountGraph(id)
+					.then((mounted) => (mounted.type === 'tiles' ? mounted.preview : null))
+					.catch(() => null)
+			)
+		);
 		const next = { ...built };
 		for (const result of results) {
 			if (result) next[result.name] = result;
@@ -165,21 +187,25 @@ export const preview = {
 	 *
 	 * For a change to *what a graph is* rather than to which graph is on screen: switching a node
 	 * off changes the tiles served under that graph's name, and the stack has to follow even when
-	 * the graph is not the one being edited. `null` back means it has nothing to serve any more, so
-	 * its entry goes.
+	 * the graph is not the one being edited.
+	 *
+	 * **`notDrawn` takes the entry out**, which is what this said it did and did not do: switching a
+	 * graph's last node off empties it, the build comes back with no tiles, and the entry left behind
+	 * is a source the stack goes on drawing from tiles the graph no longer produces. `superseded` is
+	 * the opposite case and leaves everything alone - a newer build of this graph is still running,
+	 * and its answer is the one to keep.
+	 *
+	 * The name comes in rather than off the result, because a build with no tiles carries none.
 	 */
-	async rebuild(id: number): Promise<void> {
-		const result = await mountGraph(id).catch(() => null);
-		if (result) built = { ...built, [result.name]: result };
+	async rebuild(id: number, name: string | null): Promise<void> {
+		const mounted = await mountGraph(id).catch(() => null);
+		if (!mounted) return;
+		if (mounted.type === 'tiles') built = { ...built, [mounted.preview.name]: mounted.preview };
+		else if (mounted.type === 'notDrawn' && name !== null) forget(name);
 	},
 
 	/** Forgets a graph's tiles - for one that has been removed, or switched off. */
-	forget(name: string): void {
-		if (!(name in built)) return;
-		const next = { ...built };
-		delete next[name];
-		built = next;
-	},
+	forget,
 
 	/** Opens a container and remembers it. See `mount`. */
 	mount,
@@ -215,12 +241,24 @@ export const preview = {
 		// at S4 - until something renders them, building every graph on every refresh is a job
 		// apiece for tiles nobody draws. Half of it falls out already: a mount is keyed by name and
 		// nothing unmounts on a graph switch, so each graph visited stays served until it is removed.
-		const result = await mountGraph(pipeline.graph);
+		const mounted = await mountGraph(pipeline.graph);
 
-		// Either a newer build of this graph owns the map already, or the graph has nothing to
-		// serve - it is switched off, or switched off down to nothing. Neither is a reason to take
-		// what is on the map off it: `forget` is what does that, when the eye says so.
-		if (!result) return { kind: 'nothing' };
+		// **A newer build of this graph owns the map, and this one is on its way out.** Touching
+		// anything here would be a cancelled build undoing what the build that replaced it has
+		// already done. The bar is that build's to set too, which is what tells this from `nothing`.
+		if (mounted.type === 'superseded') return { kind: 'superseded' };
+
+		// **The graph serves nothing, so what it drew is stale.** Switched off, switched off down to
+		// nothing, or gone. This used to be indistinguishable from the case above and therefore had
+		// to leave the map alone, which is how a graph whose eye had just been closed went on drawing
+		// until something else happened to replace the style.
+		if (mounted.type === 'notDrawn') {
+			if (mountedName) removeContainerFromMap(map, mountedName);
+			mountedName = null;
+			return { kind: 'nothing' };
+		}
+
+		const result = mounted.preview;
 
 		// **Whether anything was already drawn, read before it is cleared.** It decides the camera
 		// below, and two lines from now the answer is gone.

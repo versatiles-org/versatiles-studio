@@ -611,29 +611,7 @@ export const commands = {
 	 *  whose eyes are off, and nothing at all when the graph itself is off. Every route to tiles goes
 	 *  through here, so the map, the server and the style cannot disagree about what a graph is.
 	 */
-	mountGraph: (graph: number) => typedError<{
-	/**  Mount name, stable so a rebuild replaces rather than accumulates. */
-	name: string,
-	tileUrl: string,
-	info: ContainerInfo,
-	/**
-	 *  The layers this produces, with their property keys (S3.3, E1).
-	 * 
-	 *  Carried on the preview rather than fetched separately because it is an answer about *this*
-	 *  build: asking afterwards would race the next edit, and the form would offer property names
-	 *  from a pipeline that no longer exists. Empty for raster output.
-	 */
-	layers: LayerInspection[],
-	/**
-	 *  Which transforms can be appended to this, and why the rest cannot (S2.14).
-	 * 
-	 *  Carried here for the same reason as `layers`, and it is the same kind of answer: what fits
-	 *  depends on what this build produces, so asking separately would race the next edit and offer
-	 *  operations chosen for a pipeline that no longer exists. It also costs nothing extra - the
-	 *  source is already built and every check is a comparison against its declared tile type.
-	 */
-	fits: Fit[],
-} | null, string>(__TAURI_INVOKE("mount_graph", { graph })),
+	mountGraph: (graph: number) => typedError<Mounted, string>(__TAURI_INVOKE("mount_graph", { graph })),
 	/**
 	 *  Switches a graph on or off - the eye on its row in the sources list ([Q49]).
 	 * 
@@ -1410,6 +1388,36 @@ export type Level =
 "warn" | 
 /**  Something the user asked for did not happen. */
 "error";
+
+/**
+ *  What a build of one graph came to.
+ * 
+ *  **Three outcomes, because two of them used to be one.** `mount_graph` answered `Option<Preview>`,
+ *  and `None` meant either *this graph has nothing to serve* or *a newer build took the lane* - two
+ *  situations that want opposite things from the map. The first says the tiles on screen are stale
+ *  and have to come off; the second says a build that is still running owns them and nothing here
+ *  should touch them. With one answer for both, the webview could only pick a side: it left the
+ *  layers on, so switching a graph off left its tiles drawn until something else replaced the style.
+ */
+export type Mounted = 
+/**
+ *  Built and mounted. These are the tiles to draw.
+ * 
+ *  Boxed because the other two variants carry nothing, and a `Preview` is large enough that an
+ *  unboxed one would make every `NotDrawn` the same size as a whole build report. Serde and
+ *  specta both see straight through the box, so the shape on the wire is unchanged.
+ */
+{ type: "tiles"; preview: Preview } | 
+/**
+ *  This graph serves nothing: it does not exist, its eye is off, or its nodes are off down to
+ *  nothing ([Q49]). Whatever it had on the map is stale.
+ */
+{ type: "notDrawn" } | 
+/**
+ *  A newer build of the same graph superseded this one. Its answer is the current one, and this
+ *  call must not act on the map on its way out.
+ */
+{ type: "superseded" };
 
 /**  A problem on its way in, before the ring gives it an id, a time and a count. */
 export type NewProblem = {

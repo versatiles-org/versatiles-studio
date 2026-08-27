@@ -473,8 +473,9 @@ export const saveVpl = (graph: number, path: string) => unwrap(commands.saveVpl(
 /**
  * Builds a graph's *effective* pipeline and mounts it under its own name (Q32, [Q49]).
  *
- * Effective means the document minus the nodes whose eyes are off. `null` when there are no tiles
- * to serve - the graph is off, or a newer build of it has superseded this one.
+ * Effective means the document minus the nodes whose eyes are off. Three answers rather than tiles
+ * or nothing: `notDrawn` and `superseded` both produce no tiles and want opposite things done about
+ * the ones already on the map - see [`Mounted`].
  */
 export const mountGraph = (graph: number) => unwrap(commands.mountGraph(graph));
 

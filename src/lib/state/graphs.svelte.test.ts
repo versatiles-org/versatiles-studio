@@ -21,7 +21,7 @@ vi.mock('../ipc/commands', () => ipc);
 
 const forgotten: string[] = [];
 const mounted: number[][] = [];
-const rebuilt: number[] = [];
+const rebuilt: [number, string | null][] = [];
 vi.mock('./preview.svelte', () => ({
 	preview: {
 		get built() {
@@ -29,7 +29,7 @@ vi.mock('./preview.svelte', () => ({
 		},
 		forget: (name: string) => void forgotten.push(name),
 		mountAll: (ids: number[]) => void mounted.push(ids),
-		rebuild: (id: number) => void rebuilt.push(id)
+		rebuild: (id: number, name: string | null) => void rebuilt.push([id, name])
 	}
 }));
 
@@ -131,7 +131,9 @@ describe('the eyes ([Q49])', () => {
 		await graphs.setNodeEnabled(1, [2], false);
 
 		expect(ipc.setNodeEnabled).toHaveBeenCalledWith(1, [2], false);
-		expect(rebuilt).toEqual([1]);
+		// The name goes with the id: a rebuild that empties the graph reports no tiles and therefore
+		// no name, and dropping its entry from the stack needs one.
+		expect(rebuilt).toEqual([[1, 'basemap']]);
 	});
 
 	it('reports what the core refuses rather than pretending it worked', async () => {

@@ -76,7 +76,11 @@ export const exporting = {
 		open = true;
 		producing = null;
 		if (graph === null) return;
-		producing = await mountGraph(graph).catch(() => null);
+		// The variant is not this caller's business: a graph that is switched off and one whose build
+		// was superseded both produce nothing to describe, and the dialog says the same either way.
+		producing = await mountGraph(graph)
+			.then((mounted) => (mounted.type === 'tiles' ? mounted.preview : null))
+			.catch(() => null);
 	},
 
 	/** Runs the estimate the dialog asks for. */
