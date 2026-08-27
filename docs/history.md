@@ -1,6 +1,6 @@
 # Release History
 
-What each release set out to do, the work items it was tracked by, and what shipped. All three have
+What each release set out to do, the work items it was tracked by, and what shipped. All four have
 landed; `✓` marks a delivered item.
 
 **Item ids are identity, not order.** `S3.4` means one thing forever - items are never renumbered
@@ -375,3 +375,71 @@ settings, and two windows sharing them means panning one pans the other on its n
 ### What stays where it is
 
 **One embedded server, one job runner, one core.** Q16's argument for windows over separate application instances was never about state being global - it was about one Rust core, one server with named mounts, and one asset writer. All of that stands. What changes is that a _project_ is now a thing the core holds several of.
+
+---
+
+## Release 4 - the rules move somewhere a test can reach them
+
+Release 3 made a window mean a project. This release is about a pattern the three before it left
+behind: **a rule living where nothing can check it.**
+
+Six defects were found by reading the code rather than by using it, and they are the same shape. Two
+outcomes that wanted opposite things arrived as one `Option`. A record of what the map draws was
+cleared by one of the three paths that stop drawing it. A pane kept the last parse of a document it
+was no longer showing. A component named a design token that has never existed, and `var()` dropped
+the declaration in silence. None of them failed a test, because none of them was anywhere a test
+could ask.
+
+So the fixes are half of it and the other half is where the code lives: `App.svelte` held twelve
+`$derived`s deciding what the map draws and two dozen functions sequencing what happens when
+something is opened, and both were reachable only by opening the application and looking.
+
+---
+
+### S8 · What the code claims, checked
+
+**What the code did before this stage.** `docs/layers.md` was linked from sixteen files, including
+committed Rust doc comments and the generated bindings, and had never been committed - so it left no
+trace in `git` when it went. `mount_graph` answered `Option<Preview>` for both "this graph serves
+nothing" and "a newer build took the lane", so the webview could only pick a side and picked the one
+that left switched-off tiles on the map. And `App.svelte` was 1220 lines.
+
+| Item      | Work                                                                         | Feature        |
+| --------- | ---------------------------------------------------------------------------- | -------------- |
+| **S8.1**  | ✓ The layer stack document, and the sixteen references that outlived it      | infrastructure |
+| **S8.2**  | ✓ Tell a superseded build from a graph that draws nothing                    | infrastructure |
+| **S8.3**  | ✓ One record for what the preview draws, cleared by everything that stops it | C3             |
+| **S8.4**  | ✓ The pane's draft belongs to the document it was typed into                 | C4             |
+| **S8.5**  | ✓ Every `var(--token)` names a token that exists                             | infrastructure |
+| **S8.6**  | ✓ A tile's abort listener is released with its slot                          | infrastructure |
+| **S8.7**  | ✓ Delete what nothing calls                                                  | infrastructure |
+| **S8.8**  | ✓ Comments and documents that describe code which is not there               | infrastructure |
+| **S8.9**  | ✓ The preview's state as one record, so the test seam cannot fall behind it  | infrastructure |
+| **S8.10** | ✓ The rules leave the page root                                              | infrastructure |
+
+**S8.2 before S8.3, which is the only ordering that is not obvious.** `refresh` cannot take stale
+layers off the map without also blanking it mid-keystroke, because it could not tell the two cases
+apart - so the fix for the visible bug needed the one nobody would have filed first.
+
+**S8.10 is three extractions, smallest risk first.** `map/composition.svelte.ts` is what the map
+draws, `shell/window-events.svelte.ts` is what reaches a window from outside it, and
+`state/workbench.svelte.ts` is opening things and the order that keeps every view agreeing. Only the
+last needs anything the component owns, and it takes the map as a function rather than an instance -
+one held across a reload would be stale.
+
+### What breaks, and where it is caught
+
+**`bindings_are_up_to_date` is the tripwire for S8.2**, which turns `Option<Preview>` into a tagged
+union and changes the generated TypeScript with it.
+
+**Four guards arrived that did not exist**, each for a failure that had already happened: a
+`var(--token)` must resolve, a pane folder must be in the component inventory, `reset()` cannot fall
+behind the state it clears, and the composed style must keep its identity across reads - a getter
+rebuilding it per read is a full `setStyle` per render, and nothing else would notice.
+
+### What this is not
+
+**Not a rewrite, and not a feature.** Every rule here already existed and is unchanged; what moved is
+where it is written, and what is new is the ability to ask it a question. `App.svelte` is 554 lines
+of wiring and markup, and the end-to-end stories - which are what cover the wiring the unit tests
+cannot reach - pass unchanged.

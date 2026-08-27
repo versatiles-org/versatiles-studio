@@ -112,7 +112,7 @@ const schemes = [
 	{
 		name: 'work item',
 		// **One document, because the releases have shipped.** Each had its own scope document while
-		// it was being planned; `history.md` is all three, and the numbering carries straight on
+		// it was being planned; `history.md` is all four, and the numbering carries straight on
 		// through it. A release still in flight would get its own file back, and this list.
 		definedIn: ['docs/history.md'],
 		/** `| **S3.6** | …` and its stretch form `| **S4.10\*** | …` */
@@ -242,7 +242,7 @@ describe('documentation size', () => {
 	/** Words per file, generous by roughly a fifth. */
 	const budget: Record<string, number> = {
 		'docs/decisions.md': 5000,
-		'docs/history.md': 4450,
+		'docs/history.md': 5300,
 		'docs/features.md': 2700,
 		'docs/ui.md': 2350,
 		'docs/layers.md': 2300,
