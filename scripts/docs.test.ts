@@ -173,6 +173,38 @@ describe('documentation identifiers', () => {
  * to resolve or an identifier to find and this had neither. `lib.rs` is a module root and
  * `testing.rs` is only reachable from tests, so neither earns a line; everything else does.
  */
+/**
+ * The decision log states that a chapter's numbers run in order, so an entry that amends another comes
+ * after it. That is the sort of claim prose stops being true about the moment somebody adds an entry
+ * where it reads best rather than where it belongs.
+ */
+describe('the decision log', () => {
+	it('keeps each chapter in order', () => {
+		const text = read('docs/decisions.md');
+		const chapters = text.split(/^## /m).slice(1);
+		const wrong: string[] = [];
+
+		for (const chapter of chapters) {
+			const title = chapter.slice(0, chapter.indexOf('\n')).trim();
+			const numbers = [...chapter.matchAll(/^### Q(\d+) - /gm)].map((match) => Number(match[1]));
+			for (let at = 1; at < numbers.length; at++) {
+				if (numbers[at]! < numbers[at - 1]!) wrong.push(`${title}: Q${numbers[at]} after Q${numbers[at - 1]}`);
+			}
+		}
+
+		expect(wrong, 'move it, or say something else in the preamble').toEqual([]);
+	});
+
+	it('files every decision under a chapter', () => {
+		const text = read('docs/decisions.md');
+		const before = text.slice(0, text.search(/^## (?!Open questions)/m));
+		expect(
+			[...before.matchAll(/^### Q\d+/gm)].map((match) => match[0]),
+			'this one is above every chapter'
+		).toEqual([]);
+	});
+});
+
 describe('the repository layout', () => {
 	const LAYOUT = read('docs/architecture.md');
 	const EXEMPT = new Set(['lib.rs', 'testing.rs', 'main.rs', 'tsconfig.json', 'docs-pdf.head.html']);
