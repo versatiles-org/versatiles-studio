@@ -123,8 +123,21 @@ pub fn archive_path(dir: &Path, id: &str) -> Result<PathBuf> {
 /// **Verified before it is installed, not after.** A truncated download and a substituted file look
 /// the same to a reader that has already mounted them, and a glyph archive is a file the map serves
 /// to itself - so the check is the point of the digest being in the manifest at all.
+/// A byte string's digest, in the spelling the manifest pins.
+///
+/// **One function, because the prefix is part of the format.** `sha256:…` is what the manifest
+/// carries verbatim from the GitHub release and what `scripts/fetch-assets.ts` writes when it
+/// refreshes the pins; spelling it out at each call site is four places for the two ends to drift.
+///
+/// `hex::encode` rather than `{:x}`: `sha2` 0.11 answers with a `hybrid_array::Array`, and unlike
+/// the `GenericArray` it replaced that implements no `LowerHex` - so the old spelling stopped
+/// compiling rather than stopping being correct.
+fn sha256(bytes: &[u8]) -> String {
+	format!("sha256:{}", hex::encode(Sha256::digest(bytes)))
+}
+
 pub fn accept(dir: &Path, id: &str, bytes: &[u8], digest: &str) -> Result<PathBuf> {
-	let found = format!("sha256:{:x}", Sha256::digest(bytes));
+	let found = sha256(bytes);
 	anyhow::ensure!(
 		found == digest,
 		"{id} does not match what the manifest pins - expected {digest}, got {found}"
@@ -201,6 +214,28 @@ pub fn installed(dir: &Path) -> Vec<PathBuf> {
 mod tests {
 	use super::*;
 
+	/// A digest is spelled the one way the pins are written.
+	///
+	/// **Every other test here computes both sides with [`sha256`]**, so all of them would keep
+	/// passing if it started answering in upper case, with separators, or in base64 - and every real
+	/// download would then be refused as "not what the manifest pins", which is the sort of thing that
+	/// only shows up on somebody else's machine after a release.
+	///
+	/// That is not hypothetical: `sha2` 0.11 replaced `GenericArray` with `hybrid_array::Array`, which
+	/// implements no `LowerHex`, so `{:x}` stopped compiling. It stopping *compiling* is the lucky
+	/// case. A known vector is what covers the unlucky one.
+	#[test]
+	fn a_digest_is_written_the_way_the_manifest_pins_it() {
+		assert_eq!(
+			sha256(b""),
+			"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+		);
+		assert_eq!(
+			sha256(b"the real thing"),
+			"sha256:049b18f5905f610be851d256caccd655de1032800abfe8e8edb0721301f04377"
+		);
+	}
+
 	/// The manifest is compiled in, so a mistake in it is a mistake in the binary - this is the only
 	/// place that would notice.
 	#[test]
@@ -233,7 +268,7 @@ mod tests {
 	#[test]
 	fn an_archive_that_is_not_what_was_pinned_is_refused() {
 		let dir = crate::testing::dir("assets-digest");
-		let right = format!("sha256:{:x}", Sha256::digest(b"the real thing"));
+		let right = sha256(b"the real thing");
 
 		let error = accept(&dir, "noto_sans", b"something else", &right).unwrap_err();
 		assert!(format!("{error:#}").contains("does not match"), "{error:#}");
@@ -249,7 +284,7 @@ mod tests {
 	#[test]
 	fn removing_says_whether_there_was_anything_to_remove() {
 		let dir = crate::testing::dir("assets-remove");
-		let digest = format!("sha256:{:x}", Sha256::digest(b"font"));
+		let digest = sha256(b"font");
 		accept(&dir, "lato", b"font", &digest).unwrap();
 
 		assert!(remove(&dir, "lato").unwrap());
@@ -262,7 +297,7 @@ mod tests {
 	#[test]
 	fn installed_archives_come_back_in_a_stable_order() {
 		let dir = crate::testing::dir("assets-order");
-		let digest = |b: &[u8]| format!("sha256:{:x}", Sha256::digest(b));
+		let digest = |b: &[u8]| sha256(b);
 		for id in ["noto_sans", "lato", "fira_sans"] {
 			accept(&dir, id, id.as_bytes(), &digest(id.as_bytes())).unwrap();
 		}
