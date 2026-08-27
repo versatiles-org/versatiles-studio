@@ -26,6 +26,7 @@
 	import { exporting } from './lib/state/export.svelte';
 	import { status } from './lib/state/status.svelte';
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
+	import LayersPane from './lib/panes/layers/LayersPane.svelte';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
 	import SourcesPane from './lib/panes/sources/SourcesPane.svelte';
@@ -84,7 +85,8 @@
 		importReadNode,
 		fieldSuggestions,
 		type EditKind,
-		type ImportKind
+		type ImportKind,
+		type LayerOverride
 	} from './lib/ipc/commands';
 
 	/// Every way in this build has (S3.2). Build-time information about the binary, so it is fetched
@@ -586,6 +588,30 @@
 	const styleText = () => (styled ? JSON.stringify(forExport(styled), null, '\t') : null);
 	const previewDrawn = $derived(drawn(composed, preview.last?.name));
 
+	/// What the Layers pane needs about each source: which graph it is, what was changed about it,
+	/// and the style it drew on its own.
+	///
+	/// **Its own style, not the stack's.** Overrides are keyed on the ids `styleFor` produced, and
+	/// the composed stack renames those as soon as a second thing draws ([Q51]) - the same reason the
+	/// Style pane is handed `own` rather than `styled`.
+	const styleSources = $derived.by(() => {
+		const out: Record<
+			string,
+			{ graph: number; hidden: string[]; overrides: Record<string, LayerOverride>; style: StyleSpecification | null }
+		> = {};
+		for (const graph of graphs.list) {
+			const source = styleRecipe.current?.sources[graph.name];
+			const appearance = source?.appearance;
+			out[graph.name] = {
+				graph: graph.id,
+				hidden: source?.hidden ?? [],
+				overrides: appearance?.type === 'vector' ? appearance.overrides : {},
+				style: composed.bases.find((entry) => entry.name === graph.name)?.style ?? null
+			};
+		}
+		return out;
+	});
+
 	/// The stack entry for the source being edited, which is the one the style pane acts on - both
 	/// how it was drawn and the style it drew, whose ids its overrides are keyed on ([Q51]).
 	const editedEntry = $derived(composed.bases.find((entry) => entry.name === preview.last?.name));
@@ -993,6 +1019,16 @@
 						layers: preview.mountedLayers
 					}
 				: null}
+		/>
+	{:else if id === 'layers'}
+		<LayersPane
+			rows={composed.rows}
+			sources={styleSources}
+			actions={{
+				setHidden: (graph, path, hidden) => void styleRecipe.setHidden(graph, path, hidden).then(refreshPreview),
+				setOverride: (graph, layer, patch) => void styleRecipe.setLayerFor(graph, layer, patch),
+				select: (graph) => void selectGraph(graph)
+			}}
 		/>
 	{:else if id === 'inspector'}
 		<Inspector

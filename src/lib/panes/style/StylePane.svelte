@@ -5,7 +5,6 @@
 	import { demEncoding, type StyleBasis } from '../../map/style';
 	import { token } from '../../styles/tokens';
 	import type { StyleSpecification } from 'maplibre-gl';
-	import LayerTree from './LayerTree.svelte';
 	import { save } from '@tauri-apps/plugin-dialog';
 	import { exportStyle, exportStyleBundle } from '../../ipc/commands';
 	import { canGenerateCode, forExport, fontsUsed, styleCode } from '../../map/style-code';
@@ -441,8 +440,6 @@
 					<button type="button" class="reset" onclick={() => void style.pruneOverrides(presentIds)}> clear </button>
 				</p>
 			{/if}
-
-			<LayerTree rendered={own} />
 		{/if}
 
 		<h2 class="section-label">Export</h2>

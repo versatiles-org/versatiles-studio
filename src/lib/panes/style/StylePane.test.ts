@@ -51,12 +51,16 @@ afterEach(() => {
 
 describe('what the pane offers for each kind of tileset', () => {
 	// The case the pane was designed for, and the only one that worked before S6.1.
-	it('offers presets and the layer tree for Shortbread vector tiles', async () => {
+	//
+	// **The layer tree is no longer here.** It became project-wide when order stopped belonging to
+	// sources, so this pane says how one source is *drawn* and the Layers pane says where those
+	// layers land ([the layer stack](../../../../docs/layers.md)).
+	it('offers presets for Shortbread vector tiles, and no layer tree', async () => {
 		await open({ layers: ['water_polygons', 'street_polygons', 'boundaries'] });
 
 		expect(screen.getByText('Preset')).toBeTruthy();
 		expect(screen.getByText('Colorful')).toBeTruthy();
-		expect(screen.getByText('Layers')).toBeTruthy();
+		expect(screen.queryByText('Layers')).toBeNull();
 	});
 
 	// **The bug S6.3 fixed.** Every preset was selectable over a photograph and none of them did

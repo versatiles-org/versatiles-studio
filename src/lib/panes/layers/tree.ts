@@ -38,6 +38,14 @@ export interface Row {
 	source: string;
 	/** MapLibre's layer type, for the icon and for knowing which paint key to colour. */
 	type: string;
+	/**
+	 * The path of the closed eye above this layer, if any - `Composed.rows` works it out while it
+	 * composes, since it holds the source's hidden set at that moment.
+	 *
+	 * A hidden layer is still a row: the tree lists what a source draws so that the eye can be found
+	 * again, and a row that vanished would be a switch with no way back.
+	 */
+	hidden?: string | null;
 }
 
 /** A single layer. */

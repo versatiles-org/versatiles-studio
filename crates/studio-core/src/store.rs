@@ -317,6 +317,10 @@ const PANES: &[(&str, Side, bool)] = &[
 	// work ([Q22](../../docs/decisions.md)). Closed on a fresh install: a style has nothing to show
 	// until there are tiles under it.
 	("style", Side::Left, false),
+	// What the map paints, over every source at once ([the layer stack](../../docs/layers.md)).
+	// Below Style, which is the last thing that *contributes* layers - this is where they are put in
+	// order. Closed on a fresh install, for the reason Style is.
+	("layers", Side::Left, false),
 	// Right: what the pipeline turns out to be. **No `parameters` pane** - the selected node carries
 	// its own arguments in the chain ([Q32]), which is what moved [Q31]'s axis from
 	// document-versus-selection to what-you-are-building versus what-it-turns-out-to-be.
@@ -385,6 +389,14 @@ fn reconcile_panes(stored: Vec<PaneState>) -> Vec<PaneState> {
 		// hand is deliberately not built ([Q31]).
 		if pane.id == "pipeline" && !panes.iter().any(|kept| kept.id == "sources") {
 			panes.push(PaneState::from(&("sources", pane.side, true)));
+		}
+		// **And the layer tree arrives below the pane it was taken out of**, for the same reason: it
+		// was the bottom of `style` until the stack became project-wide, so a stored layout that
+		// knows only `style` should show the two in the order a fresh install does.
+		if pane.id == "style" && !panes.iter().any(|kept| kept.id == "layers") {
+			panes.push(pane.clone());
+			panes.push(PaneState::from(&("layers", pane.side, false)));
+			continue;
 		}
 		let known = PANES.iter().any(|(id, _, _)| *id == pane.id);
 		if known && !panes.iter().any(|kept| kept.id == pane.id) {
@@ -642,6 +654,7 @@ mod tests {
 			pane("sources", Side::Left, true),
 			pane("pipeline", Side::Left, true),
 			pane("style", Side::Right, false),
+			pane("layers", Side::Right, false),
 		];
 		layout.save(&dir)?;
 		assert_eq!(Layout::load(&dir), layout);
@@ -694,7 +707,7 @@ mod tests {
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
 		// `sources` arrives beside the pane it was split out of, not at the end - see below.
-		assert_eq!(ids, ["sources", "pipeline", "style", "inspector"]);
+		assert_eq!(ids, ["sources", "pipeline", "style", "layers", "inspector"]);
 		assert!(!layout.panes[1].open, "the remembered pane kept its own state");
 	}
 
@@ -711,7 +724,7 @@ mod tests {
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
 		// The remembered one keeps its place; the arrivals follow in catalogue order - except
 		// `sources`, which was split out of `pipeline` and belongs beside it.
-		assert_eq!(ids, ["inspector", "sources", "pipeline", "style"]);
+		assert_eq!(ids, ["inspector", "sources", "pipeline", "style", "layers"]);
 	}
 
 	/// **A pane split out of another is not a new pane.** `sources` was the top half of `pipeline`
@@ -731,10 +744,34 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		assert_eq!(ids, ["style", "sources", "pipeline", "inspector"]);
+		assert_eq!(ids, ["style", "layers", "sources", "pipeline", "inspector"]);
 
 		let sources = layout.panes.iter().find(|p| p.id == "sources").unwrap();
 		assert_eq!(sources.side, Side::Left, "and on the side the half it left was on");
+	}
+
+	/// The same rule for the second split. The layer tree was the bottom of `style` until the stack
+	/// became project-wide, so a layout that knows only `style` has to gain `layers` directly below
+	/// it - not at the end, where it would sit under the inspector on the other side.
+	#[test]
+	fn the_layer_tree_arrives_below_the_pane_it_left() {
+		let layout = Layout {
+			panes: vec![
+				pane("sources", Side::Left, true),
+				pane("pipeline", Side::Left, true),
+				pane("style", Side::Left, true),
+				pane("inspector", Side::Right, true),
+			],
+			..Layout::default()
+		}
+		.normalised();
+
+		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
+		assert_eq!(ids, ["sources", "pipeline", "style", "layers", "inspector"]);
+
+		let layers = layout.panes.iter().find(|p| p.id == "layers").unwrap();
+		assert_eq!(layers.side, Side::Left);
+		assert!(!layers.open, "and closed, the way a fresh install has it");
 	}
 
 	/// Nothing produces a duplicate, but a hand-edited file can - and two panes with one id would

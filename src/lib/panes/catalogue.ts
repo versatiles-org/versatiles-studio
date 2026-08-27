@@ -18,6 +18,9 @@ export const PANE_TITLES: Record<string, string> = {
 	// id and the title no longer match - the id is durable and appears in `layout.json`.
 	pipeline: 'Pipeline',
 	style: 'Style',
+	// What the map paints, over every source at once. It was the bottom of the Style pane until the
+	// stack became project-wide, which is why the two are adjacent and why the id is new.
+	layers: 'Layers',
 	inspector: 'Inspector'
 };
 

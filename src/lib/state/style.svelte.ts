@@ -22,6 +22,7 @@ import {
 	setStyleOrder,
 	setStyleHillshade,
 	pruneStyleOverrides,
+	setLayerHidden,
 	setLayerOverride,
 	type LayerOverride,
 	type Preset,
@@ -195,5 +196,21 @@ export const style = {
 
 	async setLayer(layer: string, patch: LayerOverride): Promise<void> {
 		if (graph) recipe = await setLayerOverride(graph.id, layer, patch);
+	},
+
+	/**
+	 * The same, for a graph that is not the focused one.
+	 *
+	 * **The layer tree spans every source now**, so which recipe an edit lands in is a property of
+	 * the row rather than of the pane. `setLayer` stays for the controls that genuinely act on the
+	 * selection; this is for the ones that act on what was clicked.
+	 */
+	async setLayerFor(id: number, layer: string, patch: LayerOverride): Promise<void> {
+		recipe = await setLayerOverride(id, layer, patch);
+	},
+
+	/** Switches one path of the layer tree on or off - the eye, at whatever depth it was pressed. */
+	async setHidden(id: number, path: string, hidden: boolean): Promise<void> {
+		recipe = await setLayerHidden(id, path, hidden);
 	}
 };

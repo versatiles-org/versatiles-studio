@@ -36,7 +36,8 @@ App.svelte            the workbench: one window, one project
 Launcher.svelte       the launcher: what ⌘N opens, and what starts with nothing open (S7.5)
 lib/shell/            the frame and its bar: AppShell · AlphaRibbon · Sidebar · Pane · PaneResizer · Boundary · StatusBar · JobsPanel · DiagnosticsPanel · UpdateDialog · AssetsDialog
 lib/panes/pipeline/   PipelinePane and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor · CropSection · ExportDialog
-lib/panes/style/      StylePane · LayerTree
+lib/panes/style/      StylePane
+lib/panes/layers/     LayersPane · LayerRow
 lib/panes/project/    CopyDialog
 lib/panes/inspector/  Inspector
 lib/map/              MapCanvas · MapControls · Dropdown · TileGrid · TileActivity · CoordinateJump · Views · FeaturePopup · CropOverlay
