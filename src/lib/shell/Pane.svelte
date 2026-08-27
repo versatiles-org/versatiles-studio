@@ -82,13 +82,12 @@
 			color: var(--ink);
 		}
 
+		/* Inset, because the header runs the full width of the pane and a ring outside it would be
+		   clipped. Colour and width come from base.css. */
 		&:focus-visible {
 			outline-offset: -2px;
 		}
 	}
-
-	/* Inset, because the header runs the full width of the pane and a ring outside it would be
-	   clipped. Colour and width come from base.css. */
 
 	.chevron {
 		display: inline-block;

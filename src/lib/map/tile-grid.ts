@@ -31,12 +31,6 @@ export function tileToLngLat(x: number, y: number, z: number): [number, number] 
 }
 
 /**
- * Grid rectangles covering `bounds` at integer zoom `z`.
- *
- * Capped at 2048 tiles: past that the labels are unreadable anyway, and generating them stalls the
- * frame that draws them.
- */
-/**
  * The zoom level MapLibre asks a source for, at a given map zoom (A5).
  *
  * **MapLibre's own rule, not a guess.** `Transform.coveringZoomLevel` is
@@ -94,6 +88,12 @@ export function tileRing(x: number, y: number, z: number): [number, number][][] 
 	];
 }
 
+/**
+ * Grid rectangles covering `bounds` at integer zoom `z`.
+ *
+ * Capped at 2048 tiles: past that the labels are unreadable anyway, and generating them stalls the
+ * frame that draws them.
+ */
 export function gridFeatures(bounds: LngLatBounds, z: number): GridFeature[] {
 	const nw = tileForLngLat(bounds.getWest(), bounds.getNorth(), z);
 	const se = tileForLngLat(bounds.getEast(), bounds.getSouth(), z);

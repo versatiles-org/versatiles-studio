@@ -62,17 +62,17 @@
 	   said so - the whole time, that label was the deliberately-hideous magenta `token()` falls back
 	   to. `tokens.test.ts` now checks that every `MapToken` is defined here. */
 	--map-label: #16201f;
-	/* The crop (F2, S5.2). Two tokens because the overlay does two things: it dims everything the
-	   export will not write, and traces the edge of what it will. The dim is a near-black rather
-	   than a grey - it has to darken any basemap without tinting it - and is drawn at partial
-	   opacity, so the token itself is opaque. The edge takes the accent, because a crop is a
-	   selection and that is what the accent means everywhere else in the window. */
 	/* Hillshade's three lights (S6.6, D12). MapLibre defaults to pure black and white, which is
 	   heavy over a light basemap and invisible over a dark one - so these are the defaults a swatch
 	   opens on, and they follow the theme like every other map colour. */
 	--map-shade-shadow: #2b3a45;
 	--map-shade-highlight: #ffffff;
 	--map-shade-accent: #1d2b33;
+	/* The crop (F2, S5.2). Two tokens because the overlay does two things: it dims everything the
+	   export will not write, and traces the edge of what it will. The dim is a near-black rather
+	   than a grey - it has to darken any basemap without tinting it - and is drawn at partial
+	   opacity, so the token itself is opaque. The edge takes the accent, because a crop is a
+	   selection and that is what the accent means everywhere else in the window. */
 	--map-crop-dim: #10161a;
 	--map-crop-edge: var(--accent);
 	/* Controls that float over the map need to stay legible against whatever is under them, so

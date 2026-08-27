@@ -451,7 +451,6 @@ export const listGraphs = () => unwrap(commands.graphs());
 /** One graph in full, or null once it has been removed. */
 export const getGraph = (id: number) => unwrap(commands.graph(id));
 
-/** Creates a graph. `name` is a suggestion - the core makes it unique and URL-safe. */
 /** Creates a graph. The core names it after `source` - one rule for every way in ([Q35]). */
 export const addGraph = (source: string | null, text: string) => unwrap(commands.addGraph(source, text));
 

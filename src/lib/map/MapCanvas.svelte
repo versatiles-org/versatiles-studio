@@ -198,10 +198,9 @@
 			background-color: var(--float-bg);
 		}
 
+		/* MapLibre paints its own background; give it a ground so the canvas never flashes white. */
 		:global(.maplibregl-canvas-container) {
 			background: var(--map-bg);
 		}
 	}
-
-	/* MapLibre paints its own background; give it a ground so the canvas never flashes white. */
 </style>

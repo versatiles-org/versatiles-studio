@@ -106,10 +106,9 @@
 
 	let style = $state<StyleSpecification | null>(null);
 	let map = $state<MaplibreMap | undefined>();
-	/** This window's document.current. The core owns it (Q25); this is a copy to render. */
-	/// The graph being edited. One document at a time on screen; the project holds several (Q32),
-	/// and the graph list that lets you switch between them is S2.13.
-	/// Which graph `pipeline` is. Every command that touches a document takes it.
+	/// The graph being edited, and what every command that touches a document is given. One at a
+	/// time on screen; the project holds several (Q32), and the list that switches between them is
+	/// S2.13.
 	const currentGraph = $derived(document.graph);
 
 	// **What the style pane edits** (S6.4).
@@ -510,15 +509,10 @@
 		}
 	}
 
-	/// The panes belonging to one sidebar, in the order the layout remembers (Q31).
+	/// Where the embedded server is, which everything that names a tile URL waits on.
 	///
-	/// `panes` is optional in the generated type only because `Layout` carries serde's `default` for
-	/// the file it is read from - a command always returns the reconciled list.
-
-	/// Returns the bar to quiet, without swallowing anything it still has to say.
-	///
-	/// Only a `busy` message is cleared: an error is a state someone has to answer, and dropping it
-	/// because unrelated work finished would hide the thing that needs answering.
+	/// The port is ephemeral, so it is asked for rather than assumed - and the default style goes up
+	/// as soon as it lands, so the map has a ground to draw on before anything is open.
 	$effect(() => {
 		serverBaseUrl()
 			.then((url) => {
@@ -528,13 +522,6 @@
 			.catch((e) => status.fail(e));
 	});
 
-	/// The style to draw, and which route produced it (S4.3, S6.2).
-	///
-	/// **Null is still a real answer, but a much rarer one now.** It used to mean "the preset matched
-	/// no layer in these tiles", which is the usual case for anything the pipeline builds - and the
-	/// map answered with a bare background. `styleFor` derives from the probed layers instead, so
-	/// null is left meaning what it should: there is nothing here a style can be made of, which is
-	/// raster until S6.3 and S6.6.
 	/// The background map, built when it is chosen and held so the stack can read it synchronously.
 	///
 	/// **Built here rather than inside the stack** because `buildBackground` is async - `satellite`
