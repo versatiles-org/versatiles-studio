@@ -88,6 +88,7 @@ containers some tests want, and how a release is cut.
 | [Ecosystem Inventory](docs/ecosystem.md) | What already exists in versatiles-org and can be reused           |
 | [Architecture](docs/architecture.md)     | How the pieces fit together                                       |
 | [UI Concept](docs/ui.md)                 | How the features are organised on screen, stage by stage          |
+| [The Layer Stack](docs/layers.md)        | What the map paints, how its order is stored, and how it is moved |
 | [Styling](docs/styling.md)               | Design tokens, and the rules that keep the CSS consistent         |
 | [Svelte Components](docs/components.md)  | The component inventory, and what to reuse as reference           |
 | [Decision Log](docs/decisions.md)        | Every question raised, and how it was settled                     |

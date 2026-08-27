@@ -245,6 +245,7 @@ describe('documentation size', () => {
 		'docs/history.md': 4450,
 		'docs/features.md': 2700,
 		'docs/ui.md': 2350,
+		'docs/layers.md': 2300,
 		'docs/ecosystem.md': 2000,
 		'docs/architecture.md': 1950,
 		'docs/styling.md': 1800,
