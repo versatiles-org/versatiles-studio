@@ -7,7 +7,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Every `.svelte` file under `src`, as `[name, path]`. */
@@ -39,11 +39,31 @@ describe('component organisation', () => {
 	/// **Two roots at the top**, one per page: `App` is the workbench and `Launcher` is the window
 	/// that opens projects ([Q48](../../docs/decisions.md), S7.5). A third would be a third window
 	/// with a page of its own, which is worth stopping to justify.
+	///
+	/// **The panes are named rather than matched.** `panes/[a-z]+` accepted any folder at all, so a
+	/// whole pane could arrive without the inventory hearing about it - which is exactly what
+	/// happened: `panes/sources/` existed for two releases and `components.md` listed the other five.
+	/// Adding a pane is now a line here and a line there, which is the point.
 	it('keeps components in the folders the scheme names', () => {
-		const allowed = /^src\/((App|Launcher)\.svelte|lib\/(shell|common|map|panes\/[a-z]+)\/[A-Za-z]+\.svelte)$/;
+		const panes = 'inspector|layers|pipeline|project|sources|style';
+		const allowed = new RegExp(
+			`^src/((App|Launcher)\\.svelte|lib/(shell|common|map|panes/(${panes}))/[A-Za-z]+\\.svelte)$`
+		);
 		const stray = components('src')
 			.map(([, path]) => path)
 			.filter((path) => !allowed.test(path));
 		expect(stray, 'a component outside the documented folders - see docs/components.md').toEqual([]);
+	});
+
+	/// Every pane this names is a pane the inventory describes.
+	///
+	/// The other half of the rule above: that one stops a component appearing in a folder nobody
+	/// documented, and this stops the folder list here drifting from the document it points at.
+	it('names the panes the inventory documents', () => {
+		// Relative, like `components('src')` above: both run from the repository root.
+		const inventory = readFileSync('docs/components.md', 'utf8');
+		const folders = [...new Set(components('src').map(([, path]) => /lib\/panes\/([a-z]+)\//.exec(path)?.[1]))];
+		const missing = folders.filter((pane): pane is string => !!pane && !inventory.includes(`lib/panes/${pane}/`));
+		expect(missing, 'add it to the inventory in docs/components.md').toEqual([]);
 	});
 });
