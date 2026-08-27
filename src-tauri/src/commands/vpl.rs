@@ -6,6 +6,7 @@
 //! TypeScript is how the two drift apart.
 
 use crate::state::AppState;
+use std::collections::HashMap;
 use studio_core::graphs::GraphId;
 use studio_core::history::{EditKind, Target};
 use studio_core::jobs::{JobHandle, Lane};
@@ -461,6 +462,76 @@ pub struct Preview {
 	pub fits: Vec<studio_core::analysis::Fit>,
 }
 
+/// The last preview built for a graph, so an edit that changes nothing rebuilds nothing ([Q61]).
+///
+/// **Keyed on the effective pipeline, not on the document.** Editing a comment, reformatting, or
+/// renaming a graph produces different text and the same pipeline - which is exactly the case worth
+/// catching, and one a comparison of documents would miss. `VPLPipeline`'s own `Display` is that
+/// canonical form.
+///
+/// **What it saves is not mainly the build.** Mounting bumps a revision that the tile URL carries, so
+/// an identical rebuild changed every tile URL and made MapLibre refetch the whole viewport. Skipping
+/// returns the same `Preview` with the same URL, the composed style compares equal, and nothing on the
+/// map moves. The build, the probe and the mount go with it.
+#[derive(Default)]
+pub struct Previews(std::sync::Mutex<HashMap<(String, GraphId), Built>>);
+
+struct Built {
+	/// The pipeline this was built from, canonically.
+	pipeline: String,
+	/// The mount it was served on. A rename moves that, and the preview names it.
+	mount: String,
+	/// What relative paths in the pipeline meant. "Save as" moves it, and the same text then names
+	/// different files ([Q55]) - so the same pipeline is a different build.
+	dir: std::path::PathBuf,
+	preview: Preview,
+}
+
+impl Previews {
+	/// The preview for this graph, if the last one was built from the same pipeline on the same mount.
+	pub fn get(
+		&self,
+		window: &str,
+		graph: GraphId,
+		pipeline: &str,
+		mount: &str,
+		dir: &std::path::Path,
+	) -> Option<Preview> {
+		let held = self.0.lock().ok()?;
+		let built = held.get(&(window.to_string(), graph))?;
+		(built.pipeline == pipeline && built.mount == mount && built.dir == dir).then(|| built.preview.clone())
+	}
+
+	pub fn put(
+		&self,
+		window: &str,
+		graph: GraphId,
+		pipeline: String,
+		mount: String,
+		dir: std::path::PathBuf,
+		preview: Preview,
+	) {
+		if let Ok(mut held) = self.0.lock() {
+			held.insert(
+				(window.to_string(), graph),
+				Built {
+					pipeline,
+					mount,
+					dir,
+					preview,
+				},
+			);
+		}
+	}
+
+	/// Forgets a window's previews, when its project goes.
+	pub fn forget(&self, window: &str) {
+		if let Ok(mut held) = self.0.lock() {
+			held.retain(|(label, _), _| label != window);
+		}
+	}
+}
+
 /// Opens a `.vpl` file as this window's pipeline (C9, S2.9).
 ///
 /// A pipeline written by hand or emitted by the CLI has to be openable, or "edit VPL" only ever
@@ -680,10 +751,22 @@ pub async fn mount_graph(
 
 	let (tx, rx) = tokio::sync::oneshot::channel();
 	let label = format!("Building {name}");
+	// **Submitted even when the answer is already known.** The check belongs inside the job, not in
+	// front of it: `Lane::Latest` supersedes what the lane was running, and a build of the *previous*
+	// pipeline may still be in flight - skipping the submit would leave it to finish and mount
+	// something nobody asked for ([Q61]).
+	let label_window = window.label().to_string();
 	state
 		.jobs
 		.submit(label, Lane::Latest, window.label(), move |handle| async move {
-			let outcome = build_into(&app, &handle, pipeline, &name, &mount, dir).await;
+			let at = Building {
+				name,
+				mount,
+				dir,
+				window: label_window,
+				graph,
+			};
+			let outcome = build_into(&app, &handle, pipeline, at).await;
 			let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
 			outcome.map(|_| ())
 		});
@@ -707,17 +790,41 @@ pub async fn mount_graph(
 /// **The directory comes in rather than being looked up.** The job outlives the command, and by the
 /// time it runs the window that asked may have opened a project somewhere else - so what a relative
 /// `filename` means is captured with the pipeline it belongs to, not read again later (S7.1).
-async fn build_into(
-	app: &AppHandle,
-	handle: &JobHandle,
-	wanted: VPLPipeline,
-	name: &str,
-	mount: &str,
+/// Which graph is being built, and everything about where it lives.
+///
+/// One argument rather than five, because they travel together and none of them means anything
+/// without the rest - and because they are jointly the identity a cached preview is compared on.
+struct Building {
+	/// The graph's name, which is what the preview is called.
+	name: String,
+	/// Its mount on the embedded server.
+	mount: String,
+	/// What relative paths in the pipeline resolve against.
 	dir: std::path::PathBuf,
-) -> anyhow::Result<Preview> {
+	window: String,
+	graph: GraphId,
+}
+
+async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, at: Building) -> anyhow::Result<Preview> {
+	let Building {
+		name,
+		mount,
+		dir,
+		window,
+		graph,
+	} = at;
 	// Fetched here rather than captured: the job outlives the command's borrow, and an `AppHandle`
 	// is the supported way to reach managed state from something that does.
 	let state = tauri::Manager::state::<AppState>(app);
+
+	// **Nothing to do, and saying so is the whole feature** ([Q61]). An edit that leaves the effective
+	// pipeline alone - a comment, a reformat, a rename - rebuilt it, re-probed it, remounted it under
+	// a new revision, and made the map refetch every tile it was already showing.
+	let key = wanted.to_string();
+	if let Some(preview) = state.previews.get(&window, graph, &key, &mount, &dir) {
+		return Ok(preview);
+	}
+
 	handle.working("building the pipeline");
 	let mut server = state.server.lock().await;
 	let source = studio_core::preview::build(server.runtime(), wanted, &dir).await?;
@@ -729,14 +836,16 @@ async fn build_into(
 	let layers = studio_core::analysis::probe_layers(&source, &info).await;
 	let fits = studio_core::analysis::fitting(&source).await;
 
-	server.mount(mount, source).await?;
-	Ok(Preview {
-		name: name.to_string(),
-		tile_url: server.tile_url(mount),
+	server.mount(&mount, source).await?;
+	let preview = Preview {
+		name: name.clone(),
+		tile_url: server.tile_url(&mount),
 		info,
 		layers,
 		fits,
-	})
+	};
+	state.previews.put(&window, graph, key, mount, dir, preview.clone());
+	Ok(preview)
 }
 
 /// Every way this build can bring data in (S3.2).
@@ -818,4 +927,133 @@ pub async fn field_suggestions(
 		(document, project.dir.clone())
 	};
 	Ok(studio_core::suggest::for_pipeline(document.pipeline(), &dir))
+}
+
+#[cfg(test)]
+mod preview_cache_tests {
+	use super::*;
+
+	fn preview(name: &str) -> Preview {
+		Preview {
+			name: name.to_string(),
+			tile_url: format!("http://127.0.0.1:1/tiles/{name}/{{z}}/{{x}}/{{y}}?v=1"),
+			info: studio_core::analysis::ContainerInfo {
+				source: "preview".to_string(),
+				container: "pipeline".to_string(),
+				tile_format: "mvt".to_string(),
+				tile_compression: "gzip".to_string(),
+				min_zoom: 0,
+				max_zoom: 14,
+				bbox: None,
+				tile_schema: None,
+				tile_json: serde_json::json!({}),
+			},
+			layers: Vec::new(),
+			fits: Vec::new(),
+		}
+	}
+
+	fn dir() -> std::path::PathBuf {
+		std::path::PathBuf::from("/projects/berlin")
+	}
+
+	fn filled() -> Previews {
+		let cache = Previews::default();
+		cache.put(
+			"window-1",
+			7,
+			"from_debug".to_string(),
+			"berlin".to_string(),
+			dir(),
+			preview("berlin"),
+		);
+		cache
+	}
+
+	#[test]
+	fn the_same_pipeline_on_the_same_mount_is_a_hit() {
+		let hit = filled().get("window-1", 7, "from_debug", "berlin", &dir());
+		assert_eq!(hit.map(|preview| preview.name), Some("berlin".to_string()));
+	}
+
+	#[test]
+	fn a_different_pipeline_is_not() {
+		assert!(
+			filled()
+				.get("window-1", 7, "from_color color=ff0000", "berlin", &dir())
+				.is_none()
+		);
+	}
+
+	/// A rename moves the mount, and the preview names it - so the cached one is about a URL that no
+	/// longer serves anything.
+	#[test]
+	fn a_renamed_graph_is_not() {
+		assert!(filled().get("window-1", 7, "from_debug", "hillshade", &dir()).is_none());
+	}
+
+	/// "Save as" moves what relative paths mean ([Q55]), so the same text is a different build.
+	#[test]
+	fn the_same_pipeline_in_another_directory_is_not() {
+		let elsewhere = std::path::PathBuf::from("/projects/hamburg");
+		assert!(
+			filled()
+				.get("window-1", 7, "from_debug", "berlin", &elsewhere)
+				.is_none()
+		);
+	}
+
+	/// Graph ids are per project, so two windows can both hold a graph 7 that share nothing.
+	#[test]
+	fn another_window_is_not() {
+		assert!(filled().get("window-2", 7, "from_debug", "berlin", &dir()).is_none());
+	}
+
+	#[test]
+	fn another_graph_is_not() {
+		assert!(filled().get("window-1", 8, "from_debug", "berlin", &dir()).is_none());
+	}
+
+	/// A window reopened under the same label must not answer from a cache about tiles that were
+	/// unmounted when the last one closed.
+	#[test]
+	fn a_closed_window_is_forgotten() {
+		let cache = filled();
+		cache.put(
+			"window-2",
+			1,
+			"from_debug".to_string(),
+			"other".to_string(),
+			dir(),
+			preview("other"),
+		);
+
+		cache.forget("window-1");
+
+		assert!(cache.get("window-1", 7, "from_debug", "berlin", &dir()).is_none());
+		assert!(
+			cache.get("window-2", 1, "from_debug", "other", &dir()).is_some(),
+			"and only that window"
+		);
+	}
+
+	#[test]
+	fn a_rebuild_replaces_what_was_there() {
+		let cache = filled();
+		cache.put(
+			"window-1",
+			7,
+			"from_color color=00ff00".to_string(),
+			"berlin".to_string(),
+			dir(),
+			preview("berlin"),
+		);
+
+		assert!(cache.get("window-1", 7, "from_debug", "berlin", &dir()).is_none());
+		assert!(
+			cache
+				.get("window-1", 7, "from_color color=00ff00", "berlin", &dir())
+				.is_some()
+		);
+	}
 }

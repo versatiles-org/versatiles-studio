@@ -905,3 +905,63 @@ fn displaying_a_failure_keeps_both_halves() {
 	assert!(shown.contains("needs quotes"), "{shown}");
 	assert!(shown.contains("at byte 24"), "{shown}");
 }
+
+// -- what makes two pipelines the same -----------------------------------------------------------
+
+/// **The key an edit is compared against** ([Q61]). A rebuild is skipped when the effective pipeline
+/// is unchanged, and "unchanged" has to mean the pipeline rather than the document - otherwise the
+/// cases worth catching, where the text moved and the meaning did not, all miss.
+#[test]
+fn a_comment_or_a_reformat_is_the_same_pipeline() {
+	let plain = Document::parse("from_container filename='a.mbtiles' | vector_filter_layers filter='roads'").unwrap();
+	let same = [
+		"# what this reads\nfrom_container filename='a.mbtiles' | vector_filter_layers filter='roads'",
+		"from_container filename='a.mbtiles'   |   vector_filter_layers filter='roads'",
+		"from_container filename='a.mbtiles' | vector_filter_layers filter='roads' # and this",
+	];
+
+	for text in same {
+		let other = Document::parse(text).unwrap();
+		assert_ne!(other.text(), plain.text(), "the documents differ: {text:?}");
+		assert_eq!(
+			other.to_pipeline().to_string(),
+			plain.to_pipeline().to_string(),
+			"but the pipeline does not: {text:?}"
+		);
+	}
+}
+
+/// And the other way, or the cache would answer for a pipeline nobody asked for.
+#[test]
+fn a_changed_parameter_is_a_different_pipeline() {
+	let before = Document::parse("from_container filename='a.mbtiles' | vector_filter_layers filter='roads'").unwrap();
+	for text in [
+		"from_container filename='b.mbtiles' | vector_filter_layers filter='roads'",
+		"from_container filename='a.mbtiles' | vector_filter_layers filter='water'",
+		"from_container filename='a.mbtiles'",
+	] {
+		let after = Document::parse(text).unwrap();
+		assert_ne!(
+			after.to_pipeline().to_string(),
+			before.to_pipeline().to_string(),
+			"{text}"
+		);
+	}
+}
+
+/// A bypassed node is not in the pipeline that runs ([Q49]), so switching one off has to change the
+/// key - and switching it back on has to change it back.
+#[test]
+fn a_bypassed_node_changes_the_key_and_switching_it_back_restores_it() {
+	let document = Document::parse("from_container filename='a.mbtiles' | vector_filter_layers filter='roads'").unwrap();
+	let whole = document.to_pipeline().to_string();
+
+	let off = std::collections::BTreeSet::from([vec![1_usize]]);
+	let bypassed = document.to_pipeline_without(&off).unwrap().to_string();
+	assert_ne!(bypassed, whole);
+
+	assert_eq!(
+		document.to_pipeline_without(&Default::default()).unwrap().to_string(),
+		whole
+	);
+}

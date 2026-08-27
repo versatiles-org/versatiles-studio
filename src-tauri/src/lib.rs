@@ -259,6 +259,7 @@ pub fn run() {
 			tauri::Manager::manage(
 				app,
 				AppState {
+					previews: Default::default(),
 					diagnostics,
 					log_dir,
 					server: Mutex::new(server),
@@ -342,6 +343,9 @@ pub fn run() {
 				let label = label.clone();
 				tauri::async_runtime::spawn(async move {
 					let state = tauri::Manager::state::<AppState>(&app);
+					// The previews it built go with the project, or a window reopened under the same
+					// label would answer from a cache about tiles that are no longer mounted ([Q61]).
+					state.previews.forget(&label);
 					let Some(held) = state.projects.close(&label).await else {
 						return;
 					};

@@ -176,6 +176,10 @@ pub struct AppState {
 	pub layout: Mutex<Layout>,
 	/// Every open project, one per window ([Q48], S7.1).
 	pub projects: Projects,
+	/// The last preview built for each graph, so an edit that changes nothing rebuilds nothing
+	/// ([Q61]). Beside `projects` rather than inside one, because it is a cache and not state a
+	/// project would be wrong without.
+	pub previews: crate::commands::vpl::Previews,
 	/// What has gone wrong this session, for the panel that lets a user copy it (S6.8).
 	///
 	/// Not behind a `Mutex` for the same reason `jobs` is not: it is `Clone` and locks its own ring.

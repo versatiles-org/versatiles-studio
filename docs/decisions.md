@@ -25,6 +25,23 @@ None. New questions get a `Q` number here, and move to **Decided** once settled.
 
 ## Decided
 
+### Q61 - A rebuild that would change nothing is skipped
+
+An edit that leaves the effective pipeline alone - a comment, a reformat, a rename - rebuilt the graph,
+re-probed it and remounted it. **What that cost was not mainly the build**: mounting bumps a revision
+the tile URL carries, so MapLibre refetched every tile it was already showing.
+
+**Keyed on the pipeline, not the document**, which is what catches the cases worth catching - and on
+the mount and the project directory too, since a rename moves the first and "save as" moves what
+relative paths mean ([Q55]). **The check is inside the job, not in front of it**: `Lane::Latest`
+supersedes what the lane was running, and skipping the submit would leave a build of the previous
+pipeline to finish and mount something nobody asked for.
+
+The cost is that a source changed on disk is no longer picked up by editing something unrelated. It
+was never picked up without an edit either, so this narrows an accident rather than removing a feature
+
+- but an explicit reload is the honest answer, and there is not one yet.
+
 ### Q60 - Parse failures name their construct
 
 Upstream reports the innermost failure and the stack of constructs separately, and Studio kept only the
