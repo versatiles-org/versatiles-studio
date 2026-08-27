@@ -34,8 +34,13 @@
 			setEnabled: (id: number, enabled: boolean) => void;
 			/** Starts a graph on a `from_*` node, with nothing filled in yet. */
 			addNode: (operation: string) => void;
+			/**
+			 * Opens any file Studio can read as a graph of its own, letting the catalogue decide which
+			 * `from_*` node it becomes - the same reading a dropped file gets.
+			 */
+			openSource: () => void;
 			/** Opens a `.vpl` as a graph of its own. */
-			openFile: () => void;
+			openPipeline: () => void;
 		};
 	} = $props();
 
@@ -58,13 +63,24 @@
 			.map((operation) => ({ id: operation.name, label: operation.name, description: operation.summary }))
 	);
 
-	/// **Two doors, because a graph arrives in exactly two ways**: it is written here, or it was
-	/// written already. Everything else is a parameter of the node the first door creates - a form the
-	/// pane draws, with a picker on every path field, rather than a dialog sequence in front of it.
+	/// **Three doors: bring data, write a graph, or open one already written.**
 	///
-	/// The first is disabled until the one-off fetch of the registry lands, since a door onto an empty
-	/// list is worse than one that says it is not ready.
+	/// The data door is first because it is the common one and it asks the least - point at a file and
+	/// Studio reads it, the same way a dropped file is read. The other two are for saying what a graph
+	/// should be when there is no file that answers it, and for a pipeline written earlier.
+	///
+	/// **The data door does not name a format.** Which `from_*` node a file becomes is the catalogue's
+	/// answer, from the file itself - three formats wear `.json`, so a door per format would be a
+	/// question the person cannot always answer and Studio always can (S3.2).
+	///
+	/// The node door is disabled until the one-off fetch of the registry lands, since a door onto an
+	/// empty list is worse than one that says it is not ready.
 	const doors: MenuItem[] = $derived([
+		{
+			id: 'source',
+			label: 'From a file…',
+			description: 'Tiles, a table, vector or raster - Studio picks the reader'
+		},
 		{
 			id: 'node',
 			label: 'From VPL node…',
@@ -84,8 +100,12 @@
 			page = 'doors';
 			return;
 		}
+		if (id === 'source') {
+			actions.openSource();
+			return;
+		}
 		if (id === 'file') {
-			actions.openFile();
+			actions.openPipeline();
 			return;
 		}
 		page = 'operations';

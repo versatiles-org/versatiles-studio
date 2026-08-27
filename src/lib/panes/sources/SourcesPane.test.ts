@@ -3,9 +3,10 @@
 /**
  * What "＋ new graph…" offers ([Q50]), and that it offers it in a popup ([Q58]).
  *
- * **Two doors, and a test that says two.** This was one card per import kind, and the way that went
- * wrong was not a broken card - it was the operations no card named. A count is the only assertion
- * that catches a sixth door arriving by habit.
+ * **Three doors, and a test that counts them.** This was one card per import kind, and the way that
+ * went wrong was not a broken card - it was the operations no card named. Only a count catches a
+ * fourth door arriving by habit, so this counts rather than naming the three and hoping; the comment
+ * here claimed a count for two releases while the test below checked two labels and a card.
  *
  * The backend is stubbed - see `lib/testing/tauri.ts` for what that does and does not prove.
  *
@@ -25,10 +26,10 @@ const OPERATIONS = [
 
 let tauri: TauriStub;
 
-const actions = () => ({ addNode: vi.fn(), openFile: vi.fn() });
+const actions = () => ({ addNode: vi.fn(), openSource: vi.fn(), openPipeline: vi.fn() });
 
 /** The pane over an empty project, with the graph list's ＋ row showing. */
-function open(extra: { addNode: () => void; openFile: () => void }) {
+function open(extra: { addNode: () => void; openSource: () => void; openPipeline: () => void }) {
 	render(SourcesPane, {
 		operations: OPERATIONS as never,
 		graphs: [],
@@ -56,13 +57,41 @@ afterEach(() => {
 });
 
 describe('starting a graph', () => {
-	it('offers two doors and no third', async () => {
+	it('offers three doors and no fourth', async () => {
 		open(actions());
 
-		expect(await screen.findByText('From VPL node…')).toBeTruthy();
+		expect(await screen.findByText('From a file…')).toBeTruthy();
+		expect(screen.getByText('From VPL node…')).toBeTruthy();
 		expect(screen.getByText('From VPL file…')).toBeTruthy();
+		expect(screen.getAllByRole('menuitem')).toHaveLength(3);
 		// The cards these replaced: a kind is not a way to start a graph any more.
 		expect(screen.queryByText('Tile container')).toBeNull();
+	});
+
+	/**
+	 * **The data door names no format.** It was a card per kind once, and the failure was the kinds no
+	 * card named; a door per format is the same mistake spelled differently, and three formats wear
+	 * `.json` besides - which one a file is is the catalogue's answer, from the file (S3.2).
+	 */
+	it('does not offer a door per format', async () => {
+		open(actions());
+		await screen.findByText('From a file…');
+
+		for (const format of ['GeoJSON', 'CSV', 'GeoTIFF', 'PMTiles', 'Tile container']) {
+			expect(screen.queryByText(format), `${format} should not be a door`).toBeNull();
+		}
+	});
+
+	/// The one this door is for: pick any file and let Studio read it, the way a dropped file is read.
+	it('opens any file Studio can read through the first door', async () => {
+		const graphActions = actions();
+		open(graphActions);
+
+		(await screen.findByText('From a file…')).click();
+
+		expect(graphActions.openSource).toHaveBeenCalled();
+		expect(graphActions.openPipeline).not.toHaveBeenCalled();
+		expect(graphActions.addNode).not.toHaveBeenCalled();
 	});
 
 	/**
@@ -120,7 +149,7 @@ describe('starting a graph', () => {
 		(await screen.findByText('from_debug')).click();
 
 		expect(graphActions.addNode).toHaveBeenCalledWith('from_debug');
-		expect(graphActions.openFile).not.toHaveBeenCalled();
+		expect(graphActions.openPipeline).not.toHaveBeenCalled();
 	});
 
 	it('opens a written pipeline through the other door', async () => {
@@ -129,7 +158,8 @@ describe('starting a graph', () => {
 
 		(await screen.findByText('From VPL file…')).click();
 
-		expect(graphActions.openFile).toHaveBeenCalled();
+		expect(graphActions.openPipeline).toHaveBeenCalled();
+		expect(graphActions.openSource).not.toHaveBeenCalled();
 		expect(graphActions.addNode).not.toHaveBeenCalled();
 	});
 

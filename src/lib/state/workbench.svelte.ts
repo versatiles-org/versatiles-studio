@@ -56,6 +56,20 @@ import { project } from './project.svelte';
 import { status } from './status.svelte';
 import { style as recipe } from './style.svelte';
 
+/**
+ * Where an opened source lands.
+ *
+ * **`current` replaces what is on screen**, which is what File → Open and a dropped file have always
+ * meant: opening a file *is* setting the pipeline to its read node (Q22, Q25), from when a window
+ * held one document.
+ *
+ * **`new` puts it beside what is open**, which is what a door in the Sources pane means - that list
+ * adds sources, and one that quietly overwrote the selected graph would be the same gesture as
+ * `＋ new graph…` doing the opposite of its label. A window with nothing open cannot tell the two
+ * apart, and does not have to.
+ */
+export type Into = 'current' | 'new';
+
 /** The last segment of a path, which is what a person calls the thing they opened. */
 const filename = (source: string) => source.split(/[/\\]/).pop() || source;
 
@@ -209,8 +223,13 @@ export const workbench = {
 	 * in three places rather than one. The callers know what they opened; this signature does not
 	 * carry it yet.
 	 */
-	async setText(text: string, kind: EditKind = 'structured', source: string | null = null): Promise<DocumentView> {
-		if (document.graph === null) {
+	async setText(
+		text: string,
+		kind: EditKind = 'structured',
+		source: string | null = null,
+		into: Into = 'current'
+	): Promise<DocumentView> {
+		if (into === 'new' || document.graph === null) {
 			const created = await addGraph(source, text);
 			await graphs.refresh();
 			return created;
@@ -437,9 +456,9 @@ export const workbench = {
 	 * "from VPL file…" is asking for a `.vpl` and says so. Whatever comes back goes to [`open`], which
 	 * asks the core what the file is rather than trusting which door it came through.
 	 */
-	async pick(kind?: ImportKind): Promise<void> {
+	async pick(kind?: ImportKind, into: Into = 'current'): Promise<void> {
 		const picked = await askForSource(kinds, kind);
-		if (picked) await this.open(picked);
+		if (picked) await this.open(picked, into);
 	},
 
 	/** The pipeline kind, for the door that asks for a `.vpl` and says so. */
@@ -456,7 +475,7 @@ export const workbench = {
 	 * *mounted*, because the inspector reads tiles from it directly (A4); the others have nothing to
 	 * inspect until the pipeline has built them, which the preview does.
 	 */
-	async open(source: string): Promise<void> {
+	async open(source: string, into: Into = 'current'): Promise<void> {
 		// A remote container reads its index over the network, so this is not always instant.
 		status.busy(`Opening ${filename(source)}…`);
 		try {
@@ -478,9 +497,9 @@ export const workbench = {
 				await this.applyDocument(await openVpl(source));
 			} else if (kind.id === 'container') {
 				const result = await preview.mount(source);
-				document.show(await this.setText(result.vpl, 'replaced', source));
+				document.show(await this.setText(result.vpl, 'replaced', source, into));
 			} else {
-				const opened = await this.setText(await importReadNode(kind.id, source), 'replaced', source);
+				const opened = await this.setText(await importReadNode(kind.id, source), 'replaced', source, into);
 				document.show(opened);
 				// Whether the node is complete is the *document's* answer, not the kind's. A CSV whose
 				// header named its coordinate columns arrives with them already set (S3.4), so asking the

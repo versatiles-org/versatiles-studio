@@ -209,6 +209,69 @@ describe('opening a file', () => {
 	});
 });
 
+describe('where an opened file lands', () => {
+	/**
+	 * **`current` is what File → Open and a dropped file mean.** Opening a file *is* setting the
+	 * pipeline to its read node (Q22, Q25), from when a window held one document - so with a graph on
+	 * screen the text goes into it.
+	 */
+	it('writes into the graph on screen by default', async () => {
+		state.current = doc(4) as never;
+		state.graph = 4;
+		ipc.importOpening.mockResolvedValue({ refused: null, kind: { id: 'csv', operation: 'from_csv' } });
+		ipc.importReadNode.mockResolvedValue('from_csv filename=x.csv');
+		ipc.setGraph.mockResolvedValue(doc(4));
+
+		await workbench.open('/data/x.csv');
+
+		expect(ipc.setGraph).toHaveBeenCalled();
+		expect(ipc.addGraph).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * **`new` is what a door in the Sources pane means.** That list adds sources, so a door on it that
+	 * quietly overwrote the selected graph would be `＋ new graph…` doing the opposite of its label -
+	 * and the file that was already open would be gone with no undo entry naming it.
+	 */
+	it('adds a graph beside it when asked to', async () => {
+		state.current = doc(4) as never;
+		state.graph = 4;
+		ipc.importOpening.mockResolvedValue({ refused: null, kind: { id: 'csv', operation: 'from_csv' } });
+		ipc.importReadNode.mockResolvedValue('from_csv filename=x.csv');
+		ipc.addGraph.mockResolvedValue(doc(5));
+
+		await workbench.open('/data/x.csv', 'new');
+
+		expect(ipc.addGraph).toHaveBeenCalled();
+		expect(ipc.setGraph).not.toHaveBeenCalled();
+	});
+
+	// A container is mounted either way; what changes is only which graph its read node is written to.
+	it('adds a container beside what is open too', async () => {
+		state.current = doc(4) as never;
+		state.graph = 4;
+		ipc.importOpening.mockResolvedValue({ refused: null, kind: { id: 'container', operation: 'from_container' } });
+		ipc.addGraph.mockResolvedValue(doc(5));
+
+		await workbench.open('/maps/berlin.versatiles', 'new');
+
+		expect(calls).toContain('preview.mount');
+		expect(ipc.addGraph).toHaveBeenCalled();
+		expect(ipc.setGraph).not.toHaveBeenCalled();
+	});
+
+	// With nothing open the two are the same thing, and neither has to know that.
+	it('creates the first graph whichever was asked for', async () => {
+		ipc.importOpening.mockResolvedValue({ refused: null, kind: { id: 'csv', operation: 'from_csv' } });
+		ipc.importReadNode.mockResolvedValue('from_csv filename=x.csv');
+		ipc.addGraph.mockResolvedValue(doc(1));
+
+		await workbench.open('/data/x.csv');
+
+		expect(ipc.addGraph).toHaveBeenCalled();
+	});
+});
+
 describe('adopting a project', () => {
 	/**
 	 * Every graph is mounted, not just the one that opens - a style names them all (S6.5), and this is
