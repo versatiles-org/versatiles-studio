@@ -115,6 +115,9 @@
 
 	// Typing produces text that is often mid-edit and invalid; the *document* never is (Q25). The
 	// editor keeps the text, so what is tracked here is only what has to be painted over it.
+	//
+	// **All three belong to one document**, which is what `pipelineRevision` moving means they no
+	// longer do - see the effect below.
 	let draftError = $state<{ message: string; span: Span } | null>(null);
 	let draftTokens = $state<VplToken[] | null>(null);
 	let draftDiagnostics = $state<Diagnostic[] | null>(null);
@@ -127,6 +130,24 @@
 
 	// Ordering guard: keystrokes race, and an older reply must not repaint over a newer one.
 	let typed = 0;
+
+	// **The draft is about the document it was typed into, and nothing else.**
+	//
+	// `pipelineRevision` is already the signal for "changed from outside the editor" - selecting
+	// another graph, an undo, a reformat, a reload - and it is what remounts `VplEditor` with the new
+	// text. These were left behind by that, so the new text was painted with the *previous*
+	// document's token spans, and a parse error typed into the old one still hid the graph: the tab
+	// said "The graph returns when the text parses" over a document that parses perfectly well.
+	//
+	// The counter moves with them, or a review already in flight for the old text lands afterwards
+	// and puts it all back.
+	$effect(() => {
+		void pipelineRevision;
+		typed += 1;
+		draftError = null;
+		draftTokens = null;
+		draftDiagnostics = null;
+	});
 
 	async function type(next: string) {
 		const mine = ++typed;
