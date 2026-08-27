@@ -22,7 +22,11 @@
  * caller passes the rows it wants shown and leaves the background's out.
  */
 
-import { categoryOf, headingOf, parts } from '../../map/categories';
+import { componentAt } from '../../map/categories';
+
+// `ancestors` and `hiddenBy` live beside the table in `map/categories.ts`: composition needs the
+// same rule, and a pane is the wrong direction for `map/` to import from.
+export { ancestors, hiddenBy } from '../../map/categories';
 
 /** One layer of the composed style, with what the tree needs to file it. */
 export interface Row {
@@ -85,22 +89,6 @@ function runs<T>(items: T[], key: (item: T) => string): { key: string; items: T[
  */
 const ITSELF = '\u0000';
 
-/**
- * The component at `depth` of a layer's own id, or `null` once the id is exhausted.
- *
- * Depth 0 is the heading - a category, or the id's own first component when no category claims it.
- * Everything below is the id itself, which is why a derived style's `derived:water_polygons` puts
- * the tile layer at depth 1 without this knowing anything about derived styles.
- */
-function componentAt(ownId: string, depth: number): string | null {
-	if (depth === 0) return headingOf(ownId);
-	// **An id whose heading came from itself has spent that component.** `derived:water_polygons` is
-	// headed `derived`, so the level below it is `water_polygons` - without the offset the tree
-	// nests `derived` inside `derived` and every derived style is one row deeper than it should be.
-	const spent = categoryOf(ownId) === null ? 1 : 0;
-	return parts(ownId)[depth - 1 + spent] ?? null;
-}
-
 /** Builds the nodes below `path`, splitting by the component at `depth` and recursing. */
 function below(rows: Row[], source: string, path: string, depth: number): Node[] {
 	const grouped = runs(rows, (row) => componentAt(row.ownId, depth) ?? ITSELF);
@@ -155,28 +143,4 @@ export function tree(rows: Row[]): Group[] {
 		count: items.length,
 		from: items[0].ownId
 	}));
-}
-
-/**
- * Every path that would hide this layer, nearest first.
- *
- * The resolution rule in one function: a layer is hidden when its own override says so, or when any
- * of these is in its source's hidden set. Nearest first so a caller can say *which* eye did it.
- */
-export function ancestors(ownId: string): string[] {
-	const out: string[] = [];
-	let path = '';
-	for (let depth = 0; ; depth++) {
-		const component = componentAt(ownId, depth);
-		if (component === null) break;
-		path = path ? `${path}/${component}` : component;
-		out.push(path);
-	}
-	return out.reverse();
-}
-
-/** Whether an eye above this layer is closed. Says which, so the pane can offer to open it. */
-export function hiddenBy(ownId: string, hidden: Iterable<string>): string | null {
-	const set = hidden instanceof Set ? hidden : new Set(hidden);
-	return ancestors(ownId).find((path) => set.has(path)) ?? null;
 }

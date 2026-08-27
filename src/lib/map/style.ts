@@ -23,9 +23,11 @@ import type {
 	Hillshade,
 	LayerOverride,
 	RasterAdjust,
+	Segment,
 	SourceKind,
 	SourceStyle
 } from '../ipc/commands';
+import { hiddenBy } from './categories';
 import { throughQueue } from './tile-queue';
 import { renderableAs } from './tile-format';
 
@@ -453,6 +455,51 @@ function isVectorKind(kind: SourceKind): boolean {
 	return kind === 'vectorShortbread' || kind === 'vectorOther';
 }
 
+/** What the composed style calls the background map's contribution. */
+export const BACKGROUND = 'background';
+
+/**
+ * Where each of one source's runs starts and stops in its own layer list.
+ *
+ * **This is where the interleaving invariant is enforced**, because this is the only side that can:
+ * the core stores a boundary as an opaque layer id and never renders a style, so it cannot know
+ * which of two ids comes first ([Q36]).
+ *
+ * Three rules, and each of them is a file that should still open:
+ *
+ * * **The first run always starts at the beginning.** A source's runs partition its layers, so
+ *   whatever the first one names, the layers before it have to be drawn somewhere and there is
+ *   nowhere earlier.
+ * * **A boundary naming a layer this style does not have collapses**, and its run draws nothing -
+ *   the layers stay with the run before it. That is a preset switch that dropped the layer somebody
+ *   cut at, and the arrangement comes back if the preset does ([Q51]).
+ * * **A boundary that does not move forward collapses too.** Segments of one source are ascending by
+ *   construction, so a file saying otherwise was hand-edited or written by a bug, and a run that
+ *   went backwards would draw the same layers twice.
+ */
+export function segmentRanges(boundaries: (string | null)[], layerIds: string[]): number[][] {
+	const at = new Map(layerIds.map((id, index) => [id, index]));
+
+	const starts = boundaries.map((boundary, index) => {
+		if (index === 0) return 0;
+		const found = boundary === null ? null : at.get(boundary);
+		return found === undefined ? null : found;
+	});
+
+	let last = -1;
+	const kept = starts.map((start) => {
+		if (start === null || start <= last) return null;
+		last = start;
+		return start;
+	});
+
+	return kept.map((start, index) => {
+		if (start === null) return [0, 0];
+		const next = kept.slice(index + 1).find((later) => later !== null);
+		return [start, next ?? layerIds.length];
+	});
+}
+
 /** One source in the stack, with everything needed to draw it. */
 export interface StackEntry {
 	/** The graph's name - its mount, and what the style calls the source. */
@@ -465,6 +512,8 @@ export interface StackEntry {
 	tileSchema?: string | null;
 	layers: DerivableLayer[];
 	mountedLayers: string[];
+	/** Tree paths this source does not paint - the eyes, as `SourceStyle.hidden` stores them. */
+	hidden?: string[];
 	/** Where the tiles are and which zooms they cover - see [`extentOf`]. */
 	bbox?: [number, number, number, number] | null;
 	minZoom?: number;
@@ -503,6 +552,17 @@ export interface Composed {
 	 * ids nothing matches, into a recipe they do not belong to ([Q51]).
 	 */
 	bases: { name: string; basis: StyleBasis; style: StyleSpecification | null }[];
+	/**
+	 * Every layer the sources contributed, in paint order, with what the layer tree needs to file it.
+	 *
+	 * **Including the ones an eye is closed over**, marked rather than missing: the tree lists what a
+	 * source draws so that the eye can be found again, and a hidden row that vanished from the list
+	 * would be a switch with no way back. `style.layers` is the other answer - what MapLibre is given
+	 * - and those are left out of it.
+	 *
+	 * **Not the background's.** It is a map control rather than a row in the stack.
+	 */
+	rows: { id: string; ownId: string; source: string; type: string; hidden: string | null }[];
 }
 
 /**
@@ -528,9 +588,17 @@ export function composeStyle(
 	 * makes the collision handling below apply to it too; choosing was the old rule, and it stopped
 	 * being reachable the moment S6.2 gave nearly every source something to draw.
 	 */
-	background?: StyleSpecification | null
+	background?: StyleSpecification | null,
+	/**
+	 * Where each source's runs go ([the layer stack](../../../docs/layers.md)).
+	 *
+	 * Omitted means one whole run per entry, in the order given - which is what a project that has
+	 * never been rearranged means, and what every caller meant before segments existed.
+	 */
+	order?: Segment[]
 ): Composed {
 	const bases: Composed['bases'] = [];
+	const rows: Composed['rows'] = [];
 	const sources: Record<string, unknown> = {};
 	const layers: LayerSpecification[] = [];
 	let glyphs: string | undefined;
@@ -541,9 +609,13 @@ export function composeStyle(
 	// silently vanish. Prefixing unconditionally would instead rename every layer in the
 	// single-source case, which is the case every exported `style.json` and every override written
 	// before this was added already refers to.
-	const drawn: { name: string; style: StyleSpecification; extent: Extent }[] = [];
+	//
+	// **More than one *source*, not more than one run.** Splitting a source in two does not make its
+	// ids ambiguous, and prefixing on that would rewrite every id the moment somebody dragged a
+	// category - invalidating every override in the recipe for a change that moved nothing.
+	const drawn: { name: string; style: StyleSpecification; extent: Extent; hidden: string[] }[] = [];
 	// The background is a whole-world basemap and declares its own extent, such as it is.
-	if (background) drawn.push({ name: 'background', style: background, extent: {} });
+	if (background) drawn.push({ name: BACKGROUND, style: background, extent: {}, hidden: [] });
 
 	for (const entry of entries) {
 		const { style, basis } = styleFor(
@@ -559,32 +631,39 @@ export function composeStyle(
 			serverBaseUrl
 		);
 		bases.push({ name: entry.name, basis, style });
-		if (style) drawn.push({ name: entry.name, style, extent: extentOf(entry) });
+		if (style) drawn.push({ name: entry.name, style, extent: extentOf(entry), hidden: entry.hidden ?? [] });
 	}
 
+	if (drawn.length === 0) return { style: null, bases, rows };
+
 	const prefix = drawn.length > 1;
+
+	/**
+	 * What a source's own source keys are called in the composed style.
+	 *
+	 * **The source key collides too, not just the layer ids.** `@versatiles/style`'s builders name
+	 * their source `versatiles-shortbread` whatever they were pointed at, so two preset sources merge
+	 * into one and the second silently replaces the first's tiles.
+	 *
+	 * **Every source, not the first one.** A pipeline entry has exactly one - it was built from one -
+	 * and this took that for the rule, kept `Object.keys(...)[0]` and dropped the rest. The satellite
+	 * background is two, imagery under a vector overlay: its imagery was thrown away on the way to the
+	 * map and the layer that draws it left pointing at a source that no longer existed, so the
+	 * background simply did not appear.
+	 *
+	 * A style with one source keeps the old spelling, `name`, which is what every exported
+	 * `style.json` and every override written before this refers to.
+	 */
+	const renamer = (name: string, style: StyleSpecification) => {
+		const owned = Object.keys(style.sources);
+		return (from: string) => (!prefix ? from : owned.length > 1 ? `${name}/${from}` : name);
+	};
 
 	for (const { name, style, extent } of drawn) {
 		glyphs ??= style.glyphs;
 		sprite ??= style.sprite;
-
-		// **The source key collides too, not just the layer ids.** `@versatiles/style`'s builders
-		// name their source `versatiles-shortbread` whatever they were pointed at, so two preset
-		// sources merge into one and the second silently replaces the first's tiles.
-		//
-		// **Every source, not the first one.** A pipeline entry has exactly one - it was built from
-		// one - and this took that for the rule, kept `Object.keys(...)[0]` and dropped the rest. The
-		// satellite background is two, imagery under a vector overlay: its imagery was thrown away on
-		// the way to the map and the layer that draws it left pointing at a source that no longer
-		// existed, so the background simply did not appear.
-		//
-		// A style with one source keeps the old spelling, `name`, which is what every exported
-		// `style.json` and every override written before this refers to. Only a style with several
-		// needs each one distinguished, and those are named for the source as well as the entry.
-		const owned = Object.keys(style.sources);
-		const renamed = (from: string) => (!prefix ? from : owned.length > 1 ? `${name}/${from}` : name);
-
-		for (const built of owned) {
+		const renamed = renamer(name, style);
+		for (const built of Object.keys(style.sources)) {
 			// **With what the container says about itself, over what the builder assumed.** Studio's
 			// own builders declare a source as a list of tile URLs and nothing else;
 			// `@versatiles/style`'s declares `bounds` of the whole world and `maxzoom: 14`, which is
@@ -594,23 +673,63 @@ export function composeStyle(
 			// ahead of a tile that does.
 			sources[renamed(built)] = { ...style.sources[built], ...extent };
 		}
-
-		for (const layer of style.layers) {
-			if (!prefix) {
-				layers.push(layer);
-				continue;
-			}
-			layers.push({
-				...layer,
-				id: `${name}/${layer.id}`,
-				// Each layer follows *its own* source, which is the half that a single-source
-				// assumption also got wrong: every layer was pointed at the one key that survived.
-				...('source' in layer ? { source: renamed(layer.source) } : {})
-			} as LayerSpecification);
-		}
 	}
 
-	if (drawn.length === 0) return { style: null, bases };
+	// **One run per segment, and each source's own layer order kept inside its runs.** The background
+	// is not in `order` and never can be, so it is laid at the bottom on its own.
+	const laid: Segment[] = [
+		...(background ? [{ source: BACKGROUND, from: null }] : []),
+		...(order ?? entries.map((entry) => ({ source: entry.name, from: null }))).filter((segment) =>
+			drawn.some((entry) => entry.name === segment.source)
+		)
+	];
+
+	const cuts = new Map<string, number[][]>();
+	for (const entry of drawn) {
+		const mine = laid.filter((segment) => segment.source === entry.name).map((segment) => segment.from ?? null);
+		cuts.set(
+			entry.name,
+			segmentRanges(
+				mine,
+				entry.style.layers.map((layer) => layer.id)
+			)
+		);
+	}
+
+	// Walked in stack order rather than per source, because that *is* the paint order.
+	const taken = new Map<string, number>();
+	for (const segment of laid) {
+		const entry = drawn.find((candidate) => candidate.name === segment.source);
+		if (!entry) continue;
+		const index = taken.get(segment.source) ?? 0;
+		taken.set(segment.source, index + 1);
+		const [from, to] = cuts.get(segment.source)?.[index] ?? [0, 0];
+		const renamed = renamer(entry.name, entry.style);
+
+		for (const layer of entry.style.layers.slice(from, to)) {
+			const placed = (
+				prefix
+					? ({
+							...layer,
+							id: `${entry.name}/${layer.id}`,
+							// Each layer follows *its own* source, which is the half that a single-source
+							// assumption also got wrong: every layer was pointed at the one key that survived.
+							...('source' in layer ? { source: renamed(layer.source) } : {})
+						} as LayerSpecification)
+					: layer
+			) as LayerSpecification;
+
+			// The background is drawn but is not a row: it is a map control, not part of the stack.
+			if (entry.name === BACKGROUND) {
+				layers.push(placed);
+				continue;
+			}
+
+			const closed = hiddenBy(layer.id, entry.hidden);
+			rows.push({ id: placed.id, ownId: layer.id, source: entry.name, type: layer.type, hidden: closed });
+			if (closed === null) layers.push(placed);
+		}
+	}
 
 	return {
 		style: {
@@ -620,6 +739,7 @@ export function composeStyle(
 			sources,
 			layers
 		} as StyleSpecification,
-		bases
+		bases,
+		rows
 	};
 }

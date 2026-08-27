@@ -9,6 +9,7 @@ import {
 	rasterPaint,
 	rasterStyle,
 	renderStyle,
+	segmentRanges,
 	styleFor
 } from './style';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
@@ -427,6 +428,51 @@ describe('rasterPaint', () => {
 	});
 });
 
+describe('segmentRanges', () => {
+	const ids = ['a', 'b', 'c', 'd', 'e'];
+
+	it('gives one whole range when nothing is cut', () => {
+		expect(segmentRanges([null], ids)).toEqual([[0, 5]]);
+	});
+
+	it('cuts where the boundaries say', () => {
+		expect(segmentRanges([null, 'c'], ids)).toEqual([
+			[0, 2],
+			[2, 5]
+		]);
+		expect(segmentRanges([null, 'b', 'd'], ids)).toEqual([
+			[0, 1],
+			[1, 3],
+			[3, 5]
+		]);
+	});
+
+	// A source's runs partition its layers: whatever the first one names, the layers before it have
+	// to be drawn somewhere, and there is nowhere earlier than the beginning.
+	it('starts the first run at the beginning whatever it names', () => {
+		expect(segmentRanges(['c'], ids)).toEqual([[0, 5]]);
+	});
+
+	// A preset switch that dropped the layer somebody cut at. The run draws nothing, its layers stay
+	// with the run before it, and the arrangement comes back if the preset does.
+	it('collapses a boundary the style no longer has', () => {
+		expect(segmentRanges([null, 'gone', 'd'], ids)).toEqual([
+			[0, 3],
+			[0, 0],
+			[3, 5]
+		]);
+	});
+
+	// Hand-edited or written by a bug: a run that went backwards would draw the same layers twice.
+	it('collapses a boundary that does not move forward', () => {
+		expect(segmentRanges([null, 'd', 'b'], ids)).toEqual([
+			[0, 3],
+			[3, 5],
+			[0, 0]
+		]);
+	});
+});
+
 describe('composeStyle', () => {
 	const entry = (name: string, over: Record<string, unknown> = {}) => ({
 		name,
@@ -437,6 +483,63 @@ describe('composeStyle', () => {
 		layers: [{ name: 'places', geometry: 'point' }],
 		mountedLayers: ['water_polygons', 'street_polygons', 'boundaries'],
 		...over
+	});
+
+	// **The gesture the whole design exists for.** One source's layers in two runs, another source
+	// between them - and the layers still appear once each, in their own order.
+	describe('a source drawn in two places', () => {
+		const cut = (name: string) => {
+			const { style } = composeStyle([entry(name)], BASE);
+			// The id a third of the way in, which is a boundary no test has to hard-code.
+			return style!.layers[Math.floor(style!.layers.length / 3)].id;
+		};
+
+		it('lays each run where the order puts it, with nothing drawn twice', () => {
+			const from = cut('osm');
+			const { style } = composeStyle([entry('osm'), entry('data')], BASE, null, [
+				{ source: 'osm', from: null },
+				{ source: 'data', from: null },
+				{ source: 'osm', from }
+			]);
+
+			const ids = style!.layers.map((layer) => layer.id);
+			expect(new Set(ids).size).toBe(ids.length);
+
+			const upper = ids.indexOf(`osm/${from}`);
+			const data = ids.findIndex((id) => id.startsWith('data/'));
+			expect(ids.indexOf('osm/background')).toBeLessThan(data);
+			expect(data).toBeLessThan(upper);
+		});
+
+		// Splitting a source does not make its ids ambiguous, and re-prefixing on it would invalidate
+		// every override in the recipe for a change that moved nothing.
+		it('does not prefix ids just because one source has two runs', () => {
+			const from = cut('osm');
+			const { style } = composeStyle([entry('osm')], BASE, null, [
+				{ source: 'osm', from: null },
+				{ source: 'osm', from }
+			]);
+			expect(style!.layers.every((layer) => !layer.id.startsWith('osm/'))).toBe(true);
+		});
+	});
+
+	describe('an eye that is closed', () => {
+		it('keeps the row and leaves the layer out of the style', () => {
+			const plain = composeStyle([entry('osm')], BASE);
+			const hidden = composeStyle([entry('osm', { hidden: ['Labels'] })], BASE);
+
+			expect(hidden.rows.length).toBe(plain.rows.length);
+			expect(hidden.rows.filter((row) => row.hidden !== null).length).toBe(33);
+			expect(hidden.style!.layers.length).toBe(plain.style!.layers.length - 33);
+			expect(hidden.style!.layers.some((layer) => layer.id.startsWith('label-'))).toBe(false);
+		});
+
+		it('says which eye did it, so the pane can offer to open that one', () => {
+			const { rows } = composeStyle([entry('osm', { hidden: ['Labels/label/place'] })], BASE);
+			const city = rows.find((row) => row.ownId === 'label-place-city')!;
+			expect(city.hidden).toBe('Labels/label/place');
+			expect(rows.find((row) => row.ownId === 'label-street-primary')!.hidden).toBeNull();
+		});
 	});
 
 	/**
@@ -581,7 +684,7 @@ describe('composeStyle', () => {
 	});
 
 	it('is empty for an empty stack', () => {
-		expect(composeStyle([], BASE)).toEqual({ style: null, bases: [] });
+		expect(composeStyle([], BASE)).toEqual({ style: null, bases: [], rows: [] });
 	});
 });
 

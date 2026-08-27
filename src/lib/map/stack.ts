@@ -13,7 +13,7 @@
  */
 
 import type { StyleSpecification } from 'maplibre-gl';
-import type { Preview, Recipe, SourceStyle } from '../ipc/commands';
+import type { Preview, Recipe, Segment, SourceStyle } from '../ipc/commands';
 import { sourceKind } from './source-kind';
 import { composeStyle, type Composed, type StackEntry } from './style';
 
@@ -66,6 +66,7 @@ export function drawableLayers(built: Preview): { name: string; geometry: string
 /** One source's place in the stack, from what was built and how the recipe says to draw it. */
 export function entryFor(built: Preview, recipe: Recipe): StackEntry {
 	const style = recipe.sources[built.name] ?? UNSTYLED_SOURCE;
+	const hidden = recipe.sources[built.name]?.hidden ?? [];
 	const layers = layersOf(built);
 	return {
 		name: built.name,
@@ -76,6 +77,7 @@ export function entryFor(built: Preview, recipe: Recipe): StackEntry {
 		tileSchema: built.info.tileSchema,
 		layers: drawableLayers(built),
 		mountedLayers: layers,
+		hidden,
 		// What the container says about itself, passed through so the composed style can tell
 		// MapLibre where to stop asking - see `extentOf`.
 		bbox: built.info.bbox,
@@ -104,6 +106,17 @@ export function drawOrder(recipe: Recipe, built: Record<string, Preview>): strin
  * rather than disappearing from the one control that could move it, which is what the style pane's
  * own copy of this list did.
  */
+export function segmentsOf(recipe: Recipe, names: string[]): Segment[] {
+	// The same two rules as `ordered`, one level down: a segment naming a source nothing built is
+	// left out, and a source nothing names is drawn whole, on top. The core's `Recipe::segments`
+	// applies them at the other end for the same reasons.
+	const out = recipe.order.filter((segment) => names.includes(segment.source));
+	for (const name of [...names].sort()) {
+		if (!out.some((segment) => segment.source === name)) out.push({ source: name, from: null });
+	}
+	return out;
+}
+
 export function ordered(recipe: Recipe, names: string[]): string[] {
 	// **Each source once, where it first draws.** `order` holds segments, so a source that is drawn
 	// in two places names itself twice; this answers about sources - which mounts there are and in
@@ -135,15 +148,18 @@ export function stackFor(input: {
 	background: StyleSpecification | null;
 }): Composed {
 	const { recipe, built, serverUrl, background } = input;
-	if (!serverUrl) return { style: null, bases: [] };
+	if (!serverUrl) return { style: null, bases: [], rows: [] };
 
 	// No recipe yet - the background alone is still a map worth drawing.
 	if (!recipe) return composeStyle([], '', background);
 
+	// **Entries per source, order per run.** A source drawn in two places is styled once and laid
+	// twice: `styleFor` is the expensive half and its answer does not depend on where the layers go.
 	return composeStyle(
 		drawOrder(recipe, built).map((name) => entryFor(built[name], recipe)),
 		serverUrl,
-		background
+		background,
+		segmentsOf(recipe, Object.keys(built))
 	);
 }
 

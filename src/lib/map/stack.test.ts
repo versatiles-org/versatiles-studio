@@ -81,7 +81,8 @@ describe('stackFor', () => {
 	it('draws nothing before the server is up', () => {
 		expect(stackFor({ recipe: recipe(), built: {}, serverUrl: null, background })).toEqual({
 			style: null,
-			bases: []
+			bases: [],
+			rows: []
 		});
 	});
 
@@ -135,7 +136,7 @@ describe('stackFor', () => {
 });
 
 describe('drawn', () => {
-	const composed = { style: null, bases: [{ name: 'places', basis: 'preset' as const, style: null }] };
+	const composed = { style: null, bases: [{ name: 'places', basis: 'preset' as const, style: null }], rows: [] };
 
 	it('is true only for a source that drew', () => {
 		expect(drawn(composed, 'places')).toBe(true);
@@ -147,7 +148,7 @@ describe('drawn', () => {
 	// has a style while the source itself drew nothing - which is exactly when the hairlines are
 	// wanted, and exactly when `styled !== null` would have hidden them.
 	it('is false for a source that drew nothing, whatever else is on the map', () => {
-		const notDrawn = { style: {} as never, bases: [{ name: 'places', basis: 'none' as const, style: null }] };
+		const notDrawn = { style: {} as never, bases: [{ name: 'places', basis: 'none' as const, style: null }], rows: [] };
 		expect(notDrawn.style).not.toBeNull();
 		expect(drawn(notDrawn, 'places')).toBe(false);
 	});
