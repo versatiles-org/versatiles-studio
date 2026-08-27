@@ -1,0 +1,17 @@
+# What the scanner is told about this codebase, as data rather than as dismissals.
+#
+# **A model pack survives a CodeQL upgrade; a dismissal does not.** On 2026-08-27 the scanner went
+# from 2.26.3 to 2.26.4 and the Rust alert count went 86 → 147 - with 31 of those at locations that
+# had already been triaged and dismissed, re-raised under new alert numbers because their fingerprints
+# moved. Everything in `models/` is a statement about the code, re-evaluated on every scan, so an
+# upgrade cannot quietly undo it.
+#
+# `extensionTargets` is deliberately unpinned. Pinning it to a version range would reintroduce exactly
+# the failure above: the pack would stop applying the next time the pack it targets is bumped.
+name: versatiles-org/versatiles-studio-rust-models
+version: 0.0.1
+library: true
+extensionTargets:
+  codeql/rust-all: '*'
+dataExtensions:
+  - models/**/*.yml

@@ -1,0 +1,31 @@
+# The two guards `rust/path-injection` cannot see, and the test helper it should not be reading.
+#
+# **The rule stays on.** It is noisy and it has been right: on 2026-08-22 it found an unvalidated font
+# id that deleted files outside the asset directory, and a zip slip in the style bundle. What is wrong
+# is not that it flags paths built from data - that is its job, and `studio_core::paths` exists
+# because of it - but that it cannot tell a path that went through the guard from one that did not.
+# This tells it.
+#
+# See the five-row table in `docs/architecture.md` for the categories every remaining alert falls in.
+extensions:
+  # `testing::dir` hands each test a fresh numbered directory under the system temp dir. Nothing in
+  # it comes from outside the process, and roughly three quarters of the standing alerts are writes
+  # that descend from it - the `#[cfg(test)]` modules live inside the product files they test, so no
+  # path filter can reach them. This can.
+  - addsTo:
+      pack: codeql/rust-all
+      extensible: barrierModel
+    data:
+      - ['studio_core::testing::dir', 'ReturnValue', 'path-injection', 'manual']
+      - ['studio_core::testing::path', 'ReturnValue', 'path-injection', 'manual']
+      - ['studio_core::testing::file', 'ReturnValue', 'path-injection', 'manual']
+
+      # `paths::within` is the zip-slip guard: it resolves a relative name against a directory and
+      # refuses anything that climbs out. Its result is the sanitised path, which is what makes it a
+      # barrier rather than a guard.
+      - ['studio_core::paths::within', 'ReturnValue', 'path-injection', 'manual']
+
+      # `assets::archive_path` runs `paths::segment` over an id that arrived from the webview, then
+      # joins it. Modelled here rather than `segment` itself: `segment` answers `Result<()>` and a
+      # `barrierGuardModel` wants a boolean, while this function's *return* is the checked path.
+      - ['studio_core::assets::archive_path', 'ReturnValue', 'path-injection', 'manual']

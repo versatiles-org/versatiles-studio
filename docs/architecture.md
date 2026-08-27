@@ -34,6 +34,8 @@ The split is forced, not stylistic - [Q3](decisions.md#q3---three-planes-ipc-htt
 
 ### Paths across the control plane
 
+Tauri treats the webview as the less-trusted side, so a filesystem path arriving over IPC is tainted by construction - and static analysis says so, repeatedly and correctly. Every such path in Studio is one of five things, and knowing which is what decides whether anything needs doing:
+
 | Kind                             | Where it comes from                        | What constrains it                                        |
 | -------------------------------- | ------------------------------------------ | --------------------------------------------------------- |
 | **Test fixture**                 | `crate::testing`, inside the crate         | Never crosses the boundary at all                         |
@@ -42,9 +44,9 @@ The split is forced, not stylistic - [Q3](decisions.md#q3---three-planes-ipc-htt
 | **Source named by the document** | a `filename` in the VPL being edited       | Nothing - and deliberately so                             |
 | **Assembled from data**          | a manifest id, an entry inside a `.tar.gz` | [`paths`](../crates/studio-core/src/paths.rs) - a guard   |
 
-Tauri treats the webview as the less-trusted side, so a filesystem path arriving over IPC is tainted by construction - and static analysis says so, repeatedly and correctly. Every such path in Studio is one of five things, and knowing which is what decides whether anything needs doing:
+Only the last row is a bug when it goes unguarded, and it has been twice: on 2026-08-22 `rust/path-injection` found a font id that deleted files outside the asset directory and a zip slip in the style bundle. **So the rule stays on.** Turning it off would buy a quiet list and keep both.
 
-The third, fourth and fifth are the ones worth being precise about.
+**What is told to the scanner, and what is dismissed.** A dismissal does not survive the scanner: CodeQL 2.26.4 took the Rust alerts from 86 to 147, and 31 of those were locations already triaged, re-raised under new numbers because their fingerprints moved. So the guards are declared as data instead - [`.github/codeql/`](../.github/codeql/) models `paths::within`, `assets::archive_path` and the test helper as barriers, which is re-evaluated every scan and cannot be quietly undone by an upgrade. Default setup reads it; it did not always, which is why an earlier attempt at this switched to advanced setup and was reverted.
 
 ## Layers
 
@@ -141,6 +143,7 @@ versatiles-studio/
 ├── wdio.conf.ts                the embedded driver, and how it starts Studio
 ├── codecov.yml                 one flag per codebase, components within
 ├── .github/
+│   ├── codeql/extensions/      the guards, as data the scanner reads
 │   ├── workflows/              ci.yml, release.yml - Linux, macOS, Windows (S0.7, S5.6, S5.9)
 │   ├── actions/tauri-deps      the Linux packages, from a cache          (S0.7)
 │   └── actions/sqlite3         the tool PROJ builds `proj.db` with       (S5.9)
