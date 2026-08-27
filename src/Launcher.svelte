@@ -21,6 +21,7 @@
 		reportProblem,
 		watch as watchForProblems
 	} from './lib/state/diagnostics.svelte';
+	import { whenDropped } from './lib/shell/window-events.svelte';
 
 	// The launcher: what opens when Studio starts with nothing to open, and what ⌘N opens
 	// ([Q48], [S7.5]).
@@ -85,6 +86,24 @@
 		});
 		return () => void unlisten.then((stop) => stop());
 	});
+
+	/// A file dropped on the window, which the landing screen offers as a way of pressing the first
+	/// door ("…or drop a file anywhere in this window").
+	///
+	/// **Unfiltered, unlike the workbench's.** That one opens what is dropped into itself, so a file
+	/// it cannot read is one to ignore. This hands the path to a *new* window, and [S7.6] is explicit
+	/// that the path is inspected at neither end - a file, a project directory and a URL are all the
+	/// same to it. Filtering by extension here would refuse a dropped project folder, which has none
+	/// and is one of the four doors beside it.
+	///
+	/// **The first path only.** `openInNewWindow` closes this window, so a second call would be made
+	/// from a window that is going away; opening one thing is also what every other door here does.
+	$effect(() =>
+		whenDropped((paths) => {
+			const [first] = paths;
+			if (first !== undefined) void open(first);
+		})
+	);
 
 	async function refreshRecents() {
 		recents = await recentSources().catch(() => []);

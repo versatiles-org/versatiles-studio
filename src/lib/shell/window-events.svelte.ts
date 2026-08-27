@@ -67,6 +67,25 @@ function listen(subscribe: Promise<() => void>): () => void {
 	return () => void subscribe.then((stop) => stop());
 }
 
+/**
+ * The paths dropped on this window, as an effect teardown.
+ *
+ * **Both pages need this and they answer it differently**, which is why it is a function rather than
+ * part of [`Actions`]: the workbench opens every path it can read into itself, and the launcher hands
+ * one to a new window and closes. What they must not do is disagree about *when* a drop happened -
+ * the launcher and the workbench keeping separate copies of "what can be opened" is the shape of bug
+ * S7.5 already fixed once, and a second listener written from memory is how it comes back.
+ *
+ * `over` and `leave` are not drops; only `drop` carries paths.
+ */
+export function whenDropped(onDrop: (paths: string[]) => void): () => void {
+	return listen(
+		getCurrentWebview().onDragDropEvent((event) => {
+			if (event.payload.type === 'drop') onDrop(event.payload.paths);
+		})
+	);
+}
+
 export const windowEvents = {
 	/**
 	 * Attaches everything, and returns nothing: each listener is its own effect, so one that has
@@ -128,13 +147,12 @@ export const windowEvents = {
 		});
 
 		// Drag and drop is a shell affordance, so it goes through the same path as the file dialog.
+		// Filtered here and not in the launcher: this window opens what is dropped *into itself*, so a
+		// file it cannot read is a file to ignore rather than one to hand on.
 		$effect(() =>
-			listen(
-				getCurrentWebview().onDragDropEvent((event) => {
-					if (event.payload.type !== 'drop') return;
-					for (const path of event.payload.paths) if (actions.accepts(path)) void actions.openPath(path);
-				})
-			)
+			whenDropped((paths) => {
+				for (const path of paths) if (actions.accepts(path)) void actions.openPath(path);
+			})
 		);
 
 		// **⌘Z / ⇧⌘Z reach the document from anywhere**, because there is one stack for every view (G6).
