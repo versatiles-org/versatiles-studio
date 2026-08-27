@@ -5,6 +5,7 @@ import {
 	canGenerateCode,
 	forExport,
 	fontsUsed,
+	placeholderFor,
 	styleCode,
 	TILE_URL_PLACEHOLDER
 } from './style-code';
@@ -77,12 +78,49 @@ describe('forExport', () => {
 	it('replaces the local tile URL with one the reader is meant to change', () => {
 		const out = forExport(style);
 		expect(JSON.stringify(out)).not.toContain('studio://');
-		expect(JSON.stringify(out)).toContain(TILE_URL_PLACEHOLDER);
+		expect(JSON.stringify(out)).toContain(placeholderFor('berlin'));
 	});
 
 	it('leaves the style it was given alone', () => {
 		forExport(style);
 		expect(JSON.stringify(style)).toContain('studio://');
+	});
+
+	// **Each source keeps its own address.** Two identical placeholders leave the reader of the file
+	// unable to tell which one was the hillshade, which is the whole use of exporting it.
+	it('names the source each placeholder stands for', () => {
+		const stacked = {
+			version: 8,
+			sources: {
+				basemap: { type: 'vector', tiles: ['studio://127.0.0.1:52341/tiles/basemap/{z}/{x}/{y}'] },
+				hillshade: { type: 'raster-dem', tiles: ['studio://127.0.0.1:52341/tiles/hillshade/{z}/{x}/{y}'] }
+			},
+			layers: []
+		} as unknown as import('maplibre-gl').StyleSpecification;
+
+		const out = forExport(stacked);
+		expect((out.sources.basemap as { tiles: string[] }).tiles).toEqual([placeholderFor('basemap')]);
+		expect((out.sources.hillshade as { tiles: string[] }).tiles).toEqual([placeholderFor('hillshade')]);
+	});
+
+	// **A remote source is somebody's working URL.** The background map is the one that reaches this
+	// today: it is the bottom entry of the same stack (S6.5), it names `tiles.versatiles.org`, and
+	// replacing that with a placeholder wrote out a style whose basemap could not draw.
+	it('leaves a source Studio does not serve alone', () => {
+		const withBackground = {
+			version: 8,
+			sources: {
+				background: { type: 'vector', tiles: ['https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}'] },
+				berlin: { type: 'vector', tiles: ['studio://127.0.0.1:52341/tiles/berlin/{z}/{x}/{y}'] }
+			},
+			layers: []
+		} as unknown as import('maplibre-gl').StyleSpecification;
+
+		const out = forExport(withBackground);
+		expect((out.sources.background as { tiles: string[] }).tiles).toEqual([
+			'https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}'
+		]);
+		expect((out.sources.berlin as { tiles: string[] }).tiles).toEqual([placeholderFor('berlin')]);
 	});
 });
 

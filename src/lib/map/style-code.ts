@@ -14,6 +14,7 @@
 import { isExpression } from '@maplibre/maplibre-gl-style-spec';
 import type { StyleSpecification } from 'maplibre-gl';
 import type { Appearance } from '../ipc/commands';
+import { SCHEME } from './tile-queue';
 
 /**
  * Where an exported style says its tiles are.
@@ -24,6 +25,17 @@ import type { Appearance } from '../ipc/commands';
  * placeholder is a thing to replace; a dead localhost URL is a thing to debug.
  */
 export const TILE_URL_PLACEHOLDER = 'https://example.org/tiles/{z}/{x}/{y}';
+
+/**
+ * The same placeholder, named after the source it stands for.
+ *
+ * **Because a style carries several sources now.** Collapsing all of them onto one URL left the
+ * reader of an exported `style.json` holding two identical addresses and nothing saying which was
+ * the hillshade - a file that cannot be pointed at anything without opening Studio again to find
+ * out. The source key is a graph name, which is lowercase ASCII, digits and `-` by construction, so
+ * it needs no escaping to sit in a path.
+ */
+export const placeholderFor = (source: string): string => `https://example.org/tiles/${source}/{z}/{x}/{y}`;
 
 /**
  * Where an exported style says its glyphs and sprites are.
@@ -51,8 +63,15 @@ export const BUNDLED_SPRITE = 'sprites/basics/sprites';
  */
 export function forExport(style: StyleSpecification, assets: 'public' | 'bundled' = 'public'): StyleSpecification {
 	const copy = structuredClone(style) as StyleSpecification;
-	for (const source of Object.values(copy.sources ?? {})) {
-		if ('tiles' in source && Array.isArray(source.tiles)) source.tiles = [TILE_URL_PLACEHOLDER];
+	for (const [name, source] of Object.entries(copy.sources ?? {})) {
+		if (!('tiles' in source) || !Array.isArray(source.tiles)) continue;
+		// **Only the sources Studio serves itself.** `throughQueue` puts every mount behind
+		// `studio://`, so that scheme is exactly the set of URLs that stop existing when the window
+		// closes. Anything else names a real host - the background map most obviously - and is
+		// somebody's working URL; replacing it turned a style that draws into one that does not, and
+		// said nothing about having done so.
+		if (!source.tiles.some((url) => typeof url === 'string' && url.startsWith(`${SCHEME}://`))) continue;
+		source.tiles = [placeholderFor(name)];
 	}
 	copy.glyphs = assets === 'bundled' ? BUNDLED_GLYPHS : `${PUBLIC_ASSETS}/glyphs/{fontstack}/{range}.pbf`;
 	copy.sprite = assets === 'bundled' ? BUNDLED_SPRITE : `${PUBLIC_ASSETS}/sprites/basics/sprites`;
