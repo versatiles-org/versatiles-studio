@@ -114,7 +114,6 @@ export function layersIn(preview: Preview | null | undefined): string[] {
 }
 
 /** The layers the mounted tiles actually contain, for deciding whether a preset can draw them. */
-const mountedLayers = $derived(layersIn(last));
 
 /**
  * Opens a container and remembers it.
@@ -135,10 +134,6 @@ export const preview = {
 
 	get last(): Preview | null {
 		return last;
-	},
-
-	get mountedLayers(): string[] {
-		return mountedLayers;
 	},
 
 	/** Every graph built this session, by name - the stack a style is composed over (S6.5). */

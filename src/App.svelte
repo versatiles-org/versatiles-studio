@@ -18,7 +18,7 @@
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
-	import { preview } from './lib/state/preview.svelte';
+	import { layersIn, preview } from './lib/state/preview.svelte';
 	import { layout } from './lib/state/layout.svelte';
 	import { document } from './lib/state/document.svelte';
 	import { graphs } from './lib/state/graphs.svelte';
@@ -131,6 +131,13 @@
 
 	/// What the selected graph last built, or `null` while it has not - the inspector's other half
 	/// (A6). `built` is keyed by name because that is what a mount is called.
+	///
+	/// **One selection, and this is it.** The panes used to follow two different answers: the style
+	/// pane wrote to the *selected* graph and read what the *last preview* had produced, which are
+	/// the same graph until somebody picks another one without editing it. Selecting a graph does not
+	/// rebuild anything - there is nothing to rebuild - so the pane went on showing the previous
+	/// graph's layers while every control wrote into the newly selected one's recipe, keyed on ids it
+	/// did not have ([Q51] is the same bug one level up).
 	const currentBuild = $derived(currentName === null ? null : (preview.built[currentName] ?? null));
 
 	/** Build-time information about the binary, so it is fetched once and never refreshed. */
@@ -223,7 +230,7 @@
 	/// features passing through it, not to one layer, so splitting them by layer here would be a
 	/// distinction the parameter does not make.
 	const producedProperties = $derived([
-		...new Set((preview.last?.layers ?? []).flatMap((layer) => layer.propertyKeys))
+		...new Set((currentBuild?.layers ?? []).flatMap((layer) => layer.propertyKeys))
 	]);
 	let serverUrl = $state<string | null>(null);
 
@@ -587,7 +594,7 @@
 
 	/// The `style.json` a project writes beside its manifest, or `null` when nothing draws.
 	const styleText = () => (styled ? JSON.stringify(forExport(styled), null, '\t') : null);
-	const previewDrawn = $derived(drawn(composed, preview.last?.name));
+	const previewDrawn = $derived(drawn(composed, currentName));
 
 	/// What the Layers pane needs about each source: which graph it is, what was changed about it,
 	/// and the style it drew on its own.
@@ -615,7 +622,7 @@
 
 	/// The stack entry for the source being edited, which is the one the style pane acts on - both
 	/// how it was drawn and the style it drew, whose ids its overrides are keyed on ([Q51]).
-	const editedEntry = $derived(composed.bases.find((entry) => entry.name === preview.last?.name));
+	const editedEntry = $derived(composed.bases.find((entry) => entry.name === currentName));
 
 	// **One owner for the map's style**, and it composes rather than chooses.
 	//
@@ -636,7 +643,7 @@
 	/// **The only thing that reframes the map after the first preview**, now that a rebuild leaves
 	/// the camera alone. Animated, because someone asked for it and should see where they went.
 	function resetView() {
-		const bbox = preview.last?.info.bbox;
+		const bbox = currentBuild?.info.bbox;
 		if (map && bbox) fitToBounds(map, bbox, true);
 	}
 
@@ -969,7 +976,7 @@
 			pipeline={document.current}
 			pipelineRevision={document.revision}
 			properties={producedProperties}
-			fits={preview.last?.fits ?? []}
+			fits={currentBuild?.fits ?? []}
 			{suggestions}
 			crop={document.current ? { bounds: crop, drawing } : null}
 			cropActions={{
@@ -1012,11 +1019,11 @@
 			rendered={styled}
 			basis={editedEntry?.basis ?? 'none'}
 			own={editedEntry?.style ?? null}
-			source={preview.last
+			source={currentBuild
 				? {
-						tileFormat: preview.last.info.tileFormat,
-						tileSchema: preview.last.info.tileSchema,
-						layers: preview.mountedLayers
+						tileFormat: currentBuild.info.tileFormat,
+						tileSchema: currentBuild.info.tileSchema,
+						layers: layersIn(currentBuild)
 					}
 				: null}
 		/>
@@ -1074,12 +1081,7 @@
 				/>
 			{/if}
 			<!-- `mount` is what the click is allowed to hit: Studio's own tiles, never the background. -->
-			<FeaturePopup
-				{map}
-				{drawing}
-				source={preview.containers.at(-1)?.info.source ?? null}
-				mount={preview.last?.name ?? null}
-			/>
+			<FeaturePopup {map} {drawing} source={preview.containers.at(-1)?.info.source ?? null} mount={currentName} />
 			<TileGrid {map} visible={showGrid} level={gridLevel} />
 			<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
 		     has no visibility of its own to toggle. -->
@@ -1131,7 +1133,7 @@
 					{showGrid}
 					{gridLevel}
 					gridNudged={gridOffset !== 0}
-					canReset={Boolean(preview.last?.info.bbox)}
+					canReset={Boolean(currentBuild?.info.bbox)}
 					onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
 					onToggleGrid={() => (showGrid = !showGrid)}
 					onGridLevel={(by) => (gridOffset = by === 0 ? 0 : gridOffset + by)}
