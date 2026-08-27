@@ -56,6 +56,7 @@ Both stylesheets are imported by each page's entry point - `main.ts` and `landin
 | Syntax   | `--vpl-value` - operation names take the accent; only values need a colour of their own                                                         |
 | Fonts    | `--font-ui`, `--font-mono`                                                                                                                      |
 | Space    | `--space-1` … `--space-6`                                                                                                                       |
+| Rhythm   | `--gap-group`, `--gap-section` - what a gap _separates_ rather than how wide it is, for a pane's own layout                                     |
 | Shape    | `--radius`, `--radius-lg`, `--shadow`, `--focus-width`                                                                                          |
 
 Each set is small and closed **on purpose**. That is the whole mechanism: picking from five type sizes is faster than inventing a sixth, so the constraint holds itself up without anyone policing it.
@@ -77,6 +78,8 @@ That is why no component declares `--font-ui`: if you find yourself reaching for
 
 ## What base.css already gives you
 
+Do not write these again - they are done once, for everything:
+
 | Element                                 | You get                                                               |
 | --------------------------------------- | --------------------------------------------------------------------- |
 | `button`, `input`, `select`, `textarea` | `font: inherit`, `color: inherit`                                     |
@@ -87,11 +90,18 @@ That is why no component declares `--font-ui`: if you find yourself reaching for
 | `code`, `kbd`, `samp`                   | the monospace stack and its optical size correction                   |
 | anything focusable                      | the focus ring                                                        |
 
-Do not write these again - they are done once, for everything:
-
 ## Shared classes
 
-Four, each applying to elements that have nothing else in common:
+Four, each applying to elements that have nothing else in common - which is why they are classes rather than element rules:
+
+| Class              | What it is                                                                                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.button`          | A button drawn _as_ a button. `button` itself carries no box, so this is how one is asked for; `.button.primary` is the one that commits.                                             |
+| `.section-label`   | The small uppercase label that titles a section. Not an `h2` rule: two uses are headings, one is a span inside a button, and the inspector's own `h2` is a title rather than a label. |
+| `.truncate`        | One line, clipped with an ellipsis. Written out in full in seven places before it existed.                                                                                            |
+| `.visually-hidden` | Present for a screen reader and absent for everyone else. Stock, which is why three components had identical copies.                                                                  |
+
+**Only one of them is a utility**, and the distinction is worth keeping: `.truncate` is a rule applied through the markup, which is a second mechanism to hold in your head alongside scoped CSS. `.button` and `.section-label` name a _thing_ rather than a declaration, and `.visually-hidden` is the standard recipe rather than a decision of ours. The bar for a second utility is therefore high - `min-width: 0` was a candidate and did not make it.
 
 This is not a utility framework and should not become one. If a rule is true of one surface, it lives in that surface's `<style>` block.
 
