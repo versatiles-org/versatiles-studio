@@ -31,10 +31,10 @@ let open = $state(false);
 /**
  * What the graph turns out to produce, while the dialog is open ([Q41]).
  *
- * **Asked for by name, not taken from `preview.last`.** That one follows the pin, so with a node
- * pinned it describes an intermediate step - and the export writes the graph regardless. Numbers
- * about a different artefact, directly above the button that writes this one, would be worse than
- * no numbers.
+ * **Asked for by graph, not taken from `preview.hairlines`.** That one is whatever the map last
+ * drew, which is the graph on screen - and an export is per graph ([Q32]), so the two are the same
+ * until they are not. Numbers about a different artefact, directly above the button that writes
+ * this one, would be worse than no numbers.
  *
  * Fetched on opening rather than kept in step: it is a function of the graph as it stands, and
  * asking once, when someone is about to commit, cannot go stale.

@@ -72,7 +72,7 @@ describe('the preview on the map', () => {
 		// Without this the first mount stays on the map for the rest of the session: the only handle
 		// that could remove it was overwritten by the second build.
 		expect(removed).toEqual(['first']);
-		expect(preview.last?.name).toBe('second');
+		expect(preview.hairlines?.name).toBe('second');
 	});
 
 	/// A superseded build changes nothing on its way out.
@@ -88,7 +88,7 @@ describe('the preview on the map', () => {
 		const outcome = await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
 
 		expect(outcome).toEqual({ kind: 'superseded' });
-		expect(preview.last?.name).toBe('current');
+		expect(preview.hairlines?.name).toBe('current');
 		expect(removed).toEqual([]);
 		expect(added).toHaveLength(1);
 	});
@@ -148,7 +148,7 @@ describe('the preview on the map', () => {
 		expect(outcome).toEqual({ kind: 'shown' });
 		expect(added).toEqual([]);
 		// Still the build the rest of the window composes its style from.
-		expect(preview.last?.name).toBe('styled-one');
+		expect(preview.hairlines?.name).toBe('styled-one');
 	});
 
 	/**
@@ -211,7 +211,7 @@ describe('the preview on the map', () => {
 		await preview.refresh({
 			map,
 			pipeline: document(),
-			styled: () => (seen.push(preview.last?.name ?? null), false),
+			styled: () => (seen.push(preview.hairlines?.name ?? null), false),
 			restored: false
 		});
 		expect(seen).toEqual(['one']);
@@ -430,6 +430,47 @@ describe('putting the preview back after a style swap', () => {
 		added.length = 0;
 
 		preview.restore(map, true);
+		expect(added).toEqual([]);
+	});
+
+	/**
+	 * The bug this whole record exists for.
+	 *
+	 * Switching a graph off calls `forget`, and the stack losing an entry is what causes the style
+	 * swap - so `restore` runs a moment later with the map empty and puts the hairlines straight back
+	 * on. It is not a stale picture either: `set_graph_enabled` leaves the graph mounted on the
+	 * server, so those tiles really do come back.
+	 */
+	it('declines to put back a graph that was forgotten', async () => {
+		ipc.mountGraph.mockResolvedValue(mounted('berlin'));
+		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
+		added.length = 0;
+
+		preview.forget('berlin');
+		preview.restore(map, false);
+		expect(added).toEqual([]);
+	});
+
+	/// Forgetting some *other* graph is not about this one, and must leave it drawing.
+	it('still puts back a graph that another one was forgotten around', async () => {
+		ipc.mountGraph.mockResolvedValue(mounted('berlin'));
+		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
+		added.length = 0;
+
+		preview.forget('somewhere-else');
+		preview.restore(map, false);
+		expect(added).toHaveLength(1);
+	});
+
+	/// The same for the last graph in a project going: `clear` is what runs then, and the record has
+	/// to go with the layers or the removed graph's tiles come back on the next style.
+	it('declines to put back a graph after the map was cleared', async () => {
+		ipc.mountGraph.mockResolvedValue(mounted('berlin'));
+		await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
+		added.length = 0;
+
+		preview.clear(map);
+		preview.restore(map, false);
 		expect(added).toEqual([]);
 	});
 
