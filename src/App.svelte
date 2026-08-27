@@ -5,7 +5,7 @@
 	import { listen } from '@tauri-apps/api/event';
 	import { openUrl } from '@tauri-apps/plugin-opener';
 	import { getCurrentWindow } from '@tauri-apps/api/window';
-	import type { Map as MaplibreMap, StyleSpecification } from 'maplibre-gl';
+	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import AppShell from './lib/shell/AppShell.svelte';
 	import StatusBar from './lib/shell/StatusBar.svelte';
 	import Boundary from './lib/shell/Boundary.svelte';
@@ -45,15 +45,11 @@
 	import CropOverlay from './lib/map/CropOverlay.svelte';
 	import { bboxField } from './lib/state/bbox.svelte';
 	import MapControls from './lib/map/MapControls.svelte';
-	import { buildBackground } from './lib/map/background';
 	import CoordinateJump from './lib/map/CoordinateJump.svelte';
 	import Views from './lib/map/Views.svelte';
-	import { defaultStyle } from './lib/map/default-style';
 	import { fitToBounds } from './lib/map/add-source';
-	import { drawn, ordered, stackFor } from './lib/map/stack';
 	import { declaredLayers } from './lib/map/tile-json';
-
-	import { forExport } from './lib/map/style-code';
+	import { composition } from './lib/map/composition.svelte';
 	import {
 		takeOpened,
 		OPENED_EVENT,
@@ -67,7 +63,6 @@
 		openVpl,
 		saveVpl,
 		redo as redoPipeline,
-		serverBaseUrl,
 		vplRemoveProperty,
 		vplInsertNode,
 		vplRemoveNode,
@@ -86,8 +81,7 @@
 		importReadNode,
 		fieldSuggestions,
 		type EditKind,
-		type ImportKind,
-		type LayerOverride
+		type ImportKind
 	} from './lib/ipc/commands';
 
 	/// Every way in this build has (S3.2). Build-time information about the binary, so it is fetched
@@ -104,7 +98,6 @@
 	/// pipeline is saved with is by construction one that can be opened again.
 	const pipelineExtensions = $derived(kinds.find((kind) => kind.id === 'pipeline')?.extensions ?? ['vpl']);
 
-	let style = $state<StyleSpecification | null>(null);
 	let map = $state<MaplibreMap | undefined>();
 	/// The graph being edited, and what every command that touches a document is given. One at a
 	/// time on screen; the project holds several (Q32), and the list that switches between them is
@@ -126,9 +119,6 @@
 		styleRecipe.focus(id !== null && name !== null ? { id, name } : null);
 	});
 
-	/// The selected graph's name, which is what the recipe and the built stack both file it under.
-	const currentName = $derived(currentGraph === null ? null : graphs.nameOf(currentGraph));
-
 	/// What the selected graph last built, or `null` while it has not - the inspector's other half
 	/// (A6). `built` is keyed by name because that is what a mount is called.
 	///
@@ -138,7 +128,9 @@
 	/// rebuild anything - there is nothing to rebuild - so the pane went on showing the previous
 	/// graph's layers while every control wrote into the newly selected one's recipe, keyed on ids it
 	/// did not have ([Q51] is the same bug one level up).
-	const currentBuild = $derived(currentName === null ? null : (preview.built[currentName] ?? null));
+	const currentBuild = $derived(
+		composition.editedName === null ? null : (preview.built[composition.editedName] ?? null)
+	);
 
 	/** Build-time information about the binary, so it is fetched once and never refreshed. */
 	let operations = $state<OperationInfo[]>([]);
@@ -176,28 +168,16 @@
 	/// How far the grid has been walked off the level the source is actually requesting (A5).
 	let gridOffset = $state(0);
 
-	/// The source the grid follows: the one the selected graph drew.
-	///
-	/// Its own style rather than the composed stack, because the stack renames the source key when
-	/// more than one thing draws and the *type* and tile size are what decide the level ([Q51] made
-	/// the entry's own style available for the same reason).
-	const gridSource = $derived.by(() => {
-		const style = editedEntry?.style;
-		if (!style) return null;
-		const [key] = Object.keys(style.sources);
-		return (style.sources[key] ?? null) as { type: string; tileSize?: number } | null;
-	});
-
-	/// What MapLibre is asking that source for, and what the grid draws once a nudge is applied.
-	const gridBase = $derived(requestedZoom(mapZoom, gridSource));
+	/// What MapLibre is asking the grid's source for, and what it draws once a nudge is applied.
+	const gridBase = $derived(requestedZoom(mapZoom, composition.gridSource));
 	const gridLevel = $derived(Math.max(0, gridBase + gridOffset));
 
 	// **A nudge belongs to the source it was made on.** The offset exists because one rule cannot
 	// answer for a stack whose sources disagree; carrying it to the next pipeline would silently
 	// re-introduce the off-by-one this control was added to end.
 	$effect(() => {
-		void gridSource?.type;
-		void gridSource?.tileSize;
+		void composition.gridSource?.type;
+		void composition.gridSource?.tileSize;
 		gridOffset = 0;
 	});
 
@@ -232,10 +212,6 @@
 	const producedProperties = $derived([
 		...new Set((currentBuild?.layers ?? []).flatMap((layer) => layer.propertyKeys))
 	]);
-	let serverUrl = $state<string | null>(null);
-
-	const background = $derived(layout.background);
-
 	/// Which surface is open (Q22, S4.1). Core-owned, so a reloaded window comes back to it.
 	///
 	/// A value this build does not know falls back to the map - the same rule `background` follows,
@@ -274,6 +250,7 @@
 		// still running across a reload - has to appear in the bar, not only the ones this session
 		// starts.
 		void connectJobs();
+		void composition.load();
 		void layout.load();
 		void vplOperations().then((loaded) => (operations = loaded));
 		// The style survives a reload the way the graphs do - the core owns it ([Q36]).
@@ -293,6 +270,10 @@
 		});
 		void exporting.loadFormats();
 	});
+
+	// The background map is rebuilt whenever it is chosen, which cannot be a derivation - see
+	// `composition.follow`.
+	composition.follow();
 
 	// ⌘Z / ⇧⌘Z reach the document from anywhere, because there is one stack for every view (G6).
 	//
@@ -509,122 +490,15 @@
 		}
 	}
 
-	/// Where the embedded server is, which everything that names a tile URL waits on.
-	///
-	/// The port is ephemeral, so it is asked for rather than assumed - and the default style goes up
-	/// as soon as it lands, so the map has a ground to draw on before anything is open.
-	$effect(() => {
-		serverBaseUrl()
-			.then((url) => {
-				serverUrl = url;
-				style = defaultStyle(url);
-			})
-			.catch((e) => status.fail(e));
-	});
-
-	/// The background map, built when it is chosen and held so the stack can read it synchronously.
-	///
-	/// **Built here rather than inside the stack** because `buildBackground` is async - `satellite`
-	/// resolves a raster source over the network - and a `$derived` cannot await.
-	let backgroundStyle = $state<StyleSpecification | null>(null);
-
-	$effect(() => {
-		const chosen = background;
-		const url = serverUrl;
-		if (!url) return;
-		void untrack(async () => {
-			try {
-				backgroundStyle = chosen === 'none' ? null : await buildBackground(chosen, url);
-			} catch (e) {
-				backgroundStyle = null;
-				status.fail(e);
-			}
-		});
-	});
-
-	/// The graphs in draw order, top of the list first.
-	///
-	/// **The list is the stack** ([Q49], [Q50]), so its order is the recipe's rather than the order
-	/// graphs happened to be created in. `ordered` is the same rule the map draws by, over every
-	/// graph rather than only the ones that built - a graph that will not build keeps its place in
-	/// the one control that can move it.
-	const stacked = $derived(
-		(() => {
-			const byName = new Map(graphs.list.map((graph) => [graph.name, graph]));
-			const names = styleRecipe.current ? ordered(styleRecipe.current, [...byName.keys()]) : [...byName.keys()];
-			return names
-				.map((name) => byName.get(name))
-				.filter((graph): graph is (typeof graphs.list)[number] => graph !== undefined)
-				.reverse();
-		})()
-	);
-
 	/// Moves a run of the stack, which is the whole of reordering ([the layer stack](docs/layers.md)).
 	///
 	/// **The segments are derived from the result, not edited towards it.** `move` produces the rows
 	/// in their new order and `segmentsFrom` reads the runs back off them, so the boundaries are
 	/// ascending by construction and there is no second place the invariant could be broken.
 	async function reorderStack(range: [number, number], at: number) {
-		const next = segmentsFrom(move(composed.rows, range, at));
+		const next = segmentsFrom(move(composition.rows, range, at));
 		await styleRecipe.setSegments(next);
 	}
-
-	const composed = $derived(
-		stackFor({
-			recipe: styleRecipe.current,
-			built: preview.built,
-			serverUrl,
-			background: backgroundStyle
-		})
-	);
-
-	const styled = $derived(composed.style);
-
-	/// The `style.json` a project writes beside its manifest, or `null` when nothing draws.
-	const styleText = () => (styled ? JSON.stringify(forExport(styled), null, '\t') : null);
-	const previewDrawn = $derived(drawn(composed, currentName));
-
-	/// What the Layers pane needs about each source: which graph it is, what was changed about it,
-	/// and the style it drew on its own.
-	///
-	/// **Its own style, not the stack's.** Overrides are keyed on the ids `styleFor` produced, and
-	/// the composed stack renames those as soon as a second thing draws ([Q51]) - the same reason the
-	/// Style pane is handed `own` rather than `styled`.
-	const styleSources = $derived.by(() => {
-		const out: Record<
-			string,
-			{ graph: number; hidden: string[]; overrides: Record<string, LayerOverride>; style: StyleSpecification | null }
-		> = {};
-		for (const graph of graphs.list) {
-			const source = styleRecipe.current?.sources[graph.name];
-			const appearance = source?.appearance;
-			out[graph.name] = {
-				graph: graph.id,
-				hidden: source?.hidden ?? [],
-				overrides: appearance?.type === 'vector' ? appearance.overrides : {},
-				style: composed.bases.find((entry) => entry.name === graph.name)?.style ?? null
-			};
-		}
-		return out;
-	});
-
-	/// The stack entry for the source being edited, which is the one the style pane acts on - both
-	/// how it was drawn and the style it drew, whose ids its overrides are keyed on ([Q51]).
-	const editedEntry = $derived(composed.bases.find((entry) => entry.name === currentName));
-
-	// **One owner for the map's style**, and it composes rather than chooses.
-	//
-	// It used to choose: a styled recipe won, and the background was what an *unstyled* pipeline sat
-	// on. That rule was written when `styled` was null for anything that was not Shortbread - which
-	// S6.2 ended by deriving a style for those instead, leaving the background unreachable however it
-	// was set. It is now the bottom entry of the stack (S6.5), which is where a basemap belonged all
-	// along.
-	$effect(() => {
-		const rendered = styled;
-		const url = serverUrl;
-		if (!url) return;
-		style = rendered ?? defaultStyle(url);
-	});
 
 	/// Returns the camera to what is currently open.
 	///
@@ -651,10 +525,10 @@
 					void openProjectDir();
 					return;
 				case 'save-project':
-					void project.save(styleText);
+					void project.save(() => composition.text());
 					return;
 				case 'save-project-as':
-					void project.saveAs(styleText);
+					void project.saveAs(() => composition.text());
 					return;
 				case 'save-copy':
 					void project.showCopy();
@@ -744,7 +618,7 @@
 			const done = await preview.refresh({
 				map,
 				pipeline: document.current,
-				styled: () => previewDrawn,
+				styled: () => composition.drawn,
 				// A camera came back from the core, so this window is a reload rather than a first
 				// open and already knows where it was looking.
 				restored: layout.current?.view != null
@@ -944,7 +818,7 @@
 {#snippet paneContent(id: string)}
 	{#if id === 'sources'}
 		<SourcesPane
-			graphs={stacked}
+			graphs={composition.stacked}
 			current={currentGraph}
 			{operations}
 			actions={{
@@ -960,7 +834,7 @@
 		<PipelinePane
 			{kinds}
 			{operations}
-			graph={stacked.find((entry) => entry.id === currentGraph) ?? null}
+			graph={composition.stacked.find((entry) => entry.id === currentGraph) ?? null}
 			pipeline={document.current}
 			pipelineRevision={document.revision}
 			properties={producedProperties}
@@ -1004,9 +878,9 @@
 		/>
 	{:else if id === 'style'}
 		<StylePane
-			rendered={styled}
-			basis={editedEntry?.basis ?? 'none'}
-			own={editedEntry?.style ?? null}
+			rendered={composition.style}
+			basis={composition.edited?.basis ?? 'none'}
+			own={composition.edited?.style ?? null}
 			source={currentBuild
 				? {
 						tileFormat: currentBuild.info.tileFormat,
@@ -1017,8 +891,8 @@
 		/>
 	{:else if id === 'layers'}
 		<LayersPane
-			rows={composed.rows}
-			sources={styleSources}
+			rows={composition.rows}
+			sources={composition.sources}
 			actions={{
 				setHidden: (graph, path, hidden) => void styleRecipe.setHidden(graph, path, hidden).then(refreshPreview),
 				setOverride: (graph, layer, patch) => void styleRecipe.setLayerFor(graph, layer, patch),
@@ -1030,7 +904,7 @@
 		<Inspector
 			containers={preview.containers.map((c) => c.info)}
 			result={currentBuild?.info ?? null}
-			graph={currentName}
+			graph={composition.editedName}
 		/>
 	{/if}
 {/snippet}
@@ -1056,20 +930,25 @@
 		     container it cannot make sense of should not take the editor and the status bar with it,
 		     which is the one place that could then say what happened. -->
 		<Boundary label="The map">
-			{#if style}
+			{#if composition.style}
 				<MapCanvas
-					{style}
+					style={composition.style}
 					bind:map
 					initialView={layout.current?.view ?? null}
 					onMove={(view) => {
 						mapZoom = view.zoom;
 						layout.rememberView(view);
 					}}
-					onStyleLoad={() => preview.restore(map, previewDrawn)}
+					onStyleLoad={() => preview.restore(map, composition.drawn)}
 				/>
 			{/if}
 			<!-- `mount` is what the click is allowed to hit: Studio's own tiles, never the background. -->
-			<FeaturePopup {map} {drawing} source={preview.containers.at(-1)?.info.source ?? null} mount={currentName} />
+			<FeaturePopup
+				{map}
+				{drawing}
+				source={preview.containers.at(-1)?.info.source ?? null}
+				mount={composition.editedName}
+			/>
 			<TileGrid {map} visible={showGrid} level={gridLevel} />
 			<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
 		     has no visibility of its own to toggle. -->
@@ -1117,7 +996,7 @@
 			     only a basemap on it is still a map somebody may want to move around. -->
 			<div class="map-controls">
 				<MapControls
-					{background}
+					background={layout.background}
 					{showGrid}
 					{gridLevel}
 					gridNudged={gridOffset !== 0}
@@ -1156,7 +1035,7 @@
 	<CopyDialog
 		plan={project.copying}
 		onCancel={() => project.cancelCopy()}
-		onWrite={(zip) => void project.writeCopy(zip, styleText)}
+		onWrite={(zip) => void project.writeCopy(zip, () => composition.text())}
 	/>
 {/if}
 
