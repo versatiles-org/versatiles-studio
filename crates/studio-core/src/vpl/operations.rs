@@ -405,6 +405,79 @@ mod tests {
 		);
 	}
 
+	/// Whether upstream's own words say the value *is* a colour.
+	///
+	/// **Anchored at the opening, like `a_field_documented_as_a_path_is_one`, and for the same
+	/// reason.** `from_gdal_raster.bands` is documented as "Band indices to read as colour channels",
+	/// where the word describes what the indices point at rather than what the value is - so anything
+	/// reading the whole sentence calls that field a colour, and a rule that cries wolf on the only
+	/// registry it has is worse than no rule. A doc names its own value in its opening words, which is
+	/// where `from_color`'s "Hex colour, `RRGGBB` or `RRGGBBAA`" says it; two is enough for the
+	/// article or adjective that usually comes first.
+	fn doc_opens_on_a_colour(doc: &str) -> bool {
+		doc.split_whitespace().take(2).any(|word| {
+			let word = word.trim_matches(|c: char| !c.is_alphanumeric()).to_ascii_lowercase();
+			word == "colour" || word == "color"
+		})
+	}
+
+	/// Six or eight hex digits, which is what a colour written as text looks like and, in this
+	/// registry, what nothing else does - every other string default is `,` `.` `id` `x` `y` `grid`
+	/// or `h3`.
+	fn is_hex_colour(value: &str) -> bool {
+		let digits = value.trim_start_matches('#');
+		matches!(digits.len(), 6 | 8) && digits.chars().all(|c| c.is_ascii_hexdigit())
+	}
+
+	/// **A colour spelled as a string, which no shape can see.**
+	///
+	/// `three_bytes_are_a_colour_whatever_the_field_is_called` reads the type, and that works because
+	/// `[u8;3]` means one thing. The other spelling is `String`, which means everything: a name, a
+	/// path, a CEL expression and `from_color`'s `RRGGBBAA` are one type upstream. So the type says
+	/// nothing, and a colour added that way would render as a plain box with nothing able to notice.
+	///
+	/// What is left is what upstream wrote. Two signals, either one enough, because they fail in
+	/// different directions - a colour with no default still has prose, and prose worded some way
+	/// this does not expect still has `000000` - so a new one would have to dodge both to arrive
+	/// silently.
+	#[test]
+	fn a_string_that_says_it_is_a_colour_is_a_swatch() {
+		let missed: Vec<String> = registry()
+			.values()
+			.flat_map(|meta| {
+				meta.fields.iter().filter_map(move |field| {
+					let says_colour = inner_type(&field.rust_type) == "String"
+						&& (doc_opens_on_a_colour(&field.doc) || field.default.as_deref().is_some_and(is_hex_colour));
+					let control = control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants);
+					(says_colour && !matches!(control, Control::Color { .. }))
+						.then(|| format!("{}.{}", meta.tag_name, field.name))
+				})
+			})
+			.collect();
+
+		assert!(
+			missed.is_empty(),
+			"upstream documents these as colours and they are offered as text boxes - add them to \
+			 `ROLES` in semantics.rs: {missed:?}"
+		);
+	}
+
+	/// **The anchor above is load-bearing**, so it is held here rather than left as a remark for the
+	/// next person to relax. `from_gdal_raster.bands` is a `String` whose documentation contains the
+	/// word "colour"; widening the rule to search the whole sentence turns a band list into a swatch,
+	/// which is a worse failure than the gap the rule closes.
+	#[test]
+	fn a_colour_further_into_the_sentence_describes_something_else() {
+		let bands = field("from_gdal_raster", "bands");
+		assert!(
+			bands.doc.to_lowercase().contains("colour"),
+			"the case this guards is gone: {:?}",
+			bands.doc
+		);
+		assert!(!doc_opens_on_a_colour(&bands.doc), "{:?}", bands.doc);
+		assert_eq!(bands.control, Control::Text);
+	}
+
 	/// **Only a string may fall back to plain text**, because reaching the fallback means the type was
 	/// not recognised.
 	///
