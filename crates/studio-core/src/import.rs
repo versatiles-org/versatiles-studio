@@ -906,8 +906,10 @@ mod tests {
 	/// column - and it has to survive the quoting, which for a tab is not obvious.
 	#[test]
 	fn an_unusual_delimiter_is_recorded_and_survives_the_round_trip() {
-		let path = std::env::temp_dir().join("versatiles-studio-import-semi.csv");
-		std::fs::write(&path, "id;lon;lat\n1;13.4;52.5\n").unwrap();
+		// Through `testing`, like the two tests above it: a fixed name in the shared temp directory is
+		// the collision that helper exists to prevent - two runs at once, or a re-run over a previous
+		// one, and both are writing the same file.
+		let path = crate::testing::file("semi.csv", "id;lon;lat\n1;13.4;52.5\n");
 
 		let kind = kinds().into_iter().find(|k| k.id == "table").unwrap();
 		let vpl = read_node(&kind, &path.to_string_lossy());
