@@ -16,6 +16,11 @@ extensions:
       pack: codeql/rust-all
       extensible: barrierModel
     data:
+      # `root` is the one directory the helper owns - `temp_dir()` joined with a fixed name - and it is
+      # where the numbered directories below are made. Modelled as well as `dir`, because `dir` writes
+      # *inside itself* before handing its result back, and a barrier on a return value cannot reach a
+      # sink in the body that produced it.
+      - ['studio_core::testing::root', 'ReturnValue', 'path-injection', 'manual']
       - ['studio_core::testing::dir', 'ReturnValue', 'path-injection', 'manual']
       - ['studio_core::testing::path', 'ReturnValue', 'path-injection', 'manual']
       - ['studio_core::testing::file', 'ReturnValue', 'path-injection', 'manual']
