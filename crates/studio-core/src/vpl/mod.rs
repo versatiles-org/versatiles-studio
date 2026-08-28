@@ -30,6 +30,9 @@ mod tests;
 
 pub use ast::{Comment, LineCol, Node, Pipeline, Property, Quote, Span, Str, Token, TokenKind, Value};
 pub use operations::{Control, FieldInfo, OperationInfo, operations};
+// The registry itself stays inside the crate: `suggest` reads a node's declared fields, and
+// `operations()` would rebuild and sort the whole list once per node to answer that.
+pub(crate) use operations::registry;
 pub use semantics::{Lang, Names, Role, role_of};
 pub use validate::{Diagnostic, validate};
 

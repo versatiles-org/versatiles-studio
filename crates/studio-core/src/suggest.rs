@@ -11,14 +11,22 @@
 //! has to be read directly. The two meet in the form, which does not care which end an answer came
 //! from.
 //!
+//! **Which fields name a column is the role table's answer, not a list here.** `semantics.rs`
+//! already records it as `Names::ColumnOf(sibling)` - including which sibling field holds the file -
+//! so a second list here could only ever agree with it or drift from it, and it drifted:
+//! `vector_update_properties.id_field_data` has been a column of `data_source_path` in that table
+//! and absent from this one, so the field offered nothing while the identical fields on `from_csv`
+//! offered everything.
+//!
 //! Suggestions, never constraints. A file too large to have been read, a column that only appears
 //! further down, a name Studio has no opinion about - all of those leave the field exactly as
 //! usable as it was.
 //!
 //! [Q29]: ../../docs/decisions.md
 
-use crate::vpl::{Node, Pipeline};
+use crate::vpl::{Names, Node, Pipeline, Role, registry, role_of};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::Path;
 
 /// What one field could be set to.
@@ -30,49 +38,49 @@ pub struct FieldSuggestion {
 	pub values: Vec<String>,
 }
 
-/// Fields of `from_csv` that name a column of the file.
-///
-/// Listed rather than inferred because nothing in `field_meta` marks a `String` as "a column name";
-/// adding that upstream is the better fix, and is worth an issue once there is a second operation
-/// that wants it.
-const CSV_COLUMN_FIELDS: [&str; 5] = [
-	"lon_column",
-	"lat_column",
-	"id_column",
-	"properties_include",
-	"properties_exclude",
-];
-
 /// Suggestions for a node's fields. Empty when there is nothing to say, which is most nodes.
 ///
 /// `dir` is what a relative `filename` resolves against - the same directory the pipeline itself
 /// resolves against, so a node that runs and a node that suggests are looking at the same file.
 #[must_use]
 pub fn for_node(node: &Node, dir: &Path) -> Vec<FieldSuggestion> {
-	if node.name != "from_csv" {
-		return Vec::new();
-	}
-	let Some(filename) = node.property("filename").first().cloned() else {
+	let Some(meta) = registry().get(&node.name) else {
 		return Vec::new();
 	};
 
+	// One read per file, not per field: `from_csv` has five fields naming a column of the same
+	// `filename`, and the header is the same header for all of them.
+	let mut read: HashMap<&'static str, Option<Vec<String>>> = HashMap::new();
+	let mut out = Vec::new();
+
+	for field in &meta.fields {
+		let Some(Role::Names(Names::ColumnOf(sibling))) = role_of(&node.name, &field.name) else {
+			continue;
+		};
+		let columns = read.entry(sibling).or_insert_with(|| columns_of(node, sibling, dir));
+		if let Some(names) = columns {
+			out.push(FieldSuggestion {
+				field: field.name.clone(),
+				values: names.clone(),
+			});
+		}
+	}
+	out
+}
+
+/// The header of the delimited file a sibling field points at, or `None` when there is not one.
+///
+/// Relative paths resolve against the directory the *pipeline* resolves against, so a node that runs
+/// and a node that suggests are looking at the same file.
+fn columns_of(node: &Node, sibling: &str, dir: &Path) -> Option<Vec<String>> {
+	let filename = node.property(sibling).first().cloned()?;
 	let path = Path::new(&filename);
 	let resolved = if path.is_absolute() {
 		path.to_path_buf()
 	} else {
 		dir.join(path)
 	};
-	let Ok(columns) = crate::tabular::columns(&resolved) else {
-		return Vec::new();
-	};
-
-	CSV_COLUMN_FIELDS
-		.iter()
-		.map(|field| FieldSuggestion {
-			field: (*field).to_string(),
-			values: columns.names.clone(),
-		})
-		.collect()
+	Some(crate::tabular::columns(&resolved).ok()?.names)
 }
 
 /// Suggestions for every node in a pipeline, by the path that names it.
@@ -181,6 +189,53 @@ mod tests {
 	}
 
 	/// Nothing to say is the common answer, and it is not an error.
+	/// **Every field the role table calls a column is offered its file's columns.**
+	///
+	/// The tripwire for the drift this module was built out of: `semantics.rs` and a list here both
+	/// said which fields name a column, and only one of them learned about
+	/// `vector_update_properties.id_field_data`. There is one list now, and this holds the derivation
+	/// against the registry so an operation upstream adds is covered without anyone remembering to.
+	#[test]
+	fn every_column_field_in_the_registry_is_offered_its_columns() {
+		let dir = crate::testing::dir("column-roles");
+		let mut unoffered = Vec::new();
+
+		for meta in crate::vpl::registry().values() {
+			// The sibling fields naming a file, filled in with a real one so a suggestion is possible.
+			let mut vpl = meta.tag_name.clone();
+			let mut wanted = Vec::new();
+			for field in &meta.fields {
+				if let Some(Role::Names(Names::ColumnOf(sibling))) = role_of(&meta.tag_name, &field.name) {
+					wanted.push(field.name.clone());
+					let file = format!("{}-{sibling}.csv", meta.tag_name);
+					std::fs::write(dir.join(&file), "lon,lat,name\n1,2,here\n").expect("writing a test csv");
+					if !vpl.contains(&format!("{sibling}=")) {
+						vpl.push_str(&format!(" {sibling}=\"{file}\""));
+					}
+				}
+			}
+			if wanted.is_empty() {
+				continue;
+			}
+
+			let offered: Vec<String> = super::for_node(&node_of(&vpl), &dir)
+				.into_iter()
+				.map(|s| s.field)
+				.collect();
+			for field in wanted {
+				if !offered.contains(&field) {
+					unoffered.push(format!("{}.{field}", meta.tag_name));
+				}
+			}
+		}
+
+		assert!(
+			unoffered.is_empty(),
+			"the role table calls these a column of a sibling file, and nothing offers their values: \
+			 {unoffered:?}"
+		);
+	}
+
 	#[test]
 	fn a_node_with_no_file_behind_it_suggests_nothing() {
 		assert!(for_node(&node_of("from_debug format=png"), Path::new(".")).is_empty());
