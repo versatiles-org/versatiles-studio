@@ -6823,9 +6823,9 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "versatiles"
-version = "4.10.0"
+version = "4.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "499c62feca314dba34cb2035fa63ea78763a0556e1acd00c428f26dedbf74a79"
+checksum = "cd7e85a3a6e171e43f2636a3d7aacf762c4aba79131763c2cf3caa6c2166df3b"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6876,9 +6876,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_container"
-version = "4.10.0"
+version = "4.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c2d6e69901afcdb36cd735a40fc560ef8efb0d94d90b04f965725f5619574cdb"
+checksum = "f8e3780c7b61d5fc6601bed1b217b8463d353bae1724147b0cdb9c21e3b28190"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -6910,9 +6910,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_core"
-version = "4.10.0"
+version = "4.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b167f6302a79bc87b34ab832392771110524f6d3a96552518bfad0dfbe2a7152"
+checksum = "29d057e11dcbcaf700860e8b3b2c548856be52590dc87b501aeb991310f50c94"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6940,9 +6940,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_derive"
-version = "4.10.0"
+version = "4.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39df3915d30da0fb7f01589527fe15fc9ee891ffc1150664209e51994507825d"
+checksum = "9a67f1ad2232fbad66ecc0b7ffb5d1f91796d8bce7a31ab6286c0fa2cdf2bed1"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6951,9 +6951,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_geometry"
-version = "4.10.0"
+version = "4.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0024f59b15fe1e3cc7b8d538b47f2ae2a200fa5d4a3eb0411faf3806aaca3d0f"
+checksum = "1d9065cef49097f11ae5aab242407361b25d0c59f9cdf9e353521a886de251e0"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -6973,9 +6973,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_image"
-version = "4.10.0"
+version = "4.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67a1a7e04ba86d3d95acbeaa064c058b04a35a082db9d1f2193a8cb9350ac7d0"
+checksum = "52b4cf7eb59546ef0329e5fa8fe51ec3dc6199bb7162b81ca9d9977dcbf8eb93"
 dependencies = [
  "anyhow",
  "fast_image_resize",
@@ -6988,9 +6988,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_pipeline"
-version = "4.10.0"
+version = "4.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3ac904e42ffb7fbc198745502dfb0f30ccb9c326430e40d581e57c999ab3467"
+checksum = "eecb3e8dd1f590c1087e9378d8c9408e993ea411ddd5774b97dd966b84cec38b"
 dependencies = [
  "ab_glyph",
  "anyhow",

@@ -26,7 +26,7 @@ pub async fn build(runtime: &TilesRuntime, pipeline: VPLPipeline, dir: &Path) ->
 	let reader = PipelineReader::from_pipeline(pipeline, "preview", dir, runtime.clone())
 		.await
 		.context("building the pipeline")?;
-	Ok(Arc::new(Box::new(reader) as Box<dyn versatiles_container::TileSource>))
+	Ok(Arc::new(reader))
 }
 
 #[cfg(test)]

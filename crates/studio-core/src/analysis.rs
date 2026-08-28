@@ -496,7 +496,7 @@ pub struct Fit {
 /// Cheap enough to run on every preview: each check is a comparison against the source's declared
 /// tile type, so nothing here reads a tile.
 pub async fn fitting(source: &SharedTileSource) -> Vec<Fit> {
-	versatiles_pipeline::compatible_transforms(source.as_ref().as_ref())
+	versatiles_pipeline::compatible_transforms(source.as_ref())
 		.await
 		.into_iter()
 		.map(|(meta, compatibility)| Fit {

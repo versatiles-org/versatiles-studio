@@ -13,9 +13,9 @@
 
 use anyhow::{Context, Result};
 use std::collections::HashMap;
-use std::{path::Path, sync::Arc};
+use std::path::Path;
 use versatiles::{config::Config, server::TileServer};
-use versatiles_container::{TileSource, TilesRuntime};
+use versatiles_container::{SharedTileSource, TilesRuntime};
 
 /// Owns the embedded server and the runtime it reads containers with.
 pub struct ServerManager {
@@ -90,7 +90,7 @@ impl ServerManager {
 	/// underlying `add_tile_source` rejects a duplicate id, which surfaced as
 	/// `tile source '…' already exists` the second time a user opened the same file - an error about
 	/// Studio's internals for something the user is entitled to do.
-	pub async fn mount(&mut self, name: &str, source: Arc<Box<dyn TileSource>>) -> Result<()> {
+	pub async fn mount(&mut self, name: &str, source: SharedTileSource) -> Result<()> {
 		self.unmount(name)?;
 		*self.revisions.entry(name.to_string()).or_insert(0) += 1;
 		self
