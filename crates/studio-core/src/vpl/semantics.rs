@@ -66,8 +66,6 @@ pub enum Role {
 	},
 	/// An `http(s)` URL, never a path.
 	Url,
-	/// `[west, south, east, north]` in WGS84 degrees - a rectangle to draw on the map.
-	GeoBBox,
 	/// `[lon, lat, zoom]` - a point to click on the map.
 	GeoPoint,
 	/// A zoom level. `u8` by type, `0..=30` by meaning.
@@ -80,7 +78,13 @@ pub enum Role {
 	/// A short set of accepted values on a numeric type - `tile_size` is "`256` or `512`", which is
 	/// a set and not a range, so `Range` would say `256..=512` and admit 400.
 	Choice(&'static [&'static str]),
-	/// A colour, however it is spelled - hex `String` on `from_color`, `[u8;3]` on `raster_flatten`.
+	/// A colour that the type does not spell.
+	///
+	/// `from_color` needs no entry: 4.11 typed it `HexColor`, which says so on its own. This is for
+	/// `raster_flatten`'s `[u8;3]`, three bytes that are a colour only because this table says they
+	/// are - upstream has been asked to type it too ([vt#260]), and when it does this goes.
+	///
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 	Color,
 	/// An EPSG code, not any `u32`.
 	Epsg,
@@ -115,7 +119,7 @@ mod formats {
 }
 
 use Names::{TileLayer, TileProperty};
-use Role::{Char, Choice, Code, Color, Epsg, GeoBBox, GeoPoint, Range, Url, Zoom};
+use Role::{Char, Choice, Code, Color, Epsg, GeoPoint, Range, Url, Zoom};
 use formats::{ANY, CONTAINER, CSV, GEO, GEOJSON, JSON, RASTER, TABULAR};
 
 // Constructors rather than literals: a `Role::Path { formats: …, urls: … }` written out in the table
@@ -159,7 +163,7 @@ const TILE_PROPERTY: Role = Role::Names(TileProperty);
 /// covers it.
 const ROLES: &[(&str, &[(&str, Role)])] = &[
 	// ── read ────────────────────────────────────────────────────────────────────────────────────
-	("from_color", &[("color", Color), ("size", TILE_SIZE)]),
+	("from_color", &[("tile_size", TILE_SIZE)]),
 	(
 		"from_container",
 		&[("filename", path_or_url(CONTAINER)), ("ssh_identity", path(ANY))],
@@ -174,7 +178,6 @@ const ROLES: &[(&str, &[(&str, Role)])] = &[
 			("delimiter", Char),
 			("min_zoom", Zoom),
 			("max_zoom", Zoom),
-			("bbox", GeoBBox),
 			("properties_include", column_of("filename")),
 			("properties_exclude", column_of("filename")),
 		],
@@ -183,6 +186,7 @@ const ROLES: &[(&str, &[(&str, Role)])] = &[
 		"from_gdal_dem",
 		&[
 			("filename", path(RASTER)),
+			("crs", Epsg),
 			("tile_size", TILE_SIZE),
 			("level_max", Zoom),
 			("level_min", Zoom),
@@ -206,24 +210,12 @@ const ROLES: &[(&str, &[(&str, Role)])] = &[
 			("filename", path(GEO)),
 			("min_zoom", Zoom),
 			("max_zoom", Zoom),
-			("bbox", GeoBBox),
 			("properties_include", property_of("filename")),
 			("properties_exclude", property_of("filename")),
 		],
 	),
-	(
-		"from_grid",
-		&[
-			("epsg", Epsg),
-			("bbox", GeoBBox),
-			("max_zoom", Zoom),
-			("id_template", Code(Lang::Template)),
-		],
-	),
-	(
-		"from_h3",
-		&[("resolution", range(0.0, 15.0)), ("bbox", GeoBBox), ("max_zoom", Zoom)],
-	),
+	("from_grid", &[("epsg", Epsg), ("id_template", Code(Lang::Template))]),
+	("from_h3", &[("resolution", range(0.0, 15.0))]),
 	("from_tile", &[("filename", path(ANY))]),
 	("from_tilejson", &[("url", Url)]),
 	// ── transform ───────────────────────────────────────────────────────────────────────────────
@@ -231,17 +223,11 @@ const ROLES: &[(&str, &[(&str, Role)])] = &[
 	("dem_tile_resize", &[("tile_size", TILE_SIZE)]),
 	(
 		"filter",
-		&[
-			("bbox", GeoBBox),
-			("level_min", Zoom),
-			("level_max", Zoom),
-			("filename", path(CONTAINER)),
-		],
+		&[("level_min", Zoom), ("level_max", Zoom), ("filename", path(CONTAINER))],
 	),
 	(
 		"meta_update",
 		&[
-			("bounds", GeoBBox),
 			("center", GeoPoint),
 			("fillzoom", Zoom),
 			("tilejson", Code(Lang::Json)),
@@ -252,17 +238,18 @@ const ROLES: &[(&str, &[(&str, Role)])] = &[
 			("vector_layers_file", path(JSON)),
 		],
 	),
-	("raster_flatten", &[("color", Color)]),
 	// `quality` and `quality_translucent` are `String` upstream while documenting `0`-`100`; the role
 	// records the range the documentation gives, and the odd type is why it is worth recording.
 	(
 		"raster_format",
 		&[
-			("quality", range(0.0, 100.0)),
-			("quality_translucent", range(0.0, 100.0)),
+			// `quality` and `quality_translucent` were bounded numbers here until 4.11 typed them
+			// `QualityByZoom` - a whole per-zoom curve in one string, which no range describes.
+			// `effort` stayed a plain number and keeps its bounds.
 			("effort", range(0.0, 100.0)),
 		],
 	),
+	("raster_flatten", &[("color", Color)]),
 	("raster_levels", &[("brightness", range(-255.0, 255.0))]),
 	("raster_mask", &[("geojson", path(GEOJSON))]),
 	("raster_overscale", &[("level_base", Zoom), ("level_max", Zoom)]),
@@ -318,11 +305,11 @@ mod tests {
 			Role::Names(_) => has("String"),
 			// Named types since 4.11, both of them: a bbox is no longer four numbers Studio had to
 			// recognise, and a hex colour is no longer a string it had to read the docs about.
-			GeoBBox => has("GeoBBox"),
 			GeoPoint => has("[f64;3]"),
 			Zoom => has("u8"),
 			Epsg => has("u32"),
-			Color => has("HexColor"),
+			// Both spellings: `HexColor` says it itself, `[u8;3]` needs the table.
+			Color => has("HexColor") || has("[u8;3]"),
 			Choice(_) => has("u16") || has("u32"),
 			// `String` is allowed because `raster_format.quality` is one; see the table.
 			Range { .. } => ["u8", "u16", "u32", "f32", "f64", "String"].iter().any(|t| has(t)),
@@ -423,11 +410,12 @@ mod tests {
 		assert_eq!(role_of("from_geo", "layer_name"), None);
 	}
 
+	/// **Only the colour no type spells is the table's business.** `from_color` was the other half of
+	/// this pair until 4.11 gave it a `HexColor`; `raster_flatten` is still three bytes, and three
+	/// bytes are three bytes to everything except this entry.
 	#[test]
-	fn the_two_spellings_of_a_colour_carry_the_same_role() {
-		// `from_color` writes hex into a `String` and `raster_flatten` writes three channels into a
-		// `[u8;3]`. A form should offer one picker; only the table can say they are the same thing.
-		assert_eq!(role_of("from_color", "color"), Some(Color));
+	fn the_colour_no_type_spells_is_the_one_the_table_keeps() {
+		assert_eq!(role_of("from_color", "color"), None);
 		assert_eq!(role_of("raster_flatten", "color"), Some(Color));
 	}
 }

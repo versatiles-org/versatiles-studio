@@ -149,7 +149,10 @@ fn control_for(operation: &str, name: &str, rust_type: &str, enum_variants: &[&'
 
 	if let Some(count) = fixed_array_len(inner) {
 		// Three numbers are a colour when the table says so, and a colour is not three numbers to
-		// anyone choosing one.
+		// anyone choosing one. `from_color` needs no such rule since 4.11 typed it `HexColor`; this is
+		// `raster_flatten` alone, until upstream types that too ([vt#260]).
+		//
+		// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 		if count == 3 && role == Some(Role::Color) {
 			return Control::Color { hex: false };
 		}
@@ -164,10 +167,6 @@ fn control_for(operation: &str, name: &str, rust_type: &str, enum_variants: &[&'
 	// `semantics.rs` and, like the rectangles, nothing had ever read it - the two spellings of "this
 	// field has a short list of answers" were a Rust enum, which arrives in `enum_variants` above,
 	// and a documented list on a plain number, which arrived nowhere.
-	if role == Some(Role::Color) && inner == "String" {
-		return Control::Color { hex: true };
-	}
-
 	if let Some(Role::Choice(options)) = role {
 		return Control::Choice {
 			options: options.iter().map(|option| (*option).to_string()).collect(),
@@ -403,6 +402,12 @@ mod tests {
 	/// spells anything else that way. `[f64;3]` is deliberately not included: `meta_update.center` is
 	/// `[lon, lat, zoom]`, three numbers that are emphatically not a colour - which is why this is a
 	/// rule about one exact type rather than about "three of something".
+	///
+	/// **This whole test is a stand-in for a type.** `from_color` needed no such rule once 4.11 made it
+	/// a `HexColor`; [vt#260] asks upstream to do the same to `raster_flatten`, and when it does, both
+	/// this and the `ROLES` entry it guards are deleted rather than maintained.
+	///
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 	#[test]
 	fn three_bytes_are_a_colour_whatever_the_field_is_called() {
 		let missed: Vec<String> = registry()
@@ -422,118 +427,6 @@ mod tests {
 			"three bytes is a colour and these are offered as bare numbers - add them to `ROLES` in \
 			 semantics.rs: {missed:?}"
 		);
-	}
-
-	/// Whether upstream's own words say the value *is* a colour.
-	///
-	/// **Anchored at the opening, like `a_field_documented_as_a_path_is_one`, and for the same
-	/// reason.** `from_gdal_raster.bands` is documented as "Band indices to read as colour channels",
-	/// where the word describes what the indices point at rather than what the value is - so anything
-	/// reading the whole sentence calls that field a colour, and a rule that cries wolf on the only
-	/// registry it has is worse than no rule. A doc names its own value in its opening words, which is
-	/// where `from_color`'s "Hex colour, `RRGGBB` or `RRGGBBAA`" says it; two is enough for the
-	/// article or adjective that usually comes first.
-	fn doc_opens_on_a_colour(doc: &str) -> bool {
-		doc.split_whitespace().take(2).any(|word| {
-			let word = word.trim_matches(|c: char| !c.is_alphanumeric()).to_ascii_lowercase();
-			word == "colour" || word == "color"
-		})
-	}
-
-	/// Six or eight hex digits, which is what a colour written as text looks like and, in this
-	/// registry, what nothing else does - every other string default is `,` `.` `id` `x` `y` `grid`
-	/// or `h3`.
-	fn is_hex_colour(value: &str) -> bool {
-		let digits = value.trim_start_matches('#');
-		matches!(digits.len(), 6 | 8) && digits.chars().all(|c| c.is_ascii_hexdigit())
-	}
-
-	/// **A colour spelled as a string, which no shape can see.**
-	///
-	/// `three_bytes_are_a_colour_whatever_the_field_is_called` reads the type, and that works because
-	/// `[u8;3]` means one thing. The other spelling is `String`, which means everything: a name, a
-	/// path, a CEL expression and `from_color`'s `RRGGBBAA` are one type upstream. So the type says
-	/// nothing, and a colour added that way would render as a plain box with nothing able to notice.
-	///
-	/// What is left is what upstream wrote. Two signals, either one enough, because they fail in
-	/// different directions - a colour with no default still has prose, and prose worded some way
-	/// this does not expect still has `000000` - so a new one would have to dodge both to arrive
-	/// silently.
-	#[test]
-	fn a_string_that_says_it_is_a_colour_is_a_swatch() {
-		let missed: Vec<String> = registry()
-			.values()
-			.flat_map(|meta| {
-				meta.fields.iter().filter_map(move |field| {
-					let says_colour = inner_type(&field.rust_type) == "String"
-						&& (doc_opens_on_a_colour(&field.doc) || field.default.as_deref().is_some_and(is_hex_colour));
-					let control = control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants);
-					(says_colour && !matches!(control, Control::Color { .. }))
-						.then(|| format!("{}.{}", meta.tag_name, field.name))
-				})
-			})
-			.collect();
-
-		assert!(
-			missed.is_empty(),
-			"upstream documents these as colours and they are offered as text boxes - add them to \
-			 `ROLES` in semantics.rs: {missed:?}"
-		);
-	}
-
-	/// **The anchor above is load-bearing**, so it is held here rather than left as a remark for the
-	/// next person to relax. `from_gdal_raster.bands` is a `String` whose documentation contains the
-	/// word "colour"; widening the rule to search the whole sentence turns a band list into a swatch,
-	/// which is a worse failure than the gap the rule closes.
-	#[test]
-	fn a_colour_further_into_the_sentence_describes_something_else() {
-		let bands = field("from_gdal_raster", "bands");
-		assert!(
-			bands.doc.to_lowercase().contains("colour"),
-			"the case this guards is gone: {:?}",
-			bands.doc
-		);
-		assert!(!doc_opens_on_a_colour(&bands.doc), "{:?}", bands.doc);
-		assert_eq!(bands.control, Control::Text);
-	}
-
-	/// **The named types 4.11 introduced, read as themselves.**
-	///
-	/// Each of these used to be inferred: a bbox was four numbers the curated table had to pick out
-	/// from any other four, a hex colour was a `String` a doc-phrase rule had to recognise, and a
-	/// separator was a `String` that accepted a whole word and failed later. Upstream gave all three a
-	/// type ([vt#257]), so `control_for` reads the type and the guesses are gone.
-	///
-	/// Pinned as a test because "we read the type now" is invisible in the output - every one of these
-	/// rendered as *something* before, and a regression would put them back to plausible-looking text
-	/// boxes rather than to an error.
-	///
-	/// [vt#257]: https://github.com/versatiles-org/versatiles-rs/issues/257
-	#[test]
-	fn the_types_upstream_named_are_read_as_themselves() {
-		assert_eq!(field("filter", "bbox").control, Control::Bbox);
-		assert_eq!(field("meta_update", "bounds").control, Control::Bbox);
-		assert_eq!(field("from_color", "color").control, Control::Color { hex: true });
-		assert_eq!(field("from_csv", "delimiter").control, Control::Char);
-		assert_eq!(
-			field("vector_update_properties", "field_separator").control,
-			Control::Char
-		);
-	}
-
-	/// **A rectangle in some other coordinate system is not one this map can draw.**
-	///
-	/// `from_gdal_*`'s `bounds` is a `String` and, unlike every `GeoBBox`, is "in the units of `crs`" -
-	/// so a dataset in EPSG:25832 has bounds in metres. Offering the map picker would put a WGS84
-	/// rectangle into a field that means something else entirely, which is worse than a text box: the
-	/// value would look deliberate.
-	#[test]
-	fn bounds_in_the_datasets_own_units_are_not_drawn_on_the_map() {
-		for operation in ["from_gdal_dem", "from_gdal_raster"] {
-			let bounds = field(operation, "bounds");
-			assert!(bounds.doc.contains("units of `crs`"), "{operation}: {:?}", bounds.doc);
-			assert_eq!(bounds.control, Control::Text, "{operation}");
-		}
 	}
 
 	/// The pair a doc spells as `` `A` or `B` ``, when it spells one.
@@ -591,9 +484,12 @@ mod tests {
 	#[test]
 	fn a_cell_size_is_not_a_tile_size() {
 		let cell = field("from_grid", "size");
+		// 4.11 renamed `from_color`'s to `tile_size`, so the two are no longer spelled alike - but
+		// `from_grid.size` is still a `size` that is not a tile size, and the doc phrase is still what
+		// tells them apart. Asserted so that a name rule reintroduced later fails here.
 		assert!(
-			matches!(field("from_color", "size").control, Control::Choice { .. }),
-			"the name collision this guards is gone"
+			matches!(field("from_color", "tile_size").control, Control::Choice { .. }),
+			"the field this is contrasted with is gone"
 		);
 		assert!(
 			!cell.doc.to_lowercase().contains("tile size in pixels"),
@@ -695,11 +591,23 @@ mod tests {
 				operation
 					.fields
 					.iter()
-					.filter(|field| matches!(field.name.as_str(), "bbox" | "bounds") && field.control != Control::Bbox)
+					.filter(|field| {
+						matches!(field.name.as_str(), "bbox" | "bounds")
+							&& field.control != Control::Bbox
+							// Not every rectangle is one this map can draw: `from_gdal_*`'s `bounds` is in
+							// the units of its own `crs`, so a dataset in metres has bounds in metres.
+							// Excluded by what upstream wrote, not by name, so a third one arriving without
+							// that sentence is still caught here.
+							&& !field.doc.contains("units of `crs`")
+					})
 					.map(|field| format!("{}.{}", operation.name, field.name))
 			})
 			.collect();
-		assert!(missed.is_empty(), "add these to `ROLES` in semantics.rs: {missed:?}");
+		assert!(
+			missed.is_empty(),
+			"named like a rectangle and not offered as one - upstream types these `GeoBBox`, so a \
+			 field that is not one either changed shape or is measured in something else: {missed:?}"
+		);
 	}
 
 	/// **Every documented set is offered as one.** `semantics.rs` is a curated table and the registry
@@ -738,7 +646,7 @@ mod tests {
 			);
 		}
 		assert_eq!(
-			field("from_color", "size").control,
+			field("from_color", "tile_size").control,
 			Control::Choice {
 				options: vec!["256".to_string(), "512".to_string()]
 			}
@@ -749,6 +657,17 @@ mod tests {
 	/// tripwire is the same as the paths' and the rectangles': held against the registry, so an
 	/// operation arriving with a colour nobody tabulated is caught rather than shown as a hex field or
 	/// as three bare numbers.
+	/// The two spellings, spelled out - so a change to either is a change to this line. One is a type
+	/// upstream and one is an entry here, which is the whole of what [vt#260] asks to even out.
+	///
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+	#[test]
+	fn a_colour_is_hex_or_three_numbers_depending_on_the_operation() {
+		assert_eq!(field("from_color", "color").control, Control::Color { hex: true });
+		assert_eq!(field("raster_flatten", "color").control, Control::Color { hex: false });
+	}
+
+	/// Every colour the table names is offered as one.
 	#[test]
 	fn every_colour_in_the_registry_is_a_swatch() {
 		let missed: Vec<String> = operations()
@@ -767,45 +686,46 @@ mod tests {
 		assert!(missed.is_empty(), "these should offer a swatch: {missed:?}");
 	}
 
-	/// The two spellings, spelled out - so a change to either is a change to this line.
+	/// And a swatch is offered only where a colour was actually established - by the type, or by the
+	/// table where the type cannot say it. A field merely *named* `color` gets nothing.
+	///
+	/// Two sources rather than one because the registry currently spells colours both ways: 4.11 typed
+	/// `from_color` a `HexColor`, and `raster_flatten` is still `[u8;3]` ([vt#260]). When that lands,
+	/// the second half of this goes with it.
+	///
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 	#[test]
-	fn a_colour_is_hex_or_three_numbers_depending_on_the_operation() {
-		assert_eq!(field("from_color", "color").control, Control::Color { hex: true });
-		assert_eq!(field("raster_flatten", "color").control, Control::Color { hex: false });
-	}
-
-	/// And a field named `color` that the table has never heard of is not assumed to be one.
-	#[test]
-	fn only_a_tabulated_colour_is_a_swatch() {
-		let wrong: Vec<String> = operations()
-			.iter()
-			.flat_map(|operation| {
-				operation
-					.fields
-					.iter()
-					.filter(|field| {
-						matches!(field.control, Control::Color { .. })
-							&& role_of(&operation.name, &field.name) != Some(Role::Color)
-					})
-					.map(|field| format!("{}.{}", operation.name, field.name))
+	fn only_an_established_colour_is_a_swatch() {
+		let wrong: Vec<String> = registry()
+			.values()
+			.flat_map(|meta| {
+				meta.fields.iter().filter_map(move |field| {
+					let control = control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants);
+					let established = inner_type(&field.rust_type) == "HexColor"
+						|| role_of(&meta.tag_name, &field.name) == Some(Role::Color);
+					(matches!(control, Control::Color { .. }) && !established)
+						.then(|| format!("{}.{} :: {}", meta.tag_name, field.name, field.rust_type))
+				})
 			})
 			.collect();
 		assert!(wrong.is_empty(), "not colours: {wrong:?}");
 	}
 
-	/// And the other way: the map's rectangle is offered only where the table says there is one.
+	/// And the other way: the map's rectangle is offered only where upstream typed one.
+	///
+	/// Held against the `rust_type` rather than against `ROLES`, which is where this guard used to
+	/// look. 4.11 made the rectangles `GeoBBox`, so the table no longer names them and the type is
+	/// the whole invariant - a field getting a map picker without being a `GeoBBox` is the bug.
 	#[test]
 	fn only_a_rectangle_is_drawn_on_the_map() {
-		let wrong: Vec<String> = operations()
-			.iter()
-			.flat_map(|operation| {
-				operation
-					.fields
-					.iter()
-					.filter(|field| {
-						field.control == Control::Bbox && role_of(&operation.name, &field.name) != Some(Role::GeoBBox)
-					})
-					.map(|field| format!("{}.{}", operation.name, field.name))
+		let wrong: Vec<String> = registry()
+			.values()
+			.flat_map(|meta| {
+				meta.fields.iter().filter_map(move |field| {
+					let control = control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants);
+					(control == Control::Bbox && inner_type(&field.rust_type) != "GeoBBox")
+						.then(|| format!("{}.{} :: {}", meta.tag_name, field.name, field.rust_type))
+				})
 			})
 			.collect();
 		assert!(wrong.is_empty(), "not rectangles: {wrong:?}");
