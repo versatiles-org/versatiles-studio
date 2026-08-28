@@ -72,6 +72,10 @@
 
 	/// A rectangle field: four degrees, and the map already knows how to draw one ([Q53]).
 	const isBbox = $derived(control?.kind === 'bbox');
+	/// One character, and the field type upstream refuses a second. Capping the box is the whole
+	/// difference between this and a text field: `field_separator=||` parses as VPL and fails when
+	/// the value is decoded, which is a long way from where it was typed.
+	const isChar = $derived(control?.kind === 'char');
 
 	/// Whether this row draws with the shared text box.
 	///
@@ -95,6 +99,9 @@
 			case 'color':
 			case 'numbers':
 			case 'list':
+			case 'char':
+				// A separator is a text box that holds one character - see `isChar`, which is what
+				// keeps it from being a text box that holds a word the operation then refuses.
 				return true;
 			case 'choice':
 			case 'boolean':
@@ -214,6 +221,7 @@
 				<input
 					type="text"
 					class:path={isPath || isBbox}
+					maxlength={isChar ? 1 : undefined}
 					{value}
 					title={value}
 					placeholder={hint ||

@@ -810,6 +810,17 @@ export type ContainerInfo = {
 /**  The control a parameter should be edited with. */
 export type Control = { kind: "text" } | 
 /**
+ *  Exactly one character.
+ * 
+ *  `SeparatorChar` and `CsvDelimiter` refuse a second one where the value is decoded rather than
+ *  when the file is read ([vt#257]), so a box that takes a word offers something the operation
+ *  will reject. Studio has called these fields `Char` in [`semantics`] since before upstream had
+ *  a type for them; 4.11 is where the type caught up and the control became worth drawing.
+ * 
+ *  [vt#257]: https://github.com/versatiles-org/versatiles-rs/issues/257
+ */
+{ kind: "char" } | 
+/**
  *  A file this machine has: edited as text, and with a file picker beside it.
  * 
  *  **Not a `rust_type`.** Upstream spells every one of these `String` or `Option<String>`,

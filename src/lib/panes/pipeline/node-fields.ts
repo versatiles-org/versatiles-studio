@@ -163,6 +163,9 @@ export function summarise(field: FieldInfo): string {
 		case 'text':
 			type = 'text';
 			break;
+		case 'char':
+			type = 'one character';
+			break;
 		default:
 			// **Exhaustive on purpose.** `Control` is generated from the Rust enum, so a variant added
 			// upstream arrives here silently: a `default` that answered "text" described a colour picker

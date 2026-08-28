@@ -32,6 +32,15 @@ pub fn registry() -> &'static HashMap<String, OperationMeta> {
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub enum Control {
 	Text,
+	/// Exactly one character.
+	///
+	/// `SeparatorChar` and `CsvDelimiter` refuse a second one where the value is decoded rather than
+	/// when the file is read ([vt#257]), so a box that takes a word offers something the operation
+	/// will reject. Studio has called these fields `Char` in [`semantics`] since before upstream had
+	/// a type for them; 4.11 is where the type caught up and the control became worth drawing.
+	///
+	/// [vt#257]: https://github.com/versatiles-org/versatiles-rs/issues/257
+	Char,
 	/// A file this machine has: edited as text, and with a file picker beside it.
 	///
 	/// **Not a `rust_type`.** Upstream spells every one of these `String` or `Option<String>`,
@@ -121,6 +130,21 @@ fn control_for(operation: &str, name: &str, rust_type: &str, enum_variants: &[&'
 	if inner == "Vec<String>" {
 		return Control::List;
 	}
+
+	// **What upstream says outright, before what Studio guesses.** 4.11 gave several fields a type of
+	// their own - a `GeoBBox` rather than `[f64;4]`, a `HexColor` rather than a `String` ([vt#257]) -
+	// and a named type is stronger evidence than anything below can reconstruct. Read ahead of
+	// `role_of` for exactly that reason: the table is a guess about upstream maintained here, and
+	// these are upstream saying it.
+	//
+	// [vt#257]: https://github.com/versatiles-org/versatiles-rs/issues/257
+	match inner {
+		"GeoBBox" => return Control::Bbox,
+		"HexColor" => return Control::Color { hex: true },
+		"SeparatorChar" | "CsvDelimiter" => return Control::Char,
+		_ => {}
+	}
+
 	let role = role_of(operation, name);
 
 	if let Some(count) = fixed_array_len(inner) {
@@ -129,14 +153,9 @@ fn control_for(operation: &str, name: &str, rust_type: &str, enum_variants: &[&'
 		if count == 3 && role == Some(Role::Color) {
 			return Control::Color { hex: false };
 		}
-		// **The table says which four numbers are a rectangle**, and the type says they are four.
-		// Both, because either alone is wrong: every bbox in the registry is `[f64; 4]` and so is
-		// nothing else *today*, and `role_of` is a curated list that a new operation can be missing
-		// from. Requiring the shape as well means a field upstream retypes stops offering a map
-		// picker instead of offering one for whatever it became.
-		if count == 4 && role == Some(Role::GeoBBox) {
-			return Control::Bbox;
-		}
+		// No rectangle rule here any more. Every bbox was `[f64;4]` and had to be told apart from any
+		// other four numbers by the curated table; 4.11 made them all `GeoBBox`, which the match above
+		// reads. A four-array reaching this point is now genuinely four numbers.
 		return Control::Numbers { count };
 	}
 
@@ -478,6 +497,45 @@ mod tests {
 		assert_eq!(bands.control, Control::Text);
 	}
 
+	/// **The named types 4.11 introduced, read as themselves.**
+	///
+	/// Each of these used to be inferred: a bbox was four numbers the curated table had to pick out
+	/// from any other four, a hex colour was a `String` a doc-phrase rule had to recognise, and a
+	/// separator was a `String` that accepted a whole word and failed later. Upstream gave all three a
+	/// type ([vt#257]), so `control_for` reads the type and the guesses are gone.
+	///
+	/// Pinned as a test because "we read the type now" is invisible in the output - every one of these
+	/// rendered as *something* before, and a regression would put them back to plausible-looking text
+	/// boxes rather than to an error.
+	///
+	/// [vt#257]: https://github.com/versatiles-org/versatiles-rs/issues/257
+	#[test]
+	fn the_types_upstream_named_are_read_as_themselves() {
+		assert_eq!(field("filter", "bbox").control, Control::Bbox);
+		assert_eq!(field("meta_update", "bounds").control, Control::Bbox);
+		assert_eq!(field("from_color", "color").control, Control::Color { hex: true });
+		assert_eq!(field("from_csv", "delimiter").control, Control::Char);
+		assert_eq!(
+			field("vector_update_properties", "field_separator").control,
+			Control::Char
+		);
+	}
+
+	/// **A rectangle in some other coordinate system is not one this map can draw.**
+	///
+	/// `from_gdal_*`'s `bounds` is a `String` and, unlike every `GeoBBox`, is "in the units of `crs`" -
+	/// so a dataset in EPSG:25832 has bounds in metres. Offering the map picker would put a WGS84
+	/// rectangle into a field that means something else entirely, which is worse than a text box: the
+	/// value would look deliberate.
+	#[test]
+	fn bounds_in_the_datasets_own_units_are_not_drawn_on_the_map() {
+		for operation in ["from_gdal_dem", "from_gdal_raster"] {
+			let bounds = field(operation, "bounds");
+			assert!(bounds.doc.contains("units of `crs`"), "{operation}: {:?}", bounds.doc);
+			assert_eq!(bounds.control, Control::Text, "{operation}");
+		}
+	}
+
 	/// The pair a doc spells as `` `A` or `B` ``, when it spells one.
 	fn alternation(doc: &str) -> Option<(&str, &str)> {
 		let (before, after) = doc.split_once("` or `")?;
@@ -557,13 +615,15 @@ mod tests {
 	/// Written without a list of the fields that *are* text - there are thirty-odd and they change
 	/// with every upstream release - so what this holds is the rule rather than a copy of the answer.
 	///
-	/// `MaxTileBytes` is the one exemption, and it is a decision rather than an oversight: the field
-	/// takes a byte count *or* the word `none`, so a number control could not express half of what it
-	/// accepts and text is the honest offer. A control that means "a number or nothing" would be
-	/// better; until one exists, this says so out loud.
+	/// Two types are exempt, and both are decisions rather than oversights. `MaxTileBytes` takes a
+	/// byte count *or* the word `none`, so a number control could not express half of what it accepts.
+	/// `QualityByZoom` is a whole per-zoom curve written as one string - `0-10:80,11-14:90` - which is
+	/// a small language, not a value. Neither has an honest control today, and a text box that says so
+	/// beats a number box that quietly refuses half the input. A per-zoom quality editor is a real
+	/// feature; when it exists, `QualityByZoom` comes off this list.
 	#[test]
 	fn only_a_string_falls_back_to_text() {
-		const KNOWN_TEXT_TYPES: &[&str] = &["String", "MaxTileBytes"];
+		const KNOWN_TEXT_TYPES: &[&str] = &["String", "MaxTileBytes", "QualityByZoom"];
 
 		let unrecognised: Vec<String> = registry()
 			.values()

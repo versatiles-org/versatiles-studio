@@ -310,13 +310,19 @@ mod tests {
 	fn fits(role: &Role, rust_type: &str) -> bool {
 		let has = |needle: &str| rust_type.contains(needle);
 		match role {
-			Role::Path { .. } | Url | Code(_) | Char => has("String"),
+			Role::Path { .. } | Url | Code(_) => has("String"),
+			// 4.11 gave the separators a type that refuses a second character, so `String` is no
+			// longer the shape to expect here - `CsvDelimiter` on `from_csv`, `SeparatorChar` on
+			// `vector_update_properties`.
+			Char => has("SeparatorChar") || has("CsvDelimiter"),
 			Role::Names(_) => has("String"),
-			GeoBBox => has("[f64;4]"),
+			// Named types since 4.11, both of them: a bbox is no longer four numbers Studio had to
+			// recognise, and a hex colour is no longer a string it had to read the docs about.
+			GeoBBox => has("GeoBBox"),
 			GeoPoint => has("[f64;3]"),
 			Zoom => has("u8"),
 			Epsg => has("u32"),
-			Color => has("String") || has("[u8;3]"),
+			Color => has("HexColor"),
 			Choice(_) => has("u16") || has("u32"),
 			// `String` is allowed because `raster_format.quality` is one; see the table.
 			Range { .. } => ["u8", "u16", "u32", "f32", "f64", "String"].iter().any(|t| has(t)),
