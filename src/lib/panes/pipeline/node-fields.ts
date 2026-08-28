@@ -118,8 +118,14 @@ export function requiredEdit(raw: string, control: FieldInfo['control'] | undefi
  * Assembled here rather than in the popover, which stays ignorant of VPL: this is the one place
  * that knows a `Control` from a `FieldInfo`.
  */
-/** Refuses to compile when a `Control` variant has no arm above - see the `default` below. */
-function unhandled(control: never): never {
+/**
+ * Refuses to compile when a `Control` variant has no arm where it is called.
+ *
+ * Exported because two places dispatch on `Control` and both went quiet on a variant they did not
+ * know: this file described it as "text", and `NodeArgument` drew it as a text box. `Control` is
+ * generated from the Rust enum, so that is what a `versatiles-rs` bump adding one looks like.
+ */
+export function unhandled(control: never): never {
 	throw new Error(`no summary for control ${JSON.stringify(control)}`);
 }
 

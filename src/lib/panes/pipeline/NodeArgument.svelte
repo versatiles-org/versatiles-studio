@@ -5,6 +5,7 @@
 	import { askForPath } from '../../common/import';
 	import { bboxField, formatBbox, parseBbox } from '../../state/bbox.svelte';
 	import ColorPicker from '../../common/ColorPicker.svelte';
+	import { unhandled } from './node-fields';
 
 	// One argument of a node: its name, its help, its control, and whether it can be removed (C2).
 	//
@@ -71,6 +72,38 @@
 
 	/// A rectangle field: four degrees, and the map already knows how to draw one ([Q53]).
 	const isBbox = $derived(control?.kind === 'bbox');
+
+	/// Whether this row draws with the shared text box.
+	///
+	/// **Named rather than left to `{:else}`.** Five controls share that input - plain text, a path, a
+	/// rectangle, a swatch and a fixed-size row of numbers - and the branch that drew them took
+	/// everything it had not named with them. So a `Control` variant added upstream arrived as a plain
+	/// box with nothing to say it was unhandled, in the one place a person edits the value.
+	///
+	/// Listing them makes that a compile error instead: `Control` is generated from the Rust enum, so
+	/// `unhandled` stops type-checking the moment a variant has no arm here. The `{:else}` below is
+	/// the belt to this braces, and says so on screen if one ever gets past.
+	const textual = $derived.by(() => {
+		// No control at all is a field the core said nothing about, which a text box is right for.
+		// Narrowed off `control` rather than a copy of its `kind`, or the `default` below is reached
+		// with the union still whole and `unhandled` has nothing to refuse.
+		if (control === undefined) return true;
+		switch (control.kind) {
+			case 'text':
+			case 'path':
+			case 'bbox':
+			case 'color':
+			case 'numbers':
+			case 'list':
+				return true;
+			case 'choice':
+			case 'boolean':
+			case 'number':
+				return false;
+			default:
+				return unhandled(control);
+		}
+	});
 	/// This row, told from every other. Two nodes can hold the same parameter name, so neither the
 	/// claim on the map nor the datalist below can be keyed on it.
 	const rowId = $props.id();
@@ -173,7 +206,7 @@
 					if (event.key === 'Enter') event.currentTarget.blur();
 				}}
 			/>
-		{:else}
+		{:else if textual}
 			<!-- The box and its browse button are one control, so they sit in one box: a `…` that
 			     wrapped to the next line would read as something the field does rather than as its
 			     other half. -->
@@ -248,6 +281,14 @@
 					{#each suggestions as option (option)}<option value={option}></option>{/each}
 				</datalist>
 			{/if}
+		{:else}
+			<!-- Unreachable while the switch above type-checks, and here because "unreachable" is a
+			     claim about the build rather than about the running application. A field nobody can
+			     edit is worth saying out loud; a plain text box that silently drops what is typed into
+			     it is the thing this arm exists to stop being the answer. -->
+			<p class="unsupported" role="status">
+				This build has no editor for <code>{control?.kind}</code>. Edit it in the VPL tab.
+			</p>
 		{/if}
 
 		{#if control?.kind === 'list' && suggestions.length > 0}
@@ -362,6 +403,14 @@
 		&:hover {
 			color: var(--ink);
 		}
+	}
+
+	/* A field this build cannot draw. Deliberately plain and deliberately not an error colour: it is
+	   a gap in Studio rather than something wrong with the pipeline, and the VPL tab still edits it. */
+	.unsupported {
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--ink-2);
 	}
 
 	.chips {
