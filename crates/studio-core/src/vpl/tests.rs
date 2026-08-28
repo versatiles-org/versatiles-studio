@@ -874,14 +874,62 @@ fn the_construct_named_is_the_innermost_one() {
 	assert_eq!(error.explain(), "expected '=', got end of input in a property");
 }
 
-/// Some failures happen inside no construct at all - a trailing separator is one - and there is
-/// nothing to add to those.
+/// **A trailing separator used to be the failure with nothing to say.** It arrived with an empty
+/// context where every other failure named its construct, which is what [vt#258] asked about; 4.11
+/// fixed it, so the sentence now narrows to where the missing operation belongs.
+///
+/// [vt#258]: https://github.com/versatiles-org/versatiles-rs/issues/258
 #[test]
-fn a_failure_inside_nothing_is_left_as_it_was() {
+fn a_trailing_separator_says_what_is_missing() {
 	let error = Document::parse("from_container filename=a | ").unwrap_err();
 
-	assert!(error.context.is_empty(), "{:?}", error.context);
-	assert_eq!(error.explain(), error.message);
+	assert_eq!(
+		error
+			.context
+			.iter()
+			.map(|frame| frame.label.as_str())
+			.collect::<Vec<_>>(),
+		[
+			"parsing bare_identifier",
+			"parsing node identifier",
+			"parsing node",
+			"parsing pipeline"
+		]
+	);
+	// `bare_identifier` is upstream's word for the production; a person is told it wanted a name.
+	assert_eq!(error.explain(), "unexpected character in a name");
+}
+
+/// **No parser production reaches a person untranslated.**
+///
+/// Every label upstream emits is a grammar rule, and they read as English only by luck - four of the
+/// eleven are two words with a space, and `bare_identifier` is one underscore away from being the
+/// text a user is shown. That was invisible until [vt#258] was fixed and the label started arriving.
+///
+/// Held as a rule rather than as a list, because the labels are upstream's to change.
+///
+/// [vt#258]: https://github.com/versatiles-org/versatiles-rs/issues/258
+#[test]
+fn no_explanation_reads_like_a_grammar() {
+	for source in [
+		"from_container filename=a | ",
+		"from_container filename",
+		"from_container filename=/data/berlin.mbtiles",
+		"from_container filename='a",
+		"from_container filename=[1,2",
+		"from_stacked [ from_container filename=a",
+		"",
+		"|",
+	] {
+		let Err(error) = Document::parse(source) else {
+			continue;
+		};
+		let explained = error.explain();
+		assert!(
+			!explained.contains('_'),
+			"{source:?} explains as {explained:?}, which is a production name"
+		);
+	}
 }
 
 /// Studio finds failures of its own - a span that is not on a value, say - and those are inside no

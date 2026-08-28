@@ -85,7 +85,8 @@ impl ParseError {
 		let Some(frame) = self.context.first() else {
 			return self.message.clone();
 		};
-		let construct = frame.label.strip_prefix("parsing ").unwrap_or(&frame.label);
+		let construct = prose(frame.label.strip_prefix("parsing ").unwrap_or(&frame.label));
+		let construct = construct.as_str();
 
 		// **The one hint worth writing out.** A path, or any value with a space in it, is the mistake
 		// people make first and most often - `filename=/data/berlin.mbtiles` reads as obviously fine
@@ -99,6 +100,25 @@ impl ParseError {
 		}
 
 		format!("{} in a {construct}", self.message)
+	}
+}
+
+/// A construct's name in words, for a sentence a person reads.
+///
+/// **Upstream's frame labels are grammar productions**, and most of them happen to read as English
+/// already - `property`, `array`, `sources`, `unquoted value`. `bare_identifier` does not, and until
+/// 4.11 it never reached anyone: the failure that lands in one is a pipeline ending in `|`, and that
+/// used to arrive with no context at all ([vt#258]). Fixing that upstream turned a sentence with no
+/// construct into a sentence with a parser's word for one.
+///
+/// So the underscores are collapsed for anything that arrives later, and the one production whose
+/// name says nothing to a person is renamed. `no_explanation_reads_like_a_grammar` holds the rule.
+///
+/// [vt#258]: https://github.com/versatiles-org/versatiles-rs/issues/258
+fn prose(construct: &str) -> String {
+	match construct {
+		"bare_identifier" => "name".to_string(),
+		other => other.replace('_', " "),
 	}
 }
 

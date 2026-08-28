@@ -262,26 +262,82 @@ mod tests {
 		assert_eq!(messages.len(), 2, "both should be reported: {messages:?}");
 	}
 
-	/// The known gap, written down rather than left to be discovered.
+	/// **The gap that closed.** This used to assert the opposite.
 	///
-	/// `VPLFieldMeta` describes a field's name, whether it is required, and its enum variants. It
-	/// does not describe the *format* of a free-form value, so `color=red` - which upstream rejects
-	/// for not being hex - passes here. Catching those would mean either parsing every `rust_type`
-	/// Studio knows about, or building the operation for real, which is far too expensive to do on
-	/// a keystroke. They surface when the pipeline runs.
+	/// `check` could once see a field's name, whether it was required, and its enum variants - not the
+	/// *format* of a free-form value, so `color=red` reached the editor unmarked and failed when the
+	/// pipeline ran. 4.11 gave the fields types that parse ([vt#257]), and `check` asks the parser, so
+	/// the format is decided without building anything and without touching a file.
+	///
+	/// [vt#257]: https://github.com/versatiles-org/versatiles-rs/issues/257
+	#[test]
+	fn a_value_of_the_wrong_format_is_caught_without_building() {
+		let messages = diagnose("from_color color=red");
+		assert_eq!(messages.len(), 1, "{messages:?}");
+		assert!(messages[0].contains("Invalid hex color"), "{messages:?}");
+	}
+
+	/// The three shapes of "wrong value" `check` now decides, each on a different mechanism: a parser
+	/// the type carries, the number of values the type takes, and a rule the type enforces about
+	/// itself. Listed together because they arrived together and no other test would notice if one of
+	/// them stopped working.
+	#[test]
+	fn a_wrong_count_and_a_wrong_rectangle_are_caught_too() {
+		let arity = diagnose("from_csv filename=a.csv lon_column=x lat_column=y bbox=[1,2,3]");
+		assert!(arity.iter().any(|m| m.contains("expected 4 values")), "{arity:?}");
+
+		let inverted = diagnose("from_geo filename=a.geojson bbox=[200,2,3,4]");
+		assert!(inverted.iter().any(|m| m.contains("must be <=")), "{inverted:?}");
+
+		let not_a_number = diagnose("from_color tile_size=abc");
+		assert!(
+			not_a_number.iter().any(|m| m.contains("invalid digit")),
+			"{not_a_number:?}"
+		);
+	}
+
+	/// **The underline lands on the value, not the operation.** Upstream reports which parameter is
+	/// wrong and Studio turns that into a span - the half [vt#224] left here - so a format error is
+	/// marked where it was typed rather than around the whole node.
+	///
+	/// [vt#224]: https://github.com/versatiles-org/versatiles-rs/issues/224
+	#[test]
+	fn a_format_error_is_underlined_on_the_parameter_that_carries_it() {
+		let source = "from_color color=red";
+		let found = validate(&Document::parse(source).unwrap());
+		assert_eq!(found.len(), 1, "{found:?}");
+		assert_eq!(&source[found[0].span.start..found[0].span.end], "color");
+	}
+
+	/// **What is still not checked, narrowed to what it now is.**
+	///
+	/// The gap used to be every free-form value. It is now only the meaning a type does not carry:
+	/// `99999` is a perfectly good `u32` and not an EPSG code, and `400` is a perfectly good `u16` and
+	/// not a tile size. Upstream's own `check` documentation says as much, and closing it means giving
+	/// those fields types that parse, which is [vt#260].
+	///
+	/// Written down rather than left to be discovered - and asserted, so that when upstream does close
+	/// it, this fails and says so instead of quietly passing.
+	///
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 	#[tokio::test]
-	async fn value_formats_are_not_checked() {
+	async fn meaning_a_type_does_not_carry_is_still_unchecked() {
 		assert_eq!(
-			diagnose("from_color color=red"),
+			diagnose("from_gdal_raster filename=a.tif crs=99999"),
 			Vec::<String>::new(),
-			"metadata cannot see this"
+			"a u32 that is not an EPSG code"
+		);
+		assert_eq!(
+			diagnose("from_color tile_size=400"),
+			Vec::<String>::new(),
+			"a u16 that is not a tile size"
 		);
 		assert!(
 			PipelineFactory::new_dummy()
 				.operation_from_vpl("from_color color=red")
 				.await
 				.is_err(),
-			"but upstream can, and does - if this ever passes, the gap has closed"
+			"the value errors that are caught are still caught when built, not only by `check`"
 		);
 	}
 
