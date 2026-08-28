@@ -478,6 +478,73 @@ mod tests {
 		assert_eq!(bands.control, Control::Text);
 	}
 
+	/// The pair a doc spells as `` `A` or `B` ``, when it spells one.
+	fn alternation(doc: &str) -> Option<(&str, &str)> {
+		let (before, after) = doc.split_once("` or `")?;
+		Some((before.rsplit('`').next()?, after.split('`').next()?))
+	}
+
+	/// **Every tile size offers its set, including the two that never say what it is.**
+	///
+	/// `every_tabulated_set_is_a_selection` holds `ROLES` against itself: it checks that each field the
+	/// table *calls* a set is offered as one, and so cannot see a set the table has never heard of.
+	/// The obvious repair was to read the prose - `256` or `512` is right there in the documentation -
+	/// and it does not work. Of the five tile sizes upstream, `from_gdal_dem` and `from_gdal_raster`
+	/// document theirs as "Tile size in pixels. Defaults to `512`." and never name the alternative at
+	/// all. A rule reading the set out of the sentence would have missed two of the five fields it
+	/// exists for, and passed while doing it.
+	///
+	/// So it matches the phrase the five share rather than the values only three print. A tile size
+	/// added upstream arrives documented like its siblings and fails this until someone tabulates it.
+	///
+	/// Where a doc *does* spell the set, it is held against the table too, so a `1024` upstream starts
+	/// accepting is a failure here rather than a third option the form silently refuses to offer.
+	#[test]
+	fn every_tile_size_in_the_registry_offers_its_set() {
+		let mut seen = 0;
+		for operation in operations() {
+			for field in operation.fields {
+				if !field.doc.to_lowercase().contains("tile size in pixels") {
+					continue;
+				}
+				seen += 1;
+				let where_ = format!("{}.{}", operation.name, field.name);
+				let Control::Choice { options } = &field.control else {
+					panic!("{where_} is documented as a tile size and offers {:?}", field.control);
+				};
+				if let Some((a, b)) = alternation(&field.doc) {
+					assert_eq!(
+						options,
+						&[a.to_string(), b.to_string()],
+						"{where_} says {:?}",
+						field.doc
+					);
+				}
+			}
+		}
+		assert!(seen >= 5, "the tile sizes stopped being documented alike: found {seen}");
+	}
+
+	/// **The phrase is doing work a name could not**, so the case that proves it is held here.
+	/// `from_grid.size` is an edge length in the CRS's own units - metres, or degrees - and any
+	/// number is a legitimate answer. It is one of two fields upstream calls `size`; the other is
+	/// `from_color`'s, which is a tile size and takes two values. Matching the name offers this one a
+	/// choice of `256` or `512`, which is not a narrower version of the truth but a different field.
+	#[test]
+	fn a_cell_size_is_not_a_tile_size() {
+		let cell = field("from_grid", "size");
+		assert!(
+			matches!(field("from_color", "size").control, Control::Choice { .. }),
+			"the name collision this guards is gone"
+		);
+		assert!(
+			!cell.doc.to_lowercase().contains("tile size in pixels"),
+			"{:?}",
+			cell.doc
+		);
+		assert!(matches!(cell.control, Control::Number { .. }), "{:?}", cell.control);
+	}
+
 	/// **Only a string may fall back to plain text**, because reaching the fallback means the type was
 	/// not recognised.
 	///
