@@ -364,6 +364,51 @@ mod tests {
 		}
 	}
 
+	/// **Only a string may fall back to plain text**, because reaching the fallback means the type was
+	/// not recognised.
+	///
+	/// `control_for` ends in `_ => Control::Text`, which is right for a name, a delimiter, a regex or
+	/// a CEL expression - and is what a field of any *other* type gets when upstream introduces one
+	/// this does not know. That is a byte count or a bounded number rendered as a free-text box, with
+	/// nothing failing and nothing said: the same silent shape the rectangles, the colours and the
+	/// documented sets each have a tripwire for, and the one they left uncovered.
+	///
+	/// Written without a list of the fields that *are* text - there are thirty-odd and they change
+	/// with every upstream release - so what this holds is the rule rather than a copy of the answer.
+	///
+	/// `MaxTileBytes` is the one exemption, and it is a decision rather than an oversight: the field
+	/// takes a byte count *or* the word `none`, so a number control could not express half of what it
+	/// accepts and text is the honest offer. A control that means "a number or nothing" would be
+	/// better; until one exists, this says so out loud.
+	#[test]
+	fn only_a_string_falls_back_to_text() {
+		const KNOWN_TEXT_TYPES: &[&str] = &["String", "MaxTileBytes"];
+
+		let unrecognised: Vec<String> = registry()
+			.values()
+			.flat_map(|meta| {
+				meta.fields.iter().filter_map(move |field| {
+					let inner = field
+						.rust_type
+						.strip_prefix("Option<")
+						.and_then(|rest| rest.strip_suffix('>'))
+						.unwrap_or(&field.rust_type);
+					let text =
+						control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants) == Control::Text;
+					(text && !field.is_sources && !KNOWN_TEXT_TYPES.contains(&inner))
+						.then(|| format!("{}.{} :: {}", meta.tag_name, field.name, field.rust_type))
+				})
+			})
+			.collect();
+
+		assert!(
+			unrecognised.is_empty(),
+			"these reached the text fallback because `control_for` does not know their type - give \
+			 them a control, or add the type to KNOWN_TEXT_TYPES with the reason text is right: \
+			 {unrecognised:?}"
+		);
+	}
+
 	/// A URL is somewhere else, and a picker offering the local disk for it answers the wrong
 	/// question.
 	#[test]

@@ -118,6 +118,11 @@ export function requiredEdit(raw: string, control: FieldInfo['control'] | undefi
  * Assembled here rather than in the popover, which stays ignorant of VPL: this is the one place
  * that knows a `Control` from a `FieldInfo`.
  */
+/** Refuses to compile when a `Control` variant has no arm above - see the `default` below. */
+function unhandled(control: never): never {
+	throw new Error(`no summary for control ${JSON.stringify(control)}`);
+}
+
 export function summarise(field: FieldInfo): string {
 	const control = field.control;
 	let type: string;
@@ -149,8 +154,15 @@ export function summarise(field: FieldInfo): string {
 		case 'path':
 			type = 'a file path';
 			break;
-		default:
+		case 'text':
 			type = 'text';
+			break;
+		default:
+			// **Exhaustive on purpose.** `Control` is generated from the Rust enum, so a variant added
+			// upstream arrives here silently: a `default` that answered "text" described a colour picker
+			// or a bounded number as free text, in the one place that tells someone what a field is.
+			// This makes adding a variant a compile error rather than a wrong sentence.
+			type = unhandled(control);
 	}
 	return `${type} · ${field.required ? 'required' : 'optional'}`;
 }
