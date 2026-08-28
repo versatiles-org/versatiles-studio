@@ -89,6 +89,7 @@
 	},
 	"overrides": {
 		"deepmerge-ts": "^8.0.2",
-		"serialize-javascript": "^7.1.0"
+		"serialize-javascript": "^7.1.0",
+		"@puppeteer/browsers": "^3.2.1"
 	}
 }
