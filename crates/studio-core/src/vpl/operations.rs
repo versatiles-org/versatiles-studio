@@ -364,6 +364,47 @@ mod tests {
 		}
 	}
 
+	/// What a field's type is once `Option<…>` is off it, which is what the rules below read.
+	fn inner_type(rust_type: &str) -> &str {
+		rust_type
+			.strip_prefix("Option<")
+			.and_then(|rest| rest.strip_suffix('>'))
+			.unwrap_or(rust_type)
+	}
+
+	/// **Three bytes are a colour, whatever the field is called.**
+	///
+	/// `every_colour_in_the_registry_is_a_swatch` holds the table against itself - it checks that each
+	/// field `ROLES` *calls* a colour is offered as one, which by construction cannot see a colour the
+	/// table has never heard of. The rectangles escaped that by matching the field's **name**; a colour
+	/// has no name to match on, because `color`, `background`, `fill` and `tint` are all plausible and
+	/// none is canonical.
+	///
+	/// It has a shape instead. `[u8;3]` is three channels of `0..=255`, and nothing in this registry
+	/// spells anything else that way. `[f64;3]` is deliberately not included: `meta_update.center` is
+	/// `[lon, lat, zoom]`, three numbers that are emphatically not a colour - which is why this is a
+	/// rule about one exact type rather than about "three of something".
+	#[test]
+	fn three_bytes_are_a_colour_whatever_the_field_is_called() {
+		let missed: Vec<String> = registry()
+			.values()
+			.flat_map(|meta| {
+				meta.fields.iter().filter_map(move |field| {
+					let is_three_bytes = inner_type(&field.rust_type).replace(' ', "") == "[u8;3]";
+					let control = control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants);
+					(is_three_bytes && !matches!(control, Control::Color { .. }))
+						.then(|| format!("{}.{}", meta.tag_name, field.name))
+				})
+			})
+			.collect();
+
+		assert!(
+			missed.is_empty(),
+			"three bytes is a colour and these are offered as bare numbers - add them to `ROLES` in \
+			 semantics.rs: {missed:?}"
+		);
+	}
+
 	/// **Only a string may fall back to plain text**, because reaching the fallback means the type was
 	/// not recognised.
 	///
@@ -388,11 +429,7 @@ mod tests {
 			.values()
 			.flat_map(|meta| {
 				meta.fields.iter().filter_map(move |field| {
-					let inner = field
-						.rust_type
-						.strip_prefix("Option<")
-						.and_then(|rest| rest.strip_suffix('>'))
-						.unwrap_or(&field.rust_type);
+					let inner = inner_type(&field.rust_type);
 					let text =
 						control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants) == Control::Text;
 					(text && !field.is_sources && !KNOWN_TEXT_TYPES.contains(&inner))
