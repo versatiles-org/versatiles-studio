@@ -20,11 +20,12 @@ import { bboxField } from '../../state/bbox.svelte';
 import { flushSync } from 'svelte';
 
 /** `field_meta` for a parameter that names a file - the core's `Control::Path`. */
-const PATH_FIELD = (name: string) => ({
+const PATH_FIELD = (name: string, accepts: string[] = []) => ({
 	name,
 	doc: '',
 	required: false,
 	sources: false,
+	accepts,
 	default: null,
 	control: { kind: 'path' as const }
 });
@@ -35,6 +36,7 @@ const BBOX_FIELD = {
 	doc: '',
 	required: false,
 	sources: false,
+	accepts: [],
 	default: null,
 	control: { kind: 'bbox' as const }
 };
@@ -45,6 +47,7 @@ const CHOICE_FIELD = (over: Record<string, unknown> = {}) => ({
 	doc: '',
 	required: false,
 	sources: false,
+	accepts: [],
 	default: null,
 	control: { kind: 'choice' as const, options: ['256', '512'] },
 	...over
@@ -56,18 +59,10 @@ const COLOR_FIELD = (hex: boolean) => ({
 	doc: '',
 	required: false,
 	sources: false,
+	accepts: [],
 	default: null,
 	control: { kind: 'color' as const, hex }
 });
-
-const CONTAINER = {
-	id: 'container',
-	label: 'Tile container',
-	detail: 'A .versatiles, .mbtiles or .pmtiles file',
-	extensions: ['versatiles', 'mbtiles', 'pmtiles'],
-	operation: 'from_container',
-	needs: []
-};
 
 let tauri: TauriStub;
 
@@ -123,6 +118,7 @@ describe('which parameters offer a file picker', () => {
 				doc: '',
 				required: false,
 				sources: false,
+				accepts: [],
 				default: null,
 				control: { kind: 'number', integer: true, min: null, max: null, minExclusive: false, maxExclusive: false }
 			},
@@ -160,31 +156,31 @@ describe('what the picker does with what it gets', () => {
 		expect(onCommit).not.toHaveBeenCalled();
 	});
 
-	// The operation is what says which files are worth offering - the same catalogue File → Open
-	// uses for it. One filter and no "All files" beside it: macOS flattens the list rather than
-	// offering a menu, so a second entry would be a choice nobody could make there.
-	it('filters to what the node reads', async () => {
-		picks('/tmp/berlin.versatiles');
+	// **The field says which files are worth offering, not the node.** A clip polygon beside a raster
+	// wants GeoJSON, and taking the filter from the operation gave it the raster's extensions. One
+	// filter and no "All files" beside it: macOS flattens the list rather than offering a menu, so a
+	// second entry would be a choice nobody could make there.
+	it('filters to what the field accepts', async () => {
+		picks('/tmp/clip.geojson');
 		render(NodeArgument, {
-			name: 'filename',
-			field: PATH_FIELD('filename'),
+			name: 'cutline',
+			field: PATH_FIELD('cutline', ['geojson', 'json']),
 			value: '',
-			kind: CONTAINER,
 			onCommit: () => {}
 		});
 
-		screen.getByLabelText('Choose a file for filename').click();
+		screen.getByLabelText('Choose a file for cutline').click();
 		await vi.waitFor(() => expect(tauri.calls.some((call) => call.cmd === 'plugin:dialog|open')).toBe(true));
 
 		const options = tauri.calls.find((call) => call.cmd === 'plugin:dialog|open')?.args.options as {
 			filters: { name: string; extensions: string[] }[];
 		};
-		expect(options.filters).toEqual([{ name: 'Tile container', extensions: CONTAINER.extensions }]);
+		expect(options.filters).toEqual([{ name: 'geojson, json', extensions: ['geojson', 'json'] }]);
 	});
 
-	// A field nothing is known about is a field nothing is claimed about: a `*_file` on a transform
-	// may want a stylesheet, a CSV or something Studio has never heard of.
-	it('offers every file when the node is not a way in', async () => {
+	// An empty list is upstream saying the set is not its to state - a private key has no conventional
+	// extension, and GDAL decides its own. Offering everything is the honest answer to both.
+	it('offers every file when the field accepts anything', async () => {
 		picks('/tmp/anything.txt');
 		render(NodeArgument, { name: 'sprite_file', field: PATH_FIELD('sprite_file'), value: '', onCommit: () => {} });
 

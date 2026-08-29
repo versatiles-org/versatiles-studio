@@ -288,7 +288,6 @@
 		/>
 	{:else if id === 'pipeline'}
 		<PipelinePane
-			kinds={workbench.kinds}
 			{operations}
 			graph={composition.stacked.find((entry) => entry.id === currentGraph) ?? null}
 			pipeline={document.current}

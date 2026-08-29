@@ -57,8 +57,10 @@ export async function askForProject(): Promise<string | null> {
  * `*_file` on a transform is a file nothing is known about, so nothing is claimed about it: no
  * filters, every file offered.
  *
- * `kind` is the way in whose read operation this node is, when it is one, and then the dialog
- * shows what that operation reads - the same list File → Open uses for it.
+ * `extensions` is what the field itself accepts, which upstream states per argument - so a clip
+ * polygon beside a raster filters for GeoJSON rather than for the raster its node reads. Empty
+ * offers everything, which is the honest answer for a private key or for GDAL, neither of whose
+ * accepted set is ours to state.
  *
  * **No "All files" alongside it**, deliberately: macOS flattens every filter into one
  * allow-everything list rather than a menu to choose between (`rfd`'s `setAllowedFileTypes`), so
@@ -68,11 +70,13 @@ export async function askForProject(): Promise<string | null> {
  *
  * `null` when the dialog was cancelled, which is ordinary and worth nothing being said about.
  */
-export async function askForPath(kind?: ImportKind, title?: string): Promise<string | null> {
+export async function askForPath(extensions: string[], title?: string): Promise<string | null> {
 	const picked = await open({
 		multiple: false,
 		title,
-		filters: kind ? [{ name: kind.label, extensions: kind.extensions }] : undefined
+		// Named by the extensions themselves. A field has no label of its own, and inventing one -
+		// "Vector data" for a `cutline` - would say more than upstream does.
+		filters: extensions.length > 0 ? [{ name: extensions.join(', '), extensions }] : undefined
 	});
 	return typeof picked === 'string' ? picked : null;
 }

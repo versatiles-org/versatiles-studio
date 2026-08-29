@@ -212,6 +212,22 @@ pub struct FieldInfo {
 	/// Fed by a `[ … ]` block rather than by a `key=value` pair, so it has no control.
 	pub sources: bool,
 	pub control: Control,
+	/// Extensions to filter a file dialog by, or empty to offer everything.
+	///
+	/// **Upstream's answer, per field.** Studio used to pick the filter from the *node* - the import
+	/// catalogue entry whose read operation matched - so every path row on a card got the same one.
+	/// That was right for a node's own input and wrong beside it: `from_gdal_raster`'s `cutline` is a
+	/// GeoJSON clip polygon and was offered raster extensions, `ssh_identity` is a private key and was
+	/// offered container extensions, and the eight fields on operations with no catalogue entry got no
+	/// filter at all. [vt#260] put it on the field, where the operation that reads the file states it.
+	///
+	/// **`Suggested` and `Only` arrive here as one list**, deliberately. The distinction is whether a
+	/// value that is not in it still builds, and a dialog cannot express that: there is no "all files"
+	/// entry to escape through (see `askForPath`), so both are a filter and the refusal belongs to
+	/// `check`, which already reports a wrong extension where the type demands one.
+	///
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+	pub accepts: Vec<String>,
 	/// What the operation does when this parameter is absent, spelled as VPL would write it
 	/// ([vt#253]). `None` when there is no literal to show.
 	///
@@ -266,6 +282,10 @@ pub fn operations() -> Vec<OperationInfo> {
 					required: field.is_required,
 					sources: field.is_sources,
 					control: control_for(field),
+					accepts: field
+						.accepts
+						.map(|accepts| accepts.extensions().iter().map(|&e| e.to_string()).collect())
+						.unwrap_or_default(),
 					default: field.default.clone(),
 				})
 				.collect(),
@@ -428,6 +448,50 @@ mod tests {
 			 them a control, or add the type to KNOWN_TEXT_TYPES with the reason text is right: \
 			 {unrecognised:?}"
 		);
+	}
+
+	/// **The filter belongs to the field, not to the node it sits on.**
+	///
+	/// Each of these was wrong when the dialog took its filter from the node's read operation, and
+	/// each is wrong in a different way: a clip polygon offered raster extensions, a private key
+	/// offered container extensions, and a file on a transform offered nothing because a transform has
+	/// no catalogue entry to match. Spelled out so that a regression names which one it broke.
+	#[test]
+	fn a_file_field_is_filtered_by_what_it_reads() {
+		assert_eq!(field("from_gdal_raster", "cutline").accepts, ["geojson", "json"]);
+		assert_eq!(field("raster_mask", "geojson").accepts, ["geojson", "json"]);
+		assert_eq!(
+			field("vector_update_properties", "data_source_path").accepts,
+			["csv", "tsv"]
+		);
+		assert_eq!(field("meta_update", "tilejson_file").accepts, ["json"]);
+		assert_eq!(
+			field("from_container", "filename").accepts,
+			["versatiles", "mbtiles", "pmtiles", "tar"]
+		);
+
+		// A key file has no conventional extension, and GDAL decides its own set - so both say so by
+		// offering everything rather than by guessing a list.
+		assert!(field("from_container", "ssh_identity").accepts.is_empty());
+		assert!(field("from_gdal_raster", "filename").accepts.is_empty());
+	}
+
+	/// Every path offers a filter or deliberately offers none, and nothing else carries one.
+	#[test]
+	fn only_a_path_says_what_it_accepts() {
+		for operation in operations() {
+			for field in operation.fields {
+				if field.control != Control::Path {
+					assert!(
+						field.accepts.is_empty(),
+						"{}.{} is not a path and accepts {:?}",
+						operation.name,
+						field.name,
+						field.accepts
+					);
+				}
+			}
+		}
 	}
 
 	/// A URL is somewhere else, and a picker offering the local disk for it answers the wrong

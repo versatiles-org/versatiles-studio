@@ -1000,6 +1000,24 @@ export type FieldInfo = {
 	sources: boolean,
 	control: Control,
 	/**
+	 *  Extensions to filter a file dialog by, or empty to offer everything.
+	 * 
+	 *  **Upstream's answer, per field.** Studio used to pick the filter from the *node* - the import
+	 *  catalogue entry whose read operation matched - so every path row on a card got the same one.
+	 *  That was right for a node's own input and wrong beside it: `from_gdal_raster`'s `cutline` is a
+	 *  GeoJSON clip polygon and was offered raster extensions, `ssh_identity` is a private key and was
+	 *  offered container extensions, and the eight fields on operations with no catalogue entry got no
+	 *  filter at all. [vt#260] put it on the field, where the operation that reads the file states it.
+	 * 
+	 *  **`Suggested` and `Only` arrive here as one list**, deliberately. The distinction is whether a
+	 *  value that is not in it still builds, and a dialog cannot express that: there is no "all files"
+	 *  entry to escape through (see `askForPath`), so both are a filter and the refusal belongs to
+	 *  `check`, which already reports a wrong extension where the type demands one.
+	 * 
+	 *  [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+	 */
+	accepts: string[],
+	/**
 	 *  What the operation does when this parameter is absent, spelled as VPL would write it
 	 *  ([vt#253]). `None` when there is no literal to show.
 	 * 

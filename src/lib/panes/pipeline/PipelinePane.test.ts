@@ -66,7 +66,6 @@ const documentActions = { change: noop, undo: noop, redo: noop, format: noop, sa
 
 function pane(pipeline: DocumentView, pipelineRevision: number) {
 	return render(PipelinePane, {
-		kinds: [],
 		pipeline,
 		pipelineRevision,
 		crop: null,

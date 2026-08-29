@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Fit, ImportKind, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
+	import type { Fit, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
 	import { walk, isChainHead, isOn } from '../../vpl/nodes';
 	import NodeCard from './NodeCard.svelte';
 	import Picker from '../../common/Picker.svelte';
@@ -18,7 +18,6 @@
 		disabled,
 		enabled,
 		operations = [],
-		kinds = [],
 		properties = [],
 		fits = [],
 		suggestions = {},
@@ -36,7 +35,6 @@
 		enabled: boolean;
 		operations?: OperationInfo[];
 		/** Every way in this build has, for the file dialog behind a path parameter (S3.2). */
-		kinds?: ImportKind[];
 		properties?: string[];
 		/**
 		 * What can be appended to what the map is showing, and why the rest cannot (S2.14).
@@ -122,7 +120,6 @@
 				on={on[index]}
 				isHead={isChainHead(row.path)}
 				{operations}
-				{kinds}
 				{properties}
 				suggestions={suggestions[row.path.join('.')] ?? {}}
 				{onToggle}

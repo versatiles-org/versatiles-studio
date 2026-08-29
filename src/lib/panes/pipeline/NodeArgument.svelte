@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { FieldInfo, ImportKind } from '../../ipc/commands';
+	import type { FieldInfo } from '../../ipc/commands';
 	import HelpTrigger from '../../common/HelpTrigger.svelte';
 	import type { HelpContent } from '../../state/help.svelte';
 	import { askForPath } from '../../common/import';
@@ -28,7 +28,6 @@
 		suggestions = [],
 		placeholder = '',
 		tentative = false,
-		kind,
 		onCommit,
 		onRemove,
 		removeLabel
@@ -47,7 +46,6 @@
 		/** In the pane and not yet in the document - tinted to say so. */
 		tentative?: boolean;
 		/** The way in this node's operation reads, when it is one - the file dialog's filter. */
-		kind?: ImportKind;
 		/** Fired on blur, Enter or a choice - never per keystroke, which would reparse the document
 		 *  on every character and fight the caret. */
 		onCommit: (raw: string) => void;
@@ -163,7 +161,7 @@
 	/// document the same way a typed one does - including a pending row, which has no value yet and
 	/// gets one this way.
 	async function browse() {
-		const picked = await askForPath(kind, `Choose a file for ${name}`);
+		const picked = await askForPath(field?.accepts ?? [], `Choose a file for ${name}`);
 		if (picked !== null) onCommit(picked);
 	}
 

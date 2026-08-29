@@ -7,7 +7,6 @@
 		type Diagnostic,
 		type Span,
 		type DocumentView,
-		type ImportKind,
 		type Fit,
 		type OperationInfo,
 		type GraphInfo,
@@ -27,7 +26,6 @@
 	// Style arrives at S4 and Export at S5. Their sections are not stubbed out here: an empty
 	// section that does nothing teaches the wrong thing about what the pane contains.
 	let {
-		kinds,
 		operations = [],
 		properties = [],
 		fits = [],
@@ -41,7 +39,6 @@
 		documentActions
 	}: {
 		/** Every way in this build has, for the file dialog behind a path parameter (S3.2). */
-		kinds: ImportKind[];
 		/** Every known operation, for the transform picker. Empty until the one-off fetch lands. */
 		operations?: OperationInfo[];
 		/** Property names the pipeline produces, for list fields (S3.3). */
@@ -251,7 +248,6 @@
 				disabled={current?.disabled ?? []}
 				enabled={current?.enabled ?? true}
 				{operations}
-				{kinds}
 				{properties}
 				{fits}
 				{suggestions}

@@ -20,6 +20,7 @@ function field(over: Partial<FieldInfo> = {}): FieldInfo {
 		doc: '',
 		required: false,
 		sources: false,
+		accepts: [],
 		control: { kind: 'text' },
 		default: null,
 		...over
