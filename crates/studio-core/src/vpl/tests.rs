@@ -890,13 +890,12 @@ fn a_trailing_separator_says_what_is_missing() {
 			.map(|frame| frame.label.as_str())
 			.collect::<Vec<_>>(),
 		[
-			"parsing bare_identifier",
+			"parsing name",
 			"parsing node identifier",
 			"parsing node",
 			"parsing pipeline"
 		]
 	);
-	// `bare_identifier` is upstream's word for the production; a person is told it wanted a name.
 	assert_eq!(error.explain(), "unexpected character in a name");
 }
 

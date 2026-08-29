@@ -201,6 +201,9 @@
 				onchange={(event) => onCommit(String(event.currentTarget.checked))}
 			/>
 		{:else if control?.kind === 'number'}
+			<!-- An excluded end is still passed as the browser's `min`/`max`, which are inclusive: it keeps
+			     the stepper inside the range, and the one value it wrongly admits - the end itself - is
+			     refused by `check` as it is typed, with a message from the operation. -->
 			<input
 				type="number"
 				{value}

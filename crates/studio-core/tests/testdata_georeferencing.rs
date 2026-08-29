@@ -1,14 +1,16 @@
 //! Whether the raster fixtures are georeferenced - a question about the files, asked in a process
 //! that has not opened a pipeline.
 //!
-//! **Its own binary on purpose.** `from_gdal_*` turns GDAL's PAM off process-wide for every dataset
-//! it opens, not only the ones it overrides ([vt#261]), and PAM is what reads the `.aux.xml` sidecar
-//! a PNG or JPEG keeps its CRS in. Left beside `every_fixture_opens_through_the_catalogue`, this
-//! test raced that one for a global setting and failed depending on which ran first - saying the
-//! fixtures had no spatial reference when they demonstrably do.
+//! **Its own binary on purpose.** `from_gdal_*` once turned GDAL's PAM off process-wide for every
+//! dataset it opened rather than only the ones it overrode ([vt#261]), and PAM is what reads the
+//! `.aux.xml` sidecar a PNG or JPEG keeps its CRS in. Left beside
+//! `every_fixture_opens_through_the_catalogue`, this test raced that one for a global setting and
+//! failed depending on which ran first - reporting that the fixtures had no spatial reference when
+//! they demonstrably did.
 //!
-//! Cargo gives each integration test file its own process, which is the whole fix: nothing here
-//! opens a pipeline, so nothing here disables PAM.
+//! 4.12 fixed that, so the race is gone. The isolation stays because it costs one file and the class
+//! of bug does not: a process-global set by any dependency, at any depth, on first use. A test that
+//! asks GDAL a question about files should not be able to be answered by what ran before it.
 //!
 //! [vt#261]: https://github.com/versatiles-org/versatiles-rs/issues/261
 

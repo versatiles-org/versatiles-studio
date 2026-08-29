@@ -289,10 +289,12 @@ mod tests {
 		let inverted = diagnose("from_geo filename=a.geojson bbox=[200,2,3,4]");
 		assert!(inverted.iter().any(|m| m.contains("must be <=")), "{inverted:?}");
 
-		let not_a_number = diagnose("from_color tile_size=abc");
+		// `tile_size` was a bare integer and this said "invalid digit"; 4.12 made it a `TileSize`, so
+		// the message now names what it would have accepted instead.
+		let not_a_size = diagnose("from_color tile_size=abc");
 		assert!(
-			not_a_number.iter().any(|m| m.contains("invalid digit")),
-			"{not_a_number:?}"
+			not_a_size.iter().any(|m| m.contains("Values: 256, 512")),
+			"{not_a_size:?}"
 		);
 	}
 
@@ -309,29 +311,22 @@ mod tests {
 		assert_eq!(&source[found[0].span.start..found[0].span.end], "color");
 	}
 
-	/// **What is still not checked, narrowed to what it now is.**
+	/// **The gap this used to describe is gone.**
 	///
-	/// The gap used to be every free-form value. It is now only the meaning a type does not carry:
-	/// `99999` is a perfectly good `u32` and not an EPSG code, and `400` is a perfectly good `u16` and
-	/// not a tile size. Upstream's own `check` documentation says as much, and closing it means giving
-	/// those fields types that parse, which is [vt#260].
-	///
-	/// Written down rather than left to be discovered - and asserted, so that when upstream does close
-	/// it, this fails and says so instead of quietly passing.
+	/// It asserted that `crs=99999` and `tile_size=400` passed unmarked - a good `u32` is not an EPSG
+	/// code and a good `u16` is not a tile size, and no metadata could say otherwise. It was written
+	/// with a note that it should fail when upstream closed the gap rather than quietly keep passing,
+	/// and that is what happened: [vt#260] gave both fields types that carry the answer, so `check`
+	/// decides them without building and the editor underlines them as they are typed.
 	///
 	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 	#[tokio::test]
-	async fn meaning_a_type_does_not_carry_is_still_unchecked() {
-		assert_eq!(
-			diagnose("from_gdal_raster filename=a.tif crs=99999"),
-			Vec::<String>::new(),
-			"a u32 that is not an EPSG code"
-		);
-		assert_eq!(
-			diagnose("from_color tile_size=400"),
-			Vec::<String>::new(),
-			"a u16 that is not a tile size"
-		);
+	async fn meaning_the_type_now_carries_is_checked() {
+		let epsg = diagnose("from_gdal_raster filename=a.tif crs=99999");
+		assert!(epsg.iter().any(|m| m.contains("1024 to 32766")), "{epsg:?}");
+
+		let size = diagnose("from_color tile_size=400");
+		assert!(size.iter().any(|m| m.contains("Values: 256, 512")), "{size:?}");
 		assert!(
 			PipelineFactory::new_dummy()
 				.operation_from_vpl("from_color color=red")

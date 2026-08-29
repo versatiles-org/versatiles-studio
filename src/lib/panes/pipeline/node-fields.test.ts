@@ -169,18 +169,28 @@ describe('suggestions', () => {
 
 describe('summarise', () => {
 	it('says the range when the type has one', () => {
-		expect(summarise(field({ control: { kind: 'number', integer: true, min: 0, max: 15 } }))).toBe(
-			'whole number 0-15 · optional'
-		);
+		expect(
+			summarise(
+				field({ control: { kind: 'number', integer: true, min: 0, max: 15, minExclusive: false, maxExclusive: false } })
+			)
+		).toBe('whole number 0-15 · optional');
 	});
 
 	it('says one-sided bounds one-sidedly', () => {
-		expect(summarise(field({ control: { kind: 'number', integer: false, min: 0, max: null } }))).toContain(
-			'number from 0'
-		);
-		expect(summarise(field({ control: { kind: 'number', integer: false, min: null, max: 1 } }))).toContain(
-			'number up to 1'
-		);
+		expect(
+			summarise(
+				field({
+					control: { kind: 'number', integer: false, min: 0, max: null, minExclusive: false, maxExclusive: false }
+				})
+			)
+		).toContain('number from 0');
+		expect(
+			summarise(
+				field({
+					control: { kind: 'number', integer: false, min: null, max: 1, minExclusive: false, maxExclusive: false }
+				})
+			)
+		).toContain('number up to 1');
 	});
 
 	it('names every control kind in words', () => {

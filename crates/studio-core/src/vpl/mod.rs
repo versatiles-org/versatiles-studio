@@ -21,7 +21,6 @@
 
 mod ast;
 mod operations;
-mod semantics;
 mod validate;
 mod view;
 
@@ -33,7 +32,6 @@ pub use operations::{Control, FieldInfo, OperationInfo, operations};
 // The registry itself stays inside the crate: `suggest` reads a node's declared fields, and
 // `operations()` would rebuild and sort the whole list once per node to answer that.
 pub(crate) use operations::registry;
-pub use semantics::{Lang, Names, Role, role_of};
 pub use validate::{Diagnostic, validate};
 
 use std::collections::BTreeSet;
@@ -105,21 +103,14 @@ impl ParseError {
 
 /// A construct's name in words, for a sentence a person reads.
 ///
-/// **Upstream's frame labels are grammar productions**, and most of them happen to read as English
-/// already - `property`, `array`, `sources`, `unquoted value`. `bare_identifier` does not, and until
-/// 4.11 it never reached anyone: the failure that lands in one is a pipeline ending in `|`, and that
-/// used to arrive with no context at all ([vt#258]). Fixing that upstream turned a sentence with no
-/// construct into a sentence with a parser's word for one.
+/// **Upstream's frame labels are grammar productions**, and they read as English by intent rather
+/// than by luck: `bare_identifier` used to reach users as itself, and 4.12 renamed it to `name`.
 ///
-/// So the underscores are collapsed for anything that arrives later, and the one production whose
-/// name says nothing to a person is renamed. `no_explanation_reads_like_a_grammar` holds the rule.
-///
-/// [vt#258]: https://github.com/versatiles-org/versatiles-rs/issues/258
+/// This is kept as the general rule, not the specific fix it started as. The labels are upstream's
+/// to change and a future one may arrive with an underscore in it, so nothing here needs to know
+/// which - `no_explanation_reads_like_a_grammar` holds the whole class against whatever they send.
 fn prose(construct: &str) -> String {
-	match construct {
-		"bare_identifier" => "name".to_string(),
-		other => other.replace('_', " "),
-	}
+	construct.replace('_', " ")
 }
 
 impl std::fmt::Display for ParseError {

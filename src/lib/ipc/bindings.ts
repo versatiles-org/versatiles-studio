@@ -829,8 +829,21 @@ export type Control = { kind: "text" } |
  *  so this is the one control decided by name rather than by type. See [`is_path`].
  */
 { kind: "path" } | 
-/**  `min`/`max` come from the integer width, so a zoom level cannot be set to 300. */
-{ kind: "number"; integer: boolean; min: number | null; max: number | null } | { kind: "boolean" } | 
+/**
+ *  Bounds come from the type where it has them, and from the integer width otherwise.
+ * 
+ *  **Exclusive ends are real, not a rounding of inclusive ones.** `raster_levels.contrast` and
+ *  `gamma` are "above `0`" - zero itself is refused - and until [vt#260] nothing could say so:
+ *  Studio's table dropped them rather than approximate, and upstream had no way to state them.
+ *  `Bounds` carries the flags now, so a form can too.
+ * 
+ *  [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+ */
+{ kind: "number"; integer: boolean; min: number | null; max: number | null; 
+/**  `min` is the first value *not* accepted. */
+minExclusive: boolean; 
+/**  `max` is the first value *not* accepted. */
+maxExclusive: boolean } | { kind: "boolean" } | 
 /**  An enum, with every accepted spelling. */
 { kind: "choice"; options: string[] } | 
 /**  `Vec<String>` - a list of values, written as a VPL array. */

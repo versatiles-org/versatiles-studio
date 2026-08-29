@@ -11,12 +11,17 @@
 //! has to be read directly. The two meet in the form, which does not care which end an answer came
 //! from.
 //!
-//! **Which fields name a column is the role table's answer, not a list here.** `semantics.rs`
-//! already records it as `Names::ColumnOf(sibling)` - including which sibling field holds the file -
-//! so a second list here could only ever agree with it or drift from it, and it drifted:
-//! `vector_update_properties.id_field_data` has been a column of `data_source_path` in that table
-//! and absent from this one, so the field offered nothing while the identical fields on `from_csv`
-//! offered everything.
+//! **Which fields name a column is upstream's answer, not a list here.** `VPLFieldMeta::refers_to`
+//! records it as `FieldOf { argument }` - including which sibling argument holds the file - and the
+//! `VPLDecode` derive checks that argument exists, so renaming `filename` upstream stops the
+//! operation compiling rather than silently emptying a picker here.
+//!
+//! It was a curated table in `semantics.rs` before [vt#260], and it drifted exactly as a second list
+//! does: `vector_update_properties.id_field_data` was a column of `data_source_path` in that table
+//! and absent from the list this file used to keep, so the field offered nothing while the identical
+//! fields on `from_csv` offered everything.
+//!
+//! [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 //!
 //! Suggestions, never constraints. A file too large to have been read, a column that only appears
 //! further down, a name Studio has no opinion about - all of those leave the field exactly as
@@ -24,10 +29,11 @@
 //!
 //! [Q29]: ../../docs/decisions.md
 
-use crate::vpl::{Names, Node, Pipeline, Role, registry, role_of};
+use crate::vpl::{Node, Pipeline, registry};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
+use versatiles_pipeline::vpl::FieldReference;
 
 /// What one field could be set to.
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -54,7 +60,12 @@ pub fn for_node(node: &Node, dir: &Path) -> Vec<FieldSuggestion> {
 	let mut out = Vec::new();
 
 	for field in &meta.fields {
-		let Some(Role::Names(Names::ColumnOf(sibling))) = role_of(&node.name, &field.name) else {
+		// **Upstream says which argument holds the file.** This was a curated table here until [vt#260]
+		// gave the metadata `refers_to` - the one fact on the argument surface no newtype could carry,
+		// because it is a relationship between two arguments rather than a property of one.
+		//
+		// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+		let Some(FieldReference::FieldOf { argument: sibling }) = field.refers_to else {
 			continue;
 		};
 		let columns = read.entry(sibling).or_insert_with(|| columns_of(node, sibling, dir));
@@ -205,7 +216,7 @@ mod tests {
 			let mut vpl = meta.tag_name.clone();
 			let mut wanted = Vec::new();
 			for field in &meta.fields {
-				if let Some(Role::Names(Names::ColumnOf(sibling))) = role_of(&meta.tag_name, &field.name) {
+				if let Some(FieldReference::FieldOf { argument: sibling }) = field.refers_to {
 					wanted.push(field.name.clone());
 					let file = format!("{}-{sibling}.csv", meta.tag_name);
 					std::fs::write(dir.join(&file), "lon,lat,name\n1,2,here\n").expect("writing a test csv");

@@ -135,9 +135,15 @@ export function summarise(field: FieldInfo): string {
 	switch (control.kind) {
 		case 'number':
 			type = control.integer ? 'whole number' : 'number';
-			if (control.min !== null && control.max !== null) type += ` ${control.min}-${control.max}`;
-			else if (control.min !== null) type += ` from ${control.min}`;
-			else if (control.max !== null) type += ` up to ${control.max}`;
+			// `0-30` reads best when both ends are included, which is the common case. An excluded end
+			// has to be said in words - `gamma` accepts anything above 0 and not 0 itself, and writing
+			// that as `0-` would be a different, wrong promise.
+			if (control.min !== null && control.max !== null && !control.minExclusive && !control.maxExclusive) {
+				type += ` ${control.min}-${control.max}`;
+			} else {
+				if (control.min !== null) type += control.minExclusive ? ` above ${control.min}` : ` from ${control.min}`;
+				if (control.max !== null) type += control.maxExclusive ? ` below ${control.max}` : ` up to ${control.max}`;
+			}
 			break;
 		case 'boolean':
 			type = 'true or false';

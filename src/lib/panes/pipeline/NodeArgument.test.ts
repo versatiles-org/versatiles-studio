@@ -124,7 +124,7 @@ describe('which parameters offer a file picker', () => {
 				required: false,
 				sources: false,
 				default: null,
-				control: { kind: 'number', integer: true, min: null, max: null }
+				control: { kind: 'number', integer: true, min: null, max: null, minExclusive: false, maxExclusive: false }
 			},
 			onCommit: () => {}
 		});

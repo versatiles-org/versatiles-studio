@@ -9,10 +9,10 @@
 //! operation upstream appears in Studio's forms with no work here at all - which is the point of
 //! generating them ([architecture](../../../docs/architecture.md)).
 
-use super::semantics::{Role, role_of};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::OnceLock;
+use versatiles_pipeline::vpl::VPLFieldMeta;
 use versatiles_pipeline::{OperationMeta, all_operation_metadata};
 
 /// Operations by name, built once. `all_operation_metadata()` walks every factory on each call.
@@ -48,13 +48,25 @@ pub enum Control {
 	/// path a path is what the operation *does* with it, which only the parameter's name says -
 	/// so this is the one control decided by name rather than by type. See [`is_path`].
 	Path,
-	/// `min`/`max` come from the integer width, so a zoom level cannot be set to 300.
+	/// Bounds come from the type where it has them, and from the integer width otherwise.
+	///
+	/// **Exclusive ends are real, not a rounding of inclusive ones.** `raster_levels.contrast` and
+	/// `gamma` are "above `0`" - zero itself is refused - and until [vt#260] nothing could say so:
+	/// Studio's table dropped them rather than approximate, and upstream had no way to state them.
+	/// `Bounds` carries the flags now, so a form can too.
+	///
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+	#[serde(rename_all = "camelCase")]
 	Number {
 		integer: bool,
 		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
 		min: Option<f64>,
 		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
 		max: Option<f64>,
+		/// `min` is the first value *not* accepted.
+		min_exclusive: bool,
+		/// `max` is the first value *not* accepted.
+		max_exclusive: bool,
 	},
 	Boolean,
 	/// An enum, with every accepted spelling.
@@ -88,41 +100,34 @@ pub enum Control {
 	Bbox,
 }
 
-/// Whether a parameter names a file on this machine.
-///
-/// **By name, because nothing else says so.** Every one of these is a `String` upstream, and their
-/// documentation says it in prose or not at all - `filter`'s `filename` and `from_container`'s
-/// `ssh_identity` never use the word. So the names are listed, and `path_fields_are_all_named`
-/// holds the list against the whole registry rather than trusting it.
-///
-/// The suffixes are the general rule and the four names are what upstream calls the rest: a
-/// `cutline` is a GeoJSON file GDAL clips against (`cutline_path` by the time it reaches GDAL), an
-/// `ssh_identity` is a private key file, and `raster_mask`'s `geojson` is the polygon to mask with.
-///
-/// A URL is not one of these: `from_tilejson`'s `url` is somewhere else entirely, and a picker
-/// offering the local disk for it would be answering the wrong question.
-fn is_path(name: &str) -> bool {
-	matches!(name, "filename" | "geojson" | "cutline" | "ssh_identity")
-		|| name.ends_with("_file")
-		|| name.ends_with("_path")
+/// What a field's type is once `Option<…>` is off it, which is what every rule below reads.
+fn inner_type(rust_type: &str) -> &str {
+	rust_type
+		.strip_prefix("Option<")
+		.and_then(|rest| rest.strip_suffix('>'))
+		.unwrap_or(rust_type)
 }
 
-/// Reads a `rust_type` into the control that fits it.
+/// Reads a field's metadata into the control that fits it.
 ///
-/// Unknown types fall back to text rather than failing. A parameter upstream adds in a shape we do
-/// not recognise should still be editable - as the string it is written as, which is what VPL
-/// stores anyway.
-fn control_for(operation: &str, name: &str, rust_type: &str, enum_variants: &[&'static str]) -> Control {
-	if !enum_variants.is_empty() {
+/// **Almost entirely upstream's answer now.** Every rule here reads something `VPLFieldMeta` states -
+/// the type, the variants, the bounds - rather than a table of Studio's own. That table used to hold
+/// 67 entries recovering meaning the metadata could not carry; [vt#260] moved the lot upstream, and
+/// this is what is left of reading it.
+///
+/// Unknown types still fall back to text rather than failing. A parameter upstream adds in a shape we
+/// do not recognise should still be editable, as the string VPL stores anyway -
+/// `only_a_string_falls_back_to_text` is what stops that fallback going quiet.
+///
+/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+fn control_for(field: &VPLFieldMeta) -> Control {
+	if !field.enum_variants.is_empty() {
 		return Control::Choice {
-			options: enum_variants.iter().map(|v| (*v).to_string()).collect(),
+			options: field.enum_variants.iter().map(|v| (*v).to_string()).collect(),
 		};
 	}
 
-	let inner = rust_type
-		.strip_prefix("Option<")
-		.and_then(|rest| rest.strip_suffix('>'))
-		.unwrap_or(rust_type);
+	let inner = inner_type(&field.rust_type);
 
 	if inner == "bool" {
 		return Control::Boolean;
@@ -131,81 +136,56 @@ fn control_for(operation: &str, name: &str, rust_type: &str, enum_variants: &[&'
 		return Control::List;
 	}
 
-	// **What upstream says outright, before what Studio guesses.** 4.11 gave several fields a type of
-	// their own - a `GeoBBox` rather than `[f64;4]`, a `HexColor` rather than a `String` ([vt#257]) -
-	// and a named type is stronger evidence than anything below can reconstruct. Read ahead of
-	// `role_of` for exactly that reason: the table is a guess about upstream maintained here, and
-	// these are upstream saying it.
-	//
-	// [vt#257]: https://github.com/versatiles-org/versatiles-rs/issues/257
+	// **The types upstream named.** Each of these was once inferred here from a shape, a field name or
+	// a doc phrase; every one of those guesses is now a type that says it outright ([vt#257], #260).
 	match inner {
 		"GeoBBox" => return Control::Bbox,
 		"HexColor" => return Control::Color { hex: true },
 		"SeparatorChar" | "CsvDelimiter" => return Control::Char,
+		"FilePath" | "SourceLocation" => return Control::Path,
+		// `[lon, lat, zoom]`, which was `[f64;3]` until #260 named it. Three numbers is what it was
+		// offered as then and what it is offered as now; a point picked off the map would be better,
+		// and is a feature rather than a way of reading metadata.
+		"GeoCenter" => return Control::Numbers { count: 3 },
 		_ => {}
 	}
 
-	let role = role_of(operation, name);
+	// **A range the type carries, in preference to the range the type merely permits.** A `ZoomLevel`
+	// is `0..=30` and a `u8` is `0..=255`; before #260 only the second was knowable here, which is how
+	// an EPSG code came to be offered as a box accepting four billion values. `bounds` is upstream
+	// stating the real one, so it is read before the integer-width fallback below.
+	if let Some(bounds) = &field.bounds {
+		return Control::Number {
+			integer: bounds.integer,
+			min: bounds.min,
+			max: bounds.max,
+			min_exclusive: bounds.min.is_some() && !bounds.min_inclusive,
+			max_exclusive: bounds.max.is_some() && !bounds.max_inclusive,
+		};
+	}
 
 	if let Some(count) = fixed_array_len(inner) {
-		// Three numbers are a colour when the table says so, and a colour is not three numbers to
-		// anyone choosing one. `from_color` needs no such rule since 4.11 typed it `HexColor`; this is
-		// `raster_flatten` alone, until upstream types that too ([vt#260]).
-		//
-		// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
-		if count == 3 && role == Some(Role::Color) {
-			return Control::Color { hex: false };
-		}
-		// No rectangle rule here any more. Every bbox was `[f64;4]` and had to be told apart from any
-		// other four numbers by the curated table; 4.11 made them all `GeoBBox`, which the match above
-		// reads. A four-array reaching this point is now genuinely four numbers.
 		return Control::Numbers { count };
 	}
 
-	// **A set, not a range.** `tile_size` is a `u32` by type and "`256` or `512`" by meaning, so the
-	// type alone offers a box that accepts 400 and an operation that then refuses it. The set is in
-	// `semantics.rs` and, like the rectangles, nothing had ever read it - the two spellings of "this
-	// field has a short list of answers" were a Rust enum, which arrives in `enum_variants` above,
-	// and a documented list on a plain number, which arrived nowhere.
-	if let Some(Role::Choice(options)) = role {
-		return Control::Choice {
-			options: options.iter().map(|option| (*option).to_string()).collect(),
-		};
-	}
-	// Checked after the shapes above rather than first: a name is the weakest evidence here, and a
-	// parameter that upstream types as a number or an enum is that whatever it is called.
-	if is_path(name) {
-		return Control::Path;
-	}
-
 	match inner {
-		"u8" => number(true, 0.0, f64::from(u8::MAX)),
-		"u16" => number(true, 0.0, f64::from(u16::MAX)),
-		"u32" => number(true, 0.0, f64::from(u32::MAX)),
-		"u64" | "usize" => Control::Number {
-			integer: true,
-			min: Some(0.0),
-			max: None,
-		},
-		"i8" | "i16" | "i32" | "i64" | "isize" => Control::Number {
-			integer: true,
-			min: None,
-			max: None,
-		},
-		"f32" | "f64" => Control::Number {
-			integer: false,
-			min: None,
-			max: None,
-		},
+		"u8" => number(true, Some(0.0), Some(f64::from(u8::MAX))),
+		"u16" => number(true, Some(0.0), Some(f64::from(u16::MAX))),
+		"u32" => number(true, Some(0.0), Some(f64::from(u32::MAX))),
+		"u64" | "usize" => number(true, Some(0.0), None),
+		"i8" | "i16" | "i32" | "i64" | "isize" => number(true, None, None),
+		"f32" | "f64" => number(false, None, None),
 		_ => Control::Text,
 	}
 }
 
-fn number(integer: bool, min: f64, max: f64) -> Control {
+fn number(integer: bool, min: Option<f64>, max: Option<f64>) -> Control {
 	Control::Number {
 		integer,
-		min: Some(min),
-		max: Some(max),
+		min,
+		max,
+		min_exclusive: false,
+		max_exclusive: false,
 	}
 }
 
@@ -282,7 +262,7 @@ pub fn operations() -> Vec<OperationInfo> {
 					doc: field.doc.clone(),
 					required: field.is_required,
 					sources: field.is_sources,
-					control: control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants),
+					control: control_for(field),
 					default: field.default.clone(),
 				})
 				.collect(),
@@ -382,123 +362,6 @@ mod tests {
 		}
 	}
 
-	/// What a field's type is once `Option<…>` is off it, which is what the rules below read.
-	fn inner_type(rust_type: &str) -> &str {
-		rust_type
-			.strip_prefix("Option<")
-			.and_then(|rest| rest.strip_suffix('>'))
-			.unwrap_or(rust_type)
-	}
-
-	/// **Three bytes are a colour, whatever the field is called.**
-	///
-	/// `every_colour_in_the_registry_is_a_swatch` holds the table against itself - it checks that each
-	/// field `ROLES` *calls* a colour is offered as one, which by construction cannot see a colour the
-	/// table has never heard of. The rectangles escaped that by matching the field's **name**; a colour
-	/// has no name to match on, because `color`, `background`, `fill` and `tint` are all plausible and
-	/// none is canonical.
-	///
-	/// It has a shape instead. `[u8;3]` is three channels of `0..=255`, and nothing in this registry
-	/// spells anything else that way. `[f64;3]` is deliberately not included: `meta_update.center` is
-	/// `[lon, lat, zoom]`, three numbers that are emphatically not a colour - which is why this is a
-	/// rule about one exact type rather than about "three of something".
-	///
-	/// **This whole test is a stand-in for a type.** `from_color` needed no such rule once 4.11 made it
-	/// a `HexColor`; [vt#260] asks upstream to do the same to `raster_flatten`, and when it does, both
-	/// this and the `ROLES` entry it guards are deleted rather than maintained.
-	///
-	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
-	#[test]
-	fn three_bytes_are_a_colour_whatever_the_field_is_called() {
-		let missed: Vec<String> = registry()
-			.values()
-			.flat_map(|meta| {
-				meta.fields.iter().filter_map(move |field| {
-					let is_three_bytes = inner_type(&field.rust_type).replace(' ', "") == "[u8;3]";
-					let control = control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants);
-					(is_three_bytes && !matches!(control, Control::Color { .. }))
-						.then(|| format!("{}.{}", meta.tag_name, field.name))
-				})
-			})
-			.collect();
-
-		assert!(
-			missed.is_empty(),
-			"three bytes is a colour and these are offered as bare numbers - add them to `ROLES` in \
-			 semantics.rs: {missed:?}"
-		);
-	}
-
-	/// The pair a doc spells as `` `A` or `B` ``, when it spells one.
-	fn alternation(doc: &str) -> Option<(&str, &str)> {
-		let (before, after) = doc.split_once("` or `")?;
-		Some((before.rsplit('`').next()?, after.split('`').next()?))
-	}
-
-	/// **Every tile size offers its set, including the two that never say what it is.**
-	///
-	/// `every_tabulated_set_is_a_selection` holds `ROLES` against itself: it checks that each field the
-	/// table *calls* a set is offered as one, and so cannot see a set the table has never heard of.
-	/// The obvious repair was to read the prose - `256` or `512` is right there in the documentation -
-	/// and it does not work. Of the five tile sizes upstream, `from_gdal_dem` and `from_gdal_raster`
-	/// document theirs as "Tile size in pixels. Defaults to `512`." and never name the alternative at
-	/// all. A rule reading the set out of the sentence would have missed two of the five fields it
-	/// exists for, and passed while doing it.
-	///
-	/// So it matches the phrase the five share rather than the values only three print. A tile size
-	/// added upstream arrives documented like its siblings and fails this until someone tabulates it.
-	///
-	/// Where a doc *does* spell the set, it is held against the table too, so a `1024` upstream starts
-	/// accepting is a failure here rather than a third option the form silently refuses to offer.
-	#[test]
-	fn every_tile_size_in_the_registry_offers_its_set() {
-		let mut seen = 0;
-		for operation in operations() {
-			for field in operation.fields {
-				if !field.doc.to_lowercase().contains("tile size in pixels") {
-					continue;
-				}
-				seen += 1;
-				let where_ = format!("{}.{}", operation.name, field.name);
-				let Control::Choice { options } = &field.control else {
-					panic!("{where_} is documented as a tile size and offers {:?}", field.control);
-				};
-				if let Some((a, b)) = alternation(&field.doc) {
-					assert_eq!(
-						options,
-						&[a.to_string(), b.to_string()],
-						"{where_} says {:?}",
-						field.doc
-					);
-				}
-			}
-		}
-		assert!(seen >= 5, "the tile sizes stopped being documented alike: found {seen}");
-	}
-
-	/// **The phrase is doing work a name could not**, so the case that proves it is held here.
-	/// `from_grid.size` is an edge length in the CRS's own units - metres, or degrees - and any
-	/// number is a legitimate answer. It is one of two fields upstream calls `size`; the other is
-	/// `from_color`'s, which is a tile size and takes two values. Matching the name offers this one a
-	/// choice of `256` or `512`, which is not a narrower version of the truth but a different field.
-	#[test]
-	fn a_cell_size_is_not_a_tile_size() {
-		let cell = field("from_grid", "size");
-		// 4.11 renamed `from_color`'s to `tile_size`, so the two are no longer spelled alike - but
-		// `from_grid.size` is still a `size` that is not a tile size, and the doc phrase is still what
-		// tells them apart. Asserted so that a name rule reintroduced later fails here.
-		assert!(
-			matches!(field("from_color", "tile_size").control, Control::Choice { .. }),
-			"the field this is contrasted with is gone"
-		);
-		assert!(
-			!cell.doc.to_lowercase().contains("tile size in pixels"),
-			"{:?}",
-			cell.doc
-		);
-		assert!(matches!(cell.control, Control::Number { .. }), "{:?}", cell.control);
-	}
-
 	/// **Only a string may fall back to plain text**, because reaching the fallback means the type was
 	/// not recognised.
 	///
@@ -519,15 +382,37 @@ mod tests {
 	/// feature; when it exists, `QualityByZoom` comes off this list.
 	#[test]
 	fn only_a_string_falls_back_to_text() {
-		const KNOWN_TEXT_TYPES: &[&str] = &["String", "MaxTileBytes", "QualityByZoom"];
+		const KNOWN_TEXT_TYPES: &[&str] = &[
+			"String",
+			// A byte count *or* the word `none`, so a number control could not express half of it.
+			"MaxTileBytes",
+			// A whole per-zoom curve in one string - `0-10:80,11-14:90` - which is a small language.
+			"QualityByZoom",
+			// Source text in a language of its own. An editor with highlighting would be better than a
+			// line, and is a feature; text is the honest control until there is one.
+			"CelExpression",
+			"RegexPattern",
+			"TileJSON",
+			"VectorLayers",
+			// A URL. Text is right - the picker beside a `FilePath` would be answering the wrong
+			// question, which is why `from_tilejson.url` has always been kept away from one.
+			"HttpUrl",
+			// Numbers, but in the dataset's own CRS rather than in degrees: `bounds` is `west,south,
+			// east,north` in the units of `crs`, and `geo_transform` is GDAL's six coefficients. The
+			// map cannot draw either, and a fixed row of number boxes would imply it could.
+			"CrsExtent",
+			"RasterTransform",
+			// Lists of numbers of no fixed length - which bands to read, what counts as nodata.
+			"BandIndices",
+			"NodataValues",
+		];
 
 		let unrecognised: Vec<String> = registry()
 			.values()
 			.flat_map(|meta| {
 				meta.fields.iter().filter_map(move |field| {
 					let inner = inner_type(&field.rust_type);
-					let text =
-						control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants) == Control::Text;
+					let text = control_for(field) == Control::Text;
 					(text && !field.is_sources && !KNOWN_TEXT_TYPES.contains(&inner))
 						.then(|| format!("{}.{} :: {}", meta.tag_name, field.name, field.rust_type))
 				})
@@ -549,15 +434,54 @@ mod tests {
 		assert_eq!(field("from_tilejson", "url").control, Control::Text);
 	}
 
-	/// The bound is the point: a zoom level is a `u8`, so the control cannot offer 300.
+	/// **The bound the type states, not the one its width permits.**
+	///
+	/// `min_zoom` was a `u8` and got `0..=255` here - a control that offered 300 zoom levels because
+	/// nothing could say otherwise. [vt#260] gave it a `ZoomLevel` carrying `0..=30`, and `crs` an
+	/// `EpsgCode` carrying `1024..=32766` where it used to offer four billion values.
+	///
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 	#[test]
-	fn an_integer_carries_the_range_of_its_type() {
+	fn a_bounded_type_carries_its_own_range() {
 		assert_eq!(
 			field("from_csv", "min_zoom").control,
 			Control::Number {
 				integer: true,
 				min: Some(0.0),
-				max: Some(255.0)
+				max: Some(30.0),
+				min_exclusive: false,
+				max_exclusive: false
+			}
+		);
+		assert_eq!(
+			field("from_gdal_raster", "crs").control,
+			Control::Number {
+				integer: true,
+				min: Some(1024.0),
+				max: Some(32766.0),
+				min_exclusive: false,
+				max_exclusive: false
+			}
+		);
+	}
+
+	/// **An exclusive end is carried, not rounded to an inclusive one.**
+	///
+	/// `gamma` is "above `0`" - zero is refused, and so is every value below it, but there is no
+	/// smallest accepted float to put in `min`. Studio's old table dropped these two rather than
+	/// approximate them; upstream had no way to state them at all until [vt#260].
+	///
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+	#[test]
+	fn a_bound_that_excludes_its_own_end_says_so() {
+		assert_eq!(
+			field("raster_levels", "gamma").control,
+			Control::Number {
+				integer: false,
+				min: Some(0.0),
+				max: None,
+				min_exclusive: true,
+				max_exclusive: false
 			}
 		);
 	}
@@ -569,7 +493,9 @@ mod tests {
 			Control::Number {
 				integer: false,
 				min: None,
-				max: None
+				max: None,
+				min_exclusive: false,
+				max_exclusive: false
 			}
 		);
 	}
@@ -610,28 +536,6 @@ mod tests {
 		);
 	}
 
-	/// **Every documented set is offered as one.** `semantics.rs` is a curated table and the registry
-	/// is not: an operation arrives with a field that takes two values out of a hundred, nobody adds
-	/// it, and the form offers a number box that accepts all hundred. Held against the registry
-	/// rather than against a memory of it, the same way the paths and the rectangles are.
-	#[test]
-	fn every_tabulated_set_is_a_selection() {
-		let missed: Vec<String> = operations()
-			.iter()
-			.flat_map(|operation| {
-				operation
-					.fields
-					.iter()
-					.filter(|field| {
-						matches!(role_of(&operation.name, &field.name), Some(Role::Choice(_)))
-							&& !matches!(field.control, Control::Choice { .. })
-					})
-					.map(|field| format!("{}.{}", operation.name, field.name))
-			})
-			.collect();
-		assert!(missed.is_empty(), "these should offer their set: {missed:?}");
-	}
-
 	/// The one that exists today, spelled out - so a change to the set is a change to this line.
 	#[test]
 	fn a_tile_size_is_offered_as_two_sizes_rather_than_a_number() {
@@ -662,50 +566,32 @@ mod tests {
 	///
 	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 	#[test]
-	fn a_colour_is_hex_or_three_numbers_depending_on_the_operation() {
+	fn both_colours_are_the_same_control_now() {
+		// `raster_flatten` was `[u8;3]` and needed an entry in a table here to be recognised at all
+		// ([vt#260]). Both are `HexColor`, so both are the same swatch, and nothing here has to know.
+		//
+		// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 		assert_eq!(field("from_color", "color").control, Control::Color { hex: true });
-		assert_eq!(field("raster_flatten", "color").control, Control::Color { hex: false });
+		assert_eq!(field("raster_flatten", "color").control, Control::Color { hex: true });
 	}
 
-	/// Every colour the table names is offered as one.
-	#[test]
-	fn every_colour_in_the_registry_is_a_swatch() {
-		let missed: Vec<String> = operations()
-			.iter()
-			.flat_map(|operation| {
-				operation
-					.fields
-					.iter()
-					.filter(|field| {
-						role_of(&operation.name, &field.name) == Some(Role::Color)
-							&& !matches!(field.control, Control::Color { .. })
-					})
-					.map(|field| format!("{}.{}", operation.name, field.name))
-			})
-			.collect();
-		assert!(missed.is_empty(), "these should offer a swatch: {missed:?}");
-	}
-
-	/// And a swatch is offered only where a colour was actually established - by the type, or by the
-	/// table where the type cannot say it. A field merely *named* `color` gets nothing.
-	///
-	/// Two sources rather than one because the registry currently spells colours both ways: 4.11 typed
-	/// `from_color` a `HexColor`, and `raster_flatten` is still `[u8;3]` ([vt#260]). When that lands,
-	/// the second half of this goes with it.
+	/// A swatch is offered only where upstream typed a colour. A field merely *named* `color` gets
+	/// nothing, and neither does one that is three bytes: [vt#260] made both spellings `HexColor`, so
+	/// there is one source for this now rather than a type and a table.
 	///
 	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 	#[test]
-	fn only_an_established_colour_is_a_swatch() {
+	fn only_a_typed_colour_is_a_swatch() {
 		let wrong: Vec<String> = registry()
 			.values()
 			.flat_map(|meta| {
-				meta.fields.iter().filter_map(move |field| {
-					let control = control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants);
-					let established = inner_type(&field.rust_type) == "HexColor"
-						|| role_of(&meta.tag_name, &field.name) == Some(Role::Color);
-					(matches!(control, Control::Color { .. }) && !established)
-						.then(|| format!("{}.{} :: {}", meta.tag_name, field.name, field.rust_type))
-				})
+				meta
+					.fields
+					.iter()
+					.filter(|field| {
+						matches!(control_for(field), Control::Color { .. }) && inner_type(&field.rust_type) != "HexColor"
+					})
+					.map(move |field| format!("{}.{} :: {}", meta.tag_name, field.name, field.rust_type))
 			})
 			.collect();
 		assert!(wrong.is_empty(), "not colours: {wrong:?}");
@@ -721,11 +607,11 @@ mod tests {
 		let wrong: Vec<String> = registry()
 			.values()
 			.flat_map(|meta| {
-				meta.fields.iter().filter_map(move |field| {
-					let control = control_for(&meta.tag_name, &field.name, &field.rust_type, &field.enum_variants);
-					(control == Control::Bbox && inner_type(&field.rust_type) != "GeoBBox")
-						.then(|| format!("{}.{} :: {}", meta.tag_name, field.name, field.rust_type))
-				})
+				meta
+					.fields
+					.iter()
+					.filter(|field| control_for(field) == Control::Bbox && inner_type(&field.rust_type) != "GeoBBox")
+					.map(move |field| format!("{}.{} :: {}", meta.tag_name, field.name, field.rust_type))
 			})
 			.collect();
 		assert!(wrong.is_empty(), "not rectangles: {wrong:?}");
@@ -775,14 +661,28 @@ mod tests {
 		);
 	}
 
+	/// A field with nothing but a type name, for asking `control_for` about a shape the registry does
+	/// not currently contain.
+	fn synthetic(rust_type: &str) -> VPLFieldMeta {
+		VPLFieldMeta {
+			name: "whatever".to_string(),
+			rust_type: rust_type.to_string(),
+			is_required: false,
+			is_sources: false,
+			doc: String::new(),
+			enum_variants: Vec::new(),
+			bounds: None,
+			refers_to: None,
+			validate: None,
+			default: None,
+		}
+	}
+
 	/// An unrecognised type is still editable, as the string VPL stores anyway.
 	#[test]
 	fn an_unknown_type_falls_back_to_text() {
-		assert_eq!(
-			control_for("from_csv", "whatever", "Option<SomethingNew>", &[]),
-			Control::Text
-		);
-		assert_eq!(control_for("from_csv", "whatever", "[String;2]", &[]), Control::Text);
+		assert_eq!(control_for(&synthetic("Option<SomethingNew>")), Control::Text);
+		assert_eq!(control_for(&synthetic("[String;2]")), Control::Text);
 	}
 
 	#[test]
