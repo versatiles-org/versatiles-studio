@@ -364,10 +364,20 @@ pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> R
 /// implementation serve every format: a GeoJSON, a shapefile and a CSV all arrive here as vector
 /// tiles with layers and property keys, and a format Studio has never heard of would too.
 ///
-/// One tile, not a survey. The tile chosen is the one at the lowest zoom that covers the middle of
-/// the source's own bounds, which for the small-to-middling files an import produces holds every
-/// feature. A property that appears only in a corner of a planet-sized extract will be missed -
-/// this is a list of suggestions, and the field it feeds still accepts anything typed into it.
+/// One tile, not a survey. The tile is the one covering the middle of the source's own bounds, at the
+/// deepest zoom that decodes to anything.
+///
+/// **Deepest rather than shallowest**, which is the opposite of what this did. Taking the lowest zoom
+/// is right for the small-to-middling files an import produces, where every feature is in the one
+/// tile - and wrong for a container with a real pyramid, where the low zooms are generalised down to
+/// almost nothing: `berlin.versatiles` answers with no layers at zoom 0, four at zoom 6 and fourteen
+/// at zoom 14. Every full pyramid opened in Studio had an empty layers panel because of it.
+///
+/// Going down from the deepest rather than up from the shallowest also handles the sparse case: a
+/// centre tile with nothing in it at zoom 14 is skipped for one that has something.
+///
+/// A property that appears only in a corner of a planet-sized extract will still be missed - this is
+/// a list of suggestions, and the field it feeds still accepts anything typed into it.
 ///
 /// Empty for raster sources, and for a pyramid with no tiles in it. Never an error: a probe that
 /// fails should cost the caller its suggestions, not its import.
@@ -377,15 +387,19 @@ pub async fn probe_layers(source: &SharedTileSource, info: &ContainerInfo) -> Ve
 	let Some([west, south, east, north]) = info.bbox else {
 		return Vec::new();
 	};
-	let Ok(coord) = TileCoord::from_geo((west + east) / 2.0, (south + north) / 2.0, info.min_zoom) else {
-		return Vec::new();
-	};
-
-	match inspect_tile(source, coord.level, coord.x, coord.y).await {
-		Ok(Some(tile)) => tile.layers,
-		// A raster tile does not decode as a vector, and that is not news - it is the answer.
-		Ok(None) | Err(_) => Vec::new(),
+	for level in (info.min_zoom..=info.max_zoom).rev() {
+		let Ok(coord) = TileCoord::from_geo((west + east) / 2.0, (south + north) / 2.0, level) else {
+			continue;
+		};
+		match inspect_tile(source, coord.level, coord.x, coord.y).await {
+			Ok(Some(tile)) if !tile.layers.is_empty() => return tile.layers,
+			// A raster tile does not decode as a vector, and that is not news - it is the answer, and
+			// it will be the same answer at every other zoom.
+			Ok(None) => return Vec::new(),
+			Ok(Some(_)) | Err(_) => continue,
+		}
 	}
+	Vec::new()
 }
 
 #[cfg(test)]

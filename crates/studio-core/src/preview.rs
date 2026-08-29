@@ -92,6 +92,58 @@ pub async fn build_reusing(
 	Ok((Arc::new(reader), BuiltHead { key, source }))
 }
 
+/// What arrives at the node at `index` in the top-level chain, reusing an already-built read node.
+///
+/// **The input, not the output.** A `vector_filter_layers` is asked which layers it should keep, and
+/// the answer is what reaches it - including the ones it is currently removing, which are exactly the
+/// ones someone reconsidering the filter wants to see. So the prefix stops *before* the node.
+///
+/// `index` is a position in the pipeline as written. `0` is the read node, whose input is nothing, so
+/// there is no source to describe and this answers `None`.
+///
+/// Cheap because of [`build_reusing`]: the transforms before a node parse their parameters and wrap
+/// their input, and the read node they wrap is the one already built for the preview.
+pub async fn source_before(
+	runtime: &TilesRuntime,
+	pipeline: VPLPipeline,
+	dir: &Path,
+	index: usize,
+	reusable: Option<&BuiltHead>,
+) -> Result<Option<(SharedTileSource, BuiltHead)>> {
+	if index == 0 {
+		return Ok(None);
+	}
+	let (node, tail) = pipeline.split().context("splitting the pipeline")?;
+	if index > tail.len() {
+		return Ok(None);
+	}
+
+	let key = format!("{}\n{node}", dir.display());
+	let source = match reusable.filter(|head| head.key == key) {
+		Some(head) => head.source.clone(),
+		None => {
+			let factory = PipelineFactory::new_runtime_reader(dir, runtime.clone());
+			SharedTileSource::from(
+				factory
+					.read_operation_from_node(node)
+					.await
+					.context("building the source")?,
+			)
+		}
+	};
+
+	let reader = PipelineReader::from_parts(
+		source.clone(),
+		tail[..index - 1].to_vec(),
+		"preview",
+		dir,
+		runtime.clone(),
+	)
+	.await
+	.context("building the pipeline")?;
+	Ok(Some((Arc::new(reader), BuiltHead { key, source })))
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

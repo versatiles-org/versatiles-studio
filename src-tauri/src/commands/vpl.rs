@@ -990,7 +990,30 @@ pub async fn field_suggestions(
 		};
 		(document, project.dir.clone())
 	};
-	Ok(studio_core::suggest::for_pipeline(document.pipeline(), &dir))
+	let mut found = studio_core::suggest::for_pipeline(document.pipeline(), &dir);
+
+	// **The half that needs the pipeline built.** Three fields name a layer of what reaches them and
+	// one names a property of its features, and none of those exist until the operations before them
+	// have run. Folded onto the read node this graph already built, so it costs a tile fetch per such
+	// node rather than a rebuild - and most graphs have none.
+	let runtime = state.server.lock().await.runtime().clone();
+	let upstream = studio_core::suggest::from_upstream(
+		&runtime,
+		document.to_pipeline(),
+		document.pipeline(),
+		&dir,
+		state.heads.get(window.label(), graph).as_ref(),
+	)
+	.await;
+
+	// Merged by path, so a node with both a CSV column and a layer field keeps both answers.
+	for node in upstream {
+		match found.iter_mut().find(|held| held.path == node.path) {
+			Some(held) => held.fields.extend(node.fields),
+			None => found.push(node),
+		}
+	}
+	Ok(found)
 }
 
 #[cfg(test)]

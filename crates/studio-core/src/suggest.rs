@@ -121,6 +121,99 @@ pub struct NodeSuggestions {
 	pub fields: Vec<FieldSuggestion>,
 }
 
+/// What a node's fields could be set to from the tiles *arriving* at it (S3.4).
+///
+/// **The other half of `for_pipeline`, and deliberately not part of it.** That one answers from
+/// files on disk and needs no runtime, no server and no build; this one has to build the pipeline up
+/// to each node it answers for. Keeping them apart means the cheap question stays cheap - a form
+/// asking about CSV columns does not pay for a tile fetch it has no use for.
+///
+/// Three fields name a layer of what reaches them and one names a property of its features
+/// ([vt#260] states which), and none of them could be answered before: a layer exists only once the
+/// operations before it have run, so no amount of reading the document finds it.
+///
+/// **One probe per node, and only for nodes that ask.** Most graphs have none. The prefix is folded
+/// onto the read node the preview already built ([`crate::preview::source_before`]), so the cost is a tile
+/// fetch rather than a rebuild.
+///
+/// **The top-level chain only.** A node nested inside `from_stacked [ … ]` has its own sub-pipeline
+/// and is left alone rather than answered wrongly; it takes the same free-text field it takes today.
+///
+/// Never an error, like the probe it wraps: a graph that will not build should cost its author
+/// suggestions, not a red pane.
+///
+/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+pub async fn from_upstream(
+	runtime: &versatiles_container::TilesRuntime,
+	pipeline: versatiles_pipeline::VPLPipeline,
+	ast: &Pipeline,
+	dir: &Path,
+	head: Option<&crate::preview::BuiltHead>,
+) -> Vec<NodeSuggestions> {
+	let mut out = Vec::new();
+	let mut carried = head.cloned();
+
+	for (index, node) in ast.nodes.iter().enumerate() {
+		let wanted = wanted_from_source(node);
+		if wanted.is_empty() {
+			continue;
+		}
+
+		let built = crate::preview::source_before(runtime, pipeline.clone(), dir, index, carried.as_ref()).await;
+		let Ok(Some((source, used))) = built else {
+			continue;
+		};
+		carried = Some(used);
+
+		let Ok(info) = crate::analysis::describe(&source, "suggest").await else {
+			continue;
+		};
+		let layers = crate::analysis::probe_layers(&source, &info).await;
+
+		let fields: Vec<FieldSuggestion> = wanted
+			.into_iter()
+			.map(|(field, reference)| FieldSuggestion {
+				field,
+				values: match reference {
+					FieldReference::LayerOfSource => layers.iter().map(|layer| layer.name.clone()).collect(),
+					_ => {
+						let mut keys: Vec<String> = layers.iter().flat_map(|layer| layer.property_keys.clone()).collect();
+						keys.sort_unstable();
+						keys.dedup();
+						keys
+					}
+				},
+			})
+			.filter(|suggestion| !suggestion.values.is_empty())
+			.collect();
+
+		if !fields.is_empty() {
+			out.push(NodeSuggestions {
+				path: index.to_string(),
+				fields,
+			});
+		}
+	}
+	out
+}
+
+/// The fields on `node` that name something in the tiles reaching it, with which thing they name.
+fn wanted_from_source(node: &Node) -> Vec<(String, FieldReference)> {
+	let Some(meta) = registry().get(&node.name) else {
+		return Vec::new();
+	};
+	meta
+		.fields
+		.iter()
+		.filter_map(|field| match field.refers_to {
+			Some(reference @ (FieldReference::LayerOfSource | FieldReference::FieldOfSource)) => {
+				Some((field.name.clone(), reference))
+			}
+			_ => None,
+		})
+		.collect()
+}
+
 fn collect(pipeline: &Pipeline, dir: &Path, path: &mut Vec<usize>, out: &mut Vec<NodeSuggestions>) {
 	for (index, node) in pipeline.nodes.iter().enumerate() {
 		path.push(index);
@@ -140,6 +233,74 @@ fn collect(pipeline: &Pipeline, dir: &Path, path: &mut Vec<usize>, out: &mut Vec
 		}
 
 		path.pop();
+	}
+}
+
+#[cfg(test)]
+mod upstream_tests {
+	use super::*;
+	use crate::vpl::Document;
+
+	fn rs_testdata() -> Option<std::path::PathBuf> {
+		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../versatiles-rs/testdata");
+		dir.exists().then_some(dir)
+	}
+
+	/// **A layer field is offered the layers that reach it.**
+	///
+	/// The one thing no amount of reading the document finds: `berlin.versatiles` names its layers
+	/// nowhere in the VPL, and a person filling in `vector_filter_layers` had to know them already or
+	/// open the file in something else.
+	#[tokio::test]
+	async fn a_layer_field_is_offered_the_layers_arriving_at_it() {
+		let Some(dir) = rs_testdata() else { return };
+		let runtime = versatiles::runtime::create_runtime();
+		let vpl = r#"from_container filename="berlin.versatiles" | vector_filter_layers filter=["streets"]"#;
+		let document = Document::parse(vpl).unwrap();
+
+		let found = from_upstream(&runtime, document.to_pipeline(), document.pipeline(), &dir, None).await;
+
+		let filter = found
+			.iter()
+			.flat_map(|node| &node.fields)
+			.find(|field| field.field == "filter")
+			.expect("the filter field should be offered its layers");
+		// Named rather than counted: the point is that these are the container's own layers, which
+		// appear nowhere in the VPL and could not be known by reading the document.
+		for expected in ["streets", "buildings", "water_polygons"] {
+			assert!(
+				filter.values.iter().any(|name| name == expected),
+				"{expected} missing from {:?}",
+				filter.values
+			);
+		}
+	}
+
+	/// **The read node is offered nothing**, because nothing reaches it - and asking would mean
+	/// building a source to describe its own input, which does not exist.
+	#[tokio::test]
+	async fn the_read_node_has_no_upstream_to_describe() {
+		let Some(dir) = rs_testdata() else { return };
+		let runtime = versatiles::runtime::create_runtime();
+		let document = Document::parse(r#"from_container filename="berlin.versatiles""#).unwrap();
+
+		let found = from_upstream(&runtime, document.to_pipeline(), document.pipeline(), &dir, None).await;
+
+		assert!(found.is_empty(), "{found:?}");
+	}
+
+	/// A graph that will not build costs its author suggestions, not an error.
+	#[tokio::test]
+	async fn a_pipeline_that_cannot_build_is_answered_with_silence() {
+		let Some(dir) = rs_testdata() else { return };
+		let runtime = versatiles::runtime::create_runtime();
+		let document =
+			Document::parse(r#"from_container filename="nothing.versatiles" | vector_filter_layers filter=["x"]"#)
+				.unwrap();
+
+		let found = from_upstream(&runtime, document.to_pipeline(), document.pipeline(), &dir, None).await;
+
+		assert!(found.is_empty(), "{found:?}");
 	}
 }
 
