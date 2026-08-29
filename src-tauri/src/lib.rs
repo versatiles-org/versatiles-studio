@@ -261,6 +261,7 @@ pub fn run() {
 				app,
 				AppState {
 					previews: Default::default(),
+					heads: Default::default(),
 					diagnostics,
 					log_dir,
 					server: Mutex::new(server),
@@ -347,6 +348,7 @@ pub fn run() {
 					// The previews it built go with the project, or a window reopened under the same
 					// label would answer from a cache about tiles that are no longer mounted ([Q61]).
 					state.previews.forget(&label);
+					state.heads.forget(&label);
 					let Some(held) = state.projects.close(&label).await else {
 						return;
 					};

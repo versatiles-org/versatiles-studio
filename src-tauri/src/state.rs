@@ -180,6 +180,11 @@ pub struct AppState {
 	/// ([Q61]). Beside `projects` rather than inside one, because it is a cache and not state a
 	/// project would be wrong without.
 	pub previews: crate::commands::vpl::Previews,
+	/// The read node each graph last built, so an edit *after* it rebuilds only the transforms
+	/// ([vt#259]). The cache above answers "nothing changed"; this one answers "the source did not".
+	///
+	/// [vt#259]: https://github.com/versatiles-org/versatiles-rs/issues/259
+	pub heads: crate::commands::vpl::Heads,
 	/// What has gone wrong this session, for the panel that lets a user copy it (S6.8).
 	///
 	/// Not behind a `Mutex` for the same reason `jobs` is not: it is `Clone` and locks its own ring.

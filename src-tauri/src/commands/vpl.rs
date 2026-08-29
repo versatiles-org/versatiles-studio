@@ -502,6 +502,37 @@ pub enum Mounted {
 #[derive(Default)]
 pub struct Previews(std::sync::Mutex<HashMap<(String, GraphId), Built>>);
 
+/// The read node each graph last built, kept so an edit to the transforms after it need not read the
+/// source again ([vt#259]).
+///
+/// **A second cache rather than a field on `Built`**, because they answer different questions and hit
+/// at different times. `Built` is "this exact pipeline, again" and is missed by every edit that
+/// changes anything; this is "the same source, a different tail" and is hit by exactly those edits -
+/// which is where the cost is. Same key, same lifetime, dropped by the same `forget`.
+///
+/// [vt#259]: https://github.com/versatiles-org/versatiles-rs/issues/259
+#[derive(Default)]
+pub struct Heads(std::sync::Mutex<HashMap<(String, GraphId), studio_core::preview::BuiltHead>>);
+
+impl Heads {
+	fn get(&self, window: &str, graph: GraphId) -> Option<studio_core::preview::BuiltHead> {
+		self.0.lock().ok()?.get(&(window.to_string(), graph)).cloned()
+	}
+
+	fn put(&self, window: &str, graph: GraphId, head: studio_core::preview::BuiltHead) {
+		if let Ok(mut held) = self.0.lock() {
+			held.insert((window.to_string(), graph), head);
+		}
+	}
+
+	/// Forgets a window's heads, when its project goes.
+	pub fn forget(&self, window: &str) {
+		if let Ok(mut held) = self.0.lock() {
+			held.retain(|(label, _), _| label != window);
+		}
+	}
+}
+
 struct Built {
 	/// The pipeline this was built from, canonically.
 	pipeline: String,
@@ -856,7 +887,11 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, at
 
 	handle.working("building the pipeline");
 	let mut server = state.server.lock().await;
-	let source = studio_core::preview::build(server.runtime(), wanted, &dir).await?;
+	// Reusing the read node when the edit was after it: a transform costs a parameter parse, while a
+	// read node costs whatever the source costs to load - seconds for a large CSV ([vt#259]).
+	let reusable = state.heads.get(&window, graph);
+	let (source, head) = studio_core::preview::build_reusing(server.runtime(), wanted, &dir, reusable.as_ref()).await?;
+	state.heads.put(&window, graph, head);
 
 	handle.working("reading what it produces");
 	let info = studio_core::analysis::describe(&source, "preview").await?;
