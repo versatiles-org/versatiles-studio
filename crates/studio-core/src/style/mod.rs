@@ -167,7 +167,7 @@ impl LayerOverride {
 ///
 /// **Derived, and overridable.** The webview works it out from the schema, falling back to the tile
 /// format and the layers the probe found. That answer is a guess whenever the schema is absent, so
-/// [`Recipe::kind`] exists to let someone correct it - a DEM written before `tile_schema` existed is
+/// [`SourceStyle::kind`] exists to let someone correct it - a DEM written before `tile_schema` existed is
 /// otherwise indistinguishable from a photograph, and no amount of looking at the pixels decides it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]

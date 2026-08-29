@@ -36,17 +36,25 @@ pub enum Control {
 	///
 	/// `SeparatorChar` and `CsvDelimiter` refuse a second one where the value is decoded rather than
 	/// when the file is read ([vt#257]), so a box that takes a word offers something the operation
-	/// will reject. Studio has called these fields `Char` in [`semantics`] since before upstream had
-	/// a type for them; 4.11 is where the type caught up and the control became worth drawing.
+	/// will reject. Studio called these fields `Char` in a table of its own since before upstream had
+	/// a type for them; 4.11 is where the type caught up, the control became worth drawing, and the
+	/// table stopped being needed ([vt#260]).
 	///
 	/// [vt#257]: https://github.com/versatiles-org/versatiles-rs/issues/257
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 	Char,
 	/// A file this machine has: edited as text, and with a file picker beside it.
 	///
-	/// **Not a `rust_type`.** Upstream spells every one of these `String` or `Option<String>`,
-	/// because VPL stores a path as text and so does everything downstream of it. What makes a
-	/// path a path is what the operation *does* with it, which only the parameter's name says -
-	/// so this is the one control decided by name rather than by type. See [`is_path`].
+	/// **Decided by type, which it was not always.** Every one of these used to be `String`
+	/// upstream - VPL stores a path as text and so does everything downstream of it - so Studio
+	/// picked them out by parameter *name*, the one control it decided that way. [vt#260] gave them
+	/// types (`FilePath`, `SourceLocation`, and the two that refuse a wrong extension outright,
+	/// `GeoDataPath` and `TileFilePath`), and the name list went with the guess.
+	///
+	/// Which files the picker offers is [`FieldInfo::accepts`], stated per argument rather than
+	/// inferred from the node.
+	///
+	/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 	Path,
 	/// Bounds come from the type where it has them, and from the integer width otherwise.
 	///

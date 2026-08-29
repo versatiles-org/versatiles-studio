@@ -186,9 +186,10 @@ pub struct Pipeline {
 impl Pipeline {
 	/// The node at `path` - a node index, then pairs of source and node index.
 	///
-	/// The inverse of what [`node_at`](Self::node_at) returns, and the same shape
-	/// [`preview::up_to`](crate::preview::up_to) walks: a selection is a path, and anything asked
-	/// about the selection has to be able to follow one.
+	/// The inverse of what [`node_at`](Self::node_at) returns, and the shape everything that speaks
+	/// about one node uses: `validate` turns a problem's path back into a span this way, `graphs`
+	/// resolves an edit's target with it, and `suggest` keys its answers on it. A selection is a
+	/// path, and anything asked about the selection has to be able to follow one.
 	#[must_use]
 	pub fn at_path(&self, path: &[usize]) -> Option<&Node> {
 		let (&head, rest) = path.split_first()?;
