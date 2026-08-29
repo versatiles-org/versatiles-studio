@@ -164,6 +164,16 @@ Which component lives in which of those folders, and why, is [Svelte Components]
 
 Taken seriously it has teeth: a view that edits the text must edit it **surgically**, never reformatting, reordering parameters or dropping comments as a side effect. That is why the node graph needs a lossless syntax tree rather than a parse-and-print round trip ([Q11](decisions.md)).
 
+**When the knowledge lives upstream, so does the question.** Anything Studio has to _know_ about VPL - which parameter is a file, what a `tile_size` accepts, which transforms fit a source - is a fact about versatiles-rs, and a copy of it here is a second implementation that agrees until it does not. The reverse test: **when Studio finds itself maintaining a list about upstream, the bug is upstream's missing metadata, not the list.** Applied, it has removed far more than it added - Studio's own parser ([Q23](decisions.md)), its copy of the validation rules ([vt#224]), its table of what fits what ([vt#235]), and 67 entries recording what each argument means ([vt#260]), which took `semantics.rs` with them.
+
+Two things keep it honest. A list that must exist meanwhile is **held against the registry, not a memory of it**, so it fails when upstream moves rather than going quietly wrong. And a rule that loses its last subject is **deleted, not left passing**: a check matching nothing reads as coverage.
+
+The cost is a roadmap partly dependent on someone else's, and releases that change what a form draws without a line changing here. A growing pile of guesses about a moving language is worse.
+
+[vt#224]: https://github.com/versatiles-org/versatiles-rs/issues/224
+[vt#235]: https://github.com/versatiles-org/versatiles-rs/issues/235
+[vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+
 ## Settled questions
 
 | Question | Answer                                                                                   |

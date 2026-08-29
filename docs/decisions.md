@@ -192,19 +192,24 @@ the layers panel does not.
 
 Four bare numbers in a form are four chances to put a digit in the wrong place, with nothing to check
 them against until the pipeline runs over the wrong part of the world - so a bbox field shows its
-rectangle on the map and can be filled in from a drag. **A field's control comes from `semantics.rs`**,
+rectangle on the map and can be filled in from a drag. The control came from a role table Studio kept,
 which had tabulated every role and was read by nothing; Q56 and Q57 are the same decision for two more.
+**The mechanism is superseded by [Q66](#q66---a-fields-control-comes-from-its-type)** - the rectangle
+remains, `semantics.rs` does not.
 
 ### Q56 - A short set of answers is a list
 
-The second role read out of the table (see Q53). `tile_size` is a `u32` by type and "`256` or `512`" by
+The second role read out of the table (see Q53), and superseded with it by
+[Q66](#q66---a-fields-control-comes-from-its-type): `tile_size` is a `TileSize` upstream now, and
+arrives with its own two values. `tile_size` is a `u32` by type and "`256` or `512`" by
 meaning, so a number box accepts 400 and the operation refuses it only when the pipeline builds. **An
 unset field is not the first option**: a `<select>` shows its first entry when nothing matches.
 
 ### Q57 - Colour fields get a swatch
 
-The third (see Q53). Two operations spell a colour two ways - `RRGGBB[AA]` or `[r, g, b]` - so the
-control carries which. **Beside the field, not instead of it**: a native colour input has no alpha, and
+The third (see Q53), and superseded with it by [Q66](#q66---a-fields-control-comes-from-its-type).
+Two operations spelled a colour two ways - `RRGGBB[AA]` or `[r, g, b]` - so the control carried which;
+both are a `HexColor` upstream now, and the `hex` flag is what is left of the distinction. **Beside the field, not instead of it**: a native colour input has no alpha, and
 picking keeps an alpha already there rather than silently making it opaque.
 
 ### Q60 - Parse failures name their construct
@@ -231,6 +236,18 @@ The cost is that a source changed on disk is no longer picked up by editing some
 was never picked up without an edit either, so this narrows an accident rather than removing a feature
 
 - but an explicit reload is the honest answer, and there is not one yet.
+
+### Q66 - A field's control comes from its type
+
+Q53, Q56 and Q57 each read one more meaning out of a table Studio kept about upstream. It grew to 67 entries across 26 operations, every one a guess maintained in the wrong repository, and silent by construction: a field nobody tabulated renders as a plausible text box rather than as an error.
+
+**So the question went upstream** ([vt#260]) and came back as types - `GeoBBox`, `HexColor`, a `TileSize` carrying its own two values, a `ZoomLevel` carrying `0..=30` where a `u8` had only ever offered `0..=255`. `semantics.rs` is deleted rather than reduced.
+
+**The alternative was a better table**, which is what the previous three decisions were, and it loses because a table is only as current as the last person to remember it - and no version of one survives a release that does not announce itself.
+
+Two things did not move: which extensions a `FilePath` accepts, and that `from_grid.id_template` is a small language. Both are still guessed here, and both are asked for on [vt#260].
+
+[vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 
 ## Bringing data in
 

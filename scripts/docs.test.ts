@@ -241,13 +241,18 @@ describe('the repository layout', () => {
 describe('documentation size', () => {
 	/** Words per file, generous by roughly a fifth. */
 	const budget: Record<string, number> = {
-		'docs/decisions.md': 5000,
+		// Raised for Q66, which retires Q53, Q56 and Q57 - three decisions about reading a table that
+		// no longer exists. The entry has to outlive the mechanism it replaced, since the three it
+		// supersedes stay where they are and a reader arriving at them needs to be sent somewhere.
+		'docs/decisions.md': 5250,
 		'docs/history.md': 5300,
 		'docs/features.md': 2700,
 		'docs/ui.md': 2350,
 		'docs/layers.md': 2300,
 		'docs/ecosystem.md': 2000,
-		'docs/architecture.md': 1950,
+		// Raised for the second principle. The first had been the only one written down, and the
+		// reverse test it describes is cited from the code (`analysis.rs`) but was never stated here.
+		'docs/architecture.md': 2150,
 		'docs/styling.md': 1800,
 		'docs/components.md': 1100,
 		'docs/scope-e2e.md': 750,

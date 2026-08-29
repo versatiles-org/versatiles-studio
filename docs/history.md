@@ -443,3 +443,74 @@ rebuilding it per read is a full `setStyle` per render, and nothing else would n
 where it is written, and what is new is the ability to ask it a question. `App.svelte` is 554 lines
 of wiring and markup, and the end-to-end stories - which are what cover the wiring the unit tests
 cannot reach - pass unchanged.
+
+---
+
+## Release 5 - the questions go where the answers live
+
+Release 4 moved rules somewhere a test could reach them. This one moves them somewhere Studio does not
+own at all.
+
+Studio renders and edits versatiles-rs's language, and had accumulated a table of 67 entries across 26
+operations recording what each argument _means_ - which are file paths, which are rectangles, which are
+colours, which name a column of another argument's file. Every entry was a fact about upstream,
+maintained downstream, and wrong in the quietest possible way: a field nobody had tabulated rendered as
+a plausible text box rather than as an error.
+
+Two upstream releases removed the lot. The table is gone, and so is the file it lived in.
+
+### S9 · Meaning moves upstream
+
+| Item     | Work                                                               | Feature        |
+| -------- | ------------------------------------------------------------------ | -------------- |
+| **S9.1** | ✓ Types instead of a table, and `semantics.rs` with it             | infrastructure |
+| **S9.2** | ✓ The relationship between two arguments, which no type could hold | E2             |
+| **S9.3** | ✓ Bounds, including the ones that exclude their own end            | E2             |
+| **S9.4** | ✓ Value errors reported while they are typed                       | E2             |
+
+**S9.1 is a deletion.** `versatiles-rs` 4.11 and 4.12 gave the arguments types that say what they are -
+`GeoBBox`, `HexColor`, `SeparatorChar`, `FilePath`, `ZoomLevel`, `EpsgCode`, `TileSize`,
+`CelExpression` - so `control_for` reads `enum_variants`, the type name and `bounds`, and the table is
+gone ([Q66](decisions.md#q66---a-fields-control-comes-from-its-type), [vt#260]).
+
+**S9.2 is the one no type could carry.** `lon_column` names a column of the file `filename` names, which
+is a fact about two arguments and so has nowhere to live in either. It arrives as `refers_to`, and the
+upstream derive checks the argument exists - so renaming one stops _their_ build rather than silently
+emptying a picker here.
+
+**S9.3 includes the ends that are excluded.** A `ZoomLevel` carries `0..=30` where a `u8` had only ever
+offered `0..=255`, and an `EpsgCode` carries `1024..=32766` where a form had offered four billion
+values. `contrast` and `gamma` are "above `0`", which both sides had been dropping or rounding off.
+
+**S9.4 is upstream's, and arrived by itself.** `check` decides value formats without building, so
+`color=red`, `bbox=[1,2,3]`, `bbox=[200,2,3,4]` and `crs=99999` are underlined on the parameter that
+carries them.
+
+### What breaks, and where it is caught
+
+**`only_a_string_falls_back_to_text` named all 38 fields across 15 new types in one message**, which
+was the whole work list for the 4.12 adoption. The tripwires wrote the task.
+
+**Two failed because upstream got better**, which is the case they were written for: the known-gap test
+that asserted `crs=99999` passes unmarked, and the fixture exclusion that asserted two rasters could not
+be opened ([vt#261]).
+
+**A grammar production reached a user.** Fixing [vt#258] gave a trailing `|` a context frame, and the
+innermost one was spelled `bare_identifier`. Upstream renamed it; a rule holds the class rather than the
+label, because the labels are theirs to change.
+
+### What this is not
+
+**Not a feature, and mostly not new code.** 513 lines left, including a whole file. What is new is that
+the questions those lines answered are now asked of the registry at test time, or not asked at all
+because a type answers them.
+
+**Not finished upstream.** Which extensions a `FilePath` accepts, and that `from_grid.id_template` is a
+small language, are still guessed here. Driving the incremental preview rebuild still needs a factory
+that cannot be built from outside ([vt#262]) - measured at 21.6 seconds per keystroke on a 400k-row CSV,
+of which the transform is a tenth of a second.
+
+[vt#258]: https://github.com/versatiles-org/versatiles-rs/issues/258
+[vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
+[vt#261]: https://github.com/versatiles-org/versatiles-rs/issues/261
+[vt#262]: https://github.com/versatiles-org/versatiles-rs/issues/262
