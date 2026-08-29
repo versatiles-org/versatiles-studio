@@ -80,6 +80,13 @@ const filename = (source: string) => source.split(/[/\\]/).pop() || source;
  * down, because the dialog, the drop target and the cards had each carried their own copy of the
  * same list and had already fallen out of step: none of them knew about `from_geo`, which the binary
  * has had all along.
+ *
+ * **Not exported.** The cards read it once, to filter the file dialog on a node's read operation;
+ * they read [vt#260]'s per-argument `accepts` now, which is right for every path field rather than
+ * for one per node. What is left here is this window's own business - what it will accept on a drop,
+ * and what Save writes.
+ *
+ * [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
  */
 let kinds = $state<ImportKind[]>([]);
 
@@ -106,11 +113,6 @@ export const workbench = {
 	/** Reads the catalogue of ways in. Called once, at startup. */
 	async load(): Promise<void> {
 		kinds = await importKinds().catch(() => []);
-	},
-
-	/** Every way in, for the panes that offer them. */
-	get kinds(): ImportKind[] {
-		return kinds;
 	},
 
 	/** Whether a dropped path is one this build can read at all. */
