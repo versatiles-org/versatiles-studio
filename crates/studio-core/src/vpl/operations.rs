@@ -142,7 +142,10 @@ fn control_for(field: &VPLFieldMeta) -> Control {
 		"GeoBBox" => return Control::Bbox,
 		"HexColor" => return Control::Color { hex: true },
 		"SeparatorChar" | "CsvDelimiter" => return Control::Char,
-		"FilePath" | "SourceLocation" => return Control::Path,
+		// `GeoDataPath` and `TileFilePath` are paths that refuse the wrong extension rather than
+		// merely suggesting one - which is `accepts` saying `Only` rather than `Suggested`, not a
+		// different control.
+		"FilePath" | "SourceLocation" | "GeoDataPath" | "TileFilePath" => return Control::Path,
 		// `[lon, lat, zoom]`, which was `[f64;3]` until #260 named it. Three numbers is what it was
 		// offered as then and what it is offered as now; a point picked off the map would be better,
 		// and is a feature rather than a way of reading metadata.
@@ -673,6 +676,7 @@ mod tests {
 			enum_variants: Vec::new(),
 			bounds: None,
 			refers_to: None,
+			accepts: None,
 			validate: None,
 			default: None,
 		}
