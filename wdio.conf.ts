@@ -18,7 +18,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { connect } from 'node:net';
 import { resolve } from 'node:path';
 import { platform } from 'node:process';
@@ -34,6 +34,31 @@ const BINARY = platform === 'win32' ? 'target/debug/versatiles-studio.exe' : 'ta
 
 if (!existsSync(BINARY)) {
 	throw new Error(`no binary at ${BINARY} - run: npm run e2e:build`);
+}
+
+/**
+ * The binary is there, and it is the wrong one.
+ *
+ * **`cargo build` overwrites it.** Anything that builds the workspace - `cargo build`, `cargo run`,
+ * `npm run tauri dev` - writes this same path without `--features e2e`, so one of those between
+ * `e2e:build` and `e2e:run` leaves a binary with no driver in it. Measured: the file goes from
+ * 223 MB to 212 MB and the plugin's name disappears from it.
+ *
+ * Existing is not enough to know, which is why this is a second check: the file is present, the run
+ * starts, and it fails much later waiting for a port nothing is listening on - which reads as a
+ * broken suite rather than as a stale build.
+ *
+ * `cargo test` is not one of them, which is worth stating because it is the natural suspect: it
+ * builds the bin as a test harness into `deps/` and leaves this path alone. `npm run check` is safe.
+ *
+ * Read whole rather than streamed. It is a fifth of a gigabyte and this runs once, which is cheaper
+ * than the failure it replaces; the plugin's crate name appears 27 times in a build with the feature
+ * and not at all in one without.
+ */
+if (!readFileSync(BINARY).includes('tauri-plugin-wdio-webdriver')) {
+	throw new Error(`the binary at ${BINARY} has no embedded driver - \
+something rebuilt it without --features e2e (\`cargo build\`, \`cargo run\` or \`npm run tauri dev\`) \
+- run: npm run e2e:build`);
 }
 
 /**

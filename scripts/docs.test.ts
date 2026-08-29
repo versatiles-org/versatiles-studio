@@ -255,7 +255,9 @@ describe('documentation size', () => {
 		'docs/architecture.md': 2150,
 		'docs/styling.md': 1800,
 		'docs/components.md': 1100,
-		'docs/scope-e2e.md': 750,
+		// Raised for the stale-binary papercut, which is a running instruction rather than a scope
+		// decision - but it belongs beside "how it runs", and an afternoon was lost to not having it.
+		'docs/scope-e2e.md': 820,
 		'docs/roadmap.md': 650,
 		'docs/vision.md': 400,
 		'docs/audiences.md': 350

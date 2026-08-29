@@ -20,6 +20,12 @@ the driver turned out not to be able to do.
 
 **The `e2e` feature never ships.** `guards.test.ts` asserts it exists, is not in the default feature set, and appears in no script that builds a release.
 
+**A workspace build invalidates the binary the suite needs.** `cargo build`, `cargo run` and `npm run tauri dev` all write `target/debug/versatiles-studio` _without_ `--features e2e` - the same path `e2e:build` uses - so one of those between building the suite and running it leaves a binary with no driver in it. Measured: 223 MB becomes 212 MB, and the plugin's name goes with the difference.
+
+**`npm run check` is not one of them**, though it was the natural suspect: `cargo test` builds the binary as a test harness into `deps/` and leaves this path alone. Checked, having first written down the opposite.
+
+The file is still there and only its contents are wrong, so `wdio.conf.ts` reads it for the driver plugin's name rather than only asking whether a binary exists - a stale build now fails at once and names the command to run, instead of timing out on a port nothing is listening on. `npm run e2e` does both steps in order.
+
 ## Phase 1 - the spike · done
 
 One question the plan could not answer from documentation: what can the driver actually do? The answers are asserted by `e2e/launcher/spike.e2e.ts`, which fails if any of them stops being true.
