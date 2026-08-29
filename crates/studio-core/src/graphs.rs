@@ -48,12 +48,12 @@ pub struct GraphInfo {
 	pub dirty: bool,
 	/// What an export of this graph is narrowed to (F2, S5.2) - empty until someone sets one.
 	pub crop: Bounds,
-	/// Whether the graph is drawn at all ([Q49]) - its row's eye in the sources list.
+	/// Whether the graph is drawn at all (Q49) - its row's eye in the sources list.
 	///
 	/// Off means it is not built: no job on open, no mount on the server, no source in the style.
 	/// The `.vpl` and everything about it stay; this is a switch, not a deletion.
 	pub enabled: bool,
-	/// Nodes switched off inside it, as paths ([Q49]).
+	/// Nodes switched off inside it, as paths (Q49).
 	///
 	/// **In the project, beside the crop** - not in the `.vpl`, which stays the pipeline every tool
 	/// runs. What Studio builds, draws and exports is this list applied to that file, so the three
@@ -61,7 +61,7 @@ pub struct GraphInfo {
 	pub disabled: Vec<Vec<u32>>,
 	/// How many nodes the document has.
 	pub nodes: u32,
-	/// How many of them actually run - what a row says as "3 of 5" ([Q49]).
+	/// How many of them actually run - what a row says as "3 of 5" (Q49).
 	///
 	/// **Counted from the effective pipeline, not from `disabled.len()`.** One switched-off path can
 	/// take several nodes with it: the head of a `from_stacked` branch drops that whole branch, so
@@ -88,10 +88,10 @@ pub struct Graph {
 	/// Path and the text as last saved, so "is there anything to save" is answered by comparison
 	/// rather than by a flag someone has to remember to set.
 	pub file: Option<(PathBuf, String)>,
-	/// Whether the graph is drawn at all ([Q49]). In `project.yaml`, because which sources a project
+	/// Whether the graph is drawn at all (Q49). In `project.yaml`, because which sources a project
 	/// draws is part of what the project is.
 	pub enabled: bool,
-	/// Nodes switched off inside it ([Q49]) - durable, see [`GraphInfo::disabled`].
+	/// Nodes switched off inside it (Q49) - durable, see [`GraphInfo::disabled`].
 	pub disabled: BTreeSet<Vec<usize>>,
 	/// The bbox and zoom range an export of this graph is narrowed to (F2, S5.2).
 	///
@@ -135,7 +135,7 @@ impl Graph {
 		}
 	}
 
-	/// **What this graph runs**: the document minus the nodes whose eyes are off ([Q49]).
+	/// **What this graph runs**: the document minus the nodes whose eyes are off (Q49).
 	///
 	/// `None` when nothing is left of it, which is what switching off the node a chain starts with
 	/// means. Everything that runs a graph goes through here - the preview, an export and its
@@ -236,7 +236,7 @@ impl Graphs {
 		Ok(true)
 	}
 
-	/// Switches a graph on or off ([Q49]). `false` when there is no such graph.
+	/// Switches a graph on or off (Q49). `false` when there is no such graph.
 	///
 	/// Off is not a deletion and not an edit: the document, its file and its style entry all stay
 	/// exactly as they are, and switching it back on restores which of its nodes were off too.
@@ -248,7 +248,7 @@ impl Graphs {
 		true
 	}
 
-	/// Switches one node on or off ([Q49]).
+	/// Switches one node on or off (Q49).
 	///
 	/// **Two nodes cannot be switched off**, and both refusals are the same rule one level apart: a
 	/// chain has to read something.
@@ -311,7 +311,7 @@ impl Graphs {
 	/// filename nobody chose, a rename is something a person typed - silently turning `basemap` into
 	/// `basemap-2` because the name is taken is a worse answer than saying so.
 	///
-	/// The style references this name ([Q32]); rewriting those references is the caller's other half
+	/// The style references this name (Q32); rewriting those references is the caller's other half
 	/// of the operation, and it has to happen with this or not at all.
 	pub fn rename(&mut self, id: GraphId, name: &str) -> Result<String> {
 		let cleaned = sanitise(name);
@@ -358,7 +358,7 @@ impl Graphs {
 /// The name a source suggests: its filename, without directories or extension.
 ///
 /// One rule for both ways a graph is created - opening a `.vpl`, and importing anything else - so
-/// that `berlin.mbtiles` and `berlin.vpl` cannot disagree about what the graph is called. [Q35]
+/// that `berlin.mbtiles` and `berlin.vpl` cannot disagree about what the graph is called. Q35
 /// makes this the only moment the name is derived: saving to a different filename later does not
 /// rename anything, so getting it right here is the whole of getting it right.
 ///

@@ -21,6 +21,7 @@
 		"check:lint": "tsx scripts/run.ts check:lint",
 		"check:lint:web": "eslint .",
 		"check:lint:rust": "cargo clippy --workspace --all-targets -- -D warnings",
+		"check:lint:docs": "RUSTDOCFLAGS=\"-D warnings\" cargo doc --no-deps --workspace",
 		"check:test": "tsx scripts/run.ts check:test",
 		"check:test:web": "vitest run",
 		"check:test:rust": "cargo test --workspace",

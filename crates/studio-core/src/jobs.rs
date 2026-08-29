@@ -189,7 +189,7 @@ pub enum JobEvent {
 		/// How many lines the log holds *after* this one - filled in by the runner on the way out.
 		///
 		/// Carried rather than counted by the listener, because the log is capped: a mirror that
-		/// incremented its own counter would keep climbing past [`LOG_LINES`] and claim a size the
+		/// incremented its own counter would keep climbing past `LOG_LINES` and claim a size the
 		/// log does not have.
 		#[cfg_attr(feature = "bindings", specta(type = u32))]
 		log_lines: usize,
@@ -462,7 +462,7 @@ impl Jobs {
 	/// Stops delivering to a scope - for a window that has closed.
 	///
 	/// The jobs themselves are left alone. An export outlives the window that started it by design
-	/// ([Q16]), and cancelling someone's conversion because they closed a window is not this call's
+	/// (Q16), and cancelling someone's conversion because they closed a window is not this call's
 	/// decision to make.
 	pub fn forget(&self, scope: &str) {
 		self.inner.sinks.lock().unwrap().remove(scope);

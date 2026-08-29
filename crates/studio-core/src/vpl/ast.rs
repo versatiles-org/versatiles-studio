@@ -203,7 +203,7 @@ impl Pipeline {
 	/// How many nodes there are in all, nested ones included.
 	///
 	/// What a sources row says when some of them are switched off - "3 of 5" - and the only number
-	/// in that sentence the webview cannot work out for a graph it is not showing ([Q49]).
+	/// in that sentence the webview cannot work out for a graph it is not showing (Q49).
 	#[must_use]
 	pub fn count(&self) -> usize {
 		self

@@ -732,7 +732,7 @@ overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; s
  *  written.
  */
 export type Bounds = {
-	/**  West, south, east, north, in degrees - the four number fields [Q32] asks for. */
+	/**  West, south, east, north, in degrees - the four number fields Q32 asks for. */
 	bbox?: [number, number, number, number] | null,
 	minZoom?: number | null,
 	maxZoom?: number | null,
@@ -1075,14 +1075,14 @@ export type GraphInfo = {
 	/**  What an export of this graph is narrowed to (F2, S5.2) - empty until someone sets one. */
 	crop: Bounds,
 	/**
-	 *  Whether the graph is drawn at all ([Q49]) - its row's eye in the sources list.
+	 *  Whether the graph is drawn at all (Q49) - its row's eye in the sources list.
 	 * 
 	 *  Off means it is not built: no job on open, no mount on the server, no source in the style.
 	 *  The `.vpl` and everything about it stay; this is a switch, not a deletion.
 	 */
 	enabled: boolean,
 	/**
-	 *  Nodes switched off inside it, as paths ([Q49]).
+	 *  Nodes switched off inside it, as paths (Q49).
 	 * 
 	 *  **In the project, beside the crop** - not in the `.vpl`, which stays the pipeline every tool
 	 *  runs. What Studio builds, draws and exports is this list applied to that file, so the three
@@ -1092,7 +1092,7 @@ export type GraphInfo = {
 	/**  How many nodes the document has. */
 	nodes: number,
 	/**
-	 *  How many of them actually run - what a row says as "3 of 5" ([Q49]).
+	 *  How many of them actually run - what a row says as "3 of 5" (Q49).
 	 * 
 	 *  **Counted from the effective pipeline, not from `disabled.len()`.** One switched-off path can
 	 *  take several nodes with it: the head of a `from_stacked` branch drops that whole branch, so
@@ -1262,7 +1262,7 @@ rate: number | null; etaSeconds: number | null } |
  *  How many lines the log holds *after* this one - filled in by the runner on the way out.
  * 
  *  Carried rather than counted by the listener, because the log is capped: a mirror that
- *  incremented its own counter would keep climbing past [`LOG_LINES`] and claim a size the
+ *  incremented its own counter would keep climbing past `LOG_LINES` and claim a size the
  *  log does not have.
  */
 logLines: number } | 
@@ -1320,7 +1320,7 @@ export type LayerInspection = {
  * 
  *  **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
  *  paint, all of which are properties *of* a layer - none of them adds, removes or reorders one,
- *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
+ *  which is what keeps a patch enough and a whole style unnecessary. Q36 records that limit as
  *  accepted rather than overlooked.
  * 
  *  `paint` and `filter` are opaque JSON, declared so for the same reason as
@@ -1335,7 +1335,7 @@ export type LayerOverride = LayerOverride_Serialize | LayerOverride_Deserialize;
  * 
  *  **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
  *  paint, all of which are properties *of* a layer - none of them adds, removes or reorders one,
- *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
+ *  which is what keeps a patch enough and a whole style unnecessary. Q36 records that limit as
  *  accepted rather than overlooked.
  * 
  *  `paint` and `filter` are opaque JSON, declared so for the same reason as
@@ -1359,7 +1359,7 @@ export type LayerOverride_Deserialize = {
  * 
  *  **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
  *  paint, all of which are properties *of* a layer - none of them adds, removes or reorders one,
- *  which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
+ *  which is what keeps a patch enough and a whole style unnecessary. Q36 records that limit as
  *  accepted rather than overlooked.
  * 
  *  `paint` and `filter` are opaque JSON, declared so for the same reason as
@@ -1379,14 +1379,14 @@ export type LayerOverride_Serialize = {
 };
 
 /**
- *  Which left-pane sections are open, and how wide the pane is ([Q22]).
+ *  Which left-pane sections are open, and how wide the pane is (Q22).
  * 
- *  This lives in the core rather than the webview for the reason everything else here does ([Q16]):
+ *  This lives in the core rather than the webview for the reason everything else here does (Q16):
  *  a reloaded window must come back looking the way the user left it. Q22 called independent,
  *  remembered collapse "load-bearing, not polish" - on the 13-inch laptop Q15 was protecting, a
  *  pane that reopens everything on every reload makes the surface unusable.
  * 
- *  **A list of panes, not named fields** ([Q31]). Which panes exist is still a design decision
+ *  **A list of panes, not named fields** (Q31). Which panes exist is still a design decision
  *  rather than something the webview can invent - the catalogue below is code - but their *order*
  *  and *which sidebar they sit in* are data, so moving one is an edit rather than a refactor. The
  *  analysis cluster alone adds eight more of them.

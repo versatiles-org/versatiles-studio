@@ -152,14 +152,14 @@ const MAX_PANE_WIDTH: f64 = 640.0;
 const DEFAULT_LEFT_WIDTH: f64 = 264.0;
 const DEFAULT_RIGHT_WIDTH: f64 = 304.0;
 
-/// Which left-pane sections are open, and how wide the pane is ([Q22]).
+/// Which left-pane sections are open, and how wide the pane is (Q22).
 ///
-/// This lives in the core rather than the webview for the reason everything else here does ([Q16]):
+/// This lives in the core rather than the webview for the reason everything else here does (Q16):
 /// a reloaded window must come back looking the way the user left it. Q22 called independent,
 /// remembered collapse "load-bearing, not polish" - on the 13-inch laptop Q15 was protecting, a
 /// pane that reopens everything on every reload makes the surface unusable.
 ///
-/// **A list of panes, not named fields** ([Q31]). Which panes exist is still a design decision
+/// **A list of panes, not named fields** (Q31). Which panes exist is still a design decision
 /// rather than something the webview can invent - the catalogue below is code - but their *order*
 /// and *which sidebar they sit in* are data, so moving one is an edit rather than a refactor. The
 /// analysis cluster alone adds eight more of them.
@@ -669,7 +669,7 @@ mod tests {
 		Ok(())
 	}
 
-	/// Q22 wants each pane to collapse independently, and [Q31] makes that per-pane state rather
+	/// Q22 wants each pane to collapse independently, and Q31 makes that per-pane state rather
 	/// than a flag per section - so collapsing one has to leave the others exactly as they were.
 	#[test]
 	fn panes_collapse_independently() -> Result<()> {
@@ -736,9 +736,9 @@ mod tests {
 	}
 
 	/// **A pane split out of another is not a new pane.** `sources` was the top half of `pipeline`
-	/// until [Q50], so appending it - the right answer for something genuinely new - would put the
+	/// until Q50, so appending it - the right answer for something genuinely new - would put the
 	/// list of graphs below the style pane, in a build where reordering panes by hand does not
-	/// exist ([Q31]). It goes where a fresh install puts it: immediately above the half it left.
+	/// exist (Q31). It goes where a fresh install puts it: immediately above the half it left.
 	#[test]
 	fn a_pane_split_out_of_another_arrives_beside_it() {
 		let layout = Layout {
@@ -878,7 +878,7 @@ mod tests {
 	}
 
 	/// The camera is the largest thing in the window, so a reload that forgets it is the most
-	/// visible way [Q16]'s invariant can be broken - and it was, until `view` existed.
+	/// visible way Q16's invariant can be broken - and it was, until `view` existed.
 	#[test]
 	fn the_camera_survives_a_round_trip() -> Result<()> {
 		let dir = crate::testing::dir("layout-camera");

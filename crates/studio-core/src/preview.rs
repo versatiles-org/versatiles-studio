@@ -8,6 +8,8 @@
 //! eyes are off. Truncating a chain at a node lived here until then, under the pin; a bypass is not
 //! a truncation, and the document knows how to leave a node out - see
 //! [`Document::to_pipeline_without`](crate::vpl::Document::to_pipeline_without).
+//!
+//! [Q49]: ../../../docs/decisions.md
 
 use anyhow::{Context, Result};
 use std::path::Path;
@@ -187,7 +189,7 @@ mod tests {
 		Ok(())
 	}
 
-	/// The same text in another directory names other files ([Q55]), so it is not the same head.
+	/// The same text in another directory names other files (Q55), so it is not the same head.
 	#[tokio::test]
 	async fn the_same_read_node_elsewhere_is_a_different_head() -> Result<()> {
 		let (runtime, dir) = (versatiles::runtime::create_runtime(), fixtures());
@@ -234,7 +236,7 @@ mod tests {
 	}
 
 	/// A pipeline with some of its nodes switched off is the thing that actually gets built now
-	/// ([Q49]), so what `Document::to_pipeline_without` hands over has to be runnable and not
+	/// (Q49), so what `Document::to_pipeline_without` hands over has to be runnable and not
 	/// merely well-formed.
 	#[tokio::test]
 	async fn a_pipeline_with_a_node_switched_off_builds_and_serves() -> Result<()> {

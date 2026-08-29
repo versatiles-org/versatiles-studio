@@ -168,10 +168,10 @@ pub struct Source<'a> {
 	pub dir: Option<&'a Path>,
 	/// Carried through to the copy's manifest, so a crop survives being sent to somebody.
 	pub crop: crate::export::Bounds,
-	/// Whether it is drawn ([Q49]), carried for the same reason: a copy should open looking the
+	/// Whether it is drawn (Q49), carried for the same reason: a copy should open looking the
 	/// way the original looked.
 	pub enabled: bool,
-	/// Which of its operations are switched off ([Q49]), carried for that same reason.
+	/// Which of its operations are switched off (Q49), carried for that same reason.
 	pub disabled: Vec<Vec<u32>>,
 }
 

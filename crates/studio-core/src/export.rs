@@ -66,7 +66,7 @@ pub const MAX_TILES: u64 = 100_000_000;
 #[serde(rename_all = "camelCase", default)]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub struct Bounds {
-	/// West, south, east, north, in degrees - the four number fields [Q32] asks for.
+	/// West, south, east, north, in degrees - the four number fields Q32 asks for.
 	#[cfg_attr(feature = "bindings", specta(type = Option<[specta_typescript::Number; 4]>))]
 	pub bbox: Option<[f64; 4]>,
 	pub min_zoom: Option<u8>,

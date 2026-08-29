@@ -139,7 +139,7 @@ mod tests {
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct GraphRef {
-	/// The graph's name - its server mount, its source name in the style, and its filename ([Q32]).
+	/// The graph's name - its server mount, its source name in the style, and its filename (Q32).
 	pub name: String,
 	/// Where its VPL lives, relative to the manifest.
 	pub file: String,
@@ -151,7 +151,7 @@ pub struct GraphRef {
 	/// nothing, so a project that never used one has a manifest that never mentions it.
 	#[serde(skip_serializing_if = "is_unset")]
 	pub crop: crate::export::Bounds,
-	/// Whether the graph is drawn ([Q49]) - the eye on its row in the sources list.
+	/// Whether the graph is drawn (Q49) - the eye on its row in the sources list.
 	///
 	/// **Durable, unlike the switched-off nodes inside it.** Which sources a project draws is part
 	/// of what the project *is*: someone who switched off a slow hillshade to work on the vector
@@ -162,7 +162,7 @@ pub struct GraphRef {
 	/// written before this existed reads as every graph drawn, which is what it meant.
 	#[serde(default = "drawn", skip_serializing_if = "is_drawn")]
 	pub enabled: bool,
-	/// Which of its operations are switched off ([Q49]), as node paths.
+	/// Which of its operations are switched off (Q49), as node paths.
 	///
 	/// **In the manifest and not in the `.vpl`**, for the same reason as `crop` above: it is not
 	/// part of the pipeline. The `.vpl` has to stay the thing `versatiles convert` runs, and a
@@ -176,7 +176,7 @@ pub struct GraphRef {
 }
 
 /// A graph nobody has switched off. `serde`'s default for `bool` is `false`, which would read every
-/// manifest written before [Q49] as a project that draws nothing.
+/// manifest written before Q49 as a project that draws nothing.
 const fn drawn() -> bool {
 	true
 }
@@ -199,9 +199,9 @@ pub struct SavedGraph {
 	pub name: String,
 	pub vpl: String,
 	pub crop: crate::export::Bounds,
-	/// Whether the graph is drawn ([Q49]). `true` for everything that predates it.
+	/// Whether the graph is drawn (Q49). `true` for everything that predates it.
 	pub enabled: bool,
-	/// Which of its operations are switched off ([Q49]), as node paths.
+	/// Which of its operations are switched off (Q49), as node paths.
 	pub disabled: Vec<Vec<u32>>,
 }
 
@@ -212,7 +212,7 @@ pub struct Manifest {
 	/// Bumped when a later Studio cannot read an earlier file. One today.
 	pub version: u32,
 	pub graphs: Vec<GraphRef>,
-	/// What the style is made from, not the style ([Q36]).
+	/// What the style is made from, not the style (Q36).
 	pub style: crate::style::Recipe,
 }
 
@@ -225,7 +225,7 @@ pub const STYLE_FILE: &str = "style.json";
 /// What [`save`] writes, and the highest [`load`] understands.
 ///
 /// **2 since [S6.4](../../docs/history.md)**, when the style stopped being one preset over
-/// the whole project and became one entry per source. A version-1 file still opens: [`migrate_v1`]
+/// the whole project and became one entry per source. A version-1 file still opens: `migrate_v1`
 /// reads its recipe and files it under the first graph, which is the only graph a version-1 project
 /// could have been styling.
 pub const MANIFEST_VERSION: u32 = 2;
@@ -507,7 +507,7 @@ mod project_tests {
 		assert!(!basemap.contains("crop"), "{basemap}");
 	}
 
-	/// A graph switched off is switched off tomorrow too ([Q49]) - the point of it being durable is
+	/// A graph switched off is switched off tomorrow too (Q49) - the point of it being durable is
 	/// that a slow source stays unbuilt across a reopen.
 	#[test]
 	fn a_graph_switched_off_survives_the_manifest() {
@@ -525,7 +525,7 @@ mod project_tests {
 		assert!(!basemap.contains("enabled"), "{basemap}");
 	}
 
-	/// Which operations are switched off comes back with the project ([Q49]) - the same rule as the
+	/// Which operations are switched off comes back with the project (Q49) - the same rule as the
 	/// crop, and for the same reason: it is Studio's, not the `.vpl`'s.
 	#[test]
 	fn switched_off_operations_survive_the_manifest() {
@@ -542,7 +542,7 @@ mod project_tests {
 		assert!(!vpl.contains('#'), "nothing is commented out of the file itself");
 	}
 
-	/// **A manifest written before [Q49] draws everything**, which is what it meant. `serde`'s
+	/// **A manifest written before Q49 draws everything**, which is what it meant. `serde`'s
 	/// default for a `bool` is `false`, so getting this wrong would open every older project as one
 	/// that draws nothing at all.
 	#[test]
@@ -682,7 +682,7 @@ mod project_tests {
 		assert_eq!(loaded.graphs[0].crop, crate::export::Bounds::default());
 	}
 
-	/// [Q6]'s whole point: the files beside the manifest are usable without Studio.
+	/// Q6's whole point: the files beside the manifest are usable without Studio.
 	#[test]
 	fn the_files_beside_it_are_real_files() {
 		let dir = crate::testing::dir("project-real-files");

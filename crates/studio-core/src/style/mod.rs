@@ -26,7 +26,7 @@ use std::path::Path;
 /// What a style may be written as (S4.6, D8).
 ///
 /// `.json` is the style itself, for anything that consumes a MapLibre style. `.ts` is the recipe as
-/// code - the thing [Q36] keeps the recipe *for*, and the reason a rendered style alone would not
+/// code - the thing Q36 keeps the recipe *for*, and the reason a rendered style alone would not
 /// have been enough.
 pub const EXPORTABLE: [&str; 2] = ["json", "ts"];
 
@@ -121,7 +121,7 @@ impl Recolor {
 ///
 /// **Sparse, and only these three.** [D3](../../../docs/features.md) asks for filter, zoom range and
 /// paint, all of which are properties *of* a layer - none of them adds, removes or reorders one,
-/// which is what keeps a patch enough and a whole style unnecessary. [Q36] records that limit as
+/// which is what keeps a patch enough and a whole style unnecessary. Q36 records that limit as
 /// accepted rather than overlooked.
 ///
 /// `paint` and `filter` are opaque JSON, declared so for the same reason as
@@ -482,7 +482,7 @@ impl Recipe {
 	///
 	/// **What this cannot check is the boundaries.** Whether one source's segments are in ascending
 	/// order is a question about the rendered style's layer order, and this module never renders one
-	/// ([Q36]) - it does not know which of two layer ids comes first. The webview composes, so the
+	/// (Q36) - it does not know which of two layer ids comes first. The webview composes, so the
 	/// webview is where that invariant is enforced; here a boundary is an opaque string.
 	#[must_use]
 	pub fn segments<'a>(&self, present: impl IntoIterator<Item = &'a str>) -> Vec<Segment> {
@@ -679,7 +679,7 @@ mod tests {
 		assert_eq!(Recipe::parse(&recipe.text()).unwrap(), recipe);
 	}
 
-	/// **The measurement [Q36] rests on.** A rendered `colorful` is 125 kB across 324 layers, which
+	/// **The measurement Q36 rests on.** A rendered `colorful` is 125 kB across 324 layers, which
 	/// is why the stack stores this instead. The number below is not a budget - it is three orders
 	/// of magnitude of headroom, and a change that ate it would mean the recipe had quietly become
 	/// the style.

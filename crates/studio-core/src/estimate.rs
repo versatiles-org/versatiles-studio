@@ -16,7 +16,7 @@
 //! level is sampled and multiplied by its own tile count.
 //!
 //! **The same pipeline the write walks.** Bounds are applied through
-//! [`export::bounded`](crate::export::bounded) rather than reimplemented here, so the tiles measured
+//! [`export::bounded`] rather than reimplemented here, so the tiles measured
 //! are the tiles written. Two ways of narrowing a pipeline would agree on the day they were written
 //! and quietly stop agreeing later.
 
