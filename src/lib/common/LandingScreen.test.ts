@@ -114,7 +114,9 @@ describe('the recent list', () => {
 		(await screen.findByTitle('/data/berlin.versatiles')).click();
 		expect(calls.onOpenUrl).toHaveBeenCalledWith('/data/berlin.versatiles');
 
-		(await screen.findByRole('button', { name: 'Forget' })).click();
+		// **Named for the row it is on.** A list of five recents used to offer five buttons all called
+		// `Forget`, which is what a screen reader reads out and no way to tell which is which.
+		(await screen.findByRole('button', { name: 'Forget berlin.versatiles' })).click();
 		expect(calls.onForget).toHaveBeenCalledWith('/data/berlin.versatiles');
 	});
 

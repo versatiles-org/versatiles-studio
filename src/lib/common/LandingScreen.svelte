@@ -157,7 +157,12 @@
 								<span class="name truncate">{filename(entry.source)}</span>
 								<span class="meta">{when(entry.openedAt)}</span>
 							</button>
-							<button class="forget" onclick={() => onForget(entry.source)} aria-label="Forget">×</button>
+							<button
+								class="forget"
+								title="Forget"
+								aria-label="Forget {filename(entry.source)}"
+								onclick={() => onForget(entry.source)}>×</button
+							>
 						</li>
 					{/each}
 				</ul>
