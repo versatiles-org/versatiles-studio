@@ -25,7 +25,7 @@
 //! folder-or-zip of one thing plus what it needs; that one belongs to [`crate::style`]. This is the
 //! project. The surface calls this one "Save a copy…", so the two never meet in a menu.
 
-use crate::vpl::{Document, Node, Pipeline, Span};
+use crate::vpl::{Document, Node, Pipeline, Span, registry};
 use anyhow::{Context, Result};
 use serde::Serialize;
 use std::collections::HashMap;
@@ -39,39 +39,32 @@ use std::path::{Path, PathBuf};
 /// when they open the folder.
 pub const DATA_DIR: &str = "data";
 
-/// Fields whose value names a file.
-///
-/// **A list, because nothing in the metadata says so.** `field_meta` gives each parameter a
-/// `rust_type`, and every one of these is `String` - indistinguishable from `format` or
-/// `lon_column`. Nor are they consistently named: `filename` on six operations, and then
-/// `data_source_path`, `tilejson_file`, `vector_layers_file`, `tilejson_update_file`.
-///
-/// Qualified by operation rather than matched by name, so a future `filename` meaning something else
-/// cannot silently join the list. Kept beside a test that fails when upstream adds an operation with
-/// a file-valued field that is not here, because the failure this list can have is being out of
-/// date - and a bundle that quietly leaves a source behind is the worst way to find that out.
-///
-/// The better fix is upstream marking the field, the same way it marks enum variants; worth an issue
-/// now that there are twelve of these rather than one.
-const FILE_FIELDS: [(&str, &str); 12] = [
-	("filter", "filename"),
-	("from_container", "filename"),
-	("from_csv", "filename"),
-	("from_gdal_dem", "filename"),
-	("from_gdal_raster", "filename"),
-	("from_geo", "filename"),
-	("from_tile", "filename"),
-	("from_tilejson", "url"),
-	("meta_update", "tilejson_file"),
-	("meta_update", "tilejson_update_file"),
-	("meta_update", "vector_layers_file"),
-	("vector_update_properties", "data_source_path"),
-];
-
 /// Whether `operation.field` names a file.
+///
+/// **Upstream's answer, not a list here.** This was a hardcoded table of twelve
+/// `(operation, field)` pairs, because `field_meta` gave every one of them `rust_type: String` -
+/// indistinguishable from `format` or `lon_column`. [vt#260] ended that: a file-valued argument now
+/// carries `accepts`, which is `Some` exactly when the value names a file and `None` when it does
+/// not. That is the marking the table was waiting for, so the table is gone.
+///
+/// **It was out of date, which is the whole argument for deriving it.** Four arguments upstream had
+/// added were not in it - `raster_mask.geojson`, `from_gdal_raster.cutline`, `from_gdal_dem.cutline`
+/// and `from_container.ssh_identity` - so a "save as" left them pointing at the old directory and a
+/// bundle left the files themselves behind, silently, which is the failure this module exists to
+/// prevent. None of the four has `file`, `path`, `url` or `dir` in its name, which is why the guard
+/// test that was meant to catch exactly this did not.
+///
+/// `from_tilejson.url` was in the table and is not here: upstream types it `HttpUrl`, so it is a URL
+/// and never a path. Nothing changes for it - [`classify`] already sent every URL down the `Remote`
+/// arm, which is neither carried nor rewritten.
+///
+/// [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 #[must_use]
 fn names_a_file(operation: &str, field: &str) -> bool {
-	FILE_FIELDS.iter().any(|(op, name)| *op == operation && *name == field)
+	registry()
+		.get(operation)
+		.and_then(|meta| meta.fields.iter().find(|meta| meta.name == field))
+		.is_some_and(|meta| meta.accepts.is_some())
 }
 
 /// What one reference turned out to be.
@@ -570,11 +563,29 @@ mod reanchor_tests {
 	}
 
 	/// A URL works from anywhere, so there is nothing to anchor it to.
+	///
+	/// **Written on a file-valued argument**, which is the case [`ReferenceKind::Remote`] exists for:
+	/// `from_container`'s `filename` takes a path *or* a URL, so the reference is found and then left
+	/// alone. This used to be written on `from_tilejson.url`, which reached the same assertion for
+	/// the wrong reason - that argument is typed `HttpUrl` upstream, so it is never a path and is
+	/// never looked at. See [`a_url_only_argument_is_not_a_reference_at_all`] for that half.
 	#[test]
 	fn a_url_is_left_exactly_as_it_is() {
-		let text = "from_tilejson url='https://example.org/tiles.json'";
+		let text = "from_container filename='https://example.org/berlin.versatiles'";
 		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
-		assert_eq!(written(&out), ["https://example.org/tiles.json"]);
+		assert_eq!(written(&out), ["https://example.org/berlin.versatiles"]);
+	}
+
+	/// `from_tilejson.url` is typed `HttpUrl`, so it names no file and is not a reference.
+	///
+	/// The hardcoded list this module used to carry named it anyway, which was harmless and
+	/// misleading in equal measure. What matters either way is that the text survives untouched.
+	#[test]
+	fn a_url_only_argument_is_not_a_reference_at_all() {
+		let text = "from_tilejson url='https://example.org/tiles.json'";
+		assert!(written(text).is_empty(), "an HttpUrl argument names no file");
+		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
+		assert_eq!(out, text, "and a save leaves it exactly as written");
 	}
 
 	/// A reference to something that is not there is still somebody's intent, and moving the file it
@@ -592,6 +603,24 @@ mod reanchor_tests {
 		let text = "from_container filename='/home/anna/maps/../maps/berlin.mbtiles'";
 		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
 		assert_eq!(written(&out), ["berlin.mbtiles"]);
+	}
+
+	/// **Every path-valued argument, not only the ones called `filename`.** A "save as" used to move
+	/// what relative paths mean while leaving these four as written, so the saved pipeline pointed at
+	/// files that were never there - the exact breakage `reanchor` exists to prevent, on the
+	/// arguments the hardcoded list had missed.
+	#[test]
+	fn a_mask_a_cutline_and_an_identity_are_anchored_too() {
+		let text = concat!(
+			"from_gdal_raster filename='/home/anna/maps/aerial.tif' cutline='/home/anna/maps/clip.geojson'",
+			" | raster_mask geojson='/home/anna/maps/mask.geojson'"
+		);
+		let out = reanchor(text, None, &at("/home/anna/maps")).unwrap();
+		assert_eq!(written(&out), ["aerial.tif", "clip.geojson", "mask.geojson"]);
+
+		let key = "from_container filename='/home/anna/maps/b.versatiles' ssh_identity='/home/anna/maps/id_ed25519'";
+		let out = reanchor(key, None, &at("/home/anna/maps")).unwrap();
+		assert_eq!(written(&out), ["b.versatiles", "id_ed25519"]);
 	}
 
 	/// Every node in the chain, not the first one.
@@ -699,6 +728,38 @@ mod tests {
 			plan.graphs[1].vpl.contains("data/cities-2.csv"),
 			"{}",
 			plan.graphs[1].vpl
+		);
+	}
+
+	/// **A mask and a cutline are carried like any other input**, which is the bug this replaced the
+	/// hardcoded list over: neither `raster_mask.geojson` nor `from_gdal_raster.cutline` was in it, so
+	/// a bundle wrote a project whose pipeline named two files it had not copied.
+	///
+	/// Asserted through `plan` rather than through `names_a_file` alone, because "is recognised" and
+	/// "is carried, and the pipeline is rewritten to say so" are two different claims and only the
+	/// second is the feature.
+	#[test]
+	fn a_mask_and_a_cutline_are_carried_with_the_raster() {
+		let raster = crate::testing::file("aerial.tif", "raster");
+		let cutline = crate::testing::file("clip.geojson", "{}");
+		let mask = crate::testing::file("mask.geojson", "{}");
+		let vpl = format!(
+			"from_gdal_raster filename='{}' cutline='{}' | raster_mask geojson='{}'",
+			raster.display(),
+			cutline.display(),
+			mask.display()
+		);
+
+		let plan = plan(&[source("aerial", &vpl, None)]).unwrap();
+
+		let carried: Vec<&str> = plan.carry.iter().map(|file| file.to.as_str()).collect();
+		assert_eq!(carried, ["data/aerial.tif", "data/clip.geojson", "data/mask.geojson"]);
+		assert_eq!(
+			plan.graphs[0].vpl,
+			concat!(
+				"from_gdal_raster filename='data/aerial.tif' cutline='data/clip.geojson'",
+				" | raster_mask geojson='data/mask.geojson'"
+			)
 		);
 	}
 
@@ -842,26 +903,81 @@ mod tests {
 		assert!(!is_url("data/berlin.mbtiles"));
 	}
 
-	/// The list above is the one thing here that can go quietly out of date: an operation upstream
-	/// adds with a file-valued field would be left behind by every bundle, and nothing would say so.
+	/// **The four `FILE_FIELDS` had missed**, named one by one so the regression cannot come back
+	/// quietly. Each is a real path upstream resolves against the pipeline's directory, and each was
+	/// invisible to both "save as" and bundling.
+	///
+	/// Not one of them has `file`, `path`, `url` or `dir` in its name, which is exactly why the name
+	/// heuristic this replaced reported all-clear while all four were unlisted.
 	#[test]
-	fn every_file_valued_field_upstream_is_listed() {
-		let mut unlisted = Vec::new();
-		for operation in crate::vpl::operations() {
-			for field in &operation.fields {
-				let looks_like_a_file = ["file", "path", "url", "dir"]
-					.iter()
-					.any(|hint| field.name.contains(hint));
-				if looks_like_a_file && !names_a_file(&operation.name, &field.name) {
-					unlisted.push(format!("{}.{}", operation.name, field.name));
-				}
-			}
+	fn the_fields_the_hardcoded_list_missed_are_recognised() {
+		for (operation, field) in [
+			("raster_mask", "geojson"),
+			("from_gdal_raster", "cutline"),
+			("from_gdal_dem", "cutline"),
+			("from_container", "ssh_identity"),
+		] {
+			assert!(
+				names_a_file(operation, field),
+				"{operation}.{field} names a file, so a bundle has to carry it and a save has to \
+				 re-anchor it"
+			);
 		}
-		unlisted.sort();
-		assert!(
-			unlisted.is_empty(),
-			"upstream has file-valued fields FILE_FIELDS does not list, so a bundle would leave them \
-			 behind: {unlisted:?}"
-		);
+	}
+
+	/// The fields that are not paths, including the two that could plausibly be mistaken for them.
+	///
+	/// `from_tilejson.url` is the one the hardcoded list named and this does not: upstream types it
+	/// `HttpUrl`, so it is never a path. It is here to pin that the change was deliberate.
+	#[test]
+	fn a_field_that_is_not_a_path_is_not_carried() {
+		for (operation, field) in [
+			("from_tilejson", "url"),
+			("from_csv", "lon_column"),
+			("from_debug", "format"),
+			("filter", "bbox"),
+		] {
+			assert!(!names_a_file(operation, field), "{operation}.{field} is not a file");
+		}
+		// An operation this build has never heard of cannot name a file either.
+		assert!(!names_a_file("no_such_operation", "filename"));
+	}
+
+	/// **The failure a derived answer can have, which a hardcoded list could not.**
+	///
+	/// The list was wrong by being short; asking upstream is wrong only if upstream stops answering -
+	/// and `accepts` returning `None` everywhere would make `names_a_file` say no to everything,
+	/// which is a bundle that silently carries nothing and a save that re-anchors nothing. Neither
+	/// reports an error, so nothing else in this module would notice.
+	///
+	/// Pinned as a floor rather than an exact set: an operation upstream adds should make this pass
+	/// more easily, never fail.
+	#[test]
+	fn upstream_still_marks_its_file_valued_fields() {
+		let marked: Vec<String> = crate::vpl::registry()
+			.iter()
+			.flat_map(|(name, meta)| {
+				meta
+					.fields
+					.iter()
+					.filter(|field| field.accepts.is_some())
+					.map(move |field| format!("{name}.{}", field.name))
+			})
+			.collect();
+
+		for expected in [
+			"from_container.filename",
+			"from_csv.filename",
+			"from_geo.filename",
+			"meta_update.tilejson_file",
+			"raster_mask.geojson",
+			"vector_update_properties.data_source_path",
+		] {
+			assert!(
+				marked.iter().any(|found| found == expected),
+				"upstream stopped marking {expected} as a file, so bundling would quietly skip it; \
+				 marked: {marked:?}"
+			);
+		}
 	}
 }
