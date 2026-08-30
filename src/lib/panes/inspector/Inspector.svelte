@@ -50,17 +50,24 @@
 {/snippet}
 
 <!-- The same figures on both sides, which is what makes them comparable at a glance: a
-     `0-12` above a `0-14` answers "did the zoom_extend work" without reading either label twice. -->
+     `0-12` above a `0-14` answers "did the zoom_extend work" without reading either label twice.
+
+     **Sentence case, because these are labels rather than identifiers.** They were lowercase, which
+     read as field names beside the monospace values and the TileJSON below - but none of them is a
+     field of anything: `Tiles` is this pane composing a format with a compression, and `Zoom` is the
+     real range derived from which levels hold tiles. Where a `<dt>` genuinely *is* an identifier -
+     `NodeArgument`, holding a VPL parameter name - it says so in the monospace face, which is the
+     distinction that was already being drawn and did not need a second one in the casing. -->
 {#snippet facts(item: ContainerInfo)}
 	<dl>
-		<dt>container</dt>
+		<dt>Container</dt>
 		<dd>{item.container}</dd>
-		<dt>tiles</dt>
+		<dt>Tiles</dt>
 		<dd>{item.tileFormat}{item.tileCompression === 'none' ? '' : ` · ${item.tileCompression}`}</dd>
 		<!-- The real range, from which levels hold tiles - containers routinely overstate it. -->
-		<dt>zoom</dt>
+		<dt>Zoom</dt>
 		<dd>{item.minZoom}-{item.maxZoom}</dd>
-		<dt>extent</dt>
+		<dt>Extent</dt>
 		<dd class="wrap">{extent(item.bbox)}</dd>
 	</dl>
 
