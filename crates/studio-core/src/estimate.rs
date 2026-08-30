@@ -37,20 +37,48 @@ use std::time::{Duration, Instant};
 use versatiles_core::TileBBox;
 use versatiles_pipeline::VPLPipeline;
 
-/// How long sampling may take before the estimate is made from what it has.
+/// How long sampling runs before it stops at the first point the estimate is worth having.
 ///
 /// An estimate is something a dialog waits on, so its cost is a UI decision rather than a
 /// statistical one: two seconds is long enough to look like work and short enough not to feel
-/// broken. Running over budget would also be self-defeating - nobody waits a minute to be told how
-/// big a file is going to be.
+/// broken.
+///
+/// **A floor to stop at, not a ceiling to stop on** ([`MIN_SAMPLES`]). It used to end sampling
+/// wherever it happened to fall, and on a slow pipeline that was mid-way through the *first* pass
+/// over the levels - six tiles, most levels never looked at, and each unsampled level's bytes
+/// invented from the average of the ones that were. The deepest level holds three quarters of any
+/// pyramid, so an estimate built that way is a number with no measurement behind it. Sampling now
+/// runs past this until it has covered every level and taken [`MIN_SAMPLES`], which costs a slow
+/// pipeline more than two seconds and is the trade worth making: nobody wants a fast wrong number.
 pub const BUDGET: Duration = Duration::from_secs(2);
+
+/// The fewest tiles an estimate is made from, however long they take.
+///
+/// **Because a handful of tiles is not a sample of a pyramid.** Fifty is not a statistical
+/// threshold - the variance between an ocean tile and a city one is far too wide for any small
+/// number to be safe - it is the point below which the answer stops being worth showing at all.
+///
+/// Bounded above by [`MAX_SAMPLES`], so the two together say: always between fifty and sixty-four
+/// tiles, and the budget decides where in that range a slow pipeline lands.
+pub const MIN_SAMPLES: u32 = 50;
 
 /// The most tiles to produce, however fast they come.
 ///
 /// The budget alone would let a trivial pipeline sample tens of thousands of tiles for an accuracy
 /// nobody can see: the answer is rounded to "~2.3 GB" either way. This is where the remaining time
 /// is given back instead.
+///
+/// The hard end of the range [`MIN_SAMPLES`] opens, and it wins over both the floor and the level
+/// coverage: a caller that asks for fewer samples than there are levels gets fewer samples than
+/// there are levels, and the unsampled ones fall back to the overall average below.
 pub const MAX_SAMPLES: u32 = 64;
+
+/// The two constants have to describe a range, or the floor is unreachable and an estimate quietly
+/// goes back to being made of however few tiles the budget bought.
+///
+/// A compile-time assertion rather than a test: this is a property of the two numbers as written,
+/// and the build is the right place to refuse them.
+const _: () = assert!(MAX_SAMPLES >= MIN_SAMPLES);
 
 /// What an export is expected to cost.
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize)]
@@ -75,7 +103,7 @@ pub struct Estimate {
 ///
 /// `dir` is what relative paths in the VPL resolve against, as everywhere else.
 pub async fn estimate(pipeline: VPLPipeline, dir: &Path, bounds: Bounds, compression: Compression) -> Result<Estimate> {
-	sample(pipeline, dir, bounds, compression, BUDGET, MAX_SAMPLES).await
+	sample(pipeline, dir, bounds, compression, BUDGET, MIN_SAMPLES, MAX_SAMPLES).await
 }
 
 /// The estimate, with the limits as arguments rather than as constants.
@@ -91,6 +119,7 @@ async fn sample(
 	bounds: Bounds,
 	compression: Compression,
 	budget: Duration,
+	min_samples: u32,
 	max_samples: u32,
 ) -> Result<Estimate> {
 	// Its own runtime, for the same reason [`export::write`] builds one: the events of a sampling
@@ -124,10 +153,9 @@ async fn sample(
 	let levels: Vec<TileBBox> = pyramid.to_iter_bboxes().filter(|bbox| bbox.count_tiles() > 0).collect();
 	let mut measured: Vec<Measured> = levels.iter().map(|_| Measured::default()).collect();
 
-	// **Deepest level first, one tile per level per round.** Both halves matter. Round-robin means
-	// every level is represented after the first pass, so a budget that runs out early still leaves
-	// an estimate that saw the whole range; deepest-first means that when it runs out *during* a
-	// pass, the tiles it missed are the ones that matter least.
+	// **Deepest level first, one tile per level per round.** Round-robin means the first pass alone
+	// covers every level; deepest-first means that when sampling does stop mid-pass - which only the
+	// cap can now cause - the levels it missed are the ones holding fewest tiles.
 	let started = Instant::now();
 	let mut taken = 0;
 	'sampling: for round in 0.. {
@@ -158,7 +186,12 @@ async fn sample(
 			measured[index].bytes += sizes.iter().map(|(_, size)| u64::from(*size)).sum::<u64>();
 
 			taken += 1;
-			if taken >= max_samples || started.elapsed() >= budget {
+
+			// **The cap is the only unconditional stop.** The budget is a floor to stop *at*, and it
+			// may only end sampling once there is something worth stopping on: every level measured
+			// rather than borrowed, and enough tiles that the average means something.
+			let covered = measured.iter().all(|level| level.tiles > 0);
+			if taken >= max_samples || (covered && taken >= min_samples && started.elapsed() >= budget) {
 				break 'sampling;
 			}
 		}
@@ -181,10 +214,10 @@ async fn sample(
 			let mean = if level.tiles > 0 {
 				level.bytes as f64 / level.tiles as f64
 			} else {
-				// A level the budget never reached. Its own average is unknown, so it borrows the
-				// one across everything sampled - wrong in detail, and it is a level that holds a
-				// quarter of what the level below it does, three levels above where the budget ran
-				// out.
+				// A level nothing reached, which now means only one thing: the cap ran out before the
+				// first pass did, because the caller asked for fewer samples than the pyramid has
+				// levels. Its own average is unknown, so it borrows the one across everything
+				// sampled. The budget can no longer land here - see the loop above.
 				overall
 			};
 			mean * bbox.count_tiles() as f64
@@ -321,6 +354,7 @@ mod tests {
 			bounds,
 			Compression::Source,
 			Duration::from_secs(600),
+			MIN_SAMPLES,
 			64,
 		)
 		.await
@@ -345,11 +379,15 @@ mod tests {
 		assert_eq!(estimate.bytes, actual, "a complete sample must not be extrapolated");
 	}
 
-	/// **The budget is a promise to the dialog waiting on it.** A pipeline can be arbitrarily slow
-	/// per tile, so the guarantee cannot be about tiles - it has to be that sampling stops. An
-	/// unmeasurably small budget still yields an answer, from however little it managed.
+	/// **A spent budget does not stop before every level has been measured**, which is the half of
+	/// this that used to be wrong: sampling ended wherever the clock fell, and on a slow pipeline
+	/// that was part-way through the first pass, leaving most levels with no measurement and their
+	/// bytes borrowed from the average of the ones that had one.
+	///
+	/// The floor is set to 1 so that coverage is the *only* thing keeping sampling alive - the count
+	/// coming back as exactly one per level is what says so. z0-4 is five levels.
 	#[tokio::test]
-	async fn a_spent_budget_still_answers() {
+	async fn a_spent_budget_still_covers_every_level() {
 		let bounds = Bounds {
 			bbox: None,
 			min_zoom: None,
@@ -361,6 +399,7 @@ mod tests {
 			bounds,
 			Compression::Source,
 			Duration::ZERO,
+			1,
 			64,
 		)
 		.await
@@ -369,15 +408,48 @@ mod tests {
 		// 1 + 4 + 16 + 64 + 256: the count is arithmetic on the pyramid and never sampled, so it is
 		// exact however little was measured.
 		assert_eq!(estimate.tiles, 341);
+		assert_eq!(estimate.sampled, 5, "one tile from each of z0-4, and then it may stop");
+		assert!(estimate.bytes > 0);
+	}
+
+	/// And the other half: the floor outlives the budget too.
+	///
+	/// **The number the dialog was showing came from six tiles.** A pipeline slow enough to spend two
+	/// seconds on a handful of them got an estimate extrapolated from that handful onto millions of
+	/// tiles. Fifty is not a statistical guarantee; it is the point below which the answer should not
+	/// be shown at all.
+	#[tokio::test]
+	async fn a_spent_budget_still_takes_the_floor() {
+		let bounds = Bounds {
+			bbox: None,
+			min_zoom: None,
+			max_zoom: Some(4),
+		};
+		let estimate = sample(
+			pipeline("from_debug format=png"),
+			Path::new("."),
+			bounds,
+			Compression::Source,
+			Duration::ZERO,
+			MIN_SAMPLES,
+			64,
+		)
+		.await
+		.unwrap();
+
+		assert_eq!(estimate.tiles, 341);
 		assert_eq!(
-			estimate.sampled, 1,
-			"a zero budget stops after the first tile, not before it"
+			estimate.sampled, MIN_SAMPLES,
+			"a spent budget stops at the floor, not before it"
 		);
-		assert!(estimate.bytes > 0, "one sample is still enough to extrapolate from");
 	}
 
 	/// The sample count is capped as well as timed, so a fast pipeline does not spend the whole
 	/// budget buying precision nobody can read.
+	///
+	/// **The cap is the one stop with no conditions on it.** Asked for fewer samples than the pyramid
+	/// has levels, sampling stops short of covering them - which is why the fallback to the overall
+	/// average is still there to catch it.
 	#[tokio::test]
 	async fn the_sample_count_is_capped() {
 		let bounds = Bounds {
@@ -391,11 +463,15 @@ mod tests {
 			bounds,
 			Compression::Source,
 			Duration::from_secs(600),
+			MIN_SAMPLES,
 			8,
 		)
 		.await
 		.unwrap();
-		assert_eq!(estimate.sampled, 8);
+		assert_eq!(
+			estimate.sampled, 8,
+			"the cap wins over the floor, and over covering the levels"
+		);
 		assert!(estimate.tiles > 5000, "the cap must not change what is being estimated");
 	}
 
