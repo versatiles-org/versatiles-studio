@@ -71,7 +71,7 @@
 		{#snippet panel(close: () => void)}
 			<div role="group" aria-label="Background map">
 				{#each groups as group (group.label)}
-					{#if group.label}<p class="group">{group.label}</p>{/if}
+					{#if group.label}<p class="group section-label">{group.label}</p>{/if}
 					{#each group.items as item (item.id)}
 						<button
 							type="button"
@@ -147,12 +147,10 @@
 	}
 
 	/* Which group of backgrounds follows - the `<optgroup>`s the native popup used to draw. */
+	/* The typography is `.section-label`'s - the same heading `Picker` draws over a group of rows,
+	   which has always used the class. Only the rhythm between groups is this panel's own. */
 	.group {
 		margin: var(--space-3) 0 var(--space-1);
-		font-size: var(--text-xs);
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--ink-2);
 
 		&:first-child {
 			margin-top: 0;

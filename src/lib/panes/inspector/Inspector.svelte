@@ -78,7 +78,7 @@
 	     keyboard support and the semantics with it, the same reasoning `JsonTree` was written on. -->
 	{#if containers.length > 0}
 		<section>
-			<p class="role">{containers.length === 1 ? 'Input' : 'Inputs'}</p>
+			<p class="role section-label">{containers.length === 1 ? 'Input' : 'Inputs'}</p>
 			{#each containers as info (info.source)}
 				<details>
 					<summary>
@@ -93,7 +93,7 @@
 
 	{#if graph}
 		<section>
-			<p class="role">Result</p>
+			<p class="role section-label">Result</p>
 			<!-- Open: this is what the pane was opened to find out. Open even when there is nothing to
 			     report, because then the absence *is* the answer and a fold would hide it. -->
 			<details open>
@@ -189,12 +189,9 @@
 
 	/* Which side of the pipeline this section is. Quiet, because the name below it is what someone
 	   is looking for - this only says where to file it. */
+	/* `.section-label` carries the typography; a heading in this pane only has to sit flush. */
 	.role {
 		margin: 0;
-		font-size: var(--text-xs);
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--ink-2);
 	}
 
 	dl {

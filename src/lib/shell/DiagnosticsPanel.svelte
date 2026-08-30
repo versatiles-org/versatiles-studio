@@ -329,7 +329,7 @@
 		color: var(--ink-2);
 		font-size: var(--text-xs);
 		text-transform: uppercase;
-		letter-spacing: 0.04em;
+		letter-spacing: 0.08em;
 	}
 
 	.message {
