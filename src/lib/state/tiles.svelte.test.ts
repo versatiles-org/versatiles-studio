@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MAP_PATIENCE, PATIENCE, fetchTile, tiles } from './tiles.svelte';
+import { DEADLINE, MAP_PATIENCE, PATIENCE, fetchTile, tiles } from './tiles.svelte';
 import { SCHEME } from '../map/tile-queue';
 
 /**
@@ -59,6 +59,9 @@ describe('tile activity', () => {
 	afterEach(() => {
 		vi.useRealTimers();
 		vi.unstubAllGlobals();
+		// The give-up records outlive a request on purpose, so a test that leaves one behind would
+		// make the next one fail fast for a reason that has nothing to do with it.
+		tiles.reset();
 	});
 
 	it('says nothing about a pipeline that keeps up', async () => {
@@ -265,5 +268,132 @@ describe('tile activity', () => {
 
 		const failure = (await request(1).catch((error: unknown) => error)) as { status?: number };
 		expect(failure.status, 'a real failure is still a failure, and still says which').toBe(500);
+	});
+});
+
+/**
+ * Giving up on a tile that will not arrive (S2.16).
+ *
+ * **A tile request has no other end.** The server answers when the pipeline answers, and an overview
+ * asked for a zoom far above its base level can take minutes over one tile ([vt#264]) - so without
+ * this the map has a square that stays blank for ever, with nothing on screen to say why.
+ *
+ * [vt#264]: https://github.com/versatiles-org/versatiles-rs/issues/264
+ */
+describe('a tile that never arrives', () => {
+	beforeEach(() => vi.useFakeTimers());
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+		tiles.reset();
+	});
+
+	/** Requests a tile and swallows the rejection, which is the caller's business rather than this. */
+	function ask(url: string) {
+		const done = (fetchTile({ url } as never, new AbortController() as never) as Promise<unknown>).catch(
+			(error: unknown) => error
+		);
+		return done;
+	}
+
+	it('gives up once the deadline passes, and says so on the map', async () => {
+		vi.stubGlobal('fetch', pending().fetch);
+
+		const done = ask(`${SCHEME}://127.0.0.1:1/tiles/g/3/1/1`);
+		await vi.advanceTimersByTimeAsync(DEADLINE - 1);
+		expect(tiles.busy.some((mark) => mark.state === 'failed')).toBe(false);
+
+		await vi.advanceTimersByTimeAsync(2);
+		expect(await done).toBeInstanceOf(Error);
+
+		const failed = tiles.busy.filter((mark) => mark.state === 'failed');
+		expect(failed.map((mark) => mark.key)).toEqual(['3/1/1']);
+		// Nothing is still counted as in flight: the wait is over, however it ended.
+		expect([tiles.rendering, tiles.queued]).toEqual([0, 0]);
+	});
+
+	/**
+	 * **The second tile does not wait again.** MapLibre re-requests on every pan and a cancelled
+	 * request is not remembered upstream, so without this, sitting at a bad zoom burns the deadline
+	 * per tile for ever.
+	 */
+	it('refuses the rest of a zoom that has already proved too slow', async () => {
+		vi.stubGlobal('fetch', pending().fetch);
+
+		const first = ask(`${SCHEME}://127.0.0.1:1/tiles/g/3/1/1`);
+		await vi.advanceTimersByTimeAsync(DEADLINE + 1);
+		await first;
+
+		// No timers advanced: if this waited at all, it would still be pending here.
+		expect(await ask(`${SCHEME}://127.0.0.1:1/tiles/g/3/2/1`)).toBeInstanceOf(Error);
+		expect(
+			tiles.busy
+				.filter((mark) => mark.state === 'failed')
+				.map((mark) => mark.key)
+				.sort()
+		).toEqual(['3/1/1', '3/2/1']);
+	});
+
+	/** Cost follows depth, so a judgement about one zoom says nothing about another. */
+	it('leaves other zooms alone', async () => {
+		const tile = pending();
+		vi.stubGlobal('fetch', tile.fetch);
+
+		const slow = ask(`${SCHEME}://127.0.0.1:1/tiles/g/3/1/1`);
+		await vi.advanceTimersByTimeAsync(DEADLINE + 1);
+		await slow;
+
+		const deeper = ask(`${SCHEME}://127.0.0.1:1/tiles/g/9/1/1`);
+		await vi.advanceTimersByTimeAsync(1);
+		expect(tiles.rendering).toBe(1);
+
+		tile.deliver();
+		expect(await deeper).not.toBeInstanceOf(Error);
+	});
+
+	/**
+	 * **An abort from MapLibre is not a failure.** It means the tile left the viewport, which happens
+	 * on every pan - marking those would put error rings all over an ordinary map.
+	 */
+	it('does not mark a tile the map abandoned', async () => {
+		vi.stubGlobal('fetch', pending().fetch);
+
+		const controller = new AbortController();
+		const done = (
+			fetchTile({ url: `${SCHEME}://127.0.0.1:1/tiles/g/3/1/1` } as never, controller as never) as Promise<unknown>
+		).catch((error: unknown) => error);
+
+		await vi.advanceTimersByTimeAsync(MAP_PATIENCE + 1);
+		controller.abort();
+		await done;
+
+		expect(tiles.busy.filter((mark) => mark.state === 'failed')).toEqual([]);
+		// And the zoom is not condemned either, so the next pan over it is tried properly.
+		const tile = pending();
+		vi.stubGlobal('fetch', tile.fetch);
+		const again = ask(`${SCHEME}://127.0.0.1:1/tiles/g/3/2/1`);
+		await vi.advanceTimersByTimeAsync(1);
+		expect(tiles.rendering).toBe(1);
+		tile.deliver();
+		await again;
+	});
+
+	/** A coordinate that answers is no longer one that was given up on. */
+	it('clears the marker when the tile finally arrives', async () => {
+		vi.stubGlobal('fetch', pending().fetch);
+
+		const gaveUp = ask(`${SCHEME}://127.0.0.1:1/tiles/g/3/1/1`);
+		await vi.advanceTimersByTimeAsync(DEADLINE + 1);
+		await gaveUp;
+		expect(tiles.busy.some((mark) => mark.state === 'failed')).toBe(true);
+
+		// A new revision is what an edit produces, and it is tried afresh.
+		const tile = pending();
+		vi.stubGlobal('fetch', tile.fetch);
+		const retried = ask(`${SCHEME}://127.0.0.1:1/tiles/g/3/1/1?v=2`);
+		tile.deliver();
+		await retried;
+
+		expect(tiles.busy.filter((mark) => mark.state === 'failed')).toEqual([]);
 	});
 });

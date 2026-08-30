@@ -36,11 +36,28 @@ export const PATIENCE = 300;
  */
 export const MAP_PATIENCE = 1000;
 
+/**
+ * How long the map waits for one tile before giving up on it.
+ *
+ * **A tile request has no other end.** The embedded server answers when the pipeline answers, and
+ * some pipelines take minutes over a single tile: an overview asked for a zoom far above its base
+ * level costs `4^gap` source reads, which is seconds at a gap of five and unbounded at eight
+ * ([vt#264]). Nothing between here and there stops it, so a map zoomed out over such a pipeline
+ * simply never draws, with no error and nothing to click.
+ *
+ * Ten seconds because it has to be longer than a slow-but-working tile and shorter than a person's
+ * patience with a blank square. Measured against the same pipeline: a gap of five answers in nine
+ * and a half seconds, so this keeps what works and drops what does not.
+ *
+ * [vt#264]: https://github.com/versatiles-org/versatiles-rs/issues/264
+ */
+export const DEADLINE = 10_000;
+
 let rendering = $state(0);
 let queued = $state(0);
 
-/** What a pending tile is doing. */
-type Doing = 'queued' | 'rendering';
+/** What a pending tile is doing, or that nobody is waiting for it any more. */
+type Doing = 'queued' | 'rendering' | 'failed';
 
 /**
  * One square on the map, and every request currently keeping it there.
@@ -61,6 +78,33 @@ interface Pending {
 }
 
 let waiting = $state<Record<string, Pending>>({});
+
+/**
+ * Tiles that ran out of [`DEADLINE`], by `z/x/y`.
+ *
+ * Kept apart from `waiting`, which is what is *in flight*: a tile that was given up on is not being
+ * waited for any more, and its marker should stay until something replaces it rather than vanishing
+ * with the request.
+ */
+let refused = $state<Record<string, TileCoord>>({});
+
+/**
+ * Zoom levels that have already proved too slow, as `<source>@<zoom>`.
+ *
+ * **Because the map asks again.** MapLibre re-requests tiles on every pan, and cancelling one costs
+ * nothing upstream - the work is abandoned rather than remembered, so the next request starts over.
+ * Without this, sitting at a bad zoom burns ten seconds per tile per pan, for ever.
+ *
+ * Per zoom rather than per tile, because cost follows depth: if one tile at this level took too
+ * long, its neighbours will too. Zooming in reaches cheaper levels and is unaffected.
+ *
+ * Keyed on the URL before the coordinate, which carries the mount and its revision - so editing the
+ * pipeline mints a new key and everything is tried again, which is what an edit deserves.
+ */
+// A plain Set: nothing renders from this, so it needs no reactivity - it is read inside the request
+// that consults it and never by a getter or a template.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
+const tooSlow = new Set<string>();
 
 /// Tells one request from another. A counter rather than the URL, because a reload that does not
 /// change the URL - a layer added to a vector source - asks for the identical one.
@@ -139,12 +183,39 @@ export const tiles = {
 	 * Behind a longer patience than the message ([`MAP_PATIENCE`]).
 	 */
 	get busy(): { key: string; center: [number, number]; state: Doing }[] {
-		if (!marked) return [];
-		return Object.entries(waiting).map(([key, entry]) => ({
+		// **A tile that was given up on is marked whatever the patience says.** `marked` exists so a
+		// pipeline answering in half a second leaves the map alone; one that has already spent the
+		// deadline is past that argument, and its square would otherwise stay blank with no reason
+		// on screen for why.
+		const failed = Object.entries(refused).map(([key, coord]) => ({
 			key,
-			center: tileCenter(entry.coord.x, entry.coord.y, entry.coord.z),
-			state: doingOf(entry)
+			center: tileCenter(coord.x, coord.y, coord.z),
+			state: 'failed' as const
 		}));
+		if (!marked) return failed;
+
+		const busy = Object.entries(waiting)
+			.filter(([key]) => !(key in refused))
+			.map(([key, entry]) => ({
+				key,
+				center: tileCenter(entry.coord.x, entry.coord.y, entry.coord.z),
+				state: doingOf(entry)
+			}));
+		return [...busy, ...failed];
+	},
+
+	/**
+	 * Test seam: the module is a singleton, and a judgement made in one case must not reach the next.
+	 *
+	 * **Only a seam, unlike the counts.** `waiting` empties itself as requests end and `refused`
+	 * clears a coordinate that answers, so neither needs clearing in the application. `tooSlow` only
+	 * grows - but it is bounded by mounts times zoom levels, and a mount that goes takes its `?v=`
+	 * with it, so what is left is a handful of dead strings rather than a leak worth code.
+	 */
+	reset(): void {
+		waiting = {};
+		refused = {};
+		tooSlow.clear();
 	},
 
 	/** What the bar should say, or `null` while there is nothing worth saying. */
@@ -206,13 +277,46 @@ export const fetchTile: AddProtocolAction = async (params, controller) => {
 	// Nothing routed here should lack them, and inventing a square would be worse than the gap.
 	const key = coord && `${coord.z}/${coord.x}/${coord.y}`;
 	const request = String((requests += 1));
+	// The URL with its coordinate taken out: the mount and the `?v=` revision, which together are
+	// "this source, as it is written right now".
+	//
+	// **Removed rather than truncated.** The revision is a query parameter, so it sits *after* the
+	// coordinate - slicing at the coordinate drops it, and an edit that fixed the pipeline would
+	// keep failing fast against a judgement made about the version before it.
+	const slow = key ? `${url.replace(`/${key}`, '')}@${coord?.z}` : undefined;
+
+	// **Already known to be hopeless.** Answering at once beats spending the deadline again on a
+	// tile whose neighbour has just proved it cannot arrive.
+	if (slow && key && coord && tooSlow.has(slow)) {
+		refused = { ...refused, [key]: coord };
+		throw new Error(`tile ${key} was given up on: this zoom takes longer than ${DEADLINE} ms to build`);
+	}
+
 	if (key && coord) mark(key, request, coord, 'queued');
+
+	// Studio's own, so the deadline can end the wait without touching MapLibre's - which means
+	// something different: a tile it aborts has left the viewport and nobody wants it any more.
+	const own = new AbortController();
+	const giveUp = () => controller.signal.removeEventListener('abort', abandon);
+	const abandon = () => own.abort();
+	controller.signal.addEventListener('abort', abandon);
+	let expired = false;
+	const deadline = setTimeout(() => {
+		expired = true;
+		own.abort();
+	}, DEADLINE);
 
 	try {
 		return await queue.run(async () => {
 			if (key && coord) mark(key, request, coord, 'rendering');
-			const response = await fetch(url, { signal: controller.signal });
+			const response = await fetch(url, { signal: own.signal });
 			if (!response.ok) throw new TileError(response, url);
+			// **Self-healing.** A coordinate that answers is no longer one that was given up on -
+			// otherwise a marker left by a slow zoom would sit there after the edit that fixed it.
+			if (key && key in refused) {
+				const { [key]: _healed, ...rest } = refused;
+				refused = rest;
+			}
 			return {
 				data: await response.arrayBuffer(),
 				// Passed through rather than invented: the core puts a revision in the tile URL to
@@ -221,7 +325,18 @@ export const fetchTile: AddProtocolAction = async (params, controller) => {
 				expires: response.headers.get('expires') ?? undefined
 			};
 		}, controller.signal);
+	} catch (error) {
+		// **Told apart by which signal fired.** An abort from MapLibre is the ordinary case and says
+		// nothing; one from the deadline is this tile failing, and is the only one worth marking.
+		if (expired && key && coord && slow) {
+			tooSlow.add(slow);
+			refused = { ...refused, [key]: coord };
+			throw new Error(`tile ${key} took longer than ${DEADLINE} ms to build`, { cause: error });
+		}
+		throw error;
 	} finally {
+		clearTimeout(deadline);
+		giveUp();
 		// Outside `run`, not inside it: a tile cancelled while still queued never enters the task,
 		// so a cleanup in there would leave its square on the map for good.
 		//

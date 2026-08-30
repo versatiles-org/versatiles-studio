@@ -45,7 +45,11 @@
 		return holder;
 	}
 
-	const TITLE = { queued: 'Waiting for a slot', rendering: 'Rendering this tile' };
+	const TITLE = {
+		queued: 'Waiting for a slot',
+		rendering: 'Rendering this tile',
+		failed: 'Gave up on this tile - it took too long to build. Zoom in, or simplify the pipeline.'
+	};
 
 	$effect(() => {
 		const m = map;
@@ -119,6 +123,17 @@
 	:global(.tile-busy[data-state='queued'] .tile-busy-ring) {
 		opacity: 0.45;
 		animation-duration: 1800ms;
+	}
+
+	/*
+	 * Given up on: a closed ring in the error colour, and still. The spin says "something is
+	 * happening", which is the one thing this state is not - a marker that kept turning would
+	 * promise a tile that is never coming.
+	 */
+	:global(.tile-busy[data-state='failed'] .tile-busy-ring) {
+		border-color: var(--error);
+		animation: none;
+		opacity: 0.9;
 	}
 
 	@keyframes -global-tile-busy-spin {
