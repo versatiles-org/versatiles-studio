@@ -12,7 +12,7 @@ import { browser, expect, $ } from '@wdio/globals';
 import { existsSync, mkdtempSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { invoke, openProject } from '../support';
+import { choose, invoke, openProject } from '../support';
 
 const TARGET = join(mkdtempSync(join(tmpdir(), 'studio-e2e-')), 'export.versatiles');
 
@@ -23,6 +23,35 @@ describe('exporting a graph', () => {
 		await $('button=Export…').click();
 		await expect($('h2=Export debug')).toBeDisplayed();
 		await expect($('button=Estimate size')).toBeDisplayed();
+	});
+
+	// **The two things the dialog decides.** The container used to be read off whatever was typed
+	// into the save panel; both are chosen here now, and the panel follows. Asserted through the
+	// controls rather than the written file because the panel itself is out of WebDriver's reach.
+	it('lets the container and the compression be chosen', async () => {
+		const container = $('#export-format');
+		const compression = $('#export-compression');
+		await expect(container).toBeDisplayed();
+		await expect(compression).toBeDisplayed();
+
+		// Every format the core says it can write is offered.
+		const offered = await container.$$('option').map((option) => option.getValue());
+		expect(offered).toEqual(['versatiles', 'mbtiles', 'pmtiles']);
+
+		await choose(compression, 'brotli');
+		await expect(compression).toHaveValue('brotli');
+	});
+
+	// MBTiles stores one encoding per tile format and re-encodes whatever it is handed, so the
+	// control that cannot be obeyed says so instead of pretending.
+	it('disables the compression it cannot honour', async () => {
+		const compression = $('#export-compression');
+
+		await choose($('#export-format'), 'mbtiles');
+		await expect(compression).toBeDisabled();
+
+		await choose($('#export-format'), 'versatiles');
+		await expect(compression).toBeEnabled();
 
 		// The dialog asks for a destination through the operating system's save panel, which
 		// WebDriver cannot see, so the rest of the story supplies one the way that panel would.
@@ -40,7 +69,10 @@ describe('exporting a graph', () => {
 			//
 			// The whole world to level 6 is five thousand tiles: long enough that the progress below is
 			// something to watch rather than something to catch.
-			bounds: { bbox: [-180, -85, 180, 85], minZoom: 0, maxZoom: 6 }
+			bounds: { bbox: [-180, -85, 180, 85], minZoom: 0, maxZoom: 6 },
+			// The dialog's default, and the one that changes nothing: this story is about the events
+			// surviving the trip, not about re-encoding.
+			compression: 'source'
 		});
 
 		// Quickly, because this is the one assertion with a job racing it.

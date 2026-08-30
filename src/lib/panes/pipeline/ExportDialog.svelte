@@ -86,15 +86,6 @@
 	/// was selected before it was disabled.
 	const wanted = $derived<Compression>(fixedEncoding ? 'source' : compression);
 
-	/// Changing either of these changes the file, so an estimate taken before the change is about a
-	/// file nobody is going to write. Cleared rather than re-run: the run costs seconds, and asking
-	/// for it is the deliberate act this dialog is built around.
-	$effect(() => {
-		void format;
-		void compression;
-		asked = null;
-	});
-
 	/// The estimate this dialog asked for, or null until somebody asks.
 	///
 	/// **Not the pane's.** The pane estimates as the crop is dragged, because that is the loop it
@@ -105,6 +96,15 @@
 	let running = $state(false);
 	/// A refusal this run produced, as opposed to the standing one in `refusal`.
 	let failed = $state<string | null>(null);
+
+	/// Changing either of these changes the file, so an estimate taken before the change is about a
+	/// file nobody is going to write. Cleared rather than re-run: the run costs seconds, and asking
+	/// for it is the deliberate act this dialog is built around.
+	$effect(() => {
+		void format;
+		void compression;
+		asked = null;
+	});
 
 	async function estimate() {
 		running = true;
