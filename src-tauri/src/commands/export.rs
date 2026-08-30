@@ -3,7 +3,7 @@
 use crate::state::AppState;
 use std::path::PathBuf;
 use studio_core::estimate::Estimate;
-use studio_core::export::Bounds;
+use studio_core::export::{Bounds, Compression};
 use studio_core::graphs::{Graph, GraphId};
 use studio_core::jobs::{JobId, Lane};
 use tauri::State;
@@ -44,6 +44,7 @@ pub async fn export_graph(
 	graph: GraphId,
 	target: String,
 	bounds: Bounds,
+	compression: Compression,
 ) -> Result<JobId, String> {
 	// The pipeline and the directory it resolves against come out of the project together, under one
 	// lock: they are two halves of one answer, and reading them separately would let an `open_project`
@@ -90,7 +91,7 @@ pub async fn export_graph(
 		format!("Writing {name}"),
 		Lane::Queued,
 		window.label(),
-		move |handle| async move { studio_core::export::write(&handle, pipeline, &dir, &target, bounds).await },
+		move |handle| async move { studio_core::export::write(&handle, pipeline, &dir, &target, bounds, compression).await },
 	))
 }
 
@@ -112,6 +113,7 @@ pub async fn estimate_export(
 	state: State<'_, AppState>,
 	graph: GraphId,
 	bounds: Bounds,
+	compression: Compression,
 ) -> Result<Estimate, String> {
 	let project = state.project(&window).await;
 	let (pipeline, dir) = {
@@ -125,7 +127,7 @@ pub async fn estimate_export(
 
 	bounds.check().map_err(|error| format!("{error:#}"))?;
 
-	studio_core::estimate::estimate(pipeline, &dir, bounds)
+	studio_core::estimate::estimate(pipeline, &dir, bounds, compression)
 		.await
 		.map_err(|error| format!("{error:#}"))
 }

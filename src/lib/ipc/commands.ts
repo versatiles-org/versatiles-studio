@@ -32,6 +32,7 @@ import { unwrap } from './unwrap';
 const commands = namingFailures(generated);
 import type {
 	Bounds,
+	Compression,
 	NewProblem,
 	Preset,
 	SourceKind,
@@ -54,6 +55,7 @@ export * from './bindings';
 export type {
 	Bounds,
 	Carried,
+	Compression,
 	CopyPlan,
 	Family,
 	Fit,
@@ -185,8 +187,8 @@ export const writableFormats = () => commands.writableFormats();
  * offer to cancel. A rejection here means it never started: a target Studio cannot write, or a graph
  * that has since been removed.
  */
-export const exportGraph = (graph: number, target: string, bounds: Bounds = {}) =>
-	unwrap(commands.exportGraph(graph, target, bounds));
+export const exportGraph = (graph: number, target: string, bounds: Bounds = {}, compression: Compression = 'source') =>
+	unwrap(commands.exportGraph(graph, target, bounds, compression));
 
 /**
  * What that export would cost, before it is started (S3.7, C6).
@@ -195,7 +197,8 @@ export const exportGraph = (graph: number, target: string, bounds: Bounds = {}) 
  * seconds by construction - the core samples under a fixed time budget. Rejects with the same words
  * the export would have failed with, which is the point of asking first.
  */
-export const estimateExport = (graph: number, bounds: Bounds = {}) => unwrap(commands.estimateExport(graph, bounds));
+export const estimateExport = (graph: number, bounds: Bounds = {}, compression: Compression = 'source') =>
+	unwrap(commands.estimateExport(graph, bounds, compression));
 
 // -- the project ------------------------------------------------------------------------------
 

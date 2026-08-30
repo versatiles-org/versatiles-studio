@@ -1,7 +1,8 @@
 <script lang="ts">
 	import Modal from '../../common/Modal.svelte';
-	import type { Bounds, Estimate, Preview } from '../../ipc/commands';
+	import type { Bounds, Compression, Estimate, Preview } from '../../ipc/commands';
 	import { bytes, count } from '../../common/format';
+	import { untrack } from 'svelte';
 
 	// Writing one graph to a container (S3.6, F2, [Q32]).
 	//
@@ -43,11 +44,12 @@
 		 *  ([Q32]) and the export still writes the graph, so the caller asks for this one by name. */
 		produces: Preview | null;
 		/** Runs the estimate and resolves with it (S3.7, C6). Asked for, not arrived at: see the note
-		 *  on `asked` below. */
-		onEstimate: () => Promise<Estimate>;
+		 *  on `asked` below. Takes the encoding because the size depends on it. */
+		onEstimate: (compression: Compression) => Promise<Estimate>;
 		onCancel: () => void;
-		/** Runs when the file may be chosen; picking it is the caller's next step. */
-		onExport: () => void;
+		/** Runs when the file may be chosen; picking it is the caller's next step. The container and
+		 *  the encoding are settled here, so they go with it. */
+		onExport: (choice: { format: string; compression: Compression }) => void;
 	} = $props();
 
 	/// The crop in a sentence - "zoom 4-12, 13.0 −52.3 → 13.8 52.7" - or what it means to have none.
@@ -61,6 +63,36 @@
 			parts.push(`${west}, ${south} → ${east}, ${north}`);
 		}
 		return parts;
+	});
+
+	/// The container to write. Defaults to the first Studio offers, which is `versatiles`.
+	///
+	/// **This is the answer now, and the filename follows it** - see `exporting.start`. It used to be
+	/// read off whatever was typed into the save dialog, which is one answer too, but not one you can
+	/// see before committing to it.
+	// `untrack` because this is the initial value and only that: the list is fetched once at
+	// startup and this dialog is built after it, so there is nothing later to follow.
+	let format = $state(untrack(() => formats[0]) ?? 'versatiles');
+
+	/// How the tiles are encoded in the file. `source` keeps whatever the pipeline produces.
+	let compression = $state<Compression>('source');
+
+	/// **MBTiles stores one encoding per tile format** - gzip for `pbf`, uncompressed for the rest -
+	/// and its writer re-encodes to that whatever it is handed, logging that it did. Offering a
+	/// choice it will overrule would be a control that does nothing, so it says so instead.
+	const fixedEncoding = $derived(format === 'mbtiles');
+
+	/// The choice as it will actually be sent. A picker that is disabled must not keep sending what
+	/// was selected before it was disabled.
+	const wanted = $derived<Compression>(fixedEncoding ? 'source' : compression);
+
+	/// Changing either of these changes the file, so an estimate taken before the change is about a
+	/// file nobody is going to write. Cleared rather than re-run: the run costs seconds, and asking
+	/// for it is the deliberate act this dialog is built around.
+	$effect(() => {
+		void format;
+		void compression;
+		asked = null;
 	});
 
 	/// The estimate this dialog asked for, or null until somebody asks.
@@ -78,7 +110,7 @@
 		running = true;
 		failed = null;
 		try {
-			asked = await onEstimate();
+			asked = await onEstimate(wanted);
 		} catch (error) {
 			failed = error instanceof Error ? error.message : String(error);
 		} finally {
@@ -120,8 +152,29 @@
 		</dd>
 		<!-- `Container`, not `Format`: the row above already used that word for the tiles, and these
 		     are the boxes they go in. -->
-		<dt>Container</dt>
-		<dd>{formats.join(', ')} - the file you choose decides which.</dd>
+		<dt><label for="export-format">Container</label></dt>
+		<dd>
+			<select id="export-format" bind:value={format}>
+				{#each formats as option (option)}
+					<option value={option}>{option}</option>
+				{/each}
+			</select>
+		</dd>
+		<!-- How the tile bodies are encoded inside that container - a different question from the
+		     format above, and the one that decides how big the file is. -->
+		<dt><label for="export-compression">Compression</label></dt>
+		<dd>
+			<select id="export-compression" bind:value={compression} disabled={fixedEncoding}>
+				<option value="source">Keep as produced</option>
+				<option value="uncompressed">None</option>
+				<option value="gzip">Gzip</option>
+				<option value="brotli">Brotli</option>
+				<option value="zstd">Zstd</option>
+			</select>
+			{#if fixedEncoding}
+				<span class="aside">MBTiles sets its own.</span>
+			{/if}
+		</dd>
 	</dl>
 
 	{#if produces && produces.layers.length > 0}
@@ -170,7 +223,9 @@
 
 	{#snippet actions()}
 		<button type="button" class="button" onclick={onCancel}>Cancel</button>
-		<button type="button" class="button primary" onclick={onExport}> Choose file… </button>
+		<button type="button" class="button primary" onclick={() => onExport({ format, compression: wanted })}>
+			Choose file…
+		</button>
 	{/snippet}
 </Modal>
 
@@ -238,6 +293,12 @@
 			color: var(--ink-2);
 			font-size: var(--text-xs);
 		}
+	}
+
+	.aside {
+		margin-left: var(--space-2);
+		color: var(--ink-2);
+		font-size: var(--text-xs);
 	}
 
 	.note {

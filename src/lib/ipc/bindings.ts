@@ -115,7 +115,7 @@ export const commands = {
 	 * 
 	 *  [Q27]: ../../../docs/decisions.md
 	 */
-	exportGraph: (graph: number, target: string, bounds: Bounds) => typedError<number, string>(__TAURI_INVOKE("export_graph", { graph, target, bounds })),
+	exportGraph: (graph: number, target: string, bounds: Bounds, compression: Compression) => typedError<number, string>(__TAURI_INVOKE("export_graph", { graph, target, bounds, compression })),
 	/**
 	 *  What an export would cost, before one is started (S3.7, C6).
 	 * 
@@ -129,7 +129,7 @@ export const commands = {
 	 *  bounding box that is inside out are both things the dialog can say next to the field that causes
 	 *  them, rather than after a filename has been chosen.
 	 */
-	estimateExport: (graph: number, bounds: Bounds) => typedError<Estimate, string>(__TAURI_INVOKE("estimate_export", { graph, bounds })),
+	estimateExport: (graph: number, bounds: Bounds, compression: Compression) => typedError<Estimate, string>(__TAURI_INVOKE("estimate_export", { graph, bounds, compression })),
 	/**
 	 *  Narrows what an export of this graph writes (F2, S5.2, S5.4).
 	 * 
@@ -719,10 +719,6 @@ overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; s
 ({ type: "hillshade"; shade: Hillshade_Serialize }) & { adjust?: never; overrides?: never; preset?: never; recolor?: never };
 
 /**
- *  Whether Studio will offer to write this path.
- * 
- *  Checked before the job starts so an unknown extension is a message rather than a job that fails
- *  after opening every source.
  *  What an export narrows the pipeline to before writing it.
  * 
  *  Every field is optional and `None` means "as far as the pipeline goes". They are applied as one
@@ -764,6 +760,27 @@ export type Carried = {
 	to: string,
 	bytes: number,
 };
+
+/**
+ *  Whether Studio will offer to write this path.
+ * 
+ *  Checked before the job starts so an unknown extension is a message rather than a job that fails
+ *  after opening every source.
+ *  How the tiles are encoded in the file an export writes (S3.6).
+ * 
+ *  **Studio's own enum rather than upstream's `TileCompression`**, for the reason every type that
+ *  crosses to the webview is: specta cannot derive `Type` for a foreign type, and the webview needs
+ *  the list to build a picker from. The mapping is `wanted` below, and is the only place the two
+ *  vocabularies meet.
+ * 
+ *  **`Source` is a fifth state and not a fourth compression.** "Whatever the pipeline already
+ *  produces" is what every export did before this existed and is still the default, so choosing
+ *  nothing changes nothing - and it is the honest answer for a raster pipeline, where re-encoding a
+ *  PNG through gzip costs time to make the file very slightly larger.
+ */
+export type Compression = 
+/**  Keep whatever the pipeline produces. */
+"source" | "uncompressed" | "gzip" | "brotli" | "zstd";
 
 /**
  *  What Studio knows about a container without reading a single tile body.

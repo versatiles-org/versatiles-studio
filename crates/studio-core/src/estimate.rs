@@ -30,7 +30,7 @@
 //! are the tiles written. Two ways of narrowing a pipeline would agree on the day they were written
 //! and quietly stop agreeing later.
 
-use crate::export::{self, Bounds};
+use crate::export::{self, Bounds, Compression};
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::time::{Duration, Instant};
@@ -74,8 +74,8 @@ pub struct Estimate {
 /// Runs `pipeline` over a sample of the tiles `bounds` selects, and multiplies up.
 ///
 /// `dir` is what relative paths in the VPL resolve against, as everywhere else.
-pub async fn estimate(pipeline: VPLPipeline, dir: &Path, bounds: Bounds) -> Result<Estimate> {
-	sample(pipeline, dir, bounds, BUDGET, MAX_SAMPLES).await
+pub async fn estimate(pipeline: VPLPipeline, dir: &Path, bounds: Bounds, compression: Compression) -> Result<Estimate> {
+	sample(pipeline, dir, bounds, compression, BUDGET, MAX_SAMPLES).await
 }
 
 /// The estimate, with the limits as arguments rather than as constants.
@@ -89,6 +89,7 @@ async fn sample(
 	pipeline: VPLPipeline,
 	dir: &Path,
 	bounds: Bounds,
+	compression: Compression,
 	budget: Duration,
 	max_samples: u32,
 ) -> Result<Estimate> {
@@ -102,6 +103,10 @@ async fn sample(
 	let source = crate::preview::build(&runtime, pipeline, dir)
 		.await
 		.context("building the pipeline")?;
+	// **A tile's size is a property of its encoding**, so the samples are measured through the same
+	// re-encoding the write applies. Measuring gzip and writing brotli would report a number about a
+	// file nobody is going to have.
+	let source = export::encoded(source, compression).await?;
 
 	let pyramid = source.tile_pyramid().await.context("reading the tile pyramid")?;
 	let tiles = export::writable_count(&pyramid)?;
@@ -283,6 +288,7 @@ mod tests {
 			pipeline("from_debug format=png | filter level_max=2"),
 			Path::new("."),
 			bounds,
+			Compression::Source,
 		)
 		.await
 		.unwrap();
@@ -309,9 +315,16 @@ mod tests {
 		// A budget far past anything this needs, so the test is about the arithmetic rather than
 		// about how loaded the machine is - a debug build renders a debug PNG slowly enough that
 		// the shipped two seconds buys six tiles here, and six is not twenty-one.
-		let estimate = sample(pipeline(vpl), Path::new("."), bounds, Duration::from_secs(600), 64)
-			.await
-			.unwrap();
+		let estimate = sample(
+			pipeline(vpl),
+			Path::new("."),
+			bounds,
+			Compression::Source,
+			Duration::from_secs(600),
+			64,
+		)
+		.await
+		.unwrap();
 		assert_eq!(estimate.tiles, expected_tiles);
 		assert_eq!(estimate.sampled, expected_tiles as u32);
 
@@ -346,6 +359,7 @@ mod tests {
 			pipeline("from_debug format=png"),
 			Path::new("."),
 			bounds,
+			Compression::Source,
 			Duration::ZERO,
 			64,
 		)
@@ -375,6 +389,7 @@ mod tests {
 			pipeline("from_debug format=png"),
 			Path::new("."),
 			bounds,
+			Compression::Source,
 			Duration::from_secs(600),
 			8,
 		)
@@ -388,9 +403,14 @@ mod tests {
 	/// than after a filename has been chosen. The wording is `export`'s, so there is one refusal.
 	#[tokio::test]
 	async fn an_unbounded_pyramid_is_refused_with_the_export_s_own_words() {
-		let error = estimate(pipeline("from_debug format=png"), Path::new("."), Bounds::default())
-			.await
-			.unwrap_err();
+		let error = estimate(
+			pipeline("from_debug format=png"),
+			Path::new("."),
+			Bounds::default(),
+			Compression::Source,
+		)
+		.await
+		.unwrap_err();
 		let message = format!("{error:#}");
 		assert!(message.contains("Set a maximum zoom"), "{message}");
 	}

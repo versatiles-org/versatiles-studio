@@ -30,7 +30,9 @@
 use crate::jobs::JobHandle;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
-use versatiles_container::{Event, TilesRuntime};
+use versatiles_container::{
+	Event, SharedTileSource, TileSource, TilesConvertReader, TilesConverterParameters, TilesRuntime,
+};
 use versatiles_pipeline::VPLPipeline;
 
 /// Container formats that can be written, by extension.
@@ -55,6 +57,73 @@ pub const MAX_TILES: u64 = 100_000_000;
 /// Checked before the job starts so an unknown extension is a message rather than a job that fails
 /// after opening every source.
 #[must_use]
+/// How the tiles are encoded in the file an export writes (S3.6).
+///
+/// **Studio's own enum rather than upstream's `TileCompression`**, for the reason every type that
+/// crosses to the webview is: specta cannot derive `Type` for a foreign type, and the webview needs
+/// the list to build a picker from. The mapping is `wanted` below, and is the only place the two
+/// vocabularies meet.
+///
+/// **`Source` is a fifth state and not a fourth compression.** "Whatever the pipeline already
+/// produces" is what every export did before this existed and is still the default, so choosing
+/// nothing changes nothing - and it is the honest answer for a raster pipeline, where re-encoding a
+/// PNG through gzip costs time to make the file very slightly larger.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub enum Compression {
+	/// Keep whatever the pipeline produces.
+	#[default]
+	Source,
+	Uncompressed,
+	Gzip,
+	Brotli,
+	Zstd,
+}
+
+impl Compression {
+	/// The upstream compression this asks for, or `None` for "leave it alone".
+	fn wanted(self) -> Option<versatiles_core::TileCompression> {
+		use versatiles_core::TileCompression as Upstream;
+		match self {
+			Compression::Source => None,
+			Compression::Uncompressed => Some(Upstream::Uncompressed),
+			Compression::Gzip => Some(Upstream::Gzip),
+			Compression::Brotli => Some(Upstream::Brotli),
+			Compression::Zstd => Some(Upstream::Zstd),
+		}
+	}
+}
+
+/// `source` re-encoded to `compression`, or `source` itself when nothing was asked for.
+///
+/// **Shared with [`crate::estimate`] for the reason [`bounded`] is** - the estimate samples tile
+/// *sizes*, and a tile's size is a property of its encoding. Measuring gzip and writing brotli would
+/// report a number about a file nobody is going to have, which is exactly the drift the two ways of
+/// narrowing a pipeline were merged to prevent.
+///
+/// **Not every container obeys it, and that is upstream's call to make.** MBTiles stores one
+/// encoding per format - gzip for `pbf`, uncompressed for the rest - so its writer re-encodes and
+/// logs that it did; the job log is where that arrives. The picker in front of this should not offer
+/// what the writer will overrule, but this is not the place to decide it: a library function that
+/// silently dropped the caller's choice would be worse than one that passes it on to the thing that
+/// knows.
+pub async fn encoded(source: SharedTileSource, compression: Compression) -> Result<SharedTileSource> {
+	let Some(wanted) = compression.wanted() else {
+		return Ok(source);
+	};
+	// Only the compression is set: every other field of the default narrows or remaps something, and
+	// the narrowing an export does is `bounded`'s, in the pipeline, where the estimate can see it.
+	let parameters = TilesConverterParameters {
+		tile_compression: Some(wanted),
+		..Default::default()
+	};
+	Ok(TilesConvertReader::new_from_reader(source, parameters)
+		.await
+		.context("re-encoding the tiles")?
+		.into_shared())
+}
+
 /// What an export narrows the pipeline to before writing it.
 ///
 /// Every field is optional and `None` means "as far as the pipeline goes". They are applied as one
@@ -233,7 +302,14 @@ fn writable_export(pyramid: &versatiles_core::TilePyramid, bounds: Bounds) -> Re
 /// **Its own runtime**, not the server's. The events on a shared bus would arrive mixed with every
 /// preview the window builds while this runs, and a job's log has to be that job's. The cost is
 /// re-opening the sources, which a full write does anyway.
-pub async fn write(handle: &JobHandle, pipeline: VPLPipeline, dir: &Path, target: &Path, bounds: Bounds) -> Result<()> {
+pub async fn write(
+	handle: &JobHandle,
+	pipeline: VPLPipeline,
+	dir: &Path,
+	target: &Path,
+	bounds: Bounds,
+	compression: Compression,
+) -> Result<()> {
 	anyhow::ensure!(
 		is_writable(target),
 		"cannot write {}: Studio writes {}",
@@ -256,6 +332,9 @@ pub async fn write(handle: &JobHandle, pipeline: VPLPipeline, dir: &Path, target
 	let source = crate::preview::build(&runtime, pipeline, dir)
 		.await
 		.context("building the pipeline")?;
+	// Before the pyramid is read and before anything is written, so every number below and the bytes
+	// on disk are all about the same tiles.
+	let source = encoded(source, compression).await?;
 
 	// Reading the pyramid is bounds arithmetic, not a traversal, so this costs nothing - and it
 	// happens before anything is opened for writing, which is the whole point.
@@ -409,7 +488,15 @@ mod tests {
 
 		for extension in WRITABLE {
 			let target = crate::testing::path(&format!("offered.{extension}"));
-			write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await?;
+			write(
+				&handle,
+				document.to_pipeline(),
+				Path::new("."),
+				&target,
+				TEST_BOUNDS,
+				Compression::Source,
+			)
+			.await?;
 			assert!(target.exists(), "{extension} was not written");
 			assert!(std::fs::metadata(&target)?.len() > 0, "{extension} is empty");
 		}
@@ -424,7 +511,15 @@ mod tests {
 		let document = Document::parse("from_debug format=png | raster_overview level=2")?;
 		let target = crate::testing::path("roundtrip.versatiles");
 
-		write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await?;
+		write(
+			&handle,
+			document.to_pipeline(),
+			Path::new("."),
+			&target,
+			TEST_BOUNDS,
+			Compression::Source,
+		)
+		.await?;
 
 		let runtime = versatiles::runtime::create_runtime();
 		let written = runtime.reader_from_str(&target.to_string_lossy()).await?;
@@ -444,9 +539,16 @@ mod tests {
 		let document = Document::parse("from_debug format=png").unwrap();
 		let target = crate::testing::path("nope.geojson");
 
-		let error = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS)
-			.await
-			.unwrap_err();
+		let error = write(
+			&handle,
+			document.to_pipeline(),
+			Path::new("."),
+			&target,
+			TEST_BOUNDS,
+			Compression::Source,
+		)
+		.await
+		.unwrap_err();
 		assert!(
 			format!("{error:#}").contains("versatiles, mbtiles, pmtiles"),
 			"{error:#}"
@@ -467,7 +569,15 @@ mod tests {
 		// VPL - quoting is the core's job everywhere else and it is the core's job here too.
 		let vpl = crate::vpl::read_node("from_container", "/nowhere/absent.versatiles");
 		let document = Document::parse(&vpl)?;
-		let result = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await;
+		let result = write(
+			&handle,
+			document.to_pipeline(),
+			Path::new("."),
+			&target,
+			TEST_BOUNDS,
+			Compression::Source,
+		)
+		.await;
 
 		assert!(result.is_err(), "this pipeline should not have written anything");
 		assert_eq!(
@@ -506,12 +616,144 @@ mod tests {
 		let document = Document::parse("from_debug format=avif").unwrap();
 		let target = crate::testing::path("mismatch.mbtiles");
 
-		let error = write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS)
-			.await
-			.unwrap_err();
+		let error = write(
+			&handle,
+			document.to_pipeline(),
+			Path::new("."),
+			&target,
+			TEST_BOUNDS,
+			Compression::Source,
+		)
+		.await
+		.unwrap_err();
 		let message = format!("{error:#}");
 		assert!(message.contains("MBTiles cannot store"), "{message}");
 		assert!(!target.exists(), "a refused format left a file behind");
+	}
+
+	/// **The compression reaches the file**, which is the whole of the feature: read the container
+	/// back and ask it what it holds.
+	///
+	/// `versatiles` rather than the other two, because it is the format that stores whatever it is
+	/// given - MBTiles fixes its encoding per tile format, which is the next test.
+	#[tokio::test]
+	async fn the_chosen_compression_is_what_the_file_holds() -> Result<()> {
+		let runtime = versatiles::runtime::create_runtime_builder()
+			.silent_progress(true)
+			.build();
+
+		for (chosen, expected) in [
+			// Upstream spells this one "none" when it names it.
+			(Compression::Uncompressed, "none"),
+			(Compression::Gzip, "gzip"),
+			(Compression::Brotli, "brotli"),
+			(Compression::Zstd, "zstd"),
+		] {
+			let (handle, _) = job();
+			let document = Document::parse("from_debug format=pbf")?;
+			let target = crate::testing::path(&format!("encoded-{expected}.versatiles"));
+
+			write(
+				&handle,
+				document.to_pipeline(),
+				Path::new("."),
+				&target,
+				TEST_BOUNDS,
+				chosen,
+			)
+			.await?;
+
+			let written = runtime.reader_from_str(&target.to_string_lossy()).await?;
+			let info = crate::analysis::describe(&written, "written").await?;
+			assert_eq!(info.tile_compression, expected, "asked for {chosen:?}");
+			assert_eq!(info.tile_format, "mvt", "re-encoding must not change the format");
+		}
+		Ok(())
+	}
+
+	/// `Source` is the default and has to stay a no-op, or every export that never asked for anything
+	/// would quietly start re-encoding.
+	#[tokio::test]
+	async fn keeping_the_source_encoding_writes_what_the_pipeline_produced() -> Result<()> {
+		let runtime = versatiles::runtime::create_runtime_builder()
+			.silent_progress(true)
+			.build();
+		let (handle, _) = job();
+		let document = Document::parse("from_debug format=pbf")?;
+		let target = crate::testing::path("encoded-source.versatiles");
+
+		let produced = crate::preview::build(&runtime, document.to_pipeline(), Path::new(".")).await?;
+		let before = crate::analysis::describe(&produced, "pipeline").await?;
+
+		write(
+			&handle,
+			document.to_pipeline(),
+			Path::new("."),
+			&target,
+			TEST_BOUNDS,
+			Compression::Source,
+		)
+		.await?;
+
+		let written = runtime.reader_from_str(&target.to_string_lossy()).await?;
+		let after = crate::analysis::describe(&written, "written").await?;
+		assert_eq!(after.tile_compression, before.tile_compression);
+		Ok(())
+	}
+
+	/// **MBTiles stores one encoding per tile format** and re-encodes whatever it is handed, so a
+	/// choice it will overrule must not be offered - which is what the dialog's disabled picker is
+	/// for. Pinned here because the reason lives in upstream's writer, where a Studio test is the
+	/// only thing that would notice it changing.
+	#[tokio::test]
+	async fn mbtiles_writes_its_own_encoding_whatever_was_asked_for() -> Result<()> {
+		let runtime = versatiles::runtime::create_runtime_builder()
+			.silent_progress(true)
+			.build();
+		let (handle, _) = job();
+		let document = Document::parse("from_debug format=pbf")?;
+		let target = crate::testing::path("encoded.mbtiles");
+
+		write(
+			&handle,
+			document.to_pipeline(),
+			Path::new("."),
+			&target,
+			TEST_BOUNDS,
+			Compression::Brotli,
+		)
+		.await?;
+
+		let written = runtime.reader_from_str(&target.to_string_lossy()).await?;
+		let info = crate::analysis::describe(&written, "written").await?;
+		assert_eq!(
+			info.tile_compression, "gzip",
+			"MBTiles stores mvt as gzipped pbf regardless of what was asked for"
+		);
+		Ok(())
+	}
+
+	/// The estimate measures sizes, and a size is a property of an encoding - so the two have to be
+	/// looking at the same file. Brotli is smaller than uncompressed for the same tiles, and the
+	/// estimate has to say so or it is describing a file nobody will have.
+	#[tokio::test]
+	async fn the_estimate_follows_the_chosen_compression() -> Result<()> {
+		let document = Document::parse("from_debug format=pbf")?;
+		let at = async |compression| {
+			crate::estimate::estimate(document.to_pipeline(), Path::new("."), TEST_BOUNDS, compression).await
+		};
+
+		let plain = at(Compression::Uncompressed).await?;
+		let squeezed = at(Compression::Brotli).await?;
+
+		assert_eq!(plain.tiles, squeezed.tiles, "the same tiles either way");
+		assert!(
+			squeezed.bytes < plain.bytes,
+			"brotli should estimate smaller than uncompressed: {} vs {}",
+			squeezed.bytes,
+			plain.bytes
+		);
+		Ok(())
 	}
 
 	/// The bug that cost a machine: `from_debug` declares a complete pyramid to level 30, and an
@@ -529,6 +771,7 @@ mod tests {
 			Path::new("."),
 			&target,
 			Bounds::default(),
+			Compression::Source,
 		)
 		.await
 		.unwrap_err();
@@ -560,9 +803,16 @@ mod tests {
 			min_zoom: None,
 			max_zoom: Some(3),
 		};
-		let error = write(&handle, document.to_pipeline(), &dir, &target, bounds)
-			.await
-			.unwrap_err();
+		let error = write(
+			&handle,
+			document.to_pipeline(),
+			&dir,
+			&target,
+			bounds,
+			Compression::Source,
+		)
+		.await
+		.unwrap_err();
 
 		let message = format!("{error:#}");
 		assert!(message.contains("would write no tiles"), "{message}");
@@ -591,9 +841,16 @@ mod tests {
 		let document = Document::parse(r#"from_gdal_raster filename="bluemarble.png" | filter level_max=3"#).unwrap();
 		let target = crate::testing::path("empty-pipeline.versatiles");
 
-		let error = write(&handle, document.to_pipeline(), &dir, &target, Bounds::default())
-			.await
-			.unwrap_err();
+		let error = write(
+			&handle,
+			document.to_pipeline(),
+			&dir,
+			&target,
+			Bounds::default(),
+			Compression::Source,
+		)
+		.await
+		.unwrap_err();
 
 		let message = format!("{error:#}");
 		assert!(message.contains("produces no tiles"), "{message}");
@@ -612,7 +869,7 @@ mod tests {
 			max_zoom: Some(3),
 		};
 
-		let estimate = crate::estimate::estimate(document.to_pipeline(), &dir, bounds)
+		let estimate = crate::estimate::estimate(document.to_pipeline(), &dir, bounds, Compression::Source)
 			.await
 			.expect("an estimate of nothing is an answer, not a failure");
 		assert_eq!(estimate.tiles, 0);
@@ -724,6 +981,7 @@ mod tests {
 				min_zoom: None,
 				max_zoom: Some(6),
 			},
+			Compression::Source,
 		)
 		.await?;
 
@@ -767,6 +1025,7 @@ mod tests {
 				max_zoom: Some(2),
 				..Bounds::default()
 			},
+			Compression::Source,
 		)
 		.await?;
 
@@ -788,7 +1047,15 @@ mod tests {
 		let document = Document::parse("from_debug format=png | raster_overview level=2")?;
 		let target = crate::testing::path("progress.versatiles");
 
-		write(&handle, document.to_pipeline(), Path::new("."), &target, TEST_BOUNDS).await?;
+		write(
+			&handle,
+			document.to_pipeline(),
+			Path::new("."),
+			&target,
+			TEST_BOUNDS,
+			Compression::Source,
+		)
+		.await?;
 
 		let events = events.lock().unwrap();
 		let measured = events

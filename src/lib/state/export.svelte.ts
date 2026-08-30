@@ -20,6 +20,7 @@ import {
 	mountGraph,
 	writableFormats,
 	type Bounds,
+	type Compression,
 	type Estimate,
 	type Preview
 } from '../ipc/commands';
@@ -83,18 +84,25 @@ export const exporting = {
 			.catch(() => null);
 	},
 
-	/** Runs the estimate the dialog asks for. */
-	estimate(graph: number | null, crop: Bounds): Promise<Estimate> {
+	/** Runs the estimate the dialog asks for.
+	 *
+	 *  Takes the compression because a tile's size is a property of its encoding: the core samples
+	 *  through the same re-encoding the write applies, so choosing brotli changes the number. */
+	estimate(graph: number | null, crop: Bounds, compression: Compression): Promise<Estimate> {
 		if (graph === null) return Promise.reject(new Error('that graph is no longer open'));
-		return estimateExport(graph, crop);
+		return estimateExport(graph, crop, compression);
 	},
 
 	/**
 	 * Writes this graph to a container, as a job.
 	 *
-	 * Collects only the *destination*: the extension chosen is what decides the format, and asking
-	 * for a format in a form and then letting the filename contradict it would be two answers to one
-	 * question.
+	 * **The dialog decides the container now, and the filename follows it.** This used to collect
+	 * only the destination, on the argument that asking for a format in a form and then letting the
+	 * filename contradict it would be two answers to one question. That argument still holds - what
+	 * changed is which of the two answers: the picker sets the save dialog's default name and its
+	 * only filter, and [`withExtension`] settles anything the platform dialog let through. So there
+	 * is still exactly one answer, and it is now the one the user chose rather than the one they
+	 * typed.
 	 *
 	 * Returns once the job is submitted rather than once it is done - an export runs for minutes, and
 	 * the bar is where it is watched and cancelled (E7).
@@ -103,19 +111,47 @@ export const exporting = {
 	 * line, so a message set here was invisible while the export ran and surfaced only once it had
 	 * stopped - the one moment it was no longer true.
 	 */
-	async start(graph: number | null, name: string, crop: Bounds): Promise<void> {
+	async start(
+		graph: number | null,
+		name: string,
+		crop: Bounds,
+		format: string,
+		compression: Compression
+	): Promise<void> {
 		open = false;
 		if (graph === null) return;
 		try {
 			const target = await save({
 				title: `Export ${name}`,
-				defaultPath: `${name}.${formats[0] ?? 'versatiles'}`,
-				filters: [{ name: 'Tile containers', extensions: formats }]
+				defaultPath: `${name}.${format}`,
+				// One filter, not the whole list: the picker above has already answered this, and a
+				// dialog still offering the other two would be inviting the contradiction.
+				filters: [{ name: format, extensions: [format] }]
 			});
 			if (!target) return; // cancelled
-			await exportGraph(graph, target, crop);
+			await exportGraph(graph, withExtension(target, format), crop, compression);
 		} catch (error) {
 			status.fail(error);
 		}
 	}
 };
+
+/**
+ * `path` ending in `.format`, whatever it ended in before.
+ *
+ * **Because the platform dialogs do not agree.** A single-extension filter is a strong hint and not
+ * a guarantee: type `berlin.pmtiles` into a dialog filtered to `versatiles` and macOS asks whether
+ * you meant it, GTK takes it, and Windows appends. The core reads the container from the extension,
+ * so whichever way it goes the picker has to be the thing that decided.
+ *
+ * **Replaced only when what is there is another container extension.** `berlin.pmtiles` becomes
+ * `berlin.versatiles`, and `my.export` becomes `my.export.versatiles` rather than losing the half of
+ * its name that looks like a suffix and is not.
+ */
+export function withExtension(path: string, format: string): string {
+	if (path.toLowerCase().endsWith(`.${format}`)) return path;
+	const dot = path.lastIndexOf('.');
+	const slash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'));
+	const current = dot > slash ? path.slice(dot + 1).toLowerCase() : null;
+	return current !== null && formats.includes(current) ? `${path.slice(0, dot)}.${format}` : `${path}.${format}`;
+}

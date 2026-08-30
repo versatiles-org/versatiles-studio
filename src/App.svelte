@@ -481,10 +481,11 @@
 		name={document.current.name}
 		formats={exporting.formats}
 		crop={workbench.crop}
-		onEstimate={() => exporting.estimate(currentGraph, workbench.crop)}
+		onEstimate={(compression) => exporting.estimate(currentGraph, workbench.crop, compression)}
 		onCancel={() => exporting.close()}
 		produces={exporting.producing}
-		onExport={() => void exporting.start(currentGraph, document.current?.name ?? '', workbench.crop)}
+		onExport={({ format, compression }) =>
+			void exporting.start(currentGraph, document.current?.name ?? '', workbench.crop, format, compression)}
 	/>
 {/if}
 
