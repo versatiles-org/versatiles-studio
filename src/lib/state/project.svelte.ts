@@ -99,7 +99,10 @@ export const project = {
 		try {
 			const target = zip
 				? await saveDialog({
-						title: 'Save a copy as',
+						// Trails off for the same reason its sibling below does: the phrase is not finished
+						// until the panel is. The titles that *are* a finished phrase - `Open project`,
+						// `Save pipeline` - carry no ellipsis.
+						title: 'Save a copy as…',
 						defaultPath: 'project.zip',
 						filters: [{ name: 'Zip archive', extensions: ['zip'] }]
 					})
