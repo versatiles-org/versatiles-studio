@@ -372,10 +372,26 @@ struct Entry {
 	/// Present while running, so cancelling can drop the work at its next await point rather than
 	/// waiting for it to notice.
 	task: Option<tokio::task::JoinHandle<()>>,
-	/// When the job was first seen counting, and at what count - the origin every rate is measured
-	/// from. Kept out of [`Job`] because it is bookkeeping rather than something to show, and an
-	/// `Instant` does not cross a serialisation boundary anyway.
-	anchor: Option<(Instant, u64)>,
+	/// Where the current measurement series started. See [`Anchor`].
+	///
+	/// Kept out of [`Job`] because it is bookkeeping rather than something to show, and an `Instant`
+	/// does not cross a serialisation boundary anyway.
+	anchor: Option<Anchor>,
+}
+
+/// The origin a rate is averaged from: when the series was first seen counting, and at what count.
+///
+/// **`total` is part of it, because a job is not one count.** An export reports several in
+/// succession - a tar is scanned by byte, then its tiles are written by tile - and each is a fresh
+/// series with its own units, its own denominator and a position that starts again at zero. They
+/// arrive here as one undifferentiated stream of `(done, total)`, so the denominator is what tells
+/// one from the next.
+#[derive(Clone, Copy)]
+struct Anchor {
+	since: Instant,
+	from: u64,
+	/// What the series was counting towards when it was anchored.
+	total: u64,
 }
 
 impl Entry {
@@ -387,6 +403,19 @@ impl Entry {
 	/// anchor is the *first* counted update rather than the moment of submission, so time spent
 	/// opening sources before a single tile moved is not averaged in as slow work.
 	///
+	/// **And re-anchored when the series changes**, which is the whole reason [`Anchor`] carries a
+	/// total. One anchor for the life of the job assumed one monotonic count, and an export is not
+	/// that: scanning a 284 MB tar anchors at 31 672 832 *bytes*, and the tile writing that follows
+	/// reports 442 of 5 239 *tiles*. `442 - 31_672_832` saturates to zero, "nothing moved" returned
+	/// early leaving the previous numbers in place, and because the tile count can never climb past
+	/// the byte count it did so for the rest of the export - a status bar showing a 3.9 GB/s rate and
+	/// "a few seconds left" beside a progress bar that was visibly still moving. The fraction came
+	/// straight off the event and kept updating, which is what made it look like a rendering fault
+	/// rather than a stale average.
+	///
+	/// A new series says nothing until it has two points of its own. Carrying the old rate across
+	/// would be reporting one thing's speed as another's, which is exactly what went wrong.
+	///
 	/// Silent until there is something to say: no anchor yet, no time elapsed, or nothing done
 	/// since the anchor all leave the rate `None` rather than reporting zero or infinity.
 	fn rate_and_eta(&mut self, now: Instant) {
@@ -396,9 +425,24 @@ impl Entry {
 			return;
 		};
 
-		let (since, from) = *self.anchor.get_or_insert((now, done));
-		let elapsed = now.duration_since(since).as_secs_f64();
-		let moved = done.saturating_sub(from);
+		// A different denominator, or a count that has gone backwards: either way this is not the
+		// series the anchor belongs to, so the average starts again rather than spanning both.
+		let anchor = match self.anchor {
+			Some(anchor) if anchor.total == total && done >= anchor.from => anchor,
+			_ => {
+				self.anchor = Some(Anchor {
+					since: now,
+					from: done,
+					total,
+				});
+				self.job.rate = None;
+				self.job.eta_seconds = None;
+				return;
+			}
+		};
+
+		let elapsed = now.duration_since(anchor.since).as_secs_f64();
+		let moved = done - anchor.from;
 
 		if elapsed <= 0.0 || moved == 0 {
 			return;
@@ -967,7 +1011,7 @@ mod tests {
 	#[test]
 	fn the_speed_is_measured_from_the_first_count_it_saw() {
 		let mut entry = counting(100, 1100);
-		let start = entry.anchor.expect("the first update anchors the average").0;
+		let start = entry.anchor.expect("the first update anchors the average").since;
 
 		// Two seconds later, 300 units further on: 150 per second, 800 left, so about 5.3 seconds.
 		entry.job.done = Some(400);
@@ -984,7 +1028,7 @@ mod tests {
 	#[test]
 	fn time_before_the_first_count_is_not_averaged_in() {
 		let mut entry = counting(0, 100);
-		let start = entry.anchor.expect("anchored").0;
+		let start = entry.anchor.expect("anchored").since;
 
 		entry.job.done = Some(50);
 		entry.rate_and_eta(start + Duration::from_secs(1));
@@ -995,12 +1039,83 @@ mod tests {
 	#[test]
 	fn a_job_that_has_not_moved_reports_no_speed_rather_than_zero() {
 		let mut entry = counting(10, 100);
-		let start = entry.anchor.expect("anchored").0;
+		let start = entry.anchor.expect("anchored").since;
 
 		entry.rate_and_eta(start + Duration::from_secs(5));
 
 		assert_eq!(entry.job.rate, None, "nothing moved, so nothing can be said - not 0/s");
 		assert_eq!(entry.job.eta_seconds, None, "and an infinite ETA is not an ETA");
+	}
+
+	/// **The bug this file had**, replayed from the console log that found it.
+	///
+	/// An export of a `.tar` reports two counts in succession, and they are not the same count: the
+	/// tar is scanned by byte, then the tiles are written by tile. One anchor for the whole job
+	/// carried the byte rate into the tile phase, where `442 - 31_672_832` saturated to zero, "nothing
+	/// moved" returned early, and the stale rate stood for the rest of the export - 3.9 GB/s and
+	/// "a few seconds left" next to a bar that was plainly still filling.
+	///
+	/// The numbers are the real ones from that log, so this fails against the old anchor.
+	#[test]
+	fn a_second_count_does_not_inherit_the_first_ones_speed() {
+		// Scanning the tar: 284 MB, anchored partway through as the first counted update.
+		let mut entry = counting(31_672_832, 284_364_800);
+		let start = entry.anchor.expect("anchored").since;
+
+		entry.job.done = Some(284_364_800);
+		entry.rate_and_eta(start + Duration::from_millis(50));
+		let scanning = entry.job.rate.expect("the scan reports a byte rate");
+		assert!(
+			scanning > 1e9,
+			"the scan's own rate is enormous, which is fine: {scanning}"
+		);
+
+		// Writing the tiles: a different series - 5 239 of them, counted from zero.
+		entry.job.done = Some(0);
+		entry.job.total = Some(5_239);
+		entry.rate_and_eta(start + Duration::from_secs(1));
+		assert_eq!(
+			entry.job.rate, None,
+			"a new count says nothing until it has two points of its own"
+		);
+		assert_eq!(entry.job.eta_seconds, None, "and an ETA of 0.00 is worse than no ETA");
+
+		// And from there it measures the tiles, not the bytes.
+		entry.job.done = Some(442);
+		entry.rate_and_eta(start + Duration::from_secs(3));
+		let writing = entry.job.rate.expect("two tile counts two seconds apart is a speed");
+		assert!(
+			(writing - 221.0).abs() < 0.001,
+			"442 tiles in 2 s is 221/s, got {writing}"
+		);
+		let eta = entry.job.eta_seconds.expect("a speed and a remainder is an ETA");
+		assert!((eta - (5_239.0 - 442.0) / 221.0).abs() < 0.001, "{eta}");
+	}
+
+	/// The same restart, reached the other way: a series that keeps its total but starts again.
+	///
+	/// `total` alone would not catch this, and a count going backwards is the plainer signal of the
+	/// two - it cannot be anything but a new series.
+	#[test]
+	fn a_count_that_starts_again_restarts_the_average() {
+		let mut entry = counting(400, 1_000);
+		let start = entry.anchor.expect("anchored").since;
+
+		entry.job.done = Some(800);
+		entry.rate_and_eta(start + Duration::from_secs(2));
+		assert_eq!(entry.job.rate, Some(200.0));
+
+		entry.job.done = Some(10);
+		entry.rate_and_eta(start + Duration::from_secs(3));
+		assert_eq!(entry.job.rate, None, "10 of 1000 is not the run that reached 800");
+
+		entry.job.done = Some(110);
+		entry.rate_and_eta(start + Duration::from_secs(4));
+		assert_eq!(
+			entry.job.rate,
+			Some(100.0),
+			"measured from the restart, not from the first run"
+		);
 	}
 
 	/// A total of zero is a denominator nobody knows yet, not a job that is 0% done.
