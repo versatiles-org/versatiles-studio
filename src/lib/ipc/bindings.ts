@@ -869,6 +869,24 @@ export type Control = { kind: "text" } |
 minExclusive: boolean; 
 /**  `max` is the first value *not* accepted. */
 maxExclusive: boolean } | { kind: "boolean" } | 
+/**
+ *  A value that changes with zoom: breakpoints, each holding until the next one.
+ * 
+ *  **A curve, not a number, and it was offered as a line of text.** `raster_format`'s `quality`
+ *  is written `80,70,14:50` and means "80 at zoom 0, 70 from zoom 1, 50 from zoom 14" - three
+ *  rules in one string, none of them visible. A bare number is *positional*: the comma advances
+ *  an invisible counter, so `80,70` is not two qualities but a step, and every entry fills
+ *  forward to zoom 31. A box that accepts that is a box that only somebody who has read the
+ *  parser can use.
+ * 
+ *  The bounds travel with the control for the same reason [`Control::Number`]'s do: the form
+ *  should refuse what the operation refuses, in the field rather than three steps later.
+ */
+{ kind: "steps"; 
+/**  The lowest a step's value may be. */
+min: number; max: number; 
+/**  The deepest zoom a breakpoint may name. */
+maxZoom: number } | 
 /**  An enum, with every accepted spelling. */
 { kind: "choice"; options: string[] } | 
 /**  `Vec<String>` - a list of values, written as a VPL array. */

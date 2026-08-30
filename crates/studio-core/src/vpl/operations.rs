@@ -77,6 +77,28 @@ pub enum Control {
 		max_exclusive: bool,
 	},
 	Boolean,
+	/// A value that changes with zoom: breakpoints, each holding until the next one.
+	///
+	/// **A curve, not a number, and it was offered as a line of text.** `raster_format`'s `quality`
+	/// is written `80,70,14:50` and means "80 at zoom 0, 70 from zoom 1, 50 from zoom 14" - three
+	/// rules in one string, none of them visible. A bare number is *positional*: the comma advances
+	/// an invisible counter, so `80,70` is not two qualities but a step, and every entry fills
+	/// forward to zoom 31. A box that accepts that is a box that only somebody who has read the
+	/// parser can use.
+	///
+	/// The bounds travel with the control for the same reason [`Control::Number`]'s do: the form
+	/// should refuse what the operation refuses, in the field rather than three steps later.
+	#[serde(rename_all = "camelCase")]
+	Steps {
+		/// The lowest a step's value may be.
+		#[cfg_attr(feature = "bindings", specta(type = u32))]
+		min: u8,
+		#[cfg_attr(feature = "bindings", specta(type = u32))]
+		max: u8,
+		/// The deepest zoom a breakpoint may name.
+		#[cfg_attr(feature = "bindings", specta(type = u32))]
+		max_zoom: u8,
+	},
 	/// An enum, with every accepted spelling.
 	Choice {
 		options: Vec<String>,
@@ -158,6 +180,16 @@ fn control_for(field: &VPLFieldMeta) -> Control {
 		// offered as then and what it is offered as now; a point picked off the map would be better,
 		// and is a feature rather than a way of reading metadata.
 		"GeoCenter" => return Control::Numbers { count: 3 },
+		// The two bounds are the parser's own, and neither is stated in `bounds`: the field's type is
+		// the curve rather than a number, so upstream has nothing to put there. Taken from
+		// `parse_quality`, which refuses a zoom above 31 and a value above 100.
+		"QualityByZoom" => {
+			return Control::Steps {
+				min: 0,
+				max: 100,
+				max_zoom: 31,
+			};
+		}
 		_ => {}
 	}
 
@@ -405,20 +437,19 @@ mod tests {
 	/// Written without a list of the fields that *are* text - there are thirty-odd and they change
 	/// with every upstream release - so what this holds is the rule rather than a copy of the answer.
 	///
-	/// Two types are exempt, and both are decisions rather than oversights. `MaxTileBytes` takes a
-	/// byte count *or* the word `none`, so a number control could not express half of what it accepts.
-	/// `QualityByZoom` is a whole per-zoom curve written as one string - `0-10:80,11-14:90` - which is
-	/// a small language, not a value. Neither has an honest control today, and a text box that says so
-	/// beats a number box that quietly refuses half the input. A per-zoom quality editor is a real
-	/// feature; when it exists, `QualityByZoom` comes off this list.
+	/// One type is exempt, and it is a decision rather than an oversight. `MaxTileBytes` takes a byte
+	/// count *or* the word `none`, so a number control could not express half of what it accepts, and
+	/// a text box that says so beats a number box that quietly refuses half the input.
+	///
+	/// `QualityByZoom` used to be exempt too, on the argument that a per-zoom curve is a small
+	/// language rather than a value and that an editor for it was a feature. It is [`Control::Steps`]
+	/// now, so it has come off this list exactly as that note said it would.
 	#[test]
 	fn only_a_string_falls_back_to_text() {
 		const KNOWN_TEXT_TYPES: &[&str] = &[
 			"String",
 			// A byte count *or* the word `none`, so a number control could not express half of it.
 			"MaxTileBytes",
-			// A whole per-zoom curve in one string - `0-10:80,11-14:90` - which is a small language.
-			"QualityByZoom",
 			// Source text in a language of its own. An editor with highlighting would be better than a
 			// line, and is a feature; text is the honest control until there is one.
 			"CelExpression",
@@ -482,6 +513,31 @@ mod tests {
 		// offering everything rather than by guessing a list.
 		assert!(field("from_container", "ssh_identity").accepts.is_empty());
 		assert!(field("from_gdal_raster", "filename").accepts.is_empty());
+	}
+
+	/// **A per-zoom curve is a control of its own**, and both fields that are one get it.
+	///
+	/// Pinned by name rather than by counting: `quality_translucent` was the one most likely to be
+	/// missed, because nothing about the name says it is the same kind of thing as `quality`.
+	#[test]
+	fn a_per_zoom_curve_is_steps_rather_than_a_line_of_text() {
+		for name in ["quality", "quality_translucent"] {
+			assert_eq!(
+				field("raster_format", name).control,
+				Control::Steps {
+					min: 0,
+					max: 100,
+					max_zoom: 31,
+				},
+				"raster_format.{name}"
+			);
+		}
+		// Its neighbour is a plain bounded number and must stay one - the two are easy to confuse and
+		// only one of them varies with zoom.
+		assert!(matches!(
+			field("raster_format", "effort").control,
+			Control::Number { .. }
+		));
 	}
 
 	/// Every path offers a filter or deliberately offers none, and nothing else carries one.

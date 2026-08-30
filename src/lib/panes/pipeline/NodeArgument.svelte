@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { FieldInfo } from '../../ipc/commands';
 	import HelpTrigger from '../../common/HelpTrigger.svelte';
+	import StepsDialog from './StepsDialog.svelte';
 	import type { HelpContent } from '../../state/help.svelte';
 	import { askForPath } from '../../common/import';
 	import { bboxField, formatBbox, parseBbox } from '../../state/bbox.svelte';
@@ -75,6 +76,15 @@
 	/// the value is decoded, which is a long way from where it was typed.
 	const isChar = $derived(control?.kind === 'char');
 
+	/// A per-zoom curve: `80,70,14:50` (S3.4). Text, with a dialog beside it - see `steps`.
+	///
+	/// **The written form stays the field**, for the reason a path does: it is what the VPL holds,
+	/// what someone pastes from the CLI, and what `check` reports on. What it is not is readable - a
+	/// bare number is positional and every entry fills forward - so the helper is where that is shown.
+	const curve = $derived(control?.kind === 'steps' ? control : null);
+	/// Whether its helper is up. Local and per row: two nodes can both hold a `quality`.
+	let editingCurve = $state(false);
+
 	/// Whether this row draws with the shared text box.
 	///
 	/// **Named rather than left to `{:else}`.** Five controls share that input - plain text, a path, a
@@ -100,6 +110,9 @@
 			case 'char':
 				// A separator is a text box that holds one character - see `isChar`, which is what
 				// keeps it from being a text box that holds a word the operation then refuses.
+				return true;
+			case 'steps':
+				// The written form, with `StepsDialog` behind a button - the same shape as a path.
 				return true;
 			case 'choice':
 			case 'boolean':
@@ -271,6 +284,19 @@
 					>
 						▭
 					</button>
+				{:else if curve}
+					<!-- `⋮` rather than `…`: the dialog behind it builds a value rather than choosing one
+					     that already exists, and a row of dots that meant "browse" three fields above
+					     would say the wrong thing here. -->
+					<button
+						type="button"
+						class="browse"
+						title="Set the quality per zoom…"
+						aria-label={`Set ${name} per zoom`}
+						onclick={() => (editingCurve = true)}
+					>
+						⋮
+					</button>
 				{:else if isPath}
 					<!-- `…` rather than a folder: it is what a field that opens a dialog has said
 					     everywhere for thirty years, and it stays legible at the size this row is. -->
@@ -298,6 +324,21 @@
 			<p class="unsupported" role="status">
 				This build has no editor for <code>{control?.kind}</code>. Edit it in the VPL tab.
 			</p>
+		{/if}
+
+		{#if curve && editingCurve}
+			<StepsDialog
+				{value}
+				{name}
+				min={curve.min}
+				max={curve.max}
+				maxZoom={curve.maxZoom}
+				onUse={(next) => {
+					onCommit(next);
+					editingCurve = false;
+				}}
+				onClose={() => (editingCurve = false)}
+			/>
 		{/if}
 
 		{#if control?.kind === 'list' && suggestions.length > 0}

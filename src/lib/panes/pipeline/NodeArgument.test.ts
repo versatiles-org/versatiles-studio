@@ -14,10 +14,15 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/svelte';
+import { fireEvent } from '@testing-library/dom';
 import NodeArgument from './NodeArgument.svelte';
 import { stubTauri, type TauriStub } from '../../testing/tauri';
 import { bboxField } from '../../state/bbox.svelte';
 import { flushSync } from 'svelte';
+
+// jsdom has no `showModal`, and `Modal` calls it on mount. Stubbed so the curve helper can open.
+HTMLDialogElement.prototype.showModal = vi.fn();
+HTMLDialogElement.prototype.close = vi.fn();
 
 /** `field_meta` for a parameter that names a file - the core's `Control::Path`. */
 const PATH_FIELD = (name: string, accepts: string[] = []) => ({
@@ -385,5 +390,57 @@ describe('a colour field', () => {
 	it('offers none for a field that is not a colour', () => {
 		render(NodeArgument, { name: 'layer_name', value: 'roads', onCommit: () => {} });
 		expect(screen.queryByLabelText('Colour for layer_name')).toBeNull();
+	});
+});
+
+/**
+ * A per-zoom curve is a text field with a helper, which is the whole shape of the decision: the
+ * written form is what the VPL holds and what `check` reports on, so it stays the field, and the
+ * dialog behind the button is where it becomes readable. The same arrangement as a path.
+ */
+describe('a per-zoom curve', () => {
+	const CURVE_FIELD = {
+		name: 'quality',
+		doc: '',
+		required: false,
+		sources: false,
+		accepts: [],
+		default: null,
+		control: { kind: 'steps' as const, min: 0, max: 100, maxZoom: 31 }
+	};
+
+	it('is edited as the text it is written as', () => {
+		render(NodeArgument, { name: 'quality', field: CURVE_FIELD, value: '80,70,14:50', onCommit: () => {} });
+
+		expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('80,70,14:50');
+	});
+
+	it('commits what is typed into it, like any other text field', async () => {
+		const onCommit = vi.fn();
+		render(NodeArgument, { name: 'quality', field: CURVE_FIELD, value: '80', onCommit });
+
+		await fireEvent.blur(screen.getByRole('textbox'), { target: { value: '10:30' } });
+		expect(onCommit).toHaveBeenCalledWith('10:30');
+	});
+
+	it('offers the helper beside it', () => {
+		render(NodeArgument, { name: 'quality', field: CURVE_FIELD, value: '80', onCommit: () => {} });
+
+		expect(screen.getByLabelText('Set quality per zoom')).toBeTruthy();
+	});
+
+	// Shut until asked for: the row is a row, not a dialog that happens to be closed.
+	it('keeps the helper shut until the button is pressed', async () => {
+		render(NodeArgument, { name: 'quality', field: CURVE_FIELD, value: '80', onCommit: () => {} });
+		expect(screen.queryByLabelText(/^Value from zoom/)).toBeNull();
+
+		await fireEvent.click(screen.getByLabelText('Set quality per zoom'));
+		expect(screen.getByLabelText('Value from zoom 0')).toBeTruthy();
+	});
+
+	it('offers no helper for a field that is not one', () => {
+		render(NodeArgument, { name: 'effort', value: '80', onCommit: () => {} });
+
+		expect(screen.queryByLabelText('Set effort per zoom')).toBeNull();
 	});
 });
