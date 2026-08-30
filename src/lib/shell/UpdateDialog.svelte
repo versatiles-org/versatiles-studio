@@ -51,10 +51,20 @@
 		{/if}
 	</div>
 
+	<!-- **The committing press is the rightmost**, which is the order every other dialog uses - the
+	     row is `justify-content: flex-end`, so last is right. This one had the dismissal after the
+	     primary, so `Install` and `Restart now` sat where four other dialogs put `Cancel`, and the
+	     hand that had just used one of those would land on `Later`.
+
+	     `Check again` stays first: it is neither the commit nor the way out, and it only appears in
+	     the two states that have no primary at all. -->
 	{#snippet actions()}
 		{#if canRecheck}
 			<button type="button" class="button" onclick={() => void updates.check()}>Check again</button>
 		{/if}
+		<button type="button" class="button" onclick={onClose}>
+			{state.kind === 'ready' ? 'Later' : 'Close'}
+		</button>
 		{#if state.kind === 'available'}
 			<button type="button" class="button primary" onclick={() => void updates.install()}>Install</button>
 		{/if}
@@ -63,9 +73,6 @@
 		{#if state.kind === 'ready'}
 			<button type="button" class="button primary" onclick={() => void updates.restart()}>Restart now</button>
 		{/if}
-		<button type="button" class="button" onclick={onClose}>
-			{state.kind === 'ready' ? 'Later' : 'Close'}
-		</button>
 	{/snippet}
 </Modal>
 

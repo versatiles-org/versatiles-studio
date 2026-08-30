@@ -105,4 +105,43 @@ describe('installing one', () => {
 		// And closing is still offered - as "Later", because there is now something to come back to.
 		expect(screen.getByRole('button', { name: 'Later' })).toBeTruthy();
 	});
+
+	/**
+	 * **The committing press is the rightmost**, which is the order the other four dialogs use.
+	 *
+	 * Asserted as an order rather than as presence, because presence is what the tests above already
+	 * cover and order is what was wrong: `Install` and `Restart now` used to come *before* the way
+	 * out, so they sat where `Export`, `Steps` and `Copy` all put `Cancel`. The row is
+	 * `justify-content: flex-end`, so document order is left-to-right and last is rightmost.
+	 */
+	const labels = () => screen.getAllByRole('button').map((button) => button.textContent?.trim());
+
+	it('puts the install after the way out, not before it', async () => {
+		updater.check.mockResolvedValue(offered('0.3.0'));
+		render(UpdateDialog, { onClose: () => {} });
+
+		await screen.findByRole('button', { name: 'Install' });
+		expect(labels()).toEqual(['Close', 'Install']);
+	});
+
+	it('puts the restart after the way out too', async () => {
+		const update = offered('0.3.0');
+		updater.check.mockResolvedValue(update);
+		render(UpdateDialog, { onClose: () => {} });
+
+		(await screen.findByRole('button', { name: 'Install' })).click();
+		await screen.findByRole('button', { name: 'Restart now' });
+
+		expect(labels()).toEqual(['Later', 'Restart now']);
+	});
+
+	// The two states with nothing to commit: a re-check is neither the commit nor the way out, so it
+	// stays first and the way out stays last.
+	it('leaves a re-check first when there is no primary at all', async () => {
+		updater.check.mockResolvedValue(null);
+		render(UpdateDialog, { onClose: () => {} });
+
+		await screen.findByText('Studio is up to date.');
+		expect(labels()).toEqual(['Check again', 'Close']);
+	});
 });
