@@ -4,8 +4,8 @@
 	import { help } from '../state/help.svelte';
 	// The "add something" picker, in place of a `<select>`.
 	//
-	// Both places that offer a list of things to insert - `＋ operation…` on the chain's rail and
-	// `＋ parameter…` inside a node - were native selects. A select can hold a list and nothing
+	// Both places that offer a list of things to insert - `+ operation…` on the chain's rail and
+	// `+ parameter…` inside a node - were native selects. A select can hold a list and nothing
 	// else: its options cannot carry a description, a disabled option's reason is a `title` the
 	// platform may or may not show, and there is no way to type and narrow. With thirty transforms
 	// that last one is the difference between reading a list and finding a name.

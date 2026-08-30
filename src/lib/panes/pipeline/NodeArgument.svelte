@@ -11,7 +11,7 @@
 	// One argument of a node: its name, its help, its control, and whether it can be removed (C2).
 	//
 	// **One component for all three kinds of row** - a set parameter, a required one with no value
-	// yet, and one chosen from `＋ parameter…` and not yet given a value. They were three copies of
+	// yet, and one chosen from `+ parameter…` and not yet given a value. They were three copies of
 	// this markup, and they differ only in *data*: a name, a value, a placeholder, what committing
 	// does, and whether there is a button on the end. None of that is a mode, so none of it needs a
 	// branch here beyond "was this prop given".

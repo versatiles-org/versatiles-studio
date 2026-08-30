@@ -127,7 +127,7 @@
 			     below them down, so the choices moved while you read them and sat in the flow of the
 			     list they had appeared under. A popup covers rather than displaces ([Q58]). -->
 			<Menu
-				label="＋ new graph…"
+				label="+ new graph…"
 				title="Add a source to this project"
 				{items}
 				onPick={pick}

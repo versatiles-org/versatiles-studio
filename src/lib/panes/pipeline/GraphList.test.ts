@@ -119,7 +119,7 @@ describe('arranging the stack', () => {
 
 /**
  * **The case that had never been drawn.** Both sidebars were hidden while a project had no sources
- * ([Q54]), so an empty list was unreachable - and the way in is `＋ new graph…`, which lives in this
+ * ([Q54]), so an empty list was unreachable - and the way in is `+ new graph…`, which lives in this
  * list. Hiding it for exactly as long as there was nothing to list left the File menu as the only
  * door.
  */
@@ -131,7 +131,7 @@ describe('a project with no sources', () => {
 		expect(document.querySelector('li.new')).toBeTruthy();
 	});
 
-	// An empty `<ul>` above a `＋` reads as a list that failed to load, not as one nobody has filled
+	// An empty `<ul>` above a `+` reads as a list that failed to load, not as one nobody has filled
 	// in yet.
 	it('says the list is empty rather than showing an empty list', () => {
 		render(GraphList, { graphs: [], current: null } as never);

@@ -54,7 +54,7 @@ describe('which fields the form shows', () => {
 		expect(unsetFields(fields, [{ key: 'bbox' }]).map((f) => f.name)).toEqual(['filename']);
 	});
 
-	// Hiding a required field behind `＋ parameter…` makes a form that conceals its own required
+	// Hiding a required field behind `+ parameter…` makes a form that conceals its own required
 	// fields. Shown and empty, "required" needs no symbol.
 	it('splits required onto the form and optional into the add menu', () => {
 		const unset = unsetFields(fields, []);

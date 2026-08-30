@@ -9,7 +9,7 @@
 	// Vertical, because pipelines are mostly linear; nesting shows as depth, which is what makes a
 	// `from_stacked [ … ]` block readable without a second layout.
 	//
-	// **`＋ operation…` lives on the rail, outside the nodes** ([Q32]). `＋ parameter…` inside a node
+	// **`+ operation…` lives on the rail, outside the nodes** ([Q32]). `+ parameter…` inside a node
 	// acts on the node; this acts on the chain, and drawing it where an insertion actually goes
 	// means the two never have to be told apart by weight or colour. Every rail carries one - it
 	// used to be only the selected node's, which is a distinction the chain no longer makes.
@@ -138,7 +138,7 @@
 				<span class="stem" aria-hidden="true"></span>
 				{#if transforms.length > 0}
 					<Picker
-						label="＋ operation…"
+						label="+ operation…"
 						placeholder="Filter operations…"
 						items={choices}
 						onPick={(name) => onAddOperation(row.node.nameSpan, name)}
@@ -168,7 +168,7 @@
 	/* The rail's content box matches the row's, so a percentage inside it is a percentage of the
 	   node above - which is what lets the stem sit under the node's middle rather than near its
 	   left edge. */
-	/* **A join, not a band.** The rail stood 24px tall while `＋ operation…` inside it is 15px, so a
+	/* **A join, not a band.** The rail stood 24px tall while `+ operation…` inside it is 15px, so a
 	   chain read as nodes and rails alternating at equal weight - and measured against the pane, the
 	   distance from a node to the next one was the same 26px as the distance from a parameter row to
 	   the one below it. Nothing said the two nodes were joined and the two rows merely adjacent.

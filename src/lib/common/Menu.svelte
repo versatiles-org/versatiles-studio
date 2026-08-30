@@ -4,7 +4,7 @@
 	// A button that opens a list of things to choose from ([Q58]).
 	//
 	// **Over the layout, not inside it.** Studio's first version of this revealed its choices in
-	// flow, so opening `＋ new graph…` pushed the pane below it down - the two ways in were briefly
+	// flow, so opening `+ new graph…` pushed the pane below it down - the two ways in were briefly
 	// hard to tell from the list they had appeared above, and everything moved while you read them.
 	// A popup covers rather than displaces, which is what a menu is for.
 	//

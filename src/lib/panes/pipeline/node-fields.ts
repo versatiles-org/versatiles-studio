@@ -1,7 +1,7 @@
 /**
  * What a node's form shows, apart from the component that draws it (S2.6, C2, [Q33]).
  *
- * Which parameters appear and which hide behind `＋ parameter…`, how a value is read out of VPL and
+ * Which parameters appear and which hide behind `+ parameter…`, how a value is read out of VPL and
  * written back, and how a field's type is described in words. All decisions with right answers, and
  * the same split `layer-tree.ts` makes next door.
  *
@@ -28,12 +28,12 @@ export function unsetFields(fields: FieldInfo[], properties: { key: string }[]):
 /**
  * Required parameters with no value yet - **always shown, empty** ([Q33]).
  *
- * Hiding them behind `＋ parameter…` made a form that conceals its own required fields and sends you
+ * Hiding them behind `+ parameter…` made a form that conceals its own required fields and sends you
  * hunting. Shown and empty, "required" needs no symbol: the field is simply there, and waiting.
  */
 export const missingFields = (unset: FieldInfo[]): FieldInfo[] => unset.filter((field) => field.required);
 
-/** What `＋ parameter…` offers: the optional ones, since the required are already on screen. */
+/** What `+ parameter…` offers: the optional ones, since the required are already on screen. */
 export const addableFields = (unset: FieldInfo[]): FieldInfo[] => unset.filter((field) => !field.required);
 
 /** A property's value as one editable string, whichever shape VPL stored it in. */

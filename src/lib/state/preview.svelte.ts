@@ -256,7 +256,7 @@ export const preview = {
 	async refresh({ map, pipeline, styled, restored }: Context): Promise<Refreshed> {
 		if (!map || !pipeline) return { kind: 'unavailable' };
 
-		// **A document that does not validate is not built.** `＋ operation…` inserts a node with its
+		// **A document that does not validate is not built.** `+ operation…` inserts a node with its
 		// required parameters unset by design - [Q33] decided that "required" is said by the field
 		// being present and empty - so an invalid document is the ordinary state one second after
 		// adding an operation, not an exceptional one. Building it anyway replaced a diagnostic that

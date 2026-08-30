@@ -221,9 +221,7 @@
 					<button type="submit" disabled={!name.trim()}>Save</button>
 				</form>
 			{:else}
-				<button type="button" class="add" disabled={!camera} onclick={() => (naming = true)}>
-					＋ Save this view
-				</button>
+				<button type="button" class="add" disabled={!camera} onclick={() => (naming = true)}> + Save this view </button>
 			{/if}
 
 			{#if error}<p class="err">{error}</p>{/if}

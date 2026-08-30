@@ -52,7 +52,7 @@ True everywhere. These matter more than the arrangement.
 
 | Pane          | Contains                                                                                                                                                                                                                                                                                                                       | Arrives |
 | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------- |
-| **Sources**   | What data exists: one row per graph, the eye that says whether it is drawn, the name, how much of it runs. A set, not a stack - order lives in Layers ([Q62](decisions.md)). `＋ new graph…` opens its two doors here                                                                                                          | S2      |
+| **Sources**   | What data exists: one row per graph, the eye that says whether it is drawn, the name, how much of it runs. A set, not a stack - order lives in Layers ([Q62](decisions.md)). `+ new graph…` opens its two doors here                                                                                                           | S2      |
 | **Pipeline**  | The selected graph's chain, with Graph / VPL tabs ([Q15](decisions.md)), C1 and C4, its crop, and what it writes ([Q50](decisions.md))                                                                                                                                                                                         | S2      |
 | **Style**     | How one source is drawn: preset and the adjustments over it (D1), and its own export (D8). The core owns the **recipe** it is rendered from, not the style ([Q36](decisions.md)). The layer tree left for Layers ([Q62](decisions.md))                                                                                         | S4      |
 | **Layers**    | What the map paints: every source's layers in paint order, as categories over runs ([Q63](decisions.md)). Where the eyes (D3, [Q64](decisions.md)) and the arranging are, and the only place order lives                                                                                                                       | S4      |
@@ -147,14 +147,14 @@ Tabs, not a split - one pane is usable on a 13-inch laptop. Side by side existed
 │   ◉ basemap    •  │   live style over    │ format, zooms  │
 │   ◉ hillshade 3/5 │   every graph that   │ TileJSON (A6)  │
 │   ◌ places        │   is switched on     │                │
-│   ＋ new graph…    │                      │                │
+│   + new graph…    │                      │                │
 │  ─────────────    │  ┌ ─ ─ ─ ┐           │                │
 │   Graph │ VPL     │  │ live  │      (C3) │                │
 │   from_geo  ⌄.geo │  └ ─ ─ ─ ┘           │                │
 │   ◉ vector_filter │                      │                │
 │     filter  ? …   │                      │                │
-│     ＋ parameter…  │                      │                │
-│   ╰ ＋ operation…  │                      │                │
+│     + parameter…  │                      │                │
+│   ╰ + operation…  │                      │                │
 │   [Save][Export]  │                      │                │
 │ ▾ STYLE      (D1) │                      │                │
 │   [Colorful] …    │                      │                │
@@ -173,7 +173,7 @@ The full drawing, including the export modal, is the [wireframe](https://claude.
 
 ## Import has no surface of its own
 
-"＋ new graph…" offers two doors - **from VPL node**, which picks the `from_*` the chain begins with, and **from VPL file**, which opens a `.vpl` someone already wrote. Either **creates a graph** and selects it. Everything after that is the node's own form: the generated fields are the wizard (C2), with a file picker on every path parameter, the live preview (C3) is the preview, inline errors (C4) are the validation. E1's "map columns, layer name, zoom range, simplification, with a preview" is a filled-in form beside a live map, not a dialog sequence - a bespoke flow would be a second place where pipelines are authored.
+"+ new graph…" offers two doors - **from VPL node**, which picks the `from_*` the chain begins with, and **from VPL file**, which opens a `.vpl` someone already wrote. Either **creates a graph** and selects it. Everything after that is the node's own form: the generated fields are the wizard (C2), with a file picker on every path parameter, the live preview (C3) is the preview, inline errors (C4) are the validation. E1's "map columns, layer name, zoom range, simplification, with a preview" is a filled-in form beside a live map, not a dialog sequence - a bespoke flow would be a second place where pipelines are authored.
 
 **No mode of its own, and no split by data type.** Importing is building, and building is Pipeline. Splitting raster from vector would break mixed pipelines - `from_stacked_raster` and `from_merged_vector` are first-class, and a hillshade under vector OSM is one pipeline - while adding nothing the generated form does not handle. VPL makes no such split either.
 

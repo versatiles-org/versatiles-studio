@@ -28,7 +28,7 @@ describe('placing a popup', () => {
 		expect(at.left).toBe(100);
 	});
 
-	// A trigger narrower than the list it opens - `＋ new graph…` is a few characters wide.
+	// A trigger narrower than the list it opens - `+ new graph…` is a few characters wide.
 	it('is at least wide enough to read, whatever the trigger is', () => {
 		expect(place(trigger({ width: 40 }), WINDOW).width).toBe(240);
 		expect(place(trigger({ width: 400 }), WINDOW).width).toBe(400);

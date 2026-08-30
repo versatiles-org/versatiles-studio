@@ -6,7 +6,7 @@
 	//
 	// It used to carry its own "Open a tile container…" button and remote-URL form, from S1 when
 	// opening a container was all Studio did. [Q32] made a graph *a* source, so a file opens by
-	// becoming a graph: the one door is "＋ new graph…" next to where graphs live, the same door the
+	// becoming a graph: the one door is "+ new graph…" next to where graphs live, the same door the
 	// landing screen, drag & drop and the recents list go through. Two doors to the same room is
 	// what `PipelinePane` already removed once; this is the other half of it.
 	//

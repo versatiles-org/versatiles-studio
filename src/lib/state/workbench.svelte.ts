@@ -65,7 +65,7 @@ import { style as recipe } from './style.svelte';
  *
  * **`new` puts it beside what is open**, which is what a door in the Sources pane means - that list
  * adds sources, and one that quietly overwrote the selected graph would be the same gesture as
- * `＋ new graph…` doing the opposite of its label. A window with nothing open cannot tell the two
+ * `+ new graph…` doing the opposite of its label. A window with nothing open cannot tell the two
  * apart, and does not have to.
  */
 export type Into = 'current' | 'new';

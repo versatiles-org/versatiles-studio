@@ -83,7 +83,7 @@ describe('switching one operation off', () => {
 	 * makes is one that builds.
 	 */
 	before(async () => {
-		await $('button*=＋ operation…').click();
+		await $('button*=+ operation…').click();
 		await $('[data-value="vector_repair"]').waitForDisplayed({
 			timeout: 10_000,
 			timeoutMsg: 'the operation picker never opened'

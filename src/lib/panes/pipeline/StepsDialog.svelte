@@ -118,7 +118,7 @@
 					type="button"
 					class="remove"
 					aria-label="Remove the step at zoom {step.zoom}"
-					onclick={() => (steps = steps.filter((_, at) => at !== index))}>✕</button
+					onclick={() => (steps = steps.filter((_, at) => at !== index))}>×</button
 				>
 			</div>
 		{/each}

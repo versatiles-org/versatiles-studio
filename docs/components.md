@@ -48,7 +48,7 @@ lib/common/           used by more than one owner: Help · HelpTrigger · Menu �
 A pane's folder is named for the pane, so "what uses `NodeArgument`?" is answered by its path before
 anyone opens a file. `ImportCards` used to sit in `common/` on the strength of two owners - the same
 cards from the same catalogue, which is the whole point of [S3.2](history.md). The launcher
-dropped them for four doors sorted by _where the thing is_, and then "＋ new graph…" dropped them for
+dropped them for four doors sorted by _where the thing is_, and then "+ new graph…" dropped them for
 two sorted by _how the graph is written_; a component in `common/` with no owners left is a component,
 so it went. The catalogue it drew on did not: it still decides what the file dialogs offer.
 

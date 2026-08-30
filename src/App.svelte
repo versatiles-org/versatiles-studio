@@ -436,7 +436,7 @@
 				     it says where the way in is and gets out of the way.
 				
 				     It no longer takes the panes with it ([Q54]): the door it points at is not the only
-				     one, and the other is `＋ new graph…` in the Sources pane - which this used to
+				     one, and the other is `+ new graph…` in the Sources pane - which this used to
 				     hide, for exactly as long as there was nothing to list. -->
 				<p class="nothing">
 					Nothing is open. <strong>File → Open…</strong> brings a container, a pipeline or a table into this window.

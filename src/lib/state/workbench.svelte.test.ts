@@ -230,7 +230,7 @@ describe('where an opened file lands', () => {
 
 	/**
 	 * **`new` is what a door in the Sources pane means.** That list adds sources, so a door on it that
-	 * quietly overwrote the selected graph would be `＋ new graph…` doing the opposite of its label -
+	 * quietly overwrote the selected graph would be `+ new graph…` doing the opposite of its label -
 	 * and the file that was already open would be gone with no undo entry naming it.
 	 */
 	it('adds a graph beside it when asked to', async () => {

@@ -25,7 +25,7 @@
 	// was that clicking down a chain made every node in it change height, and a list that reshuffles
 	// under the pointer is harder to read than a long one. The pane scrolls; that is what it is for.
 	//
-	// What still follows the selection is *adding*: `＋ parameter…` and the row for a parameter being
+	// What still follows the selection is *adding*: `+ parameter…` and the row for a parameter being
 	// typed belong to the node being worked on, and one per node would be a column of invitations.
 	//
 	// Nothing here is written per operation. The controls come from `field_meta` by way of the core,
@@ -88,12 +88,12 @@
 
 	/// Required parameters with no value yet - **always shown**, empty.
 	///
-	/// Hiding them in `＋ parameter…` made a form that conceals its own required fields and sends you
+	/// Hiding them in `+ parameter…` made a form that conceals its own required fields and sends you
 	/// hunting for them. Shown and empty, "required" needs no symbol: the field is simply there, and
 	/// waiting. Most operations add no rows this way - 18 of 29 have no required parameter at all,
 	/// and only three have more than one.
 	const missing = $derived(missingFields(unset));
-	/// What `＋ parameter…` offers: the optional ones, since the required are already on screen.
+	/// What `+ parameter…` offers: the optional ones, since the required are already on screen.
 	const addable = $derived(addableFields(unset));
 
 	/// What this field could be set to - whichever end of the pipeline could answer.
@@ -130,7 +130,7 @@
 		body: field.doc
 	});
 
-	/// A parameter chosen from `＋ parameter…` that has no value yet.
+	/// A parameter chosen from `+ parameter…` that has no value yet.
 	///
 	/// **Not written to the document until it has one.** Writing `filename=''` produces VPL that
 	/// parses and then fails when the pipeline is built - a job error for something the user is
@@ -250,7 +250,7 @@
 			/>
 		{/each}
 
-		<!-- Chosen from ＋ parameter… and not yet given a value. Real in the pane and unknown to
+		<!-- Chosen from + parameter… and not yet given a value. Real in the pane and unknown to
 			     the document until there is something to record: `filename=''` parses and then fails
 			     when the pipeline is built. -->
 		{#if pending}
@@ -275,7 +275,7 @@
 					     for a parameter list that is where the difference between two similarly named
 					     fields lives. Here it is a line under the name. -->
 				<Picker
-					label="＋ parameter…"
+					label="+ parameter…"
 					placeholder="Filter parameters…"
 					items={addable.map((field) => ({
 						value: field.name,

@@ -28,7 +28,7 @@ const presetOf = async (name: string) => (await recipe()).sources[name]?.appeara
  * Clicks the one control of this kind that says exactly this.
  *
  * **Not `button*=name`.** Partial text is a trap in both panes here: the door at the foot of the
- * sources list is called "＋ new graph…", which contains the name a nameless graph is given.
+ * sources list is called "+ new graph…", which contains the name a nameless graph is given.
  */
 async function clickNamed(selector: string, text: string): Promise<void> {
 	for (const element of await $$(selector)) {
@@ -53,7 +53,7 @@ describe('selecting another source', () => {
 	 */
 	before(async () => {
 		await openPane('Sources');
-		await $('button*=＋ new graph…').click();
+		await $('button*=+ new graph…').click();
 		await $('button*=From VPL node…').waitForDisplayed({ timeout: 10_000, timeoutMsg: 'no doors' });
 		await $('button*=From VPL node…').click();
 		await $('button*=from_debug').waitForDisplayed({ timeout: 10_000, timeoutMsg: 'no read operations' });
@@ -69,7 +69,7 @@ describe('selecting another source', () => {
 		const [first, second] = await graphs();
 
 		// **Selected by its own row, not by any button that happens to say the name.** The door at the
-		// foot of the list is called "＋ new graph…", which contains the name a nameless graph gets.
+		// foot of the list is called "+ new graph…", which contains the name a nameless graph gets.
 		await openPane('Sources');
 		await clickNamed('ul.graphs button.name', second.name);
 		await browser.waitUntil(async () => (await $('ul.graphs li.current').getText()).includes(second.name), {

@@ -452,7 +452,7 @@ took it to the pane that can arrange a source in parts.
 
 A window with no graphs hid both sidebars and every map control. The intent was
 [Q48](#q48---a-window-is-a-project)'s - quiet, not a launcher -
-but it took the way in with it: `＋ new graph…` lives in the Sources pane, which was hidden for exactly
+but it took the way in with it: `+ new graph…` lives in the Sources pane, which was hidden for exactly
 as long as there were no sources. The cost is three empty states nobody had drawn.
 
 ### Q58 - A popup covers, never displaces
