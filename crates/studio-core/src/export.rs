@@ -122,6 +122,29 @@ impl Bounds {
 
 		Ok((!parts.is_empty()).then(|| parts.join(" ")))
 	}
+
+	/// What these bounds narrow to, in words, for a message about them.
+	///
+	/// Prose rather than [`Self::clause`]'s VPL, because this is read by whoever filled the form in:
+	/// `level_min=4 level_max=6` is the pipeline's spelling of it, and naming the fields they typed is
+	/// what makes the refusal actionable.
+	///
+	/// `None` when the bounds narrow nothing, which is what tells "you asked for a range the source
+	/// does not have" from "this pipeline produces nothing at all" - two different problems with two
+	/// different fixes.
+	fn narrowing(&self) -> Option<String> {
+		let mut parts: Vec<String> = Vec::new();
+		match (self.min_zoom, self.max_zoom) {
+			(Some(min), Some(max)) => parts.push(format!("zoom {min} to {max}")),
+			(Some(min), None) => parts.push(format!("zoom {min} and above")),
+			(None, Some(max)) => parts.push(format!("zoom {max} and below")),
+			(None, None) => {}
+		}
+		if self.bbox.is_some() {
+			parts.push("the chosen area".to_string());
+		}
+		(!parts.is_empty()).then(|| parts.join(" and "))
+	}
 }
 
 pub fn is_writable(path: &Path) -> bool {
@@ -153,6 +176,11 @@ pub fn bounded(pipeline: VPLPipeline, bounds: Bounds) -> Result<VPLPipeline> {
 /// Also shared with [`crate::estimate`]: the dialog asks for an estimate before it starts anything,
 /// so this refusal should arrive there - beside the zoom field that fixes it - rather than in a job
 /// log after the user has chosen a filename.
+///
+/// **A count of zero is allowed here**, and `writable_export` is where it is not. This one also
+/// serves [`crate::estimate`], which recomputes as the crop is dragged and the zoom fields are typed
+/// into: `0 tiles` is the readout that says the selection is wrong, and refusing it would fire on
+/// the way from `4` to `14`.
 pub fn writable_count(pyramid: &versatiles_core::TilePyramid) -> Result<u64> {
 	let tiles = pyramid.count_tiles();
 	anyhow::ensure!(
@@ -162,6 +190,39 @@ pub fn writable_count(pyramid: &versatiles_core::TilePyramid) -> Result<u64> {
 		pyramid.level_max().unwrap_or(0),
 		MAX_TILES
 	);
+	Ok(tiles)
+}
+
+/// The tiles a *write* will produce, refusing one that would produce none.
+///
+/// **The case [`writable_count`] lets through.** Bounds that do not overlap what the source covers -
+/// zoom 0 to 3 over a GeoTIFF that exists only at zoom 5 - clip the pyramid away entirely, and
+/// `count_tiles()` answers 0 rather than failing. That counted as writable, so the job started,
+/// opened every source, and the versatiles writer refused it seconds later in its own vocabulary:
+/// `Failed to create FileHeader: zoom_range[0] (5) must be <= zoom_range[1] (3)`. A container holding
+/// no tiles is not something any of the three formats can represent.
+///
+/// **Only on the way to a write**, which is the whole reason this is not folded into the function
+/// above. An estimate of zero is an answer - the dialog shows it while the crop is still being
+/// dragged - and a write of zero is a mistake with nothing to show for it.
+///
+/// `bounds` is here for the message rather than for the check: the pyramid arrives already clipped,
+/// so by this point the numbers someone typed are the only record of what was asked for.
+fn writable_export(pyramid: &versatiles_core::TilePyramid, bounds: Bounds) -> Result<u64> {
+	let tiles = writable_count(pyramid)?;
+
+	// The two readings are different problems. One is a form to correct; the other is a pipeline
+	// that produces nothing, which no zoom field can fix.
+	if tiles == 0 {
+		anyhow::bail!(match bounds.narrowing() {
+			Some(narrowing) => format!(
+				"this export would write no tiles: {narrowing} selects nothing this pipeline produces. \
+				 Check it against the zoom levels and the area the source covers."
+			),
+			None => "this pipeline produces no tiles, so there is nothing to export.".to_string(),
+		});
+	}
+
 	Ok(tiles)
 }
 
@@ -199,7 +260,7 @@ pub async fn write(handle: &JobHandle, pipeline: VPLPipeline, dir: &Path, target
 	// Reading the pyramid is bounds arithmetic, not a traversal, so this costs nothing - and it
 	// happens before anything is opened for writing, which is the whole point.
 	let pyramid = source.tile_pyramid().await.context("reading the tile pyramid")?;
-	let tiles = writable_count(&pyramid)?;
+	let tiles = writable_export(&pyramid, bounds)?;
 	handle.log(format!(
 		"{tiles} tiles, zoom {}-{}",
 		pyramid.level_min().unwrap_or(0),
@@ -476,6 +537,112 @@ mod tests {
 		assert!(message.contains("Set a maximum zoom"), "{message}");
 		assert!(!target.exists(), "nothing should have been written");
 		assert!(!scratch_path(&target).exists());
+	}
+
+	/// **The other end of the same refusal**, and the bug it fixes: a source that exists only at one
+	/// zoom, bounded to a range below it. The `filter` clips the pyramid to nothing, `count_tiles()`
+	/// answers 0 rather than failing, and the write used to get all the way to the versatiles writer
+	/// before dying on `zoom_range[0] (5) must be <= zoom_range[1] (3)` - a sentence about a file
+	/// header, for someone who typed a number into a zoom field.
+	///
+	/// `from_debug` cannot produce this: it declares every level, so nothing bounds it away. The
+	/// GeoTIFF is the fixture because it is genuinely one level deep, which is the shape that breaks.
+	#[tokio::test]
+	async fn a_zoom_range_the_source_does_not_reach_is_refused_before_anything_is_written() {
+		let (handle, _) = job();
+		let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
+		let document = Document::parse(r#"from_gdal_raster filename="bluemarble.png""#).unwrap();
+		let target = crate::testing::path("out-of-range.versatiles");
+
+		// The fixture is at zoom 5 and nowhere else, so zoom 0-3 selects none of it.
+		let bounds = Bounds {
+			bbox: None,
+			min_zoom: None,
+			max_zoom: Some(3),
+		};
+		let error = write(&handle, document.to_pipeline(), &dir, &target, bounds)
+			.await
+			.unwrap_err();
+
+		let message = format!("{error:#}");
+		assert!(message.contains("would write no tiles"), "{message}");
+		assert!(
+			message.contains("zoom 3 and below"),
+			"the refusal names what was asked for: {message}"
+		);
+		assert!(
+			!message.contains("zoom_range"),
+			"the writer's own words should never reach the user: {message}"
+		);
+		assert!(!target.exists(), "nothing should have been written");
+		assert!(!scratch_path(&target).exists(), "and no scratch file left behind");
+	}
+
+	/// A pipeline that produces nothing at all is a different problem with a different fix, so it
+	/// does not get a message about bounds nobody set.
+	///
+	/// The emptiness is written into the VPL here rather than passed as bounds - the same zoom-5
+	/// fixture clipped to zoom 3 by its own `filter`. So there is no form to correct, and the message
+	/// must not invent one.
+	#[tokio::test]
+	async fn a_pipeline_that_produces_nothing_says_so_rather_than_blaming_the_bounds() {
+		let (handle, _) = job();
+		let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
+		let document = Document::parse(r#"from_gdal_raster filename="bluemarble.png" | filter level_max=3"#).unwrap();
+		let target = crate::testing::path("empty-pipeline.versatiles");
+
+		let error = write(&handle, document.to_pipeline(), &dir, &target, Bounds::default())
+			.await
+			.unwrap_err();
+
+		let message = format!("{error:#}");
+		assert!(message.contains("produces no tiles"), "{message}");
+		assert!(!target.exists());
+	}
+
+	/// The estimate keeps answering zero, which is what the dialog shows while the crop is still
+	/// being dragged - the distinction that keeps this refusal off the live path.
+	#[tokio::test]
+	async fn the_same_bounds_still_estimate_as_zero_rather_than_failing() {
+		let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
+		let document = Document::parse(r#"from_gdal_raster filename="bluemarble.png""#).unwrap();
+		let bounds = Bounds {
+			bbox: None,
+			min_zoom: None,
+			max_zoom: Some(3),
+		};
+
+		let estimate = crate::estimate::estimate(document.to_pipeline(), &dir, bounds)
+			.await
+			.expect("an estimate of nothing is an answer, not a failure");
+		assert_eq!(estimate.tiles, 0);
+		assert_eq!(estimate.bytes, 0);
+	}
+
+	/// The words the refusal uses for each combination of fields, since they are what makes it
+	/// actionable - and only the fields that were set are named.
+	#[test]
+	fn the_refusal_names_the_fields_that_were_set() {
+		let at = |min, max, bbox| Bounds {
+			bbox,
+			min_zoom: min,
+			max_zoom: max,
+		};
+		let area = Some([1.0, 2.0, 3.0, 4.0]);
+
+		assert_eq!(at(Some(4), Some(6), None).narrowing().as_deref(), Some("zoom 4 to 6"));
+		assert_eq!(at(Some(4), None, None).narrowing().as_deref(), Some("zoom 4 and above"));
+		assert_eq!(at(None, Some(6), None).narrowing().as_deref(), Some("zoom 6 and below"));
+		assert_eq!(at(None, None, area).narrowing().as_deref(), Some("the chosen area"));
+		assert_eq!(
+			at(Some(4), Some(6), area).narrowing().as_deref(),
+			Some("zoom 4 to 6 and the chosen area")
+		);
+		assert_eq!(
+			Bounds::default().narrowing(),
+			None,
+			"nothing was narrowed, so nothing is named"
+		);
 	}
 
 	#[test]
