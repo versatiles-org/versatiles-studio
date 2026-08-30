@@ -62,7 +62,7 @@
 			<ul class="files">
 				{#each plan.carry as file (file.to)}
 					<li>
-						<span class="path">{file.to}</span>
+						<span class="path truncate">{file.to}</span>
 						<span class="size">{formatBytes(file.bytes)}</span>
 					</li>
 				{/each}
@@ -78,7 +78,7 @@
 			<ul class="files">
 				{#each plan.missing as reference (reference.graph + reference.field + reference.value)}
 					<li>
-						<span class="path">{reference.value}</span>
+						<span class="path truncate">{reference.value}</span>
 						<span class="size">{reference.graph}</span>
 					</li>
 				{/each}
@@ -152,11 +152,10 @@
 		}
 	}
 
+	/* One line, clipped - `.truncate`. The face is this list's own: a path is read character by
+	   character, and a proportional one makes two that differ late look identical. */
 	.path {
-		overflow: hidden;
 		font-family: var(--font-mono);
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 
 	.size {

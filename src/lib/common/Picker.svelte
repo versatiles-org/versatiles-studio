@@ -229,7 +229,7 @@
 				{#each group.items as item (item.value)}
 					<button
 						type="button"
-						class="row"
+						class="row truncate"
 						class:active={isActive(item)}
 						class:unavailable={Boolean(item.unavailable)}
 						data-value={item.value}
@@ -317,21 +317,18 @@
 		padding: 0 var(--space-2);
 	}
 
-	/* One line each. What a row *means* is in the tip beside it - repeating a clipped half of it
-	   here bought a hint at the cost of halving how many rows fit, and the clipped half is the part
-	   that reads as noise. */
+	/* One line each, clipped - `.truncate`, in the markup. What a row *means* is in the tip beside
+	   it; repeating a clipped half of it here bought a hint at the cost of halving how many rows fit,
+	   and the clipped half is the part that reads as noise. */
 	.row {
 		display: block;
 		width: 100%;
-		overflow: hidden;
 		padding: var(--space-1) var(--space-2);
 		border-radius: var(--radius);
 		color: var(--ink);
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
 		text-align: left;
-		text-overflow: ellipsis;
-		white-space: nowrap;
 
 		/* The highlight follows the keyboard *and* the pointer, so there is only ever one - a hover
 		   style of its own would let the mouse show one row while Enter picked another. */
