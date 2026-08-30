@@ -381,8 +381,19 @@ pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> R
 ///
 /// Empty for raster sources, and for a pyramid with no tiles in it. Never an error: a probe that
 /// fails should cost the caller its suggestions, not its import.
+///
+/// **A raster source is answered from its declared format, without reading a tile.** The loop below
+/// learns "these are not vector tiles" by building one and failing to decode it - and since that
+/// failure is the same at every level, it went on to do it again for every zoom in the pyramid. A
+/// `raster_overview` chain over a GeoTIFF is z0-13, so fourteen GDAL reads were spent arriving at the
+/// empty list `tile_format` gives for free - in front of the mount the map is waiting on, which is
+/// what made changing a parameter on a raster node take seconds to show.
 pub async fn probe_layers(source: &SharedTileSource, info: &ContainerInfo) -> Vec<LayerInspection> {
 	use versatiles_core::TileCoord;
+
+	if source.metadata().tile_format().is_raster() {
+		return Vec::new();
+	}
 
 	let Some([west, south, east, north]) = info.bbox else {
 		return Vec::new();
@@ -456,6 +467,102 @@ mod probe_tests {
 
 		assert_eq!(info.tile_format, "png");
 		assert!(probe_layers(&source, &info).await.is_empty());
+		Ok(())
+	}
+
+	/// Counts what its inner source is asked for, so a probe that reads nothing can be asserted on.
+	///
+	/// Only `tile` is counted, and only the methods the probe uses are forwarded - a wrapper that
+	/// implemented the rest by hand would be a second source with its own opinions, which is not what
+	/// is being measured here.
+	#[derive(Debug)]
+	struct Counting {
+		inner: SharedTileSource,
+		tiles: std::sync::atomic::AtomicUsize,
+	}
+
+	#[async_trait::async_trait]
+	impl versatiles_container::TileSource for Counting {
+		async fn tile(&self, coord: &versatiles_core::TileCoord) -> Result<Option<versatiles_container::Tile>> {
+			self.tiles.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+			self.inner.tile(coord).await
+		}
+
+		fn source_type(&self) -> std::sync::Arc<SourceType> {
+			self.inner.source_type()
+		}
+
+		fn metadata(&self) -> &versatiles_container::TileSourceMetadata {
+			self.inner.metadata()
+		}
+
+		fn tilejson(&self) -> &versatiles_core::TileJSON {
+			self.inner.tilejson()
+		}
+
+		async fn tile_pyramid(&self) -> Result<std::sync::Arc<versatiles_core::TilePyramid>> {
+			self.inner.tile_pyramid().await
+		}
+
+		async fn tile_stream(
+			&self,
+			bbox: versatiles_core::TileBBox,
+		) -> Result<versatiles_core::TileStream<'static, versatiles_container::Tile>> {
+			self.inner.tile_stream(bbox).await
+		}
+	}
+
+	/// **The raster answer costs nothing to give**, which is the whole of why this test exists.
+	///
+	/// The empty list above was arrived at by building a tile at *every* zoom and failing to decode
+	/// each one as a vector - fourteen GDAL reads for a `raster_overview` chain, in front of the mount
+	/// the map is waiting on. Asserted as "no tile was read" rather than as a duration, because a
+	/// timing threshold is the kind of test that fails on a loaded machine and passes on a fast one.
+	#[tokio::test]
+	async fn a_raster_source_is_answered_without_reading_a_tile() -> Result<()> {
+		let runtime = versatiles::runtime::create_runtime();
+		// A pyramid rather than a single level: the loop this replaces cost one read per zoom, so a
+		// source with one level would not tell a fix from the bug.
+		let document = crate::vpl::Document::parse("from_debug format=png | filter level_min=0 level_max=8")?;
+		let built = crate::preview::build(&runtime, document.to_pipeline(), std::path::Path::new(".")).await?;
+
+		let counted = std::sync::Arc::new(Counting {
+			inner: built,
+			tiles: std::sync::atomic::AtomicUsize::new(0),
+		});
+		let source: SharedTileSource = counted.clone();
+		let info = describe(&source, "preview").await?;
+		assert!(info.max_zoom > info.min_zoom, "the fixture needs more than one level");
+
+		assert!(probe_layers(&source, &info).await.is_empty());
+		assert_eq!(
+			counted.tiles.load(std::sync::atomic::Ordering::Relaxed),
+			0,
+			"a raster source's layers are known from its format; no tile should have been built"
+		);
+		Ok(())
+	}
+
+	/// The counterpart: a vector source is still probed, so the check above cannot have turned the
+	/// probe off for everything.
+	#[tokio::test]
+	async fn a_vector_source_is_still_probed() -> Result<()> {
+		let runtime = versatiles::runtime::create_runtime();
+		let document = crate::vpl::Document::parse("from_debug format=pbf | filter level_min=0 level_max=8")?;
+		let built = crate::preview::build(&runtime, document.to_pipeline(), std::path::Path::new(".")).await?;
+
+		let counted = std::sync::Arc::new(Counting {
+			inner: built,
+			tiles: std::sync::atomic::AtomicUsize::new(0),
+		});
+		let source: SharedTileSource = counted.clone();
+		let info = describe(&source, "preview").await?;
+
+		assert!(!probe_layers(&source, &info).await.is_empty());
+		assert!(
+			counted.tiles.load(std::sync::atomic::Ordering::Relaxed) > 0,
+			"a vector source's layers can only come from a tile"
+		);
 		Ok(())
 	}
 }
