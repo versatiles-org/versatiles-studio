@@ -11,11 +11,101 @@
 //! [Q16]: ../../../docs/decisions.md
 //! [Q3]: ../../../docs/decisions.md
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::Arc;
+use std::time::Duration;
 use versatiles::{config::Config, server::TileServer};
-use versatiles_container::{SharedTileSource, TilesRuntime};
+use versatiles_container::{SharedTileSource, SourceType, Tile, TileSource, TileSourceMetadata, TilesRuntime};
+use versatiles_core::{TileBBox, TileCoord, TileJSON, TilePyramid, TileSize, TileStream};
+
+/// How long one served tile may take before the work behind it is abandoned.
+///
+/// **Longer than the webview's own deadline, on purpose.** `state/tiles.svelte.ts` gives up after ten
+/// seconds and marks the square, which is what a person sees; this is the backstop that stops the
+/// *work*, and if it fired first the map would get an error instead of the marker that explains it.
+/// So the two are not redundant and their order matters: the webview owns the message, this owns the
+/// core.
+///
+/// Generous because it is not a responsiveness budget - the webview has already answered by now, and
+/// the webview refuses the rest of a zoom once one tile fails, so at most one request per zoom ever
+/// reaches this.
+const SERVE_DEADLINE: Duration = Duration::from_secs(30);
+
+/// A tile source that gives up on a tile nothing is going to return.
+///
+/// **Because a request has no other end.** The pipeline answers when it answers, and some operations
+/// take minutes over one tile: an overview far above its base level ([vt#264]), a GDAL read of a
+/// large dataset, a join against a file that turns out to be enormous. Nothing between the map and
+/// the operation bounds that, so a preview can wedge with no error and nothing to click.
+///
+/// **Serving only.** This wraps what is mounted, and only `tile`. Export and estimate build their own
+/// source and never mount one, so a conversion that legitimately takes an hour is untouched - and
+/// `tile_stream` is left alone here for the same reason, since it is how bulk work reads.
+///
+/// Cancellation is not complete and is worth knowing: dropping the future stops the operation
+/// *driving* the work, but a `spawn_blocking` chunk already running finishes. The residual is one
+/// block rather than the whole request, which is why abandoning one costs a bounded amount.
+///
+/// [vt#264]: https://github.com/versatiles-org/versatiles-rs/issues/264
+#[derive(Debug)]
+struct Deadlined {
+	inner: SharedTileSource,
+	limit: Duration,
+}
+
+#[async_trait]
+impl TileSource for Deadlined {
+	async fn tile(&self, coord: &TileCoord) -> Result<Option<Tile>> {
+		match tokio::time::timeout(self.limit, self.inner.tile(coord)).await {
+			Ok(tile) => tile,
+			Err(_) => bail!(
+				"gave up building tile {}/{}/{} after {} s - this pipeline takes longer than that per tile at this zoom",
+				coord.level,
+				coord.x,
+				coord.y,
+				self.limit.as_secs()
+			),
+		}
+	}
+
+	// **Forwarded rather than defaulted.** The default bodies are written in terms of `tile` and
+	// `tile_stream`, so anything left out here would quietly acquire the deadline too - including the
+	// stream methods, which is exactly what must not have one.
+	fn source_type(&self) -> Arc<SourceType> {
+		self.inner.source_type()
+	}
+
+	fn metadata(&self) -> &TileSourceMetadata {
+		self.inner.metadata()
+	}
+
+	fn tilejson(&self) -> &TileJSON {
+		self.inner.tilejson()
+	}
+
+	async fn tile_pyramid(&self) -> Result<Arc<TilePyramid>> {
+		self.inner.tile_pyramid().await
+	}
+
+	async fn measure_tile_size(&self) -> Result<Option<TileSize>> {
+		self.inner.measure_tile_size().await
+	}
+
+	async fn tile_stream(&self, bbox: TileBBox) -> Result<TileStream<'static, Tile>> {
+		self.inner.tile_stream(bbox).await
+	}
+
+	async fn tile_coord_stream(&self, bbox: TileBBox) -> Result<TileStream<'static, ()>> {
+		self.inner.tile_coord_stream(bbox).await
+	}
+
+	async fn tile_size_stream(&self, bbox: TileBBox) -> Result<TileStream<'static, u32>> {
+		self.inner.tile_size_stream(bbox).await
+	}
+}
 
 /// Owns the embedded server and the runtime it reads containers with.
 pub struct ServerManager {
@@ -93,9 +183,15 @@ impl ServerManager {
 	pub async fn mount(&mut self, name: &str, source: SharedTileSource) -> Result<()> {
 		self.unmount(name)?;
 		*self.revisions.entry(name.to_string()).or_insert(0) += 1;
+		// Wrapped here rather than by the caller: mounting is what makes a source answer a map, and a
+		// map is the only reader that cannot wait.
+		let served: SharedTileSource = Arc::new(Deadlined {
+			inner: source,
+			limit: SERVE_DEADLINE,
+		});
 		self
 			.server
-			.add_tile_source(name.to_string(), source)
+			.add_tile_source(name.to_string(), served)
 			.await
 			.with_context(|| format!("mounting tile source {name:?}"))
 	}
@@ -166,6 +262,81 @@ impl ServerManager {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	/// A source that never answers a tile, and answers a stream at once.
+	///
+	/// Split that way because the two must be treated differently: a served tile has to give up and a
+	/// bulk read has to be left alone, and a source that hung on both could not tell them apart.
+	#[derive(Debug)]
+	struct NeverAnswers(SharedTileSource);
+
+	#[async_trait]
+	impl TileSource for NeverAnswers {
+		async fn tile(&self, _coord: &TileCoord) -> Result<Option<Tile>> {
+			std::future::pending().await
+		}
+		fn source_type(&self) -> Arc<SourceType> {
+			self.0.source_type()
+		}
+		fn metadata(&self) -> &TileSourceMetadata {
+			self.0.metadata()
+		}
+		fn tilejson(&self) -> &TileJSON {
+			self.0.tilejson()
+		}
+		async fn tile_stream(&self, bbox: TileBBox) -> Result<TileStream<'static, Tile>> {
+			self.0.tile_stream(bbox).await
+		}
+	}
+
+	async fn a_source() -> Result<SharedTileSource> {
+		let runtime = versatiles::runtime::create_runtime();
+		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../testdata");
+		let document = crate::vpl::Document::parse("from_debug format=png")?;
+		crate::preview::build(&runtime, document.to_pipeline(), &dir).await
+	}
+
+	/// **A served tile that will not arrive is given up on**, with a message naming the tile rather
+	/// than a timeout somewhere in a stack.
+	#[tokio::test]
+	async fn a_served_tile_gives_up_rather_than_hanging() -> Result<()> {
+		let stuck: SharedTileSource = Arc::new(NeverAnswers(a_source().await?));
+		// Milliseconds rather than the real `SERVE_DEADLINE`: the behaviour under test is that the
+		// wait ends at all, and a test that waits thirty seconds to prove it would be its own bug.
+		let served = Deadlined {
+			inner: stuck,
+			limit: Duration::from_millis(50),
+		};
+
+		let error = served
+			.tile(&TileCoord::new(3, 1, 2)?)
+			.await
+			.expect_err("a tile nothing answers should fail rather than hang");
+
+		assert!(format!("{error}").contains("3/1/2"), "{error}");
+		assert!(format!("{error}").contains("gave up"), "{error}");
+		Ok(())
+	}
+
+	/// **And a bulk read is not.** `tile_stream` is how export and estimate read, and a conversion
+	/// that legitimately takes an hour must not be cut off at thirty seconds - so the deadline is on
+	/// the one method a map uses and forwarded everywhere else.
+	#[tokio::test]
+	async fn a_bulk_read_keeps_its_own_time() -> Result<()> {
+		let served = Deadlined {
+			inner: Arc::new(NeverAnswers(a_source().await?)),
+			// Shorter than the stream could possibly take, so a deadline wrongly applied to it would
+			// fire before the stream was ready and this would fail.
+			limit: Duration::from_nanos(1),
+		};
+
+		let bbox = TileBBox::from_min_and_size(2, 0, 0, 4, 4)?;
+		assert!(
+			served.tile_stream(bbox).await.is_ok(),
+			"a bulk read must not be deadlined"
+		);
+		Ok(())
+	}
 
 	/// The point of the core being Tauri-free ([Q3]): this exercises the whole data plane with no
 	/// Tauri runtime anywhere.

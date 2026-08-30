@@ -47,6 +47,8 @@ specta = { version = "=2.0.0-rc.25", optional = true, features = ["derive", "ser
 specta-typescript = { version = "0.0.12", optional = true }
 zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib"] }
 tar = "0.4.46"
+# The shape `TileSource` is declared with, so a wrapper of one has to use it too.
+async-trait = "0.1"
 flate2 = "1.1.9"
 
 [features]
