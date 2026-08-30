@@ -1,9 +1,19 @@
 //! What an export will cost, measured before it is started (S3.7, C6).
 //!
-//! "~40 min, ~2.3 GB" is the whole feature. An export is the one thing Studio does that can take
-//! hours and fill a disk, and until now the only way to find out which kind it was going to be was
-//! to start it and watch. The number does not have to be exact; it has to separate a coffee break
-//! from an overnight run, before the decision rather than after it.
+//! "~2.3 GB" is the whole feature. An export is the one thing Studio does that can fill a disk, and
+//! until now the only way to find out how much was to start it and watch. The number does not have
+//! to be exact; it has to separate a file you can send from one you cannot, before the decision
+//! rather than after it.
+//!
+//! **How long it will take is deliberately not answered.** It used to be, from the wall-clock time
+//! of the samples below, and it was wrong by a wide margin in both directions: sampling produces
+//! tiles one at a time while a write produces them across the runtime's whole worker pool, so a
+//! sequential per-tile time multiplied by the tile count over-states the total by roughly the
+//! parallelism - and unlike the byte estimate it was never stratified by zoom, so one flat average
+//! stood for levels whose tiles differ by orders of magnitude. Both are structural, not tuning: no
+//! constant fixes a sequential measurement of parallel work. A number that wrong is worse than no
+//! number, because it is read as a promise. The status bar reports the real speed and ETA once the
+//! export is running, measured against what it is actually doing.
 //!
 //! **Measured, not modelled.** There is no formula from tile count to bytes: a vector tile of empty
 //! ocean is nothing and one of central Berlin is hundreds of kilobytes, and the pipeline in between
@@ -31,8 +41,8 @@ use versatiles_pipeline::VPLPipeline;
 ///
 /// An estimate is something a dialog waits on, so its cost is a UI decision rather than a
 /// statistical one: two seconds is long enough to look like work and short enough not to feel
-/// broken. Running over budget would also be self-defeating - nobody waits a minute to be told a
-/// job takes an hour.
+/// broken. Running over budget would also be self-defeating - nobody waits a minute to be told how
+/// big a file is going to be.
 pub const BUDGET: Duration = Duration::from_secs(2);
 
 /// The most tiles to produce, however fast they come.
@@ -53,10 +63,7 @@ pub struct Estimate {
 	/// Bytes those tiles are expected to come to.
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub bytes: u64,
-	/// Seconds the write is expected to take.
-	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
-	pub seconds: f64,
-	/// How many tiles were actually produced to arrive at the two numbers above.
+	/// How many tiles were actually produced to arrive at the byte figure above.
 	///
 	/// Reported because it is the honest measure of how much the estimate is worth, and the only
 	/// one the webview could not work out for itself. Four samples of a slow pipeline and sixty of
@@ -105,14 +112,12 @@ async fn sample(
 		return Ok(Estimate {
 			tiles: 0,
 			bytes: 0,
-			seconds: 0.0,
 			sampled: 0,
 		});
 	}
 
 	let levels: Vec<TileBBox> = pyramid.to_iter_bboxes().filter(|bbox| bbox.count_tiles() > 0).collect();
 	let mut measured: Vec<Measured> = levels.iter().map(|_| Measured::default()).collect();
-	let mut durations: Vec<Duration> = Vec::new();
 
 	// **Deepest level first, one tile per level per round.** Both halves matter. Round-robin means
 	// every level is represented after the first pass, so a budget that runs out early still leaves
@@ -134,14 +139,12 @@ async fn sample(
 				.coord_at_index(spread(round, count))
 				.context("choosing a tile to sample")?;
 
-			let before = Instant::now();
 			let sizes = source
 				.tile_size_stream(coord.to_tile_bbox())
 				.await
 				.context("sampling a tile")?
 				.to_vec()
 				.await;
-			durations.push(before.elapsed());
 
 			// A coordinate with no tile yields nothing and counts as a sampled tile of zero bytes,
 			// which is the truth: a pyramid is mostly holes over water, and an estimate that only
@@ -186,24 +189,8 @@ async fn sample(
 	Ok(Estimate {
 		tiles,
 		bytes: bytes as u64,
-		seconds: per_tile(&durations).as_secs_f64() * tiles as f64,
 		sampled: u32::try_from(sampled).unwrap_or(u32::MAX),
 	})
-}
-
-/// What one tile costs, from the times it took to make the samples.
-///
-/// **The first is thrown away when there is anything else.** A pipeline opens its sources lazily, so
-/// the first tile pays for reading a container's index - or an HTTP round trip to a remote one -
-/// which the second and the millionth do not. Charging that to every tile in the export turns a
-/// remote source into an estimate of days.
-fn per_tile(durations: &[Duration]) -> Duration {
-	let timed = if durations.len() > 1 {
-		&durations[1..]
-	} else {
-		durations
-	};
-	timed.iter().sum::<Duration>() / u32::try_from(timed.len().max(1)).unwrap_or(1)
 }
 
 /// Which tile to take from a level of `count` tiles, on round `round`.
@@ -406,19 +393,5 @@ mod tests {
 			.unwrap_err();
 		let message = format!("{error:#}");
 		assert!(message.contains("Set a maximum zoom"), "{message}");
-	}
-
-	/// The measured duration is per tile, not per sample-run - a slow first tile is the pipeline
-	/// opening its sources and must not be charged to every tile in the export.
-	#[test]
-	fn the_first_tile_pays_for_opening_the_sources_and_the_rest_do_not() {
-		let durations = [
-			Duration::from_millis(500),
-			Duration::from_millis(10),
-			Duration::from_millis(10),
-		];
-		assert_eq!(per_tile(&durations), Duration::from_millis(10));
-		// With nothing to compare it against, the one sample is all there is to go on.
-		assert_eq!(per_tile(&durations[..1]), Duration::from_millis(500));
 	}
 }

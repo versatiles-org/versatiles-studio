@@ -22,7 +22,7 @@ describe('exporting a graph', () => {
 	it('offers the export dialog for the graph being looked at', async () => {
 		await $('button=Export…').click();
 		await expect($('h2=Export debug')).toBeDisplayed();
-		await expect($('button=Estimate size and time')).toBeDisplayed();
+		await expect($('button=Estimate size')).toBeDisplayed();
 
 		// The dialog asks for a destination through the operating system's save panel, which
 		// WebDriver cannot see, so the rest of the story supplies one the way that panel would.

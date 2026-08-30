@@ -977,10 +977,8 @@ export type Estimate = {
 	tiles: number,
 	/**  Bytes those tiles are expected to come to. */
 	bytes: number,
-	/**  Seconds the write is expected to take. */
-	seconds: number,
 	/**
-	 *  How many tiles were actually produced to arrive at the two numbers above.
+	 *  How many tiles were actually produced to arrive at the byte figure above.
 	 * 
 	 *  Reported because it is the honest measure of how much the estimate is worth, and the only
 	 *  one the webview could not work out for itself. Four samples of a slow pipeline and sixty of

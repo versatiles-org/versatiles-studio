@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Modal from '../../common/Modal.svelte';
 	import type { Bounds, Estimate, Preview } from '../../ipc/commands';
-	import { bytes, count, duration } from '../../common/format';
+	import { bytes, count } from '../../common/format';
 
 	// Writing one graph to a container (S3.6, F2, [Q32]).
 	//
@@ -86,7 +86,12 @@
 		}
 	}
 
-	const cost = $derived(asked === null ? null : `${bytes(asked.bytes)} · about ${duration(asked.seconds)}`);
+	/// **Size only.** This said "· about 40 min" as well, from a duration the core no longer reports:
+	/// it was measured by producing sample tiles one at a time and multiplying by the tile count,
+	/// while a write produces them across the whole worker pool, so it over-stated the time by
+	/// roughly the parallelism. A wrong number here is read as a promise; the status bar reports the
+	/// real speed and ETA once the export is actually running.
+	const cost = $derived(asked === null ? null : bytes(asked.bytes));
 
 	/// Layer counts are a tile's worth, not the file's, so they are given as such rather than as a
 	/// total nobody measured.
@@ -151,7 +156,7 @@
 			<span class="problem">{failed}</span>
 		{:else if asked === null}
 			<button type="button" class="button" disabled={running} onclick={() => void estimate()}>
-				{running ? 'Estimating…' : 'Estimate size and time'}
+				{running ? 'Estimating…' : 'Estimate size'}
 			</button>
 		{:else if asked.tiles === 0}
 			Nothing to write - this crop selects no tiles.
