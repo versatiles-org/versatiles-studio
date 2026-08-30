@@ -162,26 +162,33 @@ mod tests {
 	/// editor can take the cheap path without the result changing, so this compares the two directly
 	/// rather than trusting that the fold is the same fold.
 	///
-	/// A container rather than the GeoTIFF the other tests use, because this one has to read tiles and
-	/// a container has them at every zoom. The transform is a `filter`, so coverage differs from the
-	/// source's own - a fold that dropped the tail would show up as tiles that should have been
-	/// clipped away, which comparing `None` against `None` is what catches.
+	/// **`from_debug` rather than a container**, because what this needs is tiles at every zoom and
+	/// nothing else. It used to read `berlin.versatiles` from a `versatiles-rs` checkout beside this
+	/// one - which every machine that develops Studio has and no CI runner does, so the job failed on
+	/// a missing fixture rather than on anything about the code. The other tests in this file read the
+	/// repository's own `testdata/`; this one now needs no file at all.
+	///
+	/// The transform is a `filter`, so coverage differs from the source's own - a fold that dropped
+	/// the tail would show up as tiles that should have been clipped away, which comparing `None`
+	/// against `None` is what catches. That only holds while the filter really removes something,
+	/// which is why the count of what it removed is asserted too.
 	#[tokio::test]
 	async fn a_reused_head_builds_the_same_tiles_as_a_full_build() -> Result<()> {
 		let runtime = versatiles::runtime::create_runtime();
-		let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../versatiles-rs/testdata");
-		let read = r#"from_container filename="berlin.versatiles""#;
+		let dir = std::path::Path::new(".");
+		let read = "from_debug format=pbf";
 		let vpl = format!("{read} | filter bbox=[13.3,52.4,13.5,52.6]");
 
-		let whole = build(&runtime, parse(&vpl), &dir).await?;
-		let (_, head) = build_reusing(&runtime, parse(read), &dir, None).await?;
-		let (reused, _) = build_reusing(&runtime, parse(&vpl), &dir, Some(&head)).await?;
+		let whole = build(&runtime, parse(&vpl), dir).await?;
+		let (_, head) = build_reusing(&runtime, parse(read), dir, None).await?;
+		let (reused, _) = build_reusing(&runtime, parse(&vpl), dir, Some(&head)).await?;
 
 		let blob = |t: Option<versatiles_container::Tile>| {
 			t.map(|mut tile| tile.as_blob(&versatiles_core::TileCompression::Uncompressed).cloned())
 				.transpose()
 		};
 		let mut covered = 0;
+		let mut clipped = 0;
 		for z in 0..=6u8 {
 			let side = 1u32 << z;
 			for x in 0..side {
@@ -189,11 +196,18 @@ mod tests {
 					let coord = versatiles_core::TileCoord::new(z, x, y)?;
 					let expected = blob(whole.tile(&coord).await?)?;
 					covered += usize::from(expected.is_some());
+					clipped += usize::from(expected.is_none());
 					assert_eq!(blob(reused.tile(&coord).await?)?, expected, "at {z}/{x}/{y}");
 				}
 			}
 		}
-		assert!(covered > 0, "the fixture covered no tile, so only absence was compared");
+		assert!(covered > 0, "the source covered no tile, so only absence was compared");
+		// Both halves have to be non-empty or the comparison proves nothing: all-present would pass
+		// with the `filter` dropped, and all-absent would pass with the whole pipeline dropped.
+		assert!(
+			clipped > 0,
+			"the filter removed nothing, so the tail was never exercised"
+		);
 		Ok(())
 	}
 
