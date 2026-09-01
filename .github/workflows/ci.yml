@@ -185,7 +185,7 @@ jobs:
       # the driver's logs are what say which of the two broke.
       - name: Keep what failed
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-logs
           path: |
