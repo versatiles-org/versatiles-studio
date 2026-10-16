@@ -442,17 +442,17 @@
 					Nothing is open. <strong>File → Open…</strong> brings a container, a pipeline or a table into this window.
 				</p>
 			{/if}
-			<!-- **One stack, top left** ([Q52]). The three of these used to place themselves in three
-			     different corners, which meant the map's own controls had to be read as three
-			     unrelated things and each one had to know where the others were not. Down one edge
-			     they are one list, and adding a fourth is a line here rather than a free corner to
-			     find. Left over the right, which is where the attribution and MapLibre's own
-			     controls sit.
+			<!-- **One layer, two clusters** ([Q67]). These used to place themselves in three corners, and
+			     then became one stack down the left edge; `MapControls` now arranges them by what they
+			     answer - where you are looking, top left; what is drawn and how the camera sits, top
+			     right - so each corner is one control rather than a pile of them. The attribution keeps
+			     the bottom right.
 			
 			     Shown with nothing open too ([Q54]): they are about looking at the map, and a map with
 			     only a basemap on it is still a map somebody may want to move around. -->
 			<div class="map-controls">
 				<MapControls
+					{map}
 					background={layout.background}
 					{showGrid}
 					{gridLevel}
@@ -513,26 +513,19 @@
 <Help />
 
 <style>
-	/* Everything the map is controlled by, down its top left edge ([Q52]).
+	/* Everything the map is controlled by ([Q67]). `MapControls` places the clusters inside it.
 	   
-	   `align-items: flex-start` rather than a width: each control is as wide as what it says, so the
-	   stack is a list of separate things rather than a panel - and the map stays visible beside the
-	   short ones.
-	   
-	   No `overflow` of its own, deliberately: the saved-views panel opens *out* of this box, and a
-	   scroll container would clip it on both axes rather than let it hang over the map. The stack is
-	   a handful of rows, so there is nothing to scroll. */
+	   No `overflow` of its own, deliberately: the dropdown panels open *out* of their buttons and hang
+	   over the map, and a scroll container would clip them. */
 	.map-controls {
 		position: absolute;
-		top: var(--space-4);
-		left: var(--space-4);
+		inset: 0;
 		/* Over the feature popup, which sits at 5. These are the map's chrome and the popup is its
 		   content: a panel opening behind the thing it was opened from is never what was meant. */
 		z-index: 6;
-		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: var(--space-2);
+		/* The whole map, so `MapControls` can put each cluster in its own corner - and transparent to
+		   the pointer, so the box between them is still map. */
+		pointer-events: none;
 	}
 
 	/* A window between documents. Over the map rather than replacing it - the map keeps running, so

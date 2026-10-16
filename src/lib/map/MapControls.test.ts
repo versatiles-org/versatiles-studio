@@ -34,22 +34,84 @@ function open(over: Record<string, unknown> = {}) {
 
 const level = () => screen.getByRole('button', { name: /^z\d+$/ });
 
-describe('the cluster', () => {
-	// "Reset view" said what it does twice: it sits beside the views dropdown, which is the other
-	// half of "where am I looking".
-	it('offers reset beside the views, and only with something to fit', () => {
+/** Just enough of a MapLibre map for the zoom, the compass and the readout. */
+function fakeMap(camera = { zoom: 12.34, bearing: 0, pitch: 0 }) {
+	const handlers: Record<string, ((event?: unknown) => void)[]> = {};
+	return {
+		getZoom: () => camera.zoom,
+		getBearing: () => camera.bearing,
+		getPitch: () => camera.pitch,
+		getCenter: () => ({ lng: 13.4, lat: 52.52 }),
+		zoomIn: vi.fn(),
+		zoomOut: vi.fn(),
+		resetNorthPitch: vi.fn(),
+		on: (name: string, handler: (event?: unknown) => void) => (handlers[name] ??= []).push(handler),
+		off: vi.fn(),
+		fire: (name: string, event?: unknown) => handlers[name]?.forEach((handler) => handler(event))
+	};
+}
+
+describe('where am I looking', () => {
+	// Set into the search strip beside the views: the other half of "where am I looking", and only
+	// something to press when there is an extent to fit to.
+	it('fits to the data, and only with something to fit', () => {
 		open({ canReset: true });
-		expect((screen.getByRole('button', { name: 'reset' }) as HTMLButtonElement).disabled).toBe(false);
+		expect((screen.getByRole('button', { name: 'Fit to the data' }) as HTMLButtonElement).disabled).toBe(false);
 		cleanup();
 		open();
-		expect((screen.getByRole('button', { name: 'reset' }) as HTMLButtonElement).disabled).toBe(true);
+		expect((screen.getByRole('button', { name: 'Fit to the data' }) as HTMLButtonElement).disabled).toBe(true);
 	});
 
-	// The z/x/y is in the grid's own labels and in the box below it; the button only has to say
-	// which overlay it is.
-	it('calls the grid button “grid”', () => {
+	// The number a tile tool is asked most - which nothing on screen used to show.
+	it('reads out the zoom and where the pointer is', () => {
+		const map = fakeMap();
+		open({ map });
+		expect(screen.getByText('z12.3')).toBeTruthy();
+		expect(screen.getByText('13.40000, 52.52000')).toBeTruthy();
+
+		map.fire('mousemove', { lngLat: { lng: 1, lat: 2 } });
+		flushSync();
+		expect(screen.getByText('1.00000, 2.00000')).toBeTruthy();
+	});
+});
+
+describe('the camera', () => {
+	it('zooms and points north through the map', () => {
+		const map = fakeMap();
+		open({ map });
+		screen.getByRole('button', { name: 'Zoom in' }).click();
+		screen.getByRole('button', { name: 'Zoom out' }).click();
+		screen.getByRole('button', { name: 'Reset bearing and pitch' }).click();
+		expect([
+			map.zoomIn.mock.calls.length,
+			map.zoomOut.mock.calls.length,
+			map.resetNorthPitch.mock.calls.length
+		]).toEqual([1, 1, 1]);
+	});
+
+	it('has nothing to press before the map exists', () => {
 		open();
-		expect(screen.getByRole('button', { name: 'grid' })).toBeTruthy();
+		expect((screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	// A reading as well as a button: marked while the map is turned or tilted, quiet when it is not.
+	it('marks the compass while the map is turned', () => {
+		open({ map: fakeMap({ zoom: 3, bearing: 30, pitch: 0 }) });
+		expect(screen.getByRole('button', { name: 'Reset bearing and pitch' }).classList.contains('turned')).toBe(true);
+		cleanup();
+		open({ map: fakeMap() });
+		expect(screen.getByRole('button', { name: 'Reset bearing and pitch' }).classList.contains('turned')).toBe(false);
+	});
+});
+
+describe('the grid button', () => {
+	it('says whether the grid is on, and switches it', () => {
+		const onToggleGrid = vi.fn();
+		open({ showGrid: false, onToggleGrid });
+		const grid = screen.getByRole('button', { name: 'Tile grid' });
+		expect(grid.getAttribute('aria-pressed')).toBe('false');
+		grid.click();
+		expect(onToggleGrid).toHaveBeenCalledTimes(1);
 	});
 });
 
@@ -59,41 +121,34 @@ describe('the cluster', () => {
  * behaves like one: closed until asked, reports the current choice, and shuts on choosing.
  */
 describe('the background picker', () => {
-	const toggle = () => screen.getByRole('button', { name: /No background|Positron|Dark/ });
+	const toggle = () => screen.getByRole('button', { name: 'Background map' });
 
+	// An icon in the column now, so the choice is reported where a pointer looks for it.
 	it('says which background is on rather than only what it opens', () => {
-		open({ background: 'none' });
-		expect(toggle().textContent).toContain('No background');
+		open({ background: 'colorful' });
+		expect(toggle().title).toContain('Colorful');
 	});
 
-	it('opens a panel of the choices', () => {
+	it('opens a panel of the choices, each with a swatch of its colours', () => {
 		open();
 		expect(screen.queryByRole('group', { name: 'Background map' })).toBeNull();
 		toggle().click();
 		flushSync();
-		expect(screen.getByRole('group', { name: 'Background map' })).toBeTruthy();
+		const panel = screen.getByRole('group', { name: 'Background map' });
+		expect(panel.querySelectorAll('.swatch').length).toBe(7);
+		expect(panel.querySelectorAll('.swatch.none').length).toBe(1);
 	});
 
 	it('chooses one and closes', () => {
 		const onBackground = vi.fn();
-		render(MapControls, {
-			background: 'none',
-			showGrid: false,
-			gridLevel: 14,
-			canReset: false,
-			onBackground,
-			onToggleGrid: () => {},
-			onGridLevel: () => {},
-			onReset: () => {}
-		} as never);
-		screen.getByRole('button', { name: /No background/ }).click();
+		open({ showGrid: false, onBackground });
+		toggle().click();
 		flushSync();
 
-		const pick = screen.getAllByRole('button').find((node) => node.classList.contains('option'))!;
-		pick.click();
+		screen.getByRole('button', { name: /Eclipse/ }).click();
 		flushSync();
 
-		expect(onBackground).toHaveBeenCalled();
+		expect(onBackground).toHaveBeenCalledWith('eclipse');
 		expect(screen.queryByRole('group', { name: 'Background map' })).toBeNull();
 	});
 });

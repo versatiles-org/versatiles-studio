@@ -22,13 +22,25 @@
 		/** Rendered inside the panel, and handed `close` so a choice can shut it. */
 		panel,
 		/** Also called when Escape or a click outside closes it, so a caller can drop a half-edit. */
-		onClose
+		onClose,
+		/**
+		 * Drawn instead of the label, for a square button in a column of them. The label is then what a
+		 * screen reader hears, and `title` what a pointer does.
+		 */
+		icon,
+		/** `below` for the controls along the top; `left` for the column down the right edge. */
+		placement = 'below',
+		/** No surface of its own: for a button set into another control, which carries the border. */
+		bare = false
 	}: {
 		label: string;
 		title: string;
 		width?: string;
 		panel: Snippet<[() => void]>;
 		onClose?: () => void;
+		icon?: Snippet;
+		placement?: 'below' | 'left';
+		bare?: boolean;
 	} = $props();
 
 	let open = $state(false);
@@ -56,16 +68,23 @@
 		type="button"
 		class="toggle"
 		class:on={open}
+		class:square={icon !== undefined}
+		class:bare
 		aria-expanded={open}
+		aria-label={icon ? label : undefined}
 		{title}
 		onclick={() => (open ? close() : (open = true))}
 	>
-		<span class="truncate">{label}</span>
-		<span class="caret" aria-hidden="true">▾</span>
+		{#if icon}
+			{@render icon()}
+		{:else}
+			<span class="truncate">{label}</span>
+			<span class="caret" aria-hidden="true">▾</span>
+		{/if}
 	</button>
 
 	{#if open}
-		<div class="panel" style:width>
+		<div class="panel {placement}" style:width>
 			{@render panel(close)}
 		</div>
 	{/if}
@@ -101,6 +120,26 @@
 		&.on {
 			border-color: var(--accent);
 		}
+
+		/* An icon in a square, the size of the other buttons in the column it sits in. */
+		&.square {
+			justify-content: center;
+			width: 2rem;
+			height: 2rem;
+			padding: 0;
+		}
+
+		&.bare {
+			border-color: transparent;
+			border-radius: 0;
+			background: none;
+			box-shadow: none;
+
+			&:hover,
+			&.on {
+				background: var(--chrome);
+			}
+		}
 	}
 
 	.caret {
@@ -122,5 +161,13 @@
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);
 		box-shadow: var(--shadow);
+
+		/* Out of the right-hand column, into the map - beside the button rather than under it, where
+		   the next button in the column is. */
+		&.left {
+			top: 0;
+			left: auto;
+			right: calc(100% + var(--space-2));
+		}
 	}
 </style>

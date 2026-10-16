@@ -68,6 +68,12 @@
 	--map-shade-shadow: #2b3a45;
 	--map-shade-highlight: #ffffff;
 	--map-shade-accent: #1d2b33;
+	/* The satellite background's swatch in the background menu: imagery has no palette to take the
+	   other swatches' colours from, so these are what a satellite picture looks like from far away.
+	   The same in both themes - it is a picture of the ground, not a surface of Studio's. */
+	--swatch-imagery-land: #5f6b45;
+	--swatch-imagery-water: #1f3a52;
+	--swatch-imagery-road: #c9b98f;
 	/* The crop (F2, S5.2). Two tokens because the overlay does two things: it dims everything the
 	   export will not write, and traces the edge of what it will. The dim is a near-black rather
 	   than a grey - it has to darken any basemap without tinting it - and is drawn at partial
@@ -181,6 +187,10 @@
 		--map-shade-shadow: #05090c;
 		--map-shade-highlight: #b9cdd8;
 		--map-shade-accent: #0b1418;
+		/* The same as in light: a picture of the ground does not change with the theme. */
+		--swatch-imagery-land: #5f6b45;
+		--swatch-imagery-water: #1f3a52;
+		--swatch-imagery-road: #c9b98f;
 		--map-bg: #1b1f22;
 		--map-grid: #fff;
 		--map-grid-halo: #0007;

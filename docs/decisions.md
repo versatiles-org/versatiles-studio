@@ -326,6 +326,8 @@ having to know where the others were not. One column now, placed by its containe
 where MapLibre puts its own controls and the attribution; **top, not bottom**, which the status bar
 owns. The cost is that they sit over the north-west corner of an extract.
 
+**Superseded by [Q67](#q67---the-maps-controls-are-two-clusters-by-what-they-answer).**
+
 ### Q65 - A reorder is moves, not a restyle
 
 The style specification's diff has no `moveLayer` command at all: a pure reorder comes out as
@@ -337,6 +339,14 @@ So `reorder.ts` recognises the case and issues the fewest moves that produce it:
 a longest increasing subsequence** of the old order read through the new one, which is three calls
 rather than thirty-three, because moving the small source is the same picture as moving the large
 category. `tile-swap.ts`'s sibling, and the same rule - **when in doubt, full**.
+
+### Q67 - The map's controls are two clusters, by what they answer
+
+One stack was five loose chips, and the map had no zoom, compass or zoom readout. **Where am I
+looking** (coordinate field, saved views, fit) is now one strip top left; **what is drawn and how the
+camera sits** (background, grid, zoom, compass) one column top right, where maps keep their zoom. A
+readout bottom left gives the zoom and the pointer's coordinate. Q52 avoided the right for MapLibre's
+controls; Studio adds none.
 
 ## The style
 

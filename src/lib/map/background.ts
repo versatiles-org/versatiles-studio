@@ -20,7 +20,8 @@
  */
 
 import type { StyleSpecification } from 'maplibre-gl';
-import { build, localAssets, tileset } from './builders';
+import { osm } from '@versatiles/style';
+import { build, localAssets, THEMES, tileset } from './builders';
 
 /** Where the background's tiles come from. Only this is remote. */
 const TILES = 'https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}';
@@ -69,4 +70,30 @@ export async function buildBackground(id: BackgroundId, serverUrl: string): Prom
 /** Whether an id is one we know, so a stale persisted value cannot break the map. */
 export function isBackgroundId(value: unknown): value is BackgroundId {
 	return typeof value === 'string' && BACKGROUNDS.some((background) => background.id === value);
+}
+
+/** The three colours a background is recognised by in its menu: the land, the water, a main road. */
+export interface Swatch {
+	land: string;
+	water: string;
+	road: string;
+}
+
+/**
+ * What a background looks like, small - or `null` for none.
+ *
+ * **From the palette itself**, so a theme retuned upstream is a swatch retuned here. Imagery has no
+ * palette; its three are tokens (`--swatch-imagery-*`), so they are CSS values rather than colours.
+ */
+export function swatchOf(id: BackgroundId): Swatch | null {
+	if (id === 'none') return null;
+	if (id === 'satellite') {
+		return {
+			land: 'var(--swatch-imagery-land)',
+			water: 'var(--swatch-imagery-water)',
+			road: 'var(--swatch-imagery-road)'
+		};
+	}
+	const colors = osm.colors(THEMES[id]);
+	return { land: colors.land, water: colors.water, road: colors.roadMotorway };
 }

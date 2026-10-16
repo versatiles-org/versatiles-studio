@@ -2,6 +2,7 @@
 	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import { deleteView, listViews, reorderViews, saveView, type Camera, type View } from '../ipc/commands';
 	import Dropdown from './Dropdown.svelte';
+	import MapIcon from './MapIcon.svelte';
 
 	// A7's named views, application-wide rather than project-scoped ([Q21]): a place you want to
 	// come back to is worth keeping whether or not a project exists.
@@ -150,9 +151,17 @@
 	}
 </script>
 
-<Dropdown label={here ? here.name : 'Views'} title="Saved views - jump back to a place you named" onClose={forget}>
-	<!-- The toggle says the view you are on, so it reports where you are rather than only what it
-	     opens - which is why the label above is the current view's name. -->
+<Dropdown
+	label="Saved views"
+	title={here ? `Saved views - you are at “${here.name}”` : 'Saved views - jump back to a place you named'}
+	onClose={forget}
+	bare
+>
+	<!-- A star set into the search strip. It still reports as well as opens: filled while the map is on
+	     a saved view, and the tooltip names which - the job the toggle's label did when it was text. -->
+	{#snippet icon()}
+		<span class="star" class:here={here !== null}><MapIcon name={here ? 'star-filled' : 'star'} /></span>
+	{/snippet}
 	{#snippet panel(close: () => void)}
 		<div role="group" aria-label="Saved views">
 			{#if views.length === 0}
@@ -230,6 +239,15 @@
 </Dropdown>
 
 <style>
+	.star {
+		display: flex;
+		color: var(--ink-2);
+
+		&.here {
+			color: var(--accent);
+		}
+	}
+
 	ul {
 		margin: 0;
 		padding: 0;

@@ -1,14 +1,29 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
-	import { BACKGROUNDS, type BackgroundId } from './background';
+	import type { Map as MaplibreMap } from 'maplibre-gl';
+	import { BACKGROUNDS, swatchOf, type BackgroundId } from './background';
 	import Dropdown from './Dropdown.svelte';
+	import MapIcon from './MapIcon.svelte';
 
 	// The controls that act on the map rather than on the pipeline.
 	//
-	// Gathered into one cluster because they had started to accumulate as loose buttons in the
-	// corner: what belongs here is anything about *looking* at the result, and nothing about what
-	// the result is - that is the left pane's business.
+	// **Two clusters, by the question each answers.** They used to be five loose chips down the left
+	// edge - each with its own shadow, two in lowercase, the coordinate box looking like a sixth button
+	// - and read as stickers rather than as controls. What they do splits cleanly:
+	//
+	// * *Where am I looking* - jump to a coordinate, the saved views, fit to the data. One strip, top
+	//   left, shaped like the search box it mostly is.
+	// * *What is drawn* - the background, the tile grid, and the zoom and compass that every map has
+	//   and this one did not. One column of square buttons, top right.
+	//
+	// And a readout, bottom left, of the zoom and the coordinate under the pointer - the number a tile
+	// tool is asked most often, which nothing on screen used to show.
+	//
+	// What belongs here is anything about *looking* at the result, and nothing about what the result
+	// is - that is the left pane's business.
+
 	let {
+		map,
 		views,
 		jump,
 		background,
@@ -21,9 +36,11 @@
 		onGridLevel,
 		onReset
 	}: {
-		/** The saved-views dropdown, rendered beside `reset` - both answer "where am I looking". */
+		/** For the zoom buttons, the compass and the readout. Absent until the map exists. */
+		map?: MaplibreMap;
+		/** The saved-views control, set into the strip beside the coordinate field. */
 		views?: Snippet;
-		/** The coordinate box. Passed in for the same reason: this file arranges, App composes. */
+		/** The coordinate field. Passed in: this file arranges, App composes. */
 		jump?: Snippet;
 		background: BackgroundId;
 		showGrid: boolean;
@@ -47,109 +64,417 @@
 		{ label: 'Dark', items: BACKGROUNDS.filter((b) => b.group === 'dark') },
 		{ label: 'Imagery', items: BACKGROUNDS.filter((b) => b.group === 'imagery') }
 	]);
+
+	const backgroundLabel = $derived(BACKGROUNDS.find((item) => item.id === background)?.label ?? 'No background');
+
+	/// The camera, as far as the compass and the readout need it.
+	let zoom = $state<number | null>(null);
+	let bearing = $state(0);
+	let pitch = $state(0);
+	/// Under the pointer while it is over the map, the centre otherwise - so the readout always says
+	/// *somewhere*, and the place you are pointing at when you are pointing.
+	let at = $state<{ lng: number; lat: number } | null>(null);
+	let pointer = $state<{ lng: number; lat: number } | null>(null);
+
+	$effect(() => {
+		const m = map;
+		if (!m) return;
+		const camera = () => {
+			zoom = m.getZoom();
+			bearing = m.getBearing();
+			pitch = m.getPitch();
+			const centre = m.getCenter();
+			at = { lng: centre.lng, lat: centre.lat };
+		};
+		const moved = (event: { lngLat: { lng: number; lat: number } }) => (pointer = event.lngLat);
+		const left = () => (pointer = null);
+		camera();
+		m.on('move', camera);
+		m.on('mousemove', moved);
+		m.on('mouseout', left);
+		return () => {
+			m.off('move', camera);
+			m.off('mousemove', moved);
+			m.off('mouseout', left);
+		};
+	});
+
+	const shown = $derived(pointer ?? at);
+	/// Five decimals is a metre at the equator - finer than any tile, coarser than noise.
+	const coordinate = $derived(shown ? `${shown.lng.toFixed(5)}, ${shown.lat.toFixed(5)}` : '');
+	const turned = $derived(Math.abs(bearing) > 0.5 || pitch > 0.5);
 </script>
 
 <div class="controls">
-	<!-- The saved views and "reset" on one line: both answer "where am I looking", and reset is the
-	     view you did not have to name. -->
-	<div class="row">
+	<!-- Where am I looking. One strip, like a search box: the field is what it mostly is, and the two
+	     buttons set into its end are the other two ways of saying where. -->
+	<div class="strip">
+		<span class="lead" aria-hidden="true"><MapIcon name="search" /></span>
+		{@render jump?.()}
 		{@render views?.()}
-		<button type="button" disabled={!canReset} onclick={onReset} title="Fit the map to what is open"> reset </button>
+		<button
+			type="button"
+			class="icon"
+			disabled={!canReset}
+			onclick={onReset}
+			aria-label="Fit to the data"
+			title="Fit the map to what is open"
+		>
+			<MapIcon name="fit" />
+		</button>
 	</div>
 
-	{@render jump?.()}
+	<!-- What is drawn, then how the camera sits: two groups down the right edge, the zoom in the
+	     place every other map keeps it. -->
+	<div class="column">
+		<div class="group">
+			<!-- **A dropdown, not a `<select>`.** A native popup on macOS obeys none of the map's chrome.
+			     `Dropdown` is the saved views' own control, so the two match by construction. -->
+			<Dropdown
+				label="Background map"
+				title="Background map: {backgroundLabel} - the only part of Studio that fetches from the network"
+				width="13rem"
+				placement="left"
+				bare
+			>
+				{#snippet icon()}<MapIcon name="layers" />{/snippet}
+				{#snippet panel(close: () => void)}
+					<div role="group" aria-label="Background map">
+						{#each groups as group (group.label)}
+							{#if group.label}<p class="heading section-label">{group.label}</p>{/if}
+							{#each group.items as item (item.id)}
+								{@const swatch = swatchOf(item.id)}
+								<button
+									type="button"
+									class="option"
+									class:chosen={item.id === background}
+									aria-pressed={item.id === background}
+									onclick={() => {
+										onBackground(item.id);
+										close();
+									}}
+								>
+									<!-- Land, water and a road: enough to tell five palettes apart at a glance,
+									     which their names - Neutrino, Graybeard - do not. -->
+									<span
+										class="swatch"
+										class:none={!swatch}
+										style:--land={swatch?.land}
+										style:--water={swatch?.water}
+										style:--road={swatch?.road}
+										aria-hidden="true"
+									></span>
+									{item.label}
+								</button>
+							{/each}
+						{/each}
+					</div>
+				{/snippet}
+			</Dropdown>
 
-	<!-- **A dropdown, not a `<select>`.** A native popup on macOS obeys none of the map's chrome, and
-	     everywhere else it reads as a form field on a map made of buttons. `Dropdown` is the saved
-	     views' own control, so the two match by construction rather than by anyone remembering to
-	     keep them in step. -->
-	<Dropdown
-		label={BACKGROUNDS.find((item) => item.id === background)?.label ?? 'Background'}
-		title="Background map - the only part of Studio that fetches from the network"
-		width="11rem"
-	>
-		{#snippet panel(close: () => void)}
-			<div role="group" aria-label="Background map">
-				{#each groups as group (group.label)}
-					{#if group.label}<p class="group section-label">{group.label}</p>{/if}
-					{#each group.items as item (item.id)}
+			<!-- The stepper opens to the *left* of the grid button, out of the column into the map: it
+			     belongs to that button, and only while the grid is drawn - a stepper for a grid that is
+			     not on would be a permanent control for an occasional question. -->
+			<div class="grid-row">
+				{#if showGrid}
+					<!-- Three targets and no mode names, because the offset is not a constant: one level for
+					     a 256px source, nought or one for imagery depending on the zoom, and no single right
+					     answer for a stack whose sources disagree. A nudge covers every case. -->
+					<div class="stepper" role="group" aria-label="Grid zoom level">
+						<!-- Named, because its − and + sit right above the map's own and step something else:
+						     the grid's level, not the camera's. -->
+						<span class="tag" aria-hidden="true">grid</span>
+						<button type="button" onclick={() => onGridLevel(-1)} disabled={gridLevel === 0} title="One level out">
+							&minus;
+						</button>
+						<!-- The number is the readout *and* the way back: what changed is the level, so the level
+						     carries the mark and undoes it. -->
 						<button
 							type="button"
-							class="option"
-							class:chosen={item.id === background}
-							aria-pressed={item.id === background}
-							onclick={() => {
-								onBackground(item.id);
-								close();
-							}}
+							class="level"
+							class:nudged={gridNudged}
+							onclick={() => onGridLevel(0)}
+							title={gridNudged ? 'Back to the level being requested' : 'The level MapLibre is requesting'}
 						>
-							{item.label}
+							z{gridLevel}
 						</button>
-					{/each}
-				{/each}
-			</div>
-		{/snippet}
-	</Dropdown>
-
-	<!-- The stepper opens to the *right* of the grid button rather than under it: it belongs to that
-	     button, and a column of two would read as two controls that happen to be adjacent. -->
-	<div class="row">
-		<button type="button" class:on={showGrid} onclick={onToggleGrid} title="Show the z/x/y tile grid (A5)">
-			grid
-		</button>
-
-		<!-- **Only while the grid is on.** Off, this cluster is one button doing one thing, which is what
-	     it was; a stepper for a grid that is not drawn would be a permanent control for an occasional
-	     question.
-
-	     Three targets and no mode names, because the offset is not a constant: it is one level for a
-	     256px source, nought or one for imagery depending on where in the zoom you are, and a stack
-	     whose sources disagree has no single right answer at all. A nudge covers every case; a named
-	     mode stops being true in the third. -->
-		{#if showGrid}
-			<div class="stepper" role="group" aria-label="Grid zoom level">
-				<button type="button" onclick={() => onGridLevel(-1)} disabled={gridLevel === 0} title="One level out">
-					&minus;
-				</button>
-				<!-- The number is the readout *and* the way back: what changed is the level, so the level
-			     carries the mark and undoes it, rather than a fourth button in the corner. -->
+						<button type="button" onclick={() => onGridLevel(1)} title="One level in">+</button>
+					</div>
+				{/if}
 				<button
 					type="button"
-					class="level"
-					class:nudged={gridNudged}
-					onclick={() => onGridLevel(0)}
-					title={gridNudged ? 'Back to the level being requested' : 'The level MapLibre is requesting'}
+					class="icon"
+					class:on={showGrid}
+					aria-pressed={showGrid}
+					onclick={onToggleGrid}
+					aria-label="Tile grid"
+					title="Show the z/x/y tile grid (A5)"
 				>
-					z{gridLevel}
+					<MapIcon name="grid" />
 				</button>
-				<button type="button" onclick={() => onGridLevel(1)} title="One level in">+</button>
 			</div>
-		{/if}
+		</div>
+
+		<div class="group">
+			<button
+				type="button"
+				class="icon"
+				disabled={!map}
+				onclick={() => map?.zoomIn()}
+				aria-label="Zoom in"
+				title="Zoom in"
+			>
+				<MapIcon name="plus" />
+			</button>
+			<button
+				type="button"
+				class="icon"
+				disabled={!map}
+				onclick={() => map?.zoomOut()}
+				aria-label="Zoom out"
+				title="Zoom out"
+			>
+				<MapIcon name="minus" />
+			</button>
+			<!-- Turns with the map, so it is a reading as well as a button: north is where it points. -->
+			<button
+				type="button"
+				class="icon compass"
+				class:turned
+				disabled={!map}
+				onclick={() => map?.resetNorthPitch()}
+				aria-label="Reset bearing and pitch"
+				title={turned ? 'Point north and look straight down' : 'North is up'}
+			>
+				<span style:transform="rotate({-bearing}deg)"><MapIcon name="compass" /></span>
+			</button>
+		</div>
 	</div>
+
+	{#if zoom !== null}
+		<!-- Not a control, so it lets the pointer through to the map. -->
+		<p class="readout" aria-live="off">
+			<span class="zoom">z{zoom.toFixed(1)}</span>
+			<span>{coordinate}</span>
+		</p>
+	{/if}
 </div>
 
 <style>
-	/* A column in the map's control stack ([Q52]). Each control is as wide as what it says rather
-	   than stretched to the widest, so the stack reads as a list of separate things down one edge -
-	   which is what they are - instead of a panel with a ragged right. */
+	/* Over the whole map, letting the pointer through everywhere but the controls themselves - so the
+	   clusters can sit in their corners without a box between them that swallows drags. */
 	.controls {
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+
+		> * {
+			pointer-events: auto;
+		}
+	}
+
+	/* The surface every control here shares: one border and one shadow per cluster, not per button. */
+	.strip,
+	.group {
+		background: var(--float-bg);
+		border: 1px solid var(--rule);
+		border-radius: var(--radius);
+		box-shadow: var(--shadow);
+	}
+
+	.strip {
+		position: absolute;
+		top: var(--space-4);
+		left: var(--space-4);
+		display: flex;
+		align-items: center;
+		height: 2rem;
+
+		.lead {
+			display: flex;
+			padding: 0 var(--space-1) 0 var(--space-3);
+			color: var(--ink-2);
+		}
+
+		/* The coordinate field, set into the strip: the strip carries the surface, so the field drops
+		   its own. Reached into because `CoordinateJump` is its own component with its own style. */
+		:global(input) {
+			height: 100%;
+			border: 0;
+			background: none;
+			box-shadow: none;
+			padding-left: var(--space-2);
+		}
+
+		/* Square in the column, full height in the strip, with a rule against the field. */
+		.icon {
+			height: 100%;
+			border-left: 1px solid var(--rule);
+		}
+
+		/* A rule between the field and the buttons set into its end. */
+		> :global(.dropdown) {
+			border-left: 1px solid var(--rule);
+			height: 100%;
+		}
+
+		> :global(.dropdown .toggle) {
+			height: 100%;
+		}
+	}
+
+	.column {
+		position: absolute;
+		top: var(--space-4);
+		right: var(--space-4);
 		display: flex;
 		flex-direction: column;
-		align-items: flex-start;
+		align-items: flex-end;
 		gap: var(--space-2);
 	}
 
-	/* Two controls that belong together stay on one line; everything else is its own row. */
-	.row {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--space-2);
-	}
-
-	/* Which group of backgrounds follows - the `<optgroup>`s the native popup used to draw. */
-	/* The typography is `.section-label`'s - the same heading `Picker` draws over a group of rows,
-	   which has always used the class. Only the rhythm between groups is this panel's own. */
+	/* Square buttons stacked into one control, a rule between each. */
 	.group {
+		display: flex;
+		flex-direction: column;
+
+		> :global(*:not(:first-child)) {
+			border-top: 1px solid var(--rule);
+		}
+	}
+
+	.icon {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		border: 0;
+		border-radius: 0;
+		background: none;
+		box-shadow: none;
+		color: var(--ink);
+
+		&:hover:not(:disabled) {
+			background: var(--chrome);
+		}
+
+		&:disabled {
+			opacity: 0.4;
+		}
+
+		&.on {
+			background: var(--accent);
+			color: var(--accent-ink);
+		}
+	}
+
+	.compass {
+		color: var(--ink-2);
+
+		span {
+			display: flex;
+			transition: transform 0.15s;
+		}
+
+		&.turned {
+			color: var(--accent);
+		}
+	}
+
+	/* The grid button keeps its place in the column; the stepper hangs off its left into the map. */
+	.grid-row {
+		position: relative;
+
+		.stepper {
+			position: absolute;
+			top: 0;
+			right: calc(100% + var(--space-2));
+		}
+	}
+
+	/* One control, not three: the buttons share one border and shadow, so the group reads as a single
+	   thing to set one number with. */
+	.stepper {
+		display: flex;
+		align-items: stretch;
+		height: 2rem;
+		background: var(--float-bg);
+		border: 1px solid var(--rule);
+		border-radius: var(--radius);
+		box-shadow: var(--shadow);
+		overflow: hidden;
+
+		button {
+			font-size: var(--text-sm);
+			padding: 0 var(--space-3);
+			border: 0;
+			border-radius: 0;
+			background: transparent;
+			box-shadow: none;
+			line-height: 1;
+
+			&:hover:not(:disabled) {
+				background: var(--chrome);
+			}
+
+			&:disabled {
+				opacity: 0.4;
+			}
+		}
+
+		.tag {
+			display: flex;
+			align-items: center;
+			padding: 0 var(--space-1) 0 var(--space-3);
+			color: var(--ink-2);
+			font-size: var(--text-xs);
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+		}
+
+		.level {
+			font-family: var(--font-mono);
+			/* Wide enough for two digits, so walking from z9 to z10 does not move the buttons. */
+			min-width: 3.4em;
+			text-align: center;
+			border-left: 1px solid var(--rule);
+			border-right: 1px solid var(--rule);
+
+			/* Off the source's own level. Marked rather than merely different: a grid one level out is
+			   the bug this control exists for, so it must never be the quiet state. */
+			&.nudged {
+				color: var(--accent);
+				font-weight: 600;
+				box-shadow: inset 0 -2px 0 var(--accent);
+			}
+		}
+	}
+
+	.readout {
+		position: absolute;
+		left: var(--space-4);
+		bottom: var(--space-4);
+		margin: 0;
+		display: flex;
+		gap: var(--space-2);
+		padding: var(--space-1) var(--space-2);
+		border-radius: var(--radius);
+		background: color-mix(in srgb, var(--float-bg) 85%, transparent);
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		color: var(--ink-2);
+		pointer-events: none;
+
+		.zoom {
+			color: var(--ink);
+			font-weight: 600;
+		}
+	}
+
+	/* Which group of backgrounds follows. The typography is `.section-label`'s. */
+	.heading {
 		margin: var(--space-3) 0 var(--space-1);
 
 		&:first-child {
@@ -158,7 +483,9 @@
 	}
 
 	.option {
-		display: block;
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
 		width: 100%;
 		text-align: left;
 		font-size: var(--text-sm);
@@ -179,63 +506,20 @@
 		}
 	}
 
-	button {
-		font-size: var(--text-sm);
-		padding: var(--space-2) var(--space-3);
-		background: var(--float-bg);
+	/* Land, with a band of water across the bottom and a road across the land. */
+	.swatch {
+		flex: none;
+		width: 1.6rem;
+		height: 1.1rem;
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);
-		box-shadow: var(--shadow);
+		background:
+			linear-gradient(to bottom, transparent 62%, var(--water) 62%),
+			linear-gradient(160deg, transparent 38%, var(--road) 38%, var(--road) 52%, transparent 52%), var(--land);
 
-		&.on {
-			background: var(--accent);
-			border-color: var(--accent);
-			color: var(--accent-ink);
-		}
-
-		&:disabled {
-			opacity: 0.5;
-		}
-	}
-
-	/* One control, not three: the buttons share the border and the shadow that each of the others
-	   carries on its own, so the group reads as a single thing to set one number with. */
-	.stepper {
-		display: flex;
-		align-items: stretch;
-		background: var(--float-bg);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		box-shadow: var(--shadow);
-		overflow: hidden;
-
-		button {
-			border: 0;
-			border-radius: 0;
-			background: transparent;
-			box-shadow: none;
-			line-height: 1;
-
-			&:hover:not(:disabled) {
-				background: var(--chrome);
-			}
-		}
-
-		.level {
-			font-family: var(--font-mono);
-			/* Wide enough for two digits, so walking from z9 to z10 does not move the buttons. */
-			min-width: 3.4em;
-			text-align: center;
-			border-left: 1px solid var(--rule);
-			border-right: 1px solid var(--rule);
-
-			/* Off the source's own level. Marked rather than merely different: a grid one level out
-			   is the bug this control exists for, so it must never be the quiet state. */
-			&.nudged {
-				color: var(--accent);
-				font-weight: 600;
-				box-shadow: inset 0 -2px 0 var(--accent);
-			}
+		/* Nothing drawn under the data: the empty square, struck through. */
+		&.none {
+			background: linear-gradient(to top right, transparent 47%, var(--rule) 47%, var(--rule) 53%, transparent 53%);
 		}
 	}
 </style>
