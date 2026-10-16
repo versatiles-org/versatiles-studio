@@ -110,8 +110,53 @@ export function ancestors(id: string): string[] {
 	return out.reverse();
 }
 
-/** Whether an eye above this layer is closed. Says which, so the pane can offer to open it. */
+/**
+ * Categories that no longer exist, and where what they held is now: the category, then the level it
+ * became inside it.
+ *
+ * **Eyes are stored as paths, so a renamed category strands every eye written under the old name.**
+ * `@versatiles/style` v7 moved sites in among the land cover and POIs in among the labels, and the
+ * table followed (see above) - so a project that had hidden "Points of interest" would open with its
+ * POIs back on, and no row left to switch them off from.
+ */
+const RENAMED: Record<string, [string, string]> = {
+	Sites: ['Land & water', 'site'],
+	'Points of interest': ['Labels', 'poi']
+};
+
+/**
+ * What a stored eye path means today.
+ *
+ * The category level is replaced and the rest kept: `Sites/site/education` was always a `site` level
+ * below the category, so it becomes `Land & water/site/education`, and the bare `Sites` becomes that
+ * level itself rather than the whole of `Land & water`.
+ *
+ * **Read, never rewritten.** The path the core stores stays as it is, and every match reports it as
+ * stored - so opening the eye removes the entry that is there, and the old name leaves the project
+ * the first time someone touches it. The core never interprets these paths, and this keeps it so.
+ */
+export function currentPath(stored: string): string {
+	const [head, ...rest] = stored.split('/');
+	const renamed = RENAMED[head];
+	if (!renamed) return stored;
+	return (rest.length > 0 ? [renamed[0], ...rest] : renamed).join('/');
+}
+
+/** Whether a stored eye covers this path: the path itself, or one above it. */
+export function covers(stored: string, path: string): boolean {
+	const current = currentPath(stored);
+	return path === current || path.startsWith(`${current}/`);
+}
+
+/**
+ * Whether an eye above this layer is closed. Says which, as stored, so the pane can offer to open
+ * the one that did.
+ */
 export function hiddenBy(id: string, hidden: Iterable<string>): string | null {
-	const set = hidden instanceof Set ? hidden : new Set(hidden);
-	return ancestors(id).find((path) => set.has(path)) ?? null;
+	const stored = [...hidden];
+	for (const path of ancestors(id)) {
+		const found = stored.find((eye) => currentPath(eye) === path);
+		if (found !== undefined) return found;
+	}
+	return null;
 }

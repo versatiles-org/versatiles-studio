@@ -100,6 +100,20 @@ describe('the eye', () => {
 
 		expect(actions.setHidden).toHaveBeenCalledWith(1, 'Labels', false);
 	});
+
+	// An eye from before v7, under a category that no longer exists: shown closed where its layers
+	// are now, and opened by removing the path as it is stored - which is the only one there is.
+	it('opens an eye stored under a category that was folded into another', async () => {
+		const actions = draw({
+			sources: { osm: { graph: 1, hidden: ['Points of interest'], overrides: {}, style: own } }
+		} as never);
+		await fireEvent.click(screen.getByRole('button', { name: 'Expand osm' }));
+		await fireEvent.click(screen.getByRole('button', { name: 'Expand Labels' }));
+		expect(screen.getByRole('button', { name: 'Hide Labels' })).toBeTruthy();
+		await fireEvent.click(screen.getByRole('button', { name: 'Show poi' }));
+
+		expect(actions.setHidden).toHaveBeenCalledWith(1, 'Points of interest', false);
+	});
 });
 
 describe('the nudges', () => {

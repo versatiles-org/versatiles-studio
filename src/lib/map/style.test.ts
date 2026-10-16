@@ -579,6 +579,13 @@ describe('composeStyle', () => {
 			expect(hidden.style!.layers.some((layer) => layer.id.startsWith('label-'))).toBe(false);
 		});
 
+		// The map has to agree with the tree: an eye from before v7 still leaves its layers off.
+		it('leaves out what an eye stored under a folded category covers', () => {
+			const { style } = composeStyle([entry('osm', { hidden: ['Points of interest'] })], BASE);
+			expect(style!.layers.some((layer) => layer.id.startsWith('poi-'))).toBe(false);
+			expect(style!.layers.some((layer) => layer.id.startsWith('label-'))).toBe(true);
+		});
+
 		it('says which eye did it, so the pane can offer to open that one', () => {
 			const { rows } = composeStyle([entry('osm', { hidden: ['Labels/label/place'] })], BASE);
 			const city = rows.find((row) => row.ownId === 'label-place-city')!;

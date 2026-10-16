@@ -26,7 +26,7 @@ import { componentAt } from '../../map/categories';
 
 // `ancestors` and `hiddenBy` live beside the table in `map/categories.ts`: composition needs the
 // same rule, and a pane is the wrong direction for `map/` to import from.
-export { ancestors, hiddenBy } from '../../map/categories';
+export { ancestors, covers, hiddenBy } from '../../map/categories';
 
 /** One layer of the composed style, with what the tree needs to file it. */
 export interface Row {

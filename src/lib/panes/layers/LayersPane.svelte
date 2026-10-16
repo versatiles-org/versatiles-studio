@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { StyleSpecification } from 'maplibre-gl';
 	import type { LayerOverride } from '../../ipc/commands';
-	import { tree, type Group, type Node } from './tree';
+	import { covers, tree, type Group, type Node } from './tree';
 	import { canMove, step, type Range } from './move';
 	import LayerRow from './LayerRow.svelte';
 
@@ -75,7 +75,7 @@
 	/// Whether an eye covers this group: the path itself, or one above it.
 	const closedOn = (node: Group) => {
 		const hidden = sources[node.source]?.hidden ?? [];
-		return hidden.find((path) => node.path === path || node.path.startsWith(`${path}/`)) ?? null;
+		return hidden.find((path) => covers(path, node.path)) ?? null;
 	};
 
 	/// Where each node's layers sit in the stack, so a move knows what it is moving.

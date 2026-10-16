@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { build, THEMES } from '../../map/builders';
+import { currentPath } from '../../map/categories';
 import { ancestors, hiddenBy, tree, type Group, type Node, type Row } from './tree';
 
 /**
@@ -126,5 +127,25 @@ describe('what an eye covers', () => {
 		// The nearer eye wins, because that is the one a person would press to undo it.
 		expect(hiddenBy('label-place-city', ['Labels', 'Labels/label/place'])).toBe('Labels/label/place');
 		expect(hiddenBy('street-motorway', ['Labels'])).toBeNull();
+	});
+
+	/**
+	 * **Projects written before v7 still say "Sites" and "Points of interest".** Both categories were
+	 * folded into others, and an eye stored under either would otherwise cover nothing - the POIs back
+	 * on, with no row left to switch them off from.
+	 */
+	it('still honours an eye stored under a category that was folded into another', () => {
+		expect(hiddenBy('poi-amenity', ['Points of interest'])).toBe('Points of interest');
+		expect(hiddenBy('site-hospital', ['Sites'])).toBe('Sites');
+		expect(hiddenBy('site-hospital', ['Sites/site/hospital'])).toBe('Sites/site/hospital');
+		// What it held, and nothing more: the rest of the category it joined stays on.
+		expect(hiddenBy('label-place-city', ['Points of interest'])).toBeNull();
+		expect(hiddenBy('land-forest', ['Sites'])).toBeNull();
+	});
+
+	it('reads such a path as where its layers are now', () => {
+		expect(currentPath('Points of interest')).toBe('Labels/poi');
+		expect(currentPath('Sites/site/education')).toBe('Land & water/site/education');
+		expect(currentPath('Labels/label')).toBe('Labels/label');
 	});
 });

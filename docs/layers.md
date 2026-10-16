@@ -118,6 +118,11 @@ An eye is stored as a path within one source - `Labels/label/place` - and hides 
 `hiddenBy()` answers which eye closed a given layer, nearest first, so the pane can offer to open
 the one that did rather than the one that was pressed.
 
+Two categories were folded into others when `@versatiles/style` v7 moved their layers, and eyes
+stored under them still work: `Sites` reads as `Land & water/site` and `Points of interest` as
+`Labels/poi` (`currentPath()`). The stored path is never rewritten - a match reports it as stored, so
+opening the eye removes the entry that is actually there.
+
 A hidden layer is **still a row**, marked rather than missing: the tree lists what a source draws so
 that the eye can be found again, and a row that vanished would be a switch with no way back. The
 style handed to MapLibre is the other answer, and those layers are left out of it.
