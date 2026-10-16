@@ -367,6 +367,14 @@
 		&.on {
 			background: var(--accent);
 			color: var(--accent-ink);
+
+			/* **Hover has to be said again here.** The plain hover above is the more specific rule - a
+			   class and two pseudo-classes against two classes - so on its own it replaced the accent
+			   with `--chrome` and kept the accent's ink: a black square in the dark theme, a white icon
+			   on near-white in the light one. Pressed stays pressed under the pointer, a shade deeper. */
+			&:hover:not(:disabled) {
+				background: color-mix(in srgb, var(--accent) 85%, var(--ink));
+			}
 		}
 	}
 
