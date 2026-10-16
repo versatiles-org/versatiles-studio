@@ -39,6 +39,9 @@
 		"assets:fetch": "tsx scripts/fetch-assets.ts",
 		"assets:check": "tsx scripts/update-assets.ts",
 		"assets:update": "tsx scripts/update-assets.ts --update",
+		"upgrade": "tsx scripts/run.ts upgrade",
+		"upgrade:web": "vrt deps-upgrade",
+		"upgrade:rust": "cargo upgrade --incompatible && cargo update && cargo check --workspace",
 		"e2e": "tsx scripts/run.ts e2e",
 		"e2e:build": "tauri build --debug --no-bundle --features e2e",
 		"e2e:run": "wdio run wdio.conf.ts"
@@ -49,6 +52,7 @@
 		"@tauri-apps/cli": "^2.11.4",
 		"@testing-library/svelte": "^5.4.2",
 		"@types/node": "^26.4.0",
+		"@versatiles/release-tool": "^2.20.0",
 		"@vitest/coverage-v8": "^4.1.11",
 		"@wdio/cli": "^9.31.4",
 		"@wdio/local-runner": "^9.31.4",
@@ -92,5 +96,12 @@
 		"deepmerge-ts": "^8.0.2",
 		"serialize-javascript": "^7.1.0",
 		"@puppeteer/browsers": "^3.2.1"
+	},
+	"vrt": {
+		"depsUpgrade": {
+			"ignore": [
+				"@tauri-apps/api"
+			]
+		}
 	}
 }

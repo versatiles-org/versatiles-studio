@@ -126,7 +126,7 @@ versatiles-studio/
 ├── scripts/                    tooling, not shipped
 │   ├── bundle_worker.ts        MapLibre 6 worker fix                     (S1.4)
 │   ├── fetch-assets.ts         · update-assets.ts - the pinned tier      (S0.6, S0.12)
-│   ├── upgrade-deps.sh         · prune-build-dirs.sh - housekeeping
+│   ├── prune-build-dirs.sh     housekeeping
 │   ├── docs-pdf.sh             every planning document as one PDF
 │   ├── run.ts                  every `{action}:*` script, for one action
 │   ├── bundle-local.ts         one command for an installer on this machine
