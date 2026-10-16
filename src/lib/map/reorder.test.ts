@@ -39,7 +39,7 @@ describe('minimalMoves', () => {
 	 * commands for it, and each `addLayer` would put the source into `reload`.
 	 */
 	it('lifts a category of colorful past a small source in three calls', () => {
-		const layers = build('colorful', {}).layers.map((layer) => layer.id);
+		const layers = build('colorful', {})!.layers.map((layer) => layer.id);
 		const isLabel = (id: string) => ['label', 'marking', 'poi', 'symbol'].includes(id.split(/[-:.]/)[0]);
 		const data = ['data/a', 'data/b', 'data/c'];
 
@@ -53,7 +53,7 @@ describe('minimalMoves', () => {
 
 	// The other direction: lifting the 155 road layers moves the 58 that are cheaper to move.
 	it('takes 58 calls for the largest category, not 155', () => {
-		const layers = build('colorful', {}).layers.map((layer) => layer.id);
+		const layers = build('colorful', {})!.layers.map((layer) => layer.id);
 		const isRoad = (id: string) =>
 			['tunnel', 'bridge', 'street', 'way', 'transport', 'aerialway'].includes(id.split(/[-:.]/)[0]);
 		const data = ['data/a', 'data/b', 'data/c'];

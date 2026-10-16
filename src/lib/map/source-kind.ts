@@ -13,6 +13,8 @@
  * else can.
  */
 
+import { guessSchema } from '@versatiles/style';
+import type { SchemaName } from '@versatiles/style';
 import type { SourceKind } from '../ipc/commands';
 
 /** What the reading was based on, so the pane can say so rather than just asserting. */
@@ -32,7 +34,7 @@ export interface KindReading {
  */
 const BY_SCHEMA: Record<string, SourceKind> = {
 	'shortbread@1.0': 'vectorShortbread',
-	openmaptiles: 'vectorOther',
+	openmaptiles: 'vectorOpenMapTiles',
 	rgb: 'rasterImage',
 	rgba: 'rasterImage',
 	'dem/mapbox': 'rasterDem',
@@ -40,20 +42,34 @@ const BY_SCHEMA: Record<string, SourceKind> = {
 	'dem/versatiles': 'rasterDem'
 };
 
-/**
- * Layers that mean Shortbread, for a container that does not say so itself.
- *
- * Three, not the whole schema: these are load-bearing in every Shortbread map and none of them is a
- * name somebody reaches for by accident. Matching on the full list would fail a container that
- * legitimately omits a layer, and matching on one would call any tileset with a `water` layer a
- * basemap.
- */
-const SHORTBREAD_MARKERS = ['water_polygons', 'street_polygons', 'boundaries'];
+/** The kind each schema the builders can draw is. `mapbox` is recognised upstream but not drawn. */
+const BY_GUESS: Partial<Record<SchemaName, SourceKind>> = {
+	shortbread: 'vectorShortbread',
+	openmaptiles: 'vectorOpenMapTiles',
+	protomaps: 'vectorProtomaps'
+};
 
-/** Whether these layer names look like Shortbread's. */
-function looksLikeShortbread(layers: string[]): boolean {
-	const present = new Set(layers);
-	return SHORTBREAD_MARKERS.filter((marker) => present.has(marker)).length >= 2;
+/**
+ * How many of a schema's own layers a container needs before it counts as that schema.
+ *
+ * **`guessSchema` alone is too generous for this.** It calls a tileset a schema when at least half of
+ * its layers are that schema's - right for a basemap, wrong for a pipeline's output, which is most of
+ * what Studio draws. Protomaps names its layers `places`, `roads` and `water`, so a CSV turned into one
+ * layer called `places` is "Protomaps" by that rule, and a basemap style would be drawn over somebody's
+ * data. Three layers of one schema is past what anyone names by accident - one more than the
+ * Shortbread check this replaces asked for - and every basemap clears it with room to spare.
+ */
+const MIN_MATCHED = 3;
+
+/** The schema these layer names belong to, as a kind, or `null` when they belong to none. */
+function guessedKind(layers: string[]): SourceKind | null {
+	// Names only: `guessSchema` reads `vector_layers`, and where the fields would decide between two
+	// schemas sharing a name it counts the name for both - which the bar above absorbs.
+	const guess = guessSchema({ tilejson: '3.0.0', tiles: [], vector_layers: layers.map((id) => ({ id, fields: {} })) });
+	if (guess.type !== 'vector' || guess.schema === undefined) return null;
+	const best = guess.candidates.find((candidate) => candidate.schema === guess.schema);
+	if (!best || best.matched.length < MIN_MATCHED) return null;
+	return BY_GUESS[guess.schema] ?? null;
 }
 
 /**
@@ -79,7 +95,7 @@ export function sourceKind(
 	// nothing after that is reliable, which is what `basis: 'inferred'` is telling the pane to say.
 	const format = tileFormat.toLowerCase();
 	if (format === 'mvt') {
-		return { kind: looksLikeShortbread(layers) ? 'vectorShortbread' : 'vectorOther', basis: 'inferred' };
+		return { kind: guessedKind(layers) ?? 'vectorOther', basis: 'inferred' };
 	}
 
 	// **Imagery rather than DEM, because guessing DEM is the expensive mistake.** Read a photograph
@@ -91,10 +107,13 @@ export function sourceKind(
 /** What each kind is called in the pane. */
 export const KIND_LABELS: Record<SourceKind, string> = {
 	vectorShortbread: 'Vector · Shortbread',
+	vectorOpenMapTiles: 'Vector · OpenMapTiles',
+	vectorProtomaps: 'Vector · Protomaps',
 	vectorOther: 'Vector · other',
 	rasterImage: 'Raster · imagery',
 	rasterDem: 'Raster · elevation'
 };
 
 /** Whether a kind is drawn from vector tiles, which is what the presets and the layer tree need. */
-export const isVector = (kind: SourceKind): boolean => kind === 'vectorShortbread' || kind === 'vectorOther';
+export const isVector = (kind: SourceKind): boolean =>
+	kind === 'vectorShortbread' || kind === 'vectorOpenMapTiles' || kind === 'vectorProtomaps' || kind === 'vectorOther';

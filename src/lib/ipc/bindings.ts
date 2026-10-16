@@ -225,6 +225,18 @@ export const commands = {
 	setStyleKind: (graph: number, kind: 
 /**  Vector tiles using Shortbread's layer names, which the six presets are written against. */
 "vectorShortbread" | 
+/**
+ *  Vector tiles using the OpenMapTiles schema. The presets draw it too, through
+ *  `@versatiles/style`'s `omt()` - every one but `satellite`, which only overlays Shortbread.
+ */
+"vectorOpenMapTiles" | 
+/**
+ *  Vector tiles using the Protomaps Basemap schema, drawn through `protomaps()` the same way.
+ * 
+ *  No container declares it - `tile_schema` has no value for it - so it is only ever inferred
+ *  from the layers, or chosen.
+ */
+"vectorProtomaps" | 
 /**  Vector tiles of anything else. Styled from the layers actually present (D2). */
 "vectorOther" | 
 /**  Raster tiles meant to be looked at - imagery, a scan, a rendered map (D11). */
@@ -2072,6 +2084,18 @@ export type Side = "left" | "right";
 export type SourceKind = 
 /**  Vector tiles using Shortbread's layer names, which the six presets are written against. */
 "vectorShortbread" | 
+/**
+ *  Vector tiles using the OpenMapTiles schema. The presets draw it too, through
+ *  `@versatiles/style`'s `omt()` - every one but `satellite`, which only overlays Shortbread.
+ */
+"vectorOpenMapTiles" | 
+/**
+ *  Vector tiles using the Protomaps Basemap schema, drawn through `protomaps()` the same way.
+ * 
+ *  No container declares it - `tile_schema` has no value for it - so it is only ever inferred
+ *  from the layers, or chosen.
+ */
+"vectorProtomaps" | 
 /**  Vector tiles of anything else. Styled from the layers actually present (D2). */
 "vectorOther" | 
 /**  Raster tiles meant to be looked at - imagery, a scan, a rendered map (D11). */

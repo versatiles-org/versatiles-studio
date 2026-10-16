@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { omt } from '@versatiles/style/omt';
+import { protomaps } from '@versatiles/style/protomaps';
 import { isVector, sourceKind } from './source-kind';
 
 const SHORTBREAD = ['water_polygons', 'street_polygons', 'boundaries', 'place_labels'];
@@ -7,6 +9,10 @@ describe('sourceKind', () => {
 	describe('what the container declares', () => {
 		it('takes shortbread from the schema', () => {
 			expect(sourceKind('mvt', 'shortbread@1.0', [])).toEqual({ kind: 'vectorShortbread', basis: 'declared' });
+		});
+
+		it('takes openmaptiles from the schema', () => {
+			expect(sourceKind('mvt', 'openmaptiles', [])).toEqual({ kind: 'vectorOpenMapTiles', basis: 'declared' });
 		});
 
 		it('reads every dem encoding as elevation', () => {
@@ -40,6 +46,24 @@ describe('sourceKind', () => {
 	describe('what it infers when nothing is declared', () => {
 		it('calls vector tiles with shortbread markers shortbread', () => {
 			expect(sourceKind('mvt', null, SHORTBREAD)).toEqual({ kind: 'vectorShortbread', basis: 'inferred' });
+		});
+
+		it('recognises OpenMapTiles and Protomaps by their layers', () => {
+			expect(sourceKind('mvt', null, [...omt.tileset.sourceLayers])).toEqual({
+				kind: 'vectorOpenMapTiles',
+				basis: 'inferred'
+			});
+			expect(sourceKind('mvt', null, [...protomaps.tileset.sourceLayers])).toEqual({
+				kind: 'vectorProtomaps',
+				basis: 'inferred'
+			});
+		});
+
+		// Protomaps names its layers `places`, `roads`, `water` - names a pipeline's output has too. A
+		// basemap style drawn over somebody's data because one layer name matched is the mistake.
+		it('needs three of a schema’s layers, not one generic name', () => {
+			expect(sourceKind('mvt', null, ['places', 'roads']).kind).toBe('vectorOther');
+			expect(sourceKind('mvt', null, ['places', 'roads', 'water']).kind).toBe('vectorProtomaps');
 		});
 
 		it('calls other vector tiles other', () => {
@@ -76,7 +100,9 @@ describe('sourceKind', () => {
 	});
 
 	it('separates vector from raster', () => {
-		expect(['vectorShortbread', 'vectorOther'].every((k) => isVector(k as never))).toBe(true);
+		expect(
+			['vectorShortbread', 'vectorOpenMapTiles', 'vectorProtomaps', 'vectorOther'].every((k) => isVector(k as never))
+		).toBe(true);
 		expect(['rasterImage', 'rasterDem'].some((k) => isVector(k as never))).toBe(false);
 	});
 });

@@ -40,11 +40,14 @@ describe('categoryOf', () => {
  */
 describe('the table against the presets themselves', () => {
 	const presets = Object.keys(THEMES) as (keyof typeof THEMES)[];
+	const schemas = ['shortbread', 'openmaptiles', 'protomaps'] as const;
+	const styles = () =>
+		schemas.flatMap((schema) => presets.map((preset) => build(preset, { tiles: 'x/{z}/{x}/{y}' }, {}, schema)!));
 
 	it('has a category for every prefix the presets use', () => {
 		const unknown = new Set<string>();
-		for (const preset of presets) {
-			for (const layer of build(preset, {}).layers) {
+		for (const style of styles()) {
+			for (const layer of style.layers) {
 				const [prefix] = parts(layer.id);
 				if (!(prefix in CATEGORIES)) unknown.add(prefix);
 			}
@@ -54,8 +57,8 @@ describe('the table against the presets themselves', () => {
 
 	it('names no prefix the presets do not have', () => {
 		const used = new Set<string>();
-		for (const preset of presets) {
-			for (const layer of build(preset, {}).layers) used.add(parts(layer.id)[0]);
+		for (const style of styles()) {
+			for (const layer of style.layers) used.add(parts(layer.id)[0]);
 		}
 		expect(Object.keys(CATEGORIES).filter((prefix) => !used.has(prefix))).toEqual([]);
 	});

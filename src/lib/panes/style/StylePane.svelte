@@ -2,6 +2,7 @@
 	import { style } from '../../state/style.svelte';
 	import type { DemEncoding, Hillshade, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
 	import { KIND_LABELS, isVector, sourceKind } from '../../map/source-kind';
+	import { schemaOf } from '../../map/builders';
 	import { demEncoding, type StyleBasis } from '../../map/style';
 	import { token } from '../../styles/tokens';
 	import type { StyleSpecification } from 'maplibre-gl';
@@ -102,6 +103,9 @@
 	);
 	const kind = $derived(reading?.kind ?? null);
 	const vector = $derived(kind === null || isVector(kind));
+	/// Which builder the preset goes through - `osm()`, `omt()` or `protomaps()` - and so which one the
+	/// exported code calls.
+	const schema = $derived(schemaOf(kind));
 
 	/// Every raster slider's neutral is `0` except opacity, whose is `1` - the same asymmetry the
 	/// vector sliders have, for the same reason: a multiplier's identity is not zero.
@@ -187,7 +191,7 @@
 
 	async function exportAs(kind: 'json' | 'ts') {
 		if (!recipe || !rendered) return;
-		const code = kind === 'ts' ? styleCode(appearance, presentIds) : null;
+		const code = kind === 'ts' ? styleCode(appearance, presentIds, schema) : null;
 		if (kind === 'ts' && code === null) return;
 		// The tile URL is swapped for a placeholder in both forms: what the map reads from is an
 		// ephemeral local port, and a file carrying it away would work once.
@@ -457,8 +461,8 @@
 			<button
 				type="button"
 				class="button"
-				disabled={!rendered || exporting !== null || !canGenerateCode(appearance)}
-				title={canGenerateCode(appearance)
+				disabled={!rendered || exporting !== null || !canGenerateCode(appearance, schema)}
+				title={canGenerateCode(appearance, schema)
 					? 'The preset and what was changed, as code'
 					: 'A derived style has no builder to call - export it as style.json'}
 				onclick={() => void exportAs('ts')}

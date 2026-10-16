@@ -49,7 +49,14 @@ export const PRESETS: { id: Preset; label: string; note: string }[] = [
 	{ id: 'derived', label: 'From the data', note: 'every layer these tiles actually have' }
 ];
 
-export const KIND_OPTIONS: SourceKind[] = ['vectorShortbread', 'vectorOther', 'rasterImage', 'rasterDem'];
+export const KIND_OPTIONS: SourceKind[] = [
+	'vectorShortbread',
+	'vectorOpenMapTiles',
+	'vectorProtomaps',
+	'vectorOther',
+	'rasterImage',
+	'rasterDem'
+];
 
 // -- the three sets of sliders -------------------------------------------------------------------
 

@@ -25,7 +25,16 @@ import type {
 	Segment,
 	SourceKind
 } from '../ipc/commands';
-import { build, isBuiltPreset, localAssets, recolorOptions, shortbread, spriteAt } from './builders';
+import {
+	build,
+	isBuiltPreset,
+	localAssets,
+	recolorOptions,
+	schemaOf,
+	spriteAt,
+	tileset,
+	type Schema
+} from './builders';
 import { hiddenBy } from './categories';
 import { throughQueue } from './tile-queue';
 import { renderableAs } from './tile-format';
@@ -50,15 +59,22 @@ export interface StyleSource {
 export function renderStyle(
 	appearance: VectorAppearance,
 	sources: StyleSource[],
-	serverBaseUrl: string
+	serverBaseUrl: string,
+	schema: Schema = 'shortbread'
 ): StyleSpecification | null {
 	if (!isBuiltPreset(appearance.preset)) return null;
 
 	// The first source is what the preset's own layers draw from. A preset knows one schema and one
 	// source; naming several is S4.4's problem, not this function's.
 	//
-	const osm = shortbread(sources.length > 0 ? [throughQueue(sources[0].tileUrl)] : []);
-	const style = build(appearance.preset, { osm, ...localAssets(serverBaseUrl) }, recolorOptions(appearance.recolor));
+	const tiles = tileset(schema, sources.length > 0 ? [throughQueue(sources[0].tileUrl)] : []);
+	const style = build(
+		appearance.preset,
+		{ tiles, ...localAssets(serverBaseUrl) },
+		recolorOptions(appearance.recolor),
+		schema
+	);
+	if (!style) return null;
 
 	return withOverrides(style, appearance.overrides);
 }
@@ -313,7 +329,7 @@ export function styleFor(
 	// Built from what the tiles have rather than from what a schema expects (S4.4).
 	if (appearance.preset === 'derived') return derive('derived');
 
-	const rendered = renderStyle(appearance, sources, serverBaseUrl);
+	const rendered = renderStyle(appearance, sources, serverBaseUrl, schemaOf(kind));
 	if (rendered && drawsAnything(rendered, mountedLayers)) return { style: rendered, basis: 'preset' };
 
 	return derive('fallback');
@@ -425,7 +441,9 @@ function hue(name: string): string {
 
 /** Whether a kind draws from vector tiles. Local to avoid a cycle with `source-kind`. */
 function isVectorKind(kind: SourceKind): boolean {
-	return kind === 'vectorShortbread' || kind === 'vectorOther';
+	return (
+		kind === 'vectorShortbread' || kind === 'vectorOpenMapTiles' || kind === 'vectorProtomaps' || kind === 'vectorOther'
+	);
 }
 
 /** What the composed style calls the background map's contribution. */

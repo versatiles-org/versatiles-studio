@@ -177,6 +177,14 @@ impl LayerOverride {
 pub enum SourceKind {
 	/// Vector tiles using Shortbread's layer names, which the six presets are written against.
 	VectorShortbread,
+	/// Vector tiles using the OpenMapTiles schema. The presets draw it too, through
+	/// `@versatiles/style`'s `omt()` - every one but `satellite`, which only overlays Shortbread.
+	VectorOpenMapTiles,
+	/// Vector tiles using the Protomaps Basemap schema, drawn through `protomaps()` the same way.
+	///
+	/// No container declares it - `tile_schema` has no value for it - so it is only ever inferred
+	/// from the layers, or chosen.
+	VectorProtomaps,
 	/// Vector tiles of anything else. Styled from the layers actually present (D2).
 	VectorOther,
 	/// Raster tiles meant to be looked at - imagery, a scan, a rendered map (D11).

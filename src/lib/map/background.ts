@@ -20,7 +20,7 @@
  */
 
 import type { StyleSpecification } from 'maplibre-gl';
-import { build, localAssets, shortbread } from './builders';
+import { build, localAssets, tileset } from './builders';
 
 /** Where the background's tiles come from. Only this is remote. */
 const TILES = 'https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}';
@@ -63,7 +63,7 @@ export async function buildBackground(id: BackgroundId, serverUrl: string): Prom
 	if (id === 'none') return null;
 	// The satellite builder overlays the same vector tiles on its own imagery source, which it
 	// resolves itself.
-	return build(id, { osm: shortbread([TILES]), ...localAssets(serverUrl) });
+	return build(id, { tiles: tileset('shortbread', [TILES]), ...localAssets(serverUrl) });
 }
 
 /** Whether an id is one we know, so a stale persisted value cannot break the map. */

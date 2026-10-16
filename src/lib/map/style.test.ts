@@ -13,6 +13,8 @@ import {
 	styleFor
 } from './style';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
+import { omt } from '@versatiles/style/omt';
+import { protomaps } from '@versatiles/style/protomaps';
 import type { LayerSpecification, StyleSpecification } from '@maplibre/maplibre-gl-style-spec';
 import type { Appearance } from '../ipc/commands';
 import type { VectorAppearance } from './style';
@@ -349,6 +351,49 @@ describe('styleFor', () => {
 		);
 		expect(basis).toBe('none');
 	});
+});
+
+/**
+ * The presets are themes, and the tiles decide the builder: the same "Graybeard" is `osm()`, `omt()`
+ * or `protomaps()` depending on what the source is.
+ */
+describe('styleFor over the other schemas', () => {
+	const cases = [
+		{ kind: 'vectorOpenMapTiles' as const, layers: omt.tileset.sourceLayers, maxzoom: 14 },
+		{ kind: 'vectorProtomaps' as const, layers: protomaps.tileset.sourceLayers, maxzoom: 15 }
+	];
+
+	for (const { kind, layers, maxzoom } of cases) {
+		const target = { kind, tileFormat: 'mvt', layers: [], mountedLayers: [...layers] };
+
+		it(`draws a preset over ${kind} with that schema’s builder`, () => {
+			const { style, basis } = styleFor(recipe({ preset: 'graybeard' }), target, SOURCES, BASE);
+			expect(basis).toBe('preset');
+			const used = new Set(style!.layers.flatMap((layer) => ('source-layer' in layer ? [layer['source-layer']] : [])));
+			// Its layers read the schema's own source-layers, not Shortbread's.
+			expect([...used].every((name) => layers.includes(name as string))).toBe(true);
+			expect(used.has('water_polygons')).toBe(false);
+		});
+
+		it(`declares the extent ${kind} tiles have`, () => {
+			const style = renderStyle(recipe(), SOURCES, BASE, kind === 'vectorProtomaps' ? 'protomaps' : 'openmaptiles');
+			const source = Object.values(style!.sources)[0] as Record<string, unknown>;
+			expect(source.maxzoom).toBe(maxzoom);
+			expect(JSON.stringify(source)).toContain('/tiles/berlin/');
+		});
+
+		// `satellite` only overlays Shortbread, so over these tiles there is nothing to build - which
+		// is the same answer as a preset that draws nothing, and gets the same fallback.
+		it(`falls back to the layers for satellite over ${kind}`, () => {
+			const { basis } = styleFor(
+				recipe({ preset: 'satellite' }),
+				{ ...target, layers: [{ name: layers[0], geometry: 'polygon' }] },
+				SOURCES,
+				BASE
+			);
+			expect(basis).toBe('fallback');
+		});
+	}
 });
 
 describe('styleFor and formats the map cannot read as vector', () => {

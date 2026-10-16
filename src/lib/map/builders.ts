@@ -9,14 +9,52 @@
  *
  * The theme for each follows the library's own migration table, "Migration from v5" in its
  * `API_DESIGN.md`.
+ *
+ * **A preset is a theme, and the tiles decide the builder.** Since v7 the library draws three vector
+ * schemas - `osm()` for Shortbread, `omt()` for OpenMapTiles, `protomaps()` for the Protomaps Basemap -
+ * with the same options and the same themes. So "Graybeard" over OpenMapTiles tiles is
+ * `omt({ theme: 'gray' })`, and nobody has to pick a preset per schema.
  */
 
 import { osm, satellite } from '@versatiles/style';
 import type { RecolorOptions, TileSource } from '@versatiles/style';
+import { omt } from '@versatiles/style/omt';
+import { protomaps } from '@versatiles/style/protomaps';
 import type { StyleSpecification } from 'maplibre-gl';
-import type { Preset, Recolor } from '../ipc/commands';
+import type { Preset, Recolor, SourceKind } from '../ipc/commands';
 
-/** The Shortbread presets, by the name the core stores, and the `osm()` theme each one now is. */
+/** A vector tile schema the builders can draw. */
+export type Schema = 'shortbread' | 'openmaptiles' | 'protomaps';
+
+/**
+ * Each schema's builder, and what differs between them: where it is imported from, which `urls` key
+ * takes the tiles, and how far its tiles go.
+ */
+const SCHEMAS = {
+	shortbread: { builder: osm, name: 'osm', module: '@versatiles/style', tiles: 'osm', maxzoom: 14 },
+	openmaptiles: { builder: omt, name: 'omt', module: '@versatiles/style/omt', tiles: 'omt', maxzoom: 14 },
+	protomaps: {
+		builder: protomaps,
+		name: 'protomaps',
+		module: '@versatiles/style/protomaps',
+		tiles: 'protomaps',
+		maxzoom: 15
+	}
+} as const;
+
+/**
+ * The schema a kind of source is drawn with.
+ *
+ * `vectorOther` is Shortbread's, because that is what a preset over unknown tiles has always tried:
+ * when nothing matches, `styleFor` sees an empty map and derives a style from the layers instead.
+ */
+export function schemaOf(kind: SourceKind | null | undefined): Schema {
+	if (kind === 'vectorOpenMapTiles') return 'openmaptiles';
+	if (kind === 'vectorProtomaps') return 'protomaps';
+	return 'shortbread';
+}
+
+/** The Shortbread presets, by the name the core stores, and the theme each one now is. */
 export const THEMES = {
 	colorful: 'colorful',
 	eclipse: 'colorful-dark',
@@ -26,7 +64,7 @@ export const THEMES = {
 	shadow: 'gray-dark'
 } as const;
 
-/** A preset that has a builder behind it - every one but `derived`. */
+/** A preset that has a builder behind it - every one but `derived`, on some schema. */
 export type BuiltPreset = keyof typeof THEMES | 'satellite';
 
 export function isBuiltPreset(preset: Preset): preset is BuiltPreset {
@@ -85,56 +123,79 @@ export function recolorOptions(recolor: Recolor): RecolorOptions {
 
 /**
  * What a builder needs to be told: where the vector tiles are, and where the assets are. Each one
- * omitted is the builder's own default, on versatiles.org.
+ * omitted is the builder's own default, on versatiles.org - except the tiles of `protomaps()`, which
+ * has no default and throws without them.
  */
 export interface BuildUrls {
-	/**
-	 * A tile URL template, or a TileJSON.
-	 */
-	osm?: TileSource;
+	/** A tile URL template, or a TileJSON. */
+	tiles?: TileSource;
 	glyphsPattern?: string;
 	sprite?: { id: string; url: string }[];
 }
 
-/**
- * The options a preset is built with - also what `style-code.ts` writes into the generated call, so
- * the code and the map cannot describe two different styles.
- *
- * `satellite` draws the vector tiles as an overlay on imagery, so the recolouring applies to the
- * overlay; the imagery has its own raster controls, which Studio does not offer for this preset.
- */
-export function buildOptions(preset: BuiltPreset, urls: BuildUrls, recolor: RecolorOptions) {
-	const recolored = Object.keys(recolor).length > 0 ? { recolor } : {};
-	if (preset === 'satellite') {
-		return { urls, ...(Object.keys(recolored).length > 0 ? { osmOverlay: recolored } : {}) };
-	}
-	return { theme: THEMES[preset], urls, ...recolored };
+/** A builder call: which function, where it is imported from, and what it is passed. */
+export interface BuildCall {
+	name: string;
+	module: string;
+	options: Record<string, unknown>;
 }
 
 /**
- * Shortbread tiles at the given URLs, with the extent Shortbread has: the whole world, zoom 0 to 14.
+ * The call a preset is built with over a schema, or `null` where there is none - also what
+ * `style-code.ts` writes into the generated code, so the code and the map cannot describe two
+ * different styles.
+ *
+ * **`satellite` only exists for Shortbread.** It draws the vector tiles as an overlay on imagery, and
+ * the overlay is `osm()`'s; over another schema there is nothing to call. The recolouring applies to
+ * the overlay - the imagery has its own raster controls, which Studio does not offer for this preset.
+ */
+export function buildCall(
+	preset: BuiltPreset,
+	schema: Schema,
+	urls: BuildUrls,
+	recolor: RecolorOptions = {}
+): BuildCall | null {
+	const { tiles, ...assets } = urls;
+	const recolored = Object.keys(recolor).length > 0 ? { recolor } : {};
+	const target = SCHEMAS[schema];
+	const named = { ...(tiles === undefined ? {} : { [target.tiles]: tiles }), ...assets };
+
+	if (preset === 'satellite') {
+		if (schema !== 'shortbread') return null;
+		return {
+			name: 'satellite',
+			module: target.module,
+			options: { urls: named, ...(Object.keys(recolored).length > 0 ? { osmOverlay: recolored } : {}) }
+		};
+	}
+	return { name: target.name, module: target.module, options: { theme: THEMES[preset], urls: named, ...recolored } };
+}
+
+/**
+ * Vector tiles at the given URLs, with the extent the schema has: the whole world, from zoom 0 to the
+ * schema's last - 14, or 15 for Protomaps.
  *
  * **A TileJSON rather than the bare template**, because given a template the builders declare no
- * extent at all, and a vector source without a `maxzoom` is one MapLibre asks for z15 and beyond
- * instead of overzooming z14 - a map that goes blank past street level. v5 wrote these three fields
- * itself. `composeStyle` replaces them with the container's own where it has them.
+ * extent at all, and a vector source without a `maxzoom` is one MapLibre asks for tiles beyond the last
+ * zoom of instead of overzooming it - a map that goes blank past street level. v5 wrote these three
+ * fields itself. `composeStyle` replaces them with the container's own where it has them.
  *
  * An empty list is a source with nothing in it, which is what a preset with no source to draw from
  * needs: left out, the builders fall back to versatiles.org's tiles.
  */
-export function shortbread(tiles: string[]): TileSource {
+export function tileset(schema: Schema, tiles: string[]): TileSource {
 	return {
 		tilejson: '3.0.0',
 		tiles,
 		vector_layers: [],
 		bounds: [-180, -85.0511287798066, 180, 85.0511287798066],
 		minzoom: 0,
-		maxzoom: 14
+		maxzoom: SCHEMAS[schema].maxzoom
 	};
 }
 
 /**
- * Builds a preset's style.
+ * Builds a preset's style over a schema, or `null` where the preset has nothing to draw it with.
  *
  * **Without the slots.** The builders lay four invisible `slot-*` layers where a fill, a street, a
  * symbol and a label run begin, for an application to insert its own layers at. Studio inserts by
@@ -142,8 +203,15 @@ export function shortbread(tiles: string[]): TileSource {
  * sits exactly on the edge between two categories, so it would split each of them in the layer tree
  * as a row of its own that draws nothing.
  */
-export function build(preset: BuiltPreset, urls: BuildUrls, recolor: RecolorOptions = {}): StyleSpecification {
-	const options = buildOptions(preset, urls, recolor);
-	const style = (preset === 'satellite' ? satellite(options) : osm(options)) as StyleSpecification;
+export function build(
+	preset: BuiltPreset,
+	urls: BuildUrls,
+	recolor: RecolorOptions = {},
+	schema: Schema = 'shortbread'
+): StyleSpecification | null {
+	const call = buildCall(preset, schema, urls, recolor);
+	if (!call) return null;
+	const builder = call.name === 'satellite' ? satellite : SCHEMAS[schema].builder;
+	const style = (builder as (options: object) => unknown)(call.options) as StyleSpecification;
 	return { ...style, layers: style.layers.filter((layer) => !layer.id.startsWith('slot-')) };
 }

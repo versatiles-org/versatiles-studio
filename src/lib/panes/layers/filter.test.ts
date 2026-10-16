@@ -86,7 +86,7 @@ describe('formatting a filter to edit', () => {
 
 	/** The editor's whole contract: what it shows must parse back to what it was given. */
 	it('round-trips every filter the colorful preset uses', () => {
-		const filters = build('colorful', {})
+		const filters = build('colorful', {})!
 			.layers.map((layer) => (layer as { filter?: unknown }).filter)
 			.filter((f): f is unknown[] => Array.isArray(f));
 

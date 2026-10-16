@@ -19,7 +19,7 @@ const flatten = (node: Node): string[] => (node.kind === 'layer' ? [node.ownId] 
 
 describe('the categories a preset collapses to', () => {
 	it('turns colorful’s 253 layers into seven rows', () => {
-		const [source] = tree(rowsOf(build('colorful', {})));
+		const [source] = tree(rowsOf(build('colorful', {})!));
 		expect(source.count).toBe(253);
 		expect(labels(source.children)).toEqual([
 			'Background',
@@ -36,16 +36,25 @@ describe('the categories a preset collapses to', () => {
 	// Since v6 every Shortbread preset is one builder with a different palette, so the layers - and
 	// with them the rows - are the same for all of them.
 	it('turns every other Shortbread preset into the same seven', () => {
-		const expected = labels(tree(rowsOf(build('colorful', {})))[0].children);
+		const expected = labels(tree(rowsOf(build('colorful', {})!))[0].children);
 		for (const preset of Object.keys(THEMES) as (keyof typeof THEMES)[]) {
-			expect(labels(tree(rowsOf(build(preset, {})))[0].children), preset).toEqual(expected);
+			expect(labels(tree(rowsOf(build(preset, {})!))[0].children), preset).toEqual(expected);
+		}
+	});
+
+	// The same table serves the other schemas: their builders name layers by what they draw, not by
+	// the source-layer they read, so the prefixes are the same.
+	it('files OpenMapTiles and Protomaps under the same seven, one run each', () => {
+		for (const schema of ['openmaptiles', 'protomaps'] as const) {
+			const children = tree(rowsOf(build('colorful', { tiles: 'x/{z}/{x}/{y}' }, {}, schema)!))[0].children;
+			expect(labels(children), schema).toEqual(labels(tree(rowsOf(build('colorful', {})!))[0].children));
 		}
 	});
 
 	// The property the whole design rests on: a node is a *range*, so dragging it moves a range. A
 	// category that turned out not to be contiguous would be a row that cannot be moved as one.
 	it('leaves every row a contiguous run of the paint order', () => {
-		const rows = rowsOf(build('colorful', {}));
+		const rows = rowsOf(build('colorful', {})!);
 		const [source] = tree(rows);
 		const painted = rows.map((row) => row.ownId);
 
@@ -63,14 +72,14 @@ describe('the stack', () => {
 	const dataviz: Row[] = [{ id: 'dataviz/cases', ownId: 'cases', source: 'dataviz', type: 'fill' }];
 
 	it('has one row per source, in paint order', () => {
-		const rows = [...rowsOf(build('colorful', {})), ...dataviz];
+		const rows = [...rowsOf(build('colorful', {})!), ...dataviz];
 		expect(tree(rows).map((node) => node.label)).toEqual(['osm', 'dataviz']);
 	});
 
 	// The gesture the design exists for. Nothing tells this module that a split happened - the layers
 	// arrive interleaved, and two runs is what interleaved layers *are*.
 	it('shows a source drawn in two places as two rows', () => {
-		const all = rowsOf(build('colorful', {}));
+		const all = rowsOf(build('colorful', {})!);
 		const isLabel = (row: Row) => ['label', 'marking', 'poi', 'symbol'].includes(row.ownId.split(/[-:.]/)[0]);
 		const lifted = all.filter(isLabel);
 		const rest = all.filter((row) => !isLabel(row));
