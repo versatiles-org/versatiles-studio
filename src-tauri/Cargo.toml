@@ -37,7 +37,7 @@ specta = { version = "=2.0.0-rc.25", features = ["derive"] }
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 studio-core = { path = "../crates/studio-core", features = ["bindings"] }
 tauri = { version = "2.12", features = [] }
-tauri-plugin-dialog = "2"
+tauri-plugin-dialog = "2.8.3"
 anyhow.workspace = true
 serde.workspace = true
 serde_json.workspace = true
