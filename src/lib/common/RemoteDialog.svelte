@@ -89,6 +89,27 @@
 		);
 	});
 
+	/// **Recent first, and open on it when there is anything in it** - what someone opened before is
+	/// the likeliest thing they want again. With nothing there, the catalogue is where to start.
+	type Tab = 'recent' | 'catalog';
+	const TABS: { id: Tab; label: string }[] = [
+		{ id: 'recent', label: 'Recent' },
+		{ id: 'catalog', label: 'Catalog' }
+	];
+	/// Read once, on opening: a recent arriving while the dialog is open must not switch the tab under
+	/// somebody already reading the other one.
+	const firstTab = (): Tab => (recents.length > 0 ? 'recent' : 'catalog');
+	let tab = $state<Tab>(firstTab());
+
+	/// Arrow keys move between tabs, as a tab list does everywhere else.
+	function onTabKey(event: KeyboardEvent) {
+		if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+		event.preventDefault();
+		const at = TABS.findIndex((candidate) => candidate.id === tab);
+		tab = TABS[(at + (event.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length].id;
+		document.getElementById(`remote-tab-${tab}`)?.focus();
+	}
+
 	function choose(address: string) {
 		url = address;
 		field?.focus();
@@ -131,50 +152,76 @@
 		</p>
 	</form>
 
+	<!-- Under the field rather than behind a tab: it is what the field accepts, read while typing. -->
 	<p class="hint">
-		<strong>What opens from an address:</strong> tile containers - <code>.versatiles</code> and <code>.pmtiles</code>
-		- over HTTPS or SFTP, read in pieces as the map needs them, so a planet file is not downloaded. And tile servers, by the
-		address of their TileJSON. GeoJSON, CSV, MBTiles and TAR open from disk only.
+		Tile containers - <code>.versatiles</code>, <code>.pmtiles</code> - over HTTPS or SFTP, read in pieces as the map needs
+		them, so nothing is downloaded. Or a tile server, by its TileJSON address. GeoJSON, CSV, MBTiles and TAR open from disk
+		only.
 	</p>
 
-	{#if recents.length}
-		<section>
-			<h3 class="section-label">Opened before</h3>
-			<ul class="list">
-				{#each recents as address (address)}
-					<li>
-						<button type="button" class="pick" onclick={() => choose(address)} title={address}>
-							<span class="address-text truncate">{address}</span>
-						</button>
-					</li>
-				{/each}
-			</ul>
-		</section>
-	{/if}
+	<div class="tabs" role="tablist" aria-label="Where to start from">
+		{#each TABS as { id, label } (id)}
+			<button
+				type="button"
+				role="tab"
+				id="remote-tab-{id}"
+				aria-selected={tab === id}
+				aria-controls="remote-panel"
+				tabindex={tab === id ? 0 : -1}
+				onclick={() => (tab = id)}
+				onkeydown={onTabKey}>{label}</button
+			>
+		{/each}
+	</div>
 
-	{#each groups as [publisher, shortcuts] (publisher)}
-		<section>
-			<h3 class="section-label">{publisher}</h3>
-			<ul class="list">
-				{#each shortcuts as shortcut (shortcut.url)}
-					<li>
-						<button type="button" class="pick" onclick={() => choose(shortcut.url)} title={shortcut.url}>
-							<span class="title">{shortcut.title} <span class="meta">{meta(shortcut)}</span></span>
-							{#if shortcut.description[0]}
-								<span class="about">{shortcut.description[0]}</span>
-							{/if}
-						</button>
-					</li>
-				{/each}
-			</ul>
-		</section>
-	{/each}
+	<!-- The one part that scrolls. Field, hint and buttons stay put, so Open is never below the fold
+	     of an 880×580 launcher - which is where it was when this was one long column. -->
+	<div class="panel" id="remote-panel" role="tabpanel" aria-labelledby="remote-tab-{tab}">
+		{#if tab === 'recent'}
+			{#if recents.length}
+				<ul class="list">
+					{#each recents as address (address)}
+						<li>
+							<button type="button" class="pick" onclick={() => choose(address)} title={address}>
+								<span class="address-text truncate">{address}</span>
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="hint">Nothing opened from an address yet - the catalog has some to start from.</p>
+			{/if}
+		{:else}
+			{#each groups as [publisher, shortcuts] (publisher)}
+				<section>
+					<h3 class="section-label">{publisher}</h3>
+					<ul class="list">
+						{#each shortcuts as shortcut (shortcut.url)}
+							<li>
+								<!-- One line each, so the whole catalogue fits; what a dataset is, and where it is,
+								     are a hover away. -->
+								<button
+									type="button"
+									class="pick"
+									onclick={() => choose(shortcut.url)}
+									title={[...shortcut.description, shortcut.url].join('\n')}
+								>
+									<span class="title truncate">{shortcut.title}</span>
+									<span class="meta">{meta(shortcut)}</span>
+								</button>
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{/each}
 
-	{#if catalogue === undefined}
-		<p class="hint">Loading the catalogue of download.versatiles.org…</p>
-	{:else if catalogue === null}
-		<p class="hint">The catalogue of download.versatiles.org could not be loaded - Studio may be offline.</p>
-	{/if}
+			{#if catalogue === undefined}
+				<p class="hint">Loading the catalogue of download.versatiles.org…</p>
+			{:else if catalogue === null}
+				<p class="hint">The catalogue of download.versatiles.org could not be loaded - Studio may be offline.</p>
+			{/if}
+		{/if}
+	</div>
 
 	{#snippet actions()}
 		<button type="button" class="button" onclick={onCancel}>Cancel</button>
@@ -213,6 +260,41 @@
 		font-size: var(--text-sm);
 	}
 
+	.tabs {
+		display: flex;
+		gap: var(--space-1);
+		border-bottom: 1px solid var(--rule);
+
+		button {
+			padding: var(--space-2) var(--space-3);
+			border: 0;
+			border-bottom: 2px solid transparent;
+			margin-bottom: -1px;
+			background: none;
+			color: var(--ink-2);
+			cursor: pointer;
+
+			&[aria-selected='true'] {
+				border-bottom-color: currentColor;
+				color: var(--ink);
+				font-weight: 600;
+			}
+		}
+	}
+
+	/* A fixed height, so switching tabs does not resize the dialog under the pointer - and allowed to
+	   shrink below it, which is what keeps the buttons on screen in a short window: it is the only
+	   child of the dialog that can give way. */
+	.panel {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		flex: 0 1 16rem;
+		min-height: 0;
+		overflow-y: auto;
+		margin-top: calc(-1 * var(--space-2));
+	}
+
 	section {
 		display: flex;
 		flex-direction: column;
@@ -229,17 +311,15 @@
 		margin: 0;
 		padding: 0;
 		list-style: none;
-		max-height: 14rem;
-		overflow-y: auto;
 	}
 
 	.pick {
 		display: flex;
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 2px;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--space-4);
 		width: 100%;
-		padding: var(--space-2) var(--space-3);
+		padding: var(--space-1) var(--space-3);
 		border: 0;
 		border-radius: var(--radius);
 		background: none;
@@ -254,14 +334,13 @@
 	}
 
 	.title {
-		font-weight: 600;
+		min-width: 0;
 	}
 
-	.meta,
-	.about {
+	.meta {
+		flex: none;
 		color: var(--ink-2);
 		font-size: var(--text-sm);
-		font-weight: normal;
 	}
 
 	.address-text {

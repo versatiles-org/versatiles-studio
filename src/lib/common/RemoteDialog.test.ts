@@ -91,7 +91,7 @@ describe('the shortcuts', () => {
 	it('fills the field from the catalogue, under who publishes it', async () => {
 		show();
 		expect(await screen.findByText('download.versatiles.org')).toBeTruthy();
-		(await screen.findByTitle(OSM.url)).click();
+		(await screen.findByRole('button', { name: /OpenStreetMap/ })).click();
 		const field = (await screen.findByLabelText('Address of a remote file')) as HTMLInputElement;
 		await vi.waitFor(() => expect(field.value).toBe(OSM.url));
 	});
@@ -101,6 +101,40 @@ describe('the shortcuts', () => {
 		(await screen.findByTitle('https://example.org/mine.pmtiles')).click();
 		const field = (await screen.findByLabelText('Address of a remote file')) as HTMLInputElement;
 		await vi.waitFor(() => expect(field.value).toBe('https://example.org/mine.pmtiles'));
+	});
+
+	// What was opened before is the likeliest thing to want again - but an empty tab is nowhere to
+	// start, so with no recents the catalogue is what shows.
+	it('opens on Recent when there is anything in it, and on Catalog when there is not', async () => {
+		show({ recents: ['https://example.org/mine.pmtiles'] });
+		const recent = await screen.findByRole('tab', { name: 'Recent' });
+		expect(recent.getAttribute('aria-selected')).toBe('true');
+		expect(screen.queryByRole('button', { name: /OpenStreetMap/ })).toBeNull();
+		cleanup();
+
+		show();
+		expect((await screen.findByRole('tab', { name: 'Catalog' })).getAttribute('aria-selected')).toBe('true');
+	});
+
+	it('switches tabs by click and by arrow key', async () => {
+		show({ recents: ['https://example.org/mine.pmtiles'] });
+		const recent = await screen.findByRole('tab', { name: 'Recent' });
+		const catalog = screen.getByRole('tab', { name: 'Catalog' });
+
+		await fireEvent.click(catalog);
+		expect(await screen.findByRole('button', { name: /OpenStreetMap/ })).toBeTruthy();
+
+		await fireEvent.keyDown(catalog, { key: 'ArrowRight' });
+		expect(recent.getAttribute('aria-selected')).toBe('true');
+		expect(document.activeElement).toBe(recent);
+	});
+
+	// The help is not a tab: it is what the field accepts, and it is read while typing.
+	it('says what opens from an address, under the field, whichever tab is open', async () => {
+		show({ recents: ['https://example.org/mine.pmtiles'] });
+		expect(await screen.findByText(/open\s+from disk only/)).toBeTruthy();
+		await fireEvent.click(screen.getByRole('tab', { name: 'Catalog' }));
+		expect(screen.getByText(/open\s+from disk only/)).toBeTruthy();
 	});
 
 	// Offline is a state Studio works in. The extras still show; the catalogue says why it is missing.

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from 'vitest';
-import { CATALOG_URL, fetchCatalog, parseCatalog } from './catalog';
+import { CATALOG_URL, EXTRA, fetchCatalog, parseCatalog } from './catalog';
 
 /** The shape download.versatiles.org publishes, cut down to what is read. */
 const CATALOG = {
@@ -82,5 +82,19 @@ describe('fetchCatalog', () => {
 			await fetchCatalog(vi.fn().mockRejectedValue(new TypeError('offline')) as unknown as typeof fetch)
 		).toBeNull();
 		expect(await fetchCatalog(responding({}, false))).toBeNull();
+	});
+});
+
+/**
+ * **The core identifies a remote source by its name**, and reads a document only when that name is a
+ * `.json`. A TileJSON served without one - OpenFreeMap's `/planet` is the same document as
+ * `/planet/tile.json` - is "a kind of file Studio does not know", so a shortcut there is a button
+ * whose Open stays disabled.
+ */
+describe('the extra shortcuts', () => {
+	it('are addresses the dialog’s check can recognise', () => {
+		for (const shortcut of EXTRA) {
+			expect(shortcut.url, shortcut.title).toMatch(/^https:\/\/.+\.(json|versatiles|pmtiles)$/);
+		}
 	});
 });

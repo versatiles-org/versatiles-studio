@@ -48,7 +48,7 @@ export const EXTRA: Shortcut[] = [
 			'© OpenMapTiles, © OpenStreetMap contributors'
 		],
 		tileType: 'vector',
-		url: 'https://tiles.openfreemap.org/planet',
+		url: 'https://tiles.openfreemap.org/planet/tile.json',
 		size: null,
 		date: null,
 		publisher: 'openfreemap.org'

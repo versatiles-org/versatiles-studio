@@ -48,6 +48,11 @@
 	dialog {
 		/* The one thing that genuinely varies between them. */
 		width: min(var(--modal-width), calc(100vw - var(--space-6)));
+		/* Never taller than the window: the launcher is 880×580, and a dialog running past its bottom
+		   edge put the buttons out of reach. A flex column, so a child that is allowed to shrink
+		   (`min-height: 0`, its own scroller) gives way first and the title and buttons stay on
+		   screen; one that is not still scrolls, as the whole body. */
+		max-height: calc(100vh - var(--space-6));
 		padding: 0;
 		border: 1px solid var(--rule);
 		border-radius: var(--radius-lg);
@@ -63,6 +68,9 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-4);
+		max-height: calc(100vh - var(--space-6));
+		box-sizing: border-box;
+		overflow-y: auto;
 		padding: var(--space-5);
 	}
 
