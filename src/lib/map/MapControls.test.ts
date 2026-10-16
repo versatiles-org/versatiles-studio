@@ -135,7 +135,7 @@ describe('the background picker', () => {
 		toggle().click();
 		flushSync();
 		const panel = screen.getByRole('group', { name: 'Background map' });
-		expect(panel.querySelectorAll('.swatch').length).toBe(7);
+		expect(panel.querySelectorAll('.swatch').length).toBe(8);
 		expect(panel.querySelectorAll('.swatch.none').length).toBe(1);
 	});
 
@@ -145,11 +145,33 @@ describe('the background picker', () => {
 		toggle().click();
 		flushSync();
 
-		screen.getByRole('button', { name: /Eclipse/ }).click();
+		screen.getByRole('button', { name: /Colorful dark/ }).click();
 		flushSync();
 
-		expect(onBackground).toHaveBeenCalledWith('eclipse');
+		expect(onBackground).toHaveBeenCalledWith('colorful-dark');
 		expect(screen.queryByRole('group', { name: 'Background map' })).toBeNull();
+	});
+	// Left open on change: flipping it is how you compare.
+	it('switches the background’s labels, and stays open', () => {
+		const onBackgroundLabels = vi.fn();
+		open({ background: 'positrino', onBackgroundLabels });
+		toggle().click();
+		flushSync();
+
+		const labels = screen.getByRole('checkbox', { name: 'Labels' }) as HTMLInputElement;
+		expect(labels.checked).toBe(true);
+		labels.click();
+		flushSync();
+
+		expect(onBackgroundLabels).toHaveBeenCalledWith(false);
+		expect(screen.getByRole('group', { name: 'Background map' })).toBeTruthy();
+	});
+
+	it('has no labels to switch on imagery only, or with no background', () => {
+		open({ background: 'satellite-plain' });
+		toggle().click();
+		flushSync();
+		expect((screen.getByRole('checkbox', { name: 'Labels' }) as HTMLInputElement).disabled).toBe(true);
 	});
 });
 

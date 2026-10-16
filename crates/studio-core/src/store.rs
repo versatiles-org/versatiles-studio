@@ -189,9 +189,15 @@ pub struct Layout {
 	/// Which background map the map sits on, or `none`.
 	///
 	/// Held as a plain string rather than an enum: the catalogue is a webview concern, and the core
-	/// has no reason to know what `graybeard` is. The webview rejects a value it does not recognise,
+	/// has no reason to know what `positrino` is. The webview rejects a value it does not recognise,
 	/// so an old file cannot break the map.
 	pub background: String,
+	/// Whether the background map draws its own labels.
+	///
+	/// A setting of its own rather than more backgrounds: a background's labels are what collide with
+	/// the data's, and the answer to that is the same for every one of them. On by default, so a file
+	/// from before this existed opens with the labels it had.
+	pub background_labels: bool,
 	/// Where the camera was, or `None` if it has never been moved.
 	///
 	/// Here rather than in a file of its own because it is window state with exactly this recovery
@@ -264,6 +270,7 @@ impl Default for Layout {
 			// Off, because G5 promises Studio works with no network once its assets are installed.
 			// A background is the user asking for remote data, explicitly.
 			background: "none".to_string(),
+			background_labels: true,
 			view: None,
 		}
 	}
@@ -828,6 +835,12 @@ mod tests {
 
 	/// A `layout.json` from before the pane list existed has no `panes` key at all. It must open at
 	/// the defaults rather than with no panes - which would be an application with no interface.
+	#[test]
+	fn a_layout_file_from_before_the_labels_switch_keeps_its_labels() {
+		let layout: Layout = serde_json::from_str(r#"{"background":"colorful"}"#).unwrap();
+		assert!(layout.background_labels);
+	}
+
 	#[test]
 	fn a_layout_file_from_before_the_pane_list_still_opens() {
 		let old =

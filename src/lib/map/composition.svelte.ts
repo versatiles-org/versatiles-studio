@@ -133,12 +133,13 @@ export const composition = {
 	follow(): void {
 		$effect(() => {
 			const chosen = layout.background;
+			const labels = layout.backgroundLabels;
 			const url = serverUrl;
 			if (!url) return;
 			let current = true;
 			void (async () => {
 				try {
-					const next = chosen === 'none' ? null : await buildBackground(chosen, url);
+					const next = chosen === 'none' ? null : await buildBackground(chosen, url, labels);
 					// A newer choice already resolved, and its answer is the one on the map.
 					if (current) background = next;
 				} catch (error) {

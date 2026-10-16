@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import type { Map as MaplibreMap } from 'maplibre-gl';
-	import { BACKGROUNDS, swatchOf, type BackgroundId } from './background';
+	import { BACKGROUNDS, hasLabels, swatchOf, type BackgroundId } from './background';
 	import Dropdown from './Dropdown.svelte';
 	import MapIcon from './MapIcon.svelte';
 
@@ -32,6 +32,8 @@
 		gridNudged = false,
 		canReset,
 		onBackground,
+		backgroundLabels = true,
+		onBackgroundLabels = () => {},
 		onToggleGrid,
 		onGridLevel,
 		onReset
@@ -51,17 +53,20 @@
 		/** False when there is nothing open, so there is no extent to return to. */
 		canReset: boolean;
 		onBackground: (id: BackgroundId) => void;
+		/** Whether the background draws its own labels - the switch at the foot of its menu. */
+		backgroundLabels?: boolean;
+		onBackgroundLabels?: (on: boolean) => void;
 		onToggleGrid: () => void;
 		/** Walks the grid a level in or out; `0` puts it back on the source's own. */
 		onGridLevel: (by: number) => void;
 		onReset: () => void;
 	} = $props();
 
-	/** Grouped so light and dark options are not shuffled together. */
+	/** Grouped by what a background is for - see `BACKGROUNDS`. */
 	const groups = $derived([
 		{ label: '', items: BACKGROUNDS.filter((b) => b.group === 'off') },
-		{ label: 'Light', items: BACKGROUNDS.filter((b) => b.group === 'light') },
-		{ label: 'Dark', items: BACKGROUNDS.filter((b) => b.group === 'dark') },
+		{ label: 'For data', items: BACKGROUNDS.filter((b) => b.group === 'data') },
+		{ label: 'Full map', items: BACKGROUNDS.filter((b) => b.group === 'context') },
 		{ label: 'Imagery', items: BACKGROUNDS.filter((b) => b.group === 'imagery') }
 	]);
 
@@ -154,8 +159,8 @@
 										close();
 									}}
 								>
-									<!-- Land, water and a road: enough to tell five palettes apart at a glance,
-									     which their names - Neutrino, Graybeard - do not. -->
+									<!-- Land, water and a road: enough to tell the palettes apart at a glance, which
+									     two called "Colorful" and "Muted" would not. -->
 									<span
 										class="swatch"
 										class:none={!swatch}
@@ -169,6 +174,18 @@
 							{/each}
 						{/each}
 					</div>
+					<!-- One switch for every background rather than a labelled and an unlabelled copy of
+					     each: a background's names are what collide with the data's own. Left open on
+					     change, because flipping it is how you compare. -->
+					<label class="labels" class:off={!hasLabels(background)}>
+						<input
+							type="checkbox"
+							checked={backgroundLabels}
+							disabled={!hasLabels(background)}
+							onchange={(event) => onBackgroundLabels(event.currentTarget.checked)}
+						/>
+						Labels
+					</label>
 				{/snippet}
 			</Dropdown>
 
@@ -511,6 +528,31 @@
 		&.chosen {
 			background: color-mix(in srgb, var(--accent) 12%, transparent);
 			box-shadow: inset 2px 0 0 var(--accent);
+		}
+	}
+
+	/* Pinned to the foot of the panel, which scrolls in a short window: a setting that applies to
+	   every choice above it must not be the thing that scrolls out of sight. */
+	.labels {
+		position: sticky;
+		bottom: calc(-1 * var(--space-3));
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
+		margin: var(--space-2) calc(-1 * var(--space-3)) calc(-1 * var(--space-3));
+		padding: var(--space-2) var(--space-5) var(--space-3);
+		border-top: 1px solid var(--rule);
+		/* Opaque: `--float-bg` is this at 94%, which let the options scrolling under it show through. */
+		background: var(--surface);
+		font-size: var(--text-sm);
+
+		/* Studio's one emphatic colour, not the platform's blue. */
+		input {
+			accent-color: var(--accent);
+		}
+
+		&.off {
+			color: var(--ink-2);
 		}
 	}
 

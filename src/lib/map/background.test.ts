@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BACKGROUNDS, buildBackground, isBackgroundId } from './background';
+import { BACKGROUNDS, backgroundOf, buildBackground, hasLabels } from './background';
 import { composeStyle } from './style';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 
@@ -48,9 +48,9 @@ describe('buildBackground', () => {
 });
 
 /**
- * **Every choice in the menu, checked the same way.** Six of the seven are one vector source and a
- * pile of layers, so anything that held for one held for all - and satellite, the only one built
- * from two sources, was the only one nobody's assumptions fitted.
+ * **Every choice in the menu, checked the same way.** Most are one vector source and a pile of
+ * layers, so anything that held for one held for all - and satellite, the only one built from two
+ * sources, was the only one nobody's assumptions fitted.
  */
 describe('every background', () => {
 	const chosen = BACKGROUNDS.filter((background) => background.id !== 'none');
@@ -127,18 +127,56 @@ describe('every background', () => {
 	});
 });
 
-describe('isBackgroundId', () => {
+describe('backgroundOf', () => {
 	/** A persisted value from an older build must not be able to break the map. */
-	it('accepts only ids we know', () => {
-		for (const { id } of BACKGROUNDS) expect(isBackgroundId(id), id).toBe(true);
-		for (const value of ['terrain', '', null, 42, undefined]) expect(isBackgroundId(value)).toBe(false);
+	it('accepts only ids we know, and falls back to none', () => {
+		for (const { id } of BACKGROUNDS) expect(backgroundOf(id), id).toBe(id);
+		for (const value of ['terrain', '', null, 42, undefined]) expect(backgroundOf(value)).toBe('none');
+	});
+
+	// The four v5 names an earlier build stored, read as what they became - by character, so the
+	// quiet grey one stays quiet rather than becoming the washed-out `gray`.
+	it('reads the ids an earlier build stored as what they became', () => {
+		expect(['neutrino', 'graybeard', 'shadow', 'eclipse'].map(backgroundOf)).toEqual([
+			'muted',
+			'positrino',
+			'positrino-dark',
+			'colorful-dark'
+		]);
+	});
+});
+
+describe('the labels switch', () => {
+	const symbols = (style: { layers: { type: string }[] } | null) =>
+		style!.layers.filter((layer) => layer.type === 'symbol').length;
+
+	it('takes the labels off a map, and leaves the rest', async () => {
+		const withLabels = await buildBackground('positrino', SERVER);
+		const without = await buildBackground('positrino', SERVER, false);
+		expect(symbols(without)).toBeLessThan(symbols(withLabels));
+		expect(without!.layers.some((layer) => layer.id.startsWith('label-'))).toBe(false);
+		expect(without!.layers.some((layer) => layer.type === 'fill')).toBe(true);
+	});
+
+	it('takes them off the satellite overlay too', async () => {
+		const without = await buildBackground('satellite', SERVER, false);
+		expect(without!.layers.some((layer) => layer.id.startsWith('label-'))).toBe(false);
+		expect(without!.layers.some((layer) => layer.type === 'raster')).toBe(true);
+	});
+
+	// Imagery only has no overlay at all, so there is nothing for the switch to do.
+	it('has nothing to switch on imagery only, or on none', async () => {
+		expect(hasLabels('satellite-plain')).toBe(false);
+		expect(hasLabels('none')).toBe(false);
+		const plain = await buildBackground('satellite-plain', SERVER);
+		expect(plain!.layers.every((layer) => layer.type === 'background' || layer.type === 'raster')).toBe(true);
 	});
 });
 
 describe('the catalogue', () => {
-	it('offers off, light, dark and imagery, in that order', () => {
+	it('offers off, then quiet ones for data, then full maps, then imagery', () => {
 		expect(BACKGROUNDS[0].id).toBe('none');
 		const groups = [...new Set(BACKGROUNDS.map((b) => b.group))];
-		expect(groups).toEqual(['off', 'light', 'dark', 'imagery']);
+		expect(groups).toEqual(['off', 'data', 'context', 'imagery']);
 	});
 });

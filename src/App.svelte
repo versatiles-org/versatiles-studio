@@ -459,6 +459,8 @@
 					gridNudged={gridOffset !== 0}
 					canReset={Boolean(currentBuild?.info.bbox)}
 					onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
+					backgroundLabels={layout.backgroundLabels}
+					onBackgroundLabels={(on) => layout.current && void layout.change({ ...layout.current, backgroundLabels: on })}
 					onToggleGrid={() => (showGrid = !showGrid)}
 					onGridLevel={(by) => (gridOffset = by === 0 ? 0 : gridOffset + by)}
 					onReset={() => workbench.resetView()}

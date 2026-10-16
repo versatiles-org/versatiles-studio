@@ -1454,10 +1454,18 @@ export type Layout = {
 	 *  Which background map the map sits on, or `none`.
 	 * 
 	 *  Held as a plain string rather than an enum: the catalogue is a webview concern, and the core
-	 *  has no reason to know what `graybeard` is. The webview rejects a value it does not recognise,
+	 *  has no reason to know what `positrino` is. The webview rejects a value it does not recognise,
 	 *  so an old file cannot break the map.
 	 */
 	background?: string,
+	/**
+	 *  Whether the background map draws its own labels.
+	 * 
+	 *  A setting of its own rather than more backgrounds: a background's labels are what collide with
+	 *  the data's, and the answer to that is the same for every one of them. On by default, so a file
+	 *  from before this existed opens with the labels it had.
+	 */
+	backgroundLabels?: boolean,
 	/**
 	 *  Where the camera was, or `None` if it has never been moved.
 	 * 

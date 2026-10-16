@@ -238,6 +238,10 @@ export function build(
 	const call = buildCall(preset, schema, urls, recolor);
 	if (!call) return null;
 	const builder = call.name === 'satellite' ? satellite : SCHEMAS[schema].builder;
-	const style = (builder as (options: object) => unknown)(call.options) as StyleSpecification;
+	return withoutSlots((builder as (options: object) => unknown)(call.options) as StyleSpecification);
+}
+
+/** A built style without its `slot-*` layers - see [`build`] for why Studio has no use for them. */
+export function withoutSlots(style: StyleSpecification): StyleSpecification {
 	return { ...style, layers: style.layers.filter((layer) => !layer.id.startsWith('slot-')) };
 }

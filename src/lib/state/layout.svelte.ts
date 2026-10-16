@@ -16,7 +16,7 @@
  */
 
 import { getLayout, setLayout, type Camera, type Layout, type PaneState } from '../ipc/commands';
-import { isBackgroundId, type BackgroundId } from '../map/background';
+import { backgroundOf, type BackgroundId } from '../map/background';
 
 let current = $state<Layout | null>(null);
 
@@ -36,11 +36,17 @@ export const layout = {
 	/**
 	 * The background map to draw under everything.
 	 *
-	 * **A value this build does not know falls back to none.** An old layout file must not be able to
-	 * open a window onto a background this version cannot build.
+	 * **A value this build does not know falls back to none,** and one an earlier build stored is read
+	 * as what it became - see `backgroundOf`. Read, not rewritten: the file keeps the old id until the
+	 * next change, which writes the new one.
 	 */
 	get background(): BackgroundId {
-		return isBackgroundId(current?.background) ? current.background : 'none';
+		return backgroundOf(current?.background);
+	},
+
+	/** Whether the background draws its own labels. On unless someone switched them off. */
+	get backgroundLabels(): boolean {
+		return current?.backgroundLabels ?? true;
 	},
 
 	/** Reads the layout from the core. Called once, at startup. */
