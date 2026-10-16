@@ -8,12 +8,24 @@
  * needing two presses to do anything.
  */
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/svelte';
 import LandingScreen from './LandingScreen.svelte';
 import type { ImportKind, RecentEntry } from '../ipc/commands';
 
-afterEach(cleanup);
+// jsdom has no `showModal`, and the remote door's dialog calls it on mount.
+beforeEach(() => {
+	HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+		this.open = true;
+	};
+	// The dialog asks download.versatiles.org for its catalogue; nothing here is about that.
+	vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('offline')));
+});
+
+afterEach(() => {
+	cleanup();
+	vi.unstubAllGlobals();
+});
 
 const KINDS = [
 	{ id: 'container', label: 'Tile container', detail: '', extensions: ['versatiles'], operation: null, needs: [] },
@@ -57,36 +69,23 @@ describe('the four doors', () => {
 	});
 
 	/**
-	 * The remote door is the one with a state: it reveals a field rather than being one, so three
-	 * cards read as three choices instead of a form with two buttons beside it.
+	 * The remote door opens a dialog: what opens from an address is narrower than what opens from
+	 * disk, and a field under the door had no room to say so. The dialog has its own tests.
 	 */
-	it('opens a field for a remote file, with the caret already in it', async () => {
-		show();
+	it('opens a dialog for a remote file, offering the remote recents only', async () => {
+		show({
+			recents: [
+				{ source: '/data/berlin.versatiles', openedAt: 0 },
+				{ source: 'https://example.org/planet.versatiles', openedAt: 0 }
+			] as RecentEntry[]
+		});
 		expect(screen.queryByLabelText('Address of a remote file')).toBeNull();
 
 		(await screen.findByRole('button', { name: /Open a remote file/ })).click();
 
-		const field = await screen.findByLabelText('Address of a remote file');
-		// Awaited, because focusing waits for the field to exist - which is the whole reason it is
-		// not done in the same breath as the press.
-		await vi.waitFor(() =>
-			expect(document.activeElement, 'a door that opens without focusing asks for a second click').toBe(field)
-		);
-	});
-
-	it('hands over what was typed, and not an empty field', async () => {
-		const calls = show();
-		(await screen.findByRole('button', { name: /Open a remote file/ })).click();
-
-		const submit = (await screen.findByRole('button', { name: 'Open' })) as HTMLButtonElement;
-		expect(submit.disabled, 'nothing typed yet').toBe(true);
-
-		const field = (await screen.findByLabelText('Address of a remote file')) as HTMLInputElement;
-		field.value = 'https://example.org/planet.versatiles';
-		field.dispatchEvent(new Event('input', { bubbles: true }));
-
-		(await screen.findByRole('button', { name: 'Open' })).click();
-		expect(calls.onOpenUrl).toHaveBeenCalledWith('https://example.org/planet.versatiles');
+		const dialog = await screen.findByRole('dialog', { name: 'Open a remote file' });
+		expect(dialog.querySelector('[title="https://example.org/planet.versatiles"]')).not.toBeNull();
+		expect(dialog.querySelector('[title="/data/berlin.versatiles"]')).toBeNull();
 	});
 });
 

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { tick } from 'svelte';
 	import type { ImportKind, RecentEntry } from '../ipc/commands';
+	import RemoteDialog from './RemoteDialog.svelte';
 	import logo from '../../../src-tauri/icons/128x128.png';
 
 	// The launcher's contents (Q13, [Q48]). A **launcher, not a wizard**: everything on it is also
@@ -15,7 +15,7 @@
 	// nothing at all. It was seven: one card per import kind, plus a project card, plus a URL form.
 	// Those five differed only in which extensions the file dialog would show, which is not a
 	// decision anyone arrives wanting to make - `importOpening` reads the kind off the extension, and off the document where three formats share one
-	// anyway. What is left differ in mechanism: a file dialog, a text field, a directory dialog, and
+	// anyway. What is left differ in mechanism: a file dialog, an address dialog, a directory dialog, and
 	// a window with nothing in it. The last is under a rule because it is the only one that opens
 	// nothing, and it is last because it is the rarest way to start.
 	//
@@ -50,25 +50,19 @@
 		onOpenRepository: () => void;
 	} = $props();
 
-	let url = $state('');
-	/// Whether the remote field is showing. A door that opens rather than a form always standing
-	/// open: four rows of the same shape read as four choices, and one of them being a text box
-	/// makes it read as a form with three buttons beside it.
+	/// Whether the remote dialog is showing. A dialog rather than a field under the door: what opens
+	/// from an address is narrower than what opens from disk, and the field had no room to say so,
+	/// nor anything to offer a person who arrived without an address (see `RemoteDialog`).
 	let asking = $state(false);
-	let field = $state<HTMLInputElement>();
 
-	async function askForUrl() {
-		asking = true;
-		// After the field exists - it is what the press was for, and a door that opens without
-		// putting the caret in it asks for a second click to do nothing with.
-		await tick();
-		field?.focus();
-	}
+	/// The recents that are addresses, for the dialog to offer again.
+	const remoteRecents = $derived(
+		recents.map((entry) => entry.source).filter((source) => /^(https?|sftp):\/\//i.test(source))
+	);
 
-	function submit(event: SubmitEvent) {
-		event.preventDefault();
-		const trimmed = url.trim();
-		if (trimmed) onOpenUrl(trimmed);
+	function openRemote(url: string) {
+		asking = false;
+		onOpenUrl(url);
 	}
 
 	const filename = (source: string) => source.split(/[/\\]/).pop() || source;
@@ -111,26 +105,10 @@
 					<p class="drop">…or drop a file anywhere in this window.</p>
 				</div>
 
-				<button type="button" class="door" aria-expanded={asking} onclick={() => void askForUrl()}>
+				<button type="button" class="door" aria-haspopup="dialog" onclick={() => (asking = true)}>
 					<strong>Open a remote file</strong>
 					<span>HTTPS or SFTP - a planet file opens from its index</span>
 				</button>
-
-				<!-- Under the door it belongs to rather than under all of them, so what it is for is
-				     where the eye already is. -->
-				{#if asking}
-					<form class="ask" onsubmit={submit}>
-						<input
-							bind:this={field}
-							bind:value={url}
-							type="text"
-							placeholder="https://…"
-							spellcheck="false"
-							aria-label="Address of a remote file"
-						/>
-						<button type="submit" class="button" disabled={!url.trim()}>Open</button>
-					</form>
-				{/if}
 
 				<button type="button" class="door" onclick={onOpenProject}>
 					<strong>Open a project folder</strong>
@@ -173,6 +151,10 @@
 			{/if}
 		</section>
 	</div>
+
+	{#if asking}
+		<RemoteDialog recents={remoteRecents} onOpen={openRemote} onCancel={() => (asking = false)} />
+	{/if}
 
 	<footer>
 		VersaTiles Studio {version} · alpha ·
@@ -259,8 +241,7 @@
 		border: 1px solid transparent;
 		border-radius: var(--radius-lg);
 
-		&:hover,
-		&[aria-expanded='true'] {
+		&:hover {
 			border-color: var(--rule);
 			background: var(--surface);
 		}
@@ -287,22 +268,6 @@
 		margin: var(--space-2) 0;
 		border: none;
 		border-top: 1px solid var(--rule);
-	}
-
-	.ask {
-		display: flex;
-		gap: var(--space-3);
-		padding: 0 var(--space-5) var(--space-3);
-
-		input {
-			flex: 1;
-			min-width: 0;
-			font-family: var(--font-mono);
-		}
-
-		button {
-			padding: var(--space-2) var(--space-4);
-		}
 	}
 
 	/* The half that grows. Its own scroller, so a long history moves nothing else on the window.

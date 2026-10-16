@@ -392,6 +392,9 @@ impl Opening {
 pub async fn opening_for(source: &str) -> Opening {
 	let by_name = kind_for(source);
 	if !source.to_lowercase().ends_with(".json") {
+		if let Some(reason) = by_name.as_ref().and_then(|kind| unreachable_remotely(source, kind)) {
+			return Opening::refuse(reason);
+		}
 		return Opening::open(by_name);
 	}
 
@@ -412,7 +415,51 @@ pub async fn opening_for(source: &str) -> Opening {
 			"This is a MapLibre style, not data. It describes how to draw tiles that are somewhere \
 			 else - open those, and load this under the style pane.",
 		),
-		JsonShape::GeoJson | JsonShape::Unknown => Opening::open(by_name),
+		JsonShape::GeoJson | JsonShape::Unknown => {
+			match by_name.as_ref().and_then(|kind| unreachable_remotely(source, kind)) {
+				Some(reason) => Opening::refuse(reason),
+				None => Opening::open(by_name),
+			}
+		}
+	}
+}
+
+/// Whether a source is an address rather than a path - every scheme a reader can fetch from.
+///
+/// Wider than [`is_remote`], which is about what *this* module can sniff over HTTP: `sftp://` is a
+/// URL to `from_container` all the same, and a refusal below has to cover it too.
+fn is_url(source: &str) -> bool {
+	let lower = source.to_lowercase();
+	["http://", "https://", "sftp://"]
+		.iter()
+		.any(|scheme| lower.starts_with(scheme))
+}
+
+/// Why a URL cannot be opened as this kind, or `None` when it can - or is not a URL at all.
+///
+/// **Said here rather than by the reader, three steps later.** Each of these opens a window, builds a
+/// pipeline and only then fails, on a message about a path. The readers decide this, not Studio:
+/// `.mbtiles` and `.tar` have no URL reader in `versatiles_container` (`supports_data_reader` is
+/// `false` for both - SQLite and a tar index want a file), and `from_geo` and `from_csv` read
+/// `to_path_buf()` and nothing else. `.versatiles` and `.pmtiles` are built for ranged reads, and a
+/// TileJSON is fetched by design, so neither is listed.
+fn unreachable_remotely(source: &str, kind: &ImportKind) -> Option<String> {
+	if !is_url(source) {
+		return None;
+	}
+	let lower = source.to_lowercase();
+	match kind.operation.as_deref() {
+		Some("from_container") if [".mbtiles", ".tar"].iter().any(|ext| lower.ends_with(ext)) => Some(
+			"MBTiles and TAR containers can only be opened from disk - they are read as a whole file, not \
+			 in ranges over the network. Download it first, or use a .versatiles or .pmtiles copy."
+				.to_string(),
+		),
+		Some("from_geo" | "from_csv") => Some(
+			"GeoJSON, CSV and other vector files can only be opened from disk for now. Download it first, \
+			 then open the local copy."
+				.to_string(),
+		),
+		_ => None,
 	}
 }
 
@@ -755,6 +802,38 @@ mod tests {
 				1,
 				"identifying a document is one GET - never a range that has to fail first"
 			);
+		}
+
+		/// The formats no reader can fetch are refused before a window opens, for every scheme that
+		/// is a URL - and the same names on disk are not.
+		#[tokio::test]
+		async fn what_no_reader_can_fetch_is_refused_up_front() {
+			for url in [
+				"https://example.org/berlin.mbtiles",
+				"sftp://host/data/berlin.tar",
+				"https://example.org/places.geojson",
+				"https://example.org/quakes.csv",
+			] {
+				let opening = opening_for(url).await;
+				assert!(
+					opening.kind.is_none() && opening.refused.is_some(),
+					"{url}: {opening:?}"
+				);
+			}
+			for url in ["https://example.org/planet.versatiles", "sftp://host/planet.pmtiles"] {
+				let opening = opening_for(url).await;
+				assert_eq!(opening.kind.map(|kind| kind.id), Some("container".to_string()), "{url}");
+			}
+			assert!(opening_for("/data/berlin.mbtiles").await.refused.is_none());
+		}
+
+		/// A `.json` that turns out to be GeoJSON is still a file `from_geo` cannot fetch.
+		#[tokio::test]
+		async fn a_remote_geojson_is_refused_once_it_is_read() {
+			let served = serve(r#"{"type":"FeatureCollection","features":[]}"#).await;
+			let opening = opening_for(&format!("{served}/places.json")).await;
+			assert!(opening.kind.is_none(), "{opening:?}");
+			assert!(opening.refused.unwrap().contains("from disk"));
 		}
 
 		/// Only `.json` is ambiguous, so only `.json` costs a read.
