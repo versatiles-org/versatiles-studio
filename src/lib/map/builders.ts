@@ -121,10 +121,29 @@ export function recolorOptions(recolor: Recolor): RecolorOptions {
 	return out;
 }
 
+/** Where the builders' defaults are published - tiles, imagery, glyphs and sprites. */
+export const PUBLIC_BASE = 'https://tiles.versatiles.org';
+
+/**
+ * versatiles.org's satellite imagery, as the TileJSON its server publishes - with absolute tile URLs.
+ *
+ * **Spelled out rather than fetched,** because the published one says `/tiles/satellite/{z}/{x}/{y}`,
+ * relative to its own host, and MapLibre resolves that against the *page*: every tile was a request
+ * into Studio's webview. Inline it also costs no request, and the extent is the server's own.
+ */
+export const IMAGERY: TileSource = {
+	tilejson: '3.0.0',
+	tiles: [`${PUBLIC_BASE}/tiles/satellite/{z}/{x}/{y}`],
+	bounds: [-180, -85.051129, 180, 85.051129],
+	minzoom: 0,
+	maxzoom: 19,
+	attribution: "<a href='https://versatiles.org/sources/'>VersaTiles sources</a>"
+};
+
 /**
  * What a builder needs to be told: where the vector tiles are, and where the assets are. Each one
- * omitted is the builder's own default, on versatiles.org - except the tiles of `protomaps()`, which
- * has no default and throws without them.
+ * omitted is the builder's own default under [`PUBLIC_BASE`] - except the tiles of `protomaps()`,
+ * which has no default and throws without them.
  */
 export interface BuildUrls {
 	/** A tile URL template, or a TileJSON. */
@@ -158,14 +177,21 @@ export function buildCall(
 	const { tiles, ...assets } = urls;
 	const recolored = Object.keys(recolor).length > 0 ? { recolor } : {};
 	const target = SCHEMAS[schema];
-	const named = { ...(tiles === undefined ? {} : { [target.tiles]: tiles }), ...assets };
+	// **`base` always.** In a browser the builders resolve every default they fill in - the satellite
+	// imagery, the glyphs and sprites a generated file leaves out - against the *page's* origin, which
+	// in Studio is `tauri://localhost`: the imagery was a 404 and the satellite map black. Outside a
+	// browser they use versatiles.org, so tests in Node never saw it. Naming the base makes both agree.
+	const named = { base: PUBLIC_BASE, ...(tiles === undefined ? {} : { [target.tiles]: tiles }), ...assets };
 
 	if (preset === 'satellite') {
 		if (schema !== 'shortbread') return null;
 		return {
 			name: 'satellite',
 			module: target.module,
-			options: { urls: named, ...(Object.keys(recolored).length > 0 ? { osmOverlay: recolored } : {}) }
+			options: {
+				urls: { satellite: IMAGERY, ...named },
+				...(Object.keys(recolored).length > 0 ? { osmOverlay: recolored } : {})
+			}
 		};
 	}
 	return { name: target.name, module: target.module, options: { theme: THEMES[preset], urls: named, ...recolored } };
