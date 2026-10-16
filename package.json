@@ -41,7 +41,7 @@
 		"assets:update": "tsx scripts/update-assets.ts --update",
 		"upgrade": "tsx scripts/run.ts upgrade",
 		"upgrade:web": "vrt deps-upgrade",
-		"upgrade:rust": "cargo upgrade --incompatible && cargo update && cargo check --workspace",
+		"upgrade:rust": "cargo upgrade --incompatible && cargo check --workspace",
 		"e2e": "tsx scripts/run.ts e2e",
 		"e2e:build": "tauri build --debug --no-bundle --features e2e",
 		"e2e:run": "wdio run wdio.conf.ts"
@@ -78,7 +78,7 @@
 	},
 	"dependencies": {
 		"@maplibre/maplibre-gl-style-spec": "26.4.4",
-		"@tauri-apps/api": "2.11.1",
+		"@tauri-apps/api": "2.12.4",
 		"@tauri-apps/plugin-dialog": "^2.8.3",
 		"@tauri-apps/plugin-opener": "^2.7.2",
 		"@tauri-apps/plugin-process": "^2.4.0",
