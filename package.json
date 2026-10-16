@@ -54,9 +54,9 @@
 		"@types/node": "^26.6.5",
 		"@versatiles/release-tool": "^2.20.0",
 		"@vitest/coverage-v8": "^5.0.5",
-		"@wdio/cli": "^10.0.2",
-		"@wdio/local-runner": "^10.0.2",
-		"@wdio/mocha-framework": "^10.0.1",
+		"@wdio/cli": "^9.32.0",
+		"@wdio/local-runner": "^9.32.0",
+		"@wdio/mocha-framework": "^9.32.0",
 		"@wdio/native-types": "^2.6.0",
 		"@wdio/tauri-service": "^1.5.0",
 		"esbuild": "^0.28.2",
@@ -100,7 +100,10 @@
 	"vrt": {
 		"depsUpgrade": {
 			"ignore": [
-				"@tauri-apps/api"
+				"@tauri-apps/api",
+				"@wdio/cli@^9",
+				"@wdio/local-runner@^9",
+				"@wdio/mocha-framework@^9"
 			]
 		}
 	}

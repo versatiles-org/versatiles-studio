@@ -37,7 +37,7 @@ pub fn resource_dir(app: &AppHandle) -> Result<PathBuf> {
 /// Mounts the bundled tier on the embedded server.
 ///
 /// Prefixes match what MapLibre asks for: `/assets/glyphs/{fontstack}/{range}.pbf` and
-/// `/assets/sprites/basics/sprites.json`.
+/// `/assets/sprites/base.json`.
 pub async fn mount_bundled(app: &AppHandle, server: &mut studio_core::server::ServerManager) -> Result<()> {
 	let dir = resource_dir(app)?;
 	server

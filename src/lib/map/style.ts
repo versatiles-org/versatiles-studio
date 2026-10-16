@@ -15,7 +15,6 @@
  * [Q36]: ../../../docs/decisions.md
  */
 
-import { colorful, eclipse, graybeard, neutrino, satellite, shadow } from '@versatiles/style';
 import type { StyleSpecification, LayerSpecification } from 'maplibre-gl';
 import type {
 	Appearance,
@@ -26,15 +25,13 @@ import type {
 	Segment,
 	SourceKind
 } from '../ipc/commands';
+import { build, isBuiltPreset, localAssets, recolorOptions, shortbread, spriteAt } from './builders';
 import { hiddenBy } from './categories';
 import { throughQueue } from './tile-queue';
 import { renderableAs } from './tile-format';
 
 /** The vector half of [`Appearance`], which is what a preset and a layer tree need. */
 export type VectorAppearance = Extract<Appearance, { type: 'vector' }>;
-
-/** The six builders, by the name the core stores. */
-const BUILDERS = { colorful, eclipse, graybeard, neutrino, satellite, shadow } as const;
 
 /** One graph, as the style will name it. */
 export interface StyleSource {
@@ -55,33 +52,15 @@ export function renderStyle(
 	sources: StyleSource[],
 	serverBaseUrl: string
 ): StyleSpecification | null {
-	const build = BUILDERS[appearance.preset as keyof typeof BUILDERS];
-	if (!build) return null;
+	if (!isBuiltPreset(appearance.preset)) return null;
 
-	// The builders are overloaded: they return a promise when asked for terrain or hillshade, which
-	// have to be fetched, and a style directly otherwise. Nothing here asks for either, so this is
-	// the synchronous overload - TypeScript cannot see that through the lookup in `BUILDERS`.
-	const style = build({
-		// The first source is what the preset's own layers draw from. A preset knows one schema and
-		// one source; naming several is S4.4's problem, not this function's.
-		tiles: sources.length > 0 ? [throughQueue(sources[0].tileUrl)] : [],
-		glyphs: `${serverBaseUrl}/assets/glyphs/{fontstack}/{range}.pbf`,
-		sprite: `${serverBaseUrl}/assets/sprites/basics/sprites`,
-		recolor: cleaned(appearance.recolor)
-	}) as StyleSpecification;
+	// The first source is what the preset's own layers draw from. A preset knows one schema and one
+	// source; naming several is S4.4's problem, not this function's.
+	//
+	const osm = shortbread(sources.length > 0 ? [throughQueue(sources[0].tileUrl)] : []);
+	const style = build(appearance.preset, { osm, ...localAssets(serverBaseUrl) }, recolorOptions(appearance.recolor));
 
 	return withOverrides(style, appearance.overrides);
-}
-
-/**
- * Drops the fields a recipe left unset.
- *
- * The core omits them entirely, but a recipe that has been through the webview can carry explicit
- * `undefined`s - and `{ gamma: undefined }` is not the same to the builder as `{}` for any option
- * it tests for presence rather than for value.
- */
-function cleaned(recolor: VectorAppearance['recolor']): Record<string, unknown> {
-	return Object.fromEntries(Object.entries(recolor).filter(([, value]) => value !== undefined && value !== null));
 }
 
 /**
@@ -395,7 +374,7 @@ export function deriveStyle(
 	return {
 		version: 8,
 		glyphs: `${serverBaseUrl}/assets/glyphs/{fontstack}/{range}.pbf`,
-		sprite: `${serverBaseUrl}/assets/sprites/basics/sprites`,
+		sprite: spriteAt(`${serverBaseUrl}/assets/sprites/base`),
 		sources: { [source.name]: { type: 'vector', tiles: [throughQueue(source.tileUrl)] } },
 		layers: sorted.flatMap((layer) => paint(layer, source.name))
 	} as StyleSpecification;

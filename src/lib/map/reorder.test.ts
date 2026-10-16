@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { colorful } from '@versatiles/style';
+import { build } from './builders';
 import { applyMoves, minimalMoves, planReorder } from './reorder';
 import type { StyleSpecification } from 'maplibre-gl';
 
@@ -35,12 +35,12 @@ describe('minimalMoves', () => {
 	 * The measurement the whole module exists for, against the real preset.
 	 *
 	 * Lifting the labels of `colorful` above a three-layer source is **three** calls, because moving
-	 * the three is the same picture as moving the thirty-three. The style spec's diff would issue 66
+	 * the three is the same picture as moving the forty-eight. The style spec's diff would issue 96
 	 * commands for it, and each `addLayer` would put the source into `reload`.
 	 */
 	it('lifts a category of colorful past a small source in three calls', () => {
-		const layers = colorful({}).layers.map((layer) => layer.id);
-		const isLabel = (id: string) => ['label', 'marking', 'symbol'].includes(id.split(/[-:.]/)[0]);
+		const layers = build('colorful', {}).layers.map((layer) => layer.id);
+		const isLabel = (id: string) => ['label', 'marking', 'poi', 'symbol'].includes(id.split(/[-:.]/)[0]);
 		const data = ['data/a', 'data/b', 'data/c'];
 
 		const before = [...layers, ...data];
@@ -51,17 +51,18 @@ describe('minimalMoves', () => {
 		expect(replay(before, moves)).toEqual(after);
 	});
 
-	// The other direction: lifting the 231 road layers moves the 51 that are cheaper to move.
-	it('takes 51 calls for the largest category, not 231', () => {
-		const layers = colorful({}).layers.map((layer) => layer.id);
-		const isRoad = (id: string) => ['tunnel', 'bridge', 'street', 'way', 'transport'].includes(id.split(/[-:.]/)[0]);
+	// The other direction: lifting the 155 road layers moves the 58 that are cheaper to move.
+	it('takes 58 calls for the largest category, not 155', () => {
+		const layers = build('colorful', {}).layers.map((layer) => layer.id);
+		const isRoad = (id: string) =>
+			['tunnel', 'bridge', 'street', 'way', 'transport', 'aerialway'].includes(id.split(/[-:.]/)[0]);
 		const data = ['data/a', 'data/b', 'data/c'];
 
 		const before = [...layers, ...data];
 		const after = [...layers.filter((id) => !isRoad(id)), ...data, ...layers.filter(isRoad)];
 
 		const moves = minimalMoves(before, after);
-		expect(moves.length).toBe(51);
+		expect(moves.length).toBe(58);
 		expect(replay(before, moves)).toEqual(after);
 	});
 });

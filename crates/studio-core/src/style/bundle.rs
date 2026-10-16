@@ -29,7 +29,8 @@ pub const STYLE_FILE: &str = "style.json";
 /// The directories the style's relative URLs point at.
 ///
 /// They are not the paths the archives use - the glyph archive's entries are `noto_sans_regular/…`
-/// with no prefix at all, and the sprite archive's are `basics/…`. Naming them here is what lets the
+/// with no prefix at all, and the sprite archive's are `base.json`, `base@2x.png`, … at its root,
+/// beside the other sheets the bundle does not need. Naming them here is what lets the
 /// style say `fonts/{fontstack}/{range}.pbf` regardless.
 pub const FONTS_DIR: &str = "fonts";
 pub const SPRITES_DIR: &str = "sprites";
@@ -67,7 +68,9 @@ pub fn write(
 		}
 	}
 
-	entries.append(&mut take(sprites, "basics/", &format!("{SPRITES_DIR}/basics/"))?);
+	// Only the `base` sheet: it is the one the builders' styles name, and `extras` and `icons` would
+	// double the bundle for icons nothing in it refers to.
+	entries.append(&mut take(sprites, "base", &format!("{SPRITES_DIR}/base"))?);
 
 	if zip {
 		archive::write_zip(target, &entries)
@@ -162,8 +165,8 @@ mod tests {
 			out.join("fonts/noto_sans_regular/0-255.pbf").is_file(),
 			"the Latin range is what a style needs first"
 		);
-		assert!(out.join("sprites/basics/sprites.json").is_file());
-		assert!(out.join("sprites/basics/sprites@2x.png").is_file());
+		assert!(out.join("sprites/base.json").is_file());
+		assert!(out.join("sprites/base@2x.png").is_file());
 	}
 
 	/// The style's URLs are relative to itself, so what it asks for has to be where it says.
@@ -241,12 +244,8 @@ mod tests {
 		.unwrap();
 
 		let mut archive = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
-		let names: Vec<String> = archive.file_names().map(str::to_string).collect();
-		for expected in [
-			STYLE_FILE,
-			"fonts/noto_sans_regular/0-255.pbf",
-			"sprites/basics/sprites.json",
-		] {
+		let names: Vec<String> = archive.file_names().map(|name| name.unwrap().into_owned()).collect();
+		for expected in [STYLE_FILE, "fonts/noto_sans_regular/0-255.pbf", "sprites/base.json"] {
 			assert!(names.contains(&expected.to_string()), "{names:?}");
 		}
 

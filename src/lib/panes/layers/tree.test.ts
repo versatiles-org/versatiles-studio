@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { colorful, neutrino } from '@versatiles/style';
+import { build, THEMES } from '../../map/builders';
 import { ancestors, hiddenBy, tree, type Group, type Node, type Row } from './tree';
 
 /**
@@ -18,41 +18,34 @@ const counts = (nodes: Node[]) => nodes.map((node) => (node.kind === 'group' ? n
 const flatten = (node: Node): string[] => (node.kind === 'layer' ? [node.ownId] : node.children.flatMap(flatten));
 
 describe('the categories a preset collapses to', () => {
-	it('turns colorful’s 324 layers into nine rows', () => {
-		const [source] = tree(rowsOf(colorful({})));
-		expect(source.count).toBe(324);
+	it('turns colorful’s 253 layers into seven rows', () => {
+		const [source] = tree(rowsOf(build('colorful', {})));
+		expect(source.count).toBe(253);
 		expect(labels(source.children)).toEqual([
 			'Background',
 			'Land & water',
-			'Sites',
 			'Airport',
 			'Buildings',
 			'Roads & rails',
-			'Points of interest',
 			'Boundaries',
 			'Labels'
 		]);
-		expect(counts(source.children)).toEqual([1, 28, 9, 5, 2, 231, 9, 6, 33]);
+		expect(counts(source.children)).toEqual([1, 35, 5, 2, 155, 7, 48]);
 	});
 
-	it('turns neutrino’s 207 into seven', () => {
-		const [source] = tree(rowsOf(neutrino({})));
-		expect(source.count).toBe(207);
-		expect(labels(source.children)).toEqual([
-			'Background',
-			'Land & water',
-			'Sites',
-			'Buildings',
-			'Roads & rails',
-			'Boundaries',
-			'Labels'
-		]);
+	// Since v6 every Shortbread preset is one builder with a different palette, so the layers - and
+	// with them the rows - are the same for all of them.
+	it('turns every other Shortbread preset into the same seven', () => {
+		const expected = labels(tree(rowsOf(build('colorful', {})))[0].children);
+		for (const preset of Object.keys(THEMES) as (keyof typeof THEMES)[]) {
+			expect(labels(tree(rowsOf(build(preset, {})))[0].children), preset).toEqual(expected);
+		}
 	});
 
 	// The property the whole design rests on: a node is a *range*, so dragging it moves a range. A
 	// category that turned out not to be contiguous would be a row that cannot be moved as one.
 	it('leaves every row a contiguous run of the paint order', () => {
-		const rows = rowsOf(colorful({}));
+		const rows = rowsOf(build('colorful', {}));
 		const [source] = tree(rows);
 		const painted = rows.map((row) => row.ownId);
 
@@ -70,21 +63,21 @@ describe('the stack', () => {
 	const dataviz: Row[] = [{ id: 'dataviz/cases', ownId: 'cases', source: 'dataviz', type: 'fill' }];
 
 	it('has one row per source, in paint order', () => {
-		const rows = [...rowsOf(colorful({})), ...dataviz];
+		const rows = [...rowsOf(build('colorful', {})), ...dataviz];
 		expect(tree(rows).map((node) => node.label)).toEqual(['osm', 'dataviz']);
 	});
 
 	// The gesture the design exists for. Nothing tells this module that a split happened - the layers
 	// arrive interleaved, and two runs is what interleaved layers *are*.
 	it('shows a source drawn in two places as two rows', () => {
-		const all = rowsOf(colorful({}));
-		const isLabel = (row: Row) => ['label', 'marking', 'symbol'].includes(row.ownId.split(/[-:.]/)[0]);
+		const all = rowsOf(build('colorful', {}));
+		const isLabel = (row: Row) => ['label', 'marking', 'poi', 'symbol'].includes(row.ownId.split(/[-:.]/)[0]);
 		const lifted = all.filter(isLabel);
 		const rest = all.filter((row) => !isLabel(row));
 
 		const stack = tree([...rest, ...dataviz, ...lifted]);
 		expect(stack.map((node) => node.label)).toEqual(['osm', 'dataviz', 'osm']);
-		expect(stack[2].count).toBe(33);
+		expect(stack[2].count).toBe(48);
 		expect(labels(stack[2].children)).toEqual(['Labels']);
 		// What a segment starting here would name, which is the first layer of the run.
 		expect(stack[2].from).toBe('label-address-housenumber');

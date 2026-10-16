@@ -97,14 +97,16 @@ moving a range, and the boundary it would become is the own id of its first laye
 
 ### Categories
 
-The id level is unreadable on its own. `colorful` is 324 layers whose top-level prefixes form 22
-runs, six of them repeated names - `street` three times, `bridge` once as a single layer and once as
-ninety-one - because those prefixes encode z-order: the same roads underground, on the surface and
-on a bridge. That is the style's engineering, and it is not a category anyone thinks in.
+The id level is unreadable on its own. `colorful` is 253 layers whose top-level prefixes form runs
+that repeat - `street`, `tunnel` and `bridge` are the same roads underground, on the surface and on a
+bridge, and `label` comes once before the POIs and once after them - because those prefixes encode
+z-order. That is the style's engineering, and it is not a category anyone thinks in.
 
-Sixteen prefixes mapped onto nine categories collapse it to nine rows, and `neutrino` to seven,
-**without breaking a single run** - which matters more than the tidiness. A category that was not
-contiguous in paint order could not be dragged as one thing.
+Seventeen prefixes mapped onto seven categories collapse every preset to seven rows **without
+breaking a single run** - which matters more than the tidiness. A category that was not contiguous
+in paint order could not be dragged as one thing. That is why sites are filed under land and POIs
+under labels: `@versatiles/style` v7 paints them inside those runs, and each is still a level of its
+own one row down.
 
 A prefix the table does not know is not a failure: it is a third-party preset, a derived style, or a
 preset that has grown a prefix. The tree falls back to the raw first component, which degrades to a

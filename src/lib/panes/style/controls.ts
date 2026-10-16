@@ -38,10 +38,10 @@ export interface Slider<K extends string> {
 
 export const PRESETS: { id: Preset; label: string; note: string }[] = [
 	{ id: 'colorful', label: 'Colorful', note: 'the default, full colour' },
-	{ id: 'graybeard', label: 'Graybeard', note: 'muted greys' },
-	{ id: 'neutrino', label: 'Neutrino', note: 'minimal, few layers' },
-	{ id: 'shadow', label: 'Shadow', note: 'dark' },
-	{ id: 'eclipse', label: 'Eclipse', note: 'dark, high contrast' },
+	{ id: 'graybeard', label: 'Graybeard', note: 'greys' },
+	{ id: 'neutrino', label: 'Neutrino', note: 'muted colours' },
+	{ id: 'shadow', label: 'Shadow', note: 'dark greys' },
+	{ id: 'eclipse', label: 'Eclipse', note: 'dark, full colour' },
 	{ id: 'satellite', label: 'Satellite', note: 'for imagery underneath' },
 	// Not one of `@versatiles/style`'s six. The others know what `water_polygons` means; this one
 	// knows only what the tiles turn out to contain, which is the only thing that works when they

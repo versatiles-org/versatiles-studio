@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { colorful, eclipse, graybeard, neutrino, shadow } from '@versatiles/style';
+import { THEMES, build } from './builders';
 import { CATEGORIES, categoryOf, headingOf, parts } from './categories';
 
 describe('parts', () => {
@@ -39,12 +39,12 @@ describe('categoryOf', () => {
  * a list of nine headings - visible to every user and to no test.
  */
 describe('the table against the presets themselves', () => {
-	const presets = { colorful, neutrino, graybeard, eclipse, shadow };
+	const presets = Object.keys(THEMES) as (keyof typeof THEMES)[];
 
 	it('has a category for every prefix the presets use', () => {
 		const unknown = new Set<string>();
-		for (const build of Object.values(presets)) {
-			for (const layer of build({}).layers) {
+		for (const preset of presets) {
+			for (const layer of build(preset, {}).layers) {
 				const [prefix] = parts(layer.id);
 				if (!(prefix in CATEGORIES)) unknown.add(prefix);
 			}
@@ -54,8 +54,8 @@ describe('the table against the presets themselves', () => {
 
 	it('names no prefix the presets do not have', () => {
 		const used = new Set<string>();
-		for (const build of Object.values(presets)) {
-			for (const layer of build({}).layers) used.add(parts(layer.id)[0]);
+		for (const preset of presets) {
+			for (const layer of build(preset, {}).layers) used.add(parts(layer.id)[0]);
 		}
 		expect(Object.keys(CATEGORIES).filter((prefix) => !used.has(prefix))).toEqual([]);
 	});

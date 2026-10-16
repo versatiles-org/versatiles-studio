@@ -9,6 +9,7 @@
  * A placeholder shape until S1.2 has a container whose layers a style can be derived from.
  */
 import { token } from '../styles/tokens';
+import { spriteAt } from './builders';
 import { role } from './theme';
 
 import type { StyleSpecification } from 'maplibre-gl';
@@ -17,7 +18,7 @@ export function defaultStyle(serverBaseUrl: string): StyleSpecification {
 	return {
 		version: 8,
 		glyphs: `${serverBaseUrl}/assets/glyphs/{fontstack}/{range}.pbf`,
-		sprite: `${serverBaseUrl}/assets/sprites/basics/sprites`,
+		sprite: spriteAt(`${serverBaseUrl}/assets/sprites/base`),
 		sources: {},
 		layers: [
 			{

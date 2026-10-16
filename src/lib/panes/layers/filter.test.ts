@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { colorful } from '@versatiles/style';
+import { build } from '../../map/builders';
 import type { LayerSpecification } from 'maplibre-gl';
 import { filterOf, format, isOverridden, parse } from './filter';
 
@@ -86,7 +86,7 @@ describe('formatting a filter to edit', () => {
 
 	/** The editor's whole contract: what it shows must parse back to what it was given. */
 	it('round-trips every filter the colorful preset uses', () => {
-		const filters = colorful({})
+		const filters = build('colorful', {})
 			.layers.map((layer) => (layer as { filter?: unknown }).filter)
 			.filter((f): f is unknown[] => Array.isArray(f));
 

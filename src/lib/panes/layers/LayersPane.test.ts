@@ -10,10 +10,10 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
-import { colorful } from '@versatiles/style';
+import { build } from '../../map/builders';
 import LayersPane from './LayersPane.svelte';
 
-const own = colorful({}) as unknown as import('maplibre-gl').StyleSpecification;
+const own = build('colorful', {}) as unknown as import('maplibre-gl').StyleSpecification;
 
 const rowsOf = (source: string, hidden: (id: string) => string | null = () => null) =>
 	own.layers.map((layer) => ({
@@ -41,8 +41,8 @@ describe('the stack it draws', () => {
 	it('starts collapsed: one row per source, with what is under it', () => {
 		draw();
 		expect(screen.getByText('osm')).toBeTruthy();
-		expect(screen.getByText('324')).toBeTruthy();
-		// Nothing below it until it is opened - 324 rows on sight is not a pane, it is a wall.
+		expect(screen.getByText('253')).toBeTruthy();
+		// Nothing below it until it is opened - 253 rows on sight is not a pane, it is a wall.
 		expect(screen.queryByText('Labels')).toBeNull();
 	});
 
@@ -52,7 +52,7 @@ describe('the stack it draws', () => {
 
 		expect(screen.getByText('Labels')).toBeTruthy();
 		expect(screen.getByText('Roads & rails')).toBeTruthy();
-		expect(screen.getByText('231')).toBeTruthy();
+		expect(screen.getByText('155')).toBeTruthy();
 		// Still not the layers themselves.
 		expect(screen.queryByText('label-place-city')).toBeNull();
 	});
@@ -61,7 +61,7 @@ describe('the stack it draws', () => {
 	// are drawn in two places.
 	it('shows a source drawn in two places as two rows', () => {
 		const all = rowsOf('osm');
-		const isLabel = (id: string) => ['label', 'marking', 'symbol'].includes(id.split(/[-:.]/)[0]);
+		const isLabel = (id: string) => ['label', 'marking', 'poi', 'symbol'].includes(id.split(/[-:.]/)[0]);
 		draw({
 			rows: [
 				...all.filter((row) => !isLabel(row.ownId)),
@@ -75,8 +75,8 @@ describe('the stack it draws', () => {
 		} as never);
 
 		expect(screen.getAllByText('osm').length).toBe(2);
-		expect(screen.getByText('291')).toBeTruthy();
-		expect(screen.getByText('33')).toBeTruthy();
+		expect(screen.getByText('205')).toBeTruthy();
+		expect(screen.getByText('48')).toBeTruthy();
 	});
 });
 
@@ -118,9 +118,9 @@ describe('the nudges', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Expand osm' }));
 		await fireEvent.click(screen.getByRole('button', { name: 'Move Labels up' }));
 
-		// The 33 label layers are the tail of colorful, and the gap above `data` is the end of the
+		// The 48 label layers are the tail of colorful, and the gap above `data` is the end of the
 		// stack - so this is exactly "draw the labels over everything".
-		expect(actions.reorder).toHaveBeenCalledWith([291, 324], 325);
+		expect(actions.reorder).toHaveBeenCalledWith([205, 253], 254);
 	});
 
 	// A source's own layers keep the style's order, so the bottom category has nowhere below it and

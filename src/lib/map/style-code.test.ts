@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { osm, satellite } from '@versatiles/style';
 import {
 	BUNDLED_GLYPHS,
 	BUNDLED_SPRITE,
@@ -18,10 +19,18 @@ const recipe = (over: Record<string, unknown> = {}): VectorAppearance =>
 describe('styleCode', () => {
 	it('names the preset it started from, in an import that resolves', () => {
 		const code = styleCode(recipe({ preset: 'graybeard' }))!;
-		expect(code).toContain("import { graybeard } from '@versatiles/style';");
-		expect(code).toContain('const style = graybeard({');
-		expect(code).toContain(`tiles: ['${TILE_URL_PLACEHOLDER}']`);
+		expect(code).toContain("import { osm } from '@versatiles/style';");
+		expect(code).toContain('const style = osm({');
+		expect(code).toContain('"theme": "gray"');
+		expect(code).toContain(`"osm": "${TILE_URL_PLACEHOLDER}"`);
 		expect(code.trimEnd().endsWith('export default style;')).toBe(true);
+	});
+
+	it('writes satellite as the builder of its own name', () => {
+		const code = styleCode(recipe({ preset: 'satellite' }))!;
+		expect(code).toContain("import { satellite } from '@versatiles/style';");
+		expect(code).toContain('const style = satellite({');
+		expect(code).not.toContain('"theme"');
 	});
 
 	it('says nothing about adjustments that were never made', () => {
@@ -29,11 +38,28 @@ describe('styleCode', () => {
 		expect(styleCode(recipe())).not.toContain('overrides');
 	});
 
-	it('carries the adjustments that were', () => {
-		const code = styleCode(recipe({ recolor: { invertBrightness: true, rotate: 35 } }))!;
-		expect(code).toContain('recolor: {');
-		expect(code).toContain('invertBrightness: true');
-		expect(code).toContain('rotate: 35');
+	it('carries the adjustments that were, in the names the builder takes', () => {
+		const code = styleCode(recipe({ recolor: { invertBrightness: true, rotate: 35, tint: 0.5, tintColor: '#f00' } }))!;
+		expect(code).toContain('"recolor": {');
+		expect(code).toContain('"invertBrightness": true');
+		expect(code).toContain('"rotateHue": 35');
+		expect(code).toContain('"tint": {');
+		expect(code).not.toContain('"rotate"');
+		expect(code).not.toContain('"tintColor"');
+	});
+
+	/**
+	 * **The call has to be one the library accepts.** v6 renamed the recolour fields and v7 throws on
+	 * an option it does not know, so a file written in the stored names would fail the moment it ran.
+	 */
+	it('writes options the builder accepts, for every preset', () => {
+		const recolor = { invertBrightness: true, rotate: 35, saturate: -0.5, tint: 0.5, tintColor: '#f00', blend: 0.2 };
+		for (const preset of ['colorful', 'eclipse', 'graybeard', 'neutrino', 'shadow', 'satellite'] as const) {
+			const code = styleCode(recipe({ preset, recolor }))!;
+			const options = JSON.parse(code.slice(code.indexOf('({') + 1, code.indexOf('});') + 1));
+			const result = (preset === 'satellite' ? satellite : osm).validateOptions(options);
+			expect(result.ok ? [] : result.issues, preset).toEqual([]);
+		}
 	});
 
 	// The builder takes no argument for per-layer changes, so they are applied to the built style.
@@ -128,7 +154,7 @@ describe('forExport assets', () => {
 	const style = {
 		version: 8,
 		glyphs: 'http://127.0.0.1:52341/assets/glyphs/{fontstack}/{range}.pbf',
-		sprite: 'http://127.0.0.1:52341/assets/sprites/basics/sprites',
+		sprite: [{ id: 'base', url: 'http://127.0.0.1:52341/assets/sprites/base' }],
 		sources: {},
 		layers: []
 	} as unknown as import('maplibre-gl').StyleSpecification;
@@ -138,14 +164,15 @@ describe('forExport assets', () => {
 	it('points glyphs and sprites at the public assets by default', () => {
 		const out = forExport(style);
 		expect(out.glyphs).toBe('https://tiles.versatiles.org/assets/glyphs/{fontstack}/{range}.pbf');
-		expect(out.sprite).toBe('https://tiles.versatiles.org/assets/sprites/basics/sprites');
+		// Still a list naming the sheet, because the layers name their icons `base:…`.
+		expect(out.sprite).toEqual([{ id: 'base', url: 'https://tiles.versatiles.org/assets/sprites/base' }]);
 		expect(JSON.stringify(out)).not.toContain('127.0.0.1');
 	});
 
 	it('points them at the bundle’s own copies when asked', () => {
 		const out = forExport(style, 'bundled');
 		expect(out.glyphs).toBe(BUNDLED_GLYPHS);
-		expect(out.sprite).toBe(BUNDLED_SPRITE);
+		expect(out.sprite).toEqual([{ id: 'base', url: BUNDLED_SPRITE }]);
 	});
 });
 

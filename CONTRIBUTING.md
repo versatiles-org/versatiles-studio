@@ -98,8 +98,9 @@ npm run upgrade          # upgrade:web, then upgrade:rust
 
 `upgrade:web` is `vrt deps-upgrade`: every npm dependency to its latest release within the peer
 ranges, a fresh lock file, `npm audit fix` - and everything restored if a step fails.
-`@tauri-apps/api` is held back (`vrt.depsUpgrade.ignore` in `package.json`), because it has to stay
-on the same minor as the `tauri` crate; move both together by hand. `upgrade:rust` needs
+Two holds live in `vrt.depsUpgrade.ignore` in `package.json`. `@tauri-apps/api` has to stay on the
+same minor as the `tauri` crate, so move both together by hand. The WDIO packages stay on 9 until
+`@wdio/tauri-service` supports `webdriverio` 10. `upgrade:rust` needs
 `cargo-edit` (`cargo install cargo-edit`). Run `npm run check` afterwards.
 
 ## Pinned assets

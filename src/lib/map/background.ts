@@ -19,8 +19,8 @@
  * basis.
  */
 
-import { colorful, eclipse, graybeard, neutrino, satellite, shadow } from '@versatiles/style';
 import type { StyleSpecification } from 'maplibre-gl';
+import { build, localAssets, shortbread } from './builders';
 
 /** Where the background's tiles come from. Only this is remote. */
 const TILES = 'https://tiles.versatiles.org/tiles/osm/{z}/{x}/{y}';
@@ -44,47 +44,26 @@ export interface Background {
 export const BACKGROUNDS: Background[] = [
 	{ id: 'none', label: 'No background', group: 'off' },
 	{ id: 'colorful', label: 'Colorful', group: 'light' },
-	{ id: 'neutrino', label: 'Neutrino - minimal', group: 'light' },
+	{ id: 'neutrino', label: 'Neutrino - muted', group: 'light' },
 	{ id: 'graybeard', label: 'Graybeard - grey', group: 'light' },
 	{ id: 'shadow', label: 'Shadow - grey', group: 'dark' },
 	{ id: 'eclipse', label: 'Eclipse', group: 'dark' },
 	{ id: 'satellite', label: 'Satellite', group: 'imagery' }
 ];
 
-/** Assets come from Studio's own server, so only the tiles are fetched from the network. */
-function assets(serverUrl: string) {
-	return {
-		glyphs: `${serverUrl}/assets/glyphs/{fontstack}/{range}.pbf`,
-		sprite: [{ id: 'basics', url: `${serverUrl}/assets/sprites/basics/sprites` }]
-	};
-}
-
 /**
  * Builds the background style, or `null` for none.
  *
- * `satellite` is async because the package resolves its raster TileJSON; the rest are synchronous.
- * Both are awaited here so callers have one shape to handle.
+ * Assets come from Studio's own server, so only the tiles are fetched from the network.
+ *
+ * Async although every builder is synchronous now - v5's `satellite` resolved its raster TileJSON
+ * first - so that callers keep the one shape they already handle.
  */
 export async function buildBackground(id: BackgroundId, serverUrl: string): Promise<StyleSpecification | null> {
 	if (id === 'none') return null;
-
-	const options = { ...assets(serverUrl), tiles: [TILES] };
-	switch (id) {
-		case 'satellite':
-			// The satellite builder resolves its own raster source and overlays the vector one, so it
-			// takes no `tiles` of its own.
-			return (await satellite(assets(serverUrl))) as StyleSpecification;
-		case 'colorful':
-			return colorful(options) as StyleSpecification;
-		case 'neutrino':
-			return neutrino(options) as StyleSpecification;
-		case 'graybeard':
-			return graybeard(options) as StyleSpecification;
-		case 'shadow':
-			return shadow(options) as StyleSpecification;
-		case 'eclipse':
-			return eclipse(options) as StyleSpecification;
-	}
+	// The satellite builder overlays the same vector tiles on its own imagery source, which it
+	// resolves itself.
+	return build(id, { osm: shortbread([TILES]), ...localAssets(serverUrl) });
 }
 
 /** Whether an id is one we know, so a stale persisted value cannot break the map. */

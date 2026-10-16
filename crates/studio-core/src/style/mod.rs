@@ -45,9 +45,9 @@ pub fn is_exportable(path: &Path) -> bool {
 
 /// Where a style starts before anything is adjusted.
 ///
-/// The six are `@versatiles/style`'s own builders, named as it names them so the webview needs no
-/// translation table - a mapping between two spellings of the same six things is a thing to keep in
-/// step for no gain.
+/// The six are named as `@versatiles/style` v5 named its builders. v6 folded five of them into one
+/// `osm()` builder with a `theme` each, and the webview translates (`builders.ts`) rather than this
+/// changing the names: they are what every saved project says.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 #[serde(rename_all = "lowercase")]
@@ -66,9 +66,11 @@ pub enum Preset {
 
 /// The adjustments applied to every colour in the style at once (D1).
 ///
-/// A mirror of `@versatiles/style`'s `RecolorOptions`, field for field. Mirrored rather than
-/// wrapped: these cross the IPC boundary and are handed to the generator unchanged, so a field this
-/// end that the generator does not have would be a setting that silently does nothing.
+/// `@versatiles/style`'s `RecolorOptions` as v5 spelled it, field for field. v6 renamed `rotate` to
+/// `rotateHue` and folded each colour into an object with its amount; the webview translates
+/// (`builders.ts`) rather than this changing the names, because they are what every saved project
+/// says. A field this end that the generator has no counterpart for would be a setting that silently
+/// does nothing.
 ///
 /// Every field is optional and `None` means "leave it alone". `skip_serializing_if` on each is what
 /// makes that true in the text as well as in the type: without it an untouched recolour serialises

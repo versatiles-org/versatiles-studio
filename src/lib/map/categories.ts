@@ -1,16 +1,19 @@
 /**
  * What a layer is *about*, as a name a person would use ([the layer stack](../../../docs/layers.md)).
  *
- * **The id level is unreadable on its own.** `colorful` is 324 layers whose top-level prefixes form
- * 22 runs, six of them repeated names - `street` three times, `bridge` once as a single layer and
- * once as ninety-one - because those prefixes encode z-order: the same roads underground, on the
- * surface and on a bridge. That is the style's engineering, and it is not a category anyone thinks
- * in.
+ * **The id level is unreadable on its own.** `colorful` is 253 layers whose top-level prefixes form
+ * runs that repeat - `street`, `tunnel` and `bridge` are the same roads underground, on the surface
+ * and on a bridge, and `label` comes once before the POIs and once after them - because those
+ * prefixes encode z-order. That is the style's engineering, and it is not a category anyone thinks in.
  *
- * Sixteen prefixes mapped onto nine categories collapse it to nine rows, and `neutrino` to seven,
- * without breaking a single run - which matters more than the tidiness: a category that was not
- * contiguous in paint order could not be dragged as one thing, and the tree would be describing a
- * map that is not on screen.
+ * Seventeen prefixes mapped onto seven categories collapse every preset to seven rows without
+ * breaking a single run - which matters more than the tidiness: a category that was not contiguous in
+ * paint order could not be dragged as one thing, and the tree would be describing a map that is not
+ * on screen.
+ *
+ * **Sites are land and POIs are labels** because that is where v7 paints them: `site-*` between the
+ * land cover and the water, `poi-*` between the house numbers and the street names. Each is still a
+ * level of its own one row down, so nothing that could be switched off before has been lost.
  *
  * **This table belongs upstream.** `@versatiles/style` already keys its own rule tables on these
  * prefixes, so a `groupOf(id)` export there would let this file be deleted - as a lookup rather than
@@ -19,12 +22,12 @@
  * than quietly appearing as a category of its own.
  */
 
-/** Prefix to category. The nine values are the rows a person sees for a preset style. */
+/** Prefix to category. The seven values are the rows a person sees for a preset style. */
 export const CATEGORIES: Record<string, string> = {
 	background: 'Background',
 	land: 'Land & water',
 	water: 'Land & water',
-	site: 'Sites',
+	site: 'Land & water',
 	airport: 'Airport',
 	building: 'Buildings',
 	tunnel: 'Roads & rails',
@@ -32,7 +35,8 @@ export const CATEGORIES: Record<string, string> = {
 	street: 'Roads & rails',
 	way: 'Roads & rails',
 	transport: 'Roads & rails',
-	poi: 'Points of interest',
+	aerialway: 'Roads & rails',
+	poi: 'Labels',
 	boundary: 'Boundaries',
 	label: 'Labels',
 	marking: 'Labels',

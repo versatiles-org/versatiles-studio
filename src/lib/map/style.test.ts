@@ -529,8 +529,8 @@ describe('composeStyle', () => {
 			const hidden = composeStyle([entry('osm', { hidden: ['Labels'] })], BASE);
 
 			expect(hidden.rows.length).toBe(plain.rows.length);
-			expect(hidden.rows.filter((row) => row.hidden !== null).length).toBe(33);
-			expect(hidden.style!.layers.length).toBe(plain.style!.layers.length - 33);
+			expect(hidden.rows.filter((row) => row.hidden !== null).length).toBe(48);
+			expect(hidden.style!.layers.length).toBe(plain.style!.layers.length - 48);
 			expect(hidden.style!.layers.some((layer) => layer.id.startsWith('label-'))).toBe(false);
 		});
 

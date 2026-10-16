@@ -860,7 +860,7 @@ mod tests {
 		write_zip(&path, &plan, &Recipe::default(), Some("{\"version\":8}")).unwrap();
 
 		let mut archive = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
-		let names: Vec<String> = archive.file_names().map(str::to_string).collect();
+		let names: Vec<String> = archive.file_names().map(|name| name.unwrap().into_owned()).collect();
 		for expected in ["berlin.vpl", "style.json", "project.yaml", "data/berlin.mbtiles"] {
 			assert!(names.contains(&expected.to_string()), "{names:?}");
 		}

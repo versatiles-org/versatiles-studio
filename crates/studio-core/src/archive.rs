@@ -193,7 +193,7 @@ mod tests {
 		write_zip(&path, &entries()).unwrap();
 
 		let zip = zip::ZipArchive::new(std::fs::File::open(&path).unwrap()).unwrap();
-		let names: Vec<String> = zip.file_names().map(str::to_string).collect();
+		let names: Vec<String> = zip.file_names().map(|name| name.unwrap().into_owned()).collect();
 		assert!(names.contains(&"project.yaml".to_string()), "{names:?}");
 		assert!(names.contains(&"nested/style.json".to_string()), "{names:?}");
 	}
