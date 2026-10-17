@@ -2,6 +2,7 @@
 	import { grouped, matching, pickable, type PickerItem } from './picker';
 	import { place, windowSize } from './popup';
 	import { help } from '../state/help.svelte';
+	import Note from './Note.svelte';
 	// The "add something" picker, in place of a `<select>`.
 	//
 	// Both places that offer a list of things to insert - `+ operation…` on the chain's rail and
@@ -171,7 +172,7 @@
 <button
 	bind:this={trigger}
 	type="button"
-	class="trigger"
+	class="add"
 	aria-haspopup="listbox"
 	aria-expanded={open}
 	aria-controls={open ? id : undefined}
@@ -184,7 +185,7 @@
 	<!-- Closes when focus leaves the whole popup, which covers clicking away and tabbing away in
 	     one rule. `onfocusout` fires before the new focus lands, hence the `relatedTarget` check. -->
 	<div
-		class="popup"
+		class="popup popover"
 		{id}
 		style:left="{position.left}px"
 		style:width="{position.width}px"
@@ -252,7 +253,7 @@
 			{/each}
 
 			{#if matches.length === 0}
-				<p class="empty">Nothing matches “{query}”.</p>
+				<div class="blank"><Note tone="empty">Nothing matches “{query}”.</Note></div>
 			{/if}
 		</div>
 	</div>
@@ -262,7 +263,7 @@
 		     and no pointer events, because it describes the row rather than being something to use -
 		     and a box that swallowed the pointer would sit between it and the rows on the way past. -->
 		<p
-			class="tip"
+			class="tip popover"
 			role="tooltip"
 			aria-live="polite"
 			style:left="{tip.left}px"
@@ -275,28 +276,13 @@
 {/if}
 
 <style>
-	.trigger {
-		padding: 0;
-		color: var(--ink-2);
-		font-size: var(--text-xs);
-		text-align: left;
-
-		&:hover {
-			color: var(--ink);
-		}
-	}
-
+	/* The face is the kit's `.popover`; this is where it sits and how it is laid out inside. */
 	.popup {
 		position: fixed;
 		z-index: 40;
 		display: flex;
 		flex-direction: column;
 		max-height: min(22rem, 60vh);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		background: var(--float-bg);
-		backdrop-filter: blur(6px);
-		box-shadow: var(--shadow);
 	}
 
 	.filter {
@@ -342,20 +328,14 @@
 		}
 	}
 
-	/* The same face as `Help`, which is the other thing on screen that explains something beside the
-	   pane rather than inside it. Two floating explanations that looked different would read as two
-	   kinds of thing. */
+	/* The same face as `Help` - the kit's `.popover` - which is the other thing on screen that
+	   explains something beside the pane rather than inside it. */
 	.tip {
 		position: fixed;
 		z-index: 41;
 		max-height: 60vh;
 		margin: 0;
 		padding: var(--space-2) var(--space-3);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		background: var(--float-bg);
-		backdrop-filter: blur(6px);
-		box-shadow: var(--shadow);
 		color: var(--ink-2);
 		font-size: var(--text-xs);
 		line-height: 1.45;
@@ -363,10 +343,7 @@
 		pointer-events: none;
 	}
 
-	.empty {
-		margin: 0;
+	.blank {
 		padding: var(--space-2);
-		color: var(--ink-2);
-		font-size: var(--text-sm);
 	}
 </style>

@@ -3,6 +3,7 @@
 	import { deleteView, listViews, reorderViews, saveView, type Camera, type View } from '../ipc/commands';
 	import Dropdown from './Dropdown.svelte';
 	import Icon from '../common/Icon.svelte';
+	import Note from '../common/Note.svelte';
 
 	// A7's named views, application-wide rather than project-scoped ([Q21]): a place you want to
 	// come back to is worth keeping whether or not a project exists.
@@ -165,7 +166,7 @@
 	{#snippet panel(close: () => void)}
 		<div role="group" aria-label="Saved views">
 			{#if views.length === 0}
-				<p class="empty">No saved views yet.</p>
+				<div class="blank"><Note tone="empty">No saved views yet.</Note></div>
 			{/if}
 
 			<ul>
@@ -185,7 +186,7 @@
 						</button>
 						<button
 							type="button"
-							class="edit"
+							class="icon"
 							disabled={index === 0}
 							aria-label="Move {view.name} up"
 							title="Move up"
@@ -193,7 +194,7 @@
 						>
 						<button
 							type="button"
-							class="edit"
+							class="icon"
 							disabled={index === views.length - 1}
 							aria-label="Move {view.name} down"
 							title="Move down"
@@ -201,7 +202,7 @@
 						>
 						<button
 							type="button"
-							class="edit"
+							class="icon danger"
 							aria-label="Delete {view.name}"
 							title="Delete"
 							onclick={() => remove(view)}>×</button
@@ -227,13 +228,15 @@
 							}
 						}}
 					/>
-					<button type="submit" disabled={!name.trim()}>Save</button>
+					<button type="submit" class="button primary" disabled={!name.trim()}>Save</button>
 				</form>
 			{:else}
-				<button type="button" class="add" disabled={!camera} onclick={() => (naming = true)}> + Save this view </button>
+				<div class="foot">
+					<button type="button" class="add" disabled={!camera} onclick={() => (naming = true)}>+ Save this view</button>
+				</div>
 			{/if}
 
-			{#if error}<p class="err">{error}</p>{/if}
+			{#if error}<Note tone="problem">{error}</Note>{/if}
 		</div>
 	{/snippet}
 </Dropdown>
@@ -282,47 +285,20 @@
 		flex: none;
 	}
 
-	.edit {
-		color: var(--ink-2);
-		padding: 0 var(--space-2);
-
-		&:disabled {
-			opacity: 0.3;
-		}
-	}
-
-	.add {
-		width: 100%;
-		text-align: left;
+	/* The row after the last one, where the kit's `.add` goes: in line with the names above it. */
+	.foot,
+	.blank {
 		padding: var(--space-2) var(--space-3);
-		color: var(--ink-2);
-	}
-
-	.empty {
-		margin: 0 0 var(--space-2);
-		padding: 0 var(--space-3);
-		color: var(--ink-2);
-		font-size: var(--text-sm);
 	}
 
 	form {
 		display: flex;
 		gap: var(--space-2);
 		padding-top: var(--space-2);
-
-		button {
-			padding: var(--space-2) var(--space-3);
-		}
 	}
 
 	input {
 		flex: 1;
 		min-width: 0;
-	}
-
-	.err {
-		color: var(--error);
-		margin: var(--space-2) 0 0;
-		font-size: var(--text-sm);
 	}
 </style>

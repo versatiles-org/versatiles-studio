@@ -40,7 +40,7 @@
 
 {#if shown && position}
 	<div
-		class="help"
+		class="help popover"
 		role={shown.pinned ? 'dialog' : 'tooltip'}
 		aria-label="About {shown.content.title}"
 		style:left="{position.left}px"
@@ -51,7 +51,7 @@
 			<span class="name">{shown.content.title}</span>
 			{#if shown.content.summary}<span class="summary">{shown.content.summary}</span>{/if}
 			{#if shown.pinned}
-				<button type="button" class="close" aria-label="Close help" onclick={dismiss}>×</button>
+				<button type="button" class="icon" aria-label="Close help" onclick={dismiss}>×</button>
 			{/if}
 		</div>
 		{#if shown.content.body}<p class="body">{shown.content.body}</p>{/if}
@@ -59,17 +59,13 @@
 {/if}
 
 <style>
+	/* The face is the kit's `.popover`; this is where it sits and how it reads. */
 	.help {
 		position: fixed;
 		z-index: 40;
 		max-height: 60vh;
 		overflow-y: auto;
 		padding: var(--space-3) var(--space-4);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius-lg);
-		background: var(--float-bg);
-		backdrop-filter: blur(6px);
-		box-shadow: var(--shadow);
 		color: var(--ink-2);
 		font-size: var(--text-sm);
 		line-height: 1.5;
@@ -94,17 +90,6 @@
 		flex: 1;
 		min-width: 0;
 		font-size: var(--text-xs);
-	}
-
-	.close {
-		flex: none;
-		color: var(--ink-2);
-		padding: 0 var(--space-1);
-		line-height: 1;
-
-		&:hover {
-			color: var(--ink);
-		}
 	}
 
 	.body {

@@ -52,6 +52,23 @@
 		open = false;
 		onClose?.();
 	}
+
+	/// The arrows walk the panel's controls, the way they walk a menu or a picker: this was the one
+	/// popup where a keyboard could only Tab through a list of twelve backgrounds.
+	///
+	/// Over the whole control, so an arrow pressed on the toggle lands on the first control, and
+	/// wrapping at both ends because a panel is a short ring of choices.
+	function walk(event: KeyboardEvent) {
+		if (!open || !root || (event.key !== 'ArrowDown' && event.key !== 'ArrowUp')) return;
+		const controls = [
+			...root.querySelectorAll<HTMLElement>('.panel button:not(:disabled), .panel input:not(:disabled)')
+		];
+		if (controls.length === 0) return;
+		event.preventDefault();
+		const at = controls.indexOf(document.activeElement as HTMLElement);
+		const step = event.key === 'ArrowDown' ? 1 : -1;
+		controls[at < 0 ? (step > 0 ? 0 : controls.length - 1) : (at + step + controls.length) % controls.length].focus();
+	}
 </script>
 
 <svelte:window
@@ -63,7 +80,8 @@
 	}}
 />
 
-<div class="dropdown" class:open bind:this={root}>
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div class="dropdown" class:open bind:this={root} onkeydown={walk}>
 	<button
 		type="button"
 		class="toggle"
@@ -84,7 +102,7 @@
 	</button>
 
 	{#if open}
-		<div class="panel {placement}" style:width>
+		<div class="panel popover {placement}" style:width>
 			{@render panel(close)}
 		</div>
 	{/if}
@@ -148,7 +166,7 @@
 	}
 
 	/* Downward into the map rather than upward past the window edge - which is why these controls
-	   are at the top ([Q52]). */
+	   are at the top ([Q52]). The face is the kit's `.popover`; this is where it sits. */
 	.panel {
 		position: absolute;
 		top: calc(100% + var(--space-2));
@@ -157,10 +175,6 @@
 		overflow-y: auto;
 		overscroll-behavior: contain;
 		padding: var(--space-3);
-		background: var(--float-bg);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		box-shadow: var(--shadow);
 
 		/* Out of the right-hand column, into the map - beside the button rather than under it, where
 		   the next button in the column is. */

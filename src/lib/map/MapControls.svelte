@@ -4,6 +4,7 @@
 	import { BACKGROUNDS, hasLabels, swatchOf, type BackgroundId } from './background';
 	import Dropdown from './Dropdown.svelte';
 	import Icon from '../common/Icon.svelte';
+	import Group from '../common/Group.svelte';
 
 	// The controls that act on the map rather than on the pipeline.
 	//
@@ -119,7 +120,7 @@
 		{@render views?.()}
 		<button
 			type="button"
-			class="icon"
+			class="map-button"
 			disabled={!canReset}
 			onclick={onReset}
 			aria-label="Fit to the data"
@@ -144,34 +145,40 @@
 			>
 				{#snippet icon()}<Icon name="layers" />{/snippet}
 				{#snippet panel(close: () => void)}
-					<div role="group" aria-label="Background map">
+					<div class="backgrounds" role="group" aria-label="Background map">
 						{#each groups as group (group.label)}
-							{#if group.label}<p class="heading section-label">{group.label}</p>{/if}
-							{#each group.items as item (item.id)}
-								{@const swatch = swatchOf(item.id)}
-								<button
-									type="button"
-									class="option"
-									class:chosen={item.id === background}
-									aria-pressed={item.id === background}
-									onclick={() => {
-										onBackground(item.id);
-										close();
-									}}
-								>
-									<!-- Land, water and a road: enough to tell the palettes apart at a glance, which
+							{#snippet options()}
+								{#each group.items as item (item.id)}
+									{@const swatch = swatchOf(item.id)}
+									<button
+										type="button"
+										class="option"
+										class:chosen={item.id === background}
+										aria-pressed={item.id === background}
+										onclick={() => {
+											onBackground(item.id);
+											close();
+										}}
+									>
+										<!-- Land, water and a road: enough to tell the palettes apart at a glance, which
 									     two called "Colorful" and "Muted" would not. -->
-									<span
-										class="swatch"
-										class:none={!swatch}
-										style:--land={swatch?.land}
-										style:--water={swatch?.water}
-										style:--road={swatch?.road}
-										aria-hidden="true"
-									></span>
-									{item.label}
-								</button>
-							{/each}
+										<span
+											class="swatch"
+											class:none={!swatch}
+											style:--land={swatch?.land}
+											style:--water={swatch?.water}
+											style:--road={swatch?.road}
+											aria-hidden="true"
+										></span>
+										{item.label}
+									</button>
+								{/each}
+							{/snippet}
+							{#if group.label}
+								<Group title={group.label}>{@render options()}</Group>
+							{:else}
+								{@render options()}
+							{/if}
 						{/each}
 					</div>
 					<!-- One switch for every background rather than a labelled and an unlabelled copy of
@@ -220,7 +227,7 @@
 				{/if}
 				<button
 					type="button"
-					class="icon"
+					class="map-button"
 					class:on={showGrid}
 					aria-pressed={showGrid}
 					onclick={onToggleGrid}
@@ -235,7 +242,7 @@
 		<div class="group">
 			<button
 				type="button"
-				class="icon"
+				class="map-button"
 				disabled={!map}
 				onclick={() => map?.zoomIn()}
 				aria-label="Zoom in"
@@ -245,7 +252,7 @@
 			</button>
 			<button
 				type="button"
-				class="icon"
+				class="map-button"
 				disabled={!map}
 				onclick={() => map?.zoomOut()}
 				aria-label="Zoom out"
@@ -256,7 +263,7 @@
 			<!-- Turns with the map, so it is a reading as well as a button: north is where it points. -->
 			<button
 				type="button"
-				class="icon compass"
+				class="map-button compass"
 				class:turned
 				disabled={!map}
 				onclick={() => map?.resetNorthPitch()}
@@ -314,7 +321,7 @@
 		}
 
 		/* Square in the column, full height in the strip, with a rule against the field. */
-		.icon {
+		.map-button {
 			height: 100%;
 			border-left: 1px solid var(--rule);
 		}
@@ -350,17 +357,15 @@
 		}
 	}
 
-	.icon {
+	/* A square button on the map. Not the kit's `.icon`, which is a glyph in a pane's row at label
+	   size: this is a control on a floating surface, full ink, with a face of its own on hover. The two
+	   shared a class name for a release, and this one overrode the other property by property. */
+	.map-button {
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		width: 2rem;
 		height: 2rem;
-		padding: 0;
-		border: 0;
-		border-radius: 0;
-		background: none;
-		box-shadow: none;
 		color: var(--ink);
 
 		&:hover:not(:disabled) {
@@ -488,13 +493,11 @@
 		}
 	}
 
-	/* Which group of backgrounds follows. The typography is `.section-label`'s. */
-	.heading {
-		margin: var(--space-3) 0 var(--space-1);
-
-		&:first-child {
-			margin-top: 0;
-		}
+	/* The groups of the kit, one per kind of background, stacked at the kit's rhythm. */
+	.backgrounds {
+		display: flex;
+		flex-direction: column;
+		gap: var(--gap-group);
 	}
 
 	.option {
@@ -505,10 +508,7 @@
 		text-align: left;
 		font-size: var(--text-sm);
 		padding: var(--space-2) var(--space-3);
-		border: 0;
 		border-radius: var(--radius);
-		background: none;
-		box-shadow: none;
 
 		&:hover {
 			background: var(--chrome);

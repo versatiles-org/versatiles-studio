@@ -255,7 +255,7 @@
 		     click on a result landed. -->
 		<ul
 			id={listId}
-			class="below"
+			class="below popover"
 			role="listbox"
 			aria-label="Search results"
 			onmousedown={(event) => event.preventDefault()}
@@ -270,7 +270,7 @@
 					onkeydown={() => {}}
 					onmouseenter={() => (highlighted = index)}
 				>
-					<span class="icon" aria-hidden="true">{ICONS[candidate.type]}</span>
+					<span class="glyph" aria-hidden="true">{ICONS[candidate.type]}</span>
 					<span class="text">
 						<span class="title truncate">{candidate.title}</span>
 						{#if candidate.context}<span class="context truncate">{candidate.context}</span>{/if}
@@ -348,14 +348,11 @@
 		margin: 0;
 	}
 
+	/* The face is the kit's `.popover`. */
 	ul {
 		margin: 0;
 		padding: var(--space-1);
 		list-style: none;
-		background: var(--float-bg);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		box-shadow: var(--shadow);
 	}
 
 	li {
@@ -366,12 +363,14 @@
 		border-radius: var(--radius);
 		cursor: pointer;
 
+		/* The row under the cursor or the arrows, in the ground every list uses for that. The accent
+		   tint is for the item that is *current*, and a result list has none. */
 		&.highlighted {
-			background: color-mix(in srgb, var(--accent) 12%, transparent);
+			background: var(--chrome);
 		}
 	}
 
-	.icon {
+	.glyph {
 		flex: none;
 		width: 1.2em;
 		text-align: center;

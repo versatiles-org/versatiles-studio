@@ -129,7 +129,7 @@
 
 <button
 	type="button"
-	class="trigger"
+	class="add"
 	bind:this={trigger}
 	aria-haspopup="menu"
 	aria-expanded={open}
@@ -143,7 +143,7 @@
 {#if open && at}
 	<ul
 		{id}
-		class="menu"
+		class="menu popover"
 		role="menu"
 		tabindex="-1"
 		bind:this={list}
@@ -176,18 +176,8 @@
 {/if}
 
 <style>
-	.trigger {
-		font-size: var(--text-sm);
-		color: var(--ink-2);
-
-		&:hover,
-		&[aria-expanded='true'] {
-			color: var(--ink);
-		}
-	}
-
 	/* Above the panes and the map's own chrome, since it is opened from inside one and has to cover
-	   whatever it was opened over. */
+	   whatever it was opened over. The face is the kit's `.popover`. */
 	.menu {
 		position: fixed;
 		z-index: 40;
@@ -196,10 +186,6 @@
 		max-height: 60vh;
 		overflow-y: auto;
 		overscroll-behavior: contain;
-		background: var(--float-bg);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow);
 	}
 
 	.item {

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Map as MaplibreMap, MapGeoJSONFeature, LngLat, MapMouseEvent } from 'maplibre-gl';
 	import JsonTree from '../common/JsonTree.svelte';
+	import Note from '../common/Note.svelte';
 	import { inspectTile, type TileInspection } from '../ipc/commands';
 	import { sourceLayers } from './source-layers';
 	import { tileForLngLat } from './tile-grid';
@@ -123,12 +124,12 @@
 	     a feature clicked at the left rail does not push the popup under the pane. The map region
 	     clips as a backstop, and `below` flips it under the point when there is no room above. -->
 	<div
-		class="popup"
+		class="popup popover"
 		class:below
 		bind:clientHeight={height}
 		style="left: clamp(10rem, {screen.x}px, calc(100% - 10rem)); top: {screen.y}px"
 	>
-		<button class="close" onclick={close} aria-label="Close">×</button>
+		<button type="button" class="icon close" onclick={close} aria-label="Close">×</button>
 		{#if tile}
 			<article class="tile">
 				<h3>tile {tile.z}/{tile.x}/{tile.y} <span class="id">{fmt(tile.storedBytes)}</span></h3>
@@ -153,7 +154,7 @@
 				{#if Object.keys(feature.properties ?? {}).length}
 					<JsonTree value={feature.properties} />
 				{:else}
-					<p class="none">no properties</p>
+					<Note>no properties</Note>
 				{/if}
 			</article>
 		{/each}
@@ -165,16 +166,13 @@
 		font-family: var(--font-mono);
 	}
 
+	/* The face is the kit's `.popover`; this is where it sits, and its tail. */
 	.popup {
 		position: absolute;
 		transform: translate(-50%, calc(-100% - 10px));
 		max-width: 20rem;
 		max-height: 18rem;
 		overflow-y: auto;
-		background: var(--surface);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		box-shadow: var(--shadow);
 		padding: var(--space-4) var(--space-4);
 		font-size: var(--text-sm);
 		pointer-events: auto;
@@ -206,13 +204,11 @@
 		}
 	}
 
+	/* In the corner, where a popup's × is; the glyph itself is the kit's. */
 	.close {
 		position: absolute;
-		top: 0.15rem;
-		right: 0.3rem;
-		font-size: var(--text-lg);
-		line-height: 1;
-		color: var(--ink-2);
+		top: var(--space-2);
+		right: var(--space-2);
 	}
 
 	article + article {
@@ -230,11 +226,6 @@
 		color: var(--ink-2);
 		font-weight: 400;
 		font-family: var(--font-mono);
-	}
-
-	.none {
-		margin: 0;
-		color: var(--ink-2);
 	}
 
 	.tile li {
