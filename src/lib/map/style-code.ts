@@ -14,7 +14,7 @@
 import { isExpression } from '@maplibre/maplibre-gl-style-spec';
 import type { StyleSpecification } from 'maplibre-gl';
 import type { Appearance } from '../ipc/commands';
-import { buildCall, isBuiltPreset, recolorOptions, spriteAt, type BuildCall, type Schema } from './builders';
+import { buildCall, recolorOptions, spriteAt, themeOrDefault, type BuildCall, type Schema } from './builders';
 import { SCHEME } from './tile-queue';
 
 /**
@@ -119,11 +119,16 @@ export function canGenerateCode(appearance: Appearance, schema: Schema = 'shortb
 
 /** The builder call for a recipe as an exported file names it, or `null` when there is none. */
 function call(appearance: Appearance, schema: Schema): BuildCall | null {
-	if (appearance.type !== 'vector' || !isBuiltPreset(appearance.preset)) return null;
+	if (appearance.type !== 'vector') return null;
 	// The same call the map was built with, so the file cannot describe a different style - except
 	// the URLs: only the tiles are named, and the glyphs and sprites are left to the builder's own
 	// defaults, which are the public copies `forExport` points at too.
-	return buildCall(appearance.preset, schema, { tiles: TILE_URL_PLACEHOLDER }, recolorOptions(appearance.recolor));
+	return buildCall(
+		themeOrDefault(schema, appearance.theme),
+		schema,
+		{ tiles: TILE_URL_PLACEHOLDER },
+		recolorOptions(appearance.recolor)
+	);
 }
 
 /**

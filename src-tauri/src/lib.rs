@@ -104,7 +104,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::views::delete_view,
 		commands::views::reorder_views,
 		commands::style::style,
-		commands::style::set_style_preset,
+		commands::style::set_style_theme,
 		commands::style::set_style_kind,
 		commands::style::set_style_raster,
 		commands::style::set_style_order,

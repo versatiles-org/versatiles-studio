@@ -34,7 +34,6 @@ import type {
 	Bounds,
 	Compression,
 	NewProblem,
-	Preset,
 	SourceKind,
 	RasterAdjust_Serialize as RasterAdjust,
 	Hillshade_Serialize as Hillshade,
@@ -60,7 +59,6 @@ export type {
 	Family,
 	Fit,
 	Estimate,
-	Preset,
 	// One name each. `skip_serializing_if` makes specta emit a `_Serialize` and a `_Deserialize`
 	// form; for `Recolor` and `LayerOverride` the two are character-for-character identical, and a
 	// `Recipe` that came back from a command satisfies the form a command takes. The distinction is
@@ -290,7 +288,7 @@ export const removeFont = (id: string) => unwrap(commands.removeFont(id));
 export const style = () => unwrap(commands.style());
 
 /** Switches which style the project starts from (D1). Returns the recipe as it now stands. */
-export const setStylePreset = (graph: number, preset: Preset) => unwrap(commands.setStylePreset(graph, preset));
+export const setStyleTheme = (graph: number, theme: string) => unwrap(commands.setStyleTheme(graph, theme));
 
 /**
  * Corrects what the source's tiles are being read as (S6.1).

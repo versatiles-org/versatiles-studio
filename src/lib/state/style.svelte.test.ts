@@ -12,7 +12,7 @@ import type { Recipe } from '../ipc/commands';
 
 const ipc = vi.hoisted(() => ({
 	style: vi.fn(),
-	setStylePreset: vi.fn(),
+	setStyleTheme: vi.fn(),
 	setStyleRecolor: vi.fn(),
 	setStyleKind: vi.fn(),
 	setStyleRaster: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('../ipc/commands', () => ipc);
 
 const { style } = await import('./style.svelte');
 
-const VECTOR = { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} };
+const VECTOR = { type: 'vector', theme: 'colorful', recolor: {}, overrides: {} };
 const RASTER = { type: 'raster', adjust: {} };
 
 const recipe = (appearance: object = VECTOR, name = 'berlin'): Recipe =>
@@ -34,7 +34,7 @@ const recipe = (appearance: object = VECTOR, name = 'berlin'): Recipe =>
 /** Every mutator answers with a recipe, which is what the module assigns from. */
 function answersWith(next: Recipe) {
 	for (const key of [
-		'setStylePreset',
+		'setStyleTheme',
 		'setStyleRecolor',
 		'setStyleKind',
 		'setStyleRaster',
@@ -66,13 +66,13 @@ describe('which source the pane is editing', () => {
 	// a preset rather than as nothing.
 	it('gives an unstyled source a preset rather than nothing', () => {
 		style.focus({ id: 2, name: 'not-in-the-recipe' });
-		expect(style.source.appearance).toMatchObject({ type: 'vector', preset: 'colorful' });
+		expect(style.source.appearance).toMatchObject({ type: 'vector', theme: 'colorful' });
 	});
 
 	it('edits nothing at all when no graph is focused', async () => {
 		style.focus(null);
-		await style.setPreset('graybeard');
-		expect(ipc.setStylePreset).not.toHaveBeenCalled();
+		await style.setTheme('gray');
+		expect(ipc.setStyleTheme).not.toHaveBeenCalled();
 	});
 });
 
@@ -149,21 +149,21 @@ describe('undo', () => {
 	// different ideas of what the style is.
 	it('drops any preview and takes what was restored', () => {
 		style.previewRecolor({ rotate: 40 });
-		style.restored(recipe({ type: 'vector', preset: 'shadow', recolor: {}, overrides: {} }));
+		style.restored(recipe({ type: 'vector', theme: 'gray-dark', recolor: {}, overrides: {} }));
 		expect(style.previewing).toBe(false);
-		expect(style.source.appearance).toMatchObject({ preset: 'shadow' });
+		expect(style.source.appearance).toMatchObject({ theme: 'gray-dark' });
 	});
 });
 
 describe('the rest of the edits', () => {
 	it('passes the focused graph to every one of them', async () => {
-		await style.setPreset('graybeard');
+		await style.setTheme('gray');
 		await style.setKind('rasterImage');
 		await style.setHillshade({ exaggeration: 0.5 });
 		await style.setLayer('water', { visible: false });
 		await style.pruneOverrides(['water']);
 
-		expect(ipc.setStylePreset).toHaveBeenCalledWith(1, 'graybeard');
+		expect(ipc.setStyleTheme).toHaveBeenCalledWith(1, 'gray');
 		expect(ipc.setStyleKind).toHaveBeenCalledWith(1, 'rasterImage');
 		expect(ipc.setStyleHillshade).toHaveBeenCalledWith(1, { exaggeration: 0.5 });
 		expect(ipc.setLayerOverride).toHaveBeenCalledWith(1, 'water', { visible: false });

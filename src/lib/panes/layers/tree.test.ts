@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { build, THEMES } from '../../map/builders';
+import { osm } from '@versatiles/style';
+import { build } from '../../map/builders';
 import { currentPath } from '../../map/categories';
 import { ancestors, hiddenBy, tree, type Group, type Node, type Row } from './tree';
 
@@ -34,12 +35,12 @@ describe('the categories a preset collapses to', () => {
 		expect(counts(source.children)).toEqual([1, 35, 5, 2, 155, 7, 48]);
 	});
 
-	// Since v6 every Shortbread preset is one builder with a different palette, so the layers - and
-	// with them the rows - are the same for all of them.
-	it('turns every other Shortbread preset into the same seven', () => {
+	// Since v6 every theme is one builder with a different palette, so the layers - and with them the
+	// rows - are the same for all of them. Every theme the library has, not a list of our own (S11.3).
+	it('turns every other theme into the same seven', () => {
 		const expected = labels(tree(rowsOf(build('colorful', {})))[0].children);
-		for (const preset of Object.keys(THEMES) as (keyof typeof THEMES)[]) {
-			expect(labels(tree(rowsOf(build(preset, {})))[0].children), preset).toEqual(expected);
+		for (const theme of osm.palettes) {
+			expect(labels(tree(rowsOf(build(theme, {})))[0].children), theme).toEqual(expected);
 		}
 	});
 

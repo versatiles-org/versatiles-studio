@@ -212,8 +212,14 @@ export const commands = {
 	reorderViews: (order: string[]) => typedError<View[], string>(__TAURI_INVOKE("reorder_views", { order })),
 	/**  The recipe as it stands. */
 	style: () => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("style")),
-	/**  Switches which style a source starts from (D1). */
-	setStylePreset: (graph: number, preset: Preset) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_preset", { graph, preset })),
+	/**
+	 *  Switches which theme a source starts from (D1, [S11.3](../../../docs/history.md)).
+	 * 
+	 *  The theme is a palette name as `@versatiles/style` spells it, and this end does not check it: the
+	 *  list lives in the library, which lives in the webview ([Q36]), and the webview offers only names
+	 *  from that list.
+	 */
+	setStyleTheme: (graph: number, theme: string) => typedError<Recipe_Serialize, string>(__TAURI_INVOKE("set_style_theme", { graph, theme })),
 	/**
 	 *  Corrects what a source's tiles are being read as (S6.1).
 	 * 
@@ -703,29 +709,39 @@ export type Appearance = Appearance_Serialize | Appearance_Deserialize;
  */
 export type Appearance_Deserialize = 
 /**
- *  Vector tiles of a schema a builder knows: a preset, the adjustments over it, and whatever
+ *  Vector tiles of a schema a builder knows: a theme, the adjustments over it, and whatever
  *  layers were changed by hand.
  */
-({ type: "vector"; preset: Preset; recolor: Recolor_Deserialize; 
+({ type: "vector"; 
+/**
+ *  A palette name as `@versatiles/style` spells it - `colorful`, `gray-dark`, `positrino`.
+ * 
+ *  **The library's word, stored as a string** ([S11.3](../../../docs/history.md)). It used to be
+ *  an enum of v5's five builder names, translated to v7's themes in the webview; the library
+ *  has twenty-four now and lists them itself, so this end stores what it says and never
+ *  renders one ([Q36]). The webview checks the name against the builder's list and treats one
+ *  it does not know as the default rather than as an error.
+ */
+theme?: string; recolor: Recolor_Deserialize; 
 /**  By layer id. Empty for a style nobody has edited by hand. */
 overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never; shade?: never } | 
 /**
  *  Vector tiles of no schema a builder knows, drawn as an inspector style: every layer the tiles
  *  contain in a colour of its own (D2, [S11.2](../../../docs/history.md)).
  * 
- *  **A kind, not a preset.** This used to be `Preset::Derived`, a seventh button beside the themes
- *  - which left the themes offered over tiles they could not draw, and the inspector style one
- *  click away from tiles that had a theme. What the tiles *are* decides the editor; a theme is a
- *  choice inside one of them. So "read as Vector · other" is how a person asks for this, over any
- *  tiles, and the only thing it carries is the layer tree's changes.
+ *  **A kind, not a preset.** This used to be `Preset::Derived`, a seventh button beside the
+ *  themes, which left the themes offered over tiles they could not draw and the inspector style
+ *  one click away from tiles that had a theme. What the tiles *are* decides the editor; a theme
+ *  is a choice inside one of them. So "read as Vector · other" is how a person asks for this,
+ *  over any tiles, and the only thing it carries is the layer tree's changes.
  */
 ({ type: "inspector"; 
 /**  By layer id, keyed on the ids the inspector style gives its layers. */
-overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never; preset?: never; recolor?: never; shade?: never } | 
+overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never; recolor?: never; shade?: never; theme?: never } | 
 /**  Raster tiles drawn as an image, adjusted (D11). */
-({ type: "raster"; adjust: RasterAdjust_Deserialize }) & { overrides?: never; preset?: never; recolor?: never; shade?: never } | 
+({ type: "raster"; adjust: RasterAdjust_Deserialize }) & { overrides?: never; recolor?: never; shade?: never; theme?: never } | 
 /**  Raster tiles holding elevation, drawn as relief (D12). */
-({ type: "hillshade"; shade: Hillshade_Deserialize }) & { adjust?: never; overrides?: never; preset?: never; recolor?: never };
+({ type: "hillshade"; shade: Hillshade_Deserialize }) & { adjust?: never; overrides?: never; recolor?: never; theme?: never };
 
 /**
  *  How one source is drawn ([S6.4](../../../docs/history.md)).
@@ -738,29 +754,39 @@ overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never;
  */
 export type Appearance_Serialize = 
 /**
- *  Vector tiles of a schema a builder knows: a preset, the adjustments over it, and whatever
+ *  Vector tiles of a schema a builder knows: a theme, the adjustments over it, and whatever
  *  layers were changed by hand.
  */
-({ type: "vector"; preset: Preset; recolor: Recolor_Serialize; 
+({ type: "vector"; 
+/**
+ *  A palette name as `@versatiles/style` spells it - `colorful`, `gray-dark`, `positrino`.
+ * 
+ *  **The library's word, stored as a string** ([S11.3](../../../docs/history.md)). It used to be
+ *  an enum of v5's five builder names, translated to v7's themes in the webview; the library
+ *  has twenty-four now and lists them itself, so this end stores what it says and never
+ *  renders one ([Q36]). The webview checks the name against the builder's list and treats one
+ *  it does not know as the default rather than as an error.
+ */
+theme: string; recolor: Recolor_Serialize; 
 /**  By layer id. Empty for a style nobody has edited by hand. */
 overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; shade?: never } | 
 /**
  *  Vector tiles of no schema a builder knows, drawn as an inspector style: every layer the tiles
  *  contain in a colour of its own (D2, [S11.2](../../../docs/history.md)).
  * 
- *  **A kind, not a preset.** This used to be `Preset::Derived`, a seventh button beside the themes
- *  - which left the themes offered over tiles they could not draw, and the inspector style one
- *  click away from tiles that had a theme. What the tiles *are* decides the editor; a theme is a
- *  choice inside one of them. So "read as Vector · other" is how a person asks for this, over any
- *  tiles, and the only thing it carries is the layer tree's changes.
+ *  **A kind, not a preset.** This used to be `Preset::Derived`, a seventh button beside the
+ *  themes, which left the themes offered over tiles they could not draw and the inspector style
+ *  one click away from tiles that had a theme. What the tiles *are* decides the editor; a theme
+ *  is a choice inside one of them. So "read as Vector · other" is how a person asks for this,
+ *  over any tiles, and the only thing it carries is the layer tree's changes.
  */
 ({ type: "inspector"; 
 /**  By layer id, keyed on the ids the inspector style gives its layers. */
-overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; preset?: never; recolor?: never; shade?: never } | 
+overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; recolor?: never; shade?: never; theme?: never } | 
 /**  Raster tiles drawn as an image, adjusted (D11). */
-({ type: "raster"; adjust: RasterAdjust_Serialize }) & { overrides?: never; preset?: never; recolor?: never; shade?: never } | 
+({ type: "raster"; adjust: RasterAdjust_Serialize }) & { overrides?: never; recolor?: never; shade?: never; theme?: never } | 
 /**  Raster tiles holding elevation, drawn as relief (D12). */
-({ type: "hillshade"; shade: Hillshade_Serialize }) & { adjust?: never; overrides?: never; preset?: never; recolor?: never };
+({ type: "hillshade"; shade: Hillshade_Serialize }) & { adjust?: never; overrides?: never; recolor?: never; theme?: never };
 
 /**
  *  What an export narrows the pipeline to before writing it.
@@ -1655,20 +1681,6 @@ export type Pipeline = {
 	nodes: Node[],
 	span: Span,
 };
-
-/**
- *  Where a style starts before anything is adjusted.
- * 
- *  The five are named as `@versatiles/style` v5 named its builders. v6 folded them into one `osm()`
- *  builder with a `theme` each, and the webview translates (`builders.ts`) rather than this changing
- *  the names: they are what every saved project says.
- * 
- *  **No `satellite`** ([S11.1](../../../docs/history.md)). It was imagery with an OSM overlay - a
- *  background with a themed vector source on top, which Studio already says with the background
- *  control and a theme - and offering it as a way to draw *vector* data was a control that drew
- *  something else.
- */
-export type Preset = "colorful" | "eclipse" | "graybeard" | "neutrino" | "shadow";
 
 /**  The pipeline's output, mounted on the embedded server and ready for the map (S2.7, C3). */
 export type Preview = {

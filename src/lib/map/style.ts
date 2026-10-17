@@ -27,11 +27,11 @@ import type {
 } from '../ipc/commands';
 import {
 	build,
-	isBuiltPreset,
 	localAssets,
 	recolorOptions,
 	schemaOf,
 	spriteAt,
+	themeOrDefault,
 	tileset,
 	type Schema
 } from './builders';
@@ -39,7 +39,7 @@ import { hiddenBy } from './categories';
 import { throughQueue } from './tile-queue';
 import { renderableAs } from './tile-format';
 
-/** The vector half of [`Appearance`], which is what a preset and a layer tree need. */
+/** The themed half of [`Appearance`], which is what a theme and a layer tree need. */
 export type VectorAppearance = Extract<Appearance, { type: 'vector' }>;
 
 /** One graph, as the style will name it. */
@@ -51,24 +51,21 @@ export interface StyleSource {
 }
 
 /**
- * Builds the style a vector appearance describes over the given sources.
+ * Builds the style a themed appearance describes over the given sources.
  *
- * `null` only for a preset this build has no builder for, which no recipe this build writes can say.
+ * A theme name the builder does not know draws as the default theme - see `themeOrDefault`.
  */
 export function renderStyle(
 	appearance: VectorAppearance,
 	sources: StyleSource[],
 	serverBaseUrl: string,
 	schema: Schema = 'shortbread'
-): StyleSpecification | null {
-	if (!isBuiltPreset(appearance.preset)) return null;
-
-	// The first source is what the preset's own layers draw from. A preset knows one schema and one
+): StyleSpecification {
+	// The first source is what the theme's own layers draw from. A theme knows one schema and one
 	// source; naming several is S4.4's problem, not this function's.
-	//
 	const tiles = tileset(schema, sources.length > 0 ? [throughQueue(sources[0].tileUrl)] : []);
 	const style = build(
-		appearance.preset,
+		themeOrDefault(schema, appearance.theme),
 		{ tiles, ...localAssets(serverBaseUrl) },
 		recolorOptions(appearance.recolor),
 		schema
@@ -330,7 +327,7 @@ export function styleFor(
 	// A theme over a schema it was built for. If it still draws nothing, the reading is wrong - the
 	// tiles are not what they were read as - and the inspector style stands in, saying so.
 	const rendered = renderStyle(appearance, sources, serverBaseUrl, schemaOf(kind));
-	if (rendered && drawsAnything(rendered, mountedLayers)) return { style: rendered, basis: 'preset' };
+	if (drawsAnything(rendered, mountedLayers)) return { style: rendered, basis: 'preset' };
 
 	return inspect('fallback');
 }

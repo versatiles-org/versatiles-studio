@@ -48,7 +48,7 @@
 	exporting={styleExport.exporting}
 	missingFonts={styleExport.missingFonts}
 	actions={{
-		setPreset: (preset) => void style.setPreset(preset),
+		setTheme: (theme) => void style.setTheme(theme),
 		setKind: (kind) => void style.setKind(kind),
 		setRaster: (adjust) => void style.setRaster(adjust),
 		setHillshade: (shade) => void style.setHillshade(shade),

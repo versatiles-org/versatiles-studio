@@ -10,11 +10,11 @@ import { browser, expect, $ } from '@wdio/globals';
 import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { LAUNCHER, fire, invoke, openProject, readAs, switchTo, waitForGone } from '../support';
+import { LAUNCHER, choose, fire, invoke, openProject, readAs, switchTo, waitForGone } from '../support';
 
 const DIR = mkdtempSync(join(tmpdir(), 'studio-e2e-project-'));
 
-type Recipe = { sources: Record<string, { appearance?: { preset?: string } }> };
+type Recipe = { sources: Record<string, { appearance?: { theme?: string } }> };
 
 describe('saving a project and opening it again', () => {
 	before(openProject);
@@ -22,10 +22,10 @@ describe('saving a project and opening it again', () => {
 	it('writes a manifest and a pipeline anyone could read', async () => {
 		// Something worth having survived, so that reopening can be about more than "a window opened".
 		await readAs('vectorShortbread');
-		await $('button=Shadow').click();
+		await choose($('select[aria-label="Theme"]'), 'gray-dark');
 		await browser.waitUntil(
-			async () => (await invoke<Recipe>('style')).sources.debug?.appearance?.preset === 'shadow',
-			{ timeout: 10_000, timeoutMsg: 'the preset was never recorded, so there is nothing to save' }
+			async () => (await invoke<Recipe>('style')).sources.debug?.appearance?.theme === 'gray-dark',
+			{ timeout: 10_000, timeoutMsg: 'the theme was never recorded, so there is nothing to save' }
 		);
 
 		// Where the folder picker would have pointed. A project is a directory of plain files (G1),
@@ -63,7 +63,7 @@ describe('saving a project and opening it again', () => {
 		await expect($('button=debug')).toBeExisting();
 
 		const recipe = await invoke<Recipe>('style');
-		expect(recipe.sources.debug?.appearance?.preset).toBe('shadow');
+		expect(recipe.sources.debug?.appearance?.theme).toBe('gray-dark');
 	});
 
 	it('reopened it without recording a problem', async () => {

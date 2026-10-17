@@ -15,9 +15,7 @@
 use crate::state::{AppState, Project};
 use studio_core::graphs::GraphId;
 use studio_core::history::{EditKind, Target};
-use studio_core::style::{
-	Appearance, Hillshade, LayerOverride, Preset, RasterAdjust, Recipe, Recolor, Segment, SourceKind,
-};
+use studio_core::style::{Appearance, Hillshade, LayerOverride, RasterAdjust, Recipe, Recolor, Segment, SourceKind};
 use tauri::{AppHandle, State};
 
 /// The recipe as it stands.
@@ -76,25 +74,29 @@ fn record(project: &mut Project, recipe: Recipe) -> Recipe {
 	recipe
 }
 
-/// Switches which style a source starts from (D1).
+/// Switches which theme a source starts from (D1, [S11.3](../../../docs/history.md)).
+///
+/// The theme is a palette name as `@versatiles/style` spells it, and this end does not check it: the
+/// list lives in the library, which lives in the webview ([Q36]), and the webview offers only names
+/// from that list.
 #[tauri::command]
 #[specta::specta]
-pub async fn set_style_preset(
+pub async fn set_style_theme(
 	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
-	preset: Preset,
+	theme: String,
 ) -> Result<Recipe, String> {
 	let project = state.project(&window).await;
 	edit(&mut *project.lock().await, graph, None, |style| {
-		// A preset only means something on a vector appearance. Choosing one on a source currently
-		// drawn as raster says the person wants it drawn as vector, so the appearance follows -
+		// A theme only means something on a themed appearance. Choosing one on a source currently
+		// drawn otherwise says the person wants it drawn as a themed map, so the appearance follows -
 		// rather than the click being silently ignored.
 		match &mut style.appearance {
-			Appearance::Vector { preset: current, .. } => *current = preset,
+			Appearance::Vector { theme: current, .. } => *current = theme,
 			other => {
 				*other = Appearance::Vector {
-					preset,
+					theme,
 					recolor: Recolor::default(),
 					overrides: Default::default(),
 				};

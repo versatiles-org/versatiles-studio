@@ -15,14 +15,14 @@
  */
 
 import { browser, expect, $, $$ } from '@wdio/globals';
-import { invoke, openPane, openProject, readAs } from '../support';
+import { choose, invoke, openPane, openProject, readAs } from '../support';
 
-type Recipe = { sources: Record<string, { appearance?: { preset?: string } }> };
+type Recipe = { sources: Record<string, { appearance?: { theme?: string } }> };
 type Graph = { id: number; name: string };
 
 const graphs = () => invoke<Graph[]>('graphs');
 const recipe = () => invoke<Recipe>('style');
-const presetOf = async (name: string) => (await recipe()).sources[name]?.appearance?.preset;
+const themeOf = async (name: string) => (await recipe()).sources[name]?.appearance?.theme;
 
 /**
  * Clicks the one control of this kind that says exactly this.
@@ -77,16 +77,16 @@ describe('selecting another source', () => {
 			timeoutMsg: 'the row never became the selected one'
 		});
 		await readAs('vectorShortbread');
-		await $('button=Neutrino').click();
+		await choose($('select[aria-label="Theme"]'), 'muted');
 
-		await browser.waitUntil(async () => (await presetOf(second.name)) === 'neutrino', {
+		await browser.waitUntil(async () => (await themeOf(second.name)) === 'muted', {
 			timeout: 10_000,
-			timeoutMsg: 'the preset never reached the selected graph'
+			timeoutMsg: 'the theme never reached the selected graph'
 		});
 
 		// **And nowhere else.** The graph that happened to be previewed must be untouched: a recipe
 		// that records the right preset against the wrong source is the whole bug.
-		expect(await presetOf(first.name)).toBe(undefined);
+		expect(await themeOf(first.name)).toBe(undefined);
 	});
 
 	it('follows a click in the layer tree back to that layer’s source', async () => {

@@ -562,13 +562,13 @@ nothing, because the derived path applies overrides only. Satellite is offered a
 data and duplicates a background choice. "Read as" offers raster kinds to vector tiles. The five
 theme names are v5's, translated to v7's through a table.
 
-| Item      | Work                                                                        | Feature |
-| --------- | --------------------------------------------------------------------------- | ------- |
-| **S11.1** | ✓ Satellite leaves the Style pane; it is a background                       | D1      |
-| **S11.2** | ✓ "Vector · other" is the inspector style, and a kind rather than a preset  | D2      |
-| **S11.3** | The theme is the library's palette name, chosen from a dropdown it provides | D1      |
-| **S11.4** | "Read as" is narrowed by format; a schema that draws nothing offers the fix | D1      |
-| **S11.5** | The decision log and the UI concept say so                                  | docs    |
+| Item      | Work                                                                          | Feature |
+| --------- | ----------------------------------------------------------------------------- | ------- |
+| **S11.1** | ✓ Satellite leaves the Style pane; it is a background                         | D1      |
+| **S11.2** | ✓ "Vector · other" is the inspector style, and a kind rather than a preset    | D2      |
+| **S11.3** | ✓ The theme is the library's palette name, chosen from a dropdown it provides | D1      |
+| **S11.4** | "Read as" is narrowed by format; a schema that draws nothing offers the fix   | D1      |
+| **S11.5** | The decision log and the UI concept say so                                    | docs    |
 
 **One rule: the kind picks the editor, and the theme is a choice inside one of them.** Shortbread,
 OpenMapTiles and Protomaps get a builder, a theme and the recolouring; "other" gets the inspector style

@@ -12,7 +12,7 @@
  * is left in the component is binding and layout.
  */
 
-import type { DemEncoding, Hillshade, Preset, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
+import type { DemEncoding, Hillshade, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
 import type { KindBasis } from '../../map/source-kind';
 import type { MapToken } from '../../styles/tokens';
 
@@ -35,14 +35,9 @@ export interface Slider<K extends string> {
 }
 
 // -- where a style starts ------------------------------------------------------------------------
-
-export const PRESETS: { id: Preset; label: string; note: string }[] = [
-	{ id: 'colorful', label: 'Colorful', note: 'the default, full colour' },
-	{ id: 'graybeard', label: 'Graybeard', note: 'greys' },
-	{ id: 'neutrino', label: 'Neutrino', note: 'muted colours' },
-	{ id: 'shadow', label: 'Shadow', note: 'dark greys' },
-	{ id: 'eclipse', label: 'Eclipse', note: 'dark, full colour' }
-];
+//
+// The themes are not listed here: they are the library's, asked of the builder for the source's
+// schema by `themesFor` in `map/builders.ts` ([S11.3]).
 
 export const KIND_OPTIONS: SourceKind[] = [
 	'vectorShortbread',

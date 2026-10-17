@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { THEMES, build } from './builders';
+import { osm } from '@versatiles/style';
+import { build } from './builders';
 import { CATEGORIES, WHOLE_SOURCE, categoryOf, covers, headingOf, hiddenBy, parts } from './categories';
 
 describe('parts', () => {
@@ -57,10 +58,10 @@ describe('the eyes', () => {
  * a list of nine headings - visible to every user and to no test.
  */
 describe('the table against the presets themselves', () => {
-	const presets = Object.keys(THEMES) as (keyof typeof THEMES)[];
+	// Every theme the library has, over every schema it draws - the list is the builder's (S11.3).
 	const schemas = ['shortbread', 'openmaptiles', 'protomaps'] as const;
 	const styles = () =>
-		schemas.flatMap((schema) => presets.map((preset) => build(preset, { tiles: 'x/{z}/{x}/{y}' }, {}, schema)));
+		schemas.flatMap((schema) => osm.palettes.map((theme) => build(theme, { tiles: 'x/{z}/{x}/{y}' }, {}, schema)));
 
 	it('has a category for every prefix the presets use', () => {
 		const unknown = new Set<string>();

@@ -23,7 +23,7 @@ const BASE = 'http://127.0.0.1:8080';
 const SOURCES = [{ name: 'berlin', tileUrl: `${BASE}/tiles/berlin/{z}/{x}/{y}` }];
 
 function recipe(over: Record<string, unknown> = {}): VectorAppearance {
-	return { type: 'vector', preset: 'colorful', recolor: {}, overrides: {}, ...over } as VectorAppearance;
+	return { type: 'vector', theme: 'colorful', recolor: {}, overrides: {}, ...over } as VectorAppearance;
 }
 
 /** The raster half of the union, for the cases that are about imagery. */
@@ -47,7 +47,7 @@ describe('renderStyle', () => {
 	// Every pipeline tile goes through Studio's queue, or the status bar's count is of some of them
 	// (S2.16). Glyphs and sprites do not: they are a handful of requests, not per-tile work.
 	it('routes its tiles through the queue and its assets straight at the server', () => {
-		const style = renderStyle(recipe(), SOURCES, BASE)!;
+		const style = renderStyle(recipe(), SOURCES, BASE);
 		expect(JSON.stringify(style.sources)).toContain('studio://');
 		expect(style.glyphs).toContain('http://');
 	});
@@ -55,23 +55,31 @@ describe('renderStyle', () => {
 	// G5 promises Studio works offline once its assets are installed, so nothing in a generated
 	// style may point at versatiles.org - the builders' own default.
 	it('serves glyphs and sprites from the embedded server, never the network', () => {
-		const style = renderStyle(recipe(), SOURCES, BASE)!;
+		const style = renderStyle(recipe(), SOURCES, BASE);
 		expect(style.glyphs).toContain(BASE);
 		expect(JSON.stringify(style.sprite)).toContain(BASE);
 		const remote = JSON.stringify({ glyphs: style.glyphs, sprite: style.sprite });
 		expect(remote).not.toContain('versatiles.org');
 	});
 
+	// A theme the builder does not know - a hand-edited file, or a build that had one this does not -
+	// draws as the default rather than as nothing (S11.3).
+	it('draws a theme it does not know as the default', () => {
+		const unknown = renderStyle(recipe({ theme: 'no-such-theme' }), SOURCES, BASE);
+		const plain = renderStyle(recipe(), SOURCES, BASE);
+		expect(JSON.stringify(unknown.layers)).toEqual(JSON.stringify(plain.layers));
+	});
+
 	it('applies the recolouring rather than ignoring it', () => {
-		const plain = renderStyle(recipe(), SOURCES, BASE)!;
-		const dark = renderStyle(recipe({ recolor: { invertBrightness: true } }), SOURCES, BASE)!;
+		const plain = renderStyle(recipe(), SOURCES, BASE);
+		const dark = renderStyle(recipe({ recolor: { invertBrightness: true } }), SOURCES, BASE);
 		expect(JSON.stringify(dark.layers)).not.toEqual(JSON.stringify(plain.layers));
 	});
 
 	// An unset field must be absent, not present-and-undefined: the builder tests some options for
 	// presence, so `{ gamma: undefined }` is not the same as `{}`.
 	it('an explicitly undefined adjustment changes nothing', () => {
-		const plain = renderStyle(recipe(), SOURCES, BASE)!;
+		const plain = renderStyle(recipe(), SOURCES, BASE);
 		const same = renderStyle(recipe({ recolor: { gamma: undefined, rotate: null } }), SOURCES, BASE)!;
 		expect(JSON.stringify(same.layers)).toEqual(JSON.stringify(plain.layers));
 	});
@@ -83,7 +91,7 @@ describe('layer overrides', () => {
 	}
 
 	function anyLayerId(): string {
-		return renderStyle(recipe(), SOURCES, BASE)!.layers[1].id;
+		return renderStyle(recipe(), SOURCES, BASE).layers[1].id;
 	}
 
 	it('hides a layer through layout.visibility, where MapLibre reads it', () => {
@@ -93,7 +101,7 @@ describe('layer overrides', () => {
 	});
 
 	it('merges paint so an override does not wipe the preset’s other properties', () => {
-		const id = renderStyle(recipe(), SOURCES, BASE)!.layers.find(
+		const id = renderStyle(recipe(), SOURCES, BASE).layers.find(
 			(l) => 'paint' in l && Object.keys((l as { paint: object }).paint ?? {}).length > 1
 		)!.id;
 		const before = layerNamed(renderStyle(recipe(), SOURCES, BASE), id)!.paint as Record<string, unknown>;
@@ -111,7 +119,7 @@ describe('layer overrides', () => {
 
 	it('leaves layers with no override exactly as the preset built them', () => {
 		const id = anyLayerId();
-		const plain = renderStyle(recipe(), SOURCES, BASE)!;
+		const plain = renderStyle(recipe(), SOURCES, BASE);
 		const patched = renderStyle(recipe({ overrides: { [id]: { visible: false } } }), SOURCES, BASE)!;
 		const untouched = plain.layers.filter((l) => l.id !== id);
 		expect(JSON.stringify(patched.layers.filter((l) => l.id !== id))).toEqual(JSON.stringify(untouched));
@@ -203,7 +211,7 @@ describe('overrides on every basis the layer tree is offered on', () => {
 });
 
 describe('drawsAnything', () => {
-	const style = renderStyle(recipe(), SOURCES, BASE)!;
+	const style = renderStyle(recipe(), SOURCES, BASE);
 
 	it('is true for the schema the presets are written against', () => {
 		// Shortbread's own names, which is what `colorful` draws.
@@ -252,7 +260,7 @@ describe('deriveStyle', () => {
 		).toBe(true);
 		expect(
 			drawsAnything(
-				renderStyle(recipe(), SOURCES, BASE)!,
+				renderStyle(recipe(), SOURCES, BASE),
 				LAYERS.map((l) => l.name)
 			)
 		).toBe(false);
@@ -381,7 +389,7 @@ describe('styleFor over the other schemas', () => {
 		const target = { kind, tileFormat: 'mvt', layers: [], mountedLayers: [...layers] };
 
 		it(`draws a preset over ${kind} with that schema’s builder`, () => {
-			const { style, basis } = styleFor(recipe({ preset: 'graybeard' }), target, SOURCES, BASE);
+			const { style, basis } = styleFor(recipe({ theme: 'gray' }), target, SOURCES, BASE);
 			expect(basis).toBe('preset');
 			const used = new Set(style!.layers.flatMap((layer) => ('source-layer' in layer ? [layer['source-layer']] : [])));
 			// Its layers read the schema's own source-layers, not Shortbread's.

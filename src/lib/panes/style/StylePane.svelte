@@ -1,15 +1,7 @@
 <script lang="ts">
-	import type {
-		DemEncoding,
-		Hillshade,
-		Preset,
-		RasterAdjust,
-		Recolor,
-		SourceKind,
-		SourceStyle
-	} from '../../ipc/commands';
+	import type { DemEncoding, Hillshade, RasterAdjust, Recolor, SourceKind, SourceStyle } from '../../ipc/commands';
 	import { KIND_LABELS, isVector, sourceKind } from '../../map/source-kind';
-	import { schemaOf } from '../../map/builders';
+	import { DEFAULT_THEME, isTheme, schemaOf, themesFor } from '../../map/builders';
 	import { demEncoding, type StyleBasis } from '../../map/style';
 	import { token } from '../../styles/tokens';
 	import type { StyleSpecification } from 'maplibre-gl';
@@ -19,7 +11,6 @@
 		HILLSHADE_COLOURS,
 		HILLSHADE_SLIDERS,
 		KIND_OPTIONS,
-		PRESETS,
 		RASTER_SLIDERS,
 		RECOLOR_SLIDERS,
 		encodingChoice,
@@ -83,7 +74,8 @@
 		/** Fonts the last bundle could not find. */
 		missingFonts?: string[];
 		actions: {
-			setPreset: (preset: Preset) => void;
+			/** A palette name as `@versatiles/style` spells it, from the list `themesFor` gives. */
+			setTheme: (theme: string) => void;
 			/** Corrects what the tiles are read as, or `null` to hand the question back (S6.1). */
 			setKind: (kind: SourceKind | null) => void;
 			setRaster: (adjust: RasterAdjust) => void;
@@ -134,9 +126,16 @@
 	/// A schema a builder knows, so a theme is something to choose. `vectorOther` is vector too, but
 	/// its editor is the inspector style, which has no theme ([S11.2]).
 	const themed = $derived(kind === null || (isVector(kind) && kind !== 'vectorOther'));
-	/// Which builder the preset goes through - `osm()`, `omt()` or `protomaps()` - and so which one the
+	/// Which builder the theme goes through - `osm()`, `omt()` or `protomaps()` - and so which one the
 	/// exported code calls.
 	const schema = $derived(schemaOf(kind));
+
+	/// The themes that builder offers, in two groups ([S11.3]).
+	const themes = $derived(themesFor(schema));
+	/// The theme the recipe names, or the default when it names none the builder knows - in which case
+	/// the dropdown shows the default and the note below it says why.
+	const storedTheme = $derived(vectorAppearance?.theme ?? DEFAULT_THEME);
+	const knownTheme = $derived(isTheme(schema, storedTheme));
 
 	/// Every raster slider's neutral is `0` except opacity, whose is `1` - the same asymmetry the
 	/// vector sliders have, for the same reason: a multiplier's identity is not zero.
@@ -362,28 +361,42 @@
 				Layers pane. To draw them as a map, read them as the schema they follow.
 			</p>
 		{:else if themed}
-			<h2 class="section-label">Preset</h2>
+			<h2 class="section-label">Theme</h2>
 			{#if basis === 'fallback'}
-				<!-- S6.2: the preset is still what the recipe says, and it is not what the map is
+				<!-- S6.2: the theme is still what the recipe says, and it is not what the map is
 				     showing. Saying so here is cheaper than leaving someone to compare the two. -->
 				<p class="note substituted">
-					These tiles have none of the layers this preset draws, so they are shown as the inspector style instead.
+					These tiles have none of the layers this theme draws, so they are shown as the inspector style instead.
 				</p>
 			{/if}
-			<div class="presets">
-				{#each PRESETS as preset (preset.id)}
-					<button
-						type="button"
-						class="preset"
-						class:chosen={vectorAppearance?.preset === preset.id}
-						aria-pressed={vectorAppearance?.preset === preset.id}
-						title={preset.note}
-						onclick={() => actions.setPreset(preset.id)}
-					>
-						{preset.label}
-					</button>
-				{/each}
-			</div>
+			<!-- **The library's list, in a dropdown** ([S11.3]). Twenty-four themes do not fit as
+			     buttons, and the list is the builder's rather than Studio's: the five palettes with
+			     their dark partners first, then the lookalikes with what each one is after. -->
+			<label class="kind">
+				<span class="name">Theme</span>
+				<select
+					aria-label="Theme"
+					value={knownTheme ? storedTheme : DEFAULT_THEME}
+					onchange={(event) => actions.setTheme(event.currentTarget.value)}
+				>
+					<optgroup label="Palettes">
+						{#each themes.palettes as theme (theme.id)}
+							<option value={theme.id}>{theme.label}</option>
+						{/each}
+					</optgroup>
+					<optgroup label="Lookalikes">
+						{#each themes.lookalikes as theme (theme.id)}
+							<option value={theme.id}>{theme.label} · after {theme.resembles}{theme.dark ? ', dark' : ''}</option>
+						{/each}
+					</optgroup>
+				</select>
+			</label>
+			{#if !knownTheme}
+				<p class="note substituted">
+					This project names a theme ({storedTheme}) this build does not have, so the default is drawn until another is
+					chosen.
+				</p>
+			{/if}
 
 			<h2 class="section-label">
 				Adjust
@@ -430,8 +443,8 @@
 				     applies again under one that has the layer - so clearing is offered, never automatic. -->
 				<p class="note substituted">
 					{inert.length}
-					{inert.length === 1 ? 'change applies' : 'changes apply'} to layers this preset does not draw. They come back under
-					a preset that has them.
+					{inert.length === 1 ? 'change applies' : 'changes apply'} to layers this theme does not draw. They come back under
+					a theme that has them.
 					<button type="button" class="reset" onclick={() => actions.pruneOverrides(presentIds)}> clear </button>
 				</p>
 			{/if}
@@ -458,7 +471,7 @@
 				class="button"
 				disabled={!rendered || exporting !== null || code === null}
 				title={code !== null
-					? 'The preset and what was changed, as code'
+					? 'The theme and what was changed, as code'
 					: 'The inspector style has no builder to call - export it as style.json'}
 				onclick={() => rendered && actions.exportAs('ts', code)}
 			>
@@ -495,30 +508,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
-	}
-
-	.presets {
-		display: grid;
-		grid-template-columns: repeat(2, 1fr);
-		gap: var(--space-2);
-	}
-
-	.preset {
-		padding: var(--space-2);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		background: var(--surface);
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-
-		&:hover {
-			color: var(--ink);
-		}
-
-		&.chosen {
-			border-color: var(--accent);
-			color: var(--ink);
-		}
 	}
 
 	.reset {

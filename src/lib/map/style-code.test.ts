@@ -16,11 +16,11 @@ import type { Appearance } from '../ipc/commands';
 import type { VectorAppearance } from './style';
 
 const recipe = (over: Record<string, unknown> = {}): VectorAppearance =>
-	({ type: 'vector', preset: 'colorful', recolor: {}, overrides: {}, ...over }) as VectorAppearance;
+	({ type: 'vector', theme: 'colorful', recolor: {}, overrides: {}, ...over }) as VectorAppearance;
 
 describe('styleCode', () => {
-	it('names the preset it started from, in an import that resolves', () => {
-		const code = styleCode(recipe({ preset: 'graybeard' }))!;
+	it('names the theme it started from, in an import that resolves', () => {
+		const code = styleCode(recipe({ theme: 'gray' }))!;
 		expect(code).toContain("import { osm } from '@versatiles/style';");
 		expect(code).toContain('const style = osm({');
 		expect(code).toContain('"theme": "gray"');
@@ -29,7 +29,7 @@ describe('styleCode', () => {
 	});
 
 	it('calls the builder the tiles need, imported from its subpath', () => {
-		const code = styleCode(recipe({ preset: 'graybeard' }), undefined, 'openmaptiles')!;
+		const code = styleCode(recipe({ theme: 'gray' }), undefined, 'openmaptiles')!;
 		expect(code).toContain("import { omt } from '@versatiles/style/omt';");
 		expect(code).toContain('const style = omt({');
 		expect(code).toContain(`"omt": "${TILE_URL_PLACEHOLDER}"`);
@@ -57,16 +57,18 @@ describe('styleCode', () => {
 	 * **The call has to be one the library accepts.** v6 renamed the recolour fields and v7 throws on
 	 * an option it does not know, so a file written in the stored names would fail the moment it ran.
 	 */
-	it('writes options the builder accepts, for every preset and schema', () => {
+	it('writes options the builder accepts, for every theme and schema', () => {
 		const recolor = { invertBrightness: true, rotate: 35, saturate: -0.5, tint: 0.5, tintColor: '#f00', blend: 0.2 };
 		const builders = { osm, omt, protomaps };
 		for (const schema of ['shortbread', 'openmaptiles', 'protomaps'] as const) {
-			for (const preset of ['colorful', 'eclipse', 'graybeard', 'neutrino', 'shadow'] as const) {
-				const code = styleCode(recipe({ preset, recolor }), undefined, schema)!;
+			// The builder's own list, so a theme added upstream is checked the day it arrives (S11.3).
+			for (const theme of builders[schema === 'shortbread' ? 'osm' : schema === 'openmaptiles' ? 'omt' : 'protomaps']
+				.palettes) {
+				const code = styleCode(recipe({ theme, recolor }), undefined, schema)!;
 				const name = code.match(/const style = (\w+)\(/)![1] as keyof typeof builders;
 				const options = JSON.parse(code.slice(code.indexOf('({') + 1, code.indexOf('});') + 1));
 				const result = builders[name].validateOptions(options);
-				expect(result.ok ? [] : result.issues, `${preset} over ${schema}`).toEqual([]);
+				expect(result.ok ? [] : result.issues, `${theme} over ${schema}`).toEqual([]);
 			}
 		}
 	});

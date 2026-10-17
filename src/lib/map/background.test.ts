@@ -98,7 +98,7 @@ describe('every background', () => {
 		const entry = {
 			name: 'berlin',
 			tileUrl: `${SERVER}/tiles/berlin/{z}/{x}/{y}`,
-			appearance: { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} },
+			appearance: { type: 'vector', theme: 'colorful', recolor: {}, overrides: {} },
 			kind: 'vectorShortbread',
 			tileFormat: 'mvt',
 			layers: [{ name: 'places', geometry: 'point' }],

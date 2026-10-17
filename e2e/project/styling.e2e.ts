@@ -8,14 +8,14 @@
  */
 
 import { browser, expect, $ } from '@wdio/globals';
-import { invoke, openProject, readAs } from '../support';
+import { choose, invoke, openProject, readAs } from '../support';
 
-type Recipe = { sources: Record<string, { appearance?: { preset?: string } }> };
+type Recipe = { sources: Record<string, { appearance?: { theme?: string } }> };
 
-/** Which preset the recipe records for the fixture's only source, if any yet. */
-async function presetOf(): Promise<string | undefined> {
+/** Which theme the recipe records for the fixture's only source, if any yet. */
+async function themeOf(): Promise<string | undefined> {
 	const recipe = await invoke<Recipe>('style');
-	return recipe.sources.debug?.appearance?.preset;
+	return recipe.sources.debug?.appearance?.theme;
 }
 
 describe('choosing how a source is drawn', () => {
@@ -24,22 +24,21 @@ describe('choosing how a source is drawn', () => {
 	it('records nothing until someone chooses', async () => {
 		// A source Studio has not been told anything about has no entry at all: the pane shows a
 		// default, and a default is not a decision worth writing into a project file.
-		expect(await presetOf()).toBe(undefined);
+		expect(await themeOf()).toBe(undefined);
 		// The fixture's tiles follow no schema, so the themes appear once they are read as one (S11.2).
 		await readAs('vectorShortbread');
-		await expect($('button=Neutrino')).toBeDisplayed();
+		await expect($('select[aria-label="Theme"]')).toBeDisplayed();
 	});
 
-	it('records the preset that was pressed, and shows which one that was', async () => {
-		await $('button=Neutrino').click();
+	it('records the theme that was chosen, and shows which one that was', async () => {
+		await choose($('select[aria-label="Theme"]'), 'muted');
 
-		await browser.waitUntil(async () => (await presetOf()) === 'neutrino', {
+		await browser.waitUntil(async () => (await themeOf()) === 'muted', {
 			timeout: 10_000,
-			timeoutMsg: 'the recipe never recorded the preset'
+			timeoutMsg: 'the recipe never recorded the theme'
 		});
 		// The pane must agree, or the recipe changed and the window did not.
-		await expect($('button=Neutrino')).toHaveAttribute('aria-pressed', 'true');
-		await expect($('button=Colorful')).toHaveAttribute('aria-pressed', 'false');
+		await expect($('select[aria-label="Theme"]')).toHaveValue('muted');
 	});
 
 	it('restyles the map rather than breaking it', async () => {

@@ -15,7 +15,7 @@
 
 import {
 	style as fetchStyle,
-	setStylePreset,
+	setStyleTheme,
 	setStyleRecolor,
 	setStyleKind,
 	setStyleRaster,
@@ -25,7 +25,6 @@ import {
 	setLayerHidden,
 	setLayerOverride,
 	type LayerOverride,
-	type Preset,
 	type Recipe,
 	type Recolor,
 	type Segment,
@@ -139,8 +138,9 @@ export const style = {
 		recipe = next;
 	},
 
-	async setPreset(preset: Preset): Promise<void> {
-		if (graph) recipe = await setStylePreset(graph.id, preset);
+	/** Sets the theme - a palette name as `@versatiles/style` spells it ([S11.3]). */
+	async setTheme(theme: string): Promise<void> {
+		if (graph) recipe = await setStyleTheme(graph.id, theme);
 	},
 
 	/**

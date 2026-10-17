@@ -238,12 +238,41 @@ pub const MANIFEST_VERSION: u32 = 2;
 #[derive(Debug, Default, serde::Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 struct RecipeV1 {
-	preset: crate::style::Preset,
+	preset: PresetV1,
 	recolor: crate::style::Recolor,
 	overrides: std::collections::BTreeMap<String, crate::style::LayerOverride>,
 	/// Present only in files written between S6.3 and S6.4, which is a narrow window but a real one.
 	raster: crate::style::RasterAdjust,
 	kind: Option<crate::style::SourceKind>,
+}
+
+/// What a version-1 file called a preset: `@versatiles/style` v5's builder names, plus the two that
+/// were never themes. Each becomes the v7 theme it migrated to, the way the library's own migration
+/// table says ([S11.3](../../docs/history.md)); `satellite` becomes the default theme, since it was
+/// imagery under one, and `derived` becomes the inspector appearance.
+#[derive(Debug, Default, Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
+enum PresetV1 {
+	#[default]
+	Colorful,
+	Eclipse,
+	Graybeard,
+	Neutrino,
+	Shadow,
+	Satellite,
+	Derived,
+}
+
+impl PresetV1 {
+	fn theme(self) -> &'static str {
+		match self {
+			Self::Colorful | Self::Satellite | Self::Derived => crate::style::DEFAULT_THEME,
+			Self::Eclipse => "colorful-dark",
+			Self::Graybeard => "gray",
+			Self::Neutrino => "muted",
+			Self::Shadow => "gray-dark",
+		}
+	}
 }
 
 /// Turns a version-1 recipe into a version-2 one, filed under the graph it must have been about.
@@ -261,10 +290,13 @@ fn migrate_v1(old: RecipeV1, graphs: &[GraphRef]) -> crate::style::Recipe {
 
 	// The raster half only ever applied when the source was raster, and the vector half only when it
 	// was not - which is exactly the ambiguity this version bump removes.
-	let appearance = match old.kind {
-		Some(SourceKind::RasterImage | SourceKind::RasterDem) => Appearance::Raster { adjust: old.raster },
-		_ => Appearance::Vector {
-			preset: old.preset,
+	let appearance = match (old.kind, old.preset) {
+		(Some(SourceKind::RasterImage | SourceKind::RasterDem), _) => Appearance::Raster { adjust: old.raster },
+		(_, PresetV1::Derived) => Appearance::Inspector {
+			overrides: old.overrides,
+		},
+		(_, preset) => Appearance::Vector {
+			theme: preset.theme().to_string(),
 			recolor: old.recolor,
 			overrides: old.overrides,
 		},
@@ -431,7 +463,7 @@ pub fn load(dir: &Path) -> Result<Loaded> {
 #[cfg(test)]
 mod project_tests {
 	use super::*;
-	use crate::style::{Preset, Recipe, Recolor};
+	use crate::style::{Recipe, Recolor};
 
 	fn recipe() -> Recipe {
 		let mut recipe = Recipe::default();
@@ -440,7 +472,7 @@ mod project_tests {
 			crate::style::SourceStyle {
 				kind: None,
 				appearance: crate::style::Appearance::Vector {
-					preset: Preset::Graybeard,
+					theme: "gray".to_string(),
 					recolor: Recolor {
 						invert_brightness: Some(true),
 						..Recolor::default()
@@ -593,7 +625,7 @@ mod project_tests {
 	/// style must land on the graph it was about rather than being silently reset to defaults.
 	#[test]
 	fn a_version_1_style_migrates_onto_the_first_graph() {
-		use crate::style::{Appearance, Preset};
+		use crate::style::Appearance;
 
 		let dir = crate::testing::dir("project-migrate-v1");
 		std::fs::create_dir_all(&dir).unwrap();
@@ -616,8 +648,8 @@ mod project_tests {
 			.source("basemap")
 			.expect("the style moved onto the graph");
 		match &style.appearance {
-			Appearance::Vector { preset, recolor, .. } => {
-				assert_eq!(*preset, Preset::Graybeard, "the preset survived");
+			Appearance::Vector { theme, recolor, .. } => {
+				assert_eq!(theme, "gray", "the preset survived, as the theme it became");
 				assert_eq!(recolor.rotate, Some(35.0), "so did the recolour");
 			}
 			other => panic!("a version-1 vector style became {other:?}"),

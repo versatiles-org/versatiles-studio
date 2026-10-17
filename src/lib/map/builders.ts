@@ -1,27 +1,24 @@
 /**
- * The one place Studio's preset names meet `@versatiles/style`'s builders.
+ * The one place Studio meets `@versatiles/style`'s builders.
  *
- * **The names stored are v5's, and the library's are not any more.** Up to v5 each preset was its own
- * builder - `colorful()`, `graybeard()`, … - and the core stores those names, so every saved project
- * says one. v6 folded the five Shortbread builders into `osm({ theme })`, and renamed the recolour
- * fields while it was at it. Translating here keeps every recipe ever written readable, where renaming
- * the stored values would have meant a migration in the core for no change anyone could see.
+ * **The themes are the library's, by name** ([S11.3](../../../docs/history.md)). Up to v5 each
+ * preset was its own builder and Studio stored those five names, translating them to v7's themes
+ * through a table here. The library has twenty-four themes now and publishes the list on each builder
+ * as `palettes`, so the recipe stores the palette name as the library spells it, this module asks the
+ * builder what exists, and a theme added upstream appears in Studio without a change here.
  *
- * The theme for each follows the library's own migration table, "Migration from v5" in its
- * `API_DESIGN.md`.
- *
- * **A preset is a theme, and the tiles decide the builder.** Since v7 the library draws three vector
+ * **A theme is a theme, and the tiles decide the builder.** Since v7 the library draws three vector
  * schemas - `osm()` for Shortbread, `omt()` for OpenMapTiles, `protomaps()` for the Protomaps Basemap -
- * with the same options and the same themes. So "Graybeard" over OpenMapTiles tiles is
- * `omt({ theme: 'gray' })`, and nobody has to pick a preset per schema.
+ * with the same options and the same themes. So `gray` over OpenMapTiles tiles is
+ * `omt({ theme: 'gray' })`, and nobody has to pick a theme per schema.
  */
 
-import { osm } from '@versatiles/style';
-import type { RecolorOptions, TileSource } from '@versatiles/style';
+import { isDarkPalette, osm } from '@versatiles/style';
+import type { Palette, RecolorOptions, TileSource } from '@versatiles/style';
 import { omt } from '@versatiles/style/omt';
 import { protomaps } from '@versatiles/style/protomaps';
 import type { StyleSpecification } from 'maplibre-gl';
-import type { Preset, Recolor, SourceKind } from '../ipc/commands';
+import type { Recolor, SourceKind } from '../ipc/commands';
 
 /** A vector tile schema the builders can draw. */
 export type Schema = 'shortbread' | 'openmaptiles' | 'protomaps';
@@ -54,21 +51,94 @@ export function schemaOf(kind: SourceKind | null | undefined): Schema {
 	return 'shortbread';
 }
 
-/** The Shortbread presets, by the name the core stores, and the theme each one now is. */
-export const THEMES = {
-	colorful: 'colorful',
-	eclipse: 'colorful-dark',
-	graybeard: 'gray',
-	// The library's "closest match": v5's neutrino has no exact v6 equivalent.
-	neutrino: 'muted',
-	shadow: 'gray-dark'
-} as const;
+/** The theme a source draws with when the recipe names none, or names one this build does not know. */
+export const DEFAULT_THEME: Palette = 'colorful';
 
-/** A preset that has a builder behind it - every one but `derived`. */
-export type BuiltPreset = keyof typeof THEMES;
+/**
+ * The library's own palettes: each a light theme with a dark partner named `<palette>-dark`.
+ *
+ * **A claim about somebody else's package**, so `builders.test.ts` checks every one of these and its
+ * partner is in the builder's list. Everything else in that list is a lookalike (see [`RESEMBLES`]).
+ */
+export const BASE_PALETTES = ['colorful', 'natural', 'muted', 'gray', 'toner'] as const;
 
-export function isBuiltPreset(preset: Preset): preset is BuiltPreset {
-	return preset in THEMES;
+/**
+ * What each lookalike theme resembles, in the words the library's README uses.
+ *
+ * The library names the lookalikes and says what they are after in prose; this is that prose as data,
+ * so the dropdown can say "Positrino · after Positron" rather than a name nobody can place. Checked
+ * against the builder's list the same way `BASE_PALETTES` is: a lookalike with no entry here is a
+ * test failure, not a blank label.
+ */
+export const RESEMBLES: Record<string, string> = {
+	positrino: 'Positron, Dark Matter',
+	protocol: 'Protomaps Light, Dark',
+	protostar: 'Protomaps White, Black',
+	protozoa: 'Protomaps Grayscale',
+	fnord: 'Fiord Color',
+	classic: 'OpenStreetMap Carto',
+	googol: 'Google Maps',
+	freedom: 'OSM Liberty',
+	macbob: 'Mapbox Streets',
+	mactaylor: 'MapTiler Streets',
+	bingo: 'Bing Maps'
+};
+
+/** One theme as the dropdown lists it. */
+export interface ThemeChoice {
+	id: Palette;
+	label: string;
+	dark: boolean;
+	/** What a lookalike is after; `null` for the library's own palettes. */
+	resembles: string | null;
+}
+
+/** The light palette a theme name belongs to: `gray-dark` is `gray`'s, `fnord` is its own. */
+export const familyOf = (theme: string): string => theme.replace(/-dark$/, '');
+
+/** `colorful-dark` reads as "Colorful, dark"; `positrino` as "Positrino". */
+function labelOf(theme: Palette): string {
+	const family = familyOf(theme);
+	const name = family.charAt(0).toUpperCase() + family.slice(1);
+	return theme.endsWith('-dark') ? `${name}, dark` : name;
+}
+
+const isOwnPalette = (theme: string): boolean => (BASE_PALETTES as readonly string[]).includes(familyOf(theme));
+
+/**
+ * The themes the builder for a schema offers, as two groups: the library's own palettes, light and
+ * dark in turn, and then the lookalikes.
+ *
+ * **Asked of the builder, not written down.** All three builders answer alike today; asking each one
+ * is what keeps that true tomorrow, when one of them might not.
+ */
+export function themesFor(schema: Schema): { palettes: ThemeChoice[]; lookalikes: ThemeChoice[] } {
+	const all = SCHEMAS[schema].builder.palettes;
+	const choice = (id: Palette): ThemeChoice => ({
+		id,
+		label: labelOf(id),
+		dark: isDarkPalette(id),
+		resembles: isOwnPalette(id) ? null : (RESEMBLES[familyOf(id)] ?? familyOf(id))
+	});
+	return {
+		palettes: all.filter((id) => isOwnPalette(id)).map(choice),
+		lookalikes: all.filter((id) => !isOwnPalette(id)).map(choice)
+	};
+}
+
+/** Whether a builder for this schema knows a theme by this name. */
+export function isTheme(schema: Schema, name: string): name is Palette {
+	return (SCHEMAS[schema].builder.palettes as readonly string[]).includes(name);
+}
+
+/**
+ * A stored theme name as the builder will take it: itself when the builder knows it, else the default.
+ *
+ * A recipe written by hand, or by a build that had a theme this one does not, must still draw - and
+ * drawing the default is a better answer than drawing nothing, as long as the pane says which.
+ */
+export function themeOrDefault(schema: Schema, name: string): Palette {
+	return isTheme(schema, name) ? name : DEFAULT_THEME;
 }
 
 /**
@@ -144,19 +214,14 @@ export interface BuildCall {
 }
 
 /**
- * The call a preset is built with over a schema - also what `style-code.ts` writes into the generated
+ * The call a theme is built with over a schema - also what `style-code.ts` writes into the generated
  * code, so the code and the map cannot describe two different styles.
  *
- * Every preset is a theme of every schema's builder since v7, so there is always a call to make.
+ * Every theme belongs to every schema's builder since v7, so there is always a call to make.
  * `satellite` used to be the exception - imagery with an `osm()` overlay, Shortbread only - and left
  * with [S11.1](../../../docs/history.md): it is a background, not a way to draw vector data.
  */
-export function buildCall(
-	preset: BuiltPreset,
-	schema: Schema,
-	urls: BuildUrls,
-	recolor: RecolorOptions = {}
-): BuildCall {
+export function buildCall(theme: Palette, schema: Schema, urls: BuildUrls, recolor: RecolorOptions = {}): BuildCall {
 	const { tiles, ...assets } = urls;
 	const recolored = Object.keys(recolor).length > 0 ? { recolor } : {};
 	const target = SCHEMAS[schema];
@@ -165,7 +230,7 @@ export function buildCall(
 	// in Studio is `tauri://localhost`: the imagery was a 404 and the satellite map black. Outside a
 	// browser they use versatiles.org, so tests in Node never saw it. Naming the base makes both agree.
 	const named = { base: PUBLIC_BASE, ...(tiles === undefined ? {} : { [target.tiles]: tiles }), ...assets };
-	return { name: target.name, module: target.module, options: { theme: THEMES[preset], urls: named, ...recolored } };
+	return { name: target.name, module: target.module, options: { theme, urls: named, ...recolored } };
 }
 
 /**
@@ -192,7 +257,7 @@ export function tileset(schema: Schema, tiles: string[]): TileSource {
 }
 
 /**
- * Builds a preset's style over a schema.
+ * Builds a theme's style over a schema.
  *
  * **Without the slots.** The builders lay four invisible `slot-*` layers where a fill, a street, a
  * symbol and a label run begin, for an application to insert its own layers at. Studio inserts by
@@ -201,12 +266,12 @@ export function tileset(schema: Schema, tiles: string[]): TileSource {
  * as a row of its own that draws nothing.
  */
 export function build(
-	preset: BuiltPreset,
+	theme: Palette,
 	urls: BuildUrls,
 	recolor: RecolorOptions = {},
 	schema: Schema = 'shortbread'
 ): StyleSpecification {
-	const call = buildCall(preset, schema, urls, recolor);
+	const call = buildCall(theme, schema, urls, recolor);
 	const builder = SCHEMAS[schema].builder as (options: object) => unknown;
 	return withoutSlots(builder(call.options) as StyleSpecification);
 }

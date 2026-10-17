@@ -17,10 +17,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
 import StylePane from './StylePane.svelte';
 
-const VECTOR = { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} };
+const VECTOR = { type: 'vector', theme: 'colorful', recolor: {}, overrides: {} };
 
 const noop = () => ({
-	setPreset: vi.fn(),
+	setTheme: vi.fn(),
 	setKind: vi.fn(),
 	setRaster: vi.fn(),
 	setHillshade: vi.fn(),
@@ -59,12 +59,28 @@ describe('what the pane offers for each kind of tileset', () => {
 	// **The layer tree is no longer here.** It became project-wide when order stopped belonging to
 	// sources, so this pane says how one source is *drawn* and the Layers pane says where those
 	// layers land ([the layer stack](../../../../docs/layers.md)).
-	it('offers presets for Shortbread vector tiles, and no layer tree', () => {
+	it('offers the themes for Shortbread vector tiles, and no layer tree', () => {
 		open({ layers: ['water_polygons', 'street_polygons', 'boundaries'] });
 
-		expect(screen.getByText('Preset')).toBeTruthy();
-		expect(screen.getByText('Colorful')).toBeTruthy();
+		const picker = screen.getByLabelText('Theme') as HTMLSelectElement;
+		expect(picker.value).toBe('colorful');
+		// The library's list, grouped: its own palettes with their dark partners, then the lookalikes.
+		const groups = [...picker.querySelectorAll('optgroup')].map((group) => group.label);
+		expect(groups).toEqual(['Palettes', 'Lookalikes']);
+		expect([...picker.options].map((option) => option.value)).toContain('gray-dark');
+		expect([...picker.options].map((option) => option.value)).toContain('positrino');
 		expect(screen.queryByText('Layers')).toBeNull();
+	});
+
+	// A hand-edited file, or one from a build with a theme this one lacks: the default is drawn, and
+	// the pane says so instead of showing an empty dropdown (S11.3).
+	it('says when the recipe names a theme this build does not have', () => {
+		open({
+			appearance: { ...VECTOR, theme: 'no-such-theme' },
+			layers: ['water_polygons', 'street_polygons', 'boundaries']
+		});
+		expect((screen.getByLabelText('Theme') as HTMLSelectElement).value).toBe('colorful');
+		expect(screen.getByText(/names a theme \(no-such-theme\) this build does not have/)).toBeTruthy();
 	});
 
 	// **The bug S6.3 fixed.** Every preset was selectable over a photograph and none of them did
@@ -77,8 +93,7 @@ describe('what the pane offers for each kind of tileset', () => {
 			tileSchema: 'rgb'
 		});
 
-		expect(screen.queryByText('Preset')).toBeNull();
-		expect(screen.queryByText('Colorful')).toBeNull();
+		expect(screen.queryByLabelText('Theme')).toBeNull();
 		expect(screen.getByText('Opacity')).toBeTruthy();
 		expect(screen.getByText('Scaling')).toBeTruthy();
 	});
@@ -106,8 +121,7 @@ describe('what the pane offers for each kind of tileset', () => {
 		open({ appearance: { type: 'inspector', overrides: {} }, layers: ['parcels', 'roads'] });
 
 		expect(screen.getByText('Inspector style')).toBeTruthy();
-		expect(screen.queryByText('Preset')).toBeNull();
-		expect(screen.queryByText('Colorful')).toBeNull();
+		expect(screen.queryByLabelText('Theme')).toBeNull();
 		expect(screen.queryByText('Invert brightness')).toBeNull();
 		// Reading them as a schema is how a theme comes back, and the picker is still there to do it.
 		expect(screen.getByLabelText('Read as')).toBeTruthy();
@@ -130,10 +144,10 @@ describe('what the pane offers for each kind of tileset', () => {
 });
 
 describe('what a press records', () => {
-	it('records the preset that was pressed, against the source it was given', async () => {
+	it('records the theme that was chosen, by the name the library spells it', async () => {
 		const actions = open({ layers: ['water_polygons', 'street_polygons', 'boundaries'] });
-		await fireEvent.click(screen.getByRole('button', { name: 'Neutrino' }));
-		expect(actions.setPreset).toHaveBeenCalledWith('neutrino');
+		await fireEvent.change(screen.getByLabelText('Theme'), { target: { value: 'muted' } });
+		expect(actions.setTheme).toHaveBeenCalledWith('muted');
 	});
 
 	// A slider commits once, on release, and previews before that - the undo stack sees one entry.

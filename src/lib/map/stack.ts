@@ -14,6 +14,7 @@
 
 import type { StyleSpecification } from 'maplibre-gl';
 import type { Preview, Recipe, Segment, SourceKind, SourceStyle } from '../ipc/commands';
+import { DEFAULT_THEME } from './builders';
 import { sourceKind } from './source-kind';
 import { declaredLayers } from './tile-json';
 import { composeStyle, type Composed, type StackEntry } from './style';
@@ -38,7 +39,7 @@ export function unstyled(kind: SourceKind | null): SourceStyle {
 		case 'vectorOther':
 			return { kind: null, appearance: { type: 'inspector', overrides: {} } };
 		default:
-			return { kind: null, appearance: { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} } };
+			return { kind: null, appearance: { type: 'vector', theme: DEFAULT_THEME, recolor: {}, overrides: {} } };
 	}
 }
 

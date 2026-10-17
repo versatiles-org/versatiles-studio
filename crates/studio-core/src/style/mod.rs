@@ -43,26 +43,13 @@ pub fn is_exportable(path: &Path) -> bool {
 		.is_some_and(|extension| EXPORTABLE.contains(&extension.as_str()))
 }
 
-/// Where a style starts before anything is adjusted.
+/// The theme a source starts from before anything is adjusted, when nobody has chosen one.
 ///
-/// The five are named as `@versatiles/style` v5 named its builders. v6 folded them into one `osm()`
-/// builder with a `theme` each, and the webview translates (`builders.ts`) rather than this changing
-/// the names: they are what every saved project says.
-///
-/// **No `satellite`** ([S11.1](../../../docs/history.md)). It was imagery with an OSM overlay - a
-/// background with a themed vector source on top, which Studio already says with the background
-/// control and a theme - and offering it as a way to draw *vector* data was a control that drew
-/// something else.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
-#[cfg_attr(feature = "bindings", derive(specta::Type))]
-#[serde(rename_all = "lowercase")]
-pub enum Preset {
-	#[default]
-	Colorful,
-	Eclipse,
-	Graybeard,
-	Neutrino,
-	Shadow,
+/// `@versatiles/style`'s own default, and the one every builder has.
+pub const DEFAULT_THEME: &str = "colorful";
+
+fn default_theme() -> String {
+	DEFAULT_THEME.to_string()
 }
 
 /// The adjustments applied to every colour in the style at once (D1).
@@ -302,10 +289,18 @@ pub struct Hillshade {
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub enum Appearance {
-	/// Vector tiles of a schema a builder knows: a preset, the adjustments over it, and whatever
+	/// Vector tiles of a schema a builder knows: a theme, the adjustments over it, and whatever
 	/// layers were changed by hand.
 	Vector {
-		preset: Preset,
+		/// A palette name as `@versatiles/style` spells it - `colorful`, `gray-dark`, `positrino`.
+		///
+		/// **The library's word, stored as a string** ([S11.3](../../../docs/history.md)). It used to be
+		/// an enum of v5's five builder names, translated to v7's themes in the webview; the library
+		/// has twenty-four now and lists them itself, so this end stores what it says and never
+		/// renders one (Q36). The webview checks the name against the builder's list and treats one
+		/// it does not know as the default rather than as an error.
+		#[serde(default = "default_theme")]
+		theme: String,
 		recolor: Recolor,
 		/// By layer id. Empty for a style nobody has edited by hand.
 		overrides: BTreeMap<String, LayerOverride>,
@@ -331,7 +326,7 @@ pub enum Appearance {
 impl Default for Appearance {
 	fn default() -> Self {
 		Self::Vector {
-			preset: Preset::default(),
+			theme: default_theme(),
 			recolor: Recolor::default(),
 			overrides: BTreeMap::new(),
 		}
@@ -683,7 +678,7 @@ mod tests {
 			SourceStyle {
 				kind: None,
 				appearance: Appearance::Vector {
-					preset: Preset::Graybeard,
+					theme: "gray".to_string(),
 					recolor: Recolor {
 						invert_brightness: Some(true),
 						rotate: Some(35.0),
