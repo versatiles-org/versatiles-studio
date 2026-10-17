@@ -9,9 +9,13 @@
  * **Readings, not a verdict.** `52.52, 13.40` is lat/lng or lng/lat depending on who wrote it -
  * Google Maps, OSM links and Wikipedia write latitude first, GeoJSON and the readout in the corner
  * write longitude first - and both are valid whenever both numbers are under 90. Rather than guessing,
- * every reading is offered, lat/lng first as the likelier, and each is titled by where it *is*
- * (`52.52° N, 13.4° E`) so the two cannot be mistaken for each other. Where only one order is
- * possible, only one is offered.
+ * every reading is offered, and each is titled by where it *is* (`52.52° N, 13.4° E`) so the two
+ * cannot be mistaken for each other. Where only one order is possible - a number over 85, or compass
+ * letters that say which is which - only one is offered.
+ *
+ * **Where each reading lands decides which comes first** (`rank`). `52.52° N` and `52.52° E` are
+ * hard to tell apart in the head; "in your data" and "6,100 km south-east" are not. Both are worked
+ * out here, from the map, without asking anyone.
  */
 
 import { tileToLngLat } from './tile-grid';
@@ -50,7 +54,7 @@ const fmt = (value: number) => String(Number(value.toFixed(6)));
 export function parseQuery(text: string): Candidate[] {
 	const input = text.trim();
 	if (!input) return [];
-	return osmLink(input) ?? tile(input) ?? numbers(input) ?? [];
+	return osmLink(input) ?? tile(input) ?? notation(input) ?? numbers(input) ?? [];
 }
 
 /**
@@ -85,7 +89,7 @@ function osmLink(input: string): Candidate[] | null {
 	if (!match) return null;
 	const [zoom, lat, lng] = match.slice(1).map(Number);
 	if (!isLat(lat) || !isLng(lng) || !isZoom(zoom)) return null;
-	return [point(lng, lat, zoom, 'from a map link')];
+	return [point(lng, lat, zoom, ['from a map link'])];
 }
 
 /** Two, three or four numbers: a coordinate, a coordinate and a zoom, or a bounding box. */
@@ -117,24 +121,206 @@ function numbers(input: string): Candidate[] | null {
 	const [a, b, zoom] = values;
 	if (!isZoom(zoom)) return null;
 
+	return bothOrders(a, b, zoom, []);
+}
+
+/// Two numbers with nothing to say which is which: every order that can be true, lat/lng first.
+function bothOrders(a: number, b: number, zoom: number | undefined, how: string[]): Candidate[] | null {
 	const readings: Candidate[] = [];
-	if (isLat(a) && isLng(b)) readings.push(point(b, a, zoom, 'read as latitude, longitude'));
-	if (isLng(a) && isLat(b) && a !== b) readings.push(point(a, b, zoom, 'read as longitude, latitude'));
+	if (isLat(a) && isLng(b)) readings.push(point(b, a, zoom, ['lat, lng', ...how]));
+	if (isLng(a) && isLat(b) && a !== b) readings.push(point(a, b, zoom, ['lng, lat', ...how]));
 	return readings.length > 0 ? readings : null;
+}
+
+// -- written coordinates -----------------------------------------------------------------------
+
+/** What a compass letter says: which axis, and which side of it. German `O` (Ost) is east. */
+const HEMISPHERES: Record<string, { axis: 'lat' | 'lng'; sign: 1 | -1 }> = {
+	N: { axis: 'lat', sign: 1 },
+	S: { axis: 'lat', sign: -1 },
+	E: { axis: 'lng', sign: 1 },
+	O: { axis: 'lng', sign: 1 },
+	W: { axis: 'lng', sign: -1 }
+};
+
+/** How a part was written, most detailed last - a pair is labelled by its more detailed half. */
+const NOTATIONS = ['decimal', 'minutes', 'seconds'] as const;
+type Notation = (typeof NOTATIONS)[number];
+const NOTATION_LABEL: Record<Notation, string | null> = {
+	decimal: null,
+	minutes: 'degrees, decimal minutes',
+	seconds: 'degrees, minutes, seconds'
+};
+
+/** One half of a written coordinate. */
+interface Part {
+	value: number;
+	/** Fixed by a compass letter, or open. */
+	axis: 'lat' | 'lng' | null;
+	notation: Notation;
+}
+
+const NUM = String.raw`\d+(?:\.\d+)?`;
+/// Degrees, then minutes and seconds if written - each with its mark, since without them `52 31 7`
+/// is three numbers, not one angle.
+const BODY = String.raw`([-+]?${NUM})\s*°?\s*(?:(${NUM})\s*'\s*(?:(${NUM})\s*"\s*)?)?`;
+/// A letter before or after, not both: either alternative is one way of writing a part.
+const PART = String.raw`(?:([NSEWO])\s*${BODY}|${BODY}([NSEWO])?)`;
+const WRITTEN = new RegExp(String.raw`^${PART}\s*[,;]?\s*${PART}$`, 'i');
+
+/**
+ * A coordinate written the way a page or a device writes it: `52.52 N, 13.40 E`, `13.4E 52.52N`,
+ * `52° 31′ 7″ N, 13° 24′ 30″ E`, `52°31.12'N 13°24.5'E`. Only text with a compass letter or a
+ * degree, minute or second mark comes here; plain numbers are `numbers`', which also reads a zoom
+ * and a box.
+ */
+function notation(text: string): Candidate[] | null {
+	// The typographic marks and the keyboard ones mean the same; `''` is a second written with what is
+	// on the keyboard.
+	const input = text
+		.replace(/[′’‘´`]/g, "'")
+		.replace(/[″“”]|''/g, '"')
+		.replace(/º/g, '°');
+	if (!/[NSEWO°'"]/i.test(input)) return null;
+	const match = WRITTEN.exec(input);
+	if (!match) return null;
+
+	// Each `PART` is eight groups, two alternatives of four: a letter and a body, or a body and a
+	// letter.
+	const parts = [match.slice(1, 9), match.slice(9, 17)].map(([before, ...rest]) =>
+		before ? part(rest.slice(0, 3), before) : part(rest.slice(3, 6), rest[6])
+	);
+	if (parts.some((found) => found === null)) return null;
+	const [a, b] = parts as Part[];
+
+	const finest = NOTATIONS[Math.max(NOTATIONS.indexOf(a.notation), NOTATIONS.indexOf(b.notation))];
+	const how = NOTATION_LABEL[finest] ? [NOTATION_LABEL[finest]] : [];
+
+	// One letter is enough: the other half is whichever axis is left.
+	if (a.axis || b.axis) {
+		const aAxis = a.axis ?? (b.axis === 'lat' ? 'lng' : 'lat');
+		const bAxis = b.axis ?? (aAxis === 'lat' ? 'lng' : 'lat');
+		if (aAxis === bAxis) return null;
+		const [lat, lng] = aAxis === 'lat' ? [a.value, b.value] : [b.value, a.value];
+		if (!isLat(lat) || !isLng(lng)) return null;
+		return [point(lng, lat, undefined, how)];
+	}
+	return bothOrders(a.value, b.value, undefined, how);
+}
+
+/** A part's number, or `null` for one no one could have meant - 75 minutes, or `-52 S`. */
+function part([degrees, minutes, seconds]: (string | undefined)[], letter: string | undefined): Part | null {
+	if (degrees === undefined) return null;
+	const negative = degrees.startsWith('-');
+	const whole = Math.abs(Number(degrees));
+	if (minutes !== undefined && (!Number.isInteger(whole) || Number(minutes) >= 60)) return null;
+	if (seconds !== undefined && (!Number.isInteger(Number(minutes)) || Number(seconds) >= 60)) return null;
+	let value = whole + Number(minutes ?? 0) / 60 + Number(seconds ?? 0) / 3600;
+
+	const hemisphere = letter ? HEMISPHERES[letter.toUpperCase()] : undefined;
+	if (hemisphere && negative) return null;
+	if (negative) value = -value;
+	if (hemisphere) value *= hemisphere.sign;
+	return {
+		value,
+		axis: hemisphere?.axis ?? null,
+		notation: seconds !== undefined ? 'seconds' : minutes !== undefined ? 'minutes' : 'decimal'
+	};
 }
 
 /** Where a point is, in words that do not depend on an order: `52.52° N, 13.4° E`. */
 const place = (lng: number, lat: number) =>
 	`${fmt(Math.abs(lat))}° ${lat < 0 ? 'S' : 'N'}, ${fmt(Math.abs(lng))}° ${lng < 0 ? 'W' : 'E'}`;
 
-function point(lng: number, lat: number, zoom: number | undefined, how: string): Candidate {
+function point(lng: number, lat: number, zoom: number | undefined, how: string[]): Candidate {
 	return {
 		type: 'coordinate',
 		title: place(lng, lat),
-		context: zoom === undefined ? how : `${how} · zoom ${fmt(zoom)}`,
+		context: [...how, zoom === undefined ? null : `zoom ${fmt(zoom)}`].filter(Boolean).join(' · '),
 		target: { kind: 'point', center: [lng, lat], zoom },
 		marker: true
 	};
+}
+
+// -- where a reading lands ---------------------------------------------------------------------
+
+type Box = [number, number, number, number];
+
+/** What the map is showing, for `rank`. */
+export interface View {
+	center: { lng: number; lat: number };
+	/** What is on screen, [west, south, east, north]. */
+	bounds: Box | null;
+	/** The extents of the data on the map - the containers that declare one. */
+	data: Box[];
+}
+
+/**
+ * The extents worth comparing against: a source covering the whole world says nothing about where
+ * anyone meant - the background has one, and so does a planet extract.
+ */
+export function dataExtents(sources: Record<string, unknown> | undefined): Box[] {
+	return Object.values(sources ?? {}).flatMap((source) => {
+		const bounds = (source as { bounds?: unknown })?.bounds;
+		if (!Array.isArray(bounds) || bounds.length !== 4 || !finite(bounds as number[])) return [];
+		const [west, south, east, north] = bounds as Box;
+		const world = east - west >= 359 && north - south >= 160;
+		return world ? [] : [bounds as Box];
+	});
+}
+
+/// Across the antimeridian too: a box from 170 to -170 has its west east of its east.
+const contains = ([west, south, east, north]: Box, [lng, lat]: [number, number]) =>
+	lat >= south && lat <= north && (west <= east ? lng >= west && lng <= east : lng >= west || lng <= east);
+
+const EARTH_KM = 6371;
+const rad = (degrees: number) => (degrees * Math.PI) / 180;
+
+/** Great-circle distance in km, and the compass direction it is in, from `from` to `to`. */
+function heading(from: { lng: number; lat: number }, [lng, lat]: [number, number]) {
+	const [φ1, φ2, Δλ] = [rad(from.lat), rad(lat), rad(lng - from.lng)];
+	const a = Math.sin((φ2 - φ1) / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+	const km = 2 * EARTH_KM * Math.asin(Math.min(1, Math.sqrt(a)));
+	const bearing = Math.atan2(
+		Math.sin(Δλ) * Math.cos(φ2),
+		Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ)
+	);
+	const DIRECTIONS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+	const direction = DIRECTIONS[Math.round(((bearing * 180) / Math.PI + 360) / 45) % 8];
+	return { km, direction };
+}
+
+/// As precise as a glance needs: `4.2 km`, `320 km`, `6,100 km`.
+function distance(km: number): string {
+	const rounded = km < 10 ? Number(km.toFixed(1)) : km < 1000 ? Math.round(km) : Math.round(km / 100) * 100;
+	return `${rounded.toLocaleString('en')} km`;
+}
+
+/**
+ * Coordinates labelled with where they land, the likelier first: inside the data on the map, then
+ * nearer the view, then the order they came in - lat/lng before lng/lat.
+ *
+ * **The data first** because Studio is for looking at it: a reading inside the open container is
+ * almost certainly the one meant, wherever the view happens to be. Other results are left alone.
+ */
+export function rank(candidates: Candidate[], view: View | null): Candidate[] {
+	if (!view) return candidates;
+	const scored = candidates.map((candidate) => {
+		if (candidate.type !== 'coordinate' || candidate.target.kind !== 'point') return { candidate, score: null };
+		const at = candidate.target.center;
+		const inData = view.data.some((box) => contains(box, at));
+		const inView = view.bounds !== null && contains(view.bounds, at);
+		const { km, direction } = heading(view.center, at);
+		const where = [inData ? 'in your data' : null, inView ? 'in view' : `${distance(km)} ${direction}`];
+		const context = [...where, candidate.context].filter(Boolean).join(' · ');
+		return { candidate: { ...candidate, context }, score: [inData ? 0 : 1, inView ? 0 : km] };
+	});
+	// Only coordinates move, and only among themselves - a sort is stable, so ties keep their order.
+	const points = scored
+		.filter((entry) => entry.score !== null)
+		.sort((a, b) => a.score![0] - b.score![0] || a.score![1] - b.score![1]);
+	let next = 0;
+	return scored.map((entry) => (entry.score === null ? entry.candidate : points[next++].candidate));
 }
 
 // -- places ------------------------------------------------------------------------------------

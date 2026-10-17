@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { geocode, geocodeUrl, geocoderLanguage, parseQuery, placesFrom } from './search';
+import { dataExtents, geocode, geocodeUrl, geocoderLanguage, parseQuery, placesFrom, rank, type View } from './search';
 
 const titles = (text: string) => parseQuery(text).map((candidate) => candidate.title);
 const contexts = (text: string) => parseQuery(text).map((candidate) => candidate.context);
@@ -35,7 +35,7 @@ describe('a coordinate', () => {
 	 */
 	it('offers both orders when both are possible, lat/lng first, titled by where each is', () => {
 		expect(titles('52.52, 13.40')).toEqual(['52.52° N, 13.4° E', '13.4° N, 52.52° E']);
-		expect(contexts('52.52, 13.40')).toEqual(['read as latitude, longitude', 'read as longitude, latitude']);
+		expect(contexts('52.52, 13.40')).toEqual(['lat, lng', 'lng, lat']);
 	});
 
 	it('offers only the order that can be true', () => {
@@ -59,6 +59,93 @@ describe('a coordinate', () => {
 	// `map=12/52/13` is also three whole numbers with slashes - which the tile reading would take.
 	it('reads a map link as a link even when its numbers are whole', () => {
 		expect(parseQuery('https://example.org/#map=12/52/13')[0].type).toBe('coordinate');
+	});
+});
+
+describe('a written coordinate', () => {
+	const BERLIN = '52.52° N, 13.4° E';
+
+	// The letters say which number is which, so there is one reading, in either order.
+	it('reads compass letters, before or after, in either order', () => {
+		for (const text of ['52.52 N, 13.40 E', '13.40E 52.52N', 'N 52.52 E 13.40', '52.52n 13.4e', '52.52N13.40E']) {
+			expect(titles(text), text).toEqual([BERLIN]);
+		}
+		expect(titles('33.9 S, 70.6 W')).toEqual(['33.9° S, 70.6° W']);
+		// German: Ost.
+		expect(titles('52.52 N, 13.40 O')).toEqual([BERLIN]);
+	});
+
+	it('takes one letter as enough', () => {
+		expect(titles('52.52 N, 13.40')).toEqual([BERLIN]);
+		expect(titles('13.40 E, 52.52')).toEqual([BERLIN]);
+	});
+
+	it('reads degrees, minutes and seconds, with typographic marks or keyboard ones', () => {
+		const DMS = '52.518611° N, 13.408333° E';
+		expect(titles('52° 31′ 7″ N, 13° 24′ 30″ E')).toEqual([DMS]);
+		expect(titles(`52°31'7"N 13°24'30"E`)).toEqual([DMS]);
+		expect(titles(`52°31'7''N 13°24'30''E`)).toEqual([DMS]);
+		expect(contexts('52° 31′ 7″ N, 13° 24′ 30″ E')).toEqual(['degrees, minutes, seconds']);
+	});
+
+	it('reads degrees and decimal minutes, as a GPS writes them', () => {
+		expect(titles(`52°31.12'N 13°24.5'E`)).toEqual(['52.518667° N, 13.408333° E']);
+		expect(contexts(`52°31.12'N 13°24.5'E`)).toEqual(['degrees, decimal minutes']);
+	});
+
+	it('offers both orders when there are marks but no letters', () => {
+		expect(contexts('52° 31′ 7″, 13° 24′ 30″')).toEqual([
+			'lat, lng · degrees, minutes, seconds',
+			'lng, lat · degrees, minutes, seconds'
+		]);
+	});
+
+	it('refuses what no one could have meant', () => {
+		expect(parseQuery('52° 75′ N, 13° E'), 'minutes over 60').toEqual([]);
+		expect(parseQuery('-52 S, 13 E'), 'a sign and a letter').toEqual([]);
+		expect(parseQuery('52.52 N, 13.40 N'), 'two latitudes').toEqual([]);
+	});
+});
+
+describe('where a reading lands', () => {
+	const VIEW: View = { center: { lng: 13.4, lat: 52.5 }, bounds: [13, 52.3, 13.8, 52.7], data: [] };
+	const contexts = (text: string, view: View) => rank(parseQuery(text), view).map((found) => found.context);
+
+	it('says how far and which way each reading is from the view', () => {
+		expect(contexts('52.52, 13.40', VIEW)).toEqual(['in view · lat, lng', '5,600 km south-east · lng, lat']);
+		expect(contexts('52.0, 13.4', VIEW)[0]).toBe('56 km south · lat, lng');
+	});
+
+	// The order a pair is written in says least: where it lands says most.
+	it('puts the nearer reading first', () => {
+		const far: View = { ...VIEW, center: { lng: 52, lat: 13 }, bounds: [51, 12, 53, 14] };
+		expect(rank(parseQuery('52.52, 13.40'), far).map((found) => found.title)).toEqual([
+			'13.4° N, 52.52° E',
+			'52.52° N, 13.4° E'
+		]);
+	});
+
+	// Studio is for looking at data: a reading inside it is the one meant, wherever the view is.
+	it('puts a reading inside the data first, even when the other is nearer', () => {
+		const elsewhere: View = { center: { lng: 52, lat: 13 }, bounds: null, data: [[13, 52.3, 13.8, 52.7]] };
+		const [first] = rank(parseQuery('52.52, 13.40'), elsewhere);
+		expect(first.title).toBe('52.52° N, 13.4° E');
+		expect(first.context).toMatch(/^in your data · /);
+	});
+
+	it('leaves everything that is not a coordinate alone', () => {
+		expect(rank(parseQuery('12/2200/1343'), VIEW)).toEqual(parseQuery('12/2200/1343'));
+	});
+
+	// The background and a planet extract cover everything, so being inside them says nothing.
+	it('compares against the data, not the world', () => {
+		expect(
+			dataExtents({
+				berlin: { bounds: [13, 52.3, 13.8, 52.7] },
+				planet: { bounds: [-180, -85.05, 180, 85.05] },
+				style: { type: 'geojson' }
+			})
+		).toEqual([[13, 52.3, 13.8, 52.7]]);
 	});
 });
 

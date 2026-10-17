@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Marker, type Map as MaplibreMap } from 'maplibre-gl';
-	import { geocode, MIN_PLACE_QUERY, parseQuery, type Candidate } from './search';
+	import { dataExtents, geocode, MIN_PLACE_QUERY, parseQuery, rank, type Candidate, type View } from './search';
 	import Tooltip from './Tooltip.svelte';
 
 	// The map's search field: a place, a coordinate, a tile or a bounding box, in one box.
@@ -30,8 +30,20 @@
 	let open = $state(false);
 	let highlighted = $state(0);
 
-	/// What the text can be read as here, without asking anyone.
-	const local = $derived(parseQuery(text));
+	/// What the text can be read as here, without asking anyone - each coordinate labelled with where
+	/// it lands, the likelier first. The map is read when the text changes, not as it moves: the list
+	/// describes what was on screen when it was typed.
+	const local = $derived(rank(parseQuery(text), viewOf(map)));
+
+	function viewOf(map: MaplibreMap | undefined): View | null {
+		if (!map) return null;
+		const bounds = map.getBounds();
+		return {
+			center: map.getCenter(),
+			bounds: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()],
+			data: dataExtents(map.getStyle()?.sources)
+		};
+	}
 	/// What the geocoder found for it - only ever asked when `local` is empty.
 	let places = $state<Candidate[]>([]);
 	let status = $state<'idle' | 'searching' | 'failed'>('idle');
@@ -231,7 +243,7 @@
 				<dt>Berlin</dt>
 				<dd>a place or address</dd>
 				<dt>52.52, 13.40</dt>
-				<dd>latitude, longitude</dd>
+				<dd>lat, lng · or lng, lat</dd>
 				<dt>12/2200/1343</dt>
 				<dd>a tile z/x/y</dd>
 			</dl>

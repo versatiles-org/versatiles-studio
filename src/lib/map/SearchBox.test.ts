@@ -35,6 +35,11 @@ function fakeMap() {
 	return {
 		getCenter: () => ({ lng: 13.4, lat: 52.5 }),
 		getZoom: () => 10,
+		getBounds: () => ({ getWest: () => 13, getSouth: () => 52.3, getEast: () => 13.8, getNorth: () => 52.7 }),
+		// One container, around Berlin; the background covers the world and says nothing.
+		getStyle: () => ({
+			sources: { berlin: { bounds: [13, 52.3, 13.8, 52.7] }, background: { bounds: [-180, -85, 180, 85] } }
+		}),
 		flyTo: vi.fn(),
 		fitBounds: vi.fn()
 	};
@@ -58,8 +63,8 @@ describe('what it reads without asking anyone', () => {
 		const { map, field, search } = show();
 		await type(field, '52.52, 13.40');
 		expect(options()).toEqual([
-			'⌖ 52.52° N, 13.4° E read as latitude, longitude',
-			'⌖ 13.4° N, 52.52° E read as longitude, latitude'
+			'⌖ 52.52° N, 13.4° E in your data · in view · lat, lng',
+			'⌖ 13.4° N, 52.52° E 5,600 km south-east · lng, lat'
 		]);
 		expect(map.flyTo).not.toHaveBeenCalled();
 		await new Promise((resolve) => setTimeout(resolve, 300));
@@ -72,6 +77,13 @@ describe('what it reads without asking anyone', () => {
 		await fireEvent.keyDown(field, { key: 'Enter' });
 		expect(map.flyTo).toHaveBeenCalledWith(expect.objectContaining({ center: [13.4, 52.52] }));
 		expect(markers.map((marker) => marker.at)).toEqual([[13.4, 52.52]]);
+	});
+
+	// Lng/lat this time, so the reading in the data is the second in the usual order - and comes first.
+	it('puts the reading inside the data first, whichever order it was written in', async () => {
+		const { field } = show();
+		await type(field, '13.40, 52.52');
+		expect(options()[0]).toBe('⌖ 52.52° N, 13.4° E in your data · in view · lng, lat');
 	});
 
 	it('takes the other reading with the arrow key', async () => {
