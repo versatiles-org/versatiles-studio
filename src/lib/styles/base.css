@@ -75,14 +75,64 @@ textarea {
  * background is ours too - three of the four inputs in the application set a border and no
  * background, so they inherited light text onto the UA's white box. A component may override this
  * (a field floating over the map uses --float-bg); it may not leave it to the browser.
+ *
+ * **Text fields only.** Written as a bare `input` it reached every type: a range slider wore a text
+ * field's border and padding, and a colour well was a bordered box several times the height of the
+ * row it sat in unless the component undid it - two did, one did not. The native controls get a
+ * baseline of their own below.
  */
-input,
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']),
 select,
 textarea {
 	background: var(--surface);
 	border: 1px solid var(--rule);
 	border-radius: var(--radius);
 	padding: var(--space-2) var(--space-3);
+}
+
+/*
+ * Native controls take Studio's one emphatic colour rather than the platform's blue. One
+ * declaration, because it was written in one component and missing from the other four, so a
+ * checkbox in the Style pane and one in the background menu were two colours.
+ */
+input[type='checkbox'],
+input[type='radio'],
+input[type='range'] {
+	accent-color: var(--accent);
+}
+
+/*
+ * A colour well, sized to the row it sits in rather than to the browser's idea of one. The same in
+ * the Style pane, a node argument and a layer row; a component may set its size, not its frame.
+ */
+input[type='color'] {
+	flex: none;
+	inline-size: 1.6rem;
+	block-size: 1.6rem;
+	padding: 0;
+	background: none;
+	border: 1px solid var(--rule);
+	border-radius: var(--radius);
+	cursor: pointer;
+}
+
+input[type='color']::-webkit-color-swatch-wrapper {
+	padding: 2px;
+}
+
+input[type='color']::-webkit-color-swatch {
+	border: 0;
+	border-radius: var(--radius);
+}
+
+/*
+ * Numbers are read down a column, so they line up on the right and keep their width as the digits
+ * change. This was right-aligned in a node card, right in the crop, centred in a layer row and left
+ * in a dialog - four answers to a question with one.
+ */
+input[type='number'] {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
 }
 
 /*
@@ -182,6 +232,32 @@ button:disabled {
 	border-color: var(--accent);
 	background: var(--accent);
 	color: var(--accent-ink);
+}
+
+/*
+ * A toggle that is on. Not `.primary`: that is the one button that commits, and a mode that stays
+ * lit - "Draw on map" while the map is taking a rectangle - borrowed it, so the pane had two commit
+ * buttons and one of them was a switch. The accent on the edge and a tint on the face say "pressed"
+ * without saying "go".
+ */
+.button.on {
+	border-color: var(--accent);
+	background: color-mix(in srgb, var(--accent) 12%, var(--chrome));
+}
+
+/*
+ * A link: a word that goes somewhere, underlined to say so. A `button` rather than an `<a>`, because
+ * every link in Studio hands a URL to the system browser or retries something, and a real anchor
+ * would try to navigate the window.
+ */
+.link {
+	padding: 0;
+	color: inherit;
+	text-decoration: underline;
+}
+
+.link:hover:not(:disabled) {
+	color: var(--ink);
 }
 
 /* The UA's placeholder is a washed-out version of the text colour, which lands differently in each
@@ -311,11 +387,69 @@ samp {
 }
 
 .icon:disabled {
-	opacity: 0.35;
+	opacity: var(--disabled-opacity);
 }
 
 .icon.danger:hover:not(:disabled) {
 	color: var(--error);
+}
+
+/* A glyph that is a toggle, and on: the draw button while the map is taking a rectangle. */
+.icon.on {
+	color: var(--accent);
+}
+
+/*
+ * The "+ …" that adds something: an operation on the rail, a parameter in a node, a source at the
+ * foot of the list, a step in the curve dialog, a view in the saved-views menu. Five places at
+ * three sizes before this; secondary ink that comes forward on hover, at label size, since it sits
+ * in a list and should read as the row after the last one rather than as a button.
+ */
+.add {
+	padding: 0;
+	color: var(--ink-2);
+	font-size: var(--text-xs);
+	text-align: left;
+}
+
+.add:hover:not(:disabled) {
+	color: var(--ink);
+}
+
+/*
+ * A surface that floats: a menu, a picker, a help popover, a dropdown panel, a result list, the
+ * feature popup. Six recipes before this, differing in radius, in ground and in whether the map
+ * blurred through. One face, so two floating things never read as two kinds of thing; where it
+ * sits is the owner's.
+ */
+.popover {
+	background: var(--float-bg);
+	border: 1px solid var(--rule);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow);
+	backdrop-filter: blur(6px);
+	color: var(--ink);
+}
+
+/*
+ * Facts: a label and a value per row. The export dialog, the curve dialog and the inspector each
+ * drew one, with three gaps and two faces for the value.
+ */
+.facts {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	gap: var(--space-1) var(--space-3);
+	margin: 0;
+	font-size: var(--text-sm);
+}
+
+.facts dt {
+	color: var(--ink-2);
+}
+
+.facts dd {
+	margin: 0;
+	min-width: 0;
 }
 
 /* The rotating ▸ of a disclosure. Four components drew it; one rule turns it. */

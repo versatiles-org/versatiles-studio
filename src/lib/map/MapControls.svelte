@@ -368,7 +368,7 @@
 		}
 
 		&:disabled {
-			opacity: 0.4;
+			opacity: var(--disabled-opacity);
 		}
 
 		&.on {
@@ -435,7 +435,7 @@
 			}
 
 			&:disabled {
-				opacity: 0.4;
+				opacity: var(--disabled-opacity);
 			}
 		}
 
@@ -535,11 +535,6 @@
 		/* Opaque: `--float-bg` is this at 94%, which let the options scrolling under it show through. */
 		background: var(--surface);
 		font-size: var(--text-sm);
-
-		/* Studio's one emphatic colour, not the platform's blue. */
-		input {
-			accent-color: var(--accent);
-		}
 
 		&.off {
 			color: var(--ink-2);

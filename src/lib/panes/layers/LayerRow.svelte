@@ -304,19 +304,19 @@
 		}
 	}
 
+	/* Smaller than the kit's colour well: a row is one line tall. The frame is `base.css`'s. */
 	.swatch {
-		width: 1.1rem;
-		height: 1.1rem;
-		flex: none;
-		padding: 0;
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
+		inline-size: 1.1rem;
+		block-size: 1.1rem;
 	}
 
+	/* Not a well: a span standing where one would be, framed the same way but dashed. */
 	.none {
+		flex: none;
 		display: grid;
 		place-items: center;
-		border-style: dashed;
+		border: 1px dashed var(--rule);
+		border-radius: var(--radius);
 		color: var(--ink-2);
 		font-size: var(--text-xs);
 	}

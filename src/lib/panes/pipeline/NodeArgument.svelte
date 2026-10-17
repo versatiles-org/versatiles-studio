@@ -410,13 +410,6 @@
 		font-size: var(--text-xs);
 	}
 
-	/* Right-aligned so the digits line up down the column, and tabular so they do not shuffle as the
-	   value changes. */
-	input[type='number'] {
-		text-align: right;
-		font-variant-numeric: tabular-nums;
-	}
-
 	/* A path is identified by its end. Truncated from the right, every file in a folder shows the
 	   same prefix and nothing that tells them apart. */
 	input.path {

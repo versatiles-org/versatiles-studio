@@ -166,7 +166,7 @@
 	<div class="toolbar">
 		<button type="button" class="button" onclick={onUseView}>This view</button>
 		<!-- Drawing is a mode the map is in, so the button that put it there stays lit. -->
-		<button type="button" class="button" class:primary={drawing} aria-pressed={drawing} onclick={onDraw}>
+		<button type="button" class="button" class:on={drawing} aria-pressed={drawing} onclick={onDraw}>
 			{drawing ? 'Drawing…' : 'Draw on map'}
 		</button>
 		<button
@@ -205,7 +205,6 @@
 			min-width: 0;
 			flex: 1;
 			font-family: var(--font-mono);
-			text-align: right;
 		}
 	}
 </style>

@@ -40,33 +40,10 @@
 />
 
 <style>
-	/*
-	 * Sized to the row it sits in rather than to the browser's idea of a colour well, which is a
-	 * button several times the height of a form field.
-	 */
-	.swatch {
-		flex: none;
-		inline-size: 1.6rem;
-		block-size: 1.6rem;
-		padding: 0;
-		background: none;
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		cursor: pointer;
-
-		&::-webkit-color-swatch-wrapper {
-			padding: 2px;
-		}
-
-		&::-webkit-color-swatch {
-			border: 0;
-			border-radius: var(--radius);
-		}
-
-		/* Nothing to show. Hatched rather than blank, so it does not read as a colour that happens to
-		   match the surface behind it. */
-		&.empty {
-			background-image: linear-gradient(135deg, transparent 45%, var(--ink-2) 45%, var(--ink-2) 55%, transparent 55%);
-		}
+	/* The well's size and frame are `base.css`'s, the same as every colour well. What is this one's
+	   own is the empty state: hatched rather than blank, so it does not read as a colour that happens
+	   to match the surface behind it. */
+	.swatch.empty {
+		background-image: linear-gradient(135deg, transparent 45%, var(--ink-2) 45%, var(--ink-2) 55%, transparent 55%);
 	}
 </style>

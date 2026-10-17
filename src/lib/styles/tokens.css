@@ -149,6 +149,12 @@
 	   so a difference of a pixel would read as two different things. */
 	--pipe-width: 2px;
 
+	/* -- State --------------------------------------------------------------------------------
+	 * How far a disabled control fades. It was .3, .35, .4 and .5 in four components, each a
+	 * reasonable guess made without the others in view; one value, so "disabled" reads the same
+	 * on a glyph in a pane, a menu item and a button on the map. */
+	--disabled-opacity: 0.4;
+
 	/* -- Elevation ----------------------------------------------------------------------------
 	 * One step, for the things that genuinely float over the map. A second was defined here and
 	 * used nowhere; add it when something needs it, not in anticipation. */
