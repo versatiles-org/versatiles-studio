@@ -175,7 +175,7 @@
 
 	<!-- `alert`, because it arrives seconds after a press and there is nothing else on screen that
 	     changed. -->
-	{#if problem}<p class="problem" role="alert">{problem}</p>{/if}
+	{#if problem}<p class="band" role="alert">{problem}</p>{/if}
 </main>
 
 <style>
@@ -188,7 +188,8 @@
 		color: var(--ink);
 	}
 
-	.problem {
+	/* The one error band in this window - surface-level, like the status bar's (Q71). */
+	.band {
 		position: absolute;
 		inset: auto 0 0;
 		margin: 0;

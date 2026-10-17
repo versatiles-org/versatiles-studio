@@ -133,7 +133,7 @@
 	<!-- What is drawn, then how the camera sits: two groups down the right edge, the zoom in the
 	     place every other map keeps it. -->
 	<div class="column">
-		<div class="group">
+		<div class="cluster">
 			<!-- **A dropdown, not a `<select>`.** A native popup on macOS obeys none of the map's chrome.
 			     `Dropdown` is the saved views' own control, so the two match by construction. -->
 			<Dropdown
@@ -239,7 +239,7 @@
 			</div>
 		</div>
 
-		<div class="group">
+		<div class="cluster">
 			<button
 				type="button"
 				class="map-button"
@@ -299,7 +299,7 @@
 
 	/* The surface every control here shares: one border and one shadow per cluster, not per button. */
 	.strip,
-	.group {
+	.cluster {
 		background: var(--float-bg);
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);
@@ -348,7 +348,7 @@
 	}
 
 	/* Square buttons stacked into one control, a rule between each. */
-	.group {
+	.cluster {
 		display: flex;
 		flex-direction: column;
 

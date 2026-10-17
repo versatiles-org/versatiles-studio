@@ -225,7 +225,7 @@
 		>
 			{#each groups as group (group.name ?? '')}
 				{#if group.name}
-					<p class="group section-label">{group.name}</p>
+					<p class="heading">{group.name}</p>
 				{/if}
 				{#each group.items as item (item.value)}
 					<button
@@ -298,9 +298,14 @@
 		padding: var(--space-1);
 	}
 
-	.group {
+	/* Which rows follow. The heading inside a group of the kit, as a line in a list: sentence case,
+	   body size, a step heavier - and never the uppercase label, which is the pane title's. */
+	.heading {
 		margin: var(--space-2) 0 var(--space-1);
 		padding: 0 var(--space-2);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		color: var(--ink);
 	}
 
 	/* One line each, clipped - `.truncate`, in the markup. What a row *means* is in the tip beside

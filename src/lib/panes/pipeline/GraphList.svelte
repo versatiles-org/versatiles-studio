@@ -129,7 +129,7 @@
 				<span class="name truncate confirming" title={graph.name}>{graph.name}</span>
 				<button
 					type="button"
-					class="confirm"
+					class="quiet danger"
 					onclick={() => {
 						removing = null;
 						onRemove(graph.id);
@@ -249,19 +249,6 @@
 		flex: 1;
 		min-width: 0;
 		color: var(--ink-2);
-	}
-
-	/* Named, not a glyph. A destructive action that cannot be undone should say which one it is,
-	   and it is the only place in the pane where --error carries a control rather than a message. */
-	.confirm {
-		flex: none;
-		padding: 0 var(--space-1);
-		font-size: var(--text-xs);
-		color: var(--error);
-
-		&:hover {
-			text-decoration: underline;
-		}
 	}
 
 	.new {

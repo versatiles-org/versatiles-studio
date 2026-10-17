@@ -62,7 +62,7 @@
      `NodeArgument`, holding a VPL parameter name - it says so in the monospace face, which is the
      distinction that was already being drawn and did not need a second one in the casing. -->
 {#snippet facts(item: ContainerInfo)}
-	<dl>
+	<dl class="facts">
 		<dt>Container</dt>
 		<dd>{item.container}</dd>
 		<dt>Tiles</dt>
@@ -160,21 +160,13 @@
 		min-width: 0;
 	}
 
+	/* The facts are the kit's; a value here is an identifier or a number, so it is read in mono. */
 	dl {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: var(--space-2) var(--space-5);
-		margin: 0 0 var(--space-3);
-	}
-
-	dt {
-		color: var(--ink-2);
+		margin-bottom: var(--space-3);
 	}
 
 	dd {
-		margin: 0;
 		font-family: var(--font-mono);
-		font-size: var(--text-sm);
 
 		&.wrap {
 			white-space: normal;

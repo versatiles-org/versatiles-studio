@@ -237,7 +237,7 @@
 
 	<!-- Generic on purpose: an example is there to show the shape, and one taken from the view would
 	     read as a result. -->
-	<div class="below hint">
+	<div class="below caption">
 		<Tooltip id={hintId} shown={hintShown}>
 			<dl>
 				<dt>Berlin</dt>
@@ -325,7 +325,7 @@
 	   the same face; it hangs close under the strip; and it is as wide as its three lines, since empty
 	   space beside them would read as room for results. It passes the pointer through to the map, so
 	   its box must too. Overrides `.below` by coming after it. */
-	.hint {
+	.caption {
 		top: calc(100% + 1px + var(--space-1));
 		left: calc(var(--space-3) - var(--space-2));
 		width: max-content;

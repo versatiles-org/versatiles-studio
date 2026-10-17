@@ -15,6 +15,7 @@
 	} from '../../ipc/commands';
 	import CropSection from './CropSection.svelte';
 	import Note from '../../common/Note.svelte';
+	import Tabs from '../../common/Tabs.svelte';
 
 	// The Pipeline pane's contents (Q22, [Q31]).
 	//
@@ -180,24 +181,18 @@
 	<!-- The tabs and what they switch between are one thing: a tab that floated a section's distance
 	     from its own body would name something it does not appear to own. -->
 	<div class="editor">
-		<div class="tabs" role="tablist" aria-label="Pipeline view">
-			{#each [['graph', 'Graph'], ['vpl', 'VPL']] as const as [id, label] (id)}
-				<button
-					type="button"
-					role="tab"
-					class="tab"
-					class:selected={tab === id}
-					aria-selected={tab === id}
-					onclick={() => (tab = id)}
-				>
-					{label}
-					<!-- Q15: the VPL tab carries the badge when the text does not parse (C4). -->
-					{#if id === 'vpl' && problems.length > 0}
-						<span class="badge" aria-label="{problems.length} problems">{problems.length}</span>
-					{/if}
-				</button>
-			{/each}
-			<div class="history">
+		<!-- Q15: the VPL tab carries the badge when the text does not parse (C4). The strip is the
+		     kit's `Tabs`; the history buttons ride at its far end. -->
+		<Tabs
+			items={[
+				{ id: 'graph', label: 'Graph' },
+				{ id: 'vpl', label: 'VPL', badge: { count: problems.length, label: `${problems.length} problems` } }
+			]}
+			selected={tab}
+			onSelect={(id) => (tab = id as 'graph' | 'vpl')}
+			label="Pipeline view"
+		>
+			{#snippet trailing()}
 				<!-- In the VPL tab only: the graph tab has no layout of its own to tidy, and a button
 			     that did nothing visible from there would read as broken. -->
 				{#if tab === 'vpl'}
@@ -226,8 +221,8 @@
 					aria-label="Redo"
 					onclick={documentActions.redo}><Icon name="redo" size="1em" /></button
 				>
-			</div>
-		</div>
+			{/snippet}
+		</Tabs>
 
 		{#if tab === 'vpl'}
 			{#each problems as problem (problem.span.start + problem.message)}
@@ -312,47 +307,6 @@
 		flex-direction: column;
 		gap: var(--gap-group);
 		min-width: 0;
-	}
-
-	.tabs {
-		display: flex;
-		align-items: center;
-		gap: var(--space-1);
-		margin: 0;
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.tab {
-		border-bottom: 2px solid transparent;
-		border-radius: 0;
-		padding: var(--space-2) var(--space-3);
-		font-size: var(--text-xs);
-		color: var(--ink-2);
-
-		&.selected {
-			color: var(--ink);
-			border-bottom-color: var(--accent);
-		}
-
-		&:focus-visible {
-			outline-offset: -2px;
-		}
-	}
-
-	.history {
-		margin-left: auto;
-		display: flex;
-		gap: var(--space-1);
-	}
-
-	.badge {
-		display: inline-block;
-		margin-left: var(--space-1);
-		padding: 0 var(--space-1);
-		border-radius: var(--radius);
-		background: var(--error);
-		color: var(--accent-ink);
-		font-size: var(--text-xs);
 	}
 
 	/* Centred, and set apart from the chain above by a rule of its own: these are what the pane is

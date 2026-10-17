@@ -369,6 +369,12 @@ samp {
 	text-decoration: underline;
 }
 
+/* The word that commits something ⌘Z cannot take back - "Delete" beside a source's name. Red at
+   rest, unlike a glyph's `.danger`: it only appears once the question has been asked. */
+.quiet.danger {
+	color: var(--error);
+}
+
 /*
  * A glyph button: ×, ✎, ↑, ↓, ↺, ▸. Secondary ink until hovered, and `.danger` for the one that
  * removes something - it reddens on hover rather than at rest, so a list of rows is not a list of

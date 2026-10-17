@@ -258,7 +258,7 @@
 		{/if}
 
 		{#if addable.length > 0}
-			<div class="add">
+			<div class="more">
 				<!-- The documentation was a `title` the platform showed at its own discretion, and
 					     for a parameter list that is where the difference between two similarly named
 					     fields lives. Here it is a line under the name. -->
@@ -363,7 +363,7 @@
 	/* Overlays the rows below rather than displacing them: help that reflows what you were reading
 	   moves the target while you aim at it, and worst on the long chains this design is for. */
 	/* Marked as not-yet-real: it is in the pane and not in the document until it has a value. */
-	.add {
+	.more {
 		padding: var(--space-1) var(--space-3) var(--space-2);
 	}
 </style>
