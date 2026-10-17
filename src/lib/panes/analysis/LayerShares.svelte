@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Field from '../../common/Field.svelte';
 	import Note from '../../common/Note.svelte';
+	import SortHeader from '../../common/SortHeader.svelte';
+	import { sortRows, type Sort } from '../../common/sort';
 	import { bytes, count } from '../../common/format';
 	import type { Contents } from '../../ipc/commands';
 	import { combine } from '../../state/contents.svelte';
@@ -14,13 +16,24 @@
 	//
 	// **One level or all of them.** A layer that is cheap over the whole pyramid can be most of a
 	// tile at the level where it is drawn, and that is the level a budget is broken at.
+	//
+	// **Sortable**, as the tile dialog's layers are. Unsorted is heaviest first already; a sort by name
+	// finds a layer, one by features finds the layers made of many small things.
 	let { contents }: { contents: Contents } = $props();
 
 	let level = $state<number | null>(null);
+	let sort = $state<Sort | null>(null);
 
 	const layers = $derived(combine(contents, level));
+	const rows = $derived(
+		sortRows(
+			layers,
+			sort,
+			(layer, by) => ({ Layer: layer.name, Share: layer.bytes, Size: layer.bytes, Features: layer.features })[by]
+		)
+	);
 	const total = $derived(layers.reduce((sum, layer) => sum + layer.bytes, 0));
-	const heaviest = $derived(layers[0]?.bytes ?? 0);
+	const heaviest = $derived(Math.max(0, ...layers.map((layer) => layer.bytes)));
 	const read = $derived(
 		level === null
 			? { read: contents.read, tiles: contents.levels.reduce((sum, at) => sum + at.tiles, 0) }
@@ -69,11 +82,15 @@
 {:else}
 	<table class="figures" aria-label="Layers">
 		<thead>
-			<tr><th scope="col">Layer</th><th scope="col">Share</th><th scope="col">Size</th><th scope="col">Features</th></tr
-			>
+			<tr>
+				<SortHeader label="Layer" first="ascending" {sort} onSort={(next) => (sort = next)} />
+				<SortHeader label="Share" {sort} onSort={(next) => (sort = next)} />
+				<SortHeader label="Size" {sort} onSort={(next) => (sort = next)} />
+				<SortHeader label="Features" {sort} onSort={(next) => (sort = next)} />
+			</tr>
 		</thead>
 		<tbody>
-			{#each layers as layer (layer.name)}
+			{#each rows as layer (layer.name)}
 				<tr>
 					<th scope="row">
 						<span class="name">{layer.name}</span>

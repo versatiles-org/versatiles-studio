@@ -168,6 +168,20 @@ describe('the heat map switch', () => {
 			expect(screen.getByText(/A sample: 2 of 4 tiles read/)).toBeTruthy();
 		});
 
+		/** The bars keep the heaviest layer's scale whichever row comes first. */
+		it('sorts by a column, the bars still to one scale', async () => {
+			show({ measurement: measured(), scan: scanned });
+			const table = screen.getByRole('table', { name: 'Layers' });
+			const features = within(table).getByRole('button', { name: 'Features' });
+			await fireEvent.click(features);
+			await fireEvent.click(features);
+			expect(features.closest('th')?.getAttribute('aria-sort')).toBe('ascending');
+			expect(names()).toEqual(['water', 'roads']);
+			expect((table.querySelector('.bar') as HTMLElement).style.width).toBe('60%');
+			await fireEvent.click(features);
+			expect(names()).toEqual(['roads', 'water']);
+		});
+
 		it('offers to read every tile after a sample', async () => {
 			const onScan = vi.fn();
 			show({ measurement: measured(), scan: scanned, onScan });
