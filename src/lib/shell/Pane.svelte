@@ -19,11 +19,18 @@
 	// callback out, no state here at all.
 	let {
 		title,
+		detail = null,
 		open,
 		onToggle,
 		children
 	}: {
 		title: string;
+		/**
+		 * What the pane is about, beside its title: the selected graph's name, or "project" for a pane
+		 * that spans every graph (S8.4). In the header rather than in the body so a folded pane still
+		 * says it - the chain alternates scope from pane to pane, and nothing else said which was which.
+		 */
+		detail?: string | null;
 		open: boolean;
 		onToggle: (open: boolean) => void;
 		children: Snippet;
@@ -37,6 +44,9 @@
 		<button type="button" aria-expanded={open} aria-controls={id} onclick={() => onToggle(!open)}>
 			<span class="chevron" aria-hidden="true">▸</span>
 			<span class="title section-label">{title}</span>
+			<!-- Its own span, in the ordinary case rather than the label's uppercase: a graph's name is
+			     a name, and `button*=Title` in the e2e helper has to keep matching the heading. -->
+			{#if detail}<span class="detail truncate">{detail}</span>{/if}
 		</button>
 	</h2>
 	<!-- Removed from the DOM while folded, so folding a pane throws away whatever its contents held
@@ -94,6 +104,20 @@
 		display: inline-block;
 		font-size: var(--text-xs);
 		transition: transform 120ms ease;
+		color: var(--ink-2);
+	}
+
+	.title {
+		flex: none;
+	}
+
+	/* Quieter than the title and after it, so the row reads "STYLE · osm". Truncates rather than
+	   wrapping: a long graph name must not make the header two lines tall. */
+	.detail {
+		flex: 1;
+		min-width: 0;
+		font-size: var(--text-xs);
+		font-family: var(--font-mono);
 		color: var(--ink-2);
 	}
 

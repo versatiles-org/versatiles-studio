@@ -230,6 +230,26 @@
 	/// worth restoring after a reload, and leaving the app in it would be a trap.
 	let drawing = $state(false);
 
+	/// What each pane's header says it is about (S8.4).
+	///
+	/// **The chain alternates scope and nothing said so.** Sources and Layers span the project;
+	/// Pipeline, Style and the Inspector follow the selected graph - and the only cue for which graph
+	/// that was sat in a row of the Sources pane, which may be folded or scrolled away. The header
+	/// carries it instead, and keeps carrying it while the pane is folded.
+	const paneDetail = (id: string): string | null => {
+		switch (id) {
+			case 'sources':
+			case 'layers':
+				return 'project';
+			case 'pipeline':
+			case 'style':
+			case 'inspector':
+				return composition.editedName;
+			default:
+				return null;
+		}
+	};
+
 	/// Moves a run of the stack, which is the whole of reordering ([the layer stack](docs/layers.md)).
 	///
 	/// **The segments are derived from the result, not edited towards it.** `move` produces the rows
@@ -367,11 +387,21 @@
 {/snippet}
 
 {#snippet leftPaneContent()}
-	<Sidebar panes={layout.on('left')} onToggle={(id, open) => layout.toggle(id, open)} content={paneContent} />
+	<Sidebar
+		panes={layout.on('left')}
+		onToggle={(id, open) => layout.toggle(id, open)}
+		detail={paneDetail}
+		content={paneContent}
+	/>
 {/snippet}
 
 {#snippet rightPaneContent()}
-	<Sidebar panes={layout.on('right')} onToggle={(id, open) => layout.toggle(id, open)} content={paneContent} />
+	<Sidebar
+		panes={layout.on('right')}
+		onToggle={(id, open) => layout.toggle(id, open)}
+		detail={paneDetail}
+		content={paneContent}
+	/>
 {/snippet}
 
 <AppShell

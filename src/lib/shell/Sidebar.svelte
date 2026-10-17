@@ -17,11 +17,14 @@
 	let {
 		panes,
 		onToggle,
+		detail = () => null,
 		content
 	}: {
 		/** Already filtered to this side, in layout order. */
 		panes: PaneState[];
 		onToggle: (id: string, open: boolean) => void;
+		/** What a pane is about, for its header - see `Pane`'s `detail`. `null` says nothing. */
+		detail?: (id: string) => string | null;
 		/** Renders one pane's contents. Called per pane; may render nothing for an id it has no
 		 *  component for, which is how a pane can exist in the core before it exists here. */
 		content: Snippet<[string]>;
@@ -30,7 +33,12 @@
 
 <div class="sidebar">
 	{#each panes as pane (pane.id)}
-		<Pane title={paneTitle(pane.id)} open={pane.open} onToggle={(open) => onToggle(pane.id, open)}>
+		<Pane
+			title={paneTitle(pane.id)}
+			detail={detail(pane.id)}
+			open={pane.open}
+			onToggle={(open) => onToggle(pane.id, open)}
+		>
 			{@render content(pane.id)}
 		</Pane>
 	{/each}

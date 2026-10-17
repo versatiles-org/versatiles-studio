@@ -31,6 +31,9 @@ True everywhere. These matter more than the arrangement.
 - **Sections collapse independently and remember it.** Load-bearing, not polish: the left pane
   carries the pipeline, the style, the layer tree and export options at once, and a 13-inch laptop
   is the machine to protect ([Q22](decisions.md)).
+- **Every pane header says what the pane is about.** The chain alternates scope - Sources and Layers
+  span the project, Pipeline, Style and the Inspector follow the selected graph - so the header
+  carries either the word _project_ or the graph's name, and keeps carrying it while folded (S8.4).
 - **Undo is global** ([Q11](decisions.md) → G6).
 - **Jobs are never modal**, and the job bar expands into a drawer with a per-job log. A conversion
   that fails at minute 40 has to say why; a failed job stays until dismissed.

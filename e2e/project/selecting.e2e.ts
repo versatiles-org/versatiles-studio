@@ -101,5 +101,14 @@ describe('selecting another source', () => {
 			timeout: 10_000,
 			timeoutMsg: 'clicking a layer row never selected its source'
 		});
+
+		// And the two panes that follow the selection say so in their headers, whether or not they are
+		// open - the Sources row may be folded or scrolled away (S8.4).
+		for (const pane of ['Pipeline', 'Style']) {
+			await browser.waitUntil(async () => (await $(`button*=${pane}`).getText()).includes(first.name), {
+				timeout: 10_000,
+				timeoutMsg: `the ${pane} header never named the selected graph`
+			});
+		}
 	});
 });
