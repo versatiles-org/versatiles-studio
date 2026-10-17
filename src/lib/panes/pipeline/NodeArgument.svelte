@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { FieldInfo } from '../../ipc/commands';
 	import HelpTrigger from '../../common/HelpTrigger.svelte';
+	import Note from '../../common/Note.svelte';
 	import StepsDialog from './StepsDialog.svelte';
 	import type { HelpContent } from '../../state/help.svelte';
 	import { askForPath } from '../../common/import';
@@ -275,7 +276,7 @@
 					     focused, and this fills it in from a drag. -->
 					<button
 						type="button"
-						class="browse"
+						class="icon"
 						class:on={bboxField.drawing && bboxField.holds(rowId)}
 						aria-pressed={bboxField.drawing && bboxField.holds(rowId)}
 						title={bboxField.drawing && bboxField.holds(rowId) ? 'Drag a rectangle on the map' : 'Draw on the map'}
@@ -290,7 +291,7 @@
 					     would say the wrong thing here. -->
 					<button
 						type="button"
-						class="browse"
+						class="icon"
 						title="Set the quality per zoom…"
 						aria-label={`Set ${name} per zoom`}
 						onclick={() => (editingCurve = true)}
@@ -302,7 +303,7 @@
 					     everywhere for thirty years, and it stays legible at the size this row is. -->
 					<button
 						type="button"
-						class="browse"
+						class="icon"
 						title="Choose a file…"
 						aria-label={`Choose a file for ${name}`}
 						onclick={browse}
@@ -321,9 +322,7 @@
 			     claim about the build rather than about the running application. A field nobody can
 			     edit is worth saying out loud; a plain text box that silently drops what is typed into
 			     it is the thing this arm exists to stop being the answer. -->
-			<p class="unsupported" role="status">
-				This build has no editor for <code>{control?.kind}</code>. Edit it in the VPL tab.
-			</p>
+			<Note>This build has no editor for <code>{control?.kind}</code>. Edit it in the VPL tab.</Note>
 		{/if}
 
 		{#if curve && editingCurve}
@@ -363,7 +362,7 @@
 	{#if onRemove}
 		<button
 			type="button"
-			class="drop"
+			class="icon danger"
 			title={removeLabel ?? `Remove ${name}`}
 			aria-label={removeLabel ?? `Remove ${name}`}
 			onclick={onRemove}
@@ -376,7 +375,7 @@
 <style>
 	.arg {
 		display: grid;
-		grid-template-columns: 6.5rem minmax(0, 1fr) auto;
+		grid-template-columns: var(--label-width) minmax(0, 1fr) auto;
 		align-items: center;
 		gap: var(--space-1) var(--space-2);
 		min-width: 0;
@@ -401,16 +400,6 @@
 	dd {
 		margin: 0;
 		min-width: 0;
-	}
-
-	.drop {
-		flex: none;
-		color: var(--ink-2);
-		padding: 0 var(--space-1);
-
-		&:hover {
-			color: var(--error);
-		}
 	}
 
 	input[type='text'],
@@ -439,28 +428,6 @@
 		align-items: center;
 		gap: var(--space-1);
 		min-width: 0;
-	}
-
-	/* The button is the fixed part: the box takes whatever is left, so the path keeps the width it
-	   had in every other row. */
-	.browse {
-		flex: none;
-		padding: 0 var(--space-1);
-		font-size: var(--text-xs);
-		line-height: 1;
-		color: var(--ink-2);
-
-		&:hover {
-			color: var(--ink);
-		}
-	}
-
-	/* A field this build cannot draw. Deliberately plain and deliberately not an error colour: it is
-	   a gap in Studio rather than something wrong with the pipeline, and the VPL tab still edits it. */
-	.unsupported {
-		margin: 0;
-		font-size: var(--text-xs);
-		color: var(--ink-2);
 	}
 
 	.chips {

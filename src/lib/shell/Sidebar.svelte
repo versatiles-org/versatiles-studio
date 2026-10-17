@@ -54,5 +54,8 @@
 		min-width: 0;
 		height: 100%;
 		overflow-y: auto;
+		/* The panes sit on the surface, like the inspector opposite. The Pipeline pane used to paint
+		   this for itself, so the other three sat a shade darker (S12.4). */
+		background: var(--surface);
 	}
 </style>

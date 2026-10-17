@@ -13,6 +13,7 @@
 		type Bounds
 	} from '../../ipc/commands';
 	import CropSection from './CropSection.svelte';
+	import Note from '../../common/Note.svelte';
 
 	// The Pipeline pane's contents (Q22, [Q31]).
 	//
@@ -174,7 +175,7 @@
 	}
 </script>
 
-<div class="pane">
+<div class="pane-body">
 	<!-- The tabs and what they switch between are one thing: a tab that floated a section's distance
 	     from its own body would name something it does not appear to own. -->
 	<div class="editor">
@@ -201,7 +202,7 @@
 				{#if tab === 'vpl'}
 					<button
 						type="button"
-						class="step"
+						class="icon"
 						disabled={!pipeline}
 						title="Tidy the layout, keeping comments"
 						aria-label="Format"
@@ -210,7 +211,7 @@
 				{/if}
 				<button
 					type="button"
-					class="step"
+					class="icon"
 					disabled={!pipeline?.canUndo}
 					title="Undo (⌘Z)"
 					aria-label="Undo"
@@ -218,7 +219,7 @@
 				>
 				<button
 					type="button"
-					class="step"
+					class="icon"
 					disabled={!pipeline?.canRedo}
 					title="Redo (⇧⌘Z)"
 					aria-label="Redo"
@@ -229,7 +230,7 @@
 
 		{#if tab === 'vpl'}
 			{#each problems as problem (problem.span.start + problem.message)}
-				<p class="error" role="alert">{problem.message}</p>
+				<Note tone="problem">{problem.message}</Note>
 			{/each}
 			<!-- Remounted only when the document changes from outside the editor, which is what lets the
 			     editor own its buffer without the parent fighting it (Q25). -->
@@ -240,10 +241,10 @@
 			<!-- Q15: the graph never shows a stale render. While the text does not parse there is no
 			     tree to draw, and the last good one would be a picture of something that is no longer
 			     on screen. -->
-			<p class="error" role="alert">{draftError.message}</p>
-			<p class="empty">The graph returns when the text parses.</p>
+			<Note tone="problem">{draftError.message}</Note>
+			<Note tone="empty">The graph returns when the text parses.</Note>
 		{:else if !pipeline || pipeline.pipeline.nodes.length === 0}
-			<p class="empty">No source selected.</p>
+			<Note tone="empty">No source selected.</Note>
 		{:else}
 			<NodeChain
 				pipeline={pipeline.pipeline}
@@ -278,49 +279,33 @@
 	<!-- Actions on the pipeline itself, available from either tab. Saving a *project* is a
 		     different command with a different scope (G1, S5.1); this writes the pipeline as the
 		     `.vpl` the CLI already reads. -->
-	<div class="actions">
+	<div class="toolbar actions">
 		<button
 			type="button"
-			class="button file"
+			class="button"
 			disabled={!pipeline || (!pipeline.dirty && pipeline.path !== null)}
 			title={pipeline?.path ?? 'Choose where to save'}
 			onclick={() => documentActions.save(false)}
 		>
 			Save{#if pipeline?.dirty && pipeline.path}<span class="dot" aria-label="unsaved changes">•</span>{/if}
 		</button>
-		<button type="button" class="button file" disabled={!pipeline} onclick={() => documentActions.save(true)}
+		<button type="button" class="button" disabled={!pipeline} onclick={() => documentActions.save(true)}
 			>Save as…</button
 		>
 		<!-- Exporting is per graph ([Q32]): this writes what *this* chain produces, and the modal is
 		     where the run is committed. The primary one: it is what the other two lead to. Named for
 		     what it writes, because the Style pane below has an export too and it writes the map's
 		     style (S10.6). -->
-		<button type="button" class="button file primary" disabled={!pipeline} onclick={documentActions.export}
+		<button type="button" class="button primary" disabled={!pipeline} onclick={documentActions.export}
 			>Export tiles…</button
 		>
 	</div>
 </div>
 
 <style>
-	/* The pane lives in a fixed grid column. Without `min-width: 0` here and on every descendant
-	   that lays out children, a long path would set the column's content width and push the map off
-	   the edge - flex and grid children default to `min-width: auto`, not zero. */
-	/* **The pane states the hierarchy; its children no longer each bring their own margin.** Every
-	   boundary here measured 26px - a row inside a node, a node against its rail, the chain against
-	   the crop - so nothing said which of those was a break and which was a join. Four groups, one
-	   section gap between them, and the groups hold their own parts closer. */
-	.pane {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap-section);
-		height: 100%;
-		min-width: 0;
-		overflow-y: auto;
-		overflow-x: hidden;
-		overscroll-behavior: contain;
-		background: var(--surface);
-	}
-
+	/* The column is the kit's `.pane-body` (S12.4): one section gap between the groups, and the groups
+	   hold their own parts closer. What is here is what is true of this pane alone - the tabs, the
+	   history buttons beside them, and the rule above the actions. */
 	.editor {
 		display: flex;
 		flex-direction: column;
@@ -359,21 +344,6 @@
 		gap: var(--space-1);
 	}
 
-	.step {
-		border-radius: var(--radius);
-		padding: 0 var(--space-2);
-		color: var(--ink-2);
-
-		&:hover:not(:disabled) {
-			background: var(--chrome);
-			color: var(--ink);
-		}
-
-		&:disabled {
-			opacity: 0.35;
-		}
-	}
-
 	.badge {
 		display: inline-block;
 		margin-left: var(--space-1);
@@ -384,39 +354,13 @@
 		font-size: var(--text-xs);
 	}
 
-	.empty {
-		margin: 0;
-		color: var(--ink-2);
-	}
-
-	.error {
-		margin: 0;
-		font-size: var(--text-xs);
-		color: var(--error);
-		/* An error can name a long path, and it must break rather than widen the pane. */
-		overflow-wrap: anywhere;
-	}
-
 	/* Centred, and set apart from the chain above by a rule of its own: these are what the pane is
 	   for, and they had been sitting in the far corner at the smallest size in the application -
 	   read as a footnote rather than as the three things you came here to do. */
 	.actions {
-		display: flex;
 		justify-content: center;
-		align-items: center;
-		gap: var(--space-2);
-		margin-top: 0;
 		padding-top: var(--gap-section);
 		border-top: 1px solid var(--rule);
-		min-width: 0;
-	}
-
-	/* No size override: `.button`'s own padding, which is the pane scale. What was here shrank them
-	   to `--text-xs` and a hairline of padding. */
-	.file {
-		&:disabled {
-			opacity: 0.45;
-		}
 	}
 
 	.dot {

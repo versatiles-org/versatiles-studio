@@ -210,7 +210,7 @@
 		{#if !isHead}
 			<button
 				type="button"
-				class="drop"
+				class="icon danger drop"
 				title="Remove this operation"
 				aria-label="Remove"
 				onclick={() => onRemoveNode(node.nameSpan)}
@@ -350,14 +350,7 @@
 	   It had no rule at all before, which is also why it wore the title's colour rather than the
 	   quieter one every other × here has. */
 	.drop {
-		flex: none;
 		margin-left: auto;
-		padding: 0 var(--space-1);
-		color: var(--ink-2);
-
-		&:hover {
-			color: var(--error);
-		}
 	}
 
 	/* The rule between two arguments belongs to neither of them: it is the relationship. Svelte

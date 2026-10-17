@@ -1,5 +1,8 @@
 <script lang="ts">
 	import type { Bounds } from '../../ipc/commands';
+	import Field from '../../common/Field.svelte';
+	import Group from '../../common/Group.svelte';
+	import Note from '../../common/Note.svelte';
 
 	// What an export of this graph is narrowed to, and what that will cost (F2, C6, S5.2, S5.4).
 	//
@@ -117,160 +120,72 @@
 	});
 </script>
 
-<section class="crop" class:open>
-	<!-- The pane's own disclosure, in miniature: a real button with a real `aria-expanded`, because
-	     the header is the only way to reach what is under it. -->
-	<h3>
-		<button type="button" class="head" aria-expanded={open} aria-controls="crop-body" onclick={() => (open = !open)}>
-			<span class="chevron" aria-hidden="true">▸</span>
-			<span class="section-label">Crop</span>
-			{#if !open && cropped}<span class="summary">{summary}</span>{/if}
+<!-- A foldable group of the kit (S12.4): the heading is the disclosure, and what the crop comes to
+     is its summary while folded. What is this section's own below is the four-corner box. -->
+<Group title="Crop" {open} onToggle={(next) => (open = next)} summary={cropped ? summary : null}>
+	<Field label="Zoom" as="group">
+		<label class="bound"
+			>from <input
+				value={shown.minZoom}
+				oninput={(e) => commit('minZoom', e.currentTarget.value)}
+				type="number"
+				min="0"
+				max="30"
+				inputmode="numeric"
+			/></label
+		>
+		<label class="bound"
+			>to <input
+				value={shown.maxZoom}
+				oninput={(e) => commit('maxZoom', e.currentTarget.value)}
+				type="number"
+				min="0"
+				max="30"
+				inputmode="numeric"
+			/></label
+		>
+	</Field>
+
+	<div class="box" role="group" aria-label="Bounding box">
+		{#each FIELDS as [key, label] (key)}
+			<label class="bound">
+				{label}
+				<input
+					value={shown[key]}
+					oninput={(e) => commit(key, e.currentTarget.value)}
+					type="number"
+					step="any"
+					inputmode="decimal"
+				/>
+			</label>
+		{/each}
+	</div>
+
+	<!-- The three ways to set one, together: take the map's frame, draw a new one, or drop it.
+	     `Draw on map` used to sit in the header, which is now a disclosure and holds no controls. -->
+	<div class="toolbar">
+		<button type="button" class="button" onclick={onUseView}>This view</button>
+		<!-- Drawing is a mode the map is in, so the button that put it there stays lit. -->
+		<button type="button" class="button" class:primary={drawing} aria-pressed={drawing} onclick={onDraw}>
+			{drawing ? 'Drawing…' : 'Draw on map'}
 		</button>
-	</h3>
+		<button
+			type="button"
+			class="button"
+			disabled={!cropped}
+			onclick={() => {
+				edited = null;
+				onChange({ bbox: null, minZoom: null, maxZoom: null });
+			}}
+		>
+			Clear
+		</button>
+	</div>
 
-	{#if open}
-		<div class="body" id="crop-body">
-			<div class="row">
-				<span class="what">Zoom</span>
-				<label
-					>from <input
-						value={shown.minZoom}
-						oninput={(e) => commit('minZoom', e.currentTarget.value)}
-						type="number"
-						min="0"
-						max="30"
-						inputmode="numeric"
-					/></label
-				>
-				<label
-					>to <input
-						value={shown.maxZoom}
-						oninput={(e) => commit('maxZoom', e.currentTarget.value)}
-						type="number"
-						min="0"
-						max="30"
-						inputmode="numeric"
-					/></label
-				>
-			</div>
-
-			<div class="box">
-				{#each FIELDS as [key, label] (key)}
-					<label>
-						{label}
-						<input
-							value={shown[key]}
-							oninput={(e) => commit(key, e.currentTarget.value)}
-							type="number"
-							step="any"
-							inputmode="decimal"
-						/>
-					</label>
-				{/each}
-			</div>
-
-			<!-- The three ways to set one, together: take the map's frame, draw a new one, or drop it.
-		     `Draw on map` used to sit in the header, which is now a disclosure and holds no controls. -->
-			<div class="row buttons">
-				<button type="button" class="ghost" onclick={onUseView}>This view</button>
-				<button type="button" class="ghost" class:on={drawing} aria-pressed={drawing} onclick={onDraw}>
-					{drawing ? 'Drawing…' : 'Draw on map'}
-				</button>
-				<button
-					type="button"
-					class="ghost"
-					disabled={!cropped}
-					onclick={() => {
-						edited = null;
-						onChange({ bbox: null, minZoom: null, maxZoom: null });
-					}}
-				>
-					Clear
-				</button>
-			</div>
-
-			{#if problem}<p class="problem" role="alert">{problem}</p>{/if}
-		</div>
-	{/if}
-</section>
+	{#if problem}<Note tone="problem">{problem}</Note>{/if}
+</Group>
 
 <style>
-	.crop {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-		padding: var(--space-3) 0;
-		border-top: 1px solid var(--rule);
-
-		&.open .chevron {
-			transform: rotate(90deg);
-		}
-	}
-
-	h3 {
-		margin: 0;
-		font-size: inherit;
-		font-weight: inherit;
-	}
-
-	/* The same disclosure as `Pane`'s, one level in: full width so the whole row is the target. */
-	.head {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		width: 100%;
-		text-align: left;
-		color: var(--ink-2);
-
-		&:hover {
-			color: var(--ink);
-		}
-	}
-
-	.chevron {
-		display: inline-block;
-		font-size: var(--text-xs);
-		color: var(--ink-2);
-		transition: transform 120ms ease;
-	}
-
-	/* What the crop comes to, while the fields that say it are folded away. */
-	.summary {
-		margin-left: auto;
-		font-size: var(--text-xs);
-		color: var(--ink-2);
-		font-variant-numeric: tabular-nums;
-	}
-
-	.body {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.chevron {
-			transition: none;
-		}
-	}
-
-	.row {
-		display: flex;
-		align-items: baseline;
-		gap: var(--space-2);
-	}
-
-	.what {
-		flex: none;
-		width: 3rem;
-		color: var(--ink-2);
-		font-size: var(--text-xs);
-	}
-
-	.buttons {
-		gap: var(--space-1);
-	}
-
 	/* Four across, in the order they read on a map's edges: W S E N. */
 	.box {
 		display: grid;
@@ -278,7 +193,7 @@
 		gap: var(--space-1);
 	}
 
-	label {
+	.bound {
 		display: flex;
 		align-items: baseline;
 		gap: var(--space-1);
@@ -292,34 +207,5 @@
 			font-family: var(--font-mono);
 			text-align: right;
 		}
-	}
-
-	.ghost {
-		padding: var(--space-1) var(--space-2);
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		color: var(--ink-2);
-		font-size: var(--text-xs);
-
-		&:hover:not(:disabled) {
-			color: var(--ink);
-		}
-
-		&:disabled {
-			opacity: 0.4;
-		}
-
-		/* Drawing is a mode the map is in, so the button that put it there stays lit. */
-		&.on {
-			border-color: var(--accent);
-			background: var(--accent);
-			color: var(--accent-ink);
-		}
-	}
-
-	.problem {
-		margin: 0;
-		color: var(--error);
-		font-size: var(--text-sm);
 	}
 </style>

@@ -38,6 +38,35 @@ describe('Group', () => {
 	});
 });
 
+describe('Group that folds', () => {
+	it('is a disclosure that says what it holds while closed, and asks to be toggled', async () => {
+		let open = false;
+		const { rerender } = render(Group, {
+			title: 'Crop',
+			open,
+			summary: 'z4-12',
+			onToggle: (next: boolean) => (open = next),
+			children: text('<input aria-label="West" />')
+		});
+		const heading = screen.getByRole('button', { name: /Crop/ });
+		expect(heading.getAttribute('aria-expanded')).toBe('false');
+		expect(heading.textContent).toContain('z4-12');
+		expect(screen.queryByLabelText('West')).toBeNull();
+
+		heading.click();
+		expect(open).toBe(true);
+		await rerender({
+			title: 'Crop',
+			open,
+			summary: 'z4-12',
+			onToggle: () => {},
+			children: text('<input aria-label="West" />')
+		});
+		expect(screen.getByLabelText('West')).toBeTruthy();
+		expect(screen.getByRole('button', { name: /Crop/ }).textContent).not.toContain('z4-12');
+	});
+});
+
 describe('Field', () => {
 	it('labels the control it wraps', () => {
 		render(Field, { label: 'Opacity', children: text('<input type="range" />') });
