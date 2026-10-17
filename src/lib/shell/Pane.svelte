@@ -42,7 +42,7 @@
 <section class="section" class:open>
 	<h2>
 		<button type="button" aria-expanded={open} aria-controls={id} onclick={() => onToggle(!open)}>
-			<span class="chevron" aria-hidden="true">▸</span>
+			<span class="chevron" class:open aria-hidden="true">▸</span>
 			<span class="title section-label">{title}</span>
 			<!-- Its own span, in the ordinary case rather than the label's uppercase: a graph's name is
 			     a name, and `button*=Title` in the e2e helper has to keep matching the heading. -->
@@ -66,10 +66,6 @@
 <style>
 	.section {
 		border-bottom: 1px solid var(--rule);
-
-		&.open .chevron {
-			transform: rotate(90deg);
-		}
 	}
 
 	h2 {
@@ -99,13 +95,6 @@
 		}
 	}
 
-	.chevron {
-		display: inline-block;
-		font-size: var(--text-xs);
-		transition: transform 120ms ease;
-		color: var(--ink-2);
-	}
-
 	.title {
 		flex: none;
 	}
@@ -122,11 +111,5 @@
 
 	.body {
 		padding: var(--space-1) var(--space-4) var(--space-4);
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.chevron {
-			transition: none;
-		}
 	}
 </style>

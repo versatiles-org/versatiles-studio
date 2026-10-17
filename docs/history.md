@@ -610,7 +610,7 @@ each, every one written well, in isolation.
 | **S12.5** | ✓ Style on the kit                                          | infrastructure |
 | **S12.6** | ✓ Layers on the kit                                         | infrastructure |
 | **S12.7** | ✓ Inspector on the kit                                      | infrastructure |
-| **S12.8** | `kit.test.ts`: a pane that spells a part by hand fails      | infrastructure |
+| **S12.8** | ✓ `kit.test.ts`: a pane that spells a part by hand fails    | infrastructure |
 
 **Two decisions, made here rather than pane by pane** ([Q70](decisions.md)). _Hierarchy_: two levels
 
@@ -624,3 +624,8 @@ are. The enforcement test lands last, when nothing it would catch remains.
 
 **Not in this stage:** the dialogs, the map's controls and the launcher. They share the tokens and
 `.button` already; they get the kit once the panes have proven it.
+
+**All of S12 has landed.** Five panes and the pane frame are on the kit, and `kit.test.ts` holds
+them there: a `<p>` with a note's class, an uppercase label outside the header, a hand-classed quiet
+or glyph button, a restyled part or a label column of its own width each fail with the file named.
+The dialogs are excluded by name until their turn.
