@@ -568,7 +568,7 @@ theme names are v5's, translated to v7's through a table.
 | **S11.2** | ✓ "Vector · other" is the inspector style, and a kind rather than a preset    | D2      |
 | **S11.3** | ✓ The theme is the library's palette name, chosen from a dropdown it provides | D1      |
 | **S11.4** | ✓ "Read as" is narrowed by format; a schema that draws nothing offers the fix | D1      |
-| **S11.5** | The decision log and the UI concept say so                                    | docs    |
+| **S11.5** | ✓ The decision log and the UI concept say so                                  | docs    |
 
 **One rule: the kind picks the editor, and the theme is a choice inside one of them.** Shortbread,
 OpenMapTiles and Protomaps get a builder, a theme and the recolouring; "other" gets the inspector style
@@ -583,4 +583,10 @@ and shrinks everything after it.
 ### What breaks, and where it is caught
 
 **`bindings_are_up_to_date` is the tripwire for S11.1 to S11.3**, each of which moves the recipe's
-types. **`registry.test.ts`** is S10.9's: the webview's pane list against the core's.
+types. **`registry.test.ts`** is S10.9's: the webview's pane list against the core's. **Two new claims
+about `@versatiles/style` are checked against it** in `builders.test.ts`: which of its themes are its
+own palettes with a dark partner, and that every lookalike has a word for what it is after.
+
+**All of S11 has landed.** The e2e specs that pressed a preset button now read the debug fixture's
+tiles as Shortbread first, since tiles of no schema have no theme to press, and then choose a theme
+from the dropdown by the library's name.

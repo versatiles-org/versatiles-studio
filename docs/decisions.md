@@ -408,6 +408,19 @@ snapshots whole ([Q36](#q36---the-core-owns-the-recipe)).
 A category split across two places therefore has **one** eye, and it hides both parts: visibility
 belongs to the layers, position to the segments, and neither moves when the other changes.
 
+### Q69 - The kind picks the editor; a theme is a choice inside one
+
+Every source started as the Colorful preset, and over tiles that matched no schema - the most common
+thing the pipeline produces - six preset buttons all fell back to the same derived style while the
+recolour sliders changed nothing. **What the tiles are read as decides the editor**: a schema a builder
+knows gets a theme and the recolouring, "Vector · other" gets the inspector style and the layer tree,
+imagery the raster sliders, elevation the hillshade. So the derived style stopped being a preset and
+became a kind, and the default appearance follows the reading. **The themes are the library's**, asked
+of the builder by name rather than kept as a table of v5's five, and **satellite left the pane**: it is
+imagery under a themed overlay, which the background control already says. Amends
+[Q36](#q36---the-core-owns-the-recipe)'s "preset" to a theme the core stores as a string, and
+[Q51](#q51---an-override-applies-on-every-basis) still holds - the inspector style takes overrides.
+
 ## The interface
 
 ### Q14 - Explore and Pipeline stay separate modes - **superseded by [Q22](#q22---one-map-surface-not-four-modes)**

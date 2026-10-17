@@ -246,7 +246,7 @@ describe('documentation size', () => {
 		// supersedes stay where they are and a reader arriving at them needs to be sent somewhere.
 		// Raised for Q68, the user-facing noun - the entry has to name both words and send a reader to the
 		// glossary that joins them.
-		'docs/decisions.md': 5350,
+		'docs/decisions.md': 5600,
 		// Raised for Release 6, which records S10 as built and S11 as planned.
 		'docs/history.md': 6000,
 		'docs/features.md': 2700,
