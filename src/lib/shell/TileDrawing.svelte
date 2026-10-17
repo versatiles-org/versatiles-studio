@@ -1,6 +1,37 @@
-<script lang="ts">
+<script lang="ts" module>
 	import type { FeatureDissection, Part } from '../ipc/commands';
 
+	/** How far past the tile's edge the drawing shows, as a share of its extent: an eighth. */
+	const BUFFER = 1 / 8;
+
+	/**
+	 * The square the drawing shows - the tile, and as much of the buffer as the features use, up to an
+	 * eighth of the tile - and how many features reach further than that.
+	 *
+	 * **Not as far as the farthest point.** One stray vertex a tile away made the square three tiles
+	 * wide and drew the tile itself in its middle third; past the buffer is what a renderer clips
+	 * anyway, so it is counted rather than shown.
+	 */
+	export function reach(features: FeatureDissection[], extent: number): { at: number; side: number; beyond: number } {
+		const [low, high] = [-extent * BUFFER, extent * (1 + BUFFER)];
+		let [min, max] = [0, extent];
+		let beyond = 0;
+		for (const feature of features) {
+			let out = false;
+			for (const part of feature.parts)
+				for (const [x, y] of part.points) {
+					if (x < low || y < low || x > high || y > high) out = true;
+					min = Math.max(low, Math.min(min, x, y));
+					max = Math.min(high, Math.max(max, x, y));
+				}
+			if (out) beyond++;
+		}
+		const pad = (max - min) / 50;
+		return { at: min - pad, side: max - min + 2 * pad, beyond };
+	}
+</script>
+
+<script lang="ts">
 	// One tile drawn alone, in its own coordinates (S14.5, A4).
 	//
 	// **What the map hides is the point.** The map clips a tile to its edge, closes its rings and
@@ -31,18 +62,8 @@
 		onSelect: (layer: number, index: number) => void;
 	} = $props();
 
-	/// The square to show: the tile, and whatever of the buffer the features reach into.
-	const box = $derived.by(() => {
-		let [min, max] = [0, extent];
-		for (const feature of features)
-			for (const part of feature.parts)
-				for (const [x, y] of part.points) {
-					min = Math.min(min, x, y);
-					max = Math.max(max, x, y);
-				}
-		const pad = (max - min) / 50;
-		return { at: min - pad, side: max - min + 2 * pad };
-	});
+	/// The square to show: the tile, and the buffer the features reach into, up to an eighth.
+	const box = $derived(reach(features, extent));
 
 	/// A point's radius and a vertex's, in tile units, so they read the same at any extent.
 	const dot = $derived(box.side / 400);

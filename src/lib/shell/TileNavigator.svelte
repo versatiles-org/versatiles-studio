@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Note from '../common/Note.svelte';
 	import Icon from '../common/Icon.svelte';
 	import { children, neighbour, parent, type TileAt } from '../state/tile-dialog.svelte';
 
@@ -8,8 +7,12 @@
 	// **A little map, not a row of words.** Parent, four children and four arrows in a line asked
 	// the reader to turn "SE" and an arrow back into a place. Here the tile is the middle of a 3×3
 	// grid: the eight squares around it are its neighbours, where they lie, and its four quarters
-	// are its children, where they lie. Only the parent has no place on that map, so it is a button
-	// beside it, with its address.
+	// are its children, where they lie. Only the parent has no place on that map, so it is the zoom
+	// out beneath it, as on the map's own controls.
+	//
+	// **On the drawing**, in its corner like the map's controls: it is about where this tile is, and
+	// the drawing is the tile. Each square says in its tooltip where it goes, so there is no sentence
+	// explaining them.
 	//
 	// East and west wrap round the antimeridian as the map does; past the poles there is nothing, and
 	// that square is drawn but cannot be pressed.
@@ -44,7 +47,7 @@
 	}
 </script>
 
-<div class="navigator">
+<div class="navigator popover" role="group" aria-label="Move to another tile">
 	<div class="grid" role="group" aria-label="Neighbours and children">
 		{#each COMPASS as row, dy (dy)}
 			{#each row as label, dx (dx)}
@@ -75,31 +78,31 @@
 			{/each}
 		{/each}
 	</div>
-
-	<div class="side">
-		<div class="up">
-			<button type="button" class="button" disabled={!up} onclick={() => go(up)}>Parent</button>
-			{#if up}<span class="where">{name(up)}</span>{/if}
-		</div>
-		<Note>A square beside the tile is its neighbour; a quarter of it zooms in.</Note>
-	</div>
+	<button
+		type="button"
+		class="cell out"
+		aria-label="Parent"
+		title={up ? `Zoom out: ${name(up)}` : 'Zoom out: this is the whole world'}
+		disabled={!up}
+		onclick={() => go(up)}><Icon name="minus" size="0.9em" /></button
+	>
 </div>
 
 <style>
 	.navigator {
+		--cell: 2rem;
+
 		display: flex;
-		align-items: center;
-		gap: var(--space-4);
+		flex-direction: column;
+		gap: var(--space-1);
+		padding: var(--space-1);
 	}
 
 	.grid {
-		--cell: 2.25rem;
-
 		display: grid;
 		grid-template-columns: repeat(3, var(--cell));
 		grid-template-rows: repeat(3, var(--cell));
 		gap: 2px;
-		flex: none;
 	}
 
 	.cell,
@@ -127,7 +130,11 @@
 		color: var(--ink-2);
 	}
 
-	/* The tile itself: the accent's edge, and its four quarters inside it. */
+	/* The parent, the width of the grid: one level up is the one move with no place on it. */
+	.out {
+		height: 1.5rem;
+	}
+
 	/* The gap between the quarters shows the accent behind them, so the tile reads as four. */
 	.here {
 		display: grid;
@@ -147,24 +154,5 @@
 		&:hover {
 			background: var(--accent);
 		}
-	}
-
-	.side {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
-		min-width: 0;
-	}
-
-	.up {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.where {
-		font-family: var(--font-mono);
-		font-size: var(--text-xs);
-		color: var(--ink-2);
 	}
 </style>

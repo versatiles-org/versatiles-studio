@@ -8,6 +8,7 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/svelte';
 import TileDialog from './TileDialog.svelte';
+import { reach } from './TileDrawing.svelte';
 import type { Dissection, FeatureDissection, LayerDissection } from '../ipc/commands';
 
 // jsdom has no `showModal`, and `Modal` calls it on mount.
@@ -157,5 +158,22 @@ describe('the tile dialog', () => {
 		show({ dissection: { ...tile, format: 'png', layers: [], features: [], issues: [], repair: null } });
 		expect(screen.getByText('A raster tile has nothing to take apart beyond its size.')).toBeTruthy();
 		expect(screen.queryByRole('tablist')).toBeNull();
+	});
+
+	/** One stray vertex a tile away used to draw the tile in the middle third of its own square. */
+	it('shows the tile and an eighth of buffer, and counts what reaches further', () => {
+		const stray: FeatureDissection = { ...square(0, 2), parts: [{ points: [[9000, 100]], closed: false, area: null }] };
+		expect(reach([square(0, 0)], 4096)).toMatchObject({ beyond: 0 });
+		const view = reach([square(0, 0), stray], 4096);
+		expect(view.beyond).toBe(1);
+		expect(view.at + view.side).toBeLessThan(4096 * 1.2);
+		show({ dissection: { ...tile, features: [...tile.features, stray] } });
+		expect(screen.getByText('1 feature reaches past the buffer shown.')).toBeTruthy();
+	});
+
+	/** The square stays for a missing tile, with the grid in its corner, so nothing moves under the pointer. */
+	it('keeps the grid where it was when there is no tile', () => {
+		show({ dissection: null });
+		expect(screen.getByRole('group', { name: 'Move to another tile' })).toBeTruthy();
 	});
 });

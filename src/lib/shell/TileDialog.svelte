@@ -4,7 +4,7 @@
 	import Note from '../common/Note.svelte';
 	import Field from '../common/Field.svelte';
 	import JsonTree from '../common/JsonTree.svelte';
-	import TileDrawing from './TileDrawing.svelte';
+	import TileDrawing, { reach } from './TileDrawing.svelte';
 	import TileNavigator from './TileNavigator.svelte';
 	import { bytes, kilobytes, count, ordinal } from '../common/format';
 	import type { Dissection } from '../ipc/commands';
@@ -69,6 +69,8 @@
 	const vector = $derived(dissection !== null && dissection.layers.length > 0);
 	const total = $derived(dissection?.layers.reduce((sum, layer) => sum + layer.features, 0) ?? 0);
 	const extent = $derived(dissection?.layers[focus ?? 0]?.extent ?? 4096);
+	/** Features reaching past the buffer the drawing shows - counted, since they are not seen whole. */
+	const beyond = $derived(dissection ? reach(dissection.features, extent).beyond : 0);
 	const listed = $derived((dissection?.features ?? []).filter((feature) => focus === null || feature.layer === focus));
 	const picked = $derived(
 		selected ? dissection?.features.find((f) => f.layer === selected?.layer && f.index === selected.index) : undefined
@@ -123,42 +125,56 @@
 		<button type="button" class="button show" onclick={onShowOnMap}>Show on map</button>
 	{/snippet}
 
-	<TileNavigator {at} {onGo} />
-
 	<div class="main">
-		{#if error}
-			<Note tone="problem">{error}</Note>
-		{:else if loading && !dissection}
-			<Note tone="empty" live>Taking the tile apart…</Note>
-		{:else if !dissection}
-			<Note tone="empty">This source has no tile at {at.z}/{at.x}/{at.y}.</Note>
-		{:else if !vector}
-			<Note tone="aside">A raster tile has nothing to take apart beyond its size.</Note>
-		{:else}
-			{#if dissection.every > 1}
-				<Note tone="aside">
-					Every {ordinal(dissection.every)} feature of each layer is drawn and listed - {count(
-						dissection.features.length
-					)} of {count(total)}. The Layers and Attributes tabs count all of them.
-				</Note>
-			{/if}
-			<div class="room">
-				<div class="split">
-					<figure>
-						<TileDrawing
-							features={dissection.features}
-							{extent}
-							{selected}
-							{focus}
-							vertices={showVertices}
-							onSelect={select}
-						/>
+		{#if dissection && vector && dissection.every > 1}
+			<Note tone="aside">
+				Every {ordinal(dissection.every)} feature of each layer is drawn and listed - {count(
+					dissection.features.length
+				)} of {count(total)}. The Layers and Attributes tabs count all of them.
+			</Note>
+		{/if}
+		<div class="room">
+			<div class="split">
+				<!-- The square is there whatever is in it, so the grid in its corner stays under the pointer
+				     from a tile to a missing one and back. -->
+				<figure>
+					<div class="stage">
+						{#if dissection && vector}
+							<TileDrawing
+								features={dissection.features}
+								{extent}
+								{selected}
+								{focus}
+								vertices={showVertices}
+								onSelect={select}
+							/>
+						{:else}
+							<div class="blank">
+								{#if error}
+									<Note tone="problem">{error}</Note>
+								{:else if loading && !dissection}
+									<Note tone="empty" live>Taking the tile apart…</Note>
+								{:else if !dissection}
+									<Note tone="empty">This source has no tile at {at.z}/{at.x}/{at.y}.</Note>
+								{:else}
+									<Note tone="aside">A raster tile has nothing to take apart beyond its size.</Note>
+								{/if}
+							</div>
+						{/if}
+						<div class="corner"><TileNavigator {at} {onGo} /></div>
+					</div>
+					{#if dissection && vector}
 						<figcaption>
 							<label><input type="checkbox" bind:checked={showVertices} /> Vertices</label>
 							<span>Dashed: the tile's edge and a hole. Red: a ring that encloses nothing.</span>
+							{#if beyond > 0}<span
+									>{count(beyond)} {beyond === 1 ? 'feature reaches' : 'features reach'} past the buffer shown.</span
+								>{/if}
 						</figcaption>
-					</figure>
+					{/if}
+				</figure>
 
+				{#if dissection && vector}
 					<!-- A long list scrolls in its own panel, so the drawing and the tabs stay where they are. -->
 					<div class="contents">
 						<Tabs items={tabs} selected={tab} onSelect={(id) => (tab = id)} label="What the tile holds" />
@@ -324,9 +340,9 @@
 							{/if}
 						</div>
 					</div>
-				</div>
+				{/if}
 			</div>
-		{/if}
+		</div>
 	</div>
 </Modal>
 
@@ -384,6 +400,27 @@
 
 	figure {
 		margin: 0;
+	}
+
+	/* The drawing's square, with the navigator over its corner as the map's controls are over it. */
+	.stage {
+		position: relative;
+	}
+
+	.corner {
+		position: absolute;
+		top: var(--space-2);
+		right: var(--space-2);
+	}
+
+	.blank {
+		display: grid;
+		place-items: center;
+		aspect-ratio: 1;
+		padding: var(--space-5);
+		border: 1px solid var(--rule);
+		border-radius: var(--radius);
+		background: var(--map-bg);
 	}
 
 	figcaption {
