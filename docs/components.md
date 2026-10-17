@@ -42,7 +42,7 @@ lib/panes/layers/     LayersPane · LayersSection · LayerRow
 lib/panes/project/    CopyDialog
 lib/panes/inspector/  Inspector · InspectorSection
 lib/map/              MapCanvas · MapControls · Dropdown · TileGrid · TileActivity · SearchBox · Tooltip · Views · FeaturePopup · CropOverlay
-lib/common/           used by more than one owner: Help · HelpTrigger · Menu · Picker · ColorPicker · JsonTree · Modal · LandingScreen
+lib/common/           used by more than one owner: Help · HelpTrigger · Menu · Picker · ColorPicker · JsonTree · Modal · LandingScreen · the kit: Group · Field · Note (S12)
 ```
 
 A pane's folder is named for the pane, so "what uses `NodeArgument`?" is answered by its path before

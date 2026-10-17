@@ -601,16 +601,16 @@ headings inside a pane wear the same uppercase label, so the one level of hierar
 the one the styling does not draw. Twelve components carry more than a hundred lines of scoped CSS
 each, every one written well, in isolation.
 
-| Item      | Work                                                      | Feature        |
-| --------- | --------------------------------------------------------- | -------------- |
-| **S12.1** | The kit as a spec, and the two decisions it rests on      | docs           |
-| **S12.2** | The parts: `Group`, `Field`, `Note`, and the base classes | infrastructure |
-| **S12.3** | Sources on the kit                                        | infrastructure |
-| **S12.4** | Pipeline on the kit: the pane, the crop, the node cards   | infrastructure |
-| **S12.5** | Style on the kit                                          | infrastructure |
-| **S12.6** | Layers on the kit                                         | infrastructure |
-| **S12.7** | Inspector on the kit                                      | infrastructure |
-| **S12.8** | `kit.test.ts`: a pane that spells a part by hand fails    | infrastructure |
+| Item      | Work                                                        | Feature        |
+| --------- | ----------------------------------------------------------- | -------------- |
+| **S12.1** | ✓ The kit as a spec, and the two decisions it rests on      | docs           |
+| **S12.2** | ✓ The parts: `Group`, `Field`, `Note`, and the base classes | infrastructure |
+| **S12.3** | Sources on the kit                                          | infrastructure |
+| **S12.4** | Pipeline on the kit: the pane, the crop, the node cards     | infrastructure |
+| **S12.5** | Style on the kit                                            | infrastructure |
+| **S12.6** | Layers on the kit                                           | infrastructure |
+| **S12.7** | Inspector on the kit                                        | infrastructure |
+| **S12.8** | `kit.test.ts`: a pane that spells a part by hand fails      | infrastructure |
 
 **Two decisions, made here rather than pane by pane** ([Q70](decisions.md)). _Hierarchy_: two levels
 

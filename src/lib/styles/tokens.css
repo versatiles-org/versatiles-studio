@@ -134,6 +134,10 @@
 	--gap-group: var(--space-4); /* parts of one thing: tabs and their body, a list and its doors */
 	--gap-section: var(--space-6); /* one section of a pane from the next */
 
+	/* One label column for every pane (the kit, S12). It was 5.5rem in the Style pane and 6.5rem in a
+	   node card, which is a difference nobody decided. Wide enough for `properties_include`. */
+	--label-width: 6rem;
+
 	/* -- Shape --------------------------------------------------------------------------------
 	 * Two radii. Small for controls and cards, large for floating surfaces. */
 	--radius: 3px;
