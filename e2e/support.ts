@@ -83,6 +83,11 @@ export async function openProject(): Promise<void> {
 	await waitForGone(LAUNCHER);
 	await switchTo((await browser.getWindowHandles())[0]);
 	await browser.$('.maplibregl-canvas').waitForExist({ timeout: 30_000, timeoutMsg: 'the map never appeared' });
+	// **The map says the window is up; the chain says the project has been read.** Between the two,
+	// the Pipeline pane has no document and its buttons are disabled - and a story that pressed
+	// "Export tiles…" in that gap pressed nothing, in about one run in three. The chain is in the
+	// DOM whether or not the pane is unfolded (S10.7), so this holds for a folded pane too.
+	await browser.$('.chain').waitForExist({ timeout: 30_000, timeoutMsg: 'the pipeline never appeared' });
 }
 
 /**
