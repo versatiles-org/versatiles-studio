@@ -632,19 +632,15 @@ or glyph button, a restyled part or a label column of its own width each fail wi
 ### S13 · The kit, everywhere
 
 **What the code does before this stage.** The panes are consistent because the kit and its test hold
-them there. Everything the test excludes by name has drifted the way the panes had before S12: the
-seven dialogs head their sections with the pane title's uppercase label and spell their notes as
-`.lead`, `.hint`, `.note` and `.problem` in two sizes; three tab strips have three looks and two ARIA
-patterns; a menu, a picker, the help, a dropdown panel, the search list and the feature popup float
-on six different faces; the search list marks the cursor row with the colour every other list uses
-for the current item; `.quiet` means accent text in `base.css` and secondary text in the two
-status-bar panels, which duplicate each other almost line for line; the map's square buttons share
-the class name `.icon` with the panes' glyph buttons and override it property by property; the
-text-field rule in `base.css` reaches every input, so a slider wears a border and a colour well is
-framed in one pane and not the next; one checkbox takes the accent and four stay platform blue;
-"disabled" is five opacities; the crop's Draw button borrows `.primary` to mean pressed and the
-node's draw button has no pressed state at all; and every × ✎ ↑ ↓ in the panes is a character of the
-UI font while the map's controls are SVG.
+them there; everything the test excludes by name has drifted the way the panes had before S12. The
+dialogs head their sections with the pane title's uppercase label and spell their notes four ways in
+two sizes. Three tab strips have three looks. Six floating surfaces have six faces, and the search
+list marks the cursor row with the colour every other list keeps for the current item. `.quiet` means
+accent text in `base.css` and secondary text in the two status-bar panels, which duplicate each other.
+The map's square buttons share the class `.icon` with the panes' glyphs. The text-field rule in
+`base.css` reaches every input, so a slider wears a border; one checkbox takes the accent and four
+stay platform blue; "disabled" is five opacities; a pressed toggle borrows `.primary` in one place
+and has no look at all in another; and every × ✎ ↑ ↓ in the panes is a character of the UI font.
 
 | Item      | Work                                                                                 | Feature        |
 | --------- | ------------------------------------------------------------------------------------ | -------------- |

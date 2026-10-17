@@ -530,12 +530,10 @@ than a surface. **One disabled fade**, `--disabled-opacity`. **A pressed toggle 
 are right-aligned and tabular** in every numeric input. **One tab look**, at `--text-sm` with the
 accent underline, and the arrow keys everywhere.
 
-Two consequences worth naming. **Glyphs are drawn, not typed**: `MapIcon` became `Icon` and every ×,
-✎, ↑, ↓ and eye in the panes went through it, because a character in the UI font is a different
-weight on every platform and the power switch had been pasted as SVG into two components. **The
-text-field rule in `base.css` reaches only text fields**: written as a bare `input` it had given a
-range slider a border and a colour well a text field's padding, which two components undid and one did
-not.
+Two consequences. **Glyphs are drawn, not typed**: `MapIcon` became `Icon` and every × ✎ ↑ ↓ and eye
+went through it - a character in the UI font is a different weight on every platform. **The
+text-field rule in `base.css` reaches only text fields**: as a bare `input` it had framed a slider and
+padded a colour well, which two components undid and one did not.
 
 ## Dependencies and packaging
 

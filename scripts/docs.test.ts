@@ -246,9 +246,12 @@ describe('documentation size', () => {
 		// supersedes stay where they are and a reader arriving at them needs to be sent somewhere.
 		// Raised for Q68, the user-facing noun - the entry has to name both words and send a reader to the
 		// glossary that joins them.
-		'docs/decisions.md': 5750,
+		// Raised for Q71, the kit for every surface: seven decisions made once, each of which a reader
+		// arriving from a component has to be able to find.
+		'docs/decisions.md': 5950,
 		// Raised for Release 6, which records S10 as built and S11 as planned.
-		'docs/history.md': 6500,
+		// Raised for S13, the kit everywhere, which names what every excluded surface had drifted to.
+		'docs/history.md': 6800,
 		'docs/features.md': 2700,
 		// Raised for the glossary: one thing, five names, and where each is used.
 		'docs/ui.md': 2550,
@@ -257,7 +260,9 @@ describe('documentation size', () => {
 		// Raised for the second principle. The first had been the only one written down, and the
 		// reverse test it describes is cited from the code (`analysis.rs`) but was never stated here.
 		'docs/architecture.md': 2150,
-		'docs/styling.md': 2300,
+		// Raised for S13: the kit table grew from ten parts to eighteen, and the two meanings of a
+		// highlight and the two error presentations are written where a component author looks first.
+		'docs/styling.md': 2750,
 		// Raised for the two-halves rule (S10.10): every pane is a Pane and a Section, and the inventory
 		// names both.
 		'docs/components.md': 1250,
