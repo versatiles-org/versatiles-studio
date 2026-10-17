@@ -41,7 +41,7 @@
 		     what a person can act on is the retry, and the detail is in the problems panel. -->
 		<p class="failed" title={describe(error).message}>
 			<span>{label} stopped working.</span>
-			<button type="button" onclick={reset}>Try again</button>
+			<button type="button" class="link" onclick={reset}>Try again</button>
 		</p>
 	{/snippet}
 </svelte:boundary>
@@ -58,14 +58,9 @@
 		background: var(--error-bg);
 	}
 
+	/* The word is the kit's `.link`; here it is secondary rather than the message's red. */
 	button {
 		flex: none;
-		padding: 0 var(--space-2);
 		color: var(--ink-2);
-		text-decoration: underline;
-
-		&:hover {
-			color: var(--ink);
-		}
 	}
 </style>

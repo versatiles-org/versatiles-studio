@@ -11,6 +11,9 @@
 	} from '../state/diagnostics.svelte';
 	import { environment, saveReport, showLog, type Environment, type Problem } from '../ipc/commands';
 	import { status } from '../state/status.svelte';
+	import Tabs from '../common/Tabs.svelte';
+	import BarPanel from './BarPanel.svelte';
+	import BarRow from './BarRow.svelte';
 
 	// Everything that has gone wrong this session, expandable from the status bar (S6.8).
 	//
@@ -76,6 +79,15 @@
 	const list = $derived(showing === 'this' ? problems.list : (problems.earlier ?? []));
 	const loading = $derived(showing === 'previous' && problems.earlier === null);
 
+	/// What the panel says with nothing to list - and `null` while there is a list to show.
+	const empty = $derived.by(() => {
+		if (loading) return 'Reading what the last run wrote…';
+		if (list.length > 0) return null;
+		return showing === 'previous'
+			? 'The last run of Studio recorded no problems - or there was no last run. A window that crashed still leaves what it had written up to that point.'
+			: 'Nothing has gone wrong this session. Problems that do turn up are collected here, with a report you can copy into an issue.';
+	});
+
 	function when(problem: Problem): string {
 		// Local time, not ISO: this is read next to a memory of doing something, and 14:03 is what
 		// that memory is in. The report prints ISO, where the reader is somewhere else.
@@ -140,80 +152,37 @@
 	}
 </script>
 
-<div class="panel">
-	<div class="tools">
-		<!-- Tabs, not a filter: they are two runs, and one of them is over. `aria-pressed` rather than
-		     a tablist, because there is one panel underneath and no roving focus to manage. -->
-		<button type="button" class="tab" aria-pressed={showing === 'this'} onclick={() => show('this')}>
-			This session{problems.count > 0 ? ` (${problems.count})` : ''}
-		</button>
-		<button type="button" class="tab" aria-pressed={showing === 'previous'} onclick={() => show('previous')}>
-			Previous run
-		</button>
+{#snippet tools()}
+	<!-- Two runs, and one of them is over: tabs of the kit, over the one list under them. -->
+	<Tabs
+		items={[
+			{ id: 'this', label: `This session${problems.count > 0 ? ` (${problems.count})` : ''}` },
+			{ id: 'previous', label: 'Previous run' }
+		]}
+		selected={showing}
+		onSelect={(id) => show(id as 'this' | 'previous')}
+		label="Which run"
+	/>
 
-		<span class="count">
-			{#if loading}Reading…{:else if list.length > 0}{list.length} problem{list.length === 1 ? '' : 's'}{/if}
-		</span>
+	<span class="count">
+		{#if loading}Reading…{:else if list.length > 0}{list.length} problem{list.length === 1 ? '' : 's'}{/if}
+	</span>
 
-		<button type="button" class="quiet" onclick={() => void copy()} disabled={list.length === 0}>
-			{#if copied === 'yes'}Copied ✓{:else if copied === 'no'}Selected - press ⌘C{:else}Copy report{/if}
-		</button>
-		<button type="button" class="quiet" onclick={() => void saveAs()} disabled={list.length === 0}>Save…</button>
-		<button type="button" class="quiet" onclick={() => void report()} disabled={list.length === 0}>
-			Report on GitHub
-		</button>
-		<!-- Only this session's, and only the list: what is on disk is the account of a run, and a run
-		     does not stop having happened because somebody cleared a panel. -->
-		{#if showing === 'this'}
-			<button type="button" class="quiet" onclick={() => void clear()} disabled={list.length === 0}>Clear</button>
-		{/if}
-	</div>
-
-	{#if loading}
-		<p class="empty">Reading what the last run wrote…</p>
-	{:else if list.length === 0}
-		<p class="empty">
-			{#if showing === 'previous'}
-				The last run of Studio recorded no problems - or there was no last run. A window that crashed still leaves what
-				it had written up to that point.
-			{:else}
-				Nothing has gone wrong this session. Problems that do turn up are collected here, with a report you can copy
-				into an issue.
-			{/if}
-		</p>
-	{:else}
-		<ul bind:this={region}>
-			{#each list as problem (problem.id)}
-				<li class:failed={problem.level === 'error'}>
-					<div class="row">
-						<span class="dot" data-level={problem.level}></span>
-						<span class="at">{when(problem)}</span>
-						<span class="origin">{problem.origin}</span>
-						<span class="message truncate" title={problem.message}>{problem.message}</span>
-						<!-- The repeat count, where a bare list would show five hundred identical rows and
-						     push the entry that explains them off the end. -->
-						{#if problem.count > 1}<span class="repeats">×{problem.count}</span>{/if}
-						{#if problem.detail}
-							<button
-								type="button"
-								class="quiet"
-								aria-expanded={openId === problem.id}
-								onclick={() => (openId = openId === problem.id ? null : problem.id)}
-							>
-								{openId === problem.id ? 'Hide' : 'Detail'}
-							</button>
-						{/if}
-					</div>
-					{#if openId === problem.id && problem.detail}
-						<!-- Preformatted and scrolling on its own axis: a stack is full of paths that would
-						     otherwise widen the whole bar. -->
-						<pre class="detail-text">{problem.detail}</pre>
-					{/if}
-				</li>
-			{/each}
-		</ul>
+	<button type="button" class="quiet" onclick={() => void copy()} disabled={list.length === 0}>
+		{#if copied === 'yes'}Copied ✓{:else if copied === 'no'}Selected - press ⌘C{:else}Copy report{/if}
+	</button>
+	<button type="button" class="quiet" onclick={() => void saveAs()} disabled={list.length === 0}>Save…</button>
+	<button type="button" class="quiet" onclick={() => void report()} disabled={list.length === 0}>
+		Report on GitHub
+	</button>
+	<!-- Only this session's, and only the list: what is on disk is the account of a run, and a run
+	     does not stop having happened because somebody cleared a panel. -->
+	{#if showing === 'this'}
+		<button type="button" class="quiet" onclick={() => void clear()} disabled={list.length === 0}>Clear</button>
 	{/if}
+{/snippet}
 
+{#snippet footer()}
 	<!-- **The file, named and openable.** The list is the copy that is convenient; the file is the
 	     one that survives a window being killed, and a person who has to send it needs to be able to
 	     find it - a path you can read is worse than a path you can open, and this costs nothing to be
@@ -222,99 +191,50 @@
 	{#if where}
 		<button
 			type="button"
-			class="where truncate"
+			class="link where truncate"
 			title="Show {where.log} in the file manager"
 			onclick={() => void showLog().catch((error: unknown) => status.fail(error))}
 		>
 			Written to {where.log}
 		</button>
 	{/if}
-</div>
+{/snippet}
+
+<!-- The panel and its rows are the kit's (S13); what is this list's own is what a problem's row says. -->
+<BarPanel {tools} {footer} {empty} bind:list={region}>
+	{#each list as problem (problem.id)}
+		<BarRow
+			state={problem.level === 'error' ? 'error' : 'warn'}
+			more={openId === problem.id && problem.detail ? problem.detail : null}
+		>
+			<span class="at">{when(problem)}</span>
+			<span class="origin">{problem.origin}</span>
+			<span class="message truncate" class:bad={problem.level === 'error'} title={problem.message}>
+				{problem.message}
+			</span>
+			<!-- The repeat count, where a bare list would show five hundred identical rows and push
+			     the entry that explains them off the end. -->
+			{#if problem.count > 1}<span class="repeats">×{problem.count}</span>{/if}
+			{#if problem.detail}
+				<button
+					type="button"
+					class="quiet"
+					aria-expanded={openId === problem.id}
+					onclick={() => (openId = openId === problem.id ? null : problem.id)}
+				>
+					{openId === problem.id ? 'Hide' : 'Detail'}
+				</button>
+			{/if}
+		</BarRow>
+	{/each}
+</BarPanel>
 
 <style>
-	.panel {
-		max-height: 15rem;
-		overflow-y: auto;
-		border-bottom: 1px solid var(--rule);
-	}
-
-	.tools {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-2) var(--space-5);
-		border-bottom: 1px solid var(--rule);
-		font-size: var(--text-sm);
-	}
-
 	.count {
 		flex: 1;
 		min-width: 0;
 		color: var(--ink-2);
 		font-variant-numeric: tabular-nums;
-	}
-
-	/* The selected tab is the only one in full ink, which is the same way the bar marks an expanded
-	   panel - one rule for "you are looking at this", not two. */
-	.tab {
-		flex: none;
-		padding: 0 var(--space-2);
-		font-size: var(--text-sm);
-		color: var(--ink-2);
-
-		&[aria-pressed='true'] {
-			color: var(--ink);
-			font-weight: 500;
-		}
-
-		&:hover {
-			color: var(--ink);
-		}
-	}
-
-	.empty {
-		margin: 0;
-		padding: var(--space-3) var(--space-5);
-		font-size: var(--text-sm);
-		color: var(--ink-2);
-	}
-
-	ul {
-		margin: 0;
-		padding: 0;
-		list-style: none;
-	}
-
-	li + li {
-		border-top: 1px solid var(--rule);
-	}
-
-	li.failed .message {
-		color: var(--error);
-	}
-
-	.row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		min-width: 0;
-		padding: var(--space-2) var(--space-5);
-		font-size: var(--text-sm);
-	}
-
-	/* Level is carried by shape as much as colour - filled for an error, hollow for a warning - so
-	   it survives a monochrome or colour-blind reading. The same rule the job dots follow. */
-	.dot {
-		flex: none;
-		width: 0.5rem;
-		height: 0.5rem;
-		border-radius: 50%;
-		background: var(--error);
-
-		&[data-level='warn'] {
-			background: none;
-			box-shadow: inset 0 0 0 1px var(--ink-2);
-		}
 	}
 
 	/* Tabular figures: a column of times is read down, and proportional digits make it ragged. */
@@ -335,6 +255,11 @@
 	.message {
 		flex: 1;
 		min-width: 0;
+
+		/* An error's message, in the colour the row's dot already carries. */
+		&.bad {
+			color: var(--error);
+		}
 	}
 
 	.repeats {
@@ -343,22 +268,7 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	.quiet {
-		flex: none;
-		padding: 0 var(--space-2);
-		font-size: var(--text-sm);
-		color: var(--ink-2);
-
-		&:hover:not(:disabled) {
-			color: var(--ink);
-			text-decoration: underline;
-		}
-
-		&:disabled {
-			opacity: 0.5;
-		}
-	}
-
+	/* A line along the foot of the panel; the word itself is the kit's `.link`. */
 	.where {
 		display: block;
 		width: 100%;
@@ -367,22 +277,5 @@
 		font-size: var(--text-xs);
 		color: var(--ink-2);
 		text-align: left;
-
-		&:hover {
-			color: var(--ink);
-			text-decoration: underline;
-		}
-	}
-
-	.detail-text {
-		margin: 0;
-		padding: var(--space-3) var(--space-5);
-		max-height: 12rem;
-		overflow: auto;
-		font-family: var(--font-mono);
-		font-size: var(--text-mono-adjust);
-		white-space: pre;
-		color: var(--ink-2);
-		background: var(--chrome);
 	}
 </style>

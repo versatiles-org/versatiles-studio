@@ -16,12 +16,15 @@
 		tools,
 		empty = null,
 		footer,
+		list = $bindable(),
 		children
 	}: {
 		tools?: Snippet;
 		/** What the panel says instead of a list when there is nothing in it. */
 		empty?: string | null;
 		footer?: Snippet;
+		/** The list element, for a caller that selects its text as the fallback to the clipboard. */
+		list?: HTMLElement;
 		children?: Snippet;
 	} = $props();
 </script>
@@ -31,7 +34,7 @@
 	{#if empty !== null}
 		<div class="blank"><Note tone="empty">{empty}</Note></div>
 	{:else}
-		<ul>{@render children?.()}</ul>
+		<ul bind:this={list}>{@render children?.()}</ul>
 	{/if}
 	{#if footer}{@render footer()}{/if}
 </div>
