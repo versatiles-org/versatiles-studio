@@ -127,6 +127,36 @@ describe('what the pane offers for each kind of tileset', () => {
 		expect(screen.getByLabelText('Read as')).toBeTruthy();
 	});
 
+	// The picker offers only what the format can be (S11.4): vector readings for `mvt`, raster ones for
+	// an image. A correction stays possible within a format, where it means something.
+	it('offers "Read as" only the kinds the format allows', () => {
+		open({ layers: ['water_polygons', 'street_polygons', 'boundaries'] });
+		const vector = [...(screen.getByLabelText('Read as') as HTMLSelectElement).options].map((o) => o.value);
+		expect(vector).toContain('vectorOther');
+		expect(vector).not.toContain('rasterImage');
+		cleanup();
+
+		open({ kind: 'rasterImage', appearance: { type: 'raster', adjust: {} }, tileFormat: 'png', tileSchema: 'rgb' });
+		const raster = [...(screen.getByLabelText('Read as') as HTMLSelectElement).options].map((o) => o.value);
+		expect(raster).toEqual(['rasterImage', 'rasterDem']);
+	});
+
+	// A theme that draws nothing means the tiles are not what they were read as, so the note offers
+	// the reading that would draw them rather than leaving someone to try the other themes (S11.4).
+	it('offers to read the tiles as "other" when the theme draws none of their layers', async () => {
+		const actions = noop();
+		render(StylePane, {
+			sourceStyle: { kind: 'vectorShortbread', appearance: VECTOR } as never,
+			source: { tileFormat: 'mvt', tileSchema: null, layers: ['parcels', 'roads', 'sensors'] },
+			basis: 'fallback',
+			actions
+		});
+		await fireEvent.click(screen.getByRole('button', { name: 'Read as Vector · other' }));
+		// The derived reading for these layers is already "other", so the correction is cleared rather
+		// than recorded - the recipe holds corrections, not answers.
+		expect(actions.setKind).toHaveBeenCalledWith(null);
+	});
+
 	// Nothing published says how VersaTiles packs elevation, so it says so rather than guessing.
 	it('says an unreadable DEM encoding cannot be shaded, and offers the picker', () => {
 		open({

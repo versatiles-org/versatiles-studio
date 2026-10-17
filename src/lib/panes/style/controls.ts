@@ -14,6 +14,7 @@
 
 import type { DemEncoding, Hillshade, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
 import type { KindBasis } from '../../map/source-kind';
+import { renderableAs } from '../../map/tile-format';
 import type { MapToken } from '../../styles/tokens';
 
 /** One slider: its range, and the value that means "unchanged". */
@@ -39,14 +40,29 @@ export interface Slider<K extends string> {
 // The themes are not listed here: they are the library's, asked of the builder for the source's
 // schema by `themesFor` in `map/builders.ts` ([S11.3]).
 
-export const KIND_OPTIONS: SourceKind[] = [
-	'vectorShortbread',
-	'vectorOpenMapTiles',
-	'vectorProtomaps',
-	'vectorOther',
-	'rasterImage',
-	'rasterDem'
-];
+const VECTOR_KINDS: SourceKind[] = ['vectorShortbread', 'vectorOpenMapTiles', 'vectorProtomaps', 'vectorOther'];
+const RASTER_KINDS: SourceKind[] = ['rasterImage', 'rasterDem'];
+
+/**
+ * What "Read as" offers for tiles of this format ([S11.4]).
+ *
+ * **The format has the final say**, and `styleFor` already gives it: a vector source read as imagery
+ * draws nothing, and the pane then shows raster sliders that do nothing. So the picker offers only
+ * the kinds the format can be - the four vector readings for `mvt`, the two raster ones for an image
+ * - and leaves every choice *within* a format open, which is where a correction means something. A
+ * format the map cannot draw at all offers everything, since nothing is right and the person may
+ * know what the tiles were meant to be.
+ */
+export function kindOptions(tileFormat: string): SourceKind[] {
+	switch (renderableAs(tileFormat)) {
+		case 'vector':
+			return VECTOR_KINDS;
+		case 'raster':
+			return RASTER_KINDS;
+		default:
+			return [...VECTOR_KINDS, ...RASTER_KINDS];
+	}
+}
 
 // -- the three sets of sliders -------------------------------------------------------------------
 

@@ -8,6 +8,7 @@ import {
 	inertOverrides,
 	isAdjusted,
 	kindChoice,
+	kindOptions,
 	resamplingChoice,
 	sliderValue,
 	withSlider
@@ -80,6 +81,16 @@ describe('the pickers', () => {
 		expect(kindChoice('rasterImage', 'rasterImage')).toBeNull();
 		expect(kindChoice('rasterDem', 'rasterImage')).toBe('rasterDem');
 		expect(kindChoice('vectorOther', null)).toBe('vectorOther');
+	});
+
+	// The format has the final say over what tiles can be, so the picker offers only what it allows
+	// (S11.4): a vector source read as imagery was a set of controls that did nothing.
+	it('offers only the kinds the tile format can be', () => {
+		expect(kindOptions('mvt')).toEqual(['vectorShortbread', 'vectorOpenMapTiles', 'vectorProtomaps', 'vectorOther']);
+		expect(kindOptions('png')).toEqual(['rasterImage', 'rasterDem']);
+		expect(kindOptions('WEBP')).toEqual(['rasterImage', 'rasterDem']);
+		// A format the map cannot draw rules nothing in, so nothing is ruled out.
+		expect(kindOptions('bin')).toHaveLength(6);
 	});
 
 	// `linear` is MapLibre's default, so it is absence rather than a value - the same rule the

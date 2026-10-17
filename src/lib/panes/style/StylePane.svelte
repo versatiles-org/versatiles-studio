@@ -10,7 +10,7 @@
 		BASIS_NOTE,
 		HILLSHADE_COLOURS,
 		HILLSHADE_SLIDERS,
-		KIND_OPTIONS,
+		kindOptions,
 		RASTER_SLIDERS,
 		RECOLOR_SLIDERS,
 		encodingChoice,
@@ -145,7 +145,15 @@
 	const rasterAdjusted = $derived(isAdjusted(rasterAdjust));
 
 	/// Previewed locally and committed once, exactly as the recolour gesture is.
+	///
+	/// **Dropped when the source changes** ([S11.4]). The state module clears its own pending gesture
+	/// on a focus change; this one is the pane's, and a slider half-dragged on one source would
+	/// otherwise show its value on the next.
 	let rasterPending = $state<RasterAdjust | null>(null);
+	$effect(() => {
+		void sourceStyle;
+		rasterPending = null;
+	});
 	const rasterNow = $derived(rasterPending ?? rasterAdjust);
 
 	function previewRaster(key: RasterKey, raw: string): void {
@@ -247,8 +255,10 @@
 			<h2 class="section-label">These tiles</h2>
 			<label class="kind">
 				<span class="name">Read as</span>
+				<!-- Only the kinds this format can be ([S11.4]): a reading the format rules out is a set of
+				     controls that do nothing, and `styleFor` would draw nothing under them. -->
 				<select aria-label="Read as" value={kind} onchange={(event) => chooseKind(event.currentTarget.value)}>
-					{#each KIND_OPTIONS as option (option)}
+					{#each kindOptions(source.tileFormat) as option (option)}
 						<option value={option}>{KIND_LABELS[option]}</option>
 					{/each}
 				</select>
@@ -364,9 +374,13 @@
 			<h2 class="section-label">Theme</h2>
 			{#if basis === 'fallback'}
 				<!-- S6.2: the theme is still what the recipe says, and it is not what the map is
-				     showing. Saying so here is cheaper than leaving someone to compare the two. -->
+				     showing. Saying so here is cheaper than leaving someone to compare the two - and
+				     since the kind picks the editor ([S11.4]), the fix is a reading rather than another
+				     theme, so it is offered where the problem is stated. -->
 				<p class="note substituted">
-					These tiles have none of the layers this theme draws, so they are shown as the inspector style instead.
+					These tiles have none of the layers this theme draws, so they are shown as the inspector style instead. They
+					are probably not {kind === null ? 'this schema' : KIND_LABELS[kind]}.
+					<button type="button" class="reset" onclick={() => chooseKind('vectorOther')}>Read as Vector · other</button>
 				</p>
 			{/if}
 			<!-- **The library's list, in a dropdown** ([S11.3]). Twenty-four themes do not fit as
