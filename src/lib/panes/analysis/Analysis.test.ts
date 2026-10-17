@@ -40,6 +40,7 @@ const show = (props: Partial<Parameters<typeof render<typeof Analysis>>[1] & obj
 		measurement: measured(),
 		onMeasure: vi.fn(),
 		onShowTile: vi.fn(),
+		onInspectTile: vi.fn(),
 		...props
 	});
 
@@ -81,6 +82,13 @@ describe('the analysis pane', () => {
 		show({ measurement: measured({ sizes }), onShowTile });
 		await fireEvent.click(screen.getByRole('button', { name: '1/1/0' }));
 		expect(onShowTile).toHaveBeenCalledWith(1, 1, 0);
+	});
+
+	it('opens the tile dialog on one of the biggest', async () => {
+		const onInspectTile = vi.fn();
+		show({ measurement: measured({ sizes }), onInspectTile });
+		await fireEvent.click(screen.getByRole('button', { name: 'Inspect 1/1/0' }));
+		expect(onInspectTile).toHaveBeenCalledWith(1, 1, 0);
 	});
 
 	it('keeps the last figures beside a failure, and says they may be out of date', () => {

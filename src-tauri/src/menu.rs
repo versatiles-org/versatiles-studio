@@ -58,6 +58,7 @@ fn build(app: &AppHandle) -> Result<Menu<Wry>> {
 	}
 
 	menu.append(&file(app)?)?;
+	menu.append(&map(app)?)?;
 
 	// Fonts and updates are about *Studio* rather than about the project. macOS has a place for
 	// exactly that and every Mac user knows where it is; nowhere else does, so elsewhere they get a
@@ -127,6 +128,15 @@ fn file(app: &AppHandle) -> Result<Submenu<Wry>> {
 	accelerate(&file, SAVE_PROJECT, "CmdOrCtrl+S")?;
 	accelerate(&file, SAVE_PROJECT_AS, "CmdOrCtrl+Shift+S")?;
 	Ok(file)
+}
+
+/// What is about the map and the source it draws (S14.5).
+///
+/// No shortcut for Inspect Tile…: every free letter is one a text field in the panes may want.
+fn map(app: &AppHandle) -> Result<Submenu<Wry>> {
+	Ok(SubmenuBuilder::new(app, "Map")
+		.text("inspect-tile", "Inspect Tile…")
+		.build()?)
 }
 
 /// What is about Studio rather than about the project. macOS puts these in the application submenu.

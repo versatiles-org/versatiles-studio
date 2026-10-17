@@ -24,7 +24,7 @@ import type { Map as MaplibreMap } from 'maplibre-gl';
 import { save } from '@tauri-apps/plugin-dialog';
 import { anyExtension, askForSource } from '../common/import';
 import { fitToBounds } from '../map/add-source';
-import { tileToLngLat } from '../map/tile-grid';
+import { tileForLngLat, tileToLngLat } from '../map/tile-grid';
 import { analysis } from './analysis.svelte';
 import { composition } from '../map/composition.svelte';
 import {
@@ -436,6 +436,18 @@ export const workbench = {
 		const [west, north] = tileToLngLat(x, y, z);
 		const [east, south] = tileToLngLat(x + 1, y + 1, z);
 		fitToBounds(map, [west, south, east, north], true);
+	},
+
+	/**
+	 * The tile under the middle of the map, at the map's level but no deeper than `deepest` - what
+	 * "Inspect Tile…" opens on (S14.5). `null` before there is a map.
+	 */
+	centreTile(deepest: number): { z: number; x: number; y: number } | null {
+		const map = mapOf();
+		if (!map) return null;
+		const z = Math.max(0, Math.min(deepest, Math.floor(map.getZoom())));
+		const { lng, lat } = map.getCenter();
+		return { z, ...tileForLngLat(lng, lat, z) };
 	},
 
 	// -- the document ----------------------------------------------------------------------------

@@ -39,6 +39,8 @@ export interface Actions {
 	showUpdates: () => void;
 	/** Shows the problems panel in the status bar. */
 	showProblems: () => void;
+	/** Opens the tile dialog on the tile under the middle of the map (S14.5). */
+	inspectTile: () => void;
 	/** Starts a problem report for this session. */
 	reportProblem: () => void;
 	/**
@@ -118,6 +120,8 @@ export const windowEvents = {
 							return actions.showUpdates();
 						case 'problems':
 							return actions.showProblems();
+						case 'inspect-tile':
+							return actions.inspectTile();
 						case 'report-problem':
 							return actions.reportProblem();
 						case 'repository':

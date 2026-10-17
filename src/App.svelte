@@ -25,6 +25,8 @@
 	import AlphaRibbon from './lib/shell/AlphaRibbon.svelte';
 	import AssetsDialog from './lib/shell/AssetsDialog.svelte';
 	import UpdateDialog from './lib/shell/UpdateDialog.svelte';
+	import TileDialog from './lib/shell/TileDialog.svelte';
+	import { tileDialog } from './lib/state/tile-dialog.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import CopyDialog from './lib/panes/project/CopyDialog.svelte';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
@@ -190,6 +192,13 @@
 		showAssets: () => (assets = true),
 		showUpdates: () => (updating = true),
 		showProblems: () => panels.show('problems'),
+		inspectTile: () => {
+			const selected = workbench.selected;
+			const deepest = composition.editedBuild?.info.maxZoom;
+			const tile = deepest === undefined ? null : workbench.centreTile(deepest);
+			if (selected && tile) void tileDialog.open(selected.id, tile.z, tile.x, tile.y);
+			else status.fail(new Error('Select a source that is drawn on the map to inspect one of its tiles.'));
+		},
 		reportProblem: () => void reportProblem('this').catch((error: unknown) => status.fail(error)),
 		openPath: (path) => workbench.openPath(path),
 		accepts: (path) => workbench.accepts(path),
@@ -273,6 +282,9 @@
 				mount={heat.on ? heat.mount : null}
 				graph={heat.drawn?.graph ?? null}
 				detail={heat.drawn?.detail ?? null}
+				onPick={(z, x, y) => {
+					if (heat.drawn) void tileDialog.open(heat.drawn.graph, z, x, y);
+				}}
 			/>
 			<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
 		     has no visibility of its own to toggle. -->
@@ -400,6 +412,22 @@
 
 {#if assets}
 	<AssetsDialog onClose={() => (assets = false)} />
+{/if}
+
+{#if tileDialog.at}
+	{@const at = tileDialog.at}
+	<TileDialog
+		{at}
+		dissection={tileDialog.dissection}
+		error={tileDialog.error}
+		loading={tileDialog.loading}
+		onGo={(z, x, y) => void tileDialog.go(z, x, y)}
+		onShowOnMap={() => {
+			workbench.showTile(at.z, at.x, at.y);
+			tileDialog.close();
+		}}
+		onClose={() => tileDialog.close()}
+	/>
 {/if}
 
 <!-- Outside the shell, like the modals: it belongs to the window rather than to a cell of the grid. -->

@@ -20,6 +20,8 @@
 		| 'rename'
 		| 'up'
 		| 'down'
+		| 'left'
+		| 'right'
 		| 'undo'
 		| 'redo'
 		| 'format'
@@ -104,6 +106,10 @@
 		<path d="M8 13V3M4 7l4-4 4 4" />
 	{:else if name === 'down'}
 		<path d="M8 3v10M4 9l4 4 4-4" />
+	{:else if name === 'left'}
+		<path d="M13 8H3m4-4L3 8l4 4" />
+	{:else if name === 'right'}
+		<path d="M3 8h10M9 4l4 4-4 4" />
 	{:else if name === 'undo'}
 		<path d="M3.5 6.5H9a3.5 3.5 0 0 1 0 7H6" />
 		<path d="M6 4 3.5 6.5 6 9" />

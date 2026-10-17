@@ -43,6 +43,12 @@ const KIT = new Set([
 	'lib/shell/BarRow.svelte'
 ]);
 
+/**
+ * Components whose SVG is a drawing of data rather than a glyph - the tile dialog draws a tile's
+ * geometry (S14.5), which no icon could.
+ */
+const DRAWINGS = new Set(['lib/shell/TileDrawing.svelte']);
+
 const files = [...components(), 'App.svelte', 'Launcher.svelte'];
 const users = files.filter((path) => !KIT.has(path));
 const read = (path: string) => readFileSync(join(SRC, path), 'utf8');
@@ -110,7 +116,9 @@ describe('the kit', () => {
 		// A glyph standing alone as an element's content - `>×<` - or a pasted SVG. Not a glyph inside
 		// a word: `×3` after a repeated problem is a count, and reads as one.
 		const GLYPHS = /[>}]\s*[×✎↑↓↺↻¶▭⋮◉○▸▾]\s*<\/|<svg\b/;
-		const offenders = users.filter((path) => GLYPHS.test(markup(read(path)).replace(/\/\/.*$/gm, '')));
+		const offenders = users
+			.filter((path) => !DRAWINGS.has(path))
+			.filter((path) => GLYPHS.test(markup(read(path)).replace(/\/\/.*$/gm, '')));
 		expect(offenders, 'use <Icon name="…">').toEqual([]);
 	});
 

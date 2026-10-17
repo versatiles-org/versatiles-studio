@@ -4,6 +4,7 @@
 	import { composition } from '../../map/composition.svelte';
 	import { workbench } from '../../state/workbench.svelte';
 	import { heat } from '../../state/heat.svelte';
+	import { tileDialog } from '../../state/tile-dialog.svelte';
 
 	// The Analysis pane, connected (S14.2): the selected graph's figures, and the build they are about.
 
@@ -19,6 +20,9 @@
 		if (selected) void analysis.measure(selected.id, build);
 	}}
 	onShowTile={(z, x, y) => workbench.showTile(z, x, y)}
+	onInspectTile={(z, x, y) => {
+		if (selected) void tileDialog.open(selected.id, z, x, y);
+	}}
 	heatOn={heat.on}
 	onToggleHeat={() => {
 		const info = composition.editedBuild?.info;

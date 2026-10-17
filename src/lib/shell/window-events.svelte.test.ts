@@ -83,6 +83,7 @@ function actions() {
 			showAssets: note('showAssets'),
 			showUpdates: note('showUpdates'),
 			showProblems: note('showProblems'),
+			inspectTile: note('inspectTile'),
 			reportProblem: note('reportProblem'),
 			openPath: (path: string) => {
 				calls.push(`open:${path}`);
@@ -111,11 +112,11 @@ describe('what a window listens for', () => {
 		attach(spec);
 		await vi.waitFor(() => expect(fire.menu).toBeTypeOf('function'));
 
-		for (const payload of ['open', 'open-project', 'save-project', 'fonts', 'problems']) {
+		for (const payload of ['open', 'open-project', 'save-project', 'fonts', 'problems', 'inspect-tile']) {
 			fire.menu!({ payload });
 		}
 
-		expect(calls).toEqual(['open', 'openProject', 'saveProject', 'showAssets', 'showProblems']);
+		expect(calls).toEqual(['open', 'openProject', 'saveProject', 'showAssets', 'showProblems', 'inspectTile']);
 	});
 
 	/// A payload this build does not know is not an error - the menu is declared in Rust and can name

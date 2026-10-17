@@ -373,6 +373,9 @@ export const mountHeat = (graph: number, detail: number, colours: string[]) =>
 export const unmountHeat = (graph: number) => unwrap(commands.unmountHeat(graph));
 /** One tile's stored size, from the index - `null` where there is none. */
 export const tileBytes = (graph: number, z: number, x: number, y: number) => unwrap(commands.tileBytes(graph, z, x, y));
+/** The drawn tile at `z/x/y` taken apart - `null` where the source has none (S14.4). */
+export const dissectTile = (graph: number, z: number, x: number, y: number) =>
+	unwrap(commands.dissectTile(graph, z, x, y));
 
 // -- views -----------------------------------------------------------------------------------
 

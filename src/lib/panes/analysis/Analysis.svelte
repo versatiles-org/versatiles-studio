@@ -19,6 +19,7 @@
 		stale = false,
 		onMeasure,
 		onShowTile,
+		onInspectTile,
 		heatOn = false,
 		onToggleHeat
 	}: {
@@ -30,6 +31,8 @@
 		onMeasure: () => void;
 		/** Frames a tile on the map. */
 		onShowTile: (z: number, x: number, y: number) => void;
+		/** Opens the tile dialog on a tile (S14.5). */
+		onInspectTile: (z: number, x: number, y: number) => void;
 		/** Whether the heat map is on - the same switch as the one on the map (S14.3). */
 		heatOn?: boolean;
 		onToggleHeat?: () => void;
@@ -112,7 +115,11 @@
 			<Group title="Biggest tiles">
 				<table class="figures" aria-label="Biggest tiles">
 					<thead>
-						<tr><th scope="col">Tile</th><th scope="col">Size</th></tr>
+						<tr
+							><th scope="col">Tile</th><th scope="col">Size</th><th scope="col"
+								><span class="visually-hidden">Inspect</span></th
+							></tr
+						>
 					</thead>
 					<tbody>
 						{#each sizes.biggest as tile (`${tile.z}/${tile.x}/${tile.y}`)}
@@ -126,6 +133,14 @@
 									>
 								</th>
 								<td class:over={tile.bytes > BUDGET}>{kilobytes(tile.bytes)}</td>
+								<td>
+									<button
+										type="button"
+										class="link"
+										aria-label="Inspect {tile.z}/{tile.x}/{tile.y}"
+										onclick={() => onInspectTile(tile.z, tile.x, tile.y)}>Inspect</button
+									>
+								</td>
 							</tr>
 						{/each}
 					</tbody>
