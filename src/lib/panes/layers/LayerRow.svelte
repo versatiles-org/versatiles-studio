@@ -109,10 +109,10 @@
 	}
 </script>
 
-<div class="layer" class:hidden={!visible}>
+<div class="layer list-row" class:hidden={!visible}>
 	<button
 		type="button"
-		class="eye"
+		class="icon eye"
 		disabled={hiddenBy !== null}
 		title={hiddenBy !== null
 			? `Hidden by the eye on ${hiddenBy}`
@@ -170,7 +170,7 @@
 
 	<button
 		type="button"
-		class="funnel"
+		class="icon funnel"
 		class:set={isOverridden(override)}
 		class:open={editing}
 		title={filterOf(spec, override) === null
@@ -184,7 +184,7 @@
 	</button>
 
 	{#if touched}
-		<button type="button" class="reset" title="Undo the changes to this layer" onclick={() => onOverride(id, {})}>
+		<button type="button" class="quiet" title="Undo the changes to this layer" onclick={() => onOverride(id, {})}>
 			reset
 		</button>
 	{/if}
@@ -211,18 +211,16 @@
 				<span class="applied">on the map</span>
 			{/if}
 			{#if isOverridden(override)}
-				<button type="button" class="reset" onclick={clearFilter}>use the style’s own</button>
+				<button type="button" class="quiet" onclick={clearFilter}>use the style’s own</button>
 			{/if}
 		</p>
 	</div>
 {/if}
 
 <style>
+	/* The row is the kit's `.list-row`, its glyphs the kit's `.icon` (S12.6); what is here is what a
+	   layer row alone has - a swatch, two zoom fields, a funnel that remembers whether it is set. */
 	.layer {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		min-width: 0;
 		padding: 1px 0;
 
 		/* Dimmed rather than removed: a hidden layer is still a layer, and finding it again should
@@ -235,17 +233,10 @@
 		.name {
 			flex: 1;
 			min-width: 0;
-			font-size: var(--text-xs);
 		}
 
 		.eye {
-			color: var(--ink-2);
-			font-size: var(--text-xs);
-		}
-
-		.reset {
-			color: var(--accent);
-			font-size: var(--text-xs);
+			font-size: var(--text-sm);
 		}
 
 		/* A disclosure triangle rather than an `ƒ`: the swatch beside it already means "this value is
@@ -253,8 +244,6 @@
 		   present, so rows do not shift when a layer gains a filter; quiet until it carries an
 		   override of the user's. */
 		.funnel {
-			color: var(--ink-2);
-			font-size: var(--text-xs);
 			font-style: italic;
 
 			&.set {
@@ -312,12 +301,6 @@
 
 		.problem {
 			color: var(--error);
-		}
-
-		.reset {
-			align-self: flex-start;
-			color: var(--accent);
-			font-size: var(--text-xs);
 		}
 	}
 

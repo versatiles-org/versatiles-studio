@@ -4,6 +4,7 @@
 	import { covers, tree, type Group, type Node } from './tree';
 	import { canMove, step, type Range } from './move';
 	import LayerRow from './LayerRow.svelte';
+	import Note from '../../common/Note.svelte';
 
 	// What the map paints, project-wide ([the layer stack](../../../../docs/layers.md)).
 	//
@@ -136,19 +137,19 @@
 				{@const shown = isOpen(node, key)}
 				{@const up = stepOf(node, 1)}
 				{@const down = stepOf(node, -1)}
-				<div class="row group" style="--depth: {depth}">
+				<div class="row list-row" style="--depth: {depth}">
 					<button
 						type="button"
-						class="fold"
+						class="icon"
 						aria-expanded={shown}
 						aria-label={shown ? `Collapse ${node.label}` : `Expand ${node.label}`}
 						onclick={() => (open = { ...open, [key]: !shown })}
 					>
-						{shown ? '▾' : '▸'}
+						<span class="chevron" class:open={shown} aria-hidden="true">▸</span>
 					</button>
 					<button
 						type="button"
-						class="eye"
+						class="icon eye"
 						aria-pressed={closed === null}
 						aria-label={closed === null ? `Hide ${node.label}` : `Show ${node.label}`}
 						title={closed !== null && closed !== node.path
@@ -177,7 +178,7 @@
 					     disappears as the stack changes is one you cannot learn the position of. -->
 					<button
 						type="button"
-						class="nudge"
+						class="icon"
 						disabled={up === null}
 						aria-label="Move {node.label} up"
 						title="Move {node.label} up the list, so it is drawn over the run above it"
@@ -185,7 +186,7 @@
 					>
 					<button
 						type="button"
-						class="nudge"
+						class="icon"
 						disabled={down === null}
 						aria-label="Move {node.label} down"
 						title="Move {node.label} down the list, so it is drawn under the run below it"
@@ -201,7 +202,7 @@
 {/snippet}
 
 {#if rows.length === 0}
-	<p class="nothing">Nothing is being drawn yet.</p>
+	<Note tone="empty">Nothing is being drawn yet.</Note>
 {:else}
 	<input type="text" class="filter" placeholder="Filter layers…" bind:value={query} aria-label="Filter layers" />
 	<div class="tree">
@@ -210,12 +211,6 @@
 {/if}
 
 <style>
-	.nothing {
-		margin: 0;
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-	}
-
 	.filter {
 		width: 100%;
 		font-size: var(--text-sm);
@@ -229,31 +224,23 @@
 		margin-top: var(--space-2);
 	}
 
+	/* What is this tree's own: the indent, the dimming of a hidden branch, the count. The rows are the
+	   kit's `.list-row` and the glyphs its `.icon` (S12.6). */
 	.row {
 		/* One indent per level, so the depth is readable without a guide line. */
 		padding-left: calc(var(--depth) * var(--space-4));
+		padding-top: 1px;
+		padding-bottom: 1px;
 
-		&.group {
-			display: flex;
-			align-items: center;
-			gap: var(--space-2);
-			min-width: 0;
-			padding-top: 1px;
-			padding-bottom: 1px;
-		}
-
-		.fold,
+		/* An eye reads as a glyph of its own weight, not as a thin icon. */
 		.eye {
-			flex: none;
-			color: var(--ink-2);
-			font-size: var(--text-xs);
+			font-size: var(--text-sm);
 		}
 
 		.label {
 			flex: 1;
 			min-width: 0;
 			text-align: left;
-			font-size: var(--text-xs);
 
 			/* Dimmed rather than removed: a hidden branch is still one you have to be able to find. */
 			&.hidden {
@@ -262,20 +249,9 @@
 			}
 		}
 
-		.nudge {
-			flex: none;
-			color: var(--ink-2);
-			font-size: var(--text-xs);
-
-			&:disabled {
-				opacity: 0.35;
-			}
-		}
-
 		.count {
 			flex: none;
 			color: var(--ink-2);
-			font-size: var(--text-xs);
 			font-variant-numeric: tabular-nums;
 		}
 	}
