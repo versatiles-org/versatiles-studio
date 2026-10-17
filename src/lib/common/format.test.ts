@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bytes, count, duration, kilobytes, megabytes } from './format';
+import { bytes, count, duration, kilobytes, megabytes, ordinal } from './format';
 
 describe('duration', () => {
 	it('stops pretending to be precise as it gets further away', () => {
@@ -58,5 +58,22 @@ describe('count', () => {
 	it('groups thousands so a tile count can be read at a glance', () => {
 		expect(count(1_048_576)).toBe('1,048,576');
 		expect(count(21)).toBe('21');
+	});
+});
+
+describe('ordinal', () => {
+	it('says 2nd, 3rd and 4th, and the teens as th', () => {
+		expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 112].map(ordinal)).toEqual([
+			'1st',
+			'2nd',
+			'3rd',
+			'4th',
+			'11th',
+			'12th',
+			'13th',
+			'21st',
+			'22nd',
+			'112th'
+		]);
 	});
 });

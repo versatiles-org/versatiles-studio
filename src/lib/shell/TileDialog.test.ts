@@ -68,7 +68,7 @@ const tile: Dissection = {
 	rawBytes: 1_200_000,
 	layers: [layer('water', 1), layer('buildings', 2)],
 	features: [square(0, 0), square(1, 0), square(1, 1, -50)],
-	truncated: false,
+	every: 1,
 	issues: [{ layer: 'buildings', feature: 1, kind: 'OrphanInnerRing', label: 'a ring winds the wrong way' }],
 	repair: { rawBytes: 1_100_000, issuesLeft: 0 }
 };
@@ -136,8 +136,8 @@ describe('the tile dialog', () => {
 		show({ dissection: null });
 		expect(screen.getByText('This source has no tile at 14/8800/5373.')).toBeTruthy();
 		cleanup();
-		show({ dissection: { ...tile, truncated: true } });
-		expect(screen.getByText(/only the first 3 are drawn and listed/)).toBeTruthy();
+		show({ dissection: { ...tile, every: 3 } });
+		expect(screen.getByText(/every 3rd feature of each layer is drawn and listed - 3 in all/)).toBeTruthy();
 	});
 
 	it('takes a raster tile no further than its size', () => {

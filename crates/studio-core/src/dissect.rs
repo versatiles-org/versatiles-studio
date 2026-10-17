@@ -12,7 +12,10 @@
 //!
 //! **Capped**, because a dense tile at a high zoom carries a hundred thousand vertices and all of it
 //! crosses IPC as JSON ([Q3]). The layers and attributes are counted over every feature; the features
-//! themselves stop at [`MAX_FEATURES`] or [`MAX_VERTICES`], and the answer says it stopped.
+//! themselves are kept under [`MAX_FEATURES`] and [`MAX_VERTICES`] by taking every n-th of each layer,
+//! and the answer says which n. **Not the first so many**: a layer is often stored in order across
+//! the tile - addresses west to east - so a tile cut off after its first five thousand features was
+//! drawn two thirds wide, from one layer, and looked like a tile with nothing on its right.
 //!
 //! [Q72]: ../../../docs/decisions.md
 //! [Q3]: ../../../docs/decisions.md
@@ -28,7 +31,7 @@ use versatiles_geometry::vector_tile::{
 };
 
 /// The most features a dissection carries geometry for.
-pub const MAX_FEATURES: usize = 5_000;
+pub const MAX_FEATURES: usize = 20_000;
 
 /// The most vertices it carries, over all of those features.
 pub const MAX_VERTICES: usize = 200_000;
@@ -50,10 +53,10 @@ pub struct Dissection {
 	/// Bytes decompressed, which is what the layers below add up to.
 	pub raw_bytes: u32,
 	pub layers: Vec<LayerDissection>,
-	/// Every feature of every layer, in order - up to the cap.
+	/// Every feature of every layer, in order - or every [`Self::every`]-th, past the caps.
 	pub features: Vec<FeatureDissection>,
-	/// Whether `features` stopped short of the tile.
-	pub truncated: bool,
+	/// Which features of each layer `features` holds: every one at 1, every n-th at n.
+	pub every: u32,
 	pub issues: Vec<TileIssue>,
 	/// What `vector_repair` would make of it, when there is anything to repair.
 	pub repair: Option<RepairPreview>,
@@ -185,7 +188,7 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 		raw_bytes,
 		layers: Vec::new(),
 		features: Vec::new(),
-		truncated: false,
+		every: 1,
 		issues: Vec::new(),
 		repair: None,
 	};
@@ -195,7 +198,7 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 
 	let vector = tile.as_vector().context("decoding the vector tile")?.clone();
 	found.layers = layers(&vector)?;
-	(found.features, found.truncated) = features(&vector);
+	(found.features, found.every) = features(&vector);
 	found.issues = validate_tile(&vector)
 		.into_iter()
 		.map(|issue| TileIssue {
@@ -349,32 +352,48 @@ fn attributes(layer: &VectorTileLayer) -> Vec<AttributeDissection> {
 	found
 }
 
-/// Every feature with its geometry, until the caps; and whether a cap was reached.
-fn features(vector: &VectorTile) -> (Vec<FeatureDissection>, bool) {
+/// The features with their geometry - every one, or every n-th of each layer when all of them would
+/// pass a cap - and that n.
+fn features(vector: &VectorTile) -> (Vec<FeatureDissection>, u32) {
+	let read: Vec<Vec<(Vec<Part>, bool)>> = vector
+		.layers
+		.iter()
+		.map(|layer| {
+			layer
+				.features
+				.iter()
+				.map(|feature| read_parts(feature.geom_data.as_slice()))
+				.collect()
+		})
+		.collect();
+	let count = |parts: &[Part]| -> usize { parts.iter().map(|part| part.points.len()).sum() };
+	let features: usize = read.iter().map(Vec::len).sum();
+	let vertices: usize = read.iter().flatten().map(|(parts, _)| count(parts)).sum();
+	let every = features
+		.div_ceil(MAX_FEATURES)
+		.max(vertices.div_ceil(MAX_VERTICES))
+		.max(1);
+
 	let mut found = Vec::new();
-	let mut vertices = 0;
-	for (layer_index, layer) in vector.layers.iter().enumerate() {
-		for (index, feature) in layer.features.iter().enumerate() {
-			let (parts, malformed) = read_parts(feature.geom_data.as_slice());
-			let count: usize = parts.iter().map(|part| part.points.len()).sum();
-			if found.len() == MAX_FEATURES || vertices + count > MAX_VERTICES {
-				return (found, true);
+	for (layer_index, (layer, parts)) in vector.layers.iter().zip(read).enumerate() {
+		for (index, (feature, (parts, malformed))) in layer.features.iter().zip(parts).enumerate() {
+			if index % every != 0 {
+				continue;
 			}
-			vertices += count;
 			found.push(FeatureDissection {
 				layer: clamp(layer_index),
 				index: clamp(index),
 				id: feature.id,
 				kind: kind_of(&feature.geom_type).to_string(),
-				vertices: clamp(count),
-				geometry_bytes: clamp(feature.geom_data.len() as usize),
+				vertices: clamp(count(&parts)),
+				geometry_bytes: clamp(feature.geom_data.len()),
 				properties: properties(layer, &feature.tag_ids),
 				parts,
 				malformed,
 			});
 		}
 	}
-	(found, false)
+	(found, clamp(every))
 }
 
 fn kind_of(kind: &GeomType) -> &'static str {
@@ -605,8 +624,8 @@ mod tests {
 			4096,
 			2,
 		)?;
-		let (found, truncated) = features(&VectorTile::new(vec![a, b]));
-		assert!(!truncated);
+		let (found, every) = features(&VectorTile::new(vec![a, b]));
+		assert_eq!(every, 1);
 		let summary: Vec<_> = found
 			.iter()
 			.map(|f| (f.layer, f.index, f.id, f.kind.as_str()))
@@ -615,15 +634,30 @@ mod tests {
 		Ok(())
 	}
 
+	/// Past the cap, every n-th of each layer: a layer stored west to east is still drawn across the
+	/// whole tile, and the layers after it are still drawn at all. Cutting off after the first so
+	/// many drew one layer, two thirds wide.
 	#[test]
-	fn stops_at_the_cap_and_says_so() -> Result<()> {
-		let many: Vec<_> = (0..(MAX_FEATURES as u64 + 1))
-			.map(|i| feature(i, Geometry::Point(geo_types::Point::new(1.0, 1.0)), &[]))
+	fn past_the_cap_takes_every_nth_of_every_layer() -> Result<()> {
+		let span = 4095.0 / MAX_FEATURES as f64;
+		let west_to_east: Vec<_> = (0..MAX_FEATURES as u64)
+			.map(|i| feature(i, Geometry::Point(geo_types::Point::new(i as f64 * span, 1.0)), &[]))
 			.collect();
-		let layer = VectorTileLayer::from_features("p".to_string(), many, 4096, 2)?;
-		let (found, truncated) = features(&VectorTile::new(vec![layer]));
-		assert!(truncated);
-		assert_eq!(found.len(), MAX_FEATURES);
+		let later: Vec<_> = (0..10).map(|i| feature(i, square(10.0, 5.0), &[])).collect();
+		let tile = VectorTile::new(vec![
+			VectorTileLayer::from_features("addresses".to_string(), west_to_east, 4096, 2)?,
+			VectorTileLayer::from_features("buildings".to_string(), later, 4096, 2)?,
+		]);
+		let (found, every) = features(&tile);
+		assert_eq!(every, 2);
+		assert!(found.len() <= MAX_FEATURES);
+		let east = found
+			.iter()
+			.filter(|f| f.layer == 0)
+			.flat_map(|f| f.parts.iter().map(|part| part.points[0][0]))
+			.max();
+		assert!(east > Some(4000), "drawn as far east as {east:?}");
+		assert_eq!(found.iter().filter(|f| f.layer == 1).count(), 5);
 		Ok(())
 	}
 
@@ -643,7 +677,7 @@ mod tests {
 		assert!(found.stored_bytes > 0 && found.raw_bytes >= found.stored_bytes);
 		assert!(!found.layers.is_empty());
 		let total: u32 = found.layers.iter().map(|layer| layer.features).sum();
-		assert!(found.truncated || found.features.len() as u32 == total);
+		assert!(found.every > 1 || found.features.len() as u32 == total);
 		assert!(dissect(source.as_ref(), 14, 0, 0).await?.is_none());
 
 		let brief = summarise(source.as_ref(), 14, 8800, 5373)

@@ -225,10 +225,10 @@ export const commands = {
 	/**  Bytes decompressed, which is what the layers below add up to. */
 	rawBytes: number,
 	layers: LayerDissection[],
-	/**  Every feature of every layer, in order - up to the cap. */
+	/**  Every feature of every layer, in order - or every [`Self::every`]-th, past the caps. */
 	features: FeatureDissection[],
-	/**  Whether `features` stopped short of the tile. */
-	truncated: boolean,
+	/**  Which features of each layer `features` holds: every one at 1, every n-th at n. */
+	every: number,
 	issues: TileIssue[],
 	/**  What `vector_repair` would make of it, when there is anything to repair. */
 	repair: RepairPreview | null,
@@ -1142,10 +1142,10 @@ export type Dissection = {
 	/**  Bytes decompressed, which is what the layers below add up to. */
 	rawBytes: number,
 	layers: LayerDissection[],
-	/**  Every feature of every layer, in order - up to the cap. */
+	/**  Every feature of every layer, in order - or every [`Self::every`]-th, past the caps. */
 	features: FeatureDissection[],
-	/**  Whether `features` stopped short of the tile. */
-	truncated: boolean,
+	/**  Which features of each layer `features` holds: every one at 1, every n-th at n. */
+	every: number,
 	issues: TileIssue[],
 	/**  What `vector_repair` would make of it, when there is anything to repair. */
 	repair: RepairPreview | null,

@@ -6,7 +6,7 @@
 	import Field from '../common/Field.svelte';
 	import JsonTree from '../common/JsonTree.svelte';
 	import TileDrawing from './TileDrawing.svelte';
-	import { bytes, kilobytes, count } from '../common/format';
+	import { bytes, kilobytes, count, ordinal } from '../common/format';
 	import type { Dissection } from '../ipc/commands';
 	import { children, neighbour, parent, parseAddress, type TileAt } from '../state/tile-dialog.svelte';
 
@@ -155,11 +155,12 @@
 		{#if !vector}
 			<Note tone="aside">A raster tile has nothing to take apart beyond its size.</Note>
 		{:else}
-			{#if dissection.truncated}
+			{#if dissection.every > 1}
 				<Note tone="aside">
-					This tile has more than {count(5000)} features or {count(200000)} vertices, so only the first {count(
-						dissection.features.length
-					)} are drawn and listed. The Layers and Attributes tabs count all of them.
+					This tile has more than {count(20000)} features or {count(200000)} vertices, so every {ordinal(
+						dissection.every
+					)} feature of each layer is drawn and listed - {count(dissection.features.length)} in all. The Layers and Attributes
+					tabs count all of them.
 				</Note>
 			{/if}
 			<div class="split">
