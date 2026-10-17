@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '../../common/Icon.svelte';
 	import type { Snippet } from 'svelte';
 	import type { GraphInfo } from '../../ipc/commands';
 	import Note from '../../common/Note.svelte';
@@ -103,18 +104,7 @@
 				aria-label={graph.enabled ? `Switch off ${graph.name}` : `Switch on ${graph.name}`}
 				onclick={() => onToggle(graph.id, !graph.enabled)}
 			>
-				<svg viewBox="0 0 16 16" aria-hidden="true">
-					<!-- A power symbol, not an eye: this stops the build, it does not hide the drawing. The
-					     eye lives in the Layers pane and means "painted" (S10.6). -->
-					<path
-						d="M5.2 4.6a4.6 4.6 0 1 0 5.6 0"
-						fill="none"
-						stroke="currentColor"
-						stroke-width="1.4"
-						stroke-linecap="round"
-					/>
-					<path d="M8 2.2v5.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
-				</svg>
+				<Icon name="power" size="100%" />
 			</button>
 
 			{#if renaming === graph.id}
@@ -145,15 +135,9 @@
 						onRemove(graph.id);
 					}}>Delete</button
 				>
-				<button
-					type="button"
-					class="icon"
-					aria-label="Keep {graph.name}"
-					title="Keep"
-					onclick={() => (removing = null)}
+				<button type="button" class="icon" aria-label="Keep {graph.name}" title="Keep" onclick={() => (removing = null)}
+					><Icon name="remove" size="1em" /></button
 				>
-					×
-				</button>
 			{:else}
 				<button type="button" class="name truncate" title={graph.name} onclick={() => onSelect(graph.id)}>
 					{graph.name}
@@ -167,18 +151,16 @@
 					</span>
 				{/if}
 				{#if graph.dirty}<span class="dirty" title="unsaved changes" aria-label="unsaved changes">•</span>{/if}
-				<button type="button" class="icon" title="Rename {graph.name}" aria-label="Rename" onclick={() => start(graph)}>
-					✎
-				</button>
+				<button type="button" class="icon" title="Rename {graph.name}" aria-label="Rename" onclick={() => start(graph)}
+					><Icon name="rename" size="1em" /></button
+				>
 				<button
 					type="button"
 					class="icon danger"
 					title="Delete {graph.name}"
 					aria-label="Delete {graph.name}"
-					onclick={() => (removing = graph.id)}
+					onclick={() => (removing = graph.id)}><Icon name="remove" size="1em" /></button
 				>
-					×
-				</button>
 			{/if}
 		</li>
 	{/each}
@@ -229,12 +211,6 @@
 
 		&:hover {
 			color: var(--ink);
-		}
-
-		svg {
-			width: 100%;
-			height: 100%;
-			display: block;
 		}
 	}
 

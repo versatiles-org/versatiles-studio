@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '../../common/Icon.svelte';
 	import type { LayerSpecification } from 'maplibre-gl';
 	import type { LayerOverride } from '../../ipc/commands';
 	import { colourKey, colourOf, isExpression } from './paint';
@@ -123,7 +124,7 @@
 		aria-label={visible ? `Hide ${id}` : `Show ${id}`}
 		onclick={() => setVisible(!visible)}
 	>
-		{visible ? '◉' : '○'}
+		<Icon name={visible ? 'eye' : 'eye-off'} size="1em" />
 	</button>
 
 	{#if colour !== null}
@@ -180,7 +181,7 @@
 		aria-label="Filter for {id}"
 		onclick={toggleFilter}
 	>
-		{editing ? '▾' : '▸'}
+		<span class="chevron" class:open={editing}><Icon name="chevron" size="1em" /></span>
 	</button>
 
 	{#if touched}
@@ -235,17 +236,11 @@
 			min-width: 0;
 		}
 
-		.eye {
-			font-size: var(--text-sm);
-		}
-
 		/* A disclosure triangle rather than an `ƒ`: the swatch beside it already means "this value is
 		   an expression", and two of those in one row would be two things with one name. Always
 		   present, so rows do not shift when a layer gains a filter; quiet until it carries an
 		   override of the user's. */
 		.funnel {
-			font-style: italic;
-
 			&.set {
 				color: var(--accent);
 			}

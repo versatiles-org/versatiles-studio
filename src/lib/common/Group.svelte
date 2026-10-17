@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from './Icon.svelte';
 	import type { Snippet } from 'svelte';
 
 	// A group of controls inside a pane, with its heading (the kit, S12).
@@ -49,7 +50,7 @@
 				aria-controls={id}
 				onclick={() => onToggle(!shown)}
 			>
-				<span class="chevron" class:open={shown} aria-hidden="true">▸</span>
+				<span class="chevron" class:open={shown} aria-hidden="true"><Icon name="chevron" size="1em" /></span>
 				<span>{title}</span>
 				{#if !shown && summary}<span class="summary">{summary}</span>{/if}
 			</button>

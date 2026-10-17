@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from './Icon.svelte';
 	import type { ImportKind, RecentEntry } from '../ipc/commands';
 	import RemoteDialog from './RemoteDialog.svelte';
 	import Note from './Note.svelte';
@@ -141,7 +142,7 @@
 								class="icon danger forget"
 								title="Forget"
 								aria-label="Forget {filename(entry.source)}"
-								onclick={() => onForget(entry.source)}>×</button
+								onclick={() => onForget(entry.source)}><Icon name="remove" size="1em" /></button
 							>
 						</li>
 					{/each}

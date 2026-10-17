@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '../../common/Icon.svelte';
 	import type { StyleSpecification } from 'maplibre-gl';
 	import type { LayerOverride } from '../../ipc/commands';
 	import { covers, tree, type Group, type Node } from './tree';
@@ -145,7 +146,7 @@
 						aria-label={shown ? `Collapse ${node.label}` : `Expand ${node.label}`}
 						onclick={() => (open = { ...open, [key]: !shown })}
 					>
-						<span class="chevron" class:open={shown} aria-hidden="true">▸</span>
+						<span class="chevron" class:open={shown} aria-hidden="true"><Icon name="chevron" size="1em" /></span>
 					</button>
 					<button
 						type="button"
@@ -159,7 +160,7 @@
 								: `Show ${node.label}`}
 						onclick={() => toggleGroup(node)}
 					>
-						{closed === null ? '◉' : '○'}
+						<Icon name={closed === null ? 'eye' : 'eye-off'} size="1em" />
 					</button>
 					<button
 						type="button"
@@ -182,7 +183,7 @@
 						disabled={up === null}
 						aria-label="Move {node.label} up"
 						title="Move {node.label} up the list, so it is drawn over the run above it"
-						onclick={() => up && actions.reorder(up.range, up.at)}>↑</button
+						onclick={() => up && actions.reorder(up.range, up.at)}><Icon name="up" size="1em" /></button
 					>
 					<button
 						type="button"
@@ -190,7 +191,7 @@
 						disabled={down === null}
 						aria-label="Move {node.label} down"
 						title="Move {node.label} down the list, so it is drawn under the run below it"
-						onclick={() => down && actions.reorder(down.range, down.at)}>↓</button
+						onclick={() => down && actions.reorder(down.range, down.at)}><Icon name="down" size="1em" /></button
 					>
 				</div>
 				{#if shown}
@@ -231,11 +232,6 @@
 		padding-left: calc(var(--depth) * var(--space-4));
 		padding-top: 1px;
 		padding-bottom: 1px;
-
-		/* An eye reads as a glyph of its own weight, not as a thin icon. */
-		.eye {
-			font-size: var(--text-sm);
-		}
 
 		.label {
 			flex: 1;

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '../../common/Icon.svelte';
 	import VplEditor from './VplEditor.svelte';
 	import NodeChain from './NodeChain.svelte';
 	import {
@@ -206,7 +207,7 @@
 						disabled={!pipeline}
 						title="Tidy the layout, keeping comments"
 						aria-label="Format"
-						onclick={documentActions.format}>¶</button
+						onclick={documentActions.format}><Icon name="format" size="1em" /></button
 					>
 				{/if}
 				<button
@@ -215,7 +216,7 @@
 					disabled={!pipeline?.canUndo}
 					title="Undo (⌘Z)"
 					aria-label="Undo"
-					onclick={documentActions.undo}>↺</button
+					onclick={documentActions.undo}><Icon name="undo" size="1em" /></button
 				>
 				<button
 					type="button"
@@ -223,7 +224,7 @@
 					disabled={!pipeline?.canRedo}
 					title="Redo (⇧⌘Z)"
 					aria-label="Redo"
-					onclick={documentActions.redo}>↻</button
+					onclick={documentActions.redo}><Icon name="redo" size="1em" /></button
 				>
 			</div>
 		</div>

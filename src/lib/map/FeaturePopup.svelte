@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '../common/Icon.svelte';
 	import type { Map as MaplibreMap, MapGeoJSONFeature, LngLat, MapMouseEvent } from 'maplibre-gl';
 	import JsonTree from '../common/JsonTree.svelte';
 	import Note from '../common/Note.svelte';
@@ -129,7 +130,9 @@
 		bind:clientHeight={height}
 		style="left: clamp(10rem, {screen.x}px, calc(100% - 10rem)); top: {screen.y}px"
 	>
-		<button type="button" class="icon close" onclick={close} aria-label="Close">×</button>
+		<button type="button" class="icon close" onclick={close} aria-label="Close"
+			><Icon name="remove" size="1em" /></button
+		>
 		{#if tile}
 			<article class="tile">
 				<h3>tile {tile.z}/{tile.x}/{tile.y} <span class="id">{fmt(tile.storedBytes)}</span></h3>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '../../common/Icon.svelte';
 	import type { FieldInfo } from '../../ipc/commands';
 	import HelpTrigger from '../../common/HelpTrigger.svelte';
 	import Note from '../../common/Note.svelte';
@@ -281,10 +282,8 @@
 						aria-pressed={bboxField.drawing && bboxField.holds(rowId)}
 						title={bboxField.drawing && bboxField.holds(rowId) ? 'Drag a rectangle on the map' : 'Draw on the map'}
 						aria-label={`Draw ${name} on the map`}
-						onclick={draw}
+						onclick={draw}><Icon name="draw" size="1em" /></button
 					>
-						▭
-					</button>
 				{:else if curve}
 					<!-- `⋮` rather than `…`: the dialog behind it builds a value rather than choosing one
 					     that already exists, and a row of dots that meant "browse" three fields above
@@ -294,10 +293,8 @@
 						class="icon"
 						title="Set the quality per zoom…"
 						aria-label={`Set ${name} per zoom`}
-						onclick={() => (editingCurve = true)}
+						onclick={() => (editingCurve = true)}><Icon name="steps" size="1em" /></button
 					>
-						⋮
-					</button>
 				{:else if isPath}
 					<!-- `…` rather than a folder: it is what a field that opens a dialog has said
 					     everywhere for thirty years, and it stays legible at the size this row is. -->
@@ -306,10 +303,8 @@
 						class="icon"
 						title="Choose a file…"
 						aria-label={`Choose a file for ${name}`}
-						onclick={browse}
+						onclick={browse}><Icon name="browse" size="1em" /></button
 					>
-						…
-					</button>
 				{/if}
 			</div>
 			{#if suggestions.length > 0}
@@ -365,10 +360,8 @@
 			class="icon danger"
 			title={removeLabel ?? `Remove ${name}`}
 			aria-label={removeLabel ?? `Remove ${name}`}
-			onclick={onRemove}
+			onclick={onRemove}><Icon name="remove" size="1em" /></button
 		>
-			×
-		</button>
 	{/if}
 </div>
 

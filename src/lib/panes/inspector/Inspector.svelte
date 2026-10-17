@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '../../common/Icon.svelte';
 	import type { ContainerInfo } from '../../ipc/commands';
 	import JsonTree from '../../common/JsonTree.svelte';
 	import Group from '../../common/Group.svelte';
@@ -48,7 +49,7 @@
      glyph rotated rather than two swapped, so the state change is continuous.
      `aria-hidden`: `<details>` already announces expanded or collapsed. -->
 {#snippet fold()}
-	<span class="chevron" aria-hidden="true">▸</span>
+	<span class="chevron" aria-hidden="true"><Icon name="chevron" size="1em" /></span>
 {/snippet}
 
 <!-- The same figures on both sides, which is what makes them comparable at a glance: a

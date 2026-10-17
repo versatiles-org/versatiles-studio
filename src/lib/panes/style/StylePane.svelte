@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '../../common/Icon.svelte';
 	import type { DemEncoding, Hillshade, RasterAdjust, Recolor, SourceKind, SourceStyle } from '../../ipc/commands';
 	import Field from '../../common/Field.svelte';
 	import Group from '../../common/Group.svelte';
@@ -243,7 +244,7 @@
 		aria-hidden={!changed}
 		aria-label="Reset {what}"
 		title="Reset"
-		onclick={clear}>↺</button
+		onclick={clear}><Icon name="undo" size="1em" /></button
 	>
 {/snippet}
 

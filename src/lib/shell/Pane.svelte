@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Icon from '../common/Icon.svelte';
 	import type { Snippet } from 'svelte';
 	import Boundary from './Boundary.svelte';
 
@@ -42,7 +43,7 @@
 <section class="section" class:open>
 	<h2>
 		<button type="button" aria-expanded={open} aria-controls={id} onclick={() => onToggle(!open)}>
-			<span class="chevron" class:open aria-hidden="true">▸</span>
+			<span class="chevron" class:open aria-hidden="true"><Icon name="chevron" size="1em" /></span>
 			<span class="title section-label">{title}</span>
 			<!-- Its own span, in the ordinary case rather than the label's uppercase: a graph's name is
 			     a name, and `button*=Title` in the e2e helper has to keep matching the heading. -->
