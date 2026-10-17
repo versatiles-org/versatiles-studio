@@ -39,9 +39,10 @@
 			<span class="title section-label">{title}</span>
 		</button>
 	</h2>
-	<!-- Kept in the DOM while collapsed would mean rebuilding editor state on every toggle; removed
-	     means losing it. Removed is right for now - nothing in here holds state yet - and this is
-	     the line to revisit when the VPL editor lands at S2.3. -->
+	<!-- Removed from the DOM while folded, so folding a pane throws away whatever its contents held
+	     locally: the Graph/VPL tab, a VPL draft, the Layers filter and which groups were open, a slider
+	     mid-gesture. That was right when nothing in a pane held state, and is a known cost now - S8.7
+	     is where it changes. -->
 	<!-- Each pane inside its own boundary, which is the unit that makes sense: a pane is already the
 	     thing that knows nothing about its neighbours (Q31), so one of them meeting a shape it did
 	     not expect should cost that pane and nothing else. Here rather than in `Sidebar` because

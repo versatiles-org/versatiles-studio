@@ -20,11 +20,13 @@
 	// goes inside one. That separation is the whole of Q31: where a pane sits became data, so this
 	// file has no opinion about it.
 	//
-	// There is deliberately no Sources pane - the `from_container` read nodes at the head of the
-	// pipeline *are* the sources, and a separate list would show the same nodes twice (Q14).
+	// **One graph: the selected one.** The list of graphs is the Sources pane above ([Q50]) - a list
+	// of graphs is the project, a chain is one document, and they fold separately. This pane shows the
+	// chain of whichever row is highlighted there, its crop, and what it writes. Which graph that is
+	// is not said here; the header the sidebar draws around this says it (S8.4).
 	//
-	// Style arrives at S4 and Export at S5. Their sections are not stubbed out here: an empty
-	// section that does nothing teaches the wrong thing about what the pane contains.
+	// How the graph is *drawn* is the Style pane's, and where its layers land is the Layers pane's
+	// ([Q62]). Export here writes tiles - what this chain produces - and nothing about the style.
 	let {
 		operations = [],
 		properties = [],

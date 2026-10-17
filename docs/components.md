@@ -35,7 +35,7 @@ judgement, and judgements drift.
 App.svelte            the workbench: one window, one project
 Launcher.svelte       the launcher: what ⌘N opens, and what starts with nothing open (S7.5)
 lib/shell/            the frame and its bar: AppShell · AlphaRibbon · Sidebar · Pane · PaneResizer · Boundary · StatusBar · JobsPanel · DiagnosticsPanel · UpdateDialog · AssetsDialog
-lib/panes/sources/    SourcesPane - which graphs there are, which are drawn, and in what order (Q50)
+lib/panes/sources/    SourcesPane - which graphs there are and which are drawn; order is the Layers pane's (Q50, Q62)
 lib/panes/pipeline/   PipelinePane and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor · CropSection · ExportDialog
 lib/panes/style/      StylePane
 lib/panes/layers/     LayersPane · LayerRow
