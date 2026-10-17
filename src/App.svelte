@@ -23,6 +23,7 @@
 	import Inspector from './lib/panes/inspector/Inspector.svelte';
 	import LayersPane from './lib/panes/layers/LayersPane.svelte';
 	import { move, segmentsFrom } from './lib/panes/layers/move';
+	import { paneDetail } from './lib/panes/registry';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import { windowEvents } from './lib/shell/window-events.svelte';
 	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
@@ -236,20 +237,9 @@
 	/// **The chain alternates scope and nothing said so.** Sources and Layers span the project;
 	/// Pipeline, Style and the Inspector follow the selected graph - and the only cue for which graph
 	/// that was sat in a row of the Sources pane, which may be folded or scrolled away. The header
-	/// carries it instead, and keeps carrying it while the pane is folded.
-	const paneDetail = (id: string): string | null => {
-		switch (id) {
-			case 'sources':
-			case 'layers':
-				return 'project';
-			case 'pipeline':
-			case 'style':
-			case 'inspector':
-				return composition.editedName;
-			default:
-				return null;
-		}
-	};
+	/// carries it instead, and keeps carrying it while the pane is folded. Which panes are which is
+	/// the registry's to say (S8.9).
+	const detailOf = (id: string): string | null => paneDetail(id, composition.editedName);
 
 	/// Moves a run of the stack, which is the whole of reordering ([the layer stack](docs/layers.md)).
 	///
@@ -407,7 +397,7 @@
 	<Sidebar
 		panes={layout.on('left')}
 		onToggle={(id, open) => layout.toggle(id, open)}
-		detail={paneDetail}
+		detail={detailOf}
 		content={paneContent}
 	/>
 {/snippet}
@@ -416,7 +406,7 @@
 	<Sidebar
 		panes={layout.on('right')}
 		onToggle={(id, open) => layout.toggle(id, open)}
-		detail={paneDetail}
+		detail={detailOf}
 		content={paneContent}
 	/>
 {/snippet}

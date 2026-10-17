@@ -74,6 +74,8 @@ lib/shell/                             frame: AppShell, Sidebar, Pane, StatusBar
 lib/map/                               the map surface and its overlays
 lib/panes/<pane>/                      one folder per pane, named for the pane
                                        sources · pipeline · style · layers · inspector · project
+lib/panes/registry.ts                  every pane id, its title and its scope - checked against
+                                       the core's catalogue by registry.test.ts (S8.9)
 lib/common/                            used by more than one owner
 ```
 

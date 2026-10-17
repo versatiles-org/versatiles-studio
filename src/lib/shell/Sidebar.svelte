@@ -1,16 +1,16 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import type { PaneState } from '../ipc/commands';
-	import { paneTitle } from '../panes/catalogue';
+	import { paneTitle } from '../panes/registry';
 	import Pane from './Pane.svelte';
 
 	// One sidebar: a list of panes, in the order the layout says (Q31).
 	//
 	// The point of this component is that it is uninteresting. It knows nothing about pipelines,
 	// styles or containers - it takes the panes belonging to its side and renders each one's
-	// content by id. Adding the byte breakdown (B2) is then an entry in the core's catalogue, a
-	// title, and one arm of the caller's `content` snippet; nothing here changes, and neither does
-	// the other sidebar.
+	// content by id. Adding the byte breakdown (B2) is then an entry in the core's catalogue, an
+	// entry in `panes/registry.ts`, and one arm of the caller's `content` snippet; nothing here
+	// changes, and neither does the other sidebar.
 	//
 	// Reordering by dragging is deliberately not here yet ([Q31]) - the list is what makes it
 	// additive when it arrives.

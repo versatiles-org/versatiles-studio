@@ -360,7 +360,8 @@ impl Layout {
 	}
 
 	/// Makes any `Layout` a usable one: widths in range, camera in range, panes reconciled against
-	/// the catalogue.
+	/// the catalogue. The webview keeps its own half of this list in `src/lib/panes/registry.ts`,
+	/// and a test there fails when the two differ.
 	///
 	/// The single normalisation point, called on load, on save and by `set_layout` - a caller
 	/// holding a layout in memory needs the same value that would be written to disk, and
