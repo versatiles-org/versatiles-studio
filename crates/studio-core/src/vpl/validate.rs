@@ -247,7 +247,7 @@ mod tests {
 	fn a_composite_without_sources_says_what_is_missing() {
 		let messages = diagnose("from_stacked");
 		assert_eq!(messages.len(), 1, "{messages:?}");
-		assert!(messages[0].contains("needs at least one source"), "{messages:?}");
+		assert!(messages[0].contains("needs at least two sources"), "{messages:?}");
 	}
 
 	#[test]

@@ -500,7 +500,7 @@ export const setGraphEnabled = (graph: number, enabled: boolean) => unwrap(comma
 
 /**
  * Switches one node on or off ([Q49]). Session-only, and refused for the node a chain starts with
- * and for the last source a composite has.
+ * and for a source a composite cannot spare - `from_stacked` needs two.
  */
 export const setNodeEnabled = (graph: number, path: number[], enabled: boolean) =>
 	unwrap(commands.setNodeEnabled(graph, path, enabled));

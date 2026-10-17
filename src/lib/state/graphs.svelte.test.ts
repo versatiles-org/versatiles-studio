@@ -137,9 +137,9 @@ describe('the eyes ([Q49])', () => {
 	});
 
 	it('reports what the core refuses rather than pretending it worked', async () => {
-		ipc.setNodeEnabled.mockRejectedValue(new Error("'from_stacked' needs at least one source"));
+		ipc.setNodeEnabled.mockRejectedValue(new Error("'from_stacked' needs at least two sources"));
 
-		await expect(graphs.setNodeEnabled(1, [0, 1, 0], false)).rejects.toThrow('at least one source');
+		await expect(graphs.setNodeEnabled(1, [0, 1, 0], false)).rejects.toThrow('at least two sources');
 		expect(rebuilt).toEqual([]);
 	});
 });

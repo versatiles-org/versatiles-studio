@@ -814,7 +814,7 @@ fn switching_off_the_head_switches_off_the_chain_it_heads() {
 }
 
 /// **A composite that loses every branch keeps standing**, so that what fails says which node
-/// failed - upstream's own "needs at least one source", against the node that needs one - rather
+/// failed - upstream's own "needs at least two sources", against the node that needs them - rather
 /// than the pipeline quietly becoming nothing.
 ///
 /// Unreachable through the eyes: the graph refuses to switch off the last source. This is what the
@@ -827,7 +827,7 @@ fn a_composite_that_loses_every_branch_keeps_the_node_that_needs_one() {
 
 	let problems = versatiles_pipeline::check_pipeline(&Document::parse(&left).unwrap().to_pipeline());
 	assert_eq!(problems.len(), 1, "{problems:?}");
-	assert!(problems[0].message.contains("at least one source"), "{problems:?}");
+	assert!(problems[0].message.contains("at least two sources"), "{problems:?}");
 	assert_eq!(problems[0].path, [0]);
 }
 

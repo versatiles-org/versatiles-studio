@@ -14,14 +14,14 @@ repository = "https://github.com/versatiles-org/versatiles-studio"
 
 [workspace.dependencies]
 # versatiles-rs - consumed as a library, never shelled out to (see docs/architecture.md)
-versatiles_core = "4.15.0"
-versatiles_container = "4.15.0"
-versatiles_pipeline = "4.15.0"
-versatiles_geometry = "4.15.0"
-versatiles_image = "4.15.0"
+versatiles_core = "5.4.0"
+versatiles_container = "5.4.0"
+versatiles_pipeline = "5.4.0"
+versatiles_geometry = "5.4.0"
+versatiles_image = "5.4.0"
 # `server` for the data plane, `codegen` for `all_operation_metadata()` (C2), `sftp` for remote
 # sources (A2). Explicitly not `cli` - that pulls clap, env_logger and termimad into a GUI app.
-versatiles = { version = "4.15.0", default-features = false, features = ["server", "codegen", "sftp", "gdal"] }
+versatiles = { version = "5.4.0", default-features = false, features = ["server", "codegen", "sftp", "gdal"] }
 
 # GDAL compiled from source and linked statically, with a deliberately narrow driver set (Q19, Q20).
 # `bundled` on `gdal-sys` is what pulls `gdal-src`; the drivers are named on `gdal-src` itself

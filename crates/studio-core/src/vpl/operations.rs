@@ -26,6 +26,16 @@ pub fn registry() -> &'static HashMap<String, OperationMeta> {
 	})
 }
 
+/// How many sources an operation needs - `from_stacked` and `from_merged_vector` two, since
+/// versatiles-rs 5.4 says so - or 1 for an operation this build does not know.
+#[must_use]
+pub fn min_sources(name: &str) -> usize {
+	registry()
+		.get(name)
+		.and_then(|meta| meta.fields.iter().find(|field| field.is_sources))
+		.map_or(1, |field| field.min_sources.max(1))
+}
+
 /// The control a parameter should be edited with.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
@@ -806,6 +816,7 @@ mod tests {
 			rust_type: rust_type.to_string(),
 			is_required: false,
 			is_sources: false,
+			min_sources: 0,
 			doc: String::new(),
 			enum_variants: Vec::new(),
 			bounds: None,

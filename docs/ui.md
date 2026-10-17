@@ -89,7 +89,7 @@ Three regions, always present - **left pane, map, right pane** - over the status
 
 **A source is not a place on the map.** Its layers are, and they need not be together: the Layers pane holds one ordered list over every source, so a data visualisation can sit between a basemap's roads and its labels. Moving a run there is the only way the stack is arranged, and clicking one selects its source, so Pipeline and Style follow what was clicked.
 
-**A switched-off node is a ghost, not a gap.** It keeps its place and its form, and the pipe runs _through_ it: the nodes after it carry on, because a bypass is not a truncation. That is what lets one branch of a `from_stacked` leave the bracket while the composite and everything after it keep running. Two eyes cannot be switched off - the node a chain starts with, which is the graph's own switch, and the last source a composite has. Both eyes are remembered in `project.yaml` beside the crop, and neither is written into the `.vpl`: that file stays the pipeline every tool runs. Containers are inputs; the map never shows one directly.
+**A switched-off node is a ghost, not a gap.** It keeps its place and its form, and the pipe runs _through_ it: the nodes after it carry on, because a bypass is not a truncation. That is what lets one branch of a `from_stacked` leave the bracket while the composite and everything after it keep running. Two eyes cannot be switched off - the node a chain starts with, which is the graph's own switch, and a source a composite cannot spare (`from_stacked` needs two). Both eyes are remembered in `project.yaml` beside the crop, and neither is written into the `.vpl`: that file stays the pipeline every tool runs. Containers are inputs; the map never shows one directly.
 
 ## Layouts
 

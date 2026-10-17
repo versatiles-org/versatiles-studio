@@ -86,6 +86,7 @@ pub fn label(kind: &IssueKind) -> String {
 		IssueKind::MissingVersion => "A layer has no version".to_string(),
 		IssueKind::DuplicateLayerName => "Two layers in one tile share a name".to_string(),
 		IssueKind::OrphanInnerRing => "A hole with no outer ring around it".to_string(),
+		IssueKind::UnclosedRing => "A ring that does not close".to_string(),
 		IssueKind::DegenerateRing(DegenerateReason::TooFewVertices) => {
 			"A ring with fewer than three vertices".to_string()
 		}
@@ -101,9 +102,9 @@ pub fn label(kind: &IssueKind) -> String {
 #[must_use]
 pub fn fix(kind: &IssueKind) -> Fix {
 	match kind {
-		IssueKind::UnknownGeometryType | IssueKind::EmptyGeometryForType(_) | IssueKind::MalformedCommandStream(_) => {
-			Fix::Drop
-		}
+		// `UnknownGeometryType` was dropped until versatiles-rs 5.4, which keeps the feature and only
+		// strips the data that type 0 gives no shape to.
+		IssueKind::EmptyGeometryForType(_) | IssueKind::MalformedCommandStream(_) => Fix::Drop,
 		_ => Fix::Repair,
 	}
 }

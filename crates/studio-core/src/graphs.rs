@@ -256,8 +256,9 @@ impl Graphs {
 	/// * The node the whole graph starts with. Switching that off is switching the graph off, which
 	///   [`set_enabled`](Self::set_enabled) is for - and an alias would be a second place for the
 	///   same fact to be stored.
-	/// * The last source a composite still has. `from_stacked [ a, b ]` may lose `b`; it may not
-	///   lose both, because `from_stacked` with an empty bracket is not a pipeline.
+	/// * A source a composite cannot spare. `from_stacked [ a, b, c ]` may lose `c`; it may not lose
+	///   `b` as well, because upstream refuses a `from_stacked` with fewer than two sources, and
+	///   what an operation needs is upstream's to say ([`min_sources`](crate::vpl::min_sources)).
 	///
 	/// Switching one *on* is never refused: the set only ever shrinks, and a path that names
 	/// nothing is a document that has moved on.
@@ -290,7 +291,13 @@ impl Graphs {
 					!graph.disabled.contains(&head)
 				})
 				.count();
-			ensure!(left > 0, "'{}' needs at least one source", parent.name);
+			let needs = crate::vpl::min_sources(&parent.name);
+			let count = match needs {
+				1 => "one source".to_string(),
+				2 => "two sources".to_string(),
+				n => format!("{n} sources"),
+			};
+			ensure!(left >= needs, "'{}' needs at least {count}", parent.name);
 		}
 
 		let path = path.to_vec();
@@ -469,29 +476,32 @@ mod tests {
 	#[test]
 	fn one_branch_of_a_composite_can_go_without_taking_the_rest() {
 		let mut graphs = graphs();
-		let vpl = "from_stacked [ from_debug format=png, from_color color=ff0000 ] | raster_overview level=2";
+		let vpl = "from_stacked [ from_debug format=png, from_color color=ff0000, from_color ] | raster_overview level=2";
 		let id = graphs.add("a", doc(vpl), None);
 
 		graphs.set_node_enabled(id, &[0, 1, 0], false).unwrap();
 
 		assert_eq!(
 			runs(&graphs, id).unwrap(),
-			"from_stacked [ from_debug format=png ] | raster_overview level=2"
+			"from_stacked [ from_debug format=png, from_color ] | raster_overview level=2"
 		);
 	}
 
-	/// A composite has to read something, so the last branch standing stays.
+	/// A composite keeps as many branches as upstream says it needs: two, for `from_stacked`.
 	#[test]
-	fn the_last_source_of_a_composite_cannot_be_switched_off() {
+	fn a_composite_keeps_the_sources_it_needs() {
 		let mut graphs = graphs();
-		let vpl = "from_stacked [ from_debug format=png, from_color color=ff0000 ]";
+		let vpl = "from_stacked [ from_debug format=png, from_color color=ff0000, from_color ]";
 		let id = graphs.add("a", doc(vpl), None);
 		graphs.set_node_enabled(id, &[0, 0, 0], false).unwrap();
 
 		let refused = graphs.set_node_enabled(id, &[0, 1, 0], false).unwrap_err();
 
-		assert!(format!("{refused:#}").contains("at least one source"), "{refused:#}");
-		assert_eq!(runs(&graphs, id).unwrap(), "from_stacked [ from_color color=ff0000 ]");
+		assert!(format!("{refused:#}").contains("at least two sources"), "{refused:#}");
+		assert_eq!(
+			runs(&graphs, id).unwrap(),
+			"from_stacked [ from_color color=ff0000, from_color ]"
+		);
 	}
 
 	/// Switching that one off is switching the graph off, and that is the row's eye - two places
@@ -551,15 +561,16 @@ mod tests {
 	#[test]
 	fn what_runs_is_counted_rather_than_subtracted() {
 		let mut graphs = graphs();
-		let vpl = "from_stacked [ from_debug format=png | raster_flatten, from_color ] | raster_overview level=2";
+		let vpl =
+			"from_stacked [ from_debug format=png | raster_flatten, from_color, from_color ] | raster_overview level=2";
 		let id = graphs.add("a", doc(vpl), None);
 
 		graphs.set_node_enabled(id, &[0, 0, 0], false).unwrap();
 		let info = graphs.get(id).unwrap().info();
 
-		assert_eq!(info.nodes, 5);
+		assert_eq!(info.nodes, 6);
 		assert_eq!(info.disabled.len(), 1);
-		assert_eq!(info.running, 3, "the branch's two nodes went with its head");
+		assert_eq!(info.running, 4, "the branch's two nodes went with its head");
 	}
 
 	/// Off is off: no node of it is drawn, whatever its own eyes say.
