@@ -1,6 +1,14 @@
 <script lang="ts" module>
 	import type { FeatureDissection, Part } from '../ipc/commands';
 
+	/** The layer colours there are; the ninth layer takes the first again. */
+	const COLOURS = 8;
+
+	/** A layer's colour, by its position in the tile - the drawing's and its row's alike. */
+	export function layerColour(layer: number): string {
+		return `var(--layer-${(layer % COLOURS) + 1})`;
+	}
+
 	/** How far past the tile's edge the drawing shows, as a share of its extent: an eighth. */
 	const BUFFER = 1 / 8;
 
@@ -39,6 +47,10 @@
 	// ring as it was wound - solid for an outer ring, dashed for a hole, in the error colour for one
 	// that encloses nothing. Tile coordinates have y pointing down, which is SVG's own, so nothing
 	// is flipped.
+	//
+	// **A colour per layer**, the same as its swatch in the dialog's tables: one blue for eighteen
+	// layers drew a tile nobody could take apart by eye. A picked layer is drawn in full and the
+	// others fade; a picked feature takes the accent.
 	//
 	// Strokes do not scale: an extent of 4096 in a 400 px square would make a one-unit line a
 	// tenth of a pixel.
@@ -87,6 +99,7 @@
 			class="feature {feature.kind}"
 			class:faded={focus !== null && feature.layer !== focus}
 			class:selected={isSelected(feature)}
+			style:--hue={layerColour(feature.layer)}
 			onclick={() => onSelect(feature.layer, feature.index)}
 		>
 			{#if feature.kind === 'point'}
@@ -140,13 +153,16 @@
 	}
 
 	.feature {
+		/* Each feature's layer colour comes inline; this is only what a feature with none would get. */
+		--hue: var(--map-feature);
+
 		cursor: pointer;
 		fill: none;
-		stroke: var(--map-feature);
+		stroke: var(--hue);
 		stroke-width: 1;
 
 		&.faded {
-			opacity: 0.2;
+			opacity: 0.15;
 		}
 
 		&.selected {
@@ -156,7 +172,7 @@
 	}
 
 	.fill {
-		fill: var(--map-feature);
+		fill: var(--hue);
 		fill-opacity: 0.15;
 		fill-rule: evenodd;
 		stroke: none;
@@ -175,7 +191,7 @@
 	}
 
 	.point circle {
-		fill: var(--map-feature);
+		fill: var(--hue);
 		fill-opacity: 0.5;
 	}
 

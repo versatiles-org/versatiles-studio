@@ -739,8 +739,8 @@ of zoom 7, from zoom 8 on tiles of zoom 14.
 vertices and the ring winding - what the map's clipping hides. Tabs: Layers (features, vertices, the
 byte split, extent, version), Attributes (per key: features, distinct values, bytes), Features (id,
 type, vertices, bytes, properties), Issues (each selects its feature; a repair preview gives the size
-after `repair_tile`). Parent, child and neighbour buttons and an address field move without closing
-it. Geometry comes from the core, which decoded it already and whose feature indices the issues
-use, capped at 5 000 features and 200 000 vertices under [Q3](decisions.md) - and the dialog says
-when. Ways in: Inspect in the biggest tiles, a heat-map square, a check's example, the popup, and
+after `repair_tile`), with what is picked pinned under the list. One size for every tile; the address
+and sizes on the title row; a 3×3 grid on the drawing's corner steps to neighbours and children. A
+colour per layer, shared with its row. Geometry comes from the core, whose feature indices the issues
+use: past 20 000 features or 200 000 vertices, every n-th of each layer ([Q3](decisions.md)). Ways in: Inspect in the biggest tiles, a heat-map square, a check's example, the popup, and
 "Inspect tile…" in the native menu.

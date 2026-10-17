@@ -49,6 +49,17 @@
 	--map-grid: #000; /* z/x/y grid lines and labels (A5) */
 	--map-grid-halo: #fff7;
 	--map-feature: #2b6cb0; /* the hairline every vector layer gets until D2 */
+	/* A colour per layer in the tile dialog (S14.5), shared by the drawing and the tables so a shape
+	   can be matched to its row. Eight, then they repeat. No red - that is a broken ring - and no
+	   teal, which is the accent and so the picked feature. */
+	--layer-1: #3f72af;
+	--layer-2: #e8590c;
+	--layer-3: #2f9e44;
+	--layer-4: #c99a06;
+	--layer-5: #9c36b5;
+	--layer-6: #d6336c;
+	--layer-7: #8d6748;
+	--layer-8: #6c757d;
 	/* Tiles the map is still waiting for (S2.16). Amber rather than another blue or teal: it has to
 	   read as *work in progress* over whatever the tiles underneath happen to be, and be told apart
 	   at a glance from the grid and the features it overlays.
@@ -221,6 +232,14 @@
 		--map-grid: #fff;
 		--map-grid-halo: #0007;
 		--map-feature: #6fa8dc;
+		--layer-1: #74a9e8;
+		--layer-2: #ffa94d;
+		--layer-3: #8ce99a;
+		--layer-4: #ffe066;
+		--layer-5: #d0a2f7;
+		--layer-6: #faa2c1;
+		--layer-7: #d4a373;
+		--layer-8: #ced4da;
 		--map-pending: #777777;
 		--map-label: #e4eae8;
 		/* Dimming a dark map needs to go darker still, or the crop reads as no crop at all. */

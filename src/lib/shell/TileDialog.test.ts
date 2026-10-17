@@ -176,4 +176,19 @@ describe('the tile dialog', () => {
 		show({ dissection: null });
 		expect(screen.getByRole('group', { name: 'Move to another tile' })).toBeTruthy();
 	});
+
+	/** One colour per layer, the same in the drawing and beside the layer's name. */
+	it('draws each layer in the colour of its swatch', () => {
+		show();
+		const groups = [...document.querySelectorAll('svg g.feature')] as SVGGElement[];
+		expect(groups.map((g) => g.style.getPropertyValue('--hue'))).toEqual([
+			'var(--layer-1)',
+			'var(--layer-2)',
+			'var(--layer-2)'
+		]);
+		const swatch = within(screen.getByRole('table', { name: 'Layers' }))
+			.getAllByRole('row')[2]
+			.querySelector('.swatch');
+		expect((swatch as HTMLElement).style.background).toBe('var(--layer-2)');
+	});
 });

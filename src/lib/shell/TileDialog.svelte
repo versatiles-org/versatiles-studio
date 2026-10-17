@@ -4,7 +4,7 @@
 	import Note from '../common/Note.svelte';
 	import Field from '../common/Field.svelte';
 	import JsonTree from '../common/JsonTree.svelte';
-	import TileDrawing, { reach } from './TileDrawing.svelte';
+	import TileDrawing, { layerColour, reach } from './TileDrawing.svelte';
 	import TileNavigator from './TileNavigator.svelte';
 	import { bytes, kilobytes, count, ordinal } from '../common/format';
 	import type { Dissection } from '../ipc/commands';
@@ -208,7 +208,8 @@
 														type="button"
 														class="link"
 														aria-pressed={focus === i}
-														onclick={() => (focus = focus === i ? null : i)}>{layer.name}</button
+														onclick={() => (focus = focus === i ? null : i)}
+														><span class="swatch" style:background={layerColour(i)}></span>{layer.name}</button
 													>
 												</th>
 												<td>{count(layer.features)}</td>
@@ -260,7 +261,9 @@
 														class="link"
 														aria-pressed={selected?.layer === feature.layer && selected.index === feature.index}
 														onclick={() => select(feature.layer, feature.index)}
-														>{layerName(feature.layer)} #{feature.index}</button
+														><span class="swatch" style:background={layerColour(feature.layer)}></span>{layerName(
+															feature.layer
+														)} #{feature.index}</button
 													>
 												</th>
 												<td>{feature.kind}</td>
@@ -470,6 +473,16 @@
 		overflow-y: auto;
 		padding-top: var(--space-3);
 		border-top: 1px solid var(--rule);
+	}
+
+	/* The layer's colour in the drawing, beside its name. */
+	.swatch {
+		display: inline-block;
+		width: 0.7em;
+		height: 0.7em;
+		margin-right: var(--space-2);
+		border-radius: var(--radius);
+		vertical-align: baseline;
 	}
 
 	.focused th {
