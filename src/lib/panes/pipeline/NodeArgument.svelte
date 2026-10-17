@@ -201,9 +201,17 @@
 			     saying nothing - and the first thing anyone did with it wrote a value they had not
 			     chosen. The empty entry is what the field currently is, and picking it clears the
 			     parameter, which is what an empty box does everywhere else in this form. -->
+			<!-- **A value the list does not have is still the value.** `format=pbf` is what the fixture
+			     writes and what the operation accepts, and the list says `mvt`; a select whose value
+			     matches no option shows a blank, which read as "not set" over a parameter that was.
+			     The document's own spelling is offered as an entry of its own, so what is on screen is
+			     what is in the file - and picking a listed one still writes the listed spelling. -->
 			<select {value} onchange={(event) => onCommit(event.currentTarget.value)}>
 				{#if !field?.required || value === ''}
 					<option value="">{field?.default ? `default (${field.default})` : '—'}</option>
+				{/if}
+				{#if value !== '' && !control.options.includes(value)}
+					<option {value}>{value}</option>
 				{/if}
 				{#each control.options as option (option)}<option value={option}>{option}</option>{/each}
 			</select>

@@ -478,11 +478,15 @@
 		     both say what they write (S10.6). -->
 		<Group title="Export map style">
 			<Note>The whole map: every source that is drawn, in the order the Layers pane shows.</Note>
+			<!-- Three short names, so the row is one row at the pane's default width: the long one,
+			     "@versatiles/style code", pushed Bundle onto a line of its own, and what the code is for
+			     is in the tooltip. -->
 			<div class="toolbar">
 				<button
 					type="button"
 					class="button"
 					disabled={!rendered || exporting !== null}
+					title="The map's style as MapLibre reads it"
 					onclick={() => rendered && actions.exportAs('json', null)}
 				>
 					style.json
@@ -494,11 +498,11 @@
 					class="button"
 					disabled={!rendered || exporting !== null || code === null}
 					title={code !== null
-						? 'The theme and what was changed, as code'
+						? 'The theme and what was changed, as @versatiles/style code'
 						: 'The inspector style has no builder to call - export it as style.json'}
 					onclick={() => rendered && actions.exportAs('ts', code)}
 				>
-					@versatiles/style code
+					Code
 				</button>
 				<button
 					type="button"

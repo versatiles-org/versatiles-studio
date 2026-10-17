@@ -15,9 +15,11 @@
 	//
 	// **`live` is a note whose text arrives on its own** - the verdict on an address as it is
 	// checked, the cost of an export once it has been estimated, whether a filter is on the map yet.
-	// It is read out as it changes, and it holds two lines' height while empty so the controls
-	// under it do not jump when the answer lands. Five components had each written that pattern
-	// with a reserved height of their own.
+	// It is read out as it changes, and it holds its line while empty so the controls under it do
+	// not jump when the answer lands. One line, not two: two left a gap under the remote dialog's
+	// address field that read as something missing, and a second line is rare enough - a refusal
+	// with a reason - that pushing once is the smaller cost. Five components had each written that
+	// pattern with a reserved height of their own.
 	//
 	// `lead` is the one sentence at the top of a dialog saying what it does, at body size - the
 	// dialogs each had one as `.lead` or `.hint`, in two sizes.
@@ -75,8 +77,8 @@
 		color: var(--error);
 	}
 
-	/* Two lines' worth, so what is under it does not move as the answer changes length. */
+	/* One line's worth, so what is under it does not move when the answer arrives. */
 	.live {
-		min-height: 2.9em;
+		min-height: 1.45em;
 	}
 </style>

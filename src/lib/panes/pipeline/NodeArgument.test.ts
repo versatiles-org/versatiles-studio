@@ -310,6 +310,15 @@ describe('a field with a set of answers', () => {
 		expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('256');
 	});
 
+	// `format=pbf` is accepted by the operation and spelled `mvt` in its list; a select whose value
+	// matches no option shows a blank, which reads as "not set" over a parameter that is.
+	it('shows a value the list does not have, as itself', () => {
+		open({}, 'pbf');
+		const select = screen.getByRole('combobox') as HTMLSelectElement;
+		expect(select.value).toBe('pbf');
+		expect([...select.options].map((option) => option.value)).toEqual(['', 'pbf', '256', '512']);
+	});
+
 	// Clearing is what an empty box does everywhere else in this form.
 	it('can be put back to unset', () => {
 		const onCommit = vi.fn();
