@@ -1,8 +1,7 @@
 <script lang="ts">
-	import Field from '../common/Field.svelte';
 	import Note from '../common/Note.svelte';
 	import Icon from '../common/Icon.svelte';
-	import { children, neighbour, parent, parseAddress, type TileAt } from '../state/tile-dialog.svelte';
+	import { children, neighbour, parent, type TileAt } from '../state/tile-dialog.svelte';
 
 	// Where to go from one tile, drawn as where it is (S14.5).
 	//
@@ -36,10 +35,6 @@
 		East: 'right'
 	};
 
-	// What is typed, until the tile changes and it shows the new one.
-	let address = $derived(`${at.z}/${at.x}/${at.y}`);
-
-	const typed = $derived(parseAddress(address));
 	const up = $derived(parent(at.z, at.x, at.y));
 	const down = $derived(children(at.z, at.x, at.y));
 	const name = (tile: { z: number; x: number; y: number }) => `${tile.z}/${tile.x}/${tile.y}`;
@@ -82,18 +77,6 @@
 	</div>
 
 	<div class="side">
-		<form
-			class="address"
-			onsubmit={(event) => {
-				event.preventDefault();
-				go(typed);
-			}}
-		>
-			<Field label="Tile">
-				<input type="text" bind:value={address} aria-invalid={typed === null} spellcheck="false" />
-			</Field>
-			<button type="submit" class="button" disabled={typed === null}>Go</button>
-		</form>
 		<div class="up">
 			<button type="button" class="button" disabled={!up} onclick={() => go(up)}>Parent</button>
 			{#if up}<span class="where">{name(up)}</span>{/if}
@@ -173,16 +156,10 @@
 		min-width: 0;
 	}
 
-	.address,
 	.up {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-	}
-
-	.address :global(input) {
-		width: 10rem;
-		font-family: var(--font-mono);
 	}
 
 	.where {

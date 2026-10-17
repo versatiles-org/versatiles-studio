@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import Icon from './Icon.svelte';
 
 	// The shell every modal in Studio shares.
 	//
@@ -12,21 +13,36 @@
 	// A native `<dialog>`, for the reasons each of them gave separately: modality, focus containment
 	// and Escape are the browser's, and the top layer puts it above every z-index in the application
 	// - including the status bar.
+	//
+	// **A workspace as well as a question.** Most of them ask something and end in buttons. The tile
+	// dialog is somewhere to look around instead: it has a `height`, so it keeps its size from one
+	// tile to the next and what is clicked stays under the pointer, and no `actions` - its controls
+	// sit in the `header` beside the title, and the ✕ closes it.
 
 	let {
 		title,
+		heading = title,
 		/** How wide it wants to be. A table of artefacts needs more room than four number fields. */
 		width = '28rem',
+		height,
 		onClose,
 		children,
+		header,
 		actions
 	}: {
+		/** What it is called, to assistive technology and - unless `heading` says otherwise - on screen. */
 		title: string;
+		/** The words on screen, when the `header` beside them already says the rest of the title. */
+		heading?: string;
 		width?: string;
+		/** A fixed height, for one whose content changes under the reader; otherwise it fits it. */
+		height?: string;
 		onClose: () => void;
 		children: Snippet;
-		/** The buttons. Laid out for you; which ones there are is yours. */
-		actions: Snippet;
+		/** Controls on the title's line. */
+		header?: Snippet;
+		/** The buttons. Laid out for you; which ones there are is yours. Without them there is a ✕. */
+		actions?: Snippet;
 	} = $props();
 
 	let dialog = $state<HTMLDialogElement>();
@@ -36,11 +52,24 @@
 	$effect(() => dialog?.showModal());
 </script>
 
-<dialog bind:this={dialog} oncancel={onClose} onclose={onClose} aria-label={title} style="--modal-width: {width}">
+<dialog
+	bind:this={dialog}
+	oncancel={onClose}
+	onclose={onClose}
+	aria-label={title}
+	class:fixed={height !== undefined}
+	style="--modal-width: {width}; --modal-height: {height ?? 'auto'}"
+>
 	<div class="body">
-		<h2>{title}</h2>
+		<div class="head">
+			<h2>{heading}</h2>
+			{#if header}<div class="extra">{@render header()}</div>{/if}
+			{#if !actions}
+				<button type="button" class="icon close" aria-label="Close" onclick={onClose}><Icon name="remove" /></button>
+			{/if}
+		</div>
 		{@render children()}
-		<div class="actions">{@render actions()}</div>
+		{#if actions}<div class="actions">{@render actions()}</div>{/if}
 	</div>
 </dialog>
 
@@ -62,6 +91,37 @@
 		&::backdrop {
 			background: var(--scrim);
 		}
+
+		/* The body fills it, and the caller's content takes what the title row leaves. */
+		&.fixed {
+			height: min(var(--modal-height), calc(100vh - var(--space-6)));
+
+			.body {
+				height: 100%;
+			}
+		}
+	}
+
+	.head {
+		display: flex;
+		align-items: center;
+		gap: var(--space-4);
+		min-width: 0;
+	}
+
+	/* What the caller puts on the title's line takes the rest of it, so its own `margin-left: auto`
+	   reaches the far end - and the ✕ comes after it either way. */
+	.extra {
+		display: flex;
+		flex: 1 1 auto;
+		align-items: center;
+		gap: var(--space-4);
+		min-width: 0;
+	}
+
+	.close {
+		margin-left: auto;
+		font-size: var(--text-lg);
 	}
 
 	.body {

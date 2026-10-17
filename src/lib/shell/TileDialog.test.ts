@@ -84,9 +84,10 @@ function show(props: Partial<Parameters<typeof render<typeof TileDialog>>[1]> = 
 describe('the tile dialog', () => {
 	it('names the tile and says what it weighs, marking a size over the budget', () => {
 		show();
-		expect(screen.getByRole('heading', { name: 'Tile 14/8800/5373' })).toBeTruthy();
-		expect(screen.getByText('610 kB').classList.contains('over')).toBe(true);
-		expect(screen.getByText('1200 kB')).toBeTruthy();
+		expect(screen.getByRole('dialog', { name: 'Tile 14/8800/5373' })).toBeTruthy();
+		expect((screen.getByLabelText('Tile address') as HTMLInputElement).value).toBe('14/8800/5373');
+		expect(screen.getByText('610 kB stored').classList.contains('over')).toBe(true);
+		expect(screen.getByText(/1200 kB decompressed/)).toBeTruthy();
 	});
 
 	it('lists the layers, and shows where a picked one spends its bytes', async () => {
@@ -135,7 +136,7 @@ describe('the tile dialog', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'North-west' }));
 		expect(onGo).toHaveBeenLastCalledWith(14, 8799, 5372);
 
-		const field = screen.getByLabelText('Tile');
+		const field = screen.getByLabelText('Tile address');
 		await fireEvent.input(field, { target: { value: '12/2200/1343' } });
 		await fireEvent.click(screen.getByRole('button', { name: 'Go' }));
 		expect(onGo).toHaveBeenLastCalledWith(12, 2200, 1343);
@@ -149,7 +150,7 @@ describe('the tile dialog', () => {
 		expect(screen.getByText('This source has no tile at 14/8800/5373.')).toBeTruthy();
 		cleanup();
 		show({ dissection: { ...tile, every: 3 } });
-		expect(screen.getByText(/every 3rd feature of each layer is drawn and listed - 3 in all/)).toBeTruthy();
+		expect(screen.getByText(/Every 3rd feature of each layer is drawn and listed - 3 of/)).toBeTruthy();
 	});
 
 	it('takes a raster tile no further than its size', () => {
