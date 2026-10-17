@@ -177,6 +177,30 @@ describe('the tile dialog', () => {
 		expect(screen.getByRole('group', { name: 'Move to another tile' })).toBeTruthy();
 	});
 
+	/** Largest first on a first click, reversed on a second, the tile's own order on a third. */
+	it('sorts the layers by a column, keeping each layer its colour', async () => {
+		show();
+		const table = screen.getByRole('table', { name: 'Layers' });
+		const names = () =>
+			within(table)
+				.getAllByRole('row')
+				.slice(1)
+				.map((row) => row.querySelector('th')?.textContent?.trim());
+		const size = within(table).getByRole('button', { name: 'Size' });
+		await fireEvent.click(size);
+		expect(names()).toEqual(['buildings', 'water']);
+		expect(size.closest('th')?.getAttribute('aria-sort')).toBe('descending');
+		const swatch = within(table).getAllByRole('row')[1].querySelector('.swatch') as HTMLElement;
+		expect(swatch.style.background).toBe('var(--layer-2)');
+		await fireEvent.click(within(table).getByRole('button', { name: 'Layer' }));
+		expect(names()).toEqual(['buildings', 'water']);
+		await fireEvent.click(within(table).getByRole('button', { name: 'Layer' }));
+		expect(names()).toEqual(['water', 'buildings']);
+		await fireEvent.click(within(table).getByRole('button', { name: 'Layer' }));
+		expect(names()).toEqual(['water', 'buildings']);
+		expect(size.closest('th')?.getAttribute('aria-sort')).toBe('none');
+	});
+
 	/** One colour per layer, the same in the drawing and beside the layer's name. */
 	it('draws each layer in the colour of its swatch', () => {
 		show();

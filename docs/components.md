@@ -43,7 +43,7 @@ lib/panes/project/    CopyDialog
 lib/panes/inspector/  Inspector · InspectorSection
 lib/panes/analysis/   Analysis · AnalysisSection · LayerShares · SpecChecks - what the selected source weighs (S14, Q72)
 lib/map/              MapCanvas · MapControls · Dropdown · TileGrid · TileActivity · SearchBox · Tooltip · Views · FeaturePopup · CropOverlay
-lib/common/           used by more than one owner: Help · HelpTrigger · Menu · Picker · ColorPicker · JsonTree · Modal · RemoteDialog · LandingScreen · the kit: Group · Field · Note · Tabs · Icon (S12, S13)
+lib/common/           used by more than one owner: Help · HelpTrigger · Menu · Picker · ColorPicker · JsonTree · Modal · RemoteDialog · LandingScreen · the kit: Group · Field · Note · Tabs · Icon · SortHeader (S12, S13, S14)
 ```
 
 A pane's folder is named for the pane, so "what uses `NodeArgument`?" is answered by its path before

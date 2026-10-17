@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Modal from '../common/Modal.svelte';
 	import Tabs from '../common/Tabs.svelte';
+	import SortHeader from '../common/SortHeader.svelte';
+	import { sortRows, type Sort } from '../common/sort';
 	import Note from '../common/Note.svelte';
 	import Field from '../common/Field.svelte';
 	import JsonTree from '../common/JsonTree.svelte';
@@ -78,6 +80,53 @@
 	const attributesOf = $derived(dissection?.layers[focus ?? 0] ?? null);
 
 	const layerName = (index: number) => dissection?.layers[index]?.name ?? '?';
+
+	// **Each table sorts by any of its columns**, and keeps that from one tile to the next: sorting
+	// layers by size is a way of reading tiles, not one tile. Unsorted is the tile's own order - the
+	// order its layers are stored and painted in.
+	let sorts = $state<Record<'layers' | 'attributes' | 'features' | 'issues', Sort | null>>({
+		layers: null,
+		attributes: null,
+		features: null,
+		issues: null
+	});
+	const layerRows = $derived(
+		sortRows(
+			(dissection?.layers ?? []).map((layer, i) => ({ layer, i })),
+			sorts.layers,
+			({ layer }, by) =>
+				({ Layer: layer.name, Features: layer.features, Vertices: layer.vertices, Size: layer.bytes })[by]
+		)
+	);
+	const attributeRows = $derived(
+		sortRows(
+			attributesOf?.attributes ?? [],
+			sorts.attributes,
+			(attribute, by) =>
+				({ Key: attribute.key, Features: attribute.features, Distinct: attribute.distinct, Size: attribute.bytes })[by]
+		)
+	);
+	// Sorted before the first ROWS are cut, so "by size" lists the largest of all, not of the first few.
+	const featureRows = $derived(
+		sortRows(
+			listed,
+			sorts.features,
+			(feature, by) =>
+				({
+					Feature: `${layerName(feature.layer)} #${feature.index}`,
+					Type: feature.kind,
+					Vertices: feature.vertices,
+					Size: feature.geometryBytes
+				})[by]
+		)
+	);
+	const issueRows = $derived(
+		sortRows(
+			dissection?.issues ?? [],
+			sorts.issues,
+			(issue, by) => ({ Layer: issue.layer, Feature: issue.feature, Issue: issue.label })[by]
+		)
+	);
 	const layerIndex = (name: string) => dissection?.layers.findIndex((layer) => layer.name === name) ?? -1;
 
 	function select(layer: number, index: number) {
@@ -194,14 +243,20 @@
 							{#if tab === 'layers'}
 								<table class="figures" aria-label="Layers">
 									<thead>
-										<tr
-											><th scope="col">Layer</th><th scope="col">Features</th><th scope="col">Vertices</th><th
-												scope="col">Size</th
-											></tr
-										>
+										<tr>
+											<SortHeader
+												label="Layer"
+												first="ascending"
+												sort={sorts.layers}
+												onSort={(next) => (sorts.layers = next)}
+											/>
+											<SortHeader label="Features" sort={sorts.layers} onSort={(next) => (sorts.layers = next)} />
+											<SortHeader label="Vertices" sort={sorts.layers} onSort={(next) => (sorts.layers = next)} />
+											<SortHeader label="Size" sort={sorts.layers} onSort={(next) => (sorts.layers = next)} />
+										</tr>
 									</thead>
 									<tbody>
-										{#each dissection.layers as layer, i (layer.name)}
+										{#each layerRows as { layer, i } (layer.name)}
 											<tr class:focused={focus === i}>
 												<th scope="row">
 													<button
@@ -223,14 +278,28 @@
 								{#if attributesOf && attributesOf.attributes.length > 0}
 									<table class="figures" aria-label="Attributes">
 										<thead>
-											<tr
-												><th scope="col">Key</th><th scope="col">Features</th><th scope="col">Distinct</th><th
-													scope="col">Size</th
-												></tr
-											>
+											<tr>
+												<SortHeader
+													label="Key"
+													first="ascending"
+													sort={sorts.attributes}
+													onSort={(next) => (sorts.attributes = next)}
+												/>
+												<SortHeader
+													label="Features"
+													sort={sorts.attributes}
+													onSort={(next) => (sorts.attributes = next)}
+												/>
+												<SortHeader
+													label="Distinct"
+													sort={sorts.attributes}
+													onSort={(next) => (sorts.attributes = next)}
+												/>
+												<SortHeader label="Size" sort={sorts.attributes} onSort={(next) => (sorts.attributes = next)} />
+											</tr>
 										</thead>
 										<tbody>
-											{#each attributesOf.attributes as attribute (attribute.key)}
+											{#each attributeRows as attribute (attribute.key)}
 												<tr>
 													<th scope="row">{attribute.key}</th>
 													<td>{count(attribute.features)}</td>
@@ -246,14 +315,25 @@
 							{:else if tab === 'features'}
 								<table class="figures" aria-label="Features">
 									<thead>
-										<tr
-											><th scope="col">Feature</th><th scope="col">Type</th><th scope="col">Vertices</th><th scope="col"
-												>Size</th
-											></tr
-										>
+										<tr>
+											<SortHeader
+												label="Feature"
+												first="ascending"
+												sort={sorts.features}
+												onSort={(next) => (sorts.features = next)}
+											/>
+											<SortHeader
+												label="Type"
+												first="ascending"
+												sort={sorts.features}
+												onSort={(next) => (sorts.features = next)}
+											/>
+											<SortHeader label="Vertices" sort={sorts.features} onSort={(next) => (sorts.features = next)} />
+											<SortHeader label="Size" sort={sorts.features} onSort={(next) => (sorts.features = next)} />
+										</tr>
 									</thead>
 									<tbody>
-										{#each listed.slice(0, ROWS) as feature (`${feature.layer}/${feature.index}`)}
+										{#each featureRows.slice(0, ROWS) as feature (`${feature.layer}/${feature.index}`)}
 											<tr>
 												<th scope="row">
 													<button
@@ -281,10 +361,29 @@
 							{:else}
 								<table class="figures" aria-label="Issues">
 									<thead>
-										<tr><th scope="col">Layer</th><th scope="col">Feature</th><th scope="col">Issue</th></tr>
+										<tr>
+											<SortHeader
+												label="Layer"
+												first="ascending"
+												sort={sorts.issues}
+												onSort={(next) => (sorts.issues = next)}
+											/>
+											<SortHeader
+												label="Feature"
+												first="ascending"
+												sort={sorts.issues}
+												onSort={(next) => (sorts.issues = next)}
+											/>
+											<SortHeader
+												label="Issue"
+												first="ascending"
+												sort={sorts.issues}
+												onSort={(next) => (sorts.issues = next)}
+											/>
+										</tr>
 									</thead>
 									<tbody>
-										{#each dissection.issues as issue, i (i)}
+										{#each issueRows as issue, i (i)}
 											{@const layer = layerIndex(issue.layer)}
 											<tr>
 												<th scope="row">{issue.layer}</th>
