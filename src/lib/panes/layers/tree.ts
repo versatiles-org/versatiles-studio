@@ -136,10 +136,11 @@ function below(rows: Row[], source: string, path: string, depth: number): Node[]
 }
 
 /**
- * The stack as a tree, bottom of the map first - the order the rows are drawn in.
+ * The stack as a tree, bottom of the map first - the order the rows are drawn in, and the order
+ * `move.ts` reasons in. The pane reverses it for reading (S8.2).
  *
  * The top level is one node per run of a source, so a source drawn in two places appears twice. Its
- * `path` is empty: that row's eye is the source's own, and the paths below it are what
+ * `path` is empty: that row's eye hides the whole source, and the paths below it are what
  * `SourceStyle.hidden` stores.
  */
 export function tree(rows: Row[]): Group[] {

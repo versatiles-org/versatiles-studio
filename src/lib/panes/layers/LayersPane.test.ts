@@ -38,6 +38,27 @@ function draw(over: Partial<Parameters<typeof render>[1]> = {}) {
 afterEach(cleanup);
 
 describe('the stack it draws', () => {
+	// The rows arrive bottom first, which is paint order; the pane reads top first, which is how the
+	// Sources list reads and how a person thinks of a stack (S8.2).
+	it('reads top of the map first, at every depth', async () => {
+		const { container } = render(LayersPane, {
+			rows: [...rowsOf('osm'), { id: 'data/cases', ownId: 'cases', source: 'data', type: 'fill', hidden: null }],
+			sources: {
+				osm: { graph: 1, hidden: [], overrides: {}, style: own },
+				data: { graph: 2, hidden: [], overrides: {}, style: null }
+			},
+			actions: { setHidden: vi.fn(), setOverride: vi.fn(), select: vi.fn(), reorder: vi.fn() }
+		});
+		const labels = () => [...container.querySelectorAll('button.label')].map((button) => button.textContent?.trim());
+		expect(labels()).toEqual(['data', 'osm']);
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Expand osm' }));
+		// Labels are the last thing colorful paints and the background the first, so under osm the
+		// categories read from Labels down to Background.
+		expect(labels()[2]).toBe('Labels');
+		expect(labels().at(-1)).toBe('Background');
+	});
+
 	it('starts collapsed: one row per source, with what is under it', () => {
 		draw();
 		expect(screen.getByText('osm')).toBeTruthy();

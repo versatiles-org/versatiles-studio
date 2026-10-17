@@ -86,6 +86,11 @@ graph that will not build keeps its place in the one control that can move it.
 The Layers pane shows the stack as a tree, three levels under each run of a source: the **category**
 a layer is about, the path in its own id, and the layer. `osm ▸ Labels ▸ label ▸ place ▸ city`.
 
+**Read top of the map first.** `tree()` keeps paint order, bottom first, because `move.ts` reasons
+in it; the pane reverses every list it renders, so the first row on screen is drawn over everything
+else - the way the Sources list reads, and the way a stack is thought of. "Move up" is therefore up
+the screen and up the map at once.
+
 **Runs, not buckets.** Every node is a run of _consecutive_ layers, so a name may legitimately
 appear twice with something else between - honestly, because those layers really are painted at
 different depths. In `colorful`, `label` spans positions 291-323 with `marking-oneway` and seven

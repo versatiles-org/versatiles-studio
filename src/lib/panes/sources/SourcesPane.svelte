@@ -3,7 +3,7 @@
 	import Menu, { type MenuItem } from '../../common/Menu.svelte';
 	import type { GraphInfo, OperationInfo } from '../../ipc/commands';
 
-	// The project's sources: which graphs there are, which are drawn, and in what order ([Q50]).
+	// The project's sources: which graphs there are, and which are drawn ([Q50]).
 	//
 	// **The top half of the Pipeline pane, made its own.** They are two objects at different levels -
 	// a list of graphs is the project, a chain is one document - and holding both meant one pane
@@ -11,16 +11,18 @@
 	// and the title says what the pane holds.
 	//
 	// **What data exists, not where it is drawn** ([the layer stack](../../../../docs/layers.md)).
-	// One row per source, an eye for drawn, a highlight for the one being edited - and no order. A
-	// source became a thing the map draws *from* rather than a thing on the map, so the stack is the
-	// Layers pane's, which is the only place a source can be arranged in parts.
+	// One row per source, an eye for drawn, a highlight for the one being edited - and nothing that
+	// arranges them. A source became a thing the map draws *from* rather than a thing on the map, so
+	// the stack is the Layers pane's, which is the only place a source can be arranged in parts. The
+	// rows still arrive in the stack's order, top first, so the two panes read the same way down - but
+	// the order is not this pane's to explain or to change ([Q62], S8.2).
 	let {
 		graphs = [],
 		current = null,
 		operations = [],
 		actions
 	}: {
-		/** Every graph in the project, already in draw order - top of the list draws on top. */
+		/** Every graph in the project, in the stack's order, top first - the same way the Layers pane reads. */
 		graphs?: GraphInfo[];
 		/** The graph being edited, whose chain the Pipeline pane shows. */
 		current?: number | null;
@@ -135,28 +137,15 @@
 			/>
 		{/snippet}
 	</GraphList>
-
-	{#if graphs.length > 1}
-		<p class="hint">The top of this list draws on top of the map.</p>
-	{/if}
 </div>
 
 <style>
-	/* One group: the doors answer the row above them, and the hint describes the list. The section
-	   gap belongs between panes, not inside this one ([Q50]). */
+	/* One group: the doors answer the row above them. The section gap belongs between panes, not
+	   inside this one ([Q50]). */
 	.pane {
 		display: flex;
 		flex-direction: column;
 		gap: var(--gap-group);
 		min-width: 0;
-	}
-
-	/* Said once, under the list, rather than on every row. Only when there is a stack to arrange -
-	   with one source there is no top to be on. */
-	.hint {
-		margin: 0;
-		padding: 0 var(--space-2);
-		font-size: var(--text-xs);
-		color: var(--ink-2);
 	}
 </style>

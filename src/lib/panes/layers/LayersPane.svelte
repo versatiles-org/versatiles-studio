@@ -16,6 +16,11 @@
 	// paint order and knows which source each layer came from, so this draws what is on the map
 	// rather than a second opinion about it.
 	//
+	// **Top of the map first.** The rows arrive in paint order, bottom first, and the tree keeps that
+	// order because `move.ts` reasons in it; every list here is rendered reversed, so the first row on
+	// screen is what is drawn over everything else - the way the Sources list reads, and the way a
+	// person thinks of a stack. "Move up" is then up the screen *and* up the map (S8.2).
+	//
 	// **↑/↓ before dragging.** A drag in a tall collapsible tree is the hardest interaction here -
 	// autoscroll, drop indicators at four depths, and no keyboard path at all - and it is not the
 	// gesture that has to exist first. Two buttons reach every arrangement the model can hold, from a
@@ -108,7 +113,8 @@
 </script>
 
 {#snippet nodes(list: Node[], at: string, depth: number)}
-	{#each list as node, index (node.kind === 'layer' ? node.id : `${node.path}:${index}`)}
+	<!-- Reversed at every depth: the last layer painted is the first row read. -->
+	{#each [...list].reverse() as node, index (node.kind === 'layer' ? node.id : `${node.path}:${index}`)}
 		{#if matches(node)}
 			{#if node.kind === 'layer'}
 				<div class="row" style="--depth: {depth}">
@@ -172,7 +178,7 @@
 						class="nudge"
 						disabled={up === null}
 						aria-label="Move {node.label} up"
-						title="Draw {node.label} over what is above it"
+						title="Move {node.label} up the list, so it is drawn over the run above it"
 						onclick={() => up && actions.reorder(up.range, up.at)}>↑</button
 					>
 					<button
@@ -180,7 +186,7 @@
 						class="nudge"
 						disabled={down === null}
 						aria-label="Move {node.label} down"
-						title="Draw {node.label} under what is below it"
+						title="Move {node.label} down the list, so it is drawn under the run below it"
 						onclick={() => down && actions.reorder(down.range, down.at)}>↓</button
 					>
 				</div>
