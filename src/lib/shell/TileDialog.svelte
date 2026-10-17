@@ -178,168 +178,171 @@
 					</figcaption>
 				</figure>
 
+				<!-- As tall as the drawing beside it, and no taller: a long list scrolls in its own panel,
+				     so the drawing, the tabs and the buttons stay where they are. -->
 				<div class="contents">
 					<Tabs items={tabs} selected={tab} onSelect={(id) => (tab = id)} label="What the tile holds" />
-
-					{#if tab === 'layers'}
-						<table class="figures" aria-label="Layers">
-							<thead>
-								<tr
-									><th scope="col">Layer</th><th scope="col">Features</th><th scope="col">Vertices</th><th scope="col"
-										>Size</th
-									></tr
-								>
-							</thead>
-							<tbody>
-								{#each dissection.layers as layer, i (layer.name)}
-									<tr class:focused={focus === i}>
-										<th scope="row">
-											<button
-												type="button"
-												class="link"
-												aria-pressed={focus === i}
-												onclick={() => (focus = focus === i ? null : i)}>{layer.name}</button
-											>
-										</th>
-										<td>{count(layer.features)}</td>
-										<td>{count(layer.vertices)}</td>
-										<td>{kilobytes(layer.bytes)}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-						{#if focus !== null && dissection.layers[focus]}
-							{@const layer = dissection.layers[focus]}
-							<dl class="facts" aria-label="Where {layer.name}'s bytes go">
-								<dt>Geometry</dt>
-								<dd>{kilobytes(layer.geometryBytes)}</dd>
-								<dt>Tags</dt>
-								<dd>{kilobytes(layer.tagBytes)}</dd>
-								<dt>Keys</dt>
-								<dd>{kilobytes(layer.keyBytes)}</dd>
-								<dt>Values</dt>
-								<dd>{kilobytes(layer.valueBytes)}</dd>
-								<dt>Ids</dt>
-								<dd>{kilobytes(layer.idBytes)}</dd>
-								<dt>Other</dt>
-								<dd>{kilobytes(layer.otherBytes)}</dd>
-								<dt>Extent</dt>
-								<dd>{layer.extent ?? 'missing'}</dd>
-								<dt>Version</dt>
-								<dd>{layer.version ?? 'missing'}</dd>
-							</dl>
-						{:else}
-							<Note>Pick a layer to see where its bytes go, and to draw it alone.</Note>
-						{/if}
-					{:else if tab === 'attributes'}
-						<Field label="Layer">
-							<select
-								value={focus ?? 0}
-								onchange={(event) => (focus = Number((event.currentTarget as HTMLSelectElement).value))}
-							>
-								{#each dissection.layers as layer, i (layer.name)}
-									<option value={i}>{layer.name}</option>
-								{/each}
-							</select>
-						</Field>
-						{#if attributesOf && attributesOf.attributes.length > 0}
-							<table class="figures" aria-label="Attributes">
+					<div class="panel">
+						{#if tab === 'layers'}
+							<table class="figures" aria-label="Layers">
 								<thead>
 									<tr
-										><th scope="col">Key</th><th scope="col">Features</th><th scope="col">Distinct</th><th scope="col"
+										><th scope="col">Layer</th><th scope="col">Features</th><th scope="col">Vertices</th><th scope="col"
 											>Size</th
 										></tr
 									>
 								</thead>
 								<tbody>
-									{#each attributesOf.attributes as attribute (attribute.key)}
-										<tr>
-											<th scope="row">{attribute.key}</th>
-											<td>{count(attribute.features)}</td>
-											<td>{count(attribute.distinct)}</td>
-											<td>{bytes(attribute.bytes)}</td>
+									{#each dissection.layers as layer, i (layer.name)}
+										<tr class:focused={focus === i}>
+											<th scope="row">
+												<button
+													type="button"
+													class="link"
+													aria-pressed={focus === i}
+													onclick={() => (focus = focus === i ? null : i)}>{layer.name}</button
+												>
+											</th>
+											<td>{count(layer.features)}</td>
+											<td>{count(layer.vertices)}</td>
+											<td>{kilobytes(layer.bytes)}</td>
 										</tr>
 									{/each}
 								</tbody>
 							</table>
-						{:else}
-							<Note tone="empty">This layer's features carry no properties.</Note>
-						{/if}
-					{:else if tab === 'features'}
-						<table class="figures" aria-label="Features">
-							<thead>
-								<tr
-									><th scope="col">Feature</th><th scope="col">Type</th><th scope="col">Vertices</th><th scope="col"
-										>Size</th
-									></tr
+							{#if focus !== null && dissection.layers[focus]}
+								{@const layer = dissection.layers[focus]}
+								<dl class="facts" aria-label="Where {layer.name}'s bytes go">
+									<dt>Geometry</dt>
+									<dd>{kilobytes(layer.geometryBytes)}</dd>
+									<dt>Tags</dt>
+									<dd>{kilobytes(layer.tagBytes)}</dd>
+									<dt>Keys</dt>
+									<dd>{kilobytes(layer.keyBytes)}</dd>
+									<dt>Values</dt>
+									<dd>{kilobytes(layer.valueBytes)}</dd>
+									<dt>Ids</dt>
+									<dd>{kilobytes(layer.idBytes)}</dd>
+									<dt>Other</dt>
+									<dd>{kilobytes(layer.otherBytes)}</dd>
+									<dt>Extent</dt>
+									<dd>{layer.extent ?? 'missing'}</dd>
+									<dt>Version</dt>
+									<dd>{layer.version ?? 'missing'}</dd>
+								</dl>
+							{:else}
+								<Note>Pick a layer to see where its bytes go, and to draw it alone.</Note>
+							{/if}
+						{:else if tab === 'attributes'}
+							<Field label="Layer">
+								<select
+									value={focus ?? 0}
+									onchange={(event) => (focus = Number((event.currentTarget as HTMLSelectElement).value))}
 								>
-							</thead>
-							<tbody>
-								{#each listed.slice(0, ROWS) as feature (`${feature.layer}/${feature.index}`)}
-									<tr>
-										<th scope="row">
-											<button
-												type="button"
-												class="link"
-												aria-pressed={selected?.layer === feature.layer && selected.index === feature.index}
-												onclick={() => select(feature.layer, feature.index)}
-												>{layerName(feature.layer)} #{feature.index}</button
-											>
-										</th>
-										<td>{feature.kind}</td>
-										<td>{count(feature.vertices)}</td>
-										<td>{bytes(feature.geometryBytes)}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-						{#if listed.length > ROWS}
-							<Note>The first {ROWS} of {count(listed.length)}. Pick a layer, or a feature in the drawing.</Note>
-						{/if}
-						{#if picked}
-							<dl class="facts" aria-label="The picked feature">
-								<dt>Id</dt>
-								<dd>{picked.id ?? 'none'}</dd>
-								<dt>Parts</dt>
-								<dd>{picked.parts.length}{picked.malformed ? ', then the geometry stops making sense' : ''}</dd>
-							</dl>
-							<JsonTree value={picked.properties} name="properties" open />
-						{/if}
-					{:else if dissection.issues.length === 0}
-						<Note tone="empty">Every layer and feature follows the vector tile spec.</Note>
-					{:else}
-						<table class="figures" aria-label="Issues">
-							<thead>
-								<tr><th scope="col">Layer</th><th scope="col">Feature</th><th scope="col">Issue</th></tr>
-							</thead>
-							<tbody>
-								{#each dissection.issues as issue, i (i)}
-									{@const layer = layerIndex(issue.layer)}
-									<tr>
-										<th scope="row">{issue.layer}</th>
-										<td>
-											{#if issue.feature !== null && layer >= 0}
-												<button type="button" class="link" onclick={() => select(layer, issue.feature ?? 0)}
-													>#{issue.feature}</button
+									{#each dissection.layers as layer, i (layer.name)}
+										<option value={i}>{layer.name}</option>
+									{/each}
+								</select>
+							</Field>
+							{#if attributesOf && attributesOf.attributes.length > 0}
+								<table class="figures" aria-label="Attributes">
+									<thead>
+										<tr
+											><th scope="col">Key</th><th scope="col">Features</th><th scope="col">Distinct</th><th scope="col"
+												>Size</th
+											></tr
+										>
+									</thead>
+									<tbody>
+										{#each attributesOf.attributes as attribute (attribute.key)}
+											<tr>
+												<th scope="row">{attribute.key}</th>
+												<td>{count(attribute.features)}</td>
+												<td>{count(attribute.distinct)}</td>
+												<td>{bytes(attribute.bytes)}</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							{:else}
+								<Note tone="empty">This layer's features carry no properties.</Note>
+							{/if}
+						{:else if tab === 'features'}
+							<table class="figures" aria-label="Features">
+								<thead>
+									<tr
+										><th scope="col">Feature</th><th scope="col">Type</th><th scope="col">Vertices</th><th scope="col"
+											>Size</th
+										></tr
+									>
+								</thead>
+								<tbody>
+									{#each listed.slice(0, ROWS) as feature (`${feature.layer}/${feature.index}`)}
+										<tr>
+											<th scope="row">
+												<button
+													type="button"
+													class="link"
+													aria-pressed={selected?.layer === feature.layer && selected.index === feature.index}
+													onclick={() => select(feature.layer, feature.index)}
+													>{layerName(feature.layer)} #{feature.index}</button
 												>
-											{:else}
-												layer
-											{/if}
-										</td>
-										<td class="issue" title={issue.kind}>{issue.label}</td>
-									</tr>
-								{/each}
-							</tbody>
-						</table>
-						{#if dissection.repair}
-							<Note tone="aside">
-								A repair would leave {kilobytes(dissection.repair.rawBytes)} decompressed, and {dissection.repair
-									.issuesLeft === 0
-									? 'no issues'
-									: `${dissection.repair.issuesLeft} issues it cannot fix`}.
-							</Note>
+											</th>
+											<td>{feature.kind}</td>
+											<td>{count(feature.vertices)}</td>
+											<td>{bytes(feature.geometryBytes)}</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+							{#if listed.length > ROWS}
+								<Note>The first {ROWS} of {count(listed.length)}. Pick a layer, or a feature in the drawing.</Note>
+							{/if}
+							{#if picked}
+								<dl class="facts" aria-label="The picked feature">
+									<dt>Id</dt>
+									<dd>{picked.id ?? 'none'}</dd>
+									<dt>Parts</dt>
+									<dd>{picked.parts.length}{picked.malformed ? ', then the geometry stops making sense' : ''}</dd>
+								</dl>
+								<JsonTree value={picked.properties} name="properties" open />
+							{/if}
+						{:else if dissection.issues.length === 0}
+							<Note tone="empty">Every layer and feature follows the vector tile spec.</Note>
+						{:else}
+							<table class="figures" aria-label="Issues">
+								<thead>
+									<tr><th scope="col">Layer</th><th scope="col">Feature</th><th scope="col">Issue</th></tr>
+								</thead>
+								<tbody>
+									{#each dissection.issues as issue, i (i)}
+										{@const layer = layerIndex(issue.layer)}
+										<tr>
+											<th scope="row">{issue.layer}</th>
+											<td>
+												{#if issue.feature !== null && layer >= 0}
+													<button type="button" class="link" onclick={() => select(layer, issue.feature ?? 0)}
+														>#{issue.feature}</button
+													>
+												{:else}
+													layer
+												{/if}
+											</td>
+											<td class="issue" title={issue.kind}>{issue.label}</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+							{#if dissection.repair}
+								<Note tone="aside">
+									A repair would leave {kilobytes(dissection.repair.rawBytes)} decompressed, and {dissection.repair
+										.issuesLeft === 0
+										? 'no issues'
+										: `${dissection.repair.issuesLeft} issues it cannot fix`}.
+								</Note>
+							{/if}
 						{/if}
-					{/if}
+					</div>
 				</div>
 			</div>
 		{/if}
@@ -387,6 +390,7 @@
 	.split {
 		display: grid;
 		grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+		position: relative;
 		gap: var(--space-5);
 		min-height: 0;
 
@@ -408,11 +412,29 @@
 		color: var(--ink-2);
 	}
 
+	/* Out of the flow, so the row is as tall as the drawing and the list fits into that. In one
+	   column there is no drawing beside it to be as tall as, so it takes a height of its own. */
 	.contents {
+		position: absolute;
+		inset: 0 0 0 calc(50% + var(--space-5) / 2);
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
 		min-width: 0;
+
+		@media (width < 48rem) {
+			position: static;
+			height: 24rem;
+		}
+	}
+
+	.panel {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-3);
+		flex: 1 1 auto;
+		min-height: 0;
+		overflow-y: auto;
 	}
 
 	.focused th {
