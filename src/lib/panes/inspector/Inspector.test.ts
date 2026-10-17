@@ -98,10 +98,11 @@ describe('the inspector', () => {
 	 */
 	it('gives every fold a marker', () => {
 		render(Inspector, { containers: [info()], graph: 'berlin', result: info({ source: 'preview' }) });
-		// The section folds only - `JsonTree` renders its own, and keeps its own native marker.
-		const summaries = document.querySelectorAll('section > details > summary');
+		// The group folds only - `JsonTree` renders its own, and keeps its own native marker. The
+		// marker is the kit's chevron (S12.7).
+		const summaries = document.querySelectorAll('.group > .body > details > summary');
 		expect(summaries.length).toBe(2);
-		for (const summary of summaries) expect(summary.querySelector('.fold')).toBeTruthy();
+		for (const summary of summaries) expect(summary.querySelector('.chevron')).toBeTruthy();
 	});
 
 	// Both sides carry the same figures, which is what makes them comparable at a glance.

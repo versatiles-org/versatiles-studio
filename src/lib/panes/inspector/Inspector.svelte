@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { ContainerInfo } from '../../ipc/commands';
 	import JsonTree from '../../common/JsonTree.svelte';
+	import Group from '../../common/Group.svelte';
+	import Note from '../../common/Note.svelte';
 
 	// A6 - the right pane shows what things turn out to be, never global settings and never a way in.
 	//
@@ -46,7 +48,7 @@
      glyph rotated rather than two swapped, so the state change is continuous.
      `aria-hidden`: `<details>` already announces expanded or collapsed. -->
 {#snippet fold()}
-	<span class="fold" aria-hidden="true">▶</span>
+	<span class="chevron" aria-hidden="true">▸</span>
 {/snippet}
 
 <!-- The same figures on both sides, which is what makes them comparable at a glance: a
@@ -74,9 +76,11 @@
 	<JsonTree value={item.tileJson} name="TileJSON" open={false} />
 {/snippet}
 
-<div class="inspector">
+<!-- The kit's column and groups (S12.7): the inputs and the result are the two groups, each
+     container a disclosure inside one, the container's name its own title. -->
+<div class="pane-body">
 	{#if !graph && containers.length === 0}
-		<p class="hint">Nothing open.</p>
+		<Note tone="empty">Nothing open.</Note>
 	{/if}
 
 	<!-- **Folded, because the inputs are the part already known**: they are the files someone chose,
@@ -84,8 +88,7 @@
 	     `<details>` rather than a flag of our own - it is a disclosure, and the element brings the
 	     keyboard support and the semantics with it, the same reasoning `JsonTree` was written on. -->
 	{#if containers.length > 0}
-		<section>
-			<p class="role section-label">{containers.length === 1 ? 'Input' : 'Inputs'}</p>
+		<Group title={containers.length === 1 ? 'Input' : 'Inputs'}>
 			{#each containers as info (info.source)}
 				<details>
 					<summary>
@@ -95,12 +98,11 @@
 					{@render facts(info)}
 				</details>
 			{/each}
-		</section>
+		</Group>
 	{/if}
 
 	{#if graph}
-		<section>
-			<p class="role section-label">Result</p>
+		<Group title="Result">
 			<!-- Open: this is what the pane was opened to find out. Open even when there is nothing to
 			     report, because then the absence *is* the answer and a fold would hide it. -->
 			<details open>
@@ -116,40 +118,16 @@
 					<!-- Stated rather than hidden. A pipeline that will not build is exactly when
 					     someone opens this pane, and a section that disappears reads as "nothing to
 					     say". -->
-					<p class="hint">Not built.</p>
+					<Note>Not built.</Note>
 				{/if}
 			</details>
-		</section>
+		</Group>
 	{/if}
 </div>
 
 <style>
-	.inspector {
-		height: 100%;
-		min-width: 0;
-		overflow-y: auto;
-		/* Reaching the end must not chain the scroll up to the window, which would rubber-band it. */
-		overscroll-behavior: contain;
-		padding: var(--space-5);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-5);
-	}
-
-	.hint {
-		margin: 0;
-		color: var(--ink-2);
-		line-height: 1.5;
-	}
-
-	section {
-		border-top: 1px solid var(--rule);
-		padding-top: var(--space-4);
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-	}
-
+	/* What is this pane's own: a container as a disclosure with its name as the title, and the facts
+	   under it as a definition list. */
 	summary {
 		/* Not a <button>, so base.css's button cursor does not reach it. */
 		cursor: pointer;
@@ -164,22 +142,9 @@
 		}
 	}
 
-	.fold {
-		display: inline-block;
-		flex: none;
-		font-size: var(--text-xs);
-		color: var(--ink-2);
-		transition: transform 120ms ease;
-	}
-
-	details[open] > summary .fold {
+	/* `<details>` has no class to toggle, so the kit's chevron is turned by the element's own state. */
+	details[open] > summary .chevron {
 		transform: rotate(90deg);
-	}
-
-	@media (prefers-reduced-motion: reduce) {
-		.fold {
-			transition: none;
-		}
 	}
 
 	/* Room between the name and what it says, once it is saying it. */
@@ -192,13 +157,6 @@
 		font-weight: 600;
 		/* Or the name pushes the row wider than the pane instead of ellipsing. */
 		min-width: 0;
-	}
-
-	/* Which side of the pipeline this section is. Quiet, because the name below it is what someone
-	   is looking for - this only says where to file it. */
-	/* `.section-label` carries the typography; a heading in this pane only has to sit flush. */
-	.role {
-		margin: 0;
 	}
 
 	dl {
