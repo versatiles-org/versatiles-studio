@@ -10,7 +10,6 @@
 	import { panels } from './lib/shell/StatusBar.svelte';
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
-	import { styleExport } from './lib/state/style-export.svelte';
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
 	import { preview } from './lib/state/preview.svelte';
 	import { layout } from './lib/state/layout.svelte';
@@ -20,15 +19,9 @@
 	import { project } from './lib/state/project.svelte';
 	import { exporting } from './lib/state/export.svelte';
 	import { status } from './lib/state/status.svelte';
-	import Inspector from './lib/panes/inspector/Inspector.svelte';
-	import LayersPane from './lib/panes/layers/LayersPane.svelte';
-	import { move, segmentsFrom } from './lib/panes/layers/move';
-	import { paneDetail } from './lib/panes/registry';
+	import { PANES, isPaneId, paneDetail } from './lib/panes/registry';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import { windowEvents } from './lib/shell/window-events.svelte';
-	import PipelinePane from './lib/panes/pipeline/PipelinePane.svelte';
-	import SourcesPane from './lib/panes/sources/SourcesPane.svelte';
-	import StylePane from './lib/panes/style/StylePane.svelte';
 	import AlphaRibbon from './lib/shell/AlphaRibbon.svelte';
 	import AssetsDialog from './lib/shell/AssetsDialog.svelte';
 	import UpdateDialog from './lib/shell/UpdateDialog.svelte';
@@ -44,57 +37,17 @@
 	import MapControls from './lib/map/MapControls.svelte';
 	import SearchBox from './lib/map/SearchBox.svelte';
 	import Views from './lib/map/Views.svelte';
-	import { declaredLayers } from './lib/map/tile-json';
 	import { composition } from './lib/map/composition.svelte';
-	import {
-		vplRemoveProperty,
-		vplSetValue,
-		vplSetProperty,
-		vplOperations,
-		getGraph,
-		type OperationInfo,
-		fieldSuggestions
-	} from './lib/ipc/commands';
+	import { getGraph } from './lib/ipc/commands';
 
 	let map = $state<MaplibreMap | undefined>();
 	// The map is created by an effect below, so the workbench is handed a way to reach it rather than
 	// the instance - which would be stale the moment a reload replaced it.
 	workbench.bind(() => map);
-	/// The graph being edited, and what every command that touches a document is given. One at a
-	/// time on screen; the project holds several (Q32), and the list that switches between them is
-	/// S2.13.
-	const currentGraph = $derived(document.graph);
-
-	// **What the style pane edits** (S6.4).
-	//
-	// The pane holds one graph at a time, and until this existed nothing ever told it which - so
-	// every control in it read the unstyled default and wrote nowhere. It looked right, because the
-	// default is what an untouched source shows, and it stayed wrong until an end-to-end test pressed
-	// a preset and asked the core what it had recorded ([the plan](docs/scope-e2e.md)).
-	//
-	// Name as well as id, because the recipe files a source's style under its name and a rename has
-	// to move the pane with it - `focus` ignores a repeat of what it already holds.
-	$effect(() => {
-		const id = currentGraph;
-		const name = id === null ? null : graphs.nameOf(id);
-		styleRecipe.focus(id !== null && name !== null ? { id, name } : null);
-	});
-
-	/// What the selected graph last built, or `null` while it has not - the inspector's other half
-	/// (A6). `built` is keyed by name because that is what a mount is called.
-	///
-	/// **One selection, and this is it.** The panes used to follow two different answers: the style
-	/// pane wrote to the *selected* graph and read what the *last preview* had produced, which are
-	/// the same graph until somebody picks another one without editing it. Selecting a graph does not
-	/// rebuild anything - there is nothing to rebuild - so the pane went on showing the previous
-	/// graph's layers while every control wrote into the newly selected one's recipe, keyed on ids it
-	/// did not have ([Q51] is the same bug one level up).
-	const currentBuild = $derived(
-		composition.editedName === null ? null : (preview.built[composition.editedName] ?? null)
-	);
-
-	/** Build-time information about the binary, so it is fetched once and never refreshed. */
-	let operations = $state<OperationInfo[]>([]);
+	// **Wiring and markup, nothing else** (S8.10). The selection is `workbench.selected`, what it built
+	// is `composition.editedBuild`, and each pane's connection to those lives in its own folder as a
+	// `*Section` component - so a rule about one pane is found beside that pane, and a rule about the
+	// window is in the module it is about ([Svelte Components](docs/components.md)).
 
 	let showGrid = $state(false);
 
@@ -121,41 +74,6 @@
 		gridOffset = 0;
 	});
 
-	/// What each node's fields could be set to, by the node's path (S3.4).
-	///
-	/// **Per node, because every node is a form.** This used to be one node's answer, fetched for
-	/// whichever was selected - which was right while only the selected node had fields to fill in,
-	/// and became "one file's columns offered for another file's node" the moment they all did.
-	///
-	/// Refetched whenever the document changes: the answer depends on each node's `filename`.
-	let suggestions = $state<Record<string, Record<string, string[]>>>({});
-	$effect(() => {
-		// Depend on the text too - editing `filename` changes which file is being asked about.
-		void document.current?.text;
-		const graph = document.current?.graph;
-		if (graph === undefined) {
-			suggestions = {};
-			return;
-		}
-		void fieldSuggestions(graph).then((found) => {
-			suggestions = Object.fromEntries(
-				found.map((node) => [node.path, Object.fromEntries(node.fields.map((f) => [f.field, f.values]))])
-			);
-		});
-	});
-
-	/// Property names the pipeline is producing, for the form's list fields (S3.3, E1).
-	///
-	/// Flattened across layers and de-duplicated: a node's `properties_include` applies to the
-	/// features passing through it, not to one layer, so splitting them by layer here would be a
-	/// distinction the parameter does not make.
-	const producedProperties = $derived([
-		...new Set((currentBuild?.layers ?? []).flatMap((layer) => layer.propertyKeys))
-	]);
-	/// Which surface is open (Q22, S4.1). Core-owned, so a reloaded window comes back to it.
-	///
-	/// A value this build does not know falls back to the map - the same rule `background` follows,
-	/// and for the same reason: an old layout file must not be able to open a blank window.
 	/// Whether the fonts dialog is up. Local, not durable: a window is never restored onto a dialog
 	/// ([Q39]).
 	let assets = $state(false);
@@ -192,7 +110,6 @@
 		void connectJobs();
 		void composition.load();
 		void layout.load();
-		void vplOperations().then((loaded) => (operations = loaded));
 		// The style survives a reload the way the graphs do - the core owns it ([Q36]).
 		void styleRecipe.load();
 		// Once, and before any source is added: a tile URL handed to MapLibre before its scheme is
@@ -226,12 +143,6 @@
 		});
 	});
 
-	// -- the crop ------------------------------------------------------------------------------
-
-	/// Whether a drag on the map draws a rectangle. Local: a mode you are halfway through is not
-	/// worth restoring after a reload, and leaving the app in it would be a trap.
-	let drawing = $state(false);
-
 	/// What each pane's header says it is about (S8.4).
 	///
 	/// **The chain alternates scope and nothing said so.** Sources and Layers span the project;
@@ -239,17 +150,7 @@
 	/// that was sat in a row of the Sources pane, which may be folded or scrolled away. The header
 	/// carries it instead, and keeps carrying it while the pane is folded. Which panes are which is
 	/// the registry's to say (S8.9).
-	const detailOf = (id: string): string | null => paneDetail(id, composition.editedName);
-
-	/// Moves a run of the stack, which is the whole of reordering ([the layer stack](docs/layers.md)).
-	///
-	/// **The segments are derived from the result, not edited towards it.** `move` produces the rows
-	/// in their new order and `segmentsFrom` reads the runs back off them, so the boundaries are
-	/// ascending by construction and there is no second place the invariant could be broken.
-	async function reorderStack(range: [number, number], at: number) {
-		const next = segmentsFrom(move(composition.rows, range, at));
-		await styleRecipe.setSegments(next);
-	}
+	const detailOf = (id: string): string | null => paneDetail(id, workbench.selected?.name ?? null);
 
 	/// Everything that reaches this window from outside it - see `window-events.svelte.ts`.
 	windowEvents.listen({
@@ -277,119 +178,14 @@
      column the width of a pane that has nothing in it. -->
 <!-- One snippet for both sidebars, keyed by pane id (Q31). Shared rather than one per side,
      because which side a pane is on is data - a pane that moves must not need its markup moved
-     with it. An id with no arm here renders nothing, which is how a pane can exist in the core
-     before it exists in the webview. -->
+     with it. Which component an id means is the registry's (S8.9), and each is a `*Section` that
+     wires its pane to the state modules (S8.10) - so adding a pane is an entry there, a folder, and
+     nothing here. An id the registry does not know renders nothing, which is how a pane can exist
+     in the core before it exists in the webview. -->
 {#snippet paneContent(id: string)}
-	{#if id === 'sources'}
-		<SourcesPane
-			graphs={composition.stacked}
-			current={currentGraph}
-			{operations}
-			actions={{
-				select: (id) => void workbench.select(id),
-				rename: (id, name) => void workbench.rename(id, name),
-				remove: (id) => void workbench.remove(id),
-				setEnabled: (id, enabled) => void workbench.toggleGraph(id, enabled),
-				addNode: (operation) => void workbench.newGraph(operation),
-				// Both doors add a graph rather than writing into the selected one - the list they hang
-				// off is what adds sources ([Q50]).
-				openSource: () => void workbench.pick(undefined, 'new'),
-				openPipeline: () => void workbench.pick(workbench.pipelineKind, 'new')
-			}}
-		/>
-	{:else if id === 'pipeline'}
-		<PipelinePane
-			{operations}
-			graph={composition.stacked.find((entry) => entry.id === currentGraph) ?? null}
-			pipeline={document.current}
-			pipelineRevision={document.revision}
-			properties={producedProperties}
-			fits={currentBuild?.fits ?? []}
-			{suggestions}
-			crop={document.current ? { bounds: workbench.crop, drawing } : null}
-			cropActions={{
-				set: (bounds) => void workbench.setCrop(bounds),
-				draw: () => (drawing = !drawing),
-				useView: () => workbench.cropToView()
-			}}
-			nodeActions={{
-				setEnabled: (path, enabled) => void workbench.toggleNode(path, enabled),
-				addOperation: (afterNameSpan, operation) => void workbench.addOperation(afterNameSpan, operation),
-				remove: (span) => void workbench.removeNode(span),
-				commitValue: (span, value) => void workbench.editText((text) => vplSetValue(text, span, value)),
-				removeProperty: (span) => void workbench.editText((text) => vplRemoveProperty(text, span)),
-				setProperty: (nameSpan, key, values) =>
-					void workbench.editText((text) => vplSetProperty(text, nameSpan, key, values))
-			}}
-			documentActions={{
-				change: (text) =>
-					void workbench.setText(text, 'typing').then((next) => {
-						// The graph list's unsaved dot reads `graphs`, not `pipeline`, so it only moves when
-						// that list is refetched - and typing deliberately does not go through
-						// `applyDocument`, which is what refetches it. Without this the Save button lit up
-						// on the first keystroke while the dot beside the graph's name stayed clean.
-						//
-						// On the transition rather than on every keystroke: `dirty` flips once per save
-						// cycle, so a round trip per character to be told nothing changed is a poor trade.
-						const flipped = document.current?.dirty !== next.dirty;
-						document.update(next);
-						if (flipped) void graphs.refresh();
-						void workbench.refresh();
-					}),
-				undo: () => void workbench.stepHistory(true),
-				redo: () => void workbench.stepHistory(false),
-				format: () => void workbench.format(),
-				save: (chooseFile) => void workbench.save(chooseFile),
-				export: () => void exporting.show(currentGraph)
-			}}
-		/>
-	{:else if id === 'style'}
-		<StylePane
-			sourceStyle={styleRecipe.source}
-			rendered={composition.style}
-			basis={composition.edited?.basis ?? 'none'}
-			own={composition.edited?.style ?? null}
-			source={currentBuild
-				? {
-						tileFormat: currentBuild.info.tileFormat,
-						tileSchema: currentBuild.info.tileSchema,
-						layers: declaredLayers(currentBuild.info)
-					}
-				: null}
-			exporting={styleExport.exporting}
-			missingFonts={styleExport.missingFonts}
-			actions={{
-				setPreset: (preset) => void styleRecipe.setPreset(preset),
-				setKind: (kind) => void styleRecipe.setKind(kind),
-				setRaster: (adjust) => void styleRecipe.setRaster(adjust),
-				setHillshade: (shade) => void styleRecipe.setHillshade(shade),
-				previewRecolor: (recolor) => styleRecipe.previewRecolor(recolor),
-				commitRecolor: () => void styleRecipe.commitRecolor(),
-				cancelRecolor: () => styleRecipe.cancelRecolor(),
-				pruneOverrides: (present) => void styleRecipe.pruneOverrides(present),
-				// The whole stack, not the selected source: a `style.json` is the map.
-				exportAs: (kind, code) => composition.style && void styleExport.write(kind, composition.style, code),
-				exportBundle: () => composition.style && void styleExport.bundle(composition.style)
-			}}
-		/>
-	{:else if id === 'layers'}
-		<LayersPane
-			rows={composition.rows}
-			sources={composition.sources}
-			actions={{
-				setHidden: (graph, path, hidden) =>
-					void styleRecipe.setHidden(graph, path, hidden).then(() => workbench.refresh()),
-				setOverride: (graph, layer, patch) => void styleRecipe.setLayerFor(graph, layer, patch),
-				select: (graph) => void workbench.select(graph),
-				reorder: (range, at) => void reorderStack(range, at)
-			}}
-		/>
-	{:else if id === 'inspector'}
-		<Inspector
-			containers={preview.containers.map((c) => c.info)}
-			result={currentBuild?.info ?? null}
-			graph={composition.editedName}
-		/>
+	{#if isPaneId(id)}
+		{@const Section = PANES[id].component}
+		<Section />
 	{/if}
 {/snippet}
 
@@ -439,7 +235,7 @@
 			<!-- `mount` is what the click is allowed to hit: Studio's own tiles, never the background. -->
 			<FeaturePopup
 				{map}
-				{drawing}
+				drawing={workbench.drawing}
 				source={preview.containers.at(-1)?.info.source ?? null}
 				mount={composition.editedName}
 			/>
@@ -456,13 +252,13 @@
 			<CropOverlay
 				{map}
 				bbox={bboxField.shown ?? workbench.crop.bbox ?? null}
-				drawing={bboxField.drawing || drawing}
+				drawing={bboxField.drawing || workbench.drawing}
 				onDrawn={(bbox) => {
 					if (bboxField.drawing) {
 						bboxField.finish(bbox);
 						return;
 					}
-					drawing = false;
+					workbench.drawing = false;
 					void workbench.setCrop({ bbox, minZoom: workbench.crop.minZoom, maxZoom: workbench.crop.maxZoom });
 				}}
 			/>
@@ -494,7 +290,7 @@
 					{showGrid}
 					{gridLevel}
 					gridNudged={gridOffset !== 0}
-					canReset={Boolean(currentBuild?.info.bbox)}
+					canReset={Boolean(composition.editedBuild?.info.bbox)}
 					onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
 					backgroundLabels={layout.backgroundLabels}
 					onBackgroundLabels={(on) => layout.current && void layout.change({ ...layout.current, backgroundLabels: on })}
@@ -520,11 +316,11 @@
 		name={document.current.name}
 		formats={exporting.formats}
 		crop={workbench.crop}
-		onEstimate={(compression) => exporting.estimate(currentGraph, workbench.crop, compression)}
+		onEstimate={(compression) => exporting.estimate(document.graph, workbench.crop, compression)}
 		onCancel={() => exporting.close()}
 		produces={exporting.producing}
 		onExport={({ format, compression }) =>
-			void exporting.start(currentGraph, document.current?.name ?? '', workbench.crop, format, compression)}
+			void exporting.start(document.graph, document.current?.name ?? '', workbench.crop, format, compression)}
 	/>
 {/if}
 

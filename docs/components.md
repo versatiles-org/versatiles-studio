@@ -35,12 +35,12 @@ judgement, and judgements drift.
 App.svelte            the workbench: one window, one project
 Launcher.svelte       the launcher: what ⌘N opens, and what starts with nothing open (S7.5)
 lib/shell/            the frame and its bar: AppShell · AlphaRibbon · Sidebar · Pane · PaneResizer · Boundary · StatusBar · JobsPanel · DiagnosticsPanel · UpdateDialog · AssetsDialog
-lib/panes/sources/    SourcesPane - which graphs there are and which are drawn; order is the Layers pane's (Q50, Q62)
-lib/panes/pipeline/   PipelinePane and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor · CropSection · ExportDialog
-lib/panes/style/      StylePane
-lib/panes/layers/     LayersPane · LayerRow
+lib/panes/sources/    SourcesPane · SourcesSection - which graphs there are and which are drawn; order is the Layers pane's (Q50, Q62)
+lib/panes/pipeline/   PipelinePane · PipelineSection and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor · CropSection · ExportDialog
+lib/panes/style/      StylePane · StyleSection
+lib/panes/layers/     LayersPane · LayersSection · LayerRow
 lib/panes/project/    CopyDialog
-lib/panes/inspector/  Inspector
+lib/panes/inspector/  Inspector · InspectorSection
 lib/map/              MapCanvas · MapControls · Dropdown · TileGrid · TileActivity · SearchBox · Tooltip · Views · FeaturePopup · CropOverlay
 lib/common/           used by more than one owner: Help · HelpTrigger · Menu · Picker · ColorPicker · JsonTree · Modal · LandingScreen
 ```
@@ -96,9 +96,15 @@ lib/common/                            used by more than one owner
 - **A rule does not live in the page root.** `App.svelte` is wiring and markup; anything that decides
   something goes to the module it is about - `map/composition.svelte.ts` for what the map draws,
   `shell/window-events.svelte.ts` for what reaches a window from outside it,
-  `state/workbench.svelte.ts` for opening things and the order that keeps every view agreeing. A rule
-  inside a component can only be checked by opening the application and looking, which is how the
-  background map came to be unreachable however it was set, for three releases, with nothing failing.
+  `state/workbench.svelte.ts` for opening things, the selection, and the order that keeps every view
+  agreeing. A rule inside a component can only be checked by opening the application and looking,
+  which is how the background map came to be unreachable however it was set, for three releases,
+  with nothing failing.
+- **Every pane comes in two halves** (S8.10). `<Pane>Pane` takes data and an `actions` object and
+  knows no state module, so it renders in a test without a backend; `<Pane>Section` beside it reads
+  the state modules and hands the pane what it needs, and is what `panes/registry.ts` names. A rule
+  about one pane - which source the style sliders preview against, how a move in the layer tree
+  becomes an order - lives in its Section, not in `App.svelte`.
 - **The right pane never shows global settings.** Those belong to the asset manager or project
   settings, or the pane becomes a junk drawer.
 

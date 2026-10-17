@@ -40,11 +40,13 @@ import {
 	setGraph,
 	undo as undoStep,
 	vplInsertNode,
+	vplOperations,
 	vplRemoveNode,
 	type Bounds,
 	type DocumentView,
 	type EditKind,
 	type ImportKind,
+	type OperationInfo,
 	type Recipe,
 	type Span
 } from '../ipc/commands';
@@ -101,6 +103,23 @@ const accepted = $derived(anyExtension(kinds));
  */
 const pipelineExtensions = $derived(kinds.find((kind) => kind.id === 'pipeline')?.extensions ?? ['vpl']);
 
+/**
+ * Every operation this build has, for the `from_*` a new graph starts on and the transform picker.
+ *
+ * Build-time information about the binary, so it is fetched once and never refreshed. Here rather
+ * than in `App.svelte` because two panes read it and neither owns it (S8.10).
+ */
+let operations = $state<OperationInfo[]>([]);
+
+/**
+ * Whether a drag on the map draws the crop rectangle (F2).
+ *
+ * Local to the window, not durable: a mode you are halfway through is not worth restoring after a
+ * reload, and leaving the app in it would be a trap. Here because the Pipeline pane turns it on and
+ * the map's overlay reads it - two ends of the window, one claim (S8.10).
+ */
+let drawing = $state(false);
+
 /** The map this window draws on, or `undefined` before `MapCanvas` has made one. */
 let mapOf: () => MaplibreMap | undefined = () => undefined;
 
@@ -110,9 +129,14 @@ export const workbench = {
 		mapOf = map;
 	},
 
-	/** Reads the catalogue of ways in. Called once, at startup. */
+	/** Reads the catalogue of ways in, and the operations. Called once, at startup. */
 	async load(): Promise<void> {
-		kinds = await importKinds().catch(() => []);
+		[kinds, operations] = await Promise.all([importKinds().catch(() => []), vplOperations().catch(() => [])]);
+	},
+
+	/** Every known operation. Empty until the one-off fetch lands. */
+	get operations(): OperationInfo[] {
+		return operations;
 	},
 
 	/** Whether a dropped path is one this build can read at all. */
@@ -120,10 +144,34 @@ export const workbench = {
 		return accepted.some((extension) => path.toLowerCase().endsWith(`.${extension}`));
 	},
 
+	/**
+	 * The graph being edited: its id and its name, or `null` when none is.
+	 *
+	 * **The selection, named once** (S8.10). It is `document.graph` - whichever document is on
+	 * screen - and the name is what the recipe, the mount and the stack file that graph under. Every
+	 * pane that follows the selection reads this rather than one of the five spellings it used to go
+	 * by.
+	 */
+	get selected(): { id: number; name: string } | null {
+		const id = document.graph;
+		if (id === null) return null;
+		const name = graphs.nameOf(id);
+		return name === null ? null : { id, name };
+	},
+
 	/** What the graph on screen is narrowed to (F2, S5.2, S5.4). */
 	get crop(): Bounds {
 		const found = graphs.list.find((graph) => graph.id === document.graph);
 		return found?.crop ?? { bbox: null, minZoom: null, maxZoom: null };
+	},
+
+	/** Whether a drag on the map is drawing the crop - see [`drawing`]. */
+	get drawing(): boolean {
+		return drawing;
+	},
+
+	set drawing(next: boolean) {
+		drawing = next;
 	},
 
 	// -- the funnel ------------------------------------------------------------------------------
@@ -377,6 +425,28 @@ export const workbench = {
 	},
 
 	// -- the document ----------------------------------------------------------------------------
+
+	/**
+	 * Text typed into the editor.
+	 *
+	 * **Deliberately not through `applyDocument`**, which would remount the editor on every keystroke
+	 * and take the caret with it. But the graph list's unsaved dot reads `graphs`, not the document,
+	 * so it only moves when that list is refetched - and without this the Save button lit up on the
+	 * first keystroke while the dot beside the graph's name stayed clean. Refetched on the transition
+	 * rather than on every keystroke: `dirty` flips once per save cycle, so a round trip per character
+	 * to be told nothing changed is a poor trade.
+	 */
+	async typing(text: string): Promise<void> {
+		try {
+			const next = await this.setText(text, 'typing');
+			const flipped = document.current?.dirty !== next.dirty;
+			document.update(next);
+			if (flipped) await graphs.refresh();
+			await this.refresh();
+		} catch (error) {
+			status.fail(error);
+		}
+	},
 
 	/** Lays the current graph's VPL out again (S1.11). */
 	format(): Promise<void> {

@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 /**
  * The pane registry against the core's catalogue (S8.9).
  *

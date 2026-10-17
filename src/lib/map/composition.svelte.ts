@@ -22,7 +22,7 @@ import { forExport } from './style-code';
 import { drawn as drawsOwnTiles, ordered, stackFor } from './stack';
 import { defaultStyle } from './default-style';
 import { buildBackground } from './background';
-import { serverBaseUrl, type GraphInfo, type LayerOverride } from '../ipc/commands';
+import { serverBaseUrl, type GraphInfo, type LayerOverride, type Preview } from '../ipc/commands';
 import { graphs } from '../state/graphs.svelte';
 import { document } from '../state/document.svelte';
 import { layout } from '../state/layout.svelte';
@@ -96,6 +96,18 @@ const stacked = $derived.by(() => {
 
 /** The stack entry for the source being edited - how it was drawn, and the style it drew. */
 const edited = $derived(composed.bases.find((entry) => entry.name === editedName));
+
+/**
+ * What the selected graph last built, or `null` while it has not (A6).
+ *
+ * **One selection, and this is it.** The panes used to follow two different answers: the style pane
+ * wrote to the *selected* graph and read what the *last preview* had produced, which are the same
+ * graph until somebody picks another one without editing it. Selecting a graph does not rebuild
+ * anything, so the pane went on showing the previous graph's layers while every control wrote into
+ * the newly selected one's recipe ([Q51] is the same bug one level up). `built` is keyed by name
+ * because that is what a mount is called.
+ */
+const editedBuild = $derived(editedName === null ? null : (preview.built[editedName] ?? null));
 
 /**
  * The style to hand MapLibre, or `null` before the server has answered.
@@ -183,6 +195,11 @@ export const composition = {
 	/** The stack entry for the graph on screen, or `undefined` when it draws nothing. */
 	get edited(): (typeof composed)['bases'][number] | undefined {
 		return edited;
+	},
+
+	/** What the selected graph last built, or `null` while it has not - see [`editedBuild`]. */
+	get editedBuild(): Preview | null {
+		return editedBuild;
 	},
 
 	/**

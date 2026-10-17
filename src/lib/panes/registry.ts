@@ -17,27 +17,40 @@
  * that silently is not there.
  */
 
+import type { Component } from 'svelte';
+import InspectorSection from './inspector/InspectorSection.svelte';
+import LayersSection from './layers/LayersSection.svelte';
+import PipelineSection from './pipeline/PipelineSection.svelte';
+import SourcesSection from './sources/SourcesSection.svelte';
+import StyleSection from './style/StyleSection.svelte';
+
 /** What a pane is about: every graph in the project, or the one that is selected. */
 export type PaneScope = 'project' | 'selection';
 
 export interface PaneEntry {
 	title: string;
 	scope: PaneScope;
+	/**
+	 * The pane, connected: a `*Section` that reads the state modules and hands its pane data and
+	 * actions (S8.10). Takes no props - everything it needs is module state - which is what lets the
+	 * sidebar render any id the same way.
+	 */
+	component: Component;
 }
 
 export const PANES = {
 	// Named for what it holds rather than for the file format behind it: each row is a source of
 	// tiles, and the style pane names the same things (S6.5).
-	sources: { title: 'Sources', scope: 'project' },
+	sources: { title: 'Sources', scope: 'project', component: SourcesSection },
 	// The selected graph itself. It was the bottom half of Sources until [Q50], which is why the
 	// id and the title no longer match - the id is durable and appears in `layout.json`.
-	pipeline: { title: 'Pipeline', scope: 'selection' },
-	style: { title: 'Style', scope: 'selection' },
+	pipeline: { title: 'Pipeline', scope: 'selection', component: PipelineSection },
+	style: { title: 'Style', scope: 'selection', component: StyleSection },
 	// What the map paints, over every source at once. It was the bottom of the Style pane until the
 	// stack became project-wide, which is why the two are adjacent and why the id is new.
-	layers: { title: 'Layers', scope: 'project' },
+	layers: { title: 'Layers', scope: 'project', component: LayersSection },
 	// Both sides of the selected graph: what it reads and what it produced.
-	inspector: { title: 'Inspector', scope: 'selection' }
+	inspector: { title: 'Inspector', scope: 'selection', component: InspectorSection }
 } as const satisfies Record<string, PaneEntry>;
 
 export type PaneId = keyof typeof PANES;

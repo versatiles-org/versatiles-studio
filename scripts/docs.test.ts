@@ -257,7 +257,9 @@ describe('documentation size', () => {
 		// reverse test it describes is cited from the code (`analysis.rs`) but was never stated here.
 		'docs/architecture.md': 2150,
 		'docs/styling.md': 1800,
-		'docs/components.md': 1100,
+		// Raised for the two-halves rule (S8.10): every pane is a Pane and a Section, and the inventory
+		// names both.
+		'docs/components.md': 1250,
 		// Raised for the stale-binary papercut, which is a running instruction rather than a scope
 		// decision - but it belongs beside "how it runs", and an afternoon was lost to not having it.
 		'docs/scope-e2e.md': 820,
