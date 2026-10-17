@@ -511,6 +511,32 @@ headings and refused - a field has a label, not a heading. Amends
 [Q18](#q18---svelte-components-are-written-from-scratch) only in where the components live: still
 written here, now shared.
 
+### Q71 - The kit is for every surface, and seven things it decides
+
+S12 put the panes on the kit and left the dialogs, the map's controls, the status bar's panels and
+the launcher for later; by the time later came, those had grown three tab strips with three looks,
+six recipes for a surface that floats, two meanings for one highlight colour, five values for
+"disabled", a text-field border on every slider, and a `.quiet` that meant accent text in `base.css`
+and secondary text in two panels. The same drift S12 named, one level out - so the same answer:
+**the kit covers every component, and `kit.test.ts` checks every component**, with the parts
+themselves the only files exempt.
+
+Seven decisions, made once rather than surface by surface. **Highlights**: `--chrome` is the row
+under the cursor, the accent tint with the bar is the item that is current. **Errors**: a `Note` for
+a field or a dialog, the `--error-bg` band only for a whole surface. **One popover face**:
+`--float-bg`, `--radius-lg`, the shadow, the blur - the tooltip stays quieter, as a caption rather
+than a surface. **One disabled fade**, `--disabled-opacity`. **A pressed toggle is `.on`, not
+`.primary`**: the one button that commits must not share a look with a mode that stays lit. **Numbers
+are right-aligned and tabular** in every numeric input. **One tab look**, at `--text-sm` with the
+accent underline, and the arrow keys everywhere.
+
+Two consequences worth naming. **Glyphs are drawn, not typed**: `MapIcon` became `Icon` and every ×,
+✎, ↑, ↓ and eye in the panes went through it, because a character in the UI font is a different
+weight on every platform and the power switch had been pasted as SVG into two components. **The
+text-field rule in `base.css` reaches only text fields**: written as a bare `input` it had given a
+range slider a border and a colour well a text field's padding, which two components undid and one did
+not.
+
 ## Dependencies and packaging
 
 ### Q8 - Release early under v0.x

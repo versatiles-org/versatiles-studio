@@ -34,7 +34,7 @@ judgement, and judgements drift.
 ```text
 App.svelte            the workbench: one window, one project
 Launcher.svelte       the launcher: what ⌘N opens, and what starts with nothing open (S7.5)
-lib/shell/            the frame and its bar: AppShell · AlphaRibbon · Sidebar · Pane · PaneResizer · Boundary · StatusBar · JobsPanel · DiagnosticsPanel · UpdateDialog · AssetsDialog
+lib/shell/            the frame and its bar: AppShell · AlphaRibbon · Sidebar · Pane · PaneResizer · Boundary · StatusBar · JobsPanel · DiagnosticsPanel · BarPanel · BarRow · UpdateDialog · AssetsDialog
 lib/panes/sources/    SourcesPane · SourcesSection - which graphs there are and which are drawn; order is the Layers pane's (Q50, Q62)
 lib/panes/pipeline/   PipelinePane · PipelineSection and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor · CropSection · ExportDialog
 lib/panes/style/      StylePane · StyleSection
@@ -42,7 +42,7 @@ lib/panes/layers/     LayersPane · LayersSection · LayerRow
 lib/panes/project/    CopyDialog
 lib/panes/inspector/  Inspector · InspectorSection
 lib/map/              MapCanvas · MapControls · Dropdown · TileGrid · TileActivity · SearchBox · Tooltip · Views · FeaturePopup · CropOverlay
-lib/common/           used by more than one owner: Help · HelpTrigger · Menu · Picker · ColorPicker · JsonTree · Modal · LandingScreen · the kit: Group · Field · Note (S12)
+lib/common/           used by more than one owner: Help · HelpTrigger · Menu · Picker · ColorPicker · JsonTree · Modal · RemoteDialog · LandingScreen · the kit: Group · Field · Note · Tabs · Icon (S12, S13)
 ```
 
 A pane's folder is named for the pane, so "what uses `NodeArgument`?" is answered by its path before

@@ -83,9 +83,13 @@ Do not write these again - they are done once, for everything:
 | Element                                 | You get                                                               |
 | --------------------------------------- | --------------------------------------------------------------------- |
 | `button`, `input`, `select`, `textarea` | `font: inherit`, `color: inherit`                                     |
-| `input`, `select`, `textarea`           | background, border, radius, padding - a themed face                   |
+| text fields, `select`, `textarea`       | background, border, radius, padding - a themed face                   |
+| checkbox, radio, range                  | `accent-color` - Studio's accent rather than the platform's blue      |
+| `input[type=color]`                     | a colour well the size of the row it sits in, framed in `--rule`      |
+| `input[type=number]`                    | right-aligned, tabular figures                                        |
 | `button`                                | cursor, the disabled colour, and **no box at all**                    |
 | `.button`                               | the box, on request: background, border, radius and a compact padding |
+| anything that fades when disabled       | `--disabled-opacity`, the one value                                   |
 | `ul`, `ol`                              | no markers, no margin, no padding                                     |
 | `code`, `kbd`, `samp`                   | the monospace stack and its optical size correction                   |
 | anything focusable                      | the focus ring                                                        |
@@ -107,38 +111,58 @@ This is not a utility framework and should not become one. If a rule is true of 
 
 ## The kit
 
-The layer between the tokens and the panes ([S12](history.md), [Q70](decisions.md)). The tokens
-stopped raw values; they did not stop the same _part_ being spelled five ways - a note under a
-control was `note`, `hint`, `empty`, `nothing` and `none` in five panes, each with its own scoped
-rule. The kit is the ten parts a pane is made of, each written once, and a test (`kit.test.ts`) that
-fails when a pane spells one of them by hand.
+The layer between the tokens and the components ([S12](history.md), [Q70](decisions.md); every
+surface since [S13](history.md), [Q71](decisions.md)). The tokens stopped raw values; they did not
+stop the same _part_ being spelled five ways - a note under a control was `note`, `hint`, `empty`,
+`nothing` and `none` in five panes, each with its own scoped rule. The kit is the parts a surface is
+made of, each written once, and a test (`kit.test.ts`) that fails when a component spells one of them
+by hand.
 
 **Two levels of heading, and no third.** A pane's title is the uppercase `.section-label` in its
-header, and that is the only uppercase label in the sidebars. Inside a pane, a group of controls has a
-`Group` heading: sentence case, `--text-sm`, weight 600, with an optional action beside it. Nothing
-below that carries a heading - a field has a label, a note has a tone.
+header, and that is the only uppercase label in the sidebars; the launcher's two column titles are
+the other place it is allowed. Inside a pane or a dialog, a group of controls has a `Group` heading:
+sentence case, `--text-sm`, weight 600, with an optional action beside it. Nothing below that carries
+a heading - a field has a label, a note has a tone.
 
 **One density.** Labels and counts are `--text-xs`; body text in a pane is `--text-sm`. A label column
 is `--label-width` wide wherever a label sits beside a control, so the controls of every pane line up.
 Parts of one group sit `--gap-group` apart, groups `--gap-section` apart - the two rhythm tokens, and
 no other vertical spacing inside a pane body.
 
-| Part         | Is                                                                                                                                                                                                 | Not for                                |
-| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
-| `.pane-body` | The column a pane's groups stack in: full height, scrolls, `--gap-section` between groups                                                                                                          | Anything outside a pane                |
-| `Group`      | A heading in sentence case, an optional action (reset, clear), and what it groups                                                                                                                  | A pane title - that is the header's    |
-| `Field`      | A label beside a control, the label `--label-width` wide; an optional trailing part for an amount or a clear                                                                                       | A list row                             |
-| `Note`       | A line of secondary text with a tone: `hint` under a control, `empty` where a pane has nothing yet, `aside` for something the map is doing that the person did not ask for, `problem` for an error | Headings, labels, button text          |
-| `.toolbar`   | A row of buttons that act on the group above it                                                                                                                                                    | A row of controls that is a list entry |
-| `.list-row`  | A row in a list or tree: controls and a name, one line, `--text-xs`                                                                                                                                | A form row - that is a `Field`         |
-| `.button`    | A button drawn as a button; `.primary` commits, `.quiet` is accent text with no box for reset, clear, undo                                                                                         | Icon glyphs                            |
-| `.icon`      | A glyph button: ×, ✎, ↑, ↓, ↺, ▸ - secondary ink, `--text-xs`, no box; `.danger` reddens on hover                                                                                                  | Anything with a word in it             |
-| `.chevron`   | The rotating ▸ of a disclosure; `.open` turns it                                                                                                                                                   | A fold that is not a disclosure        |
-| `.truncate`  | One line, clipped (already a shared class)                                                                                                                                                         |                                        |
+**Two highlights, two meanings.** `--chrome` marks the row under the cursor or the arrow keys - in a
+menu, a picker, a result list. The accent tint with the inset bar marks the item that is _current_ -
+the source being edited, the background in use, the view the map is on. Nothing uses one for the
+other.
 
-A pane may still have a scoped `<style>` for what is true of it alone - a tree's indent, the pipe
-between nodes, a swatch. What it may not do is restyle a part: a `Note` that is a different grey in
-one pane is the drift this stops.
+**Two error presentations, by scope.** A `Note tone="problem"` for a field, a group or a dialog. The
+`--error-bg` band only for state of a whole surface: the status bar, a boundary that has stopped
+working, the launcher.
+
+| Part         | Is                                                                                                                                                                                                                                                                                                 | Not for                                        |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `.pane-body` | The column a pane's groups stack in: full height, scrolls, `--gap-section` between groups                                                                                                                                                                                                          | Anything outside a pane                        |
+| `Group`      | A heading in sentence case, an optional action (reset, clear), and what it groups                                                                                                                                                                                                                  | A pane title - that is the header's            |
+| `Field`      | A label beside a control, the label `--label-width` wide; an optional trailing part for an amount or a clear                                                                                                                                                                                       | A list row                                     |
+| `Note`       | A line of secondary text with a tone: `hint` under a control, `empty` where there is nothing yet, `aside` for something the map is doing that the person did not ask for, `problem` for an error, `lead` for a dialog's one sentence about itself; `live` for a line whose text arrives on its own | Headings, labels, button text                  |
+| `Tabs`       | A row of tabs over one panel: one look, arrow keys, an optional badge and a trailing slot                                                                                                                                                                                                          | Two states of one list - that is a filter      |
+| `Icon`       | Every glyph Studio draws, as one SVG set: the map's controls, the panes' ×, ✎, ↑, ↓, ↺, ↻, the eyes, the power switch, the chevron                                                                                                                                                                 | A glyph typed as text                          |
+| `BarPanel`   | A panel the status bar expands into: capped, scrolling, with `tools` above and a `footer` below; `BarRow` is one of its rows, led by a state dot, with a preformatted block that opens under it                                                                                                    | A list in a pane                               |
+| `.toolbar`   | A row of buttons that act on the group above it                                                                                                                                                                                                                                                    | A row of controls that is a list entry         |
+| `.list-row`  | A row in a list or tree: controls and a name, one line, `--text-xs`                                                                                                                                                                                                                                | A form row - that is a `Field`                 |
+| `.facts`     | A definition list of label and value, one per row                                                                                                                                                                                                                                                  | A form - that is a column of `Field`s          |
+| `.button`    | A button drawn as a button; `.primary` commits, `.on` is a toggle that is lit, `.quiet` is accent text with no box for reset, clear, undo, and `.quiet.danger` the one word that cannot be undone                                                                                                  | Icon glyphs                                    |
+| `.icon`      | A glyph button around an `Icon` - secondary ink, `--text-xs`, no box; `.danger` reddens on hover, `.on` is a toggle that is lit                                                                                                                                                                    | Anything with a word in it                     |
+| `.add`       | The "+ …" that adds something: an operation, a parameter, a source, a step, a view - secondary ink at label size                                                                                                                                                                                   | A button that commits                          |
+| `.link`      | A word that goes somewhere, underlined to say so - github, retry, the log file                                                                                                                                                                                                                     | An `<a href>`, which would navigate the window |
+| `.popover`   | The face of anything that floats: a menu, a picker, the help, a dropdown panel, a result list, the feature popup - `--float-bg`, `--radius-lg`, the shadow, the blur. Where it sits is the owner's                                                                                                 | The tooltip, a caption rather than a surface   |
+| `.chevron`   | The rotating `Icon` of a disclosure; `.open` turns it                                                                                                                                                                                                                                              | A fold that is not a disclosure                |
+| `.truncate`  | One line, clipped (already a shared class)                                                                                                                                                                                                                                                         |                                                |
+
+A component may still have a scoped `<style>` for what is true of it alone - a tree's indent, the
+pipe between nodes, a swatch, where a popover sits. What it may not do is restyle a part: a `Note`
+that is a different grey in one pane is the drift this stops. A class that names a part belongs to
+the part: the map's square buttons are `.map-button`, not `.icon`, because the two are different
+things and shared a name for a release.
 
 ## Two layout rules worth knowing
 

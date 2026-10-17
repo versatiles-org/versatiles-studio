@@ -623,9 +623,52 @@ every test and the e2e selectors (`ul.graphs li.current`, `button.name`, `button
 are. The enforcement test lands last, when nothing it would catch remains.
 
 **Not in this stage:** the dialogs, the map's controls and the launcher. They share the tokens and
-`.button` already; they get the kit once the panes have proven it.
+`.button` already; they get the kit once the panes have proven it - which is S13.
 
 **All of S12 has landed.** Five panes and the pane frame are on the kit, and `kit.test.ts` holds
 them there: a `<p>` with a note's class, an uppercase label outside the header, a hand-classed quiet
 or glyph button, a restyled part or a label column of its own width each fail with the file named.
-The dialogs are excluded by name until their turn.
+
+### S13 · The kit, everywhere
+
+**What the code does before this stage.** The panes are consistent because the kit and its test hold
+them there. Everything the test excludes by name has drifted the way the panes had before S12: the
+seven dialogs head their sections with the pane title's uppercase label and spell their notes as
+`.lead`, `.hint`, `.note` and `.problem` in two sizes; three tab strips have three looks and two ARIA
+patterns; a menu, a picker, the help, a dropdown panel, the search list and the feature popup float
+on six different faces; the search list marks the cursor row with the colour every other list uses
+for the current item; `.quiet` means accent text in `base.css` and secondary text in the two
+status-bar panels, which duplicate each other almost line for line; the map's square buttons share
+the class name `.icon` with the panes' glyph buttons and override it property by property; the
+text-field rule in `base.css` reaches every input, so a slider wears a border and a colour well is
+framed in one pane and not the next; one checkbox takes the accent and four stay platform blue;
+"disabled" is five opacities; the crop's Draw button borrows `.primary` to mean pressed and the
+node's draw button has no pressed state at all; and every × ✎ ↑ ↓ in the panes is a character of the
+UI font while the map's controls are SVG.
+
+| Item      | Work                                                                                 | Feature        |
+| --------- | ------------------------------------------------------------------------------------ | -------------- |
+| **S13.1** | ✓ The base: input scope, accent colour, pressed, disabled, popover, add, link, facts | infrastructure |
+| **S13.2** | ✓ New parts: `Tabs`, `Icon`, `BarPanel`, `BarRow`, `Note live` and `lead`            | infrastructure |
+| **S13.3** | ✓ The six dialogs on the kit                                                         | infrastructure |
+| **S13.4** | ✓ The map's controls and the popups on the kit                                       | infrastructure |
+| **S13.5** | ✓ The status bar's panels and the boundary on the kit                                | infrastructure |
+| **S13.6** | ✓ The launcher on the kit                                                            | infrastructure |
+| **S13.7** | ✓ Every glyph drawn by `Icon`                                                        | infrastructure |
+| **S13.8** | ✓ `kit.test.ts` covers every component                                               | infrastructure |
+
+**Seven decisions, made here rather than surface by surface** ([Q71](decisions.md)): two highlights
+with two meanings, two error presentations by scope, one popover face, one disabled fade, `.on` for a
+pressed toggle, right-aligned numbers, one tab look with the arrows everywhere.
+
+**Base first, parts second, migrations third, the test last.** Each migration deletes the scoped CSS
+it replaces and leaves the e2e selectors where they are: `#export-format`, `h2=Export debug`,
+`button=Jobs`, `.panel .row`, `.dot`, `button.door`, `button.reopen`, `button*=+ new source…`. The
+map's buttons were renamed `.map-button` so the kit's `.icon` means one thing; the classes that
+clashed with a part - `.group` on the map, `.add` in a node card, `.hint` under the search field -
+were renamed with them.
+
+**All of S13 has landed.** `kit.test.ts` now reads every component under `lib/` and both page roots,
+with the seven files that are the kit exempt, and adds five claims to S12's: no tab strip of a
+component's own, no glyph typed as text, no floating surface off the popover face, no disabled fade
+of a component's own, no `accent-color` outside `base.css`.
