@@ -45,3 +45,23 @@ describe('the header', () => {
 		expect(onToggle).toHaveBeenCalledWith(false);
 	});
 });
+
+describe('folding', () => {
+	const field = createRawSnippet(() => ({ render: () => '<input aria-label="a draft" />' }));
+
+	// The fold used to unmount the contents, so a typed VPL draft, the chosen tab and the Layers
+	// filter were all gone when the pane opened again (S8.7).
+	it('keeps the contents, and what they hold, while folded', async () => {
+		const { rerender } = render(Pane, { title: 'Pipeline', open: true, onToggle: vi.fn(), children: field });
+		const input = screen.getByLabelText('a draft') as HTMLInputElement;
+		input.value = 'from_debug';
+
+		await rerender({ title: 'Pipeline', open: false, onToggle: vi.fn(), children: field });
+		expect((screen.getByLabelText('a draft') as HTMLInputElement).value).toBe('from_debug');
+		expect(screen.getByLabelText('a draft').closest('[hidden]')).not.toBeNull();
+
+		await rerender({ title: 'Pipeline', open: true, onToggle: vi.fn(), children: field });
+		expect((screen.getByLabelText('a draft') as HTMLInputElement).value).toBe('from_debug');
+		expect(screen.getByLabelText('a draft').closest('[hidden]')).toBeNull();
+	});
+});

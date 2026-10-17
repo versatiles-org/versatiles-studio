@@ -44,7 +44,8 @@ True everywhere. These matter more than the arrangement.
   adds a second.
 - **Sections collapse independently and remember it.** Load-bearing, not polish: the left pane
   carries the pipeline, the style, the layer tree and export options at once, and a 13-inch laptop
-  is the machine to protect ([Q22](decisions.md)).
+  is the machine to protect ([Q22](decisions.md)). A folded section keeps what it held - the tab, a
+  draft, a filter - because it is hidden rather than removed (S8.7).
 - **Two switches, two glyphs.** A power symbol, in Sources and on a node, means _this runs_: off, it
   is not built ([Q49](decisions.md)). An eye, in Layers, means _this is painted_: off, the source is
   still built and its rows stay in the tree. Each export says what it writes - tiles in Pipeline, the
