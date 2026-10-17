@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import type { GraphInfo } from '../../ipc/commands';
+	import Note from '../../common/Note.svelte';
 
 	// The project's graphs, one row each (S2.13, [Q32], [Q49]).
 	//
@@ -76,12 +77,14 @@
      had no sources ([Q54]), so this case had never been drawn; an empty `<ul>` above a `+` reads as
      a list that failed to load rather than as one nobody has filled in yet. -->
 {#if graphs.length === 0}
-	<p class="none">No sources yet.</p>
+	<Note tone="empty">No sources yet.</Note>
 {/if}
 
+<!-- Each row is the kit's `.list-row`; what is this list's own is the frame, the highlight and the
+     dimming of a switched-off source (S12.3). -->
 <ul class="graphs">
 	{#each graphs as graph (graph.id)}
-		<li class:current={graph.id === current} class:off={!graph.enabled}>
+		<li class="list-row" class:current={graph.id === current} class:off={!graph.enabled}>
 			<!-- The switch says whether this source is built and drawn; the row highlight says what you
 			     are editing. Different questions, so different marks - and a graph that is switched off
 			     is still one you can edit, which is what makes them independent.
@@ -144,7 +147,7 @@
 				>
 				<button
 					type="button"
-					class="edit"
+					class="icon"
 					aria-label="Keep {graph.name}"
 					title="Keep"
 					onclick={() => (removing = null)}
@@ -164,12 +167,12 @@
 					</span>
 				{/if}
 				{#if graph.dirty}<span class="dirty" title="unsaved changes" aria-label="unsaved changes">•</span>{/if}
-				<button type="button" class="edit" title="Rename {graph.name}" aria-label="Rename" onclick={() => start(graph)}>
+				<button type="button" class="icon" title="Rename {graph.name}" aria-label="Rename" onclick={() => start(graph)}>
 					✎
 				</button>
 				<button
 					type="button"
-					class="edit"
+					class="icon danger"
 					title="Delete {graph.name}"
 					aria-label="Delete {graph.name}"
 					onclick={() => (removing = graph.id)}
@@ -185,13 +188,6 @@
 </ul>
 
 <style>
-	.none {
-		margin: 0;
-		padding: 0 var(--space-2);
-		font-size: var(--text-sm);
-		color: var(--ink-2);
-	}
-
 	.graphs {
 		margin: 0;
 		padding: 0;
@@ -202,10 +198,6 @@
 	}
 
 	li {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		min-width: 0;
 		padding: var(--space-1) var(--space-2);
 
 		& + li {
@@ -274,17 +266,6 @@
 		flex: none;
 		color: var(--accent);
 		line-height: 1;
-	}
-
-	.edit {
-		flex: none;
-		color: var(--ink-2);
-		padding: 0 var(--space-1);
-		font-size: var(--text-xs);
-
-		&:hover {
-			color: var(--ink);
-		}
 	}
 
 	/* The name stops being a target while the row is asking: the only two answers are the buttons. */

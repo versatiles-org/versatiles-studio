@@ -115,7 +115,7 @@
 	}
 </script>
 
-<div class="pane">
+<div class="pane-body">
 	<GraphList
 		{graphs}
 		{current}
@@ -138,14 +138,3 @@
 		{/snippet}
 	</GraphList>
 </div>
-
-<style>
-	/* One group: the doors answer the row above them. The section gap belongs between panes, not
-	   inside this one ([Q50]). */
-	.pane {
-		display: flex;
-		flex-direction: column;
-		gap: var(--gap-group);
-		min-width: 0;
-	}
-</style>
