@@ -143,3 +143,37 @@ it('clears the text and the marker on a second Escape', async () => {
 	expect(field.value).toBe('');
 	expect(markers[0].removed).toBe(true);
 });
+
+describe('the hint', () => {
+	const hint = () => screen.getByRole('tooltip', { hidden: true });
+
+	it('describes the field, in place of a native title', () => {
+		const { field } = show();
+		expect(field.getAttribute('aria-describedby')).toBe(hint().id);
+		expect(field.hasAttribute('title')).toBe(false);
+		expect(hint().textContent).toContain('52.52, 13.40');
+	});
+
+	it('shows while the field is focused and empty, and is not there before', async () => {
+		const { field } = show();
+		expect(hint().hidden).toBe(true);
+		await fireEvent.focus(field);
+		expect(hint().hidden).toBe(false);
+	});
+
+	// The list sits where the hint does, and says more.
+	it('gives way to the result list', async () => {
+		const { field } = show();
+		await fireEvent.focus(field);
+		await type(field, '12/2200/1343');
+		expect(options()).toHaveLength(1);
+		expect(hint().hidden).toBe(true);
+	});
+
+	it('goes away on Escape', async () => {
+		const { field } = show();
+		await fireEvent.focus(field);
+		await fireEvent.keyDown(field, { key: 'Escape' });
+		expect(hint().hidden).toBe(true);
+	});
+});

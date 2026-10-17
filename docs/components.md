@@ -41,7 +41,7 @@ lib/panes/style/      StylePane
 lib/panes/layers/     LayersPane · LayerRow
 lib/panes/project/    CopyDialog
 lib/panes/inspector/  Inspector
-lib/map/              MapCanvas · MapControls · Dropdown · TileGrid · TileActivity · SearchBox · Views · FeaturePopup · CropOverlay
+lib/map/              MapCanvas · MapControls · Dropdown · TileGrid · TileActivity · SearchBox · Tooltip · Views · FeaturePopup · CropOverlay
 lib/common/           used by more than one owner: Help · HelpTrigger · Menu · Picker · ColorPicker · JsonTree · Modal · LandingScreen
 ```
 

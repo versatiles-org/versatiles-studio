@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Marker, type Map as MaplibreMap } from 'maplibre-gl';
 	import { geocode, MIN_PLACE_QUERY, parseQuery, type Candidate } from './search';
+	import Tooltip from './Tooltip.svelte';
 
 	// The map's search field: a place, a coordinate, a tile or a bounding box, in one box.
 	//
@@ -133,6 +134,7 @@
 				break;
 			case 'Escape':
 				event.preventDefault();
+				dismissed = true;
 				// Twice: first the list, then the text and the marker.
 				if (open && text) open = false;
 				else {
@@ -152,11 +154,40 @@
 		if (results.length > 0 || !text.trim()) return null;
 		if (status === 'searching') return 'Searching…';
 		if (status === 'failed') return 'Place search is unavailable - Studio may be offline.';
-		if (text.trim().length < MIN_PLACE_QUERY) return 'A place name, lng, lat, a tile z/x/y or a bounding box';
+		// Too short to search: the hint is still up and says what to type.
+		if (text.trim().length < MIN_PLACE_QUERY) return null;
 		return 'Nothing found';
 	});
 
 	const listId = 'map-search-results';
+	const hintId = 'map-search-hint';
+
+	const listShown = $derived(open && (results.length > 0 || message !== null));
+
+	/// **The hint is for the moment someone wonders what to type**: hovering over the field, or in it
+	/// with too little typed to show anything. A list takes its place - it sits in the same spot, and
+	/// says more. Escape puts it away until the next keystroke or focus.
+	const HOVER_MS = 400;
+	let hovering = $state(false);
+	let focused = $state(false);
+	let dismissed = $state(false);
+	let hoverTimer: ReturnType<typeof setTimeout> | undefined;
+
+	const hintShown = $derived(
+		!dismissed && !listShown && (hovering || (focused && text.trim().length < MIN_PLACE_QUERY))
+	);
+
+	function onPointerEnter() {
+		clearTimeout(hoverTimer);
+		hoverTimer = setTimeout(() => (hovering = true), HOVER_MS);
+	}
+
+	function onPointerLeave() {
+		clearTimeout(hoverTimer);
+		hovering = false;
+	}
+
+	$effect(() => () => clearTimeout(hoverTimer));
 </script>
 
 <div class="search">
@@ -164,26 +195,59 @@
 		bind:this={field}
 		bind:value={text}
 		type="text"
-		placeholder="Place, lng, lat or z/x/y"
+		placeholder="Search a place, coordinate or tile"
 		spellcheck="false"
 		autocomplete="off"
 		role="combobox"
 		aria-label="Search for a place, coordinate or tile"
 		aria-autocomplete="list"
-		aria-expanded={open && (results.length > 0 || message !== null)}
+		aria-expanded={listShown}
 		aria-controls={listId}
 		aria-activedescendant={open && results.length > 0 ? `${listId}-${highlighted}` : undefined}
-		title="Places are looked up at geocode.versatiles.org; coordinates, tiles and boxes are read here"
-		oninput={() => (open = true)}
-		onfocus={() => (open = text.trim().length > 0)}
-		onblur={() => (open = false)}
+		aria-describedby={hintId}
+		oninput={() => {
+			open = true;
+			dismissed = false;
+		}}
+		onfocus={() => {
+			open = text.trim().length > 0;
+			focused = true;
+			dismissed = false;
+		}}
+		onblur={() => {
+			open = false;
+			focused = false;
+		}}
+		onpointerenter={onPointerEnter}
+		onpointerleave={onPointerLeave}
 		onkeydown={onKeyDown}
 	/>
 
-	{#if open && (results.length > 0 || message !== null)}
+	<!-- Generic on purpose: an example is there to show the shape, and one taken from the view would
+	     read as a result. -->
+	<div class="below hint">
+		<Tooltip id={hintId} shown={hintShown}>
+			<dl>
+				<dt>Berlin</dt>
+				<dd>a place</dd>
+				<dt>52.52, 13.40</dt>
+				<dd>latitude, longitude</dd>
+				<dt>12/2200/1343</dt>
+				<dd>a tile z/x/y</dd>
+			</dl>
+		</Tooltip>
+	</div>
+
+	{#if listShown}
 		<!-- `mousedown` is stopped so the field keeps focus: a blur would close the list before the
 		     click on a result landed. -->
-		<ul id={listId} role="listbox" aria-label="Search results" onmousedown={(event) => event.preventDefault()}>
+		<ul
+			id={listId}
+			class="below"
+			role="listbox"
+			aria-label="Search results"
+			onmousedown={(event) => event.preventDefault()}
+		>
 			{#each results as candidate, index (index)}
 				<li
 					id="{listId}-{index}"
@@ -227,14 +291,47 @@
 		outline-offset: -2px;
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
+
+		/* A sentence, not a coordinate: the mono face is for what is typed. */
+		&::placeholder {
+			font-family: var(--font-ui);
+		}
 	}
 
-	ul {
+	/* The list and the hint share a spot: under the whole strip, not only the field - the strip's left
+	   edge is the search icon. */
+	.below {
 		position: absolute;
-		/* Under the whole strip, not only the field: the strip's left edge is the search icon. */
 		top: calc(100% + var(--space-2) + 1px);
 		left: calc(-2rem - 1px);
 		width: 24rem;
+		z-index: 2;
+	}
+
+	/* The hint passes the pointer through to the map, so its box must too - and it is as wide as its
+	   three lines, not the list's width: empty space beside them would read as room for results. */
+	.hint {
+		width: max-content;
+		pointer-events: none;
+	}
+
+	dl {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 0 var(--space-4);
+		margin: 0;
+	}
+
+	dt {
+		font-family: var(--font-mono);
+		color: var(--ink);
+	}
+
+	dd {
+		margin: 0;
+	}
+
+	ul {
 		margin: 0;
 		padding: var(--space-1);
 		list-style: none;
@@ -242,7 +339,6 @@
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);
 		box-shadow: var(--shadow);
-		z-index: 2;
 	}
 
 	li {
