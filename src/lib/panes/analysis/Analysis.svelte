@@ -63,13 +63,13 @@
 </script>
 
 {#snippet read()}
-	<button type="button" class="quiet" disabled={scan.running} onclick={() => onScan(false)}>
+	<button type="button" class="button" disabled={scan.running} onclick={() => onScan(false)}>
 		{scan.contents ? 'Read again' : 'Read layers'}
 	</button>
 {/snippet}
 
 {#snippet measure()}
-	<button type="button" class="quiet" disabled={measurement.running} onclick={onMeasure}>
+	<button type="button" class="button" disabled={measurement.running} onclick={onMeasure}>
 		{sizes ? 'Measure again' : 'Measure'}
 	</button>
 {/snippet}
@@ -126,12 +126,11 @@
 			{:else if !measurement.running && !measurement.error}
 				<Note>Measure reads every tile's size from the container's index - seconds, not minutes.</Note>
 			{/if}
-			{#if onToggleHeat}
+			{#if onToggleHeat && !heatOn}
 				<!-- Here as well as on the map: this is where the question is asked, and the map is where
-				     the answer is drawn. -->
-				<button type="button" class="link alone" aria-pressed={heatOn} onclick={onToggleHeat}>
-					{heatOn ? 'Hide the heat map' : 'Show the heat map'}
-				</button>
+				     the answer is drawn. Only to switch it on - once it is, the map's own button and
+				     legend are where it is looked at and switched off. -->
+				<button type="button" class="link alone" onclick={onToggleHeat}>Show the heat map</button>
 			{/if}
 		</Group>
 

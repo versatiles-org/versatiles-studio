@@ -103,14 +103,15 @@ describe('the analysis pane', () => {
 });
 
 describe('the heat map switch', () => {
-	it('says what pressing it will do, and does it', async () => {
+	/** Only to switch it on: once on, the map's button and legend are where it is switched off. */
+	it('switches it on, and is gone once it is', async () => {
 		const onToggleHeat = vi.fn();
 		show({ heatOn: false, onToggleHeat });
 		await fireEvent.click(screen.getByRole('button', { name: 'Show the heat map' }));
 		expect(onToggleHeat).toHaveBeenCalledOnce();
 		cleanup();
 		show({ heatOn: true, onToggleHeat });
-		expect(screen.getByRole('button', { name: 'Hide the heat map' })).toBeTruthy();
+		expect(screen.queryByRole('button', { name: /heat map/ })).toBeNull();
 	});
 
 	describe('the layers', () => {
