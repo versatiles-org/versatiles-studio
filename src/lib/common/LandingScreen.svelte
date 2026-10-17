@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { ImportKind, RecentEntry } from '../ipc/commands';
 	import RemoteDialog from './RemoteDialog.svelte';
+	import Note from './Note.svelte';
 	import logo from '../../../src-tauri/icons/128x128.png';
 
 	// The launcher's contents (Q13, [Q48]). A **launcher, not a wizard**: everything on it is also
@@ -102,7 +103,7 @@
 					<!-- Under the door it is another way of pressing, rather than under the list of what has
 					     been opened before: dropping a file *is* opening a local one, and it was filed with
 					     the recent list only because that is where the window happened to end. -->
-					<p class="drop">…or drop a file anywhere in this window.</p>
+					<div class="drop"><Note tone="lead">…or drop a file anywhere in this window.</Note></div>
 				</div>
 
 				<button type="button" class="door" aria-haspopup="dialog" onclick={() => (asking = true)}>
@@ -136,7 +137,8 @@
 								<span class="meta">{when(entry.openedAt)}</span>
 							</button>
 							<button
-								class="forget"
+								type="button"
+								class="icon danger forget"
 								title="Forget"
 								aria-label="Forget {filename(entry.source)}"
 								onclick={() => onForget(entry.source)}>×</button
@@ -147,7 +149,7 @@
 			{:else}
 				<!-- The empty half of the window is where a first-timer is already looking, so it says
 				     what the column is for rather than leaving them to work it out from a heading. -->
-				<p class="nothing">Nothing yet - what you open will be listed here.</p>
+				<div class="blank"><Note tone="empty">Nothing yet - what you open will be listed here.</Note></div>
 			{/if}
 		</section>
 	</div>
@@ -158,7 +160,7 @@
 
 	<footer>
 		VersaTiles Studio {version} · alpha ·
-		<button type="button" class="repository" onclick={onOpenRepository}>github</button>
+		<button type="button" class="link" onclick={onOpenRepository}>github</button>
 	</footer>
 </div>
 
@@ -305,9 +307,9 @@
 		flex: none;
 	}
 
+	/* The glyph is the kit's; the room around it is this row's, so it is not a sliver beside the name. */
 	.forget {
-		color: var(--ink-2);
-		padding: 0 var(--space-3);
+		padding: var(--space-3);
 	}
 
 	/* No gap between the two: what separates the hint from the door is the door's own padding, which
@@ -320,41 +322,23 @@
 	/* Aligned with the door's text above it, so it reads as a line of that door rather than as the
 	   next item in the list. */
 	.drop {
-		margin: 0;
 		padding: 0 var(--space-5);
-		color: var(--ink-2);
-		font-size: var(--text-sm);
 	}
 
 	/* A panel rather than a line, because with no history this is most of the window and an empty
 	   half with one grey sentence in the corner reads as something that failed to load. */
-	.nothing {
+	.blank {
 		flex: 1;
 		display: grid;
 		place-items: center;
-		margin: 0;
 		padding: var(--space-6);
 		border: 1px dashed var(--rule);
 		border-radius: var(--radius-lg);
-		color: var(--ink-2);
 		text-align: center;
 	}
 
 	footer {
 		color: var(--ink-2);
 		font-size: var(--text-sm);
-	}
-
-	/* A word, not a button: it goes somewhere, and the underline is what says so. `openUrl` needs a
-	   press to send it to the browser, so it is a `button` that reads as a link rather than an
-	   `<a href>` that would try to navigate this window. */
-	.repository {
-		color: inherit;
-		font: inherit;
-		text-decoration: underline;
-
-		&:hover {
-			color: var(--ink);
-		}
 	}
 </style>
