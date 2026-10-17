@@ -40,7 +40,7 @@
 	import CropOverlay from './lib/map/CropOverlay.svelte';
 	import { bboxField } from './lib/state/bbox.svelte';
 	import MapControls from './lib/map/MapControls.svelte';
-	import CoordinateJump from './lib/map/CoordinateJump.svelte';
+	import SearchBox from './lib/map/SearchBox.svelte';
 	import Views from './lib/map/Views.svelte';
 	import { declaredLayers } from './lib/map/tile-json';
 	import { composition } from './lib/map/composition.svelte';
@@ -466,7 +466,7 @@
 					onReset={() => workbench.resetView()}
 				>
 					{#snippet views()}<Views {map} />{/snippet}
-					{#snippet jump()}<CoordinateJump {map} />{/snippet}
+					{#snippet jump()}<SearchBox {map} />{/snippet}
 				</MapControls>
 			</div>
 		</Boundary>

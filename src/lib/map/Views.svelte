@@ -8,7 +8,7 @@
 	// come back to is worth keeping whether or not a project exists.
 	//
 	// **On the map, not in a pane** ([Q38]). What this does is move the camera - the same job as the
-	// `CoordinateJump` box in the corner below - and nothing to do with what an opened container
+	// search field beside it - and nothing to do with what an opened container
 	// turns out to be, which is all the inspector it used to live in is for.
 	//
 	// Top-left, a corner to itself: it is the one map control that opens a panel, and it opens

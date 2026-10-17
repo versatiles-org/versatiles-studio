@@ -11,8 +11,8 @@
 	// edge - each with its own shadow, two in lowercase, the coordinate box looking like a sixth button
 	// - and read as stickers rather than as controls. What they do splits cleanly:
 	//
-	// * *Where am I looking* - jump to a coordinate, the saved views, fit to the data. One strip, top
-	//   left, shaped like the search box it mostly is.
+	// * *Where am I looking* - search for a place, coordinate or tile, the saved views, fit to the
+	//   data. One strip, top left, shaped like the search box it is.
 	// * *What is drawn* - the background, the tile grid, and the zoom and compass that every map has
 	//   and this one did not. One column of square buttons, top right.
 	//
@@ -42,7 +42,7 @@
 		map?: MaplibreMap;
 		/** The saved-views control, set into the strip beside the coordinate field. */
 		views?: Snippet;
-		/** The coordinate field. Passed in: this file arranges, App composes. */
+		/** The search field. Passed in: this file arranges, App composes. */
 		jump?: Snippet;
 		background: BackgroundId;
 		showGrid: boolean;
@@ -137,7 +137,7 @@
 			     `Dropdown` is the saved views' own control, so the two match by construction. -->
 			<Dropdown
 				label="Background map"
-				title="Background map: {backgroundLabel} - the only part of Studio that fetches from the network"
+				title="Background map: {backgroundLabel} - its tiles come from versatiles.org"
 				width="13rem"
 				placement="left"
 				bare
@@ -311,16 +311,6 @@
 			display: flex;
 			padding: 0 var(--space-1) 0 var(--space-3);
 			color: var(--ink-2);
-		}
-
-		/* The coordinate field, set into the strip: the strip carries the surface, so the field drops
-		   its own. Reached into because `CoordinateJump` is its own component with its own style. */
-		:global(input) {
-			height: 100%;
-			border: 0;
-			background: none;
-			box-shadow: none;
-			padding-left: var(--space-2);
 		}
 
 		/* Square in the column, full height in the strip, with a rule against the field. */
