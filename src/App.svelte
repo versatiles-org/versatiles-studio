@@ -10,6 +10,7 @@
 	import { panels } from './lib/shell/StatusBar.svelte';
 	// Named for what it is, because `style` in this file is already the rendered MapLibre style.
 	import { style as styleRecipe } from './lib/state/style.svelte';
+	import { styleExport } from './lib/state/style-export.svelte';
 	import { registerTileProtocol } from './lib/state/tiles.svelte';
 	import { preview } from './lib/state/preview.svelte';
 	import { layout } from './lib/state/layout.svelte';
@@ -354,6 +355,7 @@
 		/>
 	{:else if id === 'style'}
 		<StylePane
+			sourceStyle={styleRecipe.source}
 			rendered={composition.style}
 			basis={composition.edited?.basis ?? 'none'}
 			own={composition.edited?.style ?? null}
@@ -364,6 +366,21 @@
 						layers: declaredLayers(currentBuild.info)
 					}
 				: null}
+			exporting={styleExport.exporting}
+			missingFonts={styleExport.missingFonts}
+			actions={{
+				setPreset: (preset) => void styleRecipe.setPreset(preset),
+				setKind: (kind) => void styleRecipe.setKind(kind),
+				setRaster: (adjust) => void styleRecipe.setRaster(adjust),
+				setHillshade: (shade) => void styleRecipe.setHillshade(shade),
+				previewRecolor: (recolor) => styleRecipe.previewRecolor(recolor),
+				commitRecolor: () => void styleRecipe.commitRecolor(),
+				cancelRecolor: () => styleRecipe.cancelRecolor(),
+				pruneOverrides: (present) => void styleRecipe.pruneOverrides(present),
+				// The whole stack, not the selected source: a `style.json` is the map.
+				exportAs: (kind, code) => composition.style && void styleExport.write(kind, composition.style, code),
+				exportBundle: () => composition.style && void styleExport.bundle(composition.style)
+			}}
 		/>
 	{:else if id === 'layers'}
 		<LayersPane

@@ -1,32 +1,39 @@
 // @vitest-environment jsdom
 
 /**
- * What the style pane shows for each kind of tileset (S6.1-S6.7).
+ * What the style pane shows for each kind of tileset (S6.1-S6.7), and what it writes back.
  *
  * **The first test in this repository that renders a component.** Everything else asserts a pure
  * function, which is right for a decision and useless for the thing this pane kept getting wrong:
  * offering controls that do nothing. `controls.ts` can say what a slider's neutral is; only a render
  * can say whether the slider is on screen at all.
  *
- * The backend is stubbed - see `lib/testing/tauri.ts` for what that does and does not prove.
+ * **Prop-driven, so no backend is stubbed** (S8.8). The pane is handed the source's style and hands
+ * every write back through `actions`, the way the Layers and Sources panes already did - so what a
+ * press *records* is a call this file can see, rather than a command a stub would have to answer.
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/svelte';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
 import StylePane from './StylePane.svelte';
-import { style } from '../../state/style.svelte';
-import { stubTauri, type TauriStub } from '../../testing/tauri';
 
 const VECTOR = { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} };
 
-function recipe(kind: string | null, appearance: object = VECTOR) {
-	return { sources: { berlin: { kind, appearance } }, order: ['berlin'] };
-}
+const noop = () => ({
+	setPreset: vi.fn(),
+	setKind: vi.fn(),
+	setRaster: vi.fn(),
+	setHillshade: vi.fn(),
+	previewRecolor: vi.fn(),
+	commitRecolor: vi.fn(),
+	cancelRecolor: vi.fn(),
+	pruneOverrides: vi.fn(),
+	exportAs: vi.fn(),
+	exportBundle: vi.fn()
+});
 
-let tauri: TauriStub;
-
-/** Renders the pane over one source, with the recipe the core would have handed back. */
-async function open(options: {
+/** Renders the pane over one source, with the style the core would have handed back for it. */
+function open(options: {
 	kind?: string | null;
 	appearance?: object;
 	tileFormat?: string;
@@ -34,20 +41,17 @@ async function open(options: {
 	layers?: string[];
 }) {
 	const { kind = null, appearance = VECTOR, tileFormat = 'mvt', tileSchema = null, layers = [] } = options;
-	tauri.answer('style', recipe(kind, appearance));
-	await style.load();
-	style.focus({ id: 1, name: 'berlin' });
-	render(StylePane, { source: { tileFormat, tileSchema, layers }, basis: 'preset' });
+	const actions = noop();
+	render(StylePane, {
+		sourceStyle: { kind, appearance } as never,
+		source: { tileFormat, tileSchema, layers },
+		basis: 'preset',
+		actions
+	});
+	return actions;
 }
 
-beforeEach(() => {
-	tauri = stubTauri({ style_formats: ['json', 'ts'] });
-});
-
-afterEach(() => {
-	cleanup();
-	tauri.restore();
-});
+afterEach(cleanup);
 
 describe('what the pane offers for each kind of tileset', () => {
 	// The case the pane was designed for, and the only one that worked before S6.1.
@@ -55,8 +59,8 @@ describe('what the pane offers for each kind of tileset', () => {
 	// **The layer tree is no longer here.** It became project-wide when order stopped belonging to
 	// sources, so this pane says how one source is *drawn* and the Layers pane says where those
 	// layers land ([the layer stack](../../../../docs/layers.md)).
-	it('offers presets for Shortbread vector tiles, and no layer tree', async () => {
-		await open({ layers: ['water_polygons', 'street_polygons', 'boundaries'] });
+	it('offers presets for Shortbread vector tiles, and no layer tree', () => {
+		open({ layers: ['water_polygons', 'street_polygons', 'boundaries'] });
 
 		expect(screen.getByText('Preset')).toBeTruthy();
 		expect(screen.getByText('Colorful')).toBeTruthy();
@@ -65,8 +69,8 @@ describe('what the pane offers for each kind of tileset', () => {
 
 	// **The bug S6.3 fixed.** Every preset was selectable over a photograph and none of them did
 	// anything - a control that looks identical to a working one is worse than no control.
-	it('offers no presets for imagery, and offers the raster adjustments instead', async () => {
-		await open({
+	it('offers no presets for imagery, and offers the raster adjustments instead', () => {
+		open({
 			kind: 'rasterImage',
 			appearance: { type: 'raster', adjust: {} },
 			tileFormat: 'png',
@@ -80,8 +84,8 @@ describe('what the pane offers for each kind of tileset', () => {
 	});
 
 	// A DEM and a photograph are the same PNG; only `tile_schema` separates them (S6.6).
-	it('offers relief for elevation, and not the imagery controls', async () => {
-		await open({
+	it('offers relief for elevation, and not the imagery controls', () => {
+		open({
 			kind: 'rasterDem',
 			appearance: { type: 'hillshade', shade: {} },
 			tileFormat: 'png',
@@ -97,8 +101,8 @@ describe('what the pane offers for each kind of tileset', () => {
 	});
 
 	// Nothing published says how VersaTiles packs elevation, so it says so rather than guessing.
-	it('says an unreadable DEM encoding cannot be shaded, and offers the picker', async () => {
-		await open({
+	it('says an unreadable DEM encoding cannot be shaded, and offers the picker', () => {
+		open({
 			kind: 'rasterDem',
 			appearance: { type: 'hillshade', shade: {} },
 			tileFormat: 'png',
@@ -112,20 +116,45 @@ describe('what the pane offers for each kind of tileset', () => {
 	});
 });
 
+describe('what a press records', () => {
+	it('records the preset that was pressed, against the source it was given', async () => {
+		const actions = open({ layers: ['water_polygons', 'street_polygons', 'boundaries'] });
+		await fireEvent.click(screen.getByRole('button', { name: 'Neutrino' }));
+		expect(actions.setPreset).toHaveBeenCalledWith('neutrino');
+	});
+
+	// A slider commits once, on release, and previews before that - the undo stack sees one entry.
+	it('previews a slider and commits it once', async () => {
+		const actions = open({ layers: ['water_polygons', 'street_polygons', 'boundaries'] });
+		const slider = screen.getAllByRole('slider')[0];
+		await fireEvent.input(slider, { target: { value: slider.getAttribute('max') } });
+		await fireEvent.change(slider);
+		expect(actions.previewRecolor).toHaveBeenCalledTimes(1);
+		expect(actions.commitRecolor).toHaveBeenCalledTimes(1);
+	});
+
+	it('hands the whole map to the export, and the code only when there is one', async () => {
+		const actions = open({ layers: ['water_polygons', 'street_polygons', 'boundaries'] });
+		// Nothing rendered yet, so nothing to write: the buttons say so rather than calling.
+		expect((screen.getByRole('button', { name: 'style.json' }) as HTMLButtonElement).disabled).toBe(true);
+		expect(actions.exportAs).not.toHaveBeenCalled();
+	});
+});
+
 describe('what the pane says about the tiles', () => {
-	it('reports a declared kind as declared', async () => {
-		await open({ kind: null, tileFormat: 'png', tileSchema: 'rgb', appearance: { type: 'raster', adjust: {} } });
+	it('reports a declared kind as declared', () => {
+		open({ kind: null, tileFormat: 'png', tileSchema: 'rgb', appearance: { type: 'raster', adjust: {} } });
 		expect(screen.getByText('the container says so.')).toBeTruthy();
 	});
 
-	it('reports a guess as a guess', async () => {
-		await open({ layers: ['places'] });
+	it('reports a guess as a guess', () => {
+		open({ layers: ['places'] });
 		expect(screen.getByText('worked out from the tiles.')).toBeTruthy();
 	});
 
 	// S6.1's whole point: a reading someone corrected must say it was corrected.
-	it('reports a correction as the person’s', async () => {
-		await open({ kind: 'vectorOther', layers: ['water_polygons', 'street_polygons', 'boundaries'] });
+	it('reports a correction as the person’s', () => {
+		open({ kind: 'vectorOther', layers: ['water_polygons', 'street_polygons', 'boundaries'] });
 		expect(screen.getByText('you set this.')).toBeTruthy();
 	});
 });
@@ -136,18 +165,24 @@ describe('what the pane says about the tiles', () => {
  * once the sidebar stayed was an empty column.
  */
 describe('a project with no sources', () => {
-	it('says there is nothing to style rather than drawing nothing', async () => {
-		tauri.answer('style', recipe(null, VECTOR));
-		await style.load();
-		render(StylePane, { source: null, basis: 'none' });
+	it('says there is nothing to style rather than drawing nothing', () => {
+		render(StylePane, {
+			sourceStyle: { kind: null, appearance: VECTOR } as never,
+			source: null,
+			basis: 'none',
+			actions: noop()
+		});
 
 		expect(screen.getByText(/Nothing to style yet/)).toBeTruthy();
 	});
 
-	it('offers no export of a style that does not exist', async () => {
-		tauri.answer('style', recipe(null, VECTOR));
-		await style.load();
-		render(StylePane, { source: null, basis: 'none' });
+	it('offers no export of a style that does not exist', () => {
+		render(StylePane, {
+			sourceStyle: { kind: null, appearance: VECTOR } as never,
+			source: null,
+			basis: 'none',
+			actions: noop()
+		});
 
 		expect(screen.queryByRole('button', { name: /export/i })).toBeNull();
 	});

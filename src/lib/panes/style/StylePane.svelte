@@ -1,14 +1,19 @@
 <script lang="ts">
-	import { style } from '../../state/style.svelte';
-	import type { DemEncoding, Hillshade, RasterAdjust, Recolor, SourceKind } from '../../ipc/commands';
+	import type {
+		DemEncoding,
+		Hillshade,
+		Preset,
+		RasterAdjust,
+		Recolor,
+		SourceKind,
+		SourceStyle
+	} from '../../ipc/commands';
 	import { KIND_LABELS, isVector, sourceKind } from '../../map/source-kind';
 	import { schemaOf } from '../../map/builders';
 	import { demEncoding, type StyleBasis } from '../../map/style';
 	import { token } from '../../styles/tokens';
 	import type { StyleSpecification } from 'maplibre-gl';
-	import { save } from '@tauri-apps/plugin-dialog';
-	import { exportStyle, exportStyleBundle } from '../../ipc/commands';
-	import { canGenerateCode, forExport, fontsUsed, styleCode } from '../../map/style-code';
+	import { canGenerateCode, styleCode } from '../../map/style-code';
 	import {
 		BASIS_NOTE,
 		HILLSHADE_COLOURS,
@@ -29,49 +34,73 @@
 		type ShadeKey
 	} from './controls';
 
-	// The style, as the recipe it is made from (S4.2, D1, [Q36]).
+	// How one source is drawn, as the recipe it is made from (S4.2, D1, [Q36]).
 	//
-	// **Three things, in the order they narrow.** Where a style starts, the adjustments that apply to
-	// every colour in it at once (D1), and then the layers themselves (D3). The tree came last on
-	// purpose: a list of 324 layers before there was any way to change one is a list nobody reads.
+	// **Three things, in the order they narrow.** What the tiles are read as, where the style starts,
+	// and the adjustments that apply to every colour in it at once (D1). The layers themselves are
+	// the Layers pane's ([Q62]); the export at the foot writes the whole map, and says so.
 	//
-	// The controls below preview continuously and commit once, which is why each is bound to a
-	// local value rather than to the recipe: a slider bound to the core would record an undo entry
-	// per pixel of travel ([Q36]).
+	// **Data in, actions out** (S8.8). Like the other three panes, this takes the focused source's
+	// style as a prop and hands every write back through `actions` - it reads no state module and
+	// opens no dialog, so it renders in a test without a backend and reads the same way as its
+	// neighbours. The state module behind `actions` is `state/style.svelte.ts`; the dialogs and the
+	// export commands are `state/style-export.svelte.ts`.
+	//
+	// The sliders preview continuously and commit once, which is why each is bound to a local value
+	// rather than to the recipe: a slider bound to the core would record an undo entry per pixel of
+	// travel ([Q36]).
 
 	let {
-		/** The style on the map, whose layers the tree lists (S4.5). It is the *output* of the recipe,
-		 *  which is why it arrives as a prop rather than being read from the state module. */
+		sourceStyle,
 		rendered = null,
+		source = null,
+		basis = 'none',
+		own = null,
+		exporting = null,
+		missingFonts = [],
+		actions
+	}: {
+		/** The focused source's style, with any in-flight gesture applied - `style.source`. */
+		sourceStyle: SourceStyle;
+		/** The style on the map - the whole stack, which is what an export writes. */
+		rendered?: StyleSpecification | null;
 		/** What the previewed source turned out to be, for reading its kind (S6.1). `null` before
 		 *  anything is open, which is when this pane has nothing to say at all. */
-		source = null,
+		source?: { tileFormat: string; tileSchema: string | null; layers: string[] } | null;
 		/** Which route produced `rendered` (S6.2). A preset that could not draw these tiles is
 		 *  replaced by derived layers, and the person who picked it should be told rather than left
 		 *  to notice the map does not match the preset they chose. */
-		basis = 'none',
+		basis?: StyleBasis;
 		/** The style the edited source drew on its own, before the stack renamed anything.
 		 *
 		 *  **Not `rendered`, which is the whole stack.** Everything this pane writes belongs to one
 		 *  graph's recipe and is keyed on the ids `styleFor` produced, and `composeStyle` prefixes
-		 *  those as soon as a second thing draws - a basemap is enough. A tree over the stack listed
-		 *  the other sources' layers, wrote ids nothing would ever match, and put them in the wrong
-		 *  recipe ([Q51]). Export still takes `rendered`: a `style.json` is the map, not one layer
-		 *  of it. */
-		own = null
-	}: {
-		rendered?: StyleSpecification | null;
-		source?: { tileFormat: string; tileSchema: string | null; layers: string[] } | null;
-		basis?: StyleBasis;
+		 *  those as soon as a second thing draws - a basemap is enough ([Q51]). Export still takes
+		 *  `rendered`: a `style.json` is the map, not one layer of it. */
 		own?: StyleSpecification | null;
+		/** Which export is running, or `null` - the buttons are disabled while a dialog is up. */
+		exporting?: 'json' | 'ts' | 'bundle' | null;
+		/** Fonts the last bundle could not find. */
+		missingFonts?: string[];
+		actions: {
+			setPreset: (preset: Preset) => void;
+			/** Corrects what the tiles are read as, or `null` to hand the question back (S6.1). */
+			setKind: (kind: SourceKind | null) => void;
+			setRaster: (adjust: RasterAdjust) => void;
+			setHillshade: (shade: Hillshade) => void;
+			/** Shows a recolouring without recording it; `commitRecolor` records it as one undo entry. */
+			previewRecolor: (recolor: Recolor) => void;
+			commitRecolor: () => void;
+			cancelRecolor: () => void;
+			/** Clears overrides for layers the current style has no place for (S6.7). */
+			pruneOverrides: (present: string[]) => void;
+			/** Writes the map's style as JSON, or as the code that regenerates it - `null` when none. */
+			exportAs: (kind: 'json' | 'ts', code: string | null) => void;
+			exportBundle: () => void;
+		};
 	} = $props();
 
-	const recipe = $derived(style.current);
-
-	// **The pane edits one source, not the whole recipe** (S6.4). `style.source` is the focused
-	// graph's entry with any in-flight gesture applied, so every control below reads the same view
-	// the map is drawing from.
-	const sourceStyle = $derived(style.source);
+	// **The pane edits one source, not the whole recipe** (S6.4).
 	const appearance = $derived(sourceStyle.appearance);
 	const vectorAppearance = $derived(appearance.type === 'vector' ? appearance : null);
 	const rasterAdjust = $derived(appearance.type === 'raster' ? appearance.adjust : {});
@@ -92,7 +121,7 @@
 	const shaded = $derived(isAdjusted(shade));
 
 	function setShade(patch: Partial<Hillshade>): void {
-		void style.setHillshade({ ...shade, ...patch });
+		actions.setHillshade({ ...shade, ...patch });
 	}
 
 	// **What these tiles are, and how confidently** (S6.1). Everything below is gated on it, because
@@ -123,17 +152,17 @@
 	}
 
 	function commitRaster(): void {
-		if (rasterPending) void style.setRaster(rasterPending);
+		if (rasterPending) actions.setRaster(rasterPending);
 		rasterPending = null;
 	}
 
 	function setResampling(value: string): void {
-		void style.setRaster({ ...rasterNow, resampling: resamplingChoice(value) });
+		actions.setRaster({ ...rasterNow, resampling: resamplingChoice(value) });
 	}
 
 	function resetRaster(): void {
 		rasterPending = null;
-		void style.setRaster({});
+		actions.setRaster({});
 	}
 
 	/// Clears one recolour field, leaving the rest alone.
@@ -142,13 +171,13 @@
 	/// set back to its neutral value must leave no trace - otherwise an untouched style and a reset
 	/// one compare unequal, and the exported code carries settings nobody chose.
 	function clearRecolor(key: string): void {
-		style.previewRecolor({ ...(vectorAppearance?.recolor ?? {}), [key]: undefined } as Recolor);
-		void style.commitRecolor();
+		actions.previewRecolor({ ...(vectorAppearance?.recolor ?? {}), [key]: undefined } as Recolor);
+		actions.commitRecolor();
 	}
 
 	function clearRaster(key: RasterKey): void {
 		rasterPending = null;
-		void style.setRaster({ ...rasterNow, [key]: undefined });
+		actions.setRaster({ ...rasterNow, [key]: undefined });
 	}
 
 	function clearShade(key: keyof Hillshade): void {
@@ -158,7 +187,7 @@
 	/** Picking the reading Studio already made means clearing the override, not recording it. */
 	function chooseKind(next: string): void {
 		const derivedNow = source ? sourceKind(source.tileFormat, source.tileSchema, source.layers).kind : null;
-		void style.setKind(kindChoice(next as SourceKind, derivedNow));
+		actions.setKind(kindChoice(next as SourceKind, derivedNow));
 	}
 
 	/// What the sliders show. Read from the recipe, written by dragging, committed on release.
@@ -170,72 +199,23 @@
 	/// `withSlider` is what puts the value back to "unset" at neutral, so a slider returned to the
 	/// middle leaves no trace in the recipe and none in the exported code.
 	function preview(key: RecolorKey, raw: string) {
-		style.previewRecolor(withSlider(RECOLOR_SLIDERS, vectorAppearance?.recolor ?? {}, key, raw) as Recolor);
+		actions.previewRecolor(withSlider(RECOLOR_SLIDERS, vectorAppearance?.recolor ?? {}, key, raw) as Recolor);
 	}
 
 	function invert(on: boolean) {
-		style.previewRecolor({ ...(vectorAppearance?.recolor ?? {}), invertBrightness: on || undefined } as Recolor);
-		void style.commitRecolor();
+		actions.previewRecolor({ ...(vectorAppearance?.recolor ?? {}), invertBrightness: on || undefined } as Recolor);
+		actions.commitRecolor();
 	}
 
 	function reset() {
-		style.previewRecolor({});
-		void style.commitRecolor();
+		actions.previewRecolor({});
+		actions.commitRecolor();
 	}
 
-	/// Writing the style out (S4.6, D8). Three forms, because they answer different questions: the
-	/// JSON is what a map consumes, the code is what a build regenerates it from, and the bundle is
-	/// the JSON with the fonts and sprites it needs beside it - for a machine that will not reach
-	/// versatiles.org.
-	let exporting = $state<string | null>(null);
-
-	async function exportAs(kind: 'json' | 'ts') {
-		if (!recipe || !rendered) return;
-		const code = kind === 'ts' ? styleCode(appearance, presentIds, schema) : null;
-		if (kind === 'ts' && code === null) return;
-		// The tile URL is swapped for a placeholder in both forms: what the map reads from is an
-		// ephemeral local port, and a file carrying it away would work once.
-		const contents = kind === 'ts' ? code! : JSON.stringify(forExport(rendered), null, '\t');
-
-		exporting = kind;
-		try {
-			const target = await save({
-				title: 'Export style',
-				defaultPath: kind === 'ts' ? 'style.ts' : 'style.json',
-				filters: [{ name: kind === 'ts' ? '@versatiles/style code' : 'MapLibre style', extensions: [kind] }]
-			});
-			if (target) await exportStyle(target, contents);
-		} finally {
-			exporting = null;
-		}
-	}
-
-	/// Fonts the bundle could not find, said out loud rather than swallowed. Cleared on the next
-	/// export, because it is about the one that just happened.
-	let missingFonts = $state<string[]>([]);
-
-	/// The style plus everything it names, as a `.zip`.
-	///
-	/// A zip rather than a folder: a bundle is a few hundred files, and quietly filling a directory
-	/// someone chose is a worse surprise than one file with a name.
-	async function exportBundle() {
-		if (!rendered) return;
-		exporting = 'bundle';
-		missingFonts = [];
-		try {
-			const target = await save({
-				title: 'Export style bundle',
-				defaultPath: 'style.zip',
-				filters: [{ name: 'Style bundle', extensions: ['zip'] }]
-			});
-			if (!target) return;
-			// The bundle carries its own copies, so the style has to name them where they will be.
-			const contents = JSON.stringify(forExport(rendered, 'bundled'), null, '\t');
-			missingFonts = await exportStyleBundle(target, true, contents, fontsUsed(rendered));
-		} finally {
-			exporting = null;
-		}
-	}
+	/// The code export is the one whose contents depend on what this pane knows - the preset, what was
+	/// changed, which layers are present and which builder to call - so it is produced here and handed
+	/// out; the JSON is the map and the caller already has it.
+	const code = $derived(canGenerateCode(appearance, schema) ? styleCode(appearance, presentIds, schema) : null);
 
 	const adjusted = $derived(Object.values(vectorAppearance?.recolor ?? {}).some((v) => v !== undefined && v !== null));
 </script>
@@ -260,7 +240,7 @@
      pane stopped being hidden along with the rest ([Q54]). -->
 {#if !source}
 	<p class="nothing">Nothing to style yet. Add a source to see how it is drawn.</p>
-{:else if recipe}
+{:else}
 	<section class="style-pane">
 		{#if reading}
 			<h2 class="section-label">These tiles</h2>
@@ -279,7 +259,7 @@
 			<h2 class="section-label">
 				Hillshade
 				{#if shaded}
-					<button type="button" class="reset" onclick={() => void style.setHillshade({})}>reset</button>
+					<button type="button" class="reset" onclick={() => actions.setHillshade({})}>reset</button>
 				{/if}
 			</h2>
 
@@ -387,7 +367,7 @@
 						class:chosen={vectorAppearance?.preset === preset.id}
 						aria-pressed={vectorAppearance?.preset === preset.id}
 						title={preset.note}
-						onclick={() => void style.setPreset(preset.id)}
+						onclick={() => actions.setPreset(preset.id)}
 					>
 						{preset.label}
 					</button>
@@ -423,8 +403,8 @@
 						step={slider.step}
 						value={value(slider.key)}
 						oninput={(event) => preview(slider.key, event.currentTarget.value)}
-						onchange={() => void style.commitRecolor()}
-						onpointercancel={() => style.cancelRecolor()}
+						onchange={() => actions.commitRecolor()}
+						onpointercancel={() => actions.cancelRecolor()}
 					/>
 					<span class="amount">{value(slider.key)}{slider.unit}</span>
 					{@render clearer(value(slider.key) !== slider.neutral, () => clearRecolor(slider.key), slider.label)}
@@ -441,7 +421,7 @@
 					{inert.length}
 					{inert.length === 1 ? 'change applies' : 'changes apply'} to layers this preset does not draw. They come back under
 					a preset that has them.
-					<button type="button" class="reset" onclick={() => void style.pruneOverrides(presentIds)}> clear </button>
+					<button type="button" class="reset" onclick={() => actions.pruneOverrides(presentIds)}> clear </button>
 				</p>
 			{/if}
 		{/if}
@@ -456,7 +436,7 @@
 				type="button"
 				class="button"
 				disabled={!rendered || exporting !== null}
-				onclick={() => void exportAs('json')}
+				onclick={() => rendered && actions.exportAs('json', null)}
 			>
 				style.json
 			</button>
@@ -465,11 +445,11 @@
 			<button
 				type="button"
 				class="button"
-				disabled={!rendered || exporting !== null || !canGenerateCode(appearance, schema)}
-				title={canGenerateCode(appearance, schema)
+				disabled={!rendered || exporting !== null || code === null}
+				title={code !== null
 					? 'The preset and what was changed, as code'
 					: 'A derived style has no builder to call - export it as style.json'}
-				onclick={() => void exportAs('ts')}
+				onclick={() => rendered && actions.exportAs('ts', code)}
 			>
 				@versatiles/style code
 			</button>
@@ -478,7 +458,7 @@
 				class="button"
 				disabled={!rendered || exporting !== null}
 				title="The style, its glyphs and its sprites, as one .zip"
-				onclick={() => void exportBundle()}
+				onclick={() => rendered && actions.exportBundle()}
 			>
 				Bundle
 			</button>
