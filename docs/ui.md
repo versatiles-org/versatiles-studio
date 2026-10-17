@@ -45,6 +45,10 @@ True everywhere. These matter more than the arrangement.
 - **Sections collapse independently and remember it.** Load-bearing, not polish: the left pane
   carries the pipeline, the style, the layer tree and export options at once, and a 13-inch laptop
   is the machine to protect ([Q22](decisions.md)).
+- **Two switches, two glyphs.** A power symbol, in Sources and on a node, means _this runs_: off, it
+  is not built ([Q49](decisions.md)). An eye, in Layers, means _this is painted_: off, the source is
+  still built and its rows stay in the tree. Each export says what it writes - tiles in Pipeline, the
+  map's style in Style (S8.6).
 - **Every pane header says what the pane is about.** The chain alternates scope - Sources and Layers
   span the project, Pipeline, Style and the Inspector follow the selected graph - so the header
   carries either the word _project_ or the graph's name, and keeps carrying it while folded (S8.4).
@@ -172,10 +176,10 @@ Tabs, not a split - one pane is usable on a 13-inch laptop. Side by side existed
 │     filter  ? …   │                      │                │
 │     + parameter…  │                      │                │
 │   ╰ + operation…  │                      │                │
-│   [Save][Export]  │                      │                │
+│ [Save][Export tiles]│                      │                │
 │ ▾ STYLE      (D1) │                      │                │
 │   [Colorful] …    │                      │                │
-│   [Export style]  │                      │                │
+│ [Export map style]  │                      │                │
 │ ▾ LAYERS     (D3) │                      │                │
 │  ▸◉ basemap  324↑↓│                      │                │
 │  ▸◉ places     2↑↓│                      │                │

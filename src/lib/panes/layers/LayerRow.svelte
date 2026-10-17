@@ -114,7 +114,11 @@
 		type="button"
 		class="eye"
 		disabled={hiddenBy !== null}
-		title={hiddenBy !== null ? `Hidden by the eye on ${hiddenBy}` : visible ? 'Hide this layer' : 'Show this layer'}
+		title={hiddenBy !== null
+			? `Hidden by the eye on ${hiddenBy}`
+			: visible
+				? 'Hide this layer. Its source is still built.'
+				: 'Show this layer'}
 		aria-pressed={visible}
 		aria-label={visible ? `Hide ${id}` : `Show ${id}`}
 		onclick={() => setVisible(!visible)}

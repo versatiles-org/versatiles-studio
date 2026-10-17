@@ -82,30 +82,35 @@
 <ul class="graphs">
 	{#each graphs as graph (graph.id)}
 		<li class:current={graph.id === current} class:off={!graph.enabled}>
-			<!-- The eye says whether this source is drawn; the row highlight says what you are
-			     editing. Different questions, so different marks - and a graph you cannot see is
-			     still one you can edit, which is what makes them independent. -->
+			<!-- The switch says whether this source is built and drawn; the row highlight says what you
+			     are editing. Different questions, so different marks - and a graph that is switched off
+			     is still one you can edit, which is what makes them independent.
+
+			     **A switch, not an eye** (S8.6). Off means the graph is not built: no job, no mount, no
+			     layers anywhere. The eye in the Layers pane is the other control - it hides what a
+			     built source paints - and giving the two one glyph is how they were confused. -->
 			<button
 				type="button"
-				class="eye"
+				class="switch"
 				class:on={graph.enabled}
-				title={graph.enabled ? `Switch off ${graph.name}` : `Switch on ${graph.name}`}
+				title={graph.enabled
+					? `Switch off ${graph.name}. It is not built or drawn until switched on again.`
+					: `Switch on ${graph.name}. It is built and drawn.`}
 				aria-pressed={graph.enabled}
 				aria-label={graph.enabled ? `Switch off ${graph.name}` : `Switch on ${graph.name}`}
 				onclick={() => onToggle(graph.id, !graph.enabled)}
 			>
 				<svg viewBox="0 0 16 16" aria-hidden="true">
+					<!-- A power symbol, not an eye: this stops the build, it does not hide the drawing. The
+					     eye lives in the Layers pane and means "painted" (S8.6). -->
 					<path
-						d="M1 8s2.6-4.2 7-4.2S15 8 15 8s-2.6 4.2-7 4.2S1 8 1 8Z"
+						d="M5.2 4.6a4.6 4.6 0 1 0 5.6 0"
 						fill="none"
 						stroke="currentColor"
-						stroke-width="1.3"
+						stroke-width="1.4"
+						stroke-linecap="round"
 					/>
-					{#if graph.enabled}
-						<circle cx="8" cy="8" r="2.4" fill="currentColor" />
-					{:else}
-						<circle cx="8" cy="8" r="1.9" fill="none" stroke="currentColor" stroke-width="1.3" />
-					{/if}
+					<path d="M8 2.2v5.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
 				</svg>
 			</button>
 
@@ -220,7 +225,7 @@
 		}
 	}
 
-	.eye {
+	.switch {
 		flex: none;
 		width: 13px;
 		height: 13px;

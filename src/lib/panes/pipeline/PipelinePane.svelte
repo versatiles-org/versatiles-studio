@@ -292,9 +292,11 @@
 			>Save as…</button
 		>
 		<!-- Exporting is per graph ([Q32]): this writes what *this* chain produces, and the modal is
-		     where the run is committed. The primary one: it is what the other two lead to. -->
+		     where the run is committed. The primary one: it is what the other two lead to. Named for
+		     what it writes, because the Style pane below has an export too and it writes the map's
+		     style (S8.6). -->
 		<button type="button" class="button file primary" disabled={!pipeline} onclick={documentActions.export}
-			>Export…</button
+			>Export tiles…</button
 		>
 	</div>
 </div>

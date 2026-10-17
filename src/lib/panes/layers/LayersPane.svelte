@@ -153,7 +153,9 @@
 						aria-label={closed === null ? `Hide ${node.label}` : `Show ${node.label}`}
 						title={closed !== null && closed !== node.path
 							? `Hidden by the eye on ${closed === '' ? node.source : closed}`
-							: undefined}
+							: closed === null
+								? `Hide ${node.label}. Its source is still built.`
+								: `Show ${node.label}`}
 						onclick={() => toggleGroup(node)}
 					>
 						{closed === null ? '◉' : '○'}

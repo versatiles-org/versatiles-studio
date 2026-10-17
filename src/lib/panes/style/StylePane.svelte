@@ -446,7 +446,11 @@
 			{/if}
 		{/if}
 
-		<h2 class="section-label">Export</h2>
+		<!-- The one control here that is not about the selected source: a `style.json` is the map,
+		     every drawn source in the Layers pane's order. The Pipeline pane's export writes tiles, so
+		     both say what they write (S8.6). -->
+		<h2 class="section-label">Export map style</h2>
+		<p class="note">The whole map: every source that is drawn, in the order the Layers pane shows.</p>
 		<div class="exports">
 			<button
 				type="button"

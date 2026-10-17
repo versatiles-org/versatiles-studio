@@ -20,7 +20,7 @@ describe('exporting a graph', () => {
 	before(openProject);
 
 	it('offers the export dialog for the graph being looked at', async () => {
-		await $('button=Export…').click();
+		await $('button=Export tiles…').click();
 		await expect($('h2=Export debug')).toBeDisplayed();
 		await expect($('button=Estimate size')).toBeDisplayed();
 	});

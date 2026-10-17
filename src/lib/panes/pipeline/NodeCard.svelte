@@ -163,34 +163,34 @@
 
 <div class="node">
 	<div class="title">
-		<!-- **The eye is what runs, not what is being looked at** ([Q49]). Off, this operation is not
-		     in the pipeline that builds - the pipe runs *through* it rather than stopping at it,
+		<!-- **The switch is what runs, not what is being looked at** ([Q49]). Off, this operation is
+		     not in the pipeline that builds - the pipe runs *through* it rather than stopping at it,
 		     which is what the ghosted row below says and what tells this from the pin it replaces.
-		     
-		     The head node's eye is the graph's: a chain that reads nothing is not a chain, so
+
+		     The head node's switch is the graph's: a chain that reads nothing is not a chain, so
 		     switching it off is switching the graph off, and the row in the sources list is the same
-		     switch seen from the other end. -->
+		     switch seen from the other end. A power glyph rather than an eye, because an eye means
+		     "painted" in the Layers pane and this means "run" (S8.6). -->
 		<button
 			type="button"
-			class="eye"
+			class="switch"
 			class:on
-			title={on ? `Switch off ${node.name}` : `Switch on ${node.name}`}
+			title={on ? `Switch off ${node.name}. The pipeline runs without it.` : `Switch on ${node.name}`}
 			aria-pressed={on}
 			aria-label={on ? `Switch off ${node.name}` : `Switch on ${node.name}`}
 			onclick={() => onToggle(path, !on)}
 		>
 			<svg viewBox="0 0 16 16" aria-hidden="true">
+				<!-- A power symbol, not an eye: this stops the build, it does not hide the drawing. The
+					     eye lives in the Layers pane and means "painted" (S8.6). -->
 				<path
-					d="M1 8s2.6-4.2 7-4.2S15 8 15 8s-2.6 4.2-7 4.2S1 8 1 8Z"
+					d="M5.2 4.6a4.6 4.6 0 1 0 5.6 0"
 					fill="none"
 					stroke="currentColor"
-					stroke-width="1.3"
+					stroke-width="1.4"
+					stroke-linecap="round"
 				/>
-				{#if on}
-					<circle cx="8" cy="8" r="2.4" fill="currentColor" />
-				{:else}
-					<circle cx="8" cy="8" r="1.9" fill="none" stroke="currentColor" stroke-width="1.3" />
-				{/if}
+				<path d="M8 2.2v5.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" />
 			</svg>
 		</button>
 
@@ -314,7 +314,7 @@
 		padding: var(--space-2) var(--space-3);
 	}
 
-	.eye {
+	.switch {
 		flex: none;
 		width: 14px;
 		height: 14px;
