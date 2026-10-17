@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { place, windowSize, type Placement } from './popup';
 
 	// A button that opens a list of things to choose from ([Q58]).
@@ -80,7 +81,12 @@
 		if (onPick(item.id) === 'keep') {
 			// The list it leads to is a different list in the same place, so the measurement stands and
 			// the walk starts again at the top.
+			//
+			// **Focus goes back to the list once it has been redrawn.** The item just chosen is gone
+			// with the list it was in, and focus on a removed element falls to the body - so Escape and
+			// the arrows stopped reaching the menu the moment a choice led to a second list.
 			active = 0;
+			void tick().then(() => list?.focus());
 			return;
 		}
 		hide();

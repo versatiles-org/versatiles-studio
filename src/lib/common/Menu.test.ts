@@ -11,7 +11,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/svelte';
-import { flushSync } from 'svelte';
+import { flushSync, tick } from 'svelte';
 import Menu from './Menu.svelte';
 
 const ITEMS = [
@@ -70,6 +70,22 @@ describe('a popup menu', () => {
 		expect(onPick).toHaveBeenCalledWith('first');
 		expect(screen.getByRole('menu')).toBeTruthy();
 		expect(onClose).not.toHaveBeenCalled();
+	});
+
+	// The chosen item goes with the list it was in, and focus on a removed element falls to the body
+	// - which is where Escape and the arrows then went, while the menu stayed open.
+	it('keeps the keyboard when a choice leads to a second list', async () => {
+		const onPick = vi.fn(() => 'keep' as const);
+		open({ onPick, items: ITEMS.slice(0, 2) });
+		show();
+		screen.getByText('First thing').click();
+		flushSync();
+		await tick();
+
+		expect(document.activeElement).toBe(screen.getByRole('menu'));
+		screen.getByRole('menu').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		flushSync();
+		expect(screen.queryByRole('menu')).toBeNull();
 	});
 
 	it('refuses a disabled item', () => {

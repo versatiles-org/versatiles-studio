@@ -153,8 +153,11 @@
 		margin-bottom: var(--space-3);
 	}
 
+	/* A title, but at body size: the browser's own `h2` is half again as big as the group heading
+	   above it, which put the hierarchy the wrong way up - seen in the S13 screenshots. */
 	h2 {
 		margin: 0;
+		font-size: inherit;
 		font-weight: 600;
 		/* Or the name pushes the row wider than the pane instead of ellipsing. */
 		min-width: 0;

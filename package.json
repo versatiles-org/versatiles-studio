@@ -44,7 +44,8 @@
 		"upgrade:rust": "cargo upgrade --incompatible && cargo check --workspace",
 		"e2e": "tsx scripts/run.ts e2e",
 		"e2e:build": "tauri build --debug --no-bundle --features e2e",
-		"e2e:run": "wdio run wdio.conf.ts"
+		"e2e:run": "wdio run wdio.conf.ts",
+		"e2e:shots": "STUDIO_SHOW=1 wdio run wdio.conf.ts --spec e2e/screens.shots.ts"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
