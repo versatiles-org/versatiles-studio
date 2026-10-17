@@ -9,10 +9,11 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import { createRawSnippet } from 'svelte';
-import { cleanup, render, screen } from '@testing-library/svelte';
+import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
 import Field from './Field.svelte';
 import Group from './Group.svelte';
 import Note from './Note.svelte';
+import Tabs from './Tabs.svelte';
 
 const text = (html: string) => createRawSnippet(() => ({ render: () => html }));
 
@@ -111,5 +112,40 @@ describe('Note', () => {
 	it('offers the fix after the text', () => {
 		render(Note, { tone: 'aside', action: text('<button class="quiet">Read as other</button>'), children: text('x') });
 		expect(screen.getByRole('button', { name: 'Read as other' }).closest('.note')).not.toBeNull();
+	});
+
+	// A note whose text arrives on its own is read out as it changes - unless it is a problem, which
+	// `role="alert"` already announces, and two announcements of one line is one too many.
+	it('is read out as it changes when it is live', () => {
+		render(Note, { live: true, children: text('Checking…') });
+		expect(screen.getByText('Checking…').getAttribute('aria-live')).toBe('polite');
+		cleanup();
+		render(Note, { live: true, tone: 'problem', children: text('refused') });
+		expect(screen.getByRole('alert').getAttribute('aria-live')).toBeNull();
+	});
+});
+
+describe('Tabs', () => {
+	const items = [
+		{ id: 'graph', label: 'Graph' },
+		{ id: 'vpl', label: 'VPL', badge: { count: 2, label: '2 problems' } }
+	];
+
+	it('is a tab list with one tab in the tab order, and says which is selected', () => {
+		render(Tabs, { items, selected: 'vpl', label: 'Pipeline view', onSelect: () => {} });
+		const tabs = screen.getAllByRole('tab');
+		expect(tabs.map((tab) => tab.getAttribute('aria-selected'))).toEqual(['false', 'true']);
+		expect(tabs.map((tab) => tab.tabIndex)).toEqual([-1, 0]);
+		expect(screen.getByLabelText('2 problems').textContent).toBe('2');
+	});
+
+	// Selecting follows focus: an arrow lands on the next tab and shows it, wrapping at the ends.
+	it('selects with a click and with the arrows', async () => {
+		const chosen: string[] = [];
+		render(Tabs, { items, selected: 'graph', label: 'Pipeline view', onSelect: (id: string) => chosen.push(id) });
+		await fireEvent.click(screen.getByRole('tab', { name: /VPL/ }));
+		await fireEvent.keyDown(screen.getByRole('tab', { name: 'Graph' }), { key: 'ArrowLeft' });
+		await fireEvent.keyDown(screen.getByRole('tab', { name: 'Graph' }), { key: 'ArrowRight' });
+		expect(chosen).toEqual(['vpl', 'vpl', 'vpl']);
 	});
 });

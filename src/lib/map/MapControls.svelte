@@ -3,7 +3,7 @@
 	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import { BACKGROUNDS, hasLabels, swatchOf, type BackgroundId } from './background';
 	import Dropdown from './Dropdown.svelte';
-	import MapIcon from './MapIcon.svelte';
+	import Icon from '../common/Icon.svelte';
 
 	// The controls that act on the map rather than on the pipeline.
 	//
@@ -114,7 +114,7 @@
 	<!-- Where am I looking. One strip, like a search box: the field is what it mostly is, and the two
 	     buttons set into its end are the other two ways of saying where. -->
 	<div class="strip">
-		<span class="lead" aria-hidden="true"><MapIcon name="search" /></span>
+		<span class="lead" aria-hidden="true"><Icon name="search" /></span>
 		{@render jump?.()}
 		{@render views?.()}
 		<button
@@ -125,7 +125,7 @@
 			aria-label="Fit to the data"
 			title="Fit the map to what is open"
 		>
-			<MapIcon name="fit" />
+			<Icon name="fit" />
 		</button>
 	</div>
 
@@ -142,7 +142,7 @@
 				placement="left"
 				bare
 			>
-				{#snippet icon()}<MapIcon name="layers" />{/snippet}
+				{#snippet icon()}<Icon name="layers" />{/snippet}
 				{#snippet panel(close: () => void)}
 					<div role="group" aria-label="Background map">
 						{#each groups as group (group.label)}
@@ -227,7 +227,7 @@
 					aria-label="Tile grid"
 					title="Show the z/x/y tile grid (A5)"
 				>
-					<MapIcon name="grid" />
+					<Icon name="grid" />
 				</button>
 			</div>
 		</div>
@@ -241,7 +241,7 @@
 				aria-label="Zoom in"
 				title="Zoom in"
 			>
-				<MapIcon name="plus" />
+				<Icon name="plus" />
 			</button>
 			<button
 				type="button"
@@ -251,7 +251,7 @@
 				aria-label="Zoom out"
 				title="Zoom out"
 			>
-				<MapIcon name="minus" />
+				<Icon name="minus" />
 			</button>
 			<!-- Turns with the map, so it is a reading as well as a button: north is where it points. -->
 			<button
@@ -263,7 +263,7 @@
 				aria-label="Reset bearing and pitch"
 				title={turned ? 'Point north and look straight down' : 'North is up'}
 			>
-				<span style:transform="rotate({-bearing}deg)"><MapIcon name="compass" /></span>
+				<span style:transform="rotate({-bearing}deg)"><Icon name="compass" /></span>
 			</button>
 		</div>
 	</div>

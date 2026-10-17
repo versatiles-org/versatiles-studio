@@ -2,7 +2,7 @@
 	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import { deleteView, listViews, reorderViews, saveView, type Camera, type View } from '../ipc/commands';
 	import Dropdown from './Dropdown.svelte';
-	import MapIcon from './MapIcon.svelte';
+	import Icon from '../common/Icon.svelte';
 
 	// A7's named views, application-wide rather than project-scoped ([Q21]): a place you want to
 	// come back to is worth keeping whether or not a project exists.
@@ -160,7 +160,7 @@
 	<!-- A star set into the search strip. It still reports as well as opens: filled while the map is on
 	     a saved view, and the tooltip names which - the job the toggle's label did when it was text. -->
 	{#snippet icon()}
-		<span class="star" class:here={here !== null}><MapIcon name={here ? 'star-filled' : 'star'} /></span>
+		<span class="star" class:here={here !== null}><Icon name={here ? 'star-filled' : 'star'} /></span>
 	{/snippet}
 	{#snippet panel(close: () => void)}
 		<div role="group" aria-label="Saved views">
