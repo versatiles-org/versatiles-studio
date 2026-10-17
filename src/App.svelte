@@ -37,6 +37,7 @@
 	import MapControls from './lib/map/MapControls.svelte';
 	import SearchBox from './lib/map/SearchBox.svelte';
 	import Views from './lib/map/Views.svelte';
+	import Note from './lib/common/Note.svelte';
 	import { composition } from './lib/map/composition.svelte';
 	import { getGraph } from './lib/ipc/commands';
 
@@ -271,9 +272,11 @@
 				     It no longer takes the panes with it ([Q54]): the door it points at is not the only
 				     one, and the other is `+ new source…` in the Sources pane - which this used to
 				     hide, for exactly as long as there was nothing to list. -->
-				<p class="nothing">
-					Nothing is open. <strong>File → Open…</strong> brings a container, a pipeline or a table into this window.
-				</p>
+				<div class="between">
+					<Note tone="empty">
+						Nothing is open. <strong>File → Open…</strong> brings a container, a pipeline or a table into this window.
+					</Note>
+				</div>
 			{/if}
 			<!-- **One layer, two clusters** ([Q67]). These used to place themselves in three corners, and
 			     then became one stack down the left edge; `MapControls` now arranges them by what they
@@ -366,14 +369,11 @@
 	/* A window between documents. Over the map rather than replacing it - the map keeps running, so
 	   opening something does not have to build one - and small enough to read as a note rather than
 	   as a screen (S7.9). */
-	.nothing {
+	.between {
 		position: absolute;
 		inset: auto 0 0;
-		margin: 0;
 		padding: var(--space-4) var(--space-5);
 		z-index: 6;
-		font-size: var(--text-sm);
-		color: var(--ink-2);
 		text-align: center;
 
 		strong {

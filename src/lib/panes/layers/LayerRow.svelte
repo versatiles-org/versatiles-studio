@@ -4,6 +4,7 @@
 	import type { LayerOverride } from '../../ipc/commands';
 	import { colourKey, colourOf, isExpression } from './paint';
 	import { filterOf, format, isOverridden, parse } from './filter';
+	import Note from '../../common/Note.svelte';
 
 	// One layer, with everything that can be said about it in a row (D3).
 	//
@@ -203,18 +204,22 @@
 			aria-invalid={!parsed.ok}
 			bind:value={draft}></textarea>
 
-		<p class="verdict" aria-live="polite">
-			{#if !parsed.ok}
-				<span class="problem">{parsed.problem}</span>
-			{:else if !settled}
-				<span class="waiting">applying…</span>
-			{:else}
-				<span class="applied">on the map</span>
-			{/if}
+		{#snippet useOwn()}
 			{#if isOverridden(override)}
 				<button type="button" class="quiet" onclick={clearFilter}>use the style’s own</button>
 			{/if}
-		</p>
+		{/snippet}
+		<!-- A live note of the kit: what the box says arrives on its own, and it holds its height so
+		     the row under it does not jump as the message changes length. -->
+		<Note live tone={parsed.ok ? 'hint' : 'problem'} action={useOwn}>
+			{#if !parsed.ok}
+				{parsed.problem}
+			{:else if !settled}
+				applying…
+			{:else}
+				on the map
+			{/if}
+		</Note>
 	</div>
 {/if}
 
@@ -284,18 +289,6 @@
 			&[aria-invalid='true'] {
 				border-color: var(--error);
 			}
-		}
-
-		.verdict {
-			margin: 0;
-			color: var(--ink-2);
-			font-size: var(--text-xs);
-			/* Two lines' worth, so the box below does not jump as the message changes length. */
-			min-height: 2.4em;
-		}
-
-		.problem {
-			color: var(--error);
 		}
 	}
 

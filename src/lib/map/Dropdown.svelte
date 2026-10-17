@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import Icon from '../common/Icon.svelte';
 
 	// A button on the map that opens a panel under it.
 	//
@@ -97,7 +98,7 @@
 			{@render icon()}
 		{:else}
 			<span class="truncate">{label}</span>
-			<span class="caret" aria-hidden="true">▾</span>
+			<span class="caret" aria-hidden="true"><Icon name="chevron" size="1em" /></span>
 		{/if}
 	</button>
 
@@ -160,9 +161,12 @@
 		}
 	}
 
+	/* The kit's chevron, turned to point down at the panel it opens. */
 	.caret {
-		color: var(--ink-2);
+		display: flex;
 		flex: none;
+		color: var(--ink-2);
+		transform: rotate(90deg);
 	}
 
 	/* Downward into the map rather than upward past the window edge - which is why these controls
