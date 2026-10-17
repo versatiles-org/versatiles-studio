@@ -18,7 +18,9 @@
 		measurement,
 		stale = false,
 		onMeasure,
-		onShowTile
+		onShowTile,
+		heatOn = false,
+		onToggleHeat
 	}: {
 		/** The selected source's name, or `null` when none is selected. */
 		graph: string | null;
@@ -28,6 +30,9 @@
 		onMeasure: () => void;
 		/** Frames a tile on the map. */
 		onShowTile: (z: number, x: number, y: number) => void;
+		/** Whether the heat map is on - the same switch as the one on the map (S14.3). */
+		heatOn?: boolean;
+		onToggleHeat?: () => void;
 	} = $props();
 
 	/** The budget a vector tile is usually held to - and the line a row is marked for crossing. */
@@ -94,6 +99,13 @@
 			{:else if !measurement.running && !measurement.error}
 				<Note>Measure reads every tile's size from the container's index - seconds, not minutes.</Note>
 			{/if}
+			{#if onToggleHeat}
+				<!-- Here as well as on the map: this is where the question is asked, and the map is where
+				     the answer is drawn. -->
+				<button type="button" class="link heat" aria-pressed={heatOn} onclick={onToggleHeat}>
+					{heatOn ? 'Hide the heat map' : 'Show the heat map'}
+				</button>
+			{/if}
 		</Group>
 
 		{#if sizes && sizes.biggest.length > 0}
@@ -129,8 +141,8 @@
 		color: var(--error);
 	}
 
-	/* A row's name is a label, in the label's weight. */
-	tbody th {
-		font-weight: normal;
+	/* A link on a line of its own, not stretched across the pane by the group's column. */
+	.heat {
+		align-self: flex-start;
 	}
 </style>

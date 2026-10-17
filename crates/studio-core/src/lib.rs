@@ -32,6 +32,7 @@ pub mod diagnostics;
 pub mod estimate;
 pub mod export;
 pub mod graphs;
+pub mod heat;
 pub mod history;
 pub mod import;
 pub mod jobs;

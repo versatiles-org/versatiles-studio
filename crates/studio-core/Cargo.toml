@@ -20,6 +20,8 @@ versatiles.workspace = true
 versatiles_container.workspace = true
 versatiles_core.workspace = true
 versatiles_geometry.workspace = true
+# Drawing the heat map (S14.3). Already in the tree through versatiles' own raster operations.
+versatiles_image.workspace = true
 versatiles_pipeline.workspace = true
 # Verifying a downloaded asset against the digest the manifest pins (G7, Q9). Already in the tree
 # through versatiles' own dependencies; named here because this crate calls it directly.

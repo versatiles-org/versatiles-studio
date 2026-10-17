@@ -22,7 +22,11 @@ export type MapToken =
 	| '--map-shade-highlight'
 	| '--map-shade-accent'
 	| '--map-crop-dim'
-	| '--map-crop-edge';
+	| '--map-crop-edge'
+	| '--map-heat-1'
+	| '--map-heat-2'
+	| '--map-heat-3'
+	| '--map-heat-4';
 
 /**
  * The computed value of a token from `:root`.

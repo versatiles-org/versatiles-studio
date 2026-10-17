@@ -468,24 +468,30 @@ samp {
 	border-collapse: collapse;
 	font-size: var(--text-sm);
 	font-variant-numeric: tabular-nums;
-}
 
-.figures th {
-	padding: 0 0 var(--space-1) var(--space-3);
-	border-bottom: 1px solid var(--rule);
-	color: var(--ink-2);
-	font-weight: normal;
-	text-align: right;
-}
+	th {
+		padding: var(--space-1) 0 0 var(--space-3);
+		color: var(--ink-2);
+		font-weight: normal;
+		text-align: right;
+	}
 
-.figures td {
-	padding: var(--space-1) 0 0 var(--space-3);
-	text-align: right;
-}
+	/* The rule is the header's alone; a row's name is a label, not a heading over the rest. */
+	thead th {
+		padding-top: 0;
+		padding-bottom: var(--space-1);
+		border-bottom: 1px solid var(--rule);
+	}
 
-.figures :is(th, td):first-child {
-	padding-left: 0;
-	text-align: left;
+	td {
+		padding: var(--space-1) 0 0 var(--space-3);
+		text-align: right;
+	}
+
+	:is(th, td):first-child {
+		padding-left: 0;
+		text-align: left;
+	}
 }
 
 /* The rotating ▸ of a disclosure. Four components drew it; one rule turns it. */

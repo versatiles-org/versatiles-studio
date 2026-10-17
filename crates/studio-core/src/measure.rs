@@ -156,6 +156,22 @@ pub async fn walk(source: &dyn TileSource, progress: impl Fn(u64, u64), cancelle
 	})
 }
 
+/// One tile's stored size, read from the index - `None` where there is no tile (S14.3).
+///
+/// For the heat map's hover, which names the tile under the pointer: one entry of the index, so it
+/// can be asked on every pause of the pointer.
+pub async fn tile_bytes(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<Option<u32>> {
+	let coord = versatiles_core::TileCoord::new(z, x, y)?;
+	let mut stream = source
+		.tile_size_stream(versatiles_core::TileBBox::from_min_and_max(z, x, y, x, y)?)
+		.await?;
+	Ok(stream
+		.next()
+		.await
+		.filter(|(at, _)| *at == coord)
+		.map(|(_, bytes)| bytes))
+}
+
 /// Inserts a tile into the list of the biggest if it belongs there, keeping the list sorted and short.
 ///
 /// Ties keep the tile seen first, so the same container lists the same tiles every time.
@@ -378,6 +394,14 @@ mod tests {
 	async fn an_empty_tile_is_counted_as_nothing() -> Result<()> {
 		let found = walk(&Index::new(vec![at(3, 0, 0, 0)]), |_, _| {}, || false).await?;
 		assert_eq!((found.tiles, found.p50, found.p95, found.max), (1, 0, 0, 0));
+		Ok(())
+	}
+
+	#[tokio::test]
+	async fn reads_one_tile_or_says_there_is_none() -> Result<()> {
+		let source = Index::new(vec![at(5, 3, 4, 1234)]);
+		assert_eq!(tile_bytes(&source, 5, 3, 4).await?, Some(1234));
+		assert_eq!(tile_bytes(&source, 5, 3, 5).await?, None);
 		Ok(())
 	}
 

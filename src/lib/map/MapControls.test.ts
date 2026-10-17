@@ -219,3 +219,31 @@ describe('the grid level stepper', () => {
 		expect((screen.getByTitle('One level out') as HTMLButtonElement).disabled).toBe(true);
 	});
 });
+
+describe('the heat map button', () => {
+	it('is not there without a source that could have one', () => {
+		open({ heat: null });
+		expect(screen.queryByRole('button', { name: 'Heat map' })).toBeNull();
+	});
+
+	it('switches the heat map, and while it is on walks its detail level within the source', () => {
+		const onToggleHeat = vi.fn();
+		const onHeatLevel = vi.fn();
+		open({ heat: { on: true, level: 14, min: 0, max: 14 }, onToggleHeat, onHeatLevel });
+		const button = screen.getByRole('button', { name: 'Heat map' });
+		expect(button.getAttribute('aria-pressed')).toBe('true');
+		const stepper = screen.getByRole('group', { name: 'Heat map detail level' });
+		expect(stepper.textContent).toContain('z14');
+		const [out, into] = stepper.querySelectorAll('button');
+		expect(into.disabled).toBe(true);
+		out.click();
+		expect(onHeatLevel).toHaveBeenCalledWith(-1);
+		button.click();
+		expect(onToggleHeat).toHaveBeenCalledOnce();
+	});
+
+	it('hides its stepper while it is off', () => {
+		open({ heat: { on: false, level: 14, min: 0, max: 14 } });
+		expect(screen.queryByRole('group', { name: 'Heat map detail level' })).toBeNull();
+	});
+});

@@ -90,3 +90,15 @@ describe('the analysis pane', () => {
 		expect(screen.getByRole('table', { name: 'Sizes per zoom level' })).toBeTruthy();
 	});
 });
+
+describe('the heat map switch', () => {
+	it('says what pressing it will do, and does it', async () => {
+		const onToggleHeat = vi.fn();
+		show({ heatOn: false, onToggleHeat });
+		await fireEvent.click(screen.getByRole('button', { name: 'Show the heat map' }));
+		expect(onToggleHeat).toHaveBeenCalledOnce();
+		cleanup();
+		show({ heatOn: true, onToggleHeat });
+		expect(screen.getByRole('button', { name: 'Hide the heat map' })).toBeTruthy();
+	});
+});

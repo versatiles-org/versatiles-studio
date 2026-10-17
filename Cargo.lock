@@ -6631,6 +6631,7 @@ dependencies = [
  "versatiles_container",
  "versatiles_core",
  "versatiles_geometry",
+ "versatiles_image",
  "versatiles_pipeline",
  "zip 9.0.4",
 ]

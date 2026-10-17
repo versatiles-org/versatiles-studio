@@ -81,6 +81,13 @@
 	   selection and that is what the accent means everywhere else in the window. */
 	--map-crop-dim: #10161a;
 	--map-crop-edge: var(--accent);
+	/* The heat map's four bands (S14.3): under 50 kB, under 200 kB, under 500 kB, and over. Green to
+	   red, because the question is "is this fine" - and the last band is the one colour that says no.
+	   Drawn at partial opacity over the map, so the tokens are opaque. */
+	--map-heat-1: #2f9e44;
+	--map-heat-2: #e0b400;
+	--map-heat-3: #f08c00;
+	--map-heat-4: #e03131;
 	/* Controls that float over the map need to stay legible against whatever is under them, so
 	   they sit on a near-opaque white rather than on --surface. */
 	--float-bg: rgb(255 255 255 / 0.94);
@@ -209,6 +216,11 @@
 		--map-label: #e4eae8;
 		/* Dimming a dark map needs to go darker still, or the crop reads as no crop at all. */
 		--map-crop-dim: #05080a;
+		/* Lifted a step: the same four meanings, over a dark map. */
+		--map-heat-1: #40c057;
+		--map-heat-2: #fcc419;
+		--map-heat-3: #ff922b;
+		--map-heat-4: #ff6b6b;
 		--float-bg: rgb(25 33 31 / 0.94);
 		--scrim: rgb(0 0 0 / 0.6);
 

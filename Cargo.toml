@@ -18,6 +18,7 @@ versatiles_core = "4.15.0"
 versatiles_container = "4.15.0"
 versatiles_pipeline = "4.15.0"
 versatiles_geometry = "4.15.0"
+versatiles_image = "4.15.0"
 # `server` for the data plane, `codegen` for `all_operation_metadata()` (C2), `sftp` for remote
 # sources (A2). Explicitly not `cli` - that pulls clap, env_logger and termimad into a GUI app.
 versatiles = { version = "4.15.0", default-features = false, features = ["server", "codegen", "sftp", "gdal"] }

@@ -8,6 +8,7 @@
 		| 'fit'
 		| 'layers'
 		| 'grid'
+		| 'heat'
 		| 'plus'
 		| 'minus'
 		| 'compass'
@@ -71,6 +72,12 @@
 	{:else if name === 'grid'}
 		<rect x="2" y="2" width="12" height="12" rx="0.5" />
 		<path d="M6 2v12M10 2v12M2 6h12M2 10h12" />
+	{:else if name === 'heat'}
+		<!-- Squares of three weights: a size map reads as a grid whose cells differ. -->
+		<rect x="2" y="2" width="5" height="5" rx="0.5" fill="currentColor" fill-opacity="0.25" />
+		<rect x="9" y="2" width="5" height="5" rx="0.5" fill="currentColor" />
+		<rect x="2" y="9" width="5" height="5" rx="0.5" fill="currentColor" fill-opacity="0.6" />
+		<rect x="9" y="9" width="5" height="5" rx="0.5" />
 	{:else if name === 'plus'}
 		<path d="M8 3v10M3 8h10" />
 	{:else if name === 'minus'}

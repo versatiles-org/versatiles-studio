@@ -30,6 +30,10 @@
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
 	import TileGrid from './lib/map/TileGrid.svelte';
+	import HeatMap from './lib/map/HeatMap.svelte';
+	import HeatLegend from './lib/map/HeatLegend.svelte';
+	import { heat } from './lib/state/heat.svelte';
+	import { analysis } from './lib/state/analysis.svelte';
 	import { requestedZoom } from './lib/map/tile-grid';
 	import TileActivity from './lib/map/TileActivity.svelte';
 	import CropOverlay from './lib/map/CropOverlay.svelte';
@@ -51,6 +55,29 @@
 	// window is in the module it is about ([Svelte Components](docs/components.md)).
 
 	let showGrid = $state(false);
+
+	/// What the heat map is drawn for (S14.3): the selected source as it is built now, and the levels
+	/// its squares can stand for. `null` hides the control - nothing is selected, or nothing built.
+	const heatOf = $derived.by(() => {
+		const selected = workbench.selected;
+		const build = composition.editedBuild;
+		return selected && build
+			? { graph: selected.id, name: selected.name, build: build.tileUrl, info: build.info }
+			: null;
+	});
+
+	// **It follows the selection**, and the build: a rebuild may read another container.
+	$effect(() => {
+		const of = heatOf;
+		untrack(() => void heat.follow(of?.graph ?? null, of?.build ?? null, of?.info.maxZoom ?? null));
+	});
+
+	/// The detail level's own figures, when the source has been measured and the figures still apply.
+	const heatFigures = $derived.by(() => {
+		const drawn = heat.drawn;
+		if (!heatOf || !drawn || analysis.stale(heatOf.graph, heatOf.build)) return null;
+		return analysis.of(heatOf.graph).sizes?.levels.find((level) => level.level === drawn.detail) ?? null;
+	});
 
 	/// The map's zoom, as of the last gesture that ended.
 	///
@@ -241,6 +268,12 @@
 				mount={composition.editedName}
 			/>
 			<TileGrid {map} visible={showGrid} level={gridLevel} />
+			<HeatMap
+				{map}
+				mount={heat.on ? heat.mount : null}
+				graph={heat.drawn?.graph ?? null}
+				detail={heat.drawn?.detail ?? null}
+			/>
 			<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
 		     has no visibility of its own to toggle. -->
 			<TileActivity {map} />
@@ -299,8 +332,32 @@
 					onBackgroundLabels={(on) => layout.current && void layout.change({ ...layout.current, backgroundLabels: on })}
 					onToggleGrid={() => (showGrid = !showGrid)}
 					onGridLevel={(by) => (gridOffset = by === 0 ? 0 : gridOffset + by)}
+					heat={heatOf
+						? {
+								on: heat.on,
+								level: heat.drawn?.detail ?? heatOf.info.maxZoom,
+								min: heatOf.info.minZoom,
+								max: heatOf.info.maxZoom
+							}
+						: null}
+					onToggleHeat={() => {
+						if (heat.on) void heat.hide();
+						else if (heatOf) void heat.show(heatOf.graph, heatOf.build, heatOf.info.maxZoom);
+					}}
+					onHeatLevel={(by) => heatOf && void heat.step(by, heatOf.info.minZoom, heatOf.info.maxZoom)}
 					onReset={() => workbench.resetView()}
 				>
+					{#snippet heatLegend()}
+						<HeatLegend
+							source={heatOf?.name ?? null}
+							bands={heat.mount?.bands ?? []}
+							detail={heat.drawn?.detail ?? null}
+							minZoom={heat.mount?.minZoom ?? null}
+							zoom={mapZoom}
+							figures={heatFigures}
+							error={heat.error}
+						/>
+					{/snippet}
 					{#snippet views()}<Views {map} />{/snippet}
 					{#snippet jump()}<SearchBox {map} />{/snippet}
 				</MapControls>

@@ -37,6 +37,10 @@
 		onBackgroundLabels = () => {},
 		onToggleGrid,
 		onGridLevel,
+		heat = null,
+		onToggleHeat = () => {},
+		onHeatLevel = () => {},
+		heatLegend,
 		onReset
 	}: {
 		/** For the zoom buttons, the compass and the readout. Absent until the map exists. */
@@ -60,6 +64,16 @@
 		onToggleGrid: () => void;
 		/** Walks the grid a level in or out; `0` puts it back on the source's own. */
 		onGridLevel: (by: number) => void;
+		/**
+		 * The heat map (S14.3): whether it is on, the detail level it draws, and the levels it may.
+		 * `null` hides the button - a source with no index has no sizes to draw.
+		 */
+		heat?: { on: boolean; level: number; min: number; max: number } | null;
+		onToggleHeat?: () => void;
+		/** Walks the detail level a level in or out. */
+		onHeatLevel?: (by: number) => void;
+		/** What the colours mean, hung under the heat map's stepper while it is on. */
+		heatLegend?: Snippet;
 		onReset: () => void;
 	} = $props();
 
@@ -237,6 +251,46 @@
 					<Icon name="grid" />
 				</button>
 			</div>
+
+			<!-- The heat map, laid out like the grid: the button keeps its place in the column, and the
+			     level it draws hangs off its left while it is on. The level is the *detail* level - the
+			     tiles each square stands for - not the level the map is showing (S14.3). -->
+			{#if heat}
+				<div class="grid-row">
+					{#if heat.on}
+						<div class="stepper" role="group" aria-label="Heat map detail level">
+							<span class="tag" aria-hidden="true">heat</span>
+							<button
+								type="button"
+								onclick={() => onHeatLevel(-1)}
+								disabled={heat.level <= heat.min}
+								title="Squares for a level further out">&minus;</button
+							>
+							<span class="level" title="The level each square is a tile of">z{heat.level}</span>
+							<button
+								type="button"
+								onclick={() => onHeatLevel(1)}
+								disabled={heat.level >= heat.max}
+								title="Squares for a level further in">+</button
+							>
+						</div>
+					{/if}
+					<button
+						type="button"
+						class="map-button"
+						class:on={heat.on}
+						aria-pressed={heat.on}
+						onclick={onToggleHeat}
+						aria-label="Heat map"
+						title="Colour each tile of a deeper level by its size (B1)"
+					>
+						<Icon name="heat" />
+					</button>
+					{#if heat.on && heatLegend}
+						<div class="legend">{@render heatLegend()}</div>
+					{/if}
+				</div>
+			{/if}
 		</div>
 
 		<div class="cluster">
@@ -412,6 +466,13 @@
 			top: 0;
 			right: calc(100% + var(--space-2));
 		}
+
+		/* Under the heat map's stepper, out into the map like it. */
+		.legend {
+			position: absolute;
+			top: calc(2rem + var(--space-2));
+			right: calc(100% + var(--space-2));
+		}
 	}
 
 	/* One control, not three: the buttons share one border and shadow, so the group reads as a single
@@ -455,6 +516,9 @@
 		}
 
 		.level {
+			display: flex;
+			align-items: center;
+			justify-content: center;
 			font-family: var(--font-mono);
 			/* Wide enough for two digits, so walking from z9 to z10 does not move the buttons. */
 			min-width: 3.4em;
