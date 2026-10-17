@@ -21,6 +21,7 @@
 	let {
 		title,
 		detail = null,
+		badge = null,
 		open,
 		onToggle,
 		children
@@ -32,6 +33,11 @@
 		 * says it - the chain alternates scope from pane to pane, and nothing else said which was which.
 		 */
 		detail?: string | null;
+		/**
+		 * A count that wants attention - the Analysis pane's spec violations (S14.8) - and what to call
+		 * it to a screen reader. In the header, so a folded pane still raises it.
+		 */
+		badge?: { count: number; label: string } | null;
 		open: boolean;
 		onToggle: (open: boolean) => void;
 		children: Snippet;
@@ -48,6 +54,7 @@
 			<!-- Its own span, in the ordinary case rather than the label's uppercase: a graph's name is
 			     a name, and `button*=Title` in the e2e helper has to keep matching the heading. -->
 			{#if detail}<span class="detail truncate">{detail}</span>{/if}
+			{#if badge && badge.count > 0}<span class="badge" aria-label={badge.label}>{badge.count}</span>{/if}
 		</button>
 	</h2>
 	<!-- **Kept in the DOM while folded, and hidden** (S10.7). Removing it threw away whatever the
@@ -108,6 +115,17 @@
 		font-size: var(--text-xs);
 		font-family: var(--font-mono);
 		color: var(--ink-2);
+	}
+
+	/* The tab strip's badge, on the header: one look for "this many things are wrong". */
+	.badge {
+		flex: none;
+		margin-left: auto;
+		padding: 0 var(--space-1);
+		border-radius: var(--radius);
+		background: var(--error);
+		color: var(--accent-ink);
+		font-size: var(--text-xs);
 	}
 
 	.body {

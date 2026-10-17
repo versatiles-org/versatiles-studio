@@ -41,7 +41,7 @@ lib/panes/style/      StylePane · StyleSection
 lib/panes/layers/     LayersPane · LayersSection · LayerRow
 lib/panes/project/    CopyDialog
 lib/panes/inspector/  Inspector · InspectorSection
-lib/panes/analysis/   Analysis · AnalysisSection · LayerShares - what the selected source weighs (S14, Q72)
+lib/panes/analysis/   Analysis · AnalysisSection · LayerShares · SpecChecks - what the selected source weighs (S14, Q72)
 lib/map/              MapCanvas · MapControls · Dropdown · TileGrid · TileActivity · SearchBox · Tooltip · Views · FeaturePopup · CropOverlay
 lib/common/           used by more than one owner: Help · HelpTrigger · Menu · Picker · ColorPicker · JsonTree · Modal · RemoteDialog · LandingScreen · the kit: Group · Field · Note · Tabs · Icon (S12, S13)
 ```

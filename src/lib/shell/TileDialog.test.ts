@@ -69,7 +69,7 @@ const tile: Dissection = {
 	layers: [layer('water', 1), layer('buildings', 2)],
 	features: [square(0, 0), square(1, 0), square(1, 1, -50)],
 	truncated: false,
-	issues: [{ layer: 'buildings', feature: 1, kind: 'a ring winds the wrong way' }],
+	issues: [{ layer: 'buildings', feature: 1, kind: 'OrphanInnerRing', label: 'a ring winds the wrong way' }],
 	repair: { rawBytes: 1_100_000, issuesLeft: 0 }
 };
 

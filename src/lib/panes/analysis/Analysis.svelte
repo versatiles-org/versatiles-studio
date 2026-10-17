@@ -3,6 +3,7 @@
 	import Note from '../../common/Note.svelte';
 	import { bytes, count, kilobytes } from '../../common/format';
 	import LayerShares from './LayerShares.svelte';
+	import SpecChecks from './SpecChecks.svelte';
 	import type { Measurement } from '../../state/analysis.svelte';
 	import type { Scan } from '../../state/contents.svelte';
 
@@ -26,7 +27,9 @@
 		onToggleHeat,
 		scan,
 		scanStale = false,
-		onScan
+		onScan,
+		endsInRepair = false,
+		onRepair
 	}: {
 		/** The selected source's name, or `null` when none is selected. */
 		graph: string | null;
@@ -47,6 +50,10 @@
 		scanStale?: boolean;
 		/** Reads the layers - a sample, unless `full`. */
 		onScan: (full: boolean) => void;
+		/** Whether the chain already ends in `vector_repair` (S14.8). */
+		endsInRepair?: boolean;
+		/** Appends `vector_repair` to the chain; `drop` asks it to drop what it cannot mend. */
+		onRepair: (drop: boolean) => void;
 	} = $props();
 
 	/** The budget a vector tile is usually held to - and the line a row is marked for crossing. */
@@ -181,9 +188,24 @@
 					<button type="button" class="link alone" onclick={() => onScan(true)}>Read every tile</button>
 				{/if}
 			{:else if !scan.running && !scan.error}
-				<Note>Read layers decodes a sample of the tiles the map draws, and splits each layer's bytes.</Note>
+				<Note
+					>Read layers decodes a sample of the tiles the map draws, splits each layer's bytes and checks them against
+					the spec.</Note
+				>
 			{/if}
 		</Group>
+
+		{#if scan.contents}
+			<Group title="Checks">
+				<SpecChecks
+					checks={scan.contents.checks}
+					sampled={scan.contents.sampled}
+					{endsInRepair}
+					onInspect={onInspectTile}
+					{onRepair}
+				/>
+			</Group>
+		{/if}
 	{/if}
 </div>
 

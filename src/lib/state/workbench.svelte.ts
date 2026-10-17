@@ -486,6 +486,20 @@ export const workbench = {
 	},
 
 	/**
+	 * Ends the current graph's chain with `vector_repair` (S14.8) - with `drop_offenders=true` when
+	 * some of what is wrong can only be dropped. After the last node, so it mends what everything
+	 * before it produced.
+	 */
+	appendRepair(drop: boolean): Promise<void> {
+		return this.edit(async (doc) => {
+			const last = doc.pipeline.nodes.at(-1);
+			if (!last) return doc;
+			const operation = drop ? 'vector_repair drop_offenders=true' : 'vector_repair';
+			return this.setText(await vplInsertNode(doc.text, last.nameSpan, operation));
+		});
+	},
+
+	/**
 	 * Removes a node.
 	 *
 	 * Dropped here rather than left to `applyDocument`, which keeps a selection whose path still

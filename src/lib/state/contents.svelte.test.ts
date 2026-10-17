@@ -26,6 +26,7 @@ const contents: Contents = {
 	sampled: false,
 	read: 3,
 	undecodable: 0,
+	checks: { tilesWithIssues: 0, issues: [], tilejson: null },
 	levels: [
 		{ level: 13, tiles: 1, read: 1, layers: [layer('water', 800), layer('roads', 400)] },
 		{ level: 14, tiles: 2, read: 2, layers: [layer('roads', 1600), layer('pois', 80)] }

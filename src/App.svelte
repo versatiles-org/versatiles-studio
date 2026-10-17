@@ -27,6 +27,7 @@
 	import UpdateDialog from './lib/shell/UpdateDialog.svelte';
 	import TileDialog from './lib/shell/TileDialog.svelte';
 	import { tileDialog } from './lib/state/tile-dialog.svelte';
+	import { scans } from './lib/state/contents.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
 	import CopyDialog from './lib/panes/project/CopyDialog.svelte';
 	import MapCanvas from './lib/map/MapCanvas.svelte';
@@ -182,6 +183,16 @@
 	/// the registry's to say (S10.9).
 	const detailOf = (id: string): string | null => paneDetail(id, workbench.selected?.name ?? null);
 
+	/// The Analysis pane's header counts the selected source's spec violations, from its last scan
+	/// (S14.8) - so a folded pane still says something is wrong.
+	const badgeOf = (id: string): { count: number; label: string } | null => {
+		const selected = workbench.selected;
+		const checks = id === 'analysis' && selected ? scans.of(selected.id).contents?.checks : undefined;
+		if (!checks) return null;
+		const count = checks.issues.reduce((sum, check) => sum + check.count, 0) + (checks.tilejson ? 1 : 0);
+		return { count, label: `${count} spec violations` };
+	};
+
 	/// Everything that reaches this window from outside it - see `window-events.svelte.ts`.
 	windowEvents.listen({
 		open: () => void workbench.pick(),
@@ -231,6 +242,7 @@
 		panes={layout.on('left')}
 		onToggle={(id, open) => layout.toggle(id, open)}
 		detail={detailOf}
+		badge={badgeOf}
 		content={paneContent}
 	/>
 {/snippet}
@@ -240,6 +252,7 @@
 		panes={layout.on('right')}
 		onToggle={(id, open) => layout.toggle(id, open)}
 		detail={detailOf}
+		badge={badgeOf}
 		content={paneContent}
 	/>
 {/snippet}

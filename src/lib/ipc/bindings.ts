@@ -906,6 +906,31 @@ export type Carried = {
 	bytes: number,
 };
 
+/**  One kind of violation, across the tiles read. */
+export type Check = {
+	/**  Upstream's name for it, `DegenerateRing(Collinear)` - stable, for code to match on. */
+	kind: string,
+	/**  The same in a sentence, for a person. */
+	label: string,
+	count: number,
+	/**  Tiles carrying it. */
+	tiles: number,
+	/**  Which repair fixes it. */
+	fix: Fix,
+	/**  The first place it was found, for the tile dialog to open on. */
+	example: Example,
+};
+
+/**  What a scan found wrong. */
+export type Checks = {
+	/**  Tiles read that carry at least one violation. */
+	tilesWithIssues: number,
+	/**  One entry per kind found, the commonest first. */
+	issues: Check[],
+	/**  What the TileJSON gets wrong, or `None` when it passes. */
+	tilejson: string | null,
+};
+
 /**
  *  Whether Studio will offer to write this path.
  * 
@@ -979,6 +1004,8 @@ export type Contents = {
 	undecodable: number,
 	/**  One entry per level that holds a tile, ascending. */
 	levels: LevelContents[],
+	/**  What the tiles read and the TileJSON get wrong (S14.8). */
+	checks: Checks,
 };
 
 /**  The control a parameter should be edited with. */
@@ -1202,6 +1229,16 @@ export type Estimate = {
 	sampled: number,
 };
 
+/**  Where a violation is. */
+export type Example = {
+	z: number,
+	x: number,
+	y: number,
+	layer: string,
+	/**  The feature, by position in its layer; `None` for a layer-wide violation. */
+	feature: number | null,
+};
+
 /**  A family someone can install, and whether they have. */
 export type Family = {
 	/**  The name the archive and the font stack share - `noto_sans`. */
@@ -1295,6 +1332,13 @@ export type Fit = {
 	 */
 	reason: string | null,
 };
+
+/**  What it takes to fix a kind of violation. */
+export type Fix = 
+/**  `vector_repair` mends it. */
+"repair" | 
+/**  Only dropping the feature does: `vector_repair drop_offenders=true`. */
+"drop";
 
 /**  One graph: a VPL document, what it is called, and where it came from. */
 export type GraphInfo = {
@@ -2487,7 +2531,10 @@ export type TileIssue = {
 	layer: string,
 	/**  The feature it is about, by position in its layer; `None` for a layer-wide one. */
 	feature: number | null,
+	/**  Upstream's name for it, as the Analysis pane's checks carry it. */
 	kind: string,
+	/**  The same in a sentence. */
+	label: string,
 };
 
 /**

@@ -142,7 +142,10 @@ pub struct TileIssue {
 	pub layer: String,
 	/// The feature it is about, by position in its layer; `None` for a layer-wide one.
 	pub feature: Option<u32>,
+	/// Upstream's name for it, as the Analysis pane's checks carry it.
 	pub kind: String,
+	/// The same in a sentence.
+	pub label: String,
 }
 
 /// What a repair would leave.
@@ -199,6 +202,7 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 			layer: issue.layer,
 			feature: issue.feature_index.map(clamp),
 			kind: describe_issue_kind(&issue.kind),
+			label: crate::checks::label(&issue.kind),
 		})
 		.collect();
 	if !found.issues.is_empty() {

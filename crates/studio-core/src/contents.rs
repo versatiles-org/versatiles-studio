@@ -13,13 +13,17 @@
 //! **Bytes are decoded bytes**, which is what a layer's share means - compression works on the tile,
 //! not per layer, so there is no stored size of a layer to report.
 //!
+//! **And checked, in the same pass** (S14.8): a tile decoded for its layers is a tile validated for
+//! nothing more than the walk over its features - see [`checks`].
+//!
 //! [Q72]: ../../../docs/decisions.md
 
+use crate::checks::{self, Checks, Tally};
 use anyhow::{Context, Result};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use versatiles_container::{Tile, TileSource, sampling::build_scan_plan};
-use versatiles_geometry::vector_tile::{LayerStats, layer_stats};
+use versatiles_geometry::vector_tile::{LayerStats, ValidationIssue, layer_stats, validate_tile};
 
 /// About how many tiles of the deepest level a sampled scan reads.
 pub const BUDGET: u64 = 8192;
@@ -39,6 +43,8 @@ pub struct Contents {
 	pub undecodable: u64,
 	/// One entry per level that holds a tile, ascending.
 	pub levels: Vec<LevelContents>,
+	/// What the tiles read and the TileJSON get wrong (S14.8).
+	pub checks: Checks,
 }
 
 /// One level's layers.
@@ -121,8 +127,10 @@ pub async fn scan(source: &dyn TileSource, full: bool, progress: impl Fn(u64, u6
 		read: 0,
 		undecodable: 0,
 		levels: Vec::new(),
+		checks: Checks::default(),
 	};
 	if !source.metadata().tile_format().is_vector() {
+		found.checks = Tally::default().finish(checks::tilejson(source));
 		return Ok(found);
 	}
 
@@ -140,6 +148,7 @@ pub async fn scan(source: &dyn TileSource, full: bool, progress: impl Fn(u64, u6
 
 	let mut read: BTreeMap<u8, u64> = BTreeMap::new();
 	let mut layers: HashMap<(u8, String), (u64, LayerStats)> = HashMap::new();
+	let mut tally = Tally::default();
 	let mut done = 0u64;
 	progress(0, planned);
 	for bbox in plan {
@@ -153,7 +162,8 @@ pub async fn scan(source: &dyn TileSource, full: bool, progress: impl Fn(u64, u6
 			found.read += 1;
 			*read.entry(coord.level).or_default() += 1;
 			match decoded {
-				Some(stats) => {
+				Some((stats, issues)) => {
+					tally.add(coord, &issues);
 					for layer in stats {
 						let entry = layers.entry((coord.level, layer.name.clone())).or_default();
 						entry.0 += 1;
@@ -168,6 +178,7 @@ pub async fn scan(source: &dyn TileSource, full: bool, progress: impl Fn(u64, u6
 		}
 	}
 	progress(done, planned);
+	found.checks = tally.finish(checks::tilejson(source));
 
 	let mut by_level: BTreeMap<u8, Vec<LayerContents>> = BTreeMap::new();
 	for ((level, name), (tiles, stats)) in layers {
@@ -192,10 +203,10 @@ pub async fn scan(source: &dyn TileSource, full: bool, progress: impl Fn(u64, u6
 	Ok(found)
 }
 
-/// One tile's layers measured, or `None` when it is not a vector tile.
-fn decode(mut tile: Tile) -> Option<Vec<LayerStats>> {
+/// One tile's layers measured and its violations found, or `None` when it is not a vector tile.
+fn decode(mut tile: Tile) -> Option<(Vec<LayerStats>, Vec<ValidationIssue>)> {
 	let vector = tile.as_vector().ok()?;
-	layer_stats(vector).ok()
+	Some((layer_stats(vector).ok()?, validate_tile(vector)))
 }
 
 #[cfg(test)]
@@ -240,6 +251,26 @@ mod tests {
 			let parts = layer.geometry_bytes + layer.property_bytes + layer.tag_bytes + layer.id_bytes + layer.other_bytes;
 			assert_eq!(parts, layer.bytes, "{} adds up", layer.name);
 		}
+		Ok(())
+	}
+	/// The repair the Checks group offers mends what it says it mends.
+	#[tokio::test]
+	async fn a_repaired_chain_has_nothing_left_to_repair() -> Result<()> {
+		let Some(path) = crate::analysis::tests::sample_container("berlin.mbtiles") else {
+			return Ok(());
+		};
+		let runtime = versatiles::runtime::create_runtime();
+		let text = format!("from_container filename=\"{}\" | vector_repair", path.display());
+		let pipeline = crate::vpl::Document::parse(text)?.to_pipeline();
+		let source = crate::preview::build(&runtime, pipeline, std::path::Path::new(".")).await?;
+		let found = scan(source.as_ref(), false, |_, _| {}).await?;
+		let left: Vec<_> = found
+			.checks
+			.issues
+			.iter()
+			.map(|check| (&check.kind, check.count))
+			.collect();
+		assert!(left.is_empty(), "left after vector_repair: {left:?}");
 		Ok(())
 	}
 }

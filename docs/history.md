@@ -697,8 +697,8 @@ container on every click.
 | **S14.4**  | ✓ `dissect_tile`: one tile of the drawn source - layer stats, attributes, features, issues | A4             |
 | **S14.5**  | ✓ The tile dialog: the tile drawn alone, four tabs, moving between tiles, Show on map      | A4             |
 | **S14.6**  | ✓ The feature popup reads the drawn tile and opens the dialog; its four faults go          | A8, A4         |
-| **S14.7**  | The contents scan, sampled: the Layers table, its stacked bar and a zoom picker            | B2             |
-| **S14.8**  | Checks: MVT and TileJSON in the pane, a badge and a Repair button where the chain ends     | B3             |
+| **S14.7**  | ✓ The contents scan, sampled: the Layers table, its stacked bar and a zoom picker          | B2             |
+| **S14.8**  | ✓ Checks: MVT and TileJSON in the pane, a badge and a Repair button where the chain ends   | B3             |
 | **S14.9**  | Style validation beside the Style pane's export                                            | B3             |
 | **S14.10** | Sizes of a transformed output, sampled and labelled as estimates                           | B1             |
 | **S14.11** | Upstream: per-attribute bytes, and `from_container` sizes from the index; then Attributes  | B2             |

@@ -18,6 +18,7 @@
 		panes,
 		onToggle,
 		detail = () => null,
+		badge = () => null,
 		content
 	}: {
 		/** Already filtered to this side, in layout order. */
@@ -25,6 +26,8 @@
 		onToggle: (id: string, open: boolean) => void;
 		/** What a pane is about, for its header - see `Pane`'s `detail`. `null` says nothing. */
 		detail?: (id: string) => string | null;
+		/** A count for a pane's header - see `Pane`'s `badge`. */
+		badge?: (id: string) => { count: number; label: string } | null;
 		/** Renders one pane's contents. Called per pane; may render nothing for an id it has no
 		 *  component for, which is how a pane can exist in the core before it exists here. */
 		content: Snippet<[string]>;
@@ -36,6 +39,7 @@
 		<Pane
 			title={paneTitle(pane.id)}
 			detail={detail(pane.id)}
+			badge={badge(pane.id)}
 			open={pane.open}
 			onToggle={(open) => onToggle(pane.id, open)}
 		>

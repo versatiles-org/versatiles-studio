@@ -7,7 +7,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/svelte';
 import Analysis from './Analysis.svelte';
-import type { Sizes } from '../../ipc/commands';
+import type { Checks, Sizes } from '../../ipc/commands';
 import type { Measurement } from '../../state/analysis.svelte';
 
 const sizes: Sizes = {
@@ -43,6 +43,7 @@ const show = (props: Partial<Parameters<typeof render<typeof Analysis>>[1] & obj
 		onInspectTile: vi.fn(),
 		scan: { contents: null, error: null, running: false, build: null },
 		onScan: vi.fn(),
+		onRepair: vi.fn(),
 		...props
 	});
 
@@ -128,6 +129,7 @@ describe('the heat map switch', () => {
 			sampled: true,
 			read: 4,
 			undecodable: 0,
+			checks: { tilesWithIssues: 0, issues: [], tilejson: null } as Checks,
 			levels: [
 				{ level: 13, tiles: 4, read: 2, layers: [layer('water', 3000, 5), layer('roads', 1000, 7)] },
 				{ level: 14, tiles: 16, read: 2, layers: [layer('roads', 4000, 9)] }
@@ -170,6 +172,75 @@ describe('the heat map switch', () => {
 			show({ measurement: measured(), scan: scanned, onScan });
 			await fireEvent.click(screen.getByRole('button', { name: 'Read every tile' }));
 			expect(onScan).toHaveBeenCalledWith(true);
+		});
+	});
+
+	describe('the checks', () => {
+		const contents = (checks: Checks, sampled = false) => ({
+			contents: { sampled, read: 10, undecodable: 0, checks, levels: [] },
+			error: null,
+			running: false,
+			build: 'b'
+		});
+		const check = (fix: 'repair' | 'drop', label: string, count: number) => ({
+			kind: label,
+			label,
+			count,
+			tiles: 2,
+			fix,
+			example: { z: 14, x: 8800, y: 5373, layer: 'water', feature: 3 }
+		});
+
+		it('says a sample with nothing wrong is only a clean sample', () => {
+			show({ scan: contents({ tilesWithIssues: 0, issues: [], tilejson: null }, true) });
+			expect(screen.getByText('The TileJSON passes.')).toBeTruthy();
+			expect(screen.getByText('No violations of the vector tile spec in the tiles read.')).toBeTruthy();
+			expect(screen.queryByRole('button', { name: /Repair/ })).toBeNull();
+		});
+
+		it('lists each kind with an example to open, and repairs at the end of the chain', async () => {
+			const onRepair = vi.fn();
+			const onInspectTile = vi.fn();
+			show({
+				scan: contents({
+					tilesWithIssues: 2,
+					issues: [check('repair', 'A ring whose vertices lie on one line', 5)],
+					tilejson: "Vector tilesets must have 'vector_layers'"
+				}),
+				onRepair,
+				onInspectTile
+			});
+			expect(screen.getByText("TileJSON: Vector tilesets must have 'vector_layers'")).toBeTruthy();
+			expect(screen.getByText('5 violations of the vector tile spec in 2 tiles.')).toBeTruthy();
+			await fireEvent.click(
+				screen.getByRole('button', { name: 'Inspect an example of: A ring whose vertices lie on one line' })
+			);
+			expect(onInspectTile).toHaveBeenCalledWith(14, 8800, 5373);
+			await fireEvent.click(screen.getByRole('button', { name: 'Repair' }));
+			expect(onRepair).toHaveBeenCalledWith(false);
+		});
+
+		it('says when the repair will drop features, and asks for it', async () => {
+			const onRepair = vi.fn();
+			show({
+				scan: contents({
+					tilesWithIssues: 1,
+					issues: [check('repair', 'A layer has no extent', 1), check('drop', 'A point with no coordinates', 1)],
+					tilejson: null
+				}),
+				onRepair
+			});
+			await fireEvent.click(screen.getByRole('button', { name: 'Repair, dropping what cannot be mended' }));
+			expect(onRepair).toHaveBeenCalledWith(true);
+		});
+
+		it('does not offer a second repair after one', () => {
+			show({
+				scan: contents({ tilesWithIssues: 1, issues: [check('repair', 'A layer has no extent', 1)], tilejson: null }),
+				endsInRepair: true
+			});
+			expect(screen.queryByRole('button', { name: /Repair/ })).toBeNull();
+			expect(screen.getByText(/already ends in vector_repair/)).toBeTruthy();
 		});
 	});
 });

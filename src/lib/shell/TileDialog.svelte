@@ -326,7 +326,7 @@
 												layer
 											{/if}
 										</td>
-										<td class="issue">{issue.kind}</td>
+										<td class="issue" title={issue.kind}>{issue.label}</td>
 									</tr>
 								{/each}
 							</tbody>

@@ -6,6 +6,7 @@
 	import { heat } from '../../state/heat.svelte';
 	import { tileDialog } from '../../state/tile-dialog.svelte';
 	import { scans } from '../../state/contents.svelte';
+	import { document } from '../../state/document.svelte';
 
 	// The Analysis pane, connected (S14.2): the selected graph's figures, and the build they are about.
 
@@ -28,6 +29,11 @@
 	scanStale={selected ? scans.stale(selected.id, build) : false}
 	onScan={(full) => {
 		if (selected) void scans.scan(selected.id, build, full);
+	}}
+	endsInRepair={document.current?.pipeline.nodes.at(-1)?.name === 'vector_repair'}
+	onRepair={(drop) => {
+		// The edit lands in the open document, which is the selected source's - checked, not assumed.
+		if (selected && document.current?.graph === selected.id) void workbench.appendRepair(drop);
 	}}
 	heatOn={heat.on}
 	onToggleHeat={() => {

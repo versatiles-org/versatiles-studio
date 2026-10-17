@@ -33,6 +33,27 @@ describe('the header', () => {
 		expect(heading.querySelector('.title')?.textContent).toBe('Style');
 	});
 
+	/** The Analysis pane's spec violations (S14.8): raised on the header, so a folded pane still says so. */
+	it('raises a count while folded, and none at nought', () => {
+		render(Pane, {
+			title: 'Analysis',
+			badge: { count: 3, label: '3 spec violations' },
+			open: false,
+			onToggle: vi.fn(),
+			children: body
+		});
+		expect(screen.getByLabelText('3 spec violations').textContent).toBe('3');
+		cleanup();
+		render(Pane, {
+			title: 'Analysis',
+			badge: { count: 0, label: 'none' },
+			open: false,
+			onToggle: vi.fn(),
+			children: body
+		});
+		expect(screen.queryByLabelText('none')).toBeNull();
+	});
+
 	it('says nothing extra when there is nothing to say', () => {
 		render(Pane, { title: 'Sources', detail: null, open: true, onToggle: vi.fn(), children: body });
 		expect(screen.getByRole('button', { name: /Sources/ }).querySelector('.detail')).toBeNull();
