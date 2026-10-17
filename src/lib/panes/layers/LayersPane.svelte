@@ -19,7 +19,7 @@
 	// **Top of the map first.** The rows arrive in paint order, bottom first, and the tree keeps that
 	// order because `move.ts` reasons in it; every list here is rendered reversed, so the first row on
 	// screen is what is drawn over everything else - the way the Sources list reads, and the way a
-	// person thinks of a stack. "Move up" is then up the screen *and* up the map (S8.2).
+	// person thinks of a stack. "Move up" is then up the screen *and* up the map (S10.2).
 	//
 	// **↑/↓ before dragging.** A drag in a tall collapsible tree is the hardest interaction here -
 	// autoscroll, drop indicators at four depths, and no keyboard path at all - and it is not the

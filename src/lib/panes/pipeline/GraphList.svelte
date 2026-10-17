@@ -86,7 +86,7 @@
 			     are editing. Different questions, so different marks - and a graph that is switched off
 			     is still one you can edit, which is what makes them independent.
 
-			     **A switch, not an eye** (S8.6). Off means the graph is not built: no job, no mount, no
+			     **A switch, not an eye** (S10.6). Off means the graph is not built: no job, no mount, no
 			     layers anywhere. The eye in the Layers pane is the other control - it hides what a
 			     built source paints - and giving the two one glyph is how they were confused. -->
 			<button
@@ -102,7 +102,7 @@
 			>
 				<svg viewBox="0 0 16 16" aria-hidden="true">
 					<!-- A power symbol, not an eye: this stops the build, it does not hide the drawing. The
-					     eye lives in the Layers pane and means "painted" (S8.6). -->
+					     eye lives in the Layers pane and means "painted" (S10.6). -->
 					<path
 						d="M5.2 4.6a4.6 4.6 0 1 0 5.6 0"
 						fill="none"

@@ -44,7 +44,7 @@
 	// The map is created by an effect below, so the workbench is handed a way to reach it rather than
 	// the instance - which would be stale the moment a reload replaced it.
 	workbench.bind(() => map);
-	// **Wiring and markup, nothing else** (S8.10). The selection is `workbench.selected`, what it built
+	// **Wiring and markup, nothing else** (S10.10). The selection is `workbench.selected`, what it built
 	// is `composition.editedBuild`, and each pane's connection to those lives in its own folder as a
 	// `*Section` component - so a rule about one pane is found beside that pane, and a rule about the
 	// window is in the module it is about ([Svelte Components](docs/components.md)).
@@ -143,13 +143,13 @@
 		});
 	});
 
-	/// What each pane's header says it is about (S8.4).
+	/// What each pane's header says it is about (S10.4).
 	///
 	/// **The chain alternates scope and nothing said so.** Sources and Layers span the project;
 	/// Pipeline, Style and the Inspector follow the selected graph - and the only cue for which graph
 	/// that was sat in a row of the Sources pane, which may be folded or scrolled away. The header
 	/// carries it instead, and keeps carrying it while the pane is folded. Which panes are which is
-	/// the registry's to say (S8.9).
+	/// the registry's to say (S10.9).
 	const detailOf = (id: string): string | null => paneDetail(id, workbench.selected?.name ?? null);
 
 	/// Everything that reaches this window from outside it - see `window-events.svelte.ts`.
@@ -178,8 +178,8 @@
      column the width of a pane that has nothing in it. -->
 <!-- One snippet for both sidebars, keyed by pane id (Q31). Shared rather than one per side,
      because which side a pane is on is data - a pane that moves must not need its markup moved
-     with it. Which component an id means is the registry's (S8.9), and each is a `*Section` that
-     wires its pane to the state modules (S8.10) - so adding a pane is an entry there, a folder, and
+     with it. Which component an id means is the registry's (S10.9), and each is a `*Section` that
+     wires its pane to the state modules (S10.10) - so adding a pane is an entry there, a folder, and
      nothing here. An id the registry does not know renders nothing, which is how a pane can exist
      in the core before it exists in the webview. -->
 {#snippet paneContent(id: string)}

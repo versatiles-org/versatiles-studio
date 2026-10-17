@@ -107,7 +107,7 @@ const pipelineExtensions = $derived(kinds.find((kind) => kind.id === 'pipeline')
  * Every operation this build has, for the `from_*` a new graph starts on and the transform picker.
  *
  * Build-time information about the binary, so it is fetched once and never refreshed. Here rather
- * than in `App.svelte` because two panes read it and neither owns it (S8.10).
+ * than in `App.svelte` because two panes read it and neither owns it (S10.10).
  */
 let operations = $state<OperationInfo[]>([]);
 
@@ -116,7 +116,7 @@ let operations = $state<OperationInfo[]>([]);
  *
  * Local to the window, not durable: a mode you are halfway through is not worth restoring after a
  * reload, and leaving the app in it would be a trap. Here because the Pipeline pane turns it on and
- * the map's overlay reads it - two ends of the window, one claim (S8.10).
+ * the map's overlay reads it - two ends of the window, one claim (S10.10).
  */
 let drawing = $state(false);
 
@@ -147,7 +147,7 @@ export const workbench = {
 	/**
 	 * The graph being edited: its id and its name, or `null` when none is.
 	 *
-	 * **The selection, named once** (S8.10). It is `document.graph` - whichever document is on
+	 * **The selection, named once** (S10.10). It is `document.graph` - whichever document is on
 	 * screen - and the name is what the recipe, the mount and the stack file that graph under. Every
 	 * pane that follows the selection reads this rather than one of the five spellings it used to go
 	 * by.

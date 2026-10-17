@@ -24,7 +24,7 @@ describe('the header', () => {
 	});
 
 	// The chain alternates scope from pane to pane - project, selection, selection, project - and the
-	// header is the one place that is on screen whether or not the pane is open (S8.4).
+	// header is the one place that is on screen whether or not the pane is open (S10.4).
 	it('says what the pane is about, folded or not', () => {
 		render(Pane, { title: 'Style', detail: 'osm', open: false, onToggle: vi.fn(), children: body });
 		const heading = screen.getByRole('button', { name: /Style/ });
@@ -50,7 +50,7 @@ describe('folding', () => {
 	const field = createRawSnippet(() => ({ render: () => '<input aria-label="a draft" />' }));
 
 	// The fold used to unmount the contents, so a typed VPL draft, the chosen tab and the Layers
-	// filter were all gone when the pane opened again (S8.7).
+	// filter were all gone when the pane opened again (S10.7).
 	it('keeps the contents, and what they hold, while folded', async () => {
 		const { rerender } = render(Pane, { title: 'Pipeline', open: true, onToggle: vi.fn(), children: field });
 		const input = screen.getByLabelText('a draft') as HTMLInputElement;

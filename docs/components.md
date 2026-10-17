@@ -75,7 +75,7 @@ lib/map/                               the map surface and its overlays
 lib/panes/<pane>/                      one folder per pane, named for the pane
                                        sources · pipeline · style · layers · inspector · project
 lib/panes/registry.ts                  every pane id, its title and its scope - checked against
-                                       the core's catalogue by registry.test.ts (S8.9)
+                                       the core's catalogue by registry.test.ts (S10.9)
 lib/common/                            used by more than one owner
 ```
 
@@ -100,7 +100,7 @@ lib/common/                            used by more than one owner
   agreeing. A rule inside a component can only be checked by opening the application and looking,
   which is how the background map came to be unreachable however it was set, for three releases,
   with nothing failing.
-- **Every pane comes in two halves** (S8.10). `<Pane>Pane` takes data and an `actions` object and
+- **Every pane comes in two halves** (S10.10). `<Pane>Pane` takes data and an `actions` object and
   knows no state module, so it renders in a test without a backend; `<Pane>Section` beside it reads
   the state modules and hands the pane what it needs, and is what `panes/registry.ts` names. A rule
   about one pane - which source the style sliders preview against, how a move in the layer tree

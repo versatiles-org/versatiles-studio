@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 /**
- * The pane registry against the core's catalogue (S8.9).
+ * The pane registry against the core's catalogue (S10.9).
  *
  * A pane is an id agreed between two sides: the core says where it sits and whether it is open, and
  * the webview says what it is called and renders it. Each side ignores an id the other does not know

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 /**
- * The connected half of every pane (S8.10).
+ * The connected half of every pane (S10.10).
  *
  * Each `*Section` reads the state modules and hands its pane data and actions - which is the wiring
  * that used to be one arm of `App.svelte`, where it could only be checked by opening the application.

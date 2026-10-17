@@ -247,7 +247,8 @@ describe('documentation size', () => {
 		// Raised for Q68, the user-facing noun - the entry has to name both words and send a reader to the
 		// glossary that joins them.
 		'docs/decisions.md': 5350,
-		'docs/history.md': 5300,
+		// Raised for Release 6, which records S10 as built and S11 as planned.
+		'docs/history.md': 6000,
 		'docs/features.md': 2700,
 		// Raised for the glossary: one thing, five names, and where each is used.
 		'docs/ui.md': 2550,
@@ -257,7 +258,7 @@ describe('documentation size', () => {
 		// reverse test it describes is cited from the code (`analysis.rs`) but was never stated here.
 		'docs/architecture.md': 2150,
 		'docs/styling.md': 1800,
-		// Raised for the two-halves rule (S8.10): every pane is a Pane and a Section, and the inventory
+		// Raised for the two-halves rule (S10.10): every pane is a Pane and a Section, and the inventory
 		// names both.
 		'docs/components.md': 1250,
 		// Raised for the stale-binary papercut, which is a running instruction rather than a scope

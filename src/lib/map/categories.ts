@@ -148,7 +148,7 @@ export function currentPath(stored: string): string {
  * **An eye stored here hides every layer the source draws, and nothing else changes.** The graph is
  * still built and mounted - that is the switch in the Sources pane - so the rows stay in the tree
  * and the eye can be found again. Before this was spelled out, the row stored the empty path and
- * nothing read it: the row went grey while the map went on drawing the source (S8.1).
+ * nothing read it: the row went grey while the map went on drawing the source (S10.1).
  */
 export const WHOLE_SOURCE = '';
 

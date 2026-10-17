@@ -27,7 +27,7 @@
 		title: string;
 		/**
 		 * What the pane is about, beside its title: the selected graph's name, or "project" for a pane
-		 * that spans every graph (S8.4). In the header rather than in the body so a folded pane still
+		 * that spans every graph (S10.4). In the header rather than in the body so a folded pane still
 		 * says it - the chain alternates scope from pane to pane, and nothing else said which was which.
 		 */
 		detail?: string | null;
@@ -49,7 +49,7 @@
 			{#if detail}<span class="detail truncate">{detail}</span>{/if}
 		</button>
 	</h2>
-	<!-- **Kept in the DOM while folded, and hidden** (S8.7). Removing it threw away whatever the
+	<!-- **Kept in the DOM while folded, and hidden** (S10.7). Removing it threw away whatever the
 	     contents held locally - the Graph/VPL tab, a VPL draft, the Layers filter and which groups
 	     were open, a slider mid-gesture - so "sections remember whether they are open" was true of
 	     the fold and false of everything behind it. `hidden` is `display: none`, which also takes the

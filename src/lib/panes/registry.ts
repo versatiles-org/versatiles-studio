@@ -1,11 +1,11 @@
 /**
- * The panes this webview knows: what each is called, and what it is about (Q31, S8.9).
+ * The panes this webview knows: what each is called, and what it is about (Q31, S10.9).
  *
  * The core owns *where* a pane sits, whether it is open, and in what order - that is durable state
  * and lives with the rest of it (Q16). This owns what the webview adds to an id: its title, because a
  * title is presentation and would arrive in the wrong language the day Studio has more than one; and
  * its scope, because the chain alternates between panes about the project and panes about the
- * selected graph, and the header has to say which (S8.4).
+ * selected graph, and the header has to say which (S10.4).
  *
  * **One list, typed.** The ids used to be bare strings agreed between a Rust array, a title table and
  * a chain of `if id === …` arms in `App.svelte`, and a typo in any of them rendered nothing. `PaneId`
@@ -32,7 +32,7 @@ export interface PaneEntry {
 	scope: PaneScope;
 	/**
 	 * The pane, connected: a `*Section` that reads the state modules and hands its pane data and
-	 * actions (S8.10). Takes no props - everything it needs is module state - which is what lets the
+	 * actions (S10.10). Takes no props - everything it needs is module state - which is what lets the
 	 * sidebar render any id the same way.
 	 */
 	component: Component;

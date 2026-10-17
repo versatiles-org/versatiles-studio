@@ -103,7 +103,7 @@ describe('selecting another source', () => {
 		});
 
 		// And the two panes that follow the selection say so in their headers, whether or not they are
-		// open - the Sources row may be folded or scrolled away (S8.4).
+		// open - the Sources row may be folded or scrolled away (S10.4).
 		for (const pane of ['Pipeline', 'Style']) {
 			await browser.waitUntil(async () => (await $(`button*=${pane}`).getText()).includes(first.name), {
 				timeout: 10_000,

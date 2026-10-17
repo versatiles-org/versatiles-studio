@@ -3,7 +3,7 @@
 	import { composition } from '../../map/composition.svelte';
 	import { workbench } from '../../state/workbench.svelte';
 
-	// The Sources pane, connected (S8.10).
+	// The Sources pane, connected (S10.10).
 	//
 	// **The wiring that used to be one arm of `App.svelte`.** `SourcesPane` takes data and actions and
 	// knows no state module, which is what makes it renderable in a test; this is the half that knows

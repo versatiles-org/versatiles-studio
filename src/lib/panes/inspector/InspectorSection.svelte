@@ -4,7 +4,7 @@
 	import { preview } from '../../state/preview.svelte';
 	import { workbench } from '../../state/workbench.svelte';
 
-	// The Inspector, connected (S8.10): what the selected graph reads, and what it produced.
+	// The Inspector, connected (S10.10): what the selected graph reads, and what it produced.
 </script>
 
 <Inspector

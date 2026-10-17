@@ -5,7 +5,7 @@
  * what a build regenerates it from, and the bundle is the JSON with the fonts and sprites it needs
  * beside it - for a machine that will not reach versatiles.org.
  *
- * **Out of the pane, so the pane takes data and actions like the other three** (S8.8). The Style
+ * **Out of the pane, so the pane takes data and actions like the other three** (S10.8). The Style
  * pane was the one component that opened a file dialog and called the export commands itself, and
  * so the one that could not be rendered without a backend. What is here is the half that touches
  * the outside: the dialog, the commands, and the two facts the pane shows about them - whether an

@@ -23,7 +23,7 @@
 	// **One graph: the selected one.** The list of graphs is the Sources pane above ([Q50]) - a list
 	// of graphs is the project, a chain is one document, and they fold separately. This pane shows the
 	// chain of whichever row is highlighted there, its crop, and what it writes. Which graph that is
-	// is not said here; the header the sidebar draws around this says it (S8.4).
+	// is not said here; the header the sidebar draws around this says it (S10.4).
 	//
 	// How the graph is *drawn* is the Style pane's, and where its layers land is the Layers pane's
 	// ([Q62]). Export here writes tiles - what this chain produces - and nothing about the style.
@@ -294,7 +294,7 @@
 		<!-- Exporting is per graph ([Q32]): this writes what *this* chain produces, and the modal is
 		     where the run is committed. The primary one: it is what the other two lead to. Named for
 		     what it writes, because the Style pane below has an export too and it writes the map's
-		     style (S8.6). -->
+		     style (S10.6). -->
 		<button type="button" class="button file primary" disabled={!pipeline} onclick={documentActions.export}
 			>Export tiles…</button
 		>

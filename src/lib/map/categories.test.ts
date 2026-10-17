@@ -39,7 +39,7 @@ describe('the eyes', () => {
 	});
 
 	// The eye on a source's own row. It used to store the empty path, which `ancestors` never
-	// produces, so the row read as hidden while every layer stayed on the map (S8.1).
+	// produces, so the row read as hidden while every layer stayed on the map (S10.1).
 	it('hides every layer of a source from its own row, and names that eye last', () => {
 		expect(covers(WHOLE_SOURCE, 'Labels')).toBe(true);
 		expect(covers(WHOLE_SOURCE, WHOLE_SOURCE)).toBe(true);

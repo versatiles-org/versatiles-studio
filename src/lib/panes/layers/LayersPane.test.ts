@@ -39,7 +39,7 @@ afterEach(cleanup);
 
 describe('the stack it draws', () => {
 	// The rows arrive bottom first, which is paint order; the pane reads top first, which is how the
-	// Sources list reads and how a person thinks of a stack (S8.2).
+	// Sources list reads and how a person thinks of a stack (S10.2).
 	it('reads top of the map first, at every depth', async () => {
 		const { container } = render(LayersPane, {
 			rows: [...rowsOf('osm'), { id: 'data/cases', ownId: 'cases', source: 'data', type: 'fill', hidden: null }],
@@ -138,7 +138,7 @@ describe('the eye', () => {
 
 	// The eye on the source's own row hides everything it draws and leaves it built - the Sources
 	// pane holds the switch that stops a build. Stored as the empty path, which is what the whole
-	// source is called in the tree (S8.1).
+	// source is called in the tree (S10.1).
 	it('hides a whole source from its own row, and shows it again from any row under it', async () => {
 		const closing = draw();
 		await fireEvent.click(screen.getByRole('button', { name: 'Hide osm' }));

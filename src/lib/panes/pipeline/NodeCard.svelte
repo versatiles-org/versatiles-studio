@@ -170,7 +170,7 @@
 		     The head node's switch is the graph's: a chain that reads nothing is not a chain, so
 		     switching it off is switching the graph off, and the row in the sources list is the same
 		     switch seen from the other end. A power glyph rather than an eye, because an eye means
-		     "painted" in the Layers pane and this means "run" (S8.6). -->
+		     "painted" in the Layers pane and this means "run" (S10.6). -->
 		<button
 			type="button"
 			class="switch"
@@ -182,7 +182,7 @@
 		>
 			<svg viewBox="0 0 16 16" aria-hidden="true">
 				<!-- A power symbol, not an eye: this stops the build, it does not hide the drawing. The
-					     eye lives in the Layers pane and means "painted" (S8.6). -->
+					     eye lives in the Layers pane and means "painted" (S10.6). -->
 				<path
 					d="M5.2 4.6a4.6 4.6 0 1 0 5.6 0"
 					fill="none"

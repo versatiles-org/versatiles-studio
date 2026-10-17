@@ -8,7 +8,7 @@
  * offering controls that do nothing. `controls.ts` can say what a slider's neutral is; only a render
  * can say whether the slider is on screen at all.
  *
- * **Prop-driven, so no backend is stubbed** (S8.8). The pane is handed the source's style and hands
+ * **Prop-driven, so no backend is stubbed** (S10.8). The pane is handed the source's style and hands
  * every write back through `actions`, the way the Layers and Sources panes already did - so what a
  * press *records* is a call this file can see, rather than a command a stub would have to answer.
  */

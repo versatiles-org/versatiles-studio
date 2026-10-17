@@ -15,7 +15,7 @@
 	// arranges them. A source became a thing the map draws *from* rather than a thing on the map, so
 	// the stack is the Layers pane's, which is the only place a source can be arranged in parts. The
 	// rows still arrive in the stack's order, top first, so the two panes read the same way down - but
-	// the order is not this pane's to explain or to change ([Q62], S8.2).
+	// the order is not this pane's to explain or to change ([Q62], S10.2).
 	let {
 		graphs = [],
 		current = null,

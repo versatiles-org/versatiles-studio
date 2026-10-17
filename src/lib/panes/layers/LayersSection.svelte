@@ -5,7 +5,7 @@
 	import { style } from '../../state/style.svelte';
 	import { workbench } from '../../state/workbench.svelte';
 
-	// The Layers pane, connected (S8.10).
+	// The Layers pane, connected (S10.10).
 	//
 	// **The wiring that used to be one arm of `App.svelte`**, and the one rule that belongs to this
 	// pane alone: how a move becomes an order.

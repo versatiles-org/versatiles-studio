@@ -514,3 +514,73 @@ of which the transform is a tenth of a second.
 [vt#260]: https://github.com/versatiles-org/versatiles-rs/issues/260
 [vt#261]: https://github.com/versatiles-org/versatiles-rs/issues/261
 [vt#262]: https://github.com/versatiles-org/versatiles-rs/issues/262
+
+---
+
+## Release 6 - the left pane says what it is about
+
+Release 5 moved meaning upstream. This one is about the four panes on the left, whose idea - one chain
+from data to pixels - was right, and whose seams were not: panes alternated scope without saying so,
+one thing had five names, three eyes meant two things, and two adjacent lists read in opposite
+directions. The second half turns the same eye on the Style pane, where what a source _is_ and how it
+is _drawn_ had grown together.
+
+---
+
+### S10 · The chain says what each link is about
+
+**What the code did before this stage.** Pipeline and Style edited the selected graph without naming
+it; the only cue was a highlighted row in a pane that may have been folded. Sources listed the stack
+top first and Layers bottom first. "Switch off" in Sources stopped a build while the eye in Layers hid
+a drawing, with one glyph for both, and the eye on a source's own row stored a path nothing read. The
+Style pane was the one component reading state modules and opening dialogs itself, and `App.svelte`
+held the wiring for all five panes.
+
+| Item       | Work                                                                     | Feature        |
+| ---------- | ------------------------------------------------------------------------ | -------------- |
+| **S10.1**  | ✓ The eye on a source's own row hides every layer it draws               | D3             |
+| **S10.2**  | ✓ The layer stack reads top of the map first, like the sources list      | D3             |
+| **S10.3**  | ✓ Pane header comments brought in line with Q50 and Q62                  | infrastructure |
+| **S10.4**  | ✓ Pane headers carry their scope: the graph's name, or "project"         | infrastructure |
+| **S10.5**  | ✓ One user-facing noun, source ([Q68](decisions.md))                     | infrastructure |
+| **S10.6**  | ✓ A power switch means "runs", an eye means "painted"; exports say what  | D3             |
+| **S10.7**  | ✓ A folded pane keeps its contents, so its tab, draft and filter survive | infrastructure |
+| **S10.8**  | ✓ The Style pane takes data and actions like the other three             | infrastructure |
+| **S10.9**  | ✓ One typed pane registry, checked against the core's catalogue          | infrastructure |
+| **S10.10** | ✓ Each pane's wiring leaves `App.svelte` for a Section beside it         | infrastructure |
+
+**S10.1 deviates from what was planned.** The eye was to route to the graph switch; but a switched-off
+graph has no rows in the tree, so that eye would have been one-way, and S10.6 makes a Layers eye mean
+"painted". The empty path means "every layer of this source" instead, and the graph stays built.
+
+### S11 · The kind picks the editor
+
+**What the code does before this stage.** Every unstyled source starts as the Colorful preset, in
+three copies of the same default. Over tiles that match no schema - the most common thing the pipeline
+produces - six preset buttons all fall back to the same derived style, and the recolour sliders change
+nothing, because the derived path applies overrides only. Satellite is offered as a preset for vector
+data and duplicates a background choice. "Read as" offers raster kinds to vector tiles. The five
+theme names are v5's, translated to v7's through a table.
+
+| Item      | Work                                                                        | Feature |
+| --------- | --------------------------------------------------------------------------- | ------- |
+| **S11.1** | Satellite leaves the Style pane; it is a background                         | D1      |
+| **S11.2** | "Vector · other" is the inspector style, and a kind rather than a preset    | D2      |
+| **S11.3** | The theme is the library's palette name, chosen from a dropdown it provides | D1      |
+| **S11.4** | "Read as" is narrowed by format; a schema that draws nothing offers the fix | D1      |
+| **S11.5** | The decision log and the UI concept say so                                  | docs    |
+
+**One rule: the kind picks the editor, and the theme is a choice inside one of them.** Shortbread,
+OpenMapTiles and Protomaps get a builder, a theme and the recolouring; "other" gets the inspector style
+and the layer tree; imagery gets the raster sliders; elevation gets the hillshade. The default
+appearance follows the kind reading, so a `from_csv` result opens on the inspector style with nothing to
+explain.
+
+**S11.2 before S11.3**, because the inspector appearance is what the `derived` preset becomes, and
+the theme change wants a preset list that is only themes. **S11.1 first** because it is a deletion
+and shrinks everything after it.
+
+### What breaks, and where it is caught
+
+**`bindings_are_up_to_date` is the tripwire for S11.1 to S11.3**, each of which moves the recipe's
+types. **`registry.test.ts`** is S10.9's: the webview's pane list against the core's.

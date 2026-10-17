@@ -45,14 +45,14 @@ True everywhere. These matter more than the arrangement.
 - **Sections collapse independently and remember it.** Load-bearing, not polish: the left pane
   carries the pipeline, the style, the layer tree and export options at once, and a 13-inch laptop
   is the machine to protect ([Q22](decisions.md)). A folded section keeps what it held - the tab, a
-  draft, a filter - because it is hidden rather than removed (S8.7).
+  draft, a filter - because it is hidden rather than removed (S10.7).
 - **Two switches, two glyphs.** A power symbol, in Sources and on a node, means _this runs_: off, it
   is not built ([Q49](decisions.md)). An eye, in Layers, means _this is painted_: off, the source is
   still built and its rows stay in the tree. Each export says what it writes - tiles in Pipeline, the
-  map's style in Style (S8.6).
+  map's style in Style (S10.6).
 - **Every pane header says what the pane is about.** The chain alternates scope - Sources and Layers
   span the project, Pipeline, Style and the Inspector follow the selected graph - so the header
-  carries either the word _project_ or the graph's name, and keeps carrying it while folded (S8.4).
+  carries either the word _project_ or the graph's name, and keeps carrying it while folded (S10.4).
 - **Undo is global** ([Q11](decisions.md) → G6).
 - **Jobs are never modal**, and the job bar expands into a drawer with a per-job log. A conversion
   that fails at minute 40 has to say why; a failed job stays until dismissed.

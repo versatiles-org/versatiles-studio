@@ -40,7 +40,7 @@
 	// and the adjustments that apply to every colour in it at once (D1). The layers themselves are
 	// the Layers pane's ([Q62]); the export at the foot writes the whole map, and says so.
 	//
-	// **Data in, actions out** (S8.8). Like the other three panes, this takes the focused source's
+	// **Data in, actions out** (S10.8). Like the other three panes, this takes the focused source's
 	// style as a prop and hands every write back through `actions` - it reads no state module and
 	// opens no dialog, so it renders in a test without a backend and reads the same way as its
 	// neighbours. The state module behind `actions` is `state/style.svelte.ts`; the dialogs and the
@@ -428,7 +428,7 @@
 
 		<!-- The one control here that is not about the selected source: a `style.json` is the map,
 		     every drawn source in the Layers pane's order. The Pipeline pane's export writes tiles, so
-		     both say what they write (S8.6). -->
+		     both say what they write (S10.6). -->
 		<h2 class="section-label">Export map style</h2>
 		<p class="note">The whole map: every source that is drawn, in the order the Layers pane shows.</p>
 		<div class="exports">

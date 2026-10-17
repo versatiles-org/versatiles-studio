@@ -6,7 +6,7 @@
 	import { workbench } from '../../state/workbench.svelte';
 	import { fieldSuggestions, vplRemoveProperty, vplSetProperty, vplSetValue } from '../../ipc/commands';
 
-	// The Pipeline pane, connected (S8.10).
+	// The Pipeline pane, connected (S10.10).
 	//
 	// **The wiring that used to be one arm of `App.svelte`**, plus the two things only this pane asks
 	// for: what each node's fields could be set to, and which property names the pipeline produces.
