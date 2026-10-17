@@ -178,6 +178,18 @@
 					<!-- A long list scrolls in its own panel, so the drawing and the tabs stay where they are. -->
 					<div class="contents">
 						<Tabs items={tabs} selected={tab} onSelect={(id) => (tab = id)} label="What the tile holds" />
+						{#if tab === 'attributes'}
+							<Field label="Layer">
+								<select
+									value={focus ?? 0}
+									onchange={(event) => (focus = Number((event.currentTarget as HTMLSelectElement).value))}
+								>
+									{#each dissection.layers as layer, i (layer.name)}
+										<option value={i}>{layer.name}</option>
+									{/each}
+								</select>
+							</Field>
+						{/if}
 						<div class="panel">
 							{#if tab === 'layers'}
 								<table class="figures" aria-label="Layers">
@@ -206,40 +218,7 @@
 										{/each}
 									</tbody>
 								</table>
-								{#if focus !== null && dissection.layers[focus]}
-									{@const layer = dissection.layers[focus]}
-									<dl class="facts" aria-label="Where {layer.name}'s bytes go">
-										<dt>Geometry</dt>
-										<dd>{kilobytes(layer.geometryBytes)}</dd>
-										<dt>Tags</dt>
-										<dd>{kilobytes(layer.tagBytes)}</dd>
-										<dt>Keys</dt>
-										<dd>{kilobytes(layer.keyBytes)}</dd>
-										<dt>Values</dt>
-										<dd>{kilobytes(layer.valueBytes)}</dd>
-										<dt>Ids</dt>
-										<dd>{kilobytes(layer.idBytes)}</dd>
-										<dt>Other</dt>
-										<dd>{kilobytes(layer.otherBytes)}</dd>
-										<dt>Extent</dt>
-										<dd>{layer.extent ?? 'missing'}</dd>
-										<dt>Version</dt>
-										<dd>{layer.version ?? 'missing'}</dd>
-									</dl>
-								{:else}
-									<Note>Pick a layer to see where its bytes go, and to draw it alone.</Note>
-								{/if}
 							{:else if tab === 'attributes'}
-								<Field label="Layer">
-									<select
-										value={focus ?? 0}
-										onchange={(event) => (focus = Number((event.currentTarget as HTMLSelectElement).value))}
-									>
-										{#each dissection.layers as layer, i (layer.name)}
-											<option value={i}>{layer.name}</option>
-										{/each}
-									</select>
-								</Field>
 								{#if attributesOf && attributesOf.attributes.length > 0}
 									<table class="figures" aria-label="Attributes">
 										<thead>
@@ -294,15 +273,6 @@
 								{#if listed.length > ROWS}
 									<Note>The first {ROWS} of {count(listed.length)}. Pick a layer, or a feature in the drawing.</Note>
 								{/if}
-								{#if picked}
-									<dl class="facts" aria-label="The picked feature">
-										<dt>Id</dt>
-										<dd>{picked.id ?? 'none'}</dd>
-										<dt>Parts</dt>
-										<dd>{picked.parts.length}{picked.malformed ? ', then the geometry stops making sense' : ''}</dd>
-									</dl>
-									<JsonTree value={picked.properties} name="properties" open />
-								{/if}
 							{:else if dissection.issues.length === 0}
 								<Note tone="empty">Every layer and feature follows the vector tile spec.</Note>
 							{:else}
@@ -329,16 +299,60 @@
 										{/each}
 									</tbody>
 								</table>
-								{#if dissection.repair}
-									<Note tone="aside">
-										A repair would leave {kilobytes(dissection.repair.rawBytes)} decompressed, and {dissection.repair
-											.issuesLeft === 0
-											? 'no issues'
-											: `${dissection.repair.issuesLeft} issues it cannot fix`}.
-									</Note>
-								{/if}
 							{/if}
 						</div>
+						<!-- What was picked, pinned under the list rather than after it, so it is in view however
+						     long the list is and the list does not move when it appears. -->
+						{#if tab === 'layers'}
+							<div class="detail">
+								{#if focus !== null && dissection.layers[focus]}
+									{@const layer = dissection.layers[focus]}
+									<dl class="facts" aria-label="Where {layer.name}'s bytes go">
+										<dt>Geometry</dt>
+										<dd>{kilobytes(layer.geometryBytes)}</dd>
+										<dt>Tags</dt>
+										<dd>{kilobytes(layer.tagBytes)}</dd>
+										<dt>Keys</dt>
+										<dd>{kilobytes(layer.keyBytes)}</dd>
+										<dt>Values</dt>
+										<dd>{kilobytes(layer.valueBytes)}</dd>
+										<dt>Ids</dt>
+										<dd>{kilobytes(layer.idBytes)}</dd>
+										<dt>Other</dt>
+										<dd>{kilobytes(layer.otherBytes)}</dd>
+										<dt>Extent</dt>
+										<dd>{layer.extent ?? 'missing'}</dd>
+										<dt>Version</dt>
+										<dd>{layer.version ?? 'missing'}</dd>
+									</dl>
+								{:else}
+									<Note>Pick a layer to see where its bytes go, and to draw it alone.</Note>
+								{/if}
+							</div>
+						{:else if tab === 'features'}
+							<div class="detail">
+								{#if picked}
+									<dl class="facts" aria-label="The picked feature">
+										<dt>Id</dt>
+										<dd>{picked.id ?? 'none'}</dd>
+										<dt>Parts</dt>
+										<dd>{picked.parts.length}{picked.malformed ? ', then the geometry stops making sense' : ''}</dd>
+									</dl>
+									<JsonTree value={picked.properties} name="properties" open />
+								{:else}
+									<Note>Pick a feature, here or in the drawing, to see its properties.</Note>
+								{/if}
+							</div>
+						{:else if tab === 'issues' && dissection.repair}
+							<div class="detail">
+								<Note tone="aside">
+									A repair would leave {kilobytes(dissection.repair.rawBytes)} decompressed, and {dissection.repair
+										.issuesLeft === 0
+										? 'no issues'
+										: `${dissection.repair.issuesLeft} issues it cannot fix`}.
+								</Note>
+							</div>
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -447,6 +461,15 @@
 		flex: 1 1 auto;
 		min-height: 0;
 		overflow-y: auto;
+	}
+
+	/* Pinned under the list: at most half the column, and its own scroller past that. */
+	.detail {
+		flex: none;
+		max-height: 50%;
+		overflow-y: auto;
+		padding-top: var(--space-3);
+		border-top: 1px solid var(--rule);
 	}
 
 	.focused th {
