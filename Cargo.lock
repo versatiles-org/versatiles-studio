@@ -457,6 +457,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce2b2dcc879c3bae0d371e77c99f2238400ef24ec001394befa67b6e543add9e"
 dependencies = [
  "aws-lc-sys",
+ "untrusted 0.7.1",
  "zeroize",
 ]
 
@@ -5486,7 +5487,7 @@ dependencies = [
  "cfg-if",
  "getrandom 0.2.17",
  "libc",
- "untrusted",
+ "untrusted 0.9.0",
  "windows-sys 0.52.0",
 ]
 
@@ -5564,11 +5565,12 @@ dependencies = [
 
 [[package]]
 name = "russh"
-version = "0.63.3"
+version = "0.64.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "036204edbd199552a5b3832f63c60dcdf395dc44c7f06b4af1c0e8139cc11bce"
+checksum = "ba61e87b9ec9a39a59a6bbed4c0b8ff7fb07073405b24a767a1f2c8560ac8f58"
 dependencies = [
  "aes",
+ "aws-lc-rs",
  "bitflags 2.13.1",
  "block-padding",
  "byteorder",
@@ -5611,7 +5613,6 @@ dependencies = [
  "polyval",
  "rand 0.10.2",
  "rand_core 0.10.1",
- "ring",
  "rsa",
  "russh-cryptovec",
  "russh-util",
@@ -5778,7 +5779,7 @@ dependencies = [
  "aws-lc-rs",
  "ring",
  "rustls-pki-types",
- "untrusted",
+ "untrusted 0.9.0",
 ]
 
 [[package]]
@@ -7377,9 +7378,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.53.1"
+version = "1.53.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "202caea871b69668250d242070849eb495be178ed697a3e98aebce5bc81a0bed"
+checksum = "ce3335fa71841cda333a58d7615b03901380ecf09d59b3296d21f8bbac0dde4e"
 dependencies = [
  "bytes",
  "libc",
@@ -7737,6 +7738,12 @@ checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "untrusted"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a156c684c91ea7d62626509bce3cb4e1d9ed5c4d978f7b4352658f96a4c26b4a"
+
+[[package]]
+name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
@@ -7804,9 +7811,9 @@ checksum = "accd4ea62f7bb7a82fe23066fb0957d48ef677f6eeb8215f372f52e48bb32426"
 
 [[package]]
 name = "versatiles"
-version = "4.15.0"
+version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bbf21797265846222e161158cdec7e6bc78f72372863c167b928dbb53a56ff25"
+checksum = "4d2e85f42d5f6e70775e478c2a98b0163662f0feca11a1d264f473ec557b8a54"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -7832,6 +7839,7 @@ dependencies = [
  "versatiles_geometry",
  "versatiles_image",
  "versatiles_pipeline",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -7858,9 +7866,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_container"
-version = "4.15.0"
+version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6d227c1a4ed560ecfc3e2297525ac23ef39d18e736d8a2fe44b88a05dbb972e"
+checksum = "5d4a6b7ac1e81d3a2cccd3af403ea95099089b40f6314680b01b278b0f620e9e"
 dependencies = [
  "anyhow",
  "arc-swap",
@@ -7892,9 +7900,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_core"
-version = "4.15.0"
+version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "753fafc2d4b9d2a890abce9be316676d10e9e0ba56f8861b8cb0c0151ed0e314"
+checksum = "b019d9db49687b52090d255b1be5099ee50329cfdc6649ada38792a5dcd92522"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -7923,9 +7931,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_derive"
-version = "4.15.0"
+version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb8e2fc3206df64f025a5a40c568fcdf69fd3ffe07ae6e967226ee2cd8b23385"
+checksum = "6420d093ca5dd583653c18ed1bff59c8822efc85df758a62429f942f9c49da8e"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7934,9 +7942,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_geometry"
-version = "4.15.0"
+version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4d71786c8ab3ff28f886e9a3590d05f431e5e36f350025ef4f45058bbdbc589"
+checksum = "f21c8f9a46493bba4f0a8cf4c5296df90c1103d6ce20884002a164a87329669e"
 dependencies = [
  "anyhow",
  "byteorder",
@@ -7956,9 +7964,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_image"
-version = "4.15.0"
+version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "29cce73ec8a4b5cf23564a486cfb2ffb5baadca1f015d75cb61feb75ef68bd2f"
+checksum = "301444ed1cf4da3f2c4796ae20df436341a52974f5c883aa6bd041ca495afb80"
 dependencies = [
  "anyhow",
  "fast_image_resize",
@@ -7971,9 +7979,9 @@ dependencies = [
 
 [[package]]
 name = "versatiles_pipeline"
-version = "4.15.0"
+version = "5.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb9b8c66090bf4980cc572c303bc8cb09dc1b63df0cc56968937a7ead81c71a5"
+checksum = "d626b062b2057758fc2a554739d315e8adf55d732e7f6e0da0ef6487c6809ed8"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -8808,6 +8816,12 @@ dependencies = [
  "libc",
  "rustix",
 ]
+
+[[package]]
+name = "xxhash-rust"
+version = "0.8.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "550a2b930b62486a393c52d5c3b84bff264b28aa437ed64694d31e93b1757af7"
 
 [[package]]
 name = "y4m"

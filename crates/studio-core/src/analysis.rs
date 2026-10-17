@@ -95,7 +95,7 @@ pub async fn describe(reader: &SharedTileSource, label: &str) -> Result<Containe
 		tile_compression: metadata.tile_compression().to_string(),
 		min_zoom: pyramid.level_min().unwrap_or(0),
 		max_zoom: pyramid.level_max().unwrap_or(0),
-		bbox: pyramid.geo_bbox().map(|b| b.as_array()),
+		bbox: extent(&pyramid),
 		tile_schema: reader.tilejson().tile_schema.map(|schema| schema.to_string()),
 		// versatiles has its own JSON value type; round-tripping through the wire format is the
 		// cheapest honest conversion, and this runs once per open, not per tile.
@@ -103,10 +103,33 @@ pub async fn describe(reader: &SharedTileSource, label: &str) -> Result<Containe
 	})
 }
 
+/// Where a pyramid's tiles are, over every level.
+///
+/// **Not `geo_bbox`**, which is the deepest level alone: `satellite.versatiles` has the world up to
+/// zoom 12 and Guadeloupe at 18 and 19, and was framed - and bounded in MapLibre, so nothing else
+/// was ever requested - as Guadeloupe. `geo_extent` grows the deepest level's box by any lower level
+/// with tiles outside it, and leaves it alone for a city whose zoom 0 is one world-sized tile.
+fn extent(pyramid: &versatiles_core::TilePyramid) -> Option<[f64; 4]> {
+	pyramid.geo_extent().map(|b| b.as_array())
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
 	use super::*;
 	use std::path::PathBuf;
+
+	/// The world at the low levels, an island at the deepest: the extent is the world.
+	#[test]
+	fn the_extent_counts_every_level_not_only_the_deepest() {
+		let mut pyramid = versatiles_core::TilePyramid::new_full_up_to(8);
+		let island = versatiles_core::TileBBox::from_min_and_max(19, 172_298, 237_767, 173_288, 238_790).unwrap();
+		pyramid.insert_bbox(&island).unwrap();
+		let [west, south, east, north] = extent(&pyramid).unwrap();
+		assert!(
+			west < -179.0 && east > 179.0 && south < -85.0 && north > 85.0,
+			"{west} {south} {east} {north}"
+		);
+	}
 
 	/// Where the sample containers live.
 	///

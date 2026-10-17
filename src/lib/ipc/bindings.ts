@@ -1029,8 +1029,8 @@ export type Control = { kind: "text" } |
  *  **Decided by type, which it was not always.** Every one of these used to be `String`
  *  upstream - VPL stores a path as text and so does everything downstream of it - so Studio
  *  picked them out by parameter *name*, the one control it decided that way. [vt#260] gave them
- *  types (`FilePath`, `SourceLocation`, and the two that refuse a wrong extension outright,
- *  `GeoDataPath` and `TileFilePath`), and the name list went with the guess.
+ *  types (`FilePath`, `FileLocation`, `ContainerLocation`, and the two that refuse a wrong extension
+ *  outright, `GeoDataLocation` and `TileFileLocation`), and the name list went with the guess.
  * 
  *  Which files the picker offers is [`FieldInfo::accepts`], stated per argument rather than
  *  inferred from the node.

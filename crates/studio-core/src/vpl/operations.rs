@@ -48,8 +48,8 @@ pub enum Control {
 	/// **Decided by type, which it was not always.** Every one of these used to be `String`
 	/// upstream - VPL stores a path as text and so does everything downstream of it - so Studio
 	/// picked them out by parameter *name*, the one control it decided that way. [vt#260] gave them
-	/// types (`FilePath`, `SourceLocation`, and the two that refuse a wrong extension outright,
-	/// `GeoDataPath` and `TileFilePath`), and the name list went with the guess.
+	/// types (`FilePath`, `FileLocation`, `ContainerLocation`, and the two that refuse a wrong extension
+	/// outright, `GeoDataLocation` and `TileFileLocation`), and the name list went with the guess.
 	///
 	/// Which files the picker offers is [`FieldInfo::accepts`], stated per argument rather than
 	/// inferred from the node.
@@ -172,10 +172,15 @@ fn control_for(field: &VPLFieldMeta) -> Control {
 		"GeoBBox" => return Control::Bbox,
 		"HexColor" => return Control::Color { hex: true },
 		"SeparatorChar" | "CsvDelimiter" => return Control::Char,
-		// `GeoDataPath` and `TileFilePath` are paths that refuse the wrong extension rather than
+		// `GeoDataLocation` and `TileFileLocation` are paths that refuse the wrong extension rather than
 		// merely suggesting one - which is `accepts` saying `Only` rather than `Suggested`, not a
 		// different control.
-		"FilePath" | "SourceLocation" | "GeoDataPath" | "TileFilePath" => return Control::Path,
+		//
+		// 5.x renamed the ones that also take a URL to `…Location`; a picker is still the way to name
+		// a local one, and the box beside it still takes the URL.
+		"FilePath" | "FileLocation" | "ContainerLocation" | "GeoDataLocation" | "TileFileLocation" => {
+			return Control::Path;
+		}
 		// `[lon, lat, zoom]`, which was `[f64;3]` until #260 named it. Three numbers is what it was
 		// offered as then and what it is offered as now; a point picked off the map would be better,
 		// and is a feature rather than a way of reading metadata.
