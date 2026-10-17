@@ -500,6 +500,17 @@ source**, because the pane title already had it and it names what the thing is _
 from it. The code keeps `graph`, which names what the thing _is_ and is in every command; renaming it
 would touch the core for no gain. The [glossary](ui.md#one-thing-five-names) is where the two meet.
 
+### Q70 - Two levels of heading, and a kit between the tokens and the panes
+
+The tokens stopped raw values and did not stop a note being spelled five ways, or a label column being
+two widths. **A kit of ten parts**, written once in `lib/common/` and `base.css`, is the layer the
+styling rules were missing, and a test refuses a pane that spells a part by hand - the same mechanism
+as the token test, one level up. **Two levels of heading**: the pane title, uppercase, in the header;
+a group heading, sentence case, inside. A third level was considered for the Style pane's seven
+headings and refused - a field has a label, not a heading. Amends
+[Q18](#q18---svelte-components-are-written-from-scratch) only in where the components live: still
+written here, now shared.
+
 ## Dependencies and packaging
 
 ### Q8 - Release early under v0.x

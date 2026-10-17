@@ -105,6 +105,41 @@ Four, each applying to elements that have nothing else in common - which is why 
 
 This is not a utility framework and should not become one. If a rule is true of one surface, it lives in that surface's `<style>` block.
 
+## The kit
+
+The layer between the tokens and the panes ([S12](history.md), [Q70](decisions.md)). The tokens
+stopped raw values; they did not stop the same _part_ being spelled five ways - a note under a
+control was `note`, `hint`, `empty`, `nothing` and `none` in five panes, each with its own scoped
+rule. The kit is the ten parts a pane is made of, each written once, and a test (`kit.test.ts`) that
+fails when a pane spells one of them by hand.
+
+**Two levels of heading, and no third.** A pane's title is the uppercase `.section-label` in its
+header, and that is the only uppercase label in the sidebars. Inside a pane, a group of controls has a
+`Group` heading: sentence case, `--text-sm`, weight 600, with an optional action beside it. Nothing
+below that carries a heading - a field has a label, a note has a tone.
+
+**One density.** Labels and counts are `--text-xs`; body text in a pane is `--text-sm`. A label column
+is `--label-width` wide wherever a label sits beside a control, so the controls of every pane line up.
+Parts of one group sit `--gap-group` apart, groups `--gap-section` apart - the two rhythm tokens, and
+no other vertical spacing inside a pane body.
+
+| Part         | Is                                                                                                                                                                                                 | Not for                                |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `.pane-body` | The column a pane's groups stack in: full height, scrolls, `--gap-section` between groups                                                                                                          | Anything outside a pane                |
+| `Group`      | A heading in sentence case, an optional action (reset, clear), and what it groups                                                                                                                  | A pane title - that is the header's    |
+| `Field`      | A label beside a control, the label `--label-width` wide; an optional trailing part for an amount or a clear                                                                                       | A list row                             |
+| `Note`       | A line of secondary text with a tone: `hint` under a control, `empty` where a pane has nothing yet, `aside` for something the map is doing that the person did not ask for, `problem` for an error | Headings, labels, button text          |
+| `.toolbar`   | A row of buttons that act on the group above it                                                                                                                                                    | A row of controls that is a list entry |
+| `.list-row`  | A row in a list or tree: controls and a name, one line, `--text-xs`                                                                                                                                | A form row - that is a `Field`         |
+| `.button`    | A button drawn as a button; `.primary` commits, `.quiet` is accent text with no box for reset, clear, undo                                                                                         | Icon glyphs                            |
+| `.icon`      | A glyph button: ×, ✎, ↑, ↓, ↺, ▸ - secondary ink, `--text-xs`, no box; `.danger` reddens on hover                                                                                                  | Anything with a word in it             |
+| `.chevron`   | The rotating ▸ of a disclosure; `.open` turns it                                                                                                                                                   | A fold that is not a disclosure        |
+| `.truncate`  | One line, clipped (already a shared class)                                                                                                                                                         |                                        |
+
+A pane may still have a scoped `<style>` for what is true of it alone - a tree's indent, the pipe
+between nodes, a swatch. What it may not do is restyle a part: a `Note` that is a different grey in
+one pane is the drift this stops.
+
 ## Two layout rules worth knowing
 
 **Panes that scroll set `overscroll-behavior: contain`.** `base.css` stops the window itself rubber-banding; without `contain`, reaching the end of a scrollable pane chains the scroll back up to the document and starts it bouncing anyway.

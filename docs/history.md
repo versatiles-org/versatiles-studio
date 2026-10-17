@@ -590,3 +590,37 @@ own palettes with a dark partner, and that every lookalike has a word for what i
 **All of S11 has landed.** The e2e specs that pressed a preset button now read the debug fixture's
 tiles as Shortbread first, since tiles of no schema have no theme to press, and then choose a theme
 from the dropdown by the library's name.
+
+### S12 · The kit
+
+**What the code does before this stage.** The tokens stop raw values, and nothing stops the same part
+being written five ways: a note under a control is `note`, `hint`, `empty`, `nothing` or `none`
+depending on the pane; a quiet text button is `reset`, `clear`, `edit`, `step` or `nudge`; a label
+beside a control is 5.5rem wide in the Style pane and 6.5rem in a node card; the pane title and the
+headings inside a pane wear the same uppercase label, so the one level of hierarchy a reader needs is
+the one the styling does not draw. Twelve components carry more than a hundred lines of scoped CSS
+each, every one written well, in isolation.
+
+| Item      | Work                                                      | Feature        |
+| --------- | --------------------------------------------------------- | -------------- |
+| **S12.1** | The kit as a spec, and the two decisions it rests on      | docs           |
+| **S12.2** | The parts: `Group`, `Field`, `Note`, and the base classes | infrastructure |
+| **S12.3** | Sources on the kit                                        | infrastructure |
+| **S12.4** | Pipeline on the kit: the pane, the crop, the node cards   | infrastructure |
+| **S12.5** | Style on the kit                                          | infrastructure |
+| **S12.6** | Layers on the kit                                         | infrastructure |
+| **S12.7** | Inspector on the kit                                      | infrastructure |
+| **S12.8** | `kit.test.ts`: a pane that spells a part by hand fails    | infrastructure |
+
+**Two decisions, made here rather than pane by pane** ([Q70](decisions.md)). _Hierarchy_: two levels
+
+- the pane title, uppercase, in the header; a group heading, sentence case, inside - and no third.
+  _Density_: one label width, two rhythm tokens, `--text-xs` for labels and `--text-sm` for body text.
+  The spec is [the kit](styling.md#the-kit).
+
+**Smallest pane first, Style last.** Each migration deletes the scoped CSS it replaces and must leave
+every test and the e2e selectors (`ul.graphs li.current`, `button.name`, `button.label`) where they
+are. The enforcement test lands last, when nothing it would catch remains.
+
+**Not in this stage:** the dialogs, the map's controls and the launcher. They share the tokens and
+`.button` already; they get the kit once the panes have proven it.
