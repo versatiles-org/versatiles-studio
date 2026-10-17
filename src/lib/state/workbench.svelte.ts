@@ -65,7 +65,7 @@ import { style as recipe } from './style.svelte';
  *
  * **`new` puts it beside what is open**, which is what a door in the Sources pane means - that list
  * adds sources, and one that quietly overwrote the selected graph would be the same gesture as
- * `+ new graph…` doing the opposite of its label. A window with nothing open cannot tell the two
+ * `+ new source…` doing the opposite of its label. A window with nothing open cannot tell the two
  * apart, and does not have to.
  */
 export type Into = 'current' | 'new';
@@ -245,7 +245,7 @@ export const workbench = {
 	 * Starts a graph on a read node, with nothing filled in yet.
 	 *
 	 * **`addGraph` rather than `setText`**, which writes into the graph on screen whenever there is
-	 * one - the door says "new graph", so it makes one whether or not something is open.
+	 * one - the door says "new source", so it makes one whether or not something is open.
 	 *
 	 * It arrives incomplete on purpose. `from_container` with no `filename` is a node whose form says
 	 * what is missing and whose path field has a picker beside it (C2, C4).

@@ -59,6 +59,17 @@ describe('component organisation', () => {
 	///
 	/// The other half of the rule above: that one stops a component appearing in a folder nobody
 	/// documented, and this stops the folder list here drifting from the document it points at.
+	/// One user-facing noun ([Q68](../../docs/decisions.md)): a person reads "source", and the code
+	/// says "graph". The word the panes used to put on the button that adds one is the string most
+	/// likely to come back by habit, so it is the one checked.
+	it('never calls a source a graph where a person reads it', () => {
+		const offenders = components('src')
+			.filter(([, path]) => path.startsWith('src/lib/panes/'))
+			.filter(([, path]) => /new graph|No graphs/.test(readFileSync(path, 'utf8')))
+			.map(([, path]) => path);
+		expect(offenders, 'say "source" - see Q68').toEqual([]);
+	});
+
 	it('names the panes the inventory documents', () => {
 		// Relative, like `components('src')` above: both run from the repository root.
 		const inventory = readFileSync('docs/components.md', 'utf8');

@@ -244,10 +244,13 @@ describe('documentation size', () => {
 		// Raised for Q66, which retires Q53, Q56 and Q57 - three decisions about reading a table that
 		// no longer exists. The entry has to outlive the mechanism it replaced, since the three it
 		// supersedes stay where they are and a reader arriving at them needs to be sent somewhere.
-		'docs/decisions.md': 5250,
+		// Raised for Q68, the user-facing noun - the entry has to name both words and send a reader to the
+		// glossary that joins them.
+		'docs/decisions.md': 5350,
 		'docs/history.md': 5300,
 		'docs/features.md': 2700,
-		'docs/ui.md': 2350,
+		// Raised for the glossary: one thing, five names, and where each is used.
+		'docs/ui.md': 2550,
 		'docs/layers.md': 2300,
 		'docs/ecosystem.md': 2000,
 		// Raised for the second principle. The first had been the only one written down, and the

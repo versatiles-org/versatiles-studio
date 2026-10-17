@@ -243,7 +243,7 @@
 			<p class="error" role="alert">{draftError.message}</p>
 			<p class="empty">The graph returns when the text parses.</p>
 		{:else if !pipeline || pipeline.pipeline.nodes.length === 0}
-			<p class="empty">Nothing open yet.</p>
+			<p class="empty">No source selected.</p>
 		{:else}
 			<NodeChain
 				pipeline={pipeline.pipeline}

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 /**
- * What "+ new graph…" offers ([Q50]), and that it offers it in a popup ([Q58]).
+ * What "+ new source…" offers ([Q50]), and that it offers it in a popup ([Q58]).
  *
  * **Three doors, and a test that counts them.** This was one card per import kind, and the way that
  * went wrong was not a broken card - it was the operations no card named. Only a count catches a
@@ -42,7 +42,7 @@ function open(extra: { addNode: () => void; openSource: () => void; openPipeline
 			...extra
 		}
 	});
-	screen.getByText('+ new graph…').click();
+	screen.getByText('+ new source…').click();
 }
 
 beforeEach(() => {
@@ -114,7 +114,7 @@ describe('starting a graph', () => {
 		});
 
 		expect(screen.queryByText('From VPL node…')).toBeNull();
-		expect(screen.getByText('+ new graph…')).toBeTruthy();
+		expect(screen.getByText('+ new source…')).toBeTruthy();
 	});
 
 	// Every operation a chain can begin with, including the three that open no file and so had no
@@ -168,8 +168,8 @@ describe('starting a graph', () => {
 		open(actions());
 		(await screen.findByText('From VPL node…')).click();
 
-		screen.getByText('+ new graph…').click();
-		screen.getByText('+ new graph…').click();
+		screen.getByText('+ new source…').click();
+		screen.getByText('+ new source…').click();
 
 		expect(await screen.findByText('From VPL node…')).toBeTruthy();
 	});

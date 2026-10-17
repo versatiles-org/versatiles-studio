@@ -26,7 +26,7 @@
 		graphs?: GraphInfo[];
 		/** The graph being edited, whose chain the Pipeline pane shows. */
 		current?: number | null;
-		/** Every known operation, for the `from_*` a new graph starts on. */
+		/** Every known operation, for the `from_*` a new source starts on. */
 		operations?: OperationInfo[];
 		actions: {
 			select: (id: number) => void;
@@ -86,7 +86,7 @@
 		{
 			id: 'node',
 			label: 'From VPL node…',
-			description: 'Start a graph on a read operation',
+			description: 'Start a source on a read operation',
 			disabled: reads.length === 0
 		},
 		{ id: 'file', label: 'From VPL file…', description: 'Open a pipeline that already exists' }
@@ -129,7 +129,7 @@
 			     below them down, so the choices moved while you read them and sat in the flow of the
 			     list they had appeared under. A popup covers rather than displaces ([Q58]). -->
 			<Menu
-				label="+ new graph…"
+				label="+ new source…"
 				title="Add a source to this project"
 				{items}
 				onPick={pick}

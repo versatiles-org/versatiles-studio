@@ -462,7 +462,7 @@ took it to the pane that can arrange a source in parts.
 
 A window with no graphs hid both sidebars and every map control. The intent was
 [Q48](#q48---a-window-is-a-project)'s - quiet, not a launcher -
-but it took the way in with it: `+ new graph…` lives in the Sources pane, which was hidden for exactly
+but it took the way in with it: `+ new source…` lives in the Sources pane, which was hidden for exactly
 as long as there were no sources. The cost is three empty states nobody had drawn.
 
 ### Q58 - A popup covers, never displaces
@@ -478,6 +478,14 @@ The core's errors arrive as `anyhow` context stacks joined with `": "`, so a bar
 characters showed the layers every failure has in common and cut off the one that differs. It shows the
 last layer now, with the whole of it in the `title`. **Three layers, not two**: `no such file: /path` is
 one sentence naming a thing.
+
+### Q68 - A person reads "source"; the code says "graph"
+
+The pane was called Sources and the button that filled it said "+ new graph…", so the same thing had
+two names a hand's width apart - and a third, pipeline, in the pane below. **One user-facing noun,
+source**, because the pane title already had it and it names what the thing is _for_: the map draws
+from it. The code keeps `graph`, which names what the thing _is_ and is in every command; renaming it
+would touch the core for no gain. The [glossary](ui.md#one-thing-five-names) is where the two meet.
 
 ## Dependencies and packaging
 
