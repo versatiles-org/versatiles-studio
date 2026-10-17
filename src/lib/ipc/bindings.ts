@@ -186,19 +186,6 @@ export const commands = {
 	/**  Drops one entry - for a path that has gone away, or that the user wants gone. */
 	forgetRecent: (source: string) => typedError<null, string>(__TAURI_INVOKE("forget_recent", { source })),
 	/**
-	 *  Decodes one tile of an open container, layer by layer (A4).
-	 * 
-	 *  Takes the source string rather than the mount name so the webview never has to track both.
-	 */
-	inspectTile: (source: string, z: number, x: number, y: number) => typedError<{
-	z: number,
-	x: number,
-	y: number,
-	/**  Bytes as stored in the container, before decompression. */
-	storedBytes: number,
-	layers: LayerInspection[],
-} | null, string>(__TAURI_INVOKE("inspect_tile", { source, z, x, y })),
-	/**
 	 *  Walks every tile size of a graph's output (S14.1, B1).
 	 * 
 	 *  **A job, and a queued one.** A walk over a large container is seconds of disk, and the job bar is
@@ -246,6 +233,23 @@ export const commands = {
 	/**  What `vector_repair` would make of it, when there is anything to repair. */
 	repair: RepairPreview | null,
 } | null, string>(__TAURI_INVOKE("dissect_tile", { graph, z, x, y })),
+	/**
+	 *  The drawn tile at `z/x/y` in brief, for the map's popup (S14.6, A8) - `None` where it has none.
+	 * 
+	 *  Read from the source the map draws, like [`dissect_tile`], so the popup and the map agree - and
+	 *  nothing is opened per click.
+	 */
+	summariseTile: (graph: number, z: number, x: number, y: number) => typedError<{
+	z: number,
+	x: number,
+	y: number,
+	/**  Bytes as stored, which is what crosses the wire. */
+	storedBytes: number,
+	/**  Bytes decompressed - the same as stored for a tile that is not compressed. */
+	rawBytes: number,
+	/**  Its layers, the heaviest first; none for a raster tile. */
+	layers: LayerSummary[],
+} | null, string>(__TAURI_INVOKE("summarise_tile", { graph, z, x, y })),
 	listViews: () => typedError<View[], string>(__TAURI_INVOKE("list_views")),
 	/**  Saves a view, replacing any of the same name. */
 	saveView: (view: View) => typedError<null, string>(__TAURI_INVOKE("save_view", { view })),
@@ -1616,6 +1620,14 @@ export type LayerOverride_Serialize = {
 	filter?: any | null,
 };
 
+/**  One layer of a [`TileSummary`]. */
+export type LayerSummary = {
+	name: string,
+	features: number,
+	/**  The layer's encoded size, uncompressed. */
+	bytes: number,
+};
+
 /**
  *  Which left-pane sections are open, and how wide the pane is (Q22).
  * 
@@ -2420,22 +2432,30 @@ export type Str = {
 	span: Span,
 };
 
-/**  A decoded tile, layer by layer (A4). */
-export type TileInspection = {
-	z: number,
-	x: number,
-	y: number,
-	/**  Bytes as stored in the container, before decompression. */
-	storedBytes: number,
-	layers: LayerInspection[],
-};
-
 /**  A spec violation in this tile. */
 export type TileIssue = {
 	layer: string,
 	/**  The feature it is about, by position in its layer; `None` for a layer-wide one. */
 	feature: number | null,
 	kind: string,
+};
+
+/**
+ *  One tile in brief: what the map's popup says about the tile under a click (S14.6, A8).
+ * 
+ *  The dialog's answer without the geometry, which is most of its weight - a popup that names the
+ *  tile and its heaviest layers has no use for five thousand features as JSON.
+ */
+export type TileSummary = {
+	z: number,
+	x: number,
+	y: number,
+	/**  Bytes as stored, which is what crosses the wire. */
+	storedBytes: number,
+	/**  Bytes decompressed - the same as stored for a tile that is not compressed. */
+	rawBytes: number,
+	/**  Its layers, the heaviest first; none for a raster tile. */
+	layers: LayerSummary[],
 };
 
 /**  A highlighted span. Whitespace is simply absent. */

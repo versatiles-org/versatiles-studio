@@ -224,7 +224,7 @@ pub(crate) mod tests {
 			);
 		};
 
-		assert!(tile.stored_bytes > 0, "a populated tile should have a size");
+		assert!(tile.raw_bytes > 0, "a populated tile should have a size");
 		assert!(!tile.layers.is_empty(), "berlin should have vector layers");
 
 		// Sorted biggest-first, because "what is costing me" is the question this answers.
@@ -237,9 +237,9 @@ pub(crate) mod tests {
 		// Layers cannot outweigh the tile that contains them.
 		let total: usize = sizes.iter().sum();
 		assert!(
-			total <= tile.stored_bytes,
+			total <= tile.raw_bytes,
 			"layers ({total}) cannot exceed the tile ({})",
-			tile.stored_bytes
+			tile.raw_bytes
 		);
 		Ok(())
 	}
@@ -298,9 +298,9 @@ pub struct TileInspection {
 	pub z: u8,
 	pub x: u32,
 	pub y: u32,
-	/// Bytes as stored in the container, before decompression.
+	/// Bytes decompressed - which is what the layers add up to, and not what the container stores.
 	#[cfg_attr(feature = "bindings", specta(type = u32))]
-	pub stored_bytes: usize,
+	pub raw_bytes: usize,
 	pub layers: Vec<LayerInspection>,
 }
 
@@ -323,7 +323,7 @@ pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> R
 	// `Tile` is lazy: ask for the blob and it encodes, ask for the vector and it decodes. The
 	// uncompressed length is what a user means by "how big is this tile" - the number they can
 	// actually shrink.
-	let stored_bytes = tile
+	let raw_bytes = tile
 		.as_blob(&TileCompression::Uncompressed)
 		.context("reading the tile blob")?
 		.len() as usize;
@@ -349,7 +349,7 @@ pub async fn inspect_tile(source: &SharedTileSource, z: u8, x: u32, y: u32) -> R
 		z,
 		x,
 		y,
-		stored_bytes,
+		raw_bytes,
 		layers,
 	}))
 }

@@ -3,32 +3,46 @@
 	import type { Map as MaplibreMap, MapGeoJSONFeature, LngLat, MapMouseEvent } from 'maplibre-gl';
 	import JsonTree from '../common/JsonTree.svelte';
 	import Note from '../common/Note.svelte';
-	import { inspectTile, type TileInspection } from '../ipc/commands';
+	import { summariseTile, type TileSummary } from '../ipc/commands';
+	import { bytes, kilobytes } from '../common/format';
 	import { sourceLayers } from './source-layers';
-	import { tileForLngLat } from './tile-grid';
+	import { requestedZoom, tileForLngLat } from './tile-grid';
 
 	// A8 - every attribute of the feature under the cursor. Deliberately shows all of them: the point
 	// is answering "what is actually in this tile", which a curated subset would defeat.
+	//
+	// **And the tile under it** (S14.6): which one, what it weighs and its heaviest layers - read
+	// from the tiles the map draws, at the level the map asked for, so an overzoomed map names the
+	// deepest tile it is stretching rather than one that does not exist. A click on nothing still
+	// answers that, since an empty-looking tile is a question too; a second click on nothing closes
+	// it. The dialog is one click further.
 	let {
 		map,
-		source,
+		graph,
 		mount,
-		drawing
+		drawing,
+		onInspect
 	}: {
 		map: MaplibreMap | undefined;
-		/** The container behind the tiles, for A4's per-tile breakdown. A path, not a mount name. */
-		source: string | null;
+		/** The source the map draws, whose tile a click asks about; `null` for none. */
+		graph: number | null;
 		/** The MapLibre source Studio's own tiles are on - the graph's mount ([Q32]), or null. */
 		mount: string | null;
-		/** Whether a crop rectangle is being drawn, in which case this stays out of the way. */
+		/** Whether something else owns clicks on the map - a crop, the heat map - and this stays out of the way. */
 		drawing: boolean;
+		/** Opens the tile dialog on the tile clicked. */
+		onInspect: (z: number, x: number, y: number) => void;
 	} = $props();
 
 	let anchor = $state<LngLat | null>(null);
 	let features = $state<MapGeoJSONFeature[]>([]);
 	let screen = $state<{ x: number; y: number } | null>(null);
 	// A4 - what tile did that click land in, and what is inside it?
-	let tile = $state<TileInspection | null>(null);
+	let tile = $state<TileSummary | null>(null);
+	/** The tile clicked, before its summary lands - and when there is none. */
+	let address = $state<{ z: number; x: number; y: number } | null>(null);
+	/** The newest click; a summary for any other is dropped. */
+	let asked = 0;
 
 	/// Measured, so the popup can flip below the point when there is no room above it.
 	let height = $state(0);
@@ -65,11 +79,18 @@
 			screen = anchor ? m.project(anchor) : null;
 		};
 
+		/// The level the map asked our source for here - MapLibre's own rule, then no deeper than the
+		/// source goes, because past that the map stretches the deepest tile it has.
+		const levelAt = (): number => {
+			const spec = (mount ? m.getSource(mount) : undefined) as
+				{ type: string; tileSize?: number; maxzoom?: number } | undefined;
+			return Math.min(requestedZoom(m.getZoom(), spec), spec?.maxzoom ?? Infinity);
+		};
+
 		const onClick = (event: MapMouseEvent) => {
 			const hits = hitsAt(event.point);
-			if (hits.length === 0) {
-				anchor = null;
-				screen = null;
+			if (hits.length === 0 && (anchor !== null || graph === null)) {
+				close();
 				return;
 			}
 			// Cap it: a dense tile can return dozens under one pixel, and a popup listing all of them
@@ -78,14 +99,20 @@
 			anchor = event.lngLat;
 			reposition();
 
+			const ticket = ++asked;
 			tile = null;
-			if (source) {
-				const z = Math.floor(m.getZoom());
-				const { x, y } = tileForLngLat(event.lngLat.lng, event.lngLat.lat, z);
-				void inspectTile(source, z, x, y)
-					.then((result) => (tile = result))
-					.catch(() => (tile = null));
-			}
+			address = null;
+			if (graph === null) return;
+			const z = levelAt();
+			const { x, y } = tileForLngLat(event.lngLat.lng, event.lngLat.lat, z);
+			address = { z, x, y };
+			void summariseTile(graph, z, x, y)
+				.then((result) => {
+					if (ticket === asked) tile = result;
+				})
+				.catch(() => {
+					if (ticket === asked) tile = null;
+				});
 		};
 
 		// Hover feedback costs one query per move, which MapLibre already does for its own hit-testing.
@@ -111,16 +138,17 @@
 		};
 	});
 
-	const fmt = (bytes: number) => (bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} kB`);
-
 	function close() {
+		asked++;
 		anchor = null;
 		screen = null;
 		tile = null;
+		address = null;
+		features = [];
 	}
 </script>
 
-{#if screen && features.length}
+{#if screen && (features.length || address)}
 	<!-- `clamp` keeps it inside the map horizontally: half its own maximum width from either edge, so
 	     a feature clicked at the left rail does not push the popup under the pane. The map region
 	     clips as a backstop, and `below` flips it under the point when there is no room above. -->
@@ -133,18 +161,36 @@
 		<button type="button" class="icon close" onclick={close} aria-label="Close"
 			><Icon name="remove" size="1em" /></button
 		>
-		{#if tile}
+		{#if address}
+			{@const at = address}
 			<article class="tile">
-				<h3>tile {tile.z}/{tile.x}/{tile.y} <span class="id">{fmt(tile.storedBytes)}</span></h3>
-				<ul class="layers">
-					{#each tile.layers as layer (layer.name)}
-						<li>
-							<span class="lname truncate">{layer.name}</span>
-							<span class="bytes">{fmt(layer.encodedBytes)}</span>
-							<span class="feats">{layer.featureCount}&thinsp;f</span>
-						</li>
-					{/each}
-				</ul>
+				<h3>
+					tile {at.z}/{at.x}/{at.y}
+					{#if tile}<span class="id" title="{kilobytes(tile.rawBytes)} decompressed"
+							>{kilobytes(tile.storedBytes)} stored</span
+						>{/if}
+				</h3>
+				{#if tile}
+					<ul class="layers">
+						{#each tile.layers as layer (layer.name)}
+							<li>
+								<span class="lname truncate">{layer.name}</span>
+								<span class="bytes">{bytes(layer.bytes)}</span>
+								<span class="feats">{layer.features}&thinsp;f</span>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+				<button
+					type="button"
+					class="link"
+					onclick={() => {
+						// Read before closing: `at` follows the address, which closing clears.
+						const { z, x, y } = at;
+						close();
+						onInspect(z, x, y);
+					}}>Inspect tile…</button
+				>
 			</article>
 		{/if}
 

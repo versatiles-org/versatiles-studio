@@ -211,6 +211,76 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 	Ok(Some(found))
 }
 
+/// One tile in brief: what the map's popup says about the tile under a click (S14.6, A8).
+///
+/// The dialog's answer without the geometry, which is most of its weight - a popup that names the
+/// tile and its heaviest layers has no use for five thousand features as JSON.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct TileSummary {
+	pub z: u8,
+	pub x: u32,
+	pub y: u32,
+	/// Bytes as stored, which is what crosses the wire.
+	pub stored_bytes: u32,
+	/// Bytes decompressed - the same as stored for a tile that is not compressed.
+	pub raw_bytes: u32,
+	/// Its layers, the heaviest first; none for a raster tile.
+	pub layers: Vec<LayerSummary>,
+}
+
+/// One layer of a [`TileSummary`].
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct LayerSummary {
+	pub name: String,
+	pub features: u32,
+	/// The layer's encoded size, uncompressed.
+	pub bytes: u32,
+}
+
+/// The tile at `z/x/y` of `source` in brief, or `None` where the source has no tile.
+pub async fn summarise(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<Option<TileSummary>> {
+	let coord = TileCoord::new(z, x, y).context("building the tile coordinate")?;
+	let Some(mut tile) = source.tile(&coord).await.context("reading the tile")? else {
+		return Ok(None);
+	};
+	let compression = *source.metadata().tile_compression();
+	let stored_bytes = clamp(tile.as_blob(&compression).context("reading the stored tile")?.len());
+	let raw_bytes = clamp(
+		tile
+			.as_blob(&TileCompression::Uncompressed)
+			.context("decompressing the tile")?
+			.len(),
+	);
+	let mut layers = Vec::new();
+	if source.metadata().tile_format().is_vector() {
+		let vector = tile.as_vector().context("decoding the vector tile")?;
+		let stats = layer_stats(vector).context("measuring the layers")?;
+		layers = vector
+			.layers
+			.iter()
+			.zip(stats)
+			.map(|(layer, stats)| LayerSummary {
+				name: layer.name.clone(),
+				features: clamp(stats.feature_count),
+				bytes: clamp(stats.encoded_bytes),
+			})
+			.collect();
+		layers.sort_by_key(|layer| std::cmp::Reverse(layer.bytes));
+	}
+	Ok(Some(TileSummary {
+		z,
+		x,
+		y,
+		stored_bytes,
+		raw_bytes,
+		layers,
+	}))
+}
+
 /// Each layer's byte split, from upstream's own measurement, and its attributes.
 fn layers(vector: &VectorTile) -> Result<Vec<LayerDissection>> {
 	let stats = layer_stats(vector).context("measuring the layers")?;
@@ -571,6 +641,19 @@ mod tests {
 		let total: u32 = found.layers.iter().map(|layer| layer.features).sum();
 		assert!(found.truncated || found.features.len() as u32 == total);
 		assert!(dissect(source.as_ref(), 14, 0, 0).await?.is_none());
+
+		let brief = summarise(source.as_ref(), 14, 8800, 5373)
+			.await?
+			.expect("the same tile");
+		assert_eq!(
+			(brief.stored_bytes, brief.raw_bytes),
+			(found.stored_bytes, found.raw_bytes)
+		);
+		assert!(brief.raw_bytes > brief.stored_bytes, "berlin's tiles are compressed");
+		assert!(
+			brief.layers.windows(2).all(|w| w[0].bytes >= w[1].bytes),
+			"the heaviest first"
+		);
 		Ok(())
 	}
 }

@@ -272,9 +272,12 @@
 			<!-- `mount` is what the click is allowed to hit: Studio's own tiles, never the background. -->
 			<FeaturePopup
 				{map}
-				drawing={workbench.drawing}
-				source={preview.containers.at(-1)?.info.source ?? null}
+				drawing={workbench.drawing || heat.on}
+				graph={workbench.selected?.id ?? null}
 				mount={composition.editedName}
+				onInspect={(z, x, y) => {
+					if (workbench.selected) void tileDialog.open(workbench.selected.id, z, x, y);
+				}}
 			/>
 			<TileGrid {map} visible={showGrid} level={gridLevel} />
 			<HeatMap

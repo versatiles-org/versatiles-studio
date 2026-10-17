@@ -4,7 +4,7 @@
 
 use crate::state::AppState;
 use std::sync::Arc;
-use studio_core::dissect::{self, Dissection};
+use studio_core::dissect::{self, Dissection, TileSummary};
 use studio_core::graphs::GraphId;
 use studio_core::heat::{self, Heat};
 use studio_core::jobs::Lane;
@@ -208,6 +208,29 @@ pub async fn dissect_tile(
 		.drawn(window.label(), graph)
 		.ok_or_else(|| "this source has not been drawn yet".to_string())?;
 	dissect::dissect(source.as_ref(), z, x, y)
+		.await
+		.map_err(|e| format!("{e:#}"))
+}
+
+/// The drawn tile at `z/x/y` in brief, for the map's popup (S14.6, A8) - `None` where it has none.
+///
+/// Read from the source the map draws, like [`dissect_tile`], so the popup and the map agree - and
+/// nothing is opened per click.
+#[tauri::command]
+#[specta::specta]
+pub async fn summarise_tile(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	graph: GraphId,
+	z: u8,
+	x: u32,
+	y: u32,
+) -> Result<Option<TileSummary>, String> {
+	let source = state
+		.previews
+		.drawn(window.label(), graph)
+		.ok_or_else(|| "this source has not been drawn yet".to_string())?;
+	dissect::summarise(source.as_ref(), z, x, y)
 		.await
 		.map_err(|e| format!("{e:#}"))
 }
