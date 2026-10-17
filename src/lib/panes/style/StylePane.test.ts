@@ -244,3 +244,39 @@ describe('a project with no sources', () => {
 		expect(screen.queryByRole('button', { name: /export/i })).toBeNull();
 	});
 });
+
+describe('the style check beside the export (S14.9)', () => {
+	const show = (problems: { message: string; severity: 'error' | 'warning' }[] | null) =>
+		render(StylePane, {
+			sourceStyle: { kind: null, appearance: VECTOR } as never,
+			source: { tileFormat: 'mvt', tileSchema: null, layers: [] },
+			rendered: { version: 8, sources: {}, layers: [] },
+			basis: 'preset',
+			problems,
+			actions: noop()
+		});
+
+	it('says nothing before the check has run', () => {
+		show(null);
+		expect(screen.queryByText(/MapLibre style spec/)).toBeNull();
+	});
+
+	it('says when the style passes', () => {
+		show([]);
+		expect(screen.getByText('The style passes the MapLibre style spec.')).toBeTruthy();
+	});
+
+	it('lists what fails, says MapLibre will refuse it, and counts what it does not list', () => {
+		show(
+			Array.from({ length: 10 }, (_, i) => ({
+				message: `layer "l${i}".paint.fill-color: color expected, number found`,
+				severity: 'error' as const
+			}))
+		);
+		expect(
+			screen.getByText('10 problems against the MapLibre style spec - MapLibre will refuse the file.')
+		).toBeTruthy();
+		expect(screen.getByRole('list', { name: 'Style problems' }).children).toHaveLength(8);
+		expect(screen.getByText('And 2 more.')).toBeTruthy();
+	});
+});

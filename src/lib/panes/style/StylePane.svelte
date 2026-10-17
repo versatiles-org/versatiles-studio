@@ -9,6 +9,7 @@
 	import { demEncoding, type StyleBasis } from '../../map/style';
 	import { token } from '../../styles/tokens';
 	import type { StyleSpecification } from 'maplibre-gl';
+	import type { StyleProblem } from '../../map/style-check';
 	import { canGenerateCode, styleCode } from '../../map/style-code';
 	import {
 		BASIS_NOTE,
@@ -53,6 +54,7 @@
 		own = null,
 		exporting = null,
 		missingFonts = [],
+		problems = null,
 		actions
 	}: {
 		/** The focused source's style, with any in-flight gesture applied - `style.source`. */
@@ -77,6 +79,9 @@
 		exporting?: 'json' | 'ts' | 'bundle' | null;
 		/** Fonts the last bundle could not find. */
 		missingFonts?: string[];
+		/** What MapLibre's validator says about the style as it would be written (S14.9); `null`
+		 *  until it has been checked. */
+		problems?: StyleProblem[] | null;
 		actions: {
 			/** A palette name as `@versatiles/style` spells it, from the list `themesFor` gives. */
 			setTheme: (theme: string) => void;
@@ -231,6 +236,9 @@
 	const code = $derived(canGenerateCode(appearance, schema) ? styleCode(appearance, presentIds, schema) : null);
 
 	const adjusted = $derived(Object.values(vectorAppearance?.recolor ?? {}).some((v) => v !== undefined && v !== null));
+
+	/** How many style problems are listed before the rest are only counted. */
+	const SHOWN = 8;
 </script>
 
 {#snippet clearer(changed: boolean, clear: () => void, what: string)}
@@ -515,6 +523,28 @@
 				</button>
 			</div>
 
+			<!-- **Beside the buttons, before anyone presses one** (S14.9): a style MapLibre refuses is
+			     worth knowing about before it is written, not after it fails to load somewhere else. -->
+			{#if problems && problems.length === 0}
+				<Note tone="aside">The style passes the MapLibre style spec.</Note>
+			{:else if problems}
+				{@const errors = problems.filter((problem) => problem.severity === 'error').length}
+				<Note tone="problem">
+					{problems.length}
+					{problems.length === 1 ? 'problem' : 'problems'} against the MapLibre style spec{errors > 0
+						? ' - MapLibre will refuse the file'
+						: ''}.
+				</Note>
+				<ul class="problems" aria-label="Style problems">
+					{#each problems.slice(0, SHOWN) as problem, i (i)}
+						<li class:warning={problem.severity === 'warning'}>{problem.message}</li>
+					{/each}
+				</ul>
+				{#if problems.length > SHOWN}
+					<Note>And {problems.length - SHOWN} more.</Note>
+				{/if}
+			{/if}
+
 			{#if missingFonts.length > 0}
 				<Note>
 					No glyphs were found for {missingFonts.join(', ')} - install the family under Assets, or MapLibre will fall back.
@@ -525,6 +555,21 @@
 {/if}
 
 <style>
+	/* The validator's words, which name paths in the style - in its monospace, and broken anywhere,
+	   since a path has no spaces to break at. */
+	.problems {
+		margin: 0;
+		padding-left: var(--space-4);
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
+		overflow-wrap: anywhere;
+		color: var(--error);
+
+		.warning {
+			color: var(--ink-2);
+		}
+	}
+
 	/* What is this pane's own: the number a slider reads, which must not twitch as digits change
 	   width, and the per-field reset that keeps its place while hidden so no row shifts. */
 	.amount {

@@ -6,6 +6,7 @@
 	import { style } from '../../state/style.svelte';
 	import { styleExport } from '../../state/style-export.svelte';
 	import { workbench } from '../../state/workbench.svelte';
+	import { checkStyle, type StyleProblem } from '../../map/style-check';
 
 	// The Style pane, connected (S10.10).
 	//
@@ -35,6 +36,22 @@
 	const kind = $derived(
 		build ? sourceKind(build.info.tileFormat, build.info.tileSchema, declaredLayers(build.info)).kind : null
 	);
+
+	/// What MapLibre's validator says about the style as it would be exported (S14.9).
+	///
+	/// **Once the style settles**, not on every change: a slider drag restyles the map every frame,
+	/// and a check of two hundred layers per frame is jank bought for an answer nobody can read until
+	/// the hand stops.
+	let problems = $state<StyleProblem[] | null>(null);
+	$effect(() => {
+		const rendered = composition.style;
+		if (!rendered) {
+			problems = null;
+			return;
+		}
+		const timer = setTimeout(() => (problems = checkStyle(rendered)), 300);
+		return () => clearTimeout(timer);
+	});
 </script>
 
 <StylePane
@@ -47,6 +64,7 @@
 		: null}
 	exporting={styleExport.exporting}
 	missingFonts={styleExport.missingFonts}
+	{problems}
 	actions={{
 		setTheme: (theme) => void style.setTheme(theme),
 		setKind: (kind) => void style.setKind(kind),
