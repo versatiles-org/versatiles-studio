@@ -113,6 +113,18 @@ trusted. Assert the claim the workaround rests on, not the shape of the fix.
 | [`node-versatiles-google-cloud`](https://github.com/versatiles-org/node-versatiles-google-cloud)                                               | Precedent for cloud upload (F3)                                                                                                                                                                             |
 | [`versatiles-documentation`](https://github.com/versatiles-org/versatiles-documentation)                                                       | Learning resources, and a gallery of 76 known projects - a ready-made list of users to talk to                                                                                                              |
 
+## Versions held back
+
+`npm run upgrade:web` (`vrt deps-upgrade`) skips what `vrt.depsUpgrade.ignore` in `package.json`
+names, and JSON has no comments, so the reasons are here:
+
+- **`@tauri-apps/api`**, pinned exactly: it must match the Rust `tauri` crate in `Cargo.lock`, and
+  Tauri complains when the two differ. `upgrade:web` would move only the JS half, so both are bumped
+  together, by hand.
+- **`@wdio/cli`, `@wdio/local-runner`, `@wdio/mocha-framework`**, kept on `^9`:
+  `@wdio/tauri-service` 1.5 declares `webdriverio ^9` and bundles 9.x packages, so a 10.x runner
+  would mix two majors in one run. Lift this once a tauri-service release supports WebdriverIO 10.
+
 ## Map assets: fonts and sprites
 
 MapLibre needs SDF glyphs and sprite sheets neither versatiles-rs nor the style library can conjure
