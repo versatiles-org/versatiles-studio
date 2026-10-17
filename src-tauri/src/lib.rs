@@ -103,6 +103,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::analysis::mount_heat,
 		commands::analysis::unmount_heat,
 		commands::analysis::tile_bytes,
+		commands::analysis::dissect_tile,
 		commands::views::list_views,
 		commands::views::save_view,
 		commands::views::delete_view,

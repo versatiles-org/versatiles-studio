@@ -14,11 +14,52 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::sync::Arc;
-use versatiles_container::{SharedTileSource, TilesRuntime};
+use versatiles_container::TilesRuntime;
 use versatiles_pipeline::{PipelineFactory, PipelineReader};
 // Re-exported so the command layer can name what it hands `build` without taking a dependency on
 // `versatiles_pipeline` of its own - the core is the layer that owns pipeline types.
+/// What a build produces, named here so a caller that keeps one need not depend on the container crate.
+pub use versatiles_container::SharedTileSource;
 pub use versatiles_pipeline::VPLPipeline;
+
+/// A source with no tiles, for the command layer's tests to put where a build would be - it cannot
+/// name the container crate that makes one.
+pub fn stand_in() -> SharedTileSource {
+	Arc::new(Nothing {
+		metadata: versatiles_container::TileSourceMetadata::new(
+			versatiles_core::TileFormat::MVT,
+			versatiles_core::TileCompression::Uncompressed,
+			versatiles_container::Traversal::ANY,
+			None,
+		),
+		tilejson: versatiles_core::TileJSON::default(),
+	})
+}
+
+#[derive(Debug)]
+struct Nothing {
+	metadata: versatiles_container::TileSourceMetadata,
+	tilejson: versatiles_core::TileJSON,
+}
+
+#[async_trait::async_trait]
+impl versatiles_container::TileSource for Nothing {
+	fn source_type(&self) -> Arc<versatiles_container::SourceType> {
+		versatiles_container::SourceType::new_container("nothing", "stand-in")
+	}
+	fn metadata(&self) -> &versatiles_container::TileSourceMetadata {
+		&self.metadata
+	}
+	fn tilejson(&self) -> &versatiles_core::TileJSON {
+		&self.tilejson
+	}
+	async fn tile_stream(
+		&self,
+		_bbox: versatiles_core::TileBBox,
+	) -> Result<versatiles_core::TileStream<'static, versatiles_container::Tile>> {
+		Ok(versatiles_core::TileStream::from_vec(Vec::new()))
+	}
+}
 
 /// Builds a pipeline into something the embedded server can mount.
 ///

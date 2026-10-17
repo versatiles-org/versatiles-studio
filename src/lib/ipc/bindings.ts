@@ -218,6 +218,34 @@ export const commands = {
 	unmountHeat: (graph: number) => typedError<null, string>(__TAURI_INVOKE("unmount_heat", { graph })),
 	/**  One tile's stored size, for the heat map's hover - `None` where there is no tile. */
 	tileBytes: (graph: number, z: number, x: number, y: number) => typedError<number | null, string>(__TAURI_INVOKE("tile_bytes", { graph, z, x, y })),
+	/**
+	 *  Takes apart the tile the map draws for a graph at `z/x/y` (S14.4, A4) - `None` where it has none.
+	 * 
+	 *  **The drawn tile, not the container's**: the preview's own source, so a filter, an overzoom or a
+	 *  repair upstream shows here as it shows on the map - which is what someone clicking a tile on the
+	 *  map is asking about.
+	 */
+	dissectTile: (graph: number, z: number, x: number, y: number) => typedError<{
+	z: number,
+	x: number,
+	y: number,
+	/**  `mvt`, `png`, … - a raster tile has sizes and nothing to take apart. */
+	format: string,
+	/**  How the source stores it: `gzip`, `br`, `none`. */
+	compression: string,
+	/**  Bytes as stored, which is what crosses the wire. */
+	storedBytes: number,
+	/**  Bytes decompressed, which is what the layers below add up to. */
+	rawBytes: number,
+	layers: LayerDissection[],
+	/**  Every feature of every layer, in order - up to the cap. */
+	features: FeatureDissection[],
+	/**  Whether `features` stopped short of the tile. */
+	truncated: boolean,
+	issues: TileIssue[],
+	/**  What `vector_repair` would make of it, when there is anything to repair. */
+	repair: RepairPreview | null,
+} | null, string>(__TAURI_INVOKE("dissect_tile", { graph, z, x, y })),
 	listViews: () => typedError<View[], string>(__TAURI_INVOKE("list_views")),
 	/**  Saves a view, replacing any of the same name. */
 	saveView: (view: View) => typedError<null, string>(__TAURI_INVOKE("save_view", { view })),
@@ -808,6 +836,20 @@ overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; r
 /**  Raster tiles holding elevation, drawn as relief (D12). */
 ({ type: "hillshade"; shade: Hillshade_Serialize }) & { adjust?: never; overrides?: never; recolor?: never; theme?: never };
 
+/**  One property key of a layer. */
+export type AttributeDissection = {
+	key: string,
+	/**  Features carrying it. */
+	features: number,
+	/**  Distinct values it takes. */
+	distinct: number,
+	/**
+	 *  What it costs: the key, each feature's reference to it, and its distinct values. A value two
+	 *  keys share is counted under both - the table is a question about each key, not a partition.
+	 */
+	bytes: number,
+};
+
 /**
  *  What an export narrows the pipeline to before writing it.
  * 
@@ -1034,6 +1076,29 @@ export type Diagnostic = {
 	span: Span,
 };
 
+/**  One tile, taken apart. */
+export type Dissection = {
+	z: number,
+	x: number,
+	y: number,
+	/**  `mvt`, `png`, … - a raster tile has sizes and nothing to take apart. */
+	format: string,
+	/**  How the source stores it: `gzip`, `br`, `none`. */
+	compression: string,
+	/**  Bytes as stored, which is what crosses the wire. */
+	storedBytes: number,
+	/**  Bytes decompressed, which is what the layers below add up to. */
+	rawBytes: number,
+	layers: LayerDissection[],
+	/**  Every feature of every layer, in order - up to the cap. */
+	features: FeatureDissection[],
+	/**  Whether `features` stopped short of the tile. */
+	truncated: boolean,
+	issues: TileIssue[],
+	/**  What `vector_repair` would make of it, when there is anything to repair. */
+	repair: RepairPreview | null,
+};
+
 /**  The whole document a view needs: the text, its tree, and its tokens. */
 export type DocumentView = {
 	/**
@@ -1119,6 +1184,25 @@ export type Family = {
 	/**  Download size, so a 48 MB decision is made before it starts rather than during. */
 	bytes: number,
 	installed: boolean,
+};
+
+/**  One feature, with its geometry as it was encoded. */
+export type FeatureDissection = {
+	/**  Which layer, by position in `layers`. */
+	layer: number,
+	/**  Its position within that layer - what an issue's `feature` refers to. */
+	index: number,
+	id: number | null,
+	/**  `point`, `line`, `polygon` or `unknown`, as declared. */
+	kind: string,
+	vertices: number,
+	geometryBytes: number,
+	/**  Opaque JSON: whatever the tile holds. */
+	properties: any,
+	/**  The command stream's parts: a point, a line, or a ring each. */
+	parts: Part[],
+	/**  Whether the command stream stopped making sense before it ended. */
+	malformed: boolean,
 };
 
 /**  One parameter of an operation, ready to render. */
@@ -1430,6 +1514,26 @@ export type Lane =
  */
 "latest";
 
+/**  One layer: what it holds, and what its bytes are spent on. */
+export type LayerDissection = {
+	name: string,
+	/**  `None` where the tile leaves it out, which the spec does not allow. */
+	extent: number | null,
+	version: number | null,
+	features: number,
+	vertices: number,
+	/**  The layer's encoded size, and its parts - which add up to it with `other_bytes`. */
+	bytes: number,
+	geometryBytes: number,
+	tagBytes: number,
+	keyBytes: number,
+	valueBytes: number,
+	idBytes: number,
+	otherBytes: number,
+	/**  Its keys, the costliest first. */
+	attributes: AttributeDissection[],
+};
+
 /**  One layer of a decoded vector tile (A4). */
 export type LayerInspection = {
 	name: string,
@@ -1715,6 +1819,18 @@ export type PaneState = {
 	id: string,
 	side: Side,
 	open: boolean,
+};
+
+/**  One part of a feature's geometry, in tile coordinates. */
+export type Part = {
+	points: ([number, number])[],
+	/**  Whether it ended with ClosePath - a ring. */
+	closed: boolean,
+	/**
+	 *  A ring's signed area in tile coordinates, y down: positive for an outer ring, negative for a
+	 *  hole, nought for one that encloses nothing. Nought for a part that is not a ring.
+	 */
+	area: number | null,
 };
 
 /**  A chain of nodes, `a | b | c`. */
@@ -2069,6 +2185,14 @@ bytes: number } |
  */
 { kind: "missing"; path: string };
 
+/**  What a repair would leave. */
+export type RepairPreview = {
+	/**  The repaired tile's decompressed size. */
+	rawBytes: number,
+	/**  Violations left after it - the ones only dropping the offending feature would fix. */
+	issuesLeft: number,
+};
+
 /**  How a raster is sampled when it is scaled. */
 export type Resampling = "linear" | "nearest";
 
@@ -2304,6 +2428,14 @@ export type TileInspection = {
 	/**  Bytes as stored in the container, before decompression. */
 	storedBytes: number,
 	layers: LayerInspection[],
+};
+
+/**  A spec violation in this tile. */
+export type TileIssue = {
+	layer: string,
+	/**  The feature it is about, by position in its layer; `None` for a layer-wide one. */
+	feature: number | null,
+	kind: string,
 };
 
 /**  A highlighted span. Whitespace is simply absent. */

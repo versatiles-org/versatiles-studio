@@ -6616,6 +6616,7 @@ dependencies = [
  "gdal",
  "gdal-src",
  "gdal-sys",
+ "geo-types",
  "hex",
  "reqwest",
  "serde",

@@ -533,18 +533,26 @@ impl Heads {
 	}
 }
 
-struct Built {
+pub struct Built {
 	/// The pipeline this was built from, canonically.
-	pipeline: String,
+	pub pipeline: String,
 	/// The mount it was served on. A rename moves that, and the preview names it.
-	mount: String,
+	pub mount: String,
 	/// What relative paths in the pipeline meant. "Save as" moves it, and the same text then names
 	/// different files ([Q55]) - so the same pipeline is a different build.
-	dir: std::path::PathBuf,
-	preview: Preview,
+	pub dir: std::path::PathBuf,
+	pub preview: Preview,
+	/// The tiles themselves, for whatever has to read the drawn tile rather than a container (S14.4).
+	pub source: studio_core::preview::SharedTileSource,
 }
 
 impl Previews {
+	/// What the map draws for this graph - the source its last build mounted - or `None` before one.
+	pub fn drawn(&self, window: &str, graph: GraphId) -> Option<studio_core::preview::SharedTileSource> {
+		let held = self.0.lock().ok()?;
+		held.get(&(window.to_string(), graph)).map(|built| built.source.clone())
+	}
+
 	/// The preview for this graph, if the last one was built from the same pipeline on the same mount.
 	pub fn get(
 		&self,
@@ -559,25 +567,9 @@ impl Previews {
 		(built.pipeline == pipeline && built.mount == mount && built.dir == dir).then(|| built.preview.clone())
 	}
 
-	pub fn put(
-		&self,
-		window: &str,
-		graph: GraphId,
-		pipeline: String,
-		mount: String,
-		dir: std::path::PathBuf,
-		preview: Preview,
-	) {
+	pub fn put(&self, window: &str, graph: GraphId, built: Built) {
 		if let Ok(mut held) = self.0.lock() {
-			held.insert(
-				(window.to_string(), graph),
-				Built {
-					pipeline,
-					mount,
-					dir,
-					preview,
-				},
-			);
+			held.insert((window.to_string(), graph), built);
 		}
 	}
 
@@ -900,7 +892,7 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, at
 	let layers = studio_core::analysis::probe_layers(&source, &info).await;
 	let fits = studio_core::analysis::fitting(&source).await;
 
-	server.mount(&mount, source).await?;
+	server.mount(&mount, source.clone()).await?;
 	let preview = Preview {
 		name: name.clone(),
 		tile_url: server.tile_url(&mount),
@@ -908,7 +900,17 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, at
 		layers,
 		fits,
 	};
-	state.previews.put(&window, graph, key, mount, dir, preview.clone());
+	state.previews.put(
+		&window,
+		graph,
+		Built {
+			pipeline: key,
+			mount,
+			dir,
+			preview: preview.clone(),
+			source,
+		},
+	);
 	Ok(preview)
 }
 
@@ -1049,10 +1051,13 @@ mod preview_cache_tests {
 		cache.put(
 			"window-1",
 			7,
-			"from_debug".to_string(),
-			"berlin".to_string(),
-			dir(),
-			preview("berlin"),
+			Built {
+				pipeline: "from_debug".to_string(),
+				mount: "berlin".to_string(),
+				dir: dir(),
+				preview: preview("berlin"),
+				source: studio_core::preview::stand_in(),
+			},
 		);
 		cache
 	}
@@ -1109,10 +1114,13 @@ mod preview_cache_tests {
 		cache.put(
 			"window-2",
 			1,
-			"from_debug".to_string(),
-			"other".to_string(),
-			dir(),
-			preview("other"),
+			Built {
+				pipeline: "from_debug".to_string(),
+				mount: "other".to_string(),
+				dir: dir(),
+				preview: preview("other"),
+				source: studio_core::preview::stand_in(),
+			},
 		);
 
 		cache.forget("window-1");
@@ -1130,10 +1138,13 @@ mod preview_cache_tests {
 		cache.put(
 			"window-1",
 			7,
-			"from_color color=00ff00".to_string(),
-			"berlin".to_string(),
-			dir(),
-			preview("berlin"),
+			Built {
+				pipeline: "from_color color=00ff00".to_string(),
+				mount: "berlin".to_string(),
+				dir: dir(),
+				preview: preview("berlin"),
+				source: studio_core::preview::stand_in(),
+			},
 		);
 
 		assert!(cache.get("window-1", 7, "from_debug", "berlin", &dir()).is_none());

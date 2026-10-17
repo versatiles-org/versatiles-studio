@@ -4,6 +4,7 @@
 
 use crate::state::AppState;
 use std::sync::Arc;
+use studio_core::dissect::{self, Dissection};
 use studio_core::graphs::GraphId;
 use studio_core::heat::{self, Heat};
 use studio_core::jobs::Lane;
@@ -185,4 +186,28 @@ pub async fn tile_bytes(
 	}
 	.await;
 	found.map_err(|e| format!("{e:#}"))
+}
+
+/// Takes apart the tile the map draws for a graph at `z/x/y` (S14.4, A4) - `None` where it has none.
+///
+/// **The drawn tile, not the container's**: the preview's own source, so a filter, an overzoom or a
+/// repair upstream shows here as it shows on the map - which is what someone clicking a tile on the
+/// map is asking about.
+#[tauri::command]
+#[specta::specta]
+pub async fn dissect_tile(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	graph: GraphId,
+	z: u8,
+	x: u32,
+	y: u32,
+) -> Result<Option<Dissection>, String> {
+	let source = state
+		.previews
+		.drawn(window.label(), graph)
+		.ok_or_else(|| "this source has not been drawn yet".to_string())?;
+	dissect::dissect(source.as_ref(), z, x, y)
+		.await
+		.map_err(|e| format!("{e:#}"))
 }

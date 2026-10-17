@@ -29,6 +29,7 @@ pub mod archive;
 pub mod assets;
 pub mod bundle;
 pub mod diagnostics;
+pub mod dissect;
 pub mod estimate;
 pub mod export;
 pub mod graphs;
