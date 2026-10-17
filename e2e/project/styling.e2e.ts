@@ -8,7 +8,7 @@
  */
 
 import { browser, expect, $ } from '@wdio/globals';
-import { invoke, openPane, openProject } from '../support';
+import { invoke, openProject, readAs } from '../support';
 
 type Recipe = { sources: Record<string, { appearance?: { preset?: string } }> };
 
@@ -25,7 +25,8 @@ describe('choosing how a source is drawn', () => {
 		// A source Studio has not been told anything about has no entry at all: the pane shows a
 		// default, and a default is not a decision worth writing into a project file.
 		expect(await presetOf()).toBe(undefined);
-		await openPane('Style');
+		// The fixture's tiles follow no schema, so the themes appear once they are read as one (S11.2).
+		await readAs('vectorShortbread');
 		await expect($('button=Neutrino')).toBeDisplayed();
 	});
 

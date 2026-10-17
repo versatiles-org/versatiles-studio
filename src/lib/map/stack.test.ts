@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { drawableLayers, drawOrder, drawn, entryFor, stackFor } from './stack';
+import { drawableLayers, drawOrder, drawn, entryFor, stackFor, unstyled } from './stack';
 import type { Preview, Recipe } from '../ipc/commands';
 
 const BASE = 'http://127.0.0.1:8080';
@@ -29,6 +29,24 @@ describe('entryFor', () => {
 		const entry = entryFor(built('places'), recipe());
 		expect(entry.appearance.type).toBe('vector');
 		expect(entry.kind).toBe('vectorShortbread');
+	});
+
+	// The default follows the reading (S11.2): tiles no builder knows start on the inspector style,
+	// which is the only thing that draws them, and imagery starts as imagery.
+	it('gives an unstyled source the appearance its kind is drawn with', () => {
+		expect(unstyled('vectorShortbread').appearance.type).toBe('vector');
+		expect(unstyled('vectorOther').appearance.type).toBe('inspector');
+		expect(unstyled('rasterImage').appearance.type).toBe('raster');
+		expect(unstyled('rasterDem').appearance.type).toBe('hillshade');
+		expect(unstyled(null).appearance.type).toBe('vector');
+
+		const other = built('csv', {
+			layers: [{ name: 'points', geometry: 'point' }],
+			info: { tileFormat: 'mvt', tileSchema: null, tileJson: { vector_layers: [{ id: 'points' }] } }
+		});
+		const entry = entryFor(other, recipe());
+		expect(entry.kind).toBe('vectorOther');
+		expect(entry.appearance.type).toBe('inspector');
 	});
 
 	it('takes the appearance the recipe stored for that name', () => {
@@ -208,7 +226,7 @@ describe('which layers a derived style is given', () => {
 		const { style } = stackFor({
 			recipe: recipe({
 				sources: {
-					basemap: { kind: null, appearance: { type: 'vector', preset: 'derived', recolor: {}, overrides: {} } }
+					basemap: { kind: null, appearance: { type: 'inspector', overrides: {} } }
 				}
 			} as never),
 			built: { basemap: basemap() },

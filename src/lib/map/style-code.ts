@@ -106,10 +106,14 @@ export function fontsUsed(style: StyleSpecification): string[] {
 	return [...fonts].sort();
 }
 
-/** A preset with no builder behind it cannot be written as a builder call - `derived`. */
+/**
+ * Whether a recipe can be written as a builder call at all.
+ *
+ * Only a themed vector appearance can. The inspector style is assembled from whatever layers the
+ * tiles turned out to have, and raster and hillshade have no `@versatiles/style` builder - so there
+ * is no call to write, and `style.json` is the honest form for those (S6.4, [S11.2]).
+ */
 export function canGenerateCode(appearance: Appearance, schema: Schema = 'shortbread'): boolean {
-	// Raster and hillshade have no `@versatiles/style` builder at all, so there is no call to write
-	// - `style.json` is the honest form for those (S6.4).
 	return appearance.type === 'vector' && call(appearance, schema) !== null;
 }
 
@@ -123,11 +127,7 @@ function call(appearance: Appearance, schema: Schema): BuildCall | null {
 }
 
 /**
- * The code for a recipe, or `null` when there is none to write.
- *
- * `derived` has no `@versatiles/style` builder - it is assembled from whatever layers the tiles
- * turned out to have (S4.4), so there is nothing to name in an import. Those export as `style.json`,
- * which is the honest form for a style that has no shorter description than itself.
+ * The code for a recipe, or `null` when there is none to write - see [`canGenerateCode`].
  *
  * `schema` is what the tiles are, which decides the builder: `osm()`, `omt()` or `protomaps()`, each
  * imported from where it lives - the latter two from subpaths of the package.

@@ -702,10 +702,26 @@ export type Appearance = Appearance_Serialize | Appearance_Deserialize;
  *  would have made it two thirds.
  */
 export type Appearance_Deserialize = 
-/**  Vector tiles: a preset, the adjustments over it, and whatever layers were changed by hand. */
+/**
+ *  Vector tiles of a schema a builder knows: a preset, the adjustments over it, and whatever
+ *  layers were changed by hand.
+ */
 ({ type: "vector"; preset: Preset; recolor: Recolor_Deserialize; 
 /**  By layer id. Empty for a style nobody has edited by hand. */
 overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never; shade?: never } | 
+/**
+ *  Vector tiles of no schema a builder knows, drawn as an inspector style: every layer the tiles
+ *  contain in a colour of its own (D2, [S11.2](../../../docs/history.md)).
+ * 
+ *  **A kind, not a preset.** This used to be `Preset::Derived`, a seventh button beside the themes
+ *  - which left the themes offered over tiles they could not draw, and the inspector style one
+ *  click away from tiles that had a theme. What the tiles *are* decides the editor; a theme is a
+ *  choice inside one of them. So "read as Vector · other" is how a person asks for this, over any
+ *  tiles, and the only thing it carries is the layer tree's changes.
+ */
+({ type: "inspector"; 
+/**  By layer id, keyed on the ids the inspector style gives its layers. */
+overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never; preset?: never; recolor?: never; shade?: never } | 
 /**  Raster tiles drawn as an image, adjusted (D11). */
 ({ type: "raster"; adjust: RasterAdjust_Deserialize }) & { overrides?: never; preset?: never; recolor?: never; shade?: never } | 
 /**  Raster tiles holding elevation, drawn as relief (D12). */
@@ -721,10 +737,26 @@ overrides: { [key in string]: LayerOverride_Deserialize } }) & { adjust?: never;
  *  would have made it two thirds.
  */
 export type Appearance_Serialize = 
-/**  Vector tiles: a preset, the adjustments over it, and whatever layers were changed by hand. */
+/**
+ *  Vector tiles of a schema a builder knows: a preset, the adjustments over it, and whatever
+ *  layers were changed by hand.
+ */
 ({ type: "vector"; preset: Preset; recolor: Recolor_Serialize; 
 /**  By layer id. Empty for a style nobody has edited by hand. */
 overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; shade?: never } | 
+/**
+ *  Vector tiles of no schema a builder knows, drawn as an inspector style: every layer the tiles
+ *  contain in a colour of its own (D2, [S11.2](../../../docs/history.md)).
+ * 
+ *  **A kind, not a preset.** This used to be `Preset::Derived`, a seventh button beside the themes
+ *  - which left the themes offered over tiles they could not draw, and the inspector style one
+ *  click away from tiles that had a theme. What the tiles *are* decides the editor; a theme is a
+ *  choice inside one of them. So "read as Vector · other" is how a person asks for this, over any
+ *  tiles, and the only thing it carries is the layer tree's changes.
+ */
+({ type: "inspector"; 
+/**  By layer id, keyed on the ids the inspector style gives its layers. */
+overrides: { [key in string]: LayerOverride_Serialize } }) & { adjust?: never; preset?: never; recolor?: never; shade?: never } | 
 /**  Raster tiles drawn as an image, adjusted (D11). */
 ({ type: "raster"; adjust: RasterAdjust_Serialize }) & { overrides?: never; preset?: never; recolor?: never; shade?: never } | 
 /**  Raster tiles holding elevation, drawn as relief (D12). */
@@ -1636,12 +1668,7 @@ export type Pipeline = {
  *  control and a theme - and offering it as a way to draw *vector* data was a control that drew
  *  something else.
  */
-export type Preset = "colorful" | "eclipse" | "graybeard" | "neutrino" | "shadow" | 
-/**
- *  Built from the layers the tiles actually contain, rather than from a Shortbread assumption
- *  (D2, S4.4). A recipe rather than a fixed style, so it re-derives when the pipeline changes.
- */
-"derived";
+export type Preset = "colorful" | "eclipse" | "graybeard" | "neutrino" | "shadow";
 
 /**  The pipeline's output, mounted on the embedded server and ready for the map (S2.7, C3). */
 export type Preview = {

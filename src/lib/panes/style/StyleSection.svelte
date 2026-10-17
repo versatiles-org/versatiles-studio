@@ -1,6 +1,7 @@
 <script lang="ts">
 	import StylePane from './StylePane.svelte';
 	import { composition } from '../../map/composition.svelte';
+	import { sourceKind } from '../../map/source-kind';
 	import { declaredLayers } from '../../map/tile-json';
 	import { style } from '../../state/style.svelte';
 	import { styleExport } from '../../state/style-export.svelte';
@@ -27,10 +28,17 @@
 	});
 
 	const build = $derived(composition.editedBuild);
+
+	/// What the built tiles are, read without any correction - the correction, if there is one, lives
+	/// in the stored style, which `sourceOr` returns whole. This decides only what an *unstyled*
+	/// source is shown as ([S11.2]).
+	const kind = $derived(
+		build ? sourceKind(build.info.tileFormat, build.info.tileSchema, declaredLayers(build.info)).kind : null
+	);
 </script>
 
 <StylePane
-	sourceStyle={style.source}
+	sourceStyle={style.sourceOr(kind)}
 	rendered={composition.style}
 	basis={composition.edited?.basis ?? 'none'}
 	own={composition.edited?.style ?? null}

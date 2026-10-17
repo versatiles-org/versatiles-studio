@@ -121,6 +121,13 @@ describe('reading the appearance union', () => {
 		expect(seen.recolor).toBeNull();
 	});
 
+	// The inspector style has layers to change and nothing else (S11.2).
+	it('gives the inspector style its overrides and no recolour', () => {
+		const seen = editing({ type: 'inspector', overrides: { 'derived:roads': { visible: false } } } as never);
+		expect(seen.overrides).toEqual({ 'derived:roads': { visible: false } });
+		expect(seen.recolor).toBeNull();
+	});
+
 	it('gives elevation its shade', () => {
 		expect(editing({ type: 'hillshade', shade: { exaggeration: 0.8 } } as never).shade).toEqual({
 			exaggeration: 0.8

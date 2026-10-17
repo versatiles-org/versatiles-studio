@@ -34,6 +34,7 @@ import {
 	type SourceStyle,
 	type Hillshade
 } from '../ipc/commands';
+import { unstyled } from '../map/stack';
 
 /** The recipe as the core last reported it. `null` until the first read. */
 let recipe = $state<Recipe | null>(null);
@@ -59,15 +60,15 @@ let graph = $state<{ id: number; name: string } | null>(null);
 let pending = $state<Recolor | null>(null);
 let pendingRaster = $state<RasterAdjust | null>(null);
 
-/** What a source that has never been styled looks like. */
-const UNSTYLED: SourceStyle = {
-	kind: null,
-	appearance: { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} }
-};
-
-/** The focused source's style, with any in-flight gesture applied. */
-function focused(): SourceStyle {
-	const stored = (graph && recipe?.sources?.[graph.name]) || UNSTYLED;
+/**
+ * The focused source's style, with any in-flight gesture applied.
+ *
+ * `fallback` is what an unstyled source looks like - `unstyled(kind)` in `map/stack.ts`, the one
+ * copy of that default ([S11.2](../../../docs/history.md)). The caller supplies it because only the
+ * caller knows what the tiles are; this module knows the recipe.
+ */
+function focused(fallback: SourceStyle): SourceStyle {
+	const stored = (graph && recipe?.sources?.[graph.name]) || fallback;
 	if (!pending && !pendingRaster) return stored;
 
 	if (pending && stored.appearance.type === 'vector') {
@@ -84,12 +85,23 @@ export const style = {
 	get current(): Recipe | null {
 		if (!recipe) return null;
 		if (!graph || (!pending && !pendingRaster)) return recipe;
-		return { ...recipe, sources: { ...recipe.sources, [graph.name]: focused() } };
+		return { ...recipe, sources: { ...recipe.sources, [graph.name]: focused(unstyled(null)) } };
 	},
 
-	/** The focused source's style, which is what the pane edits. */
+	/**
+	 * The focused source's style, which is what the pane edits.
+	 *
+	 * With no entry yet it is `unstyled(kind)`, so a source nobody has styled is shown as what it will
+	 * be drawn as - the themed default for a schema, the inspector style for anything else. The kind
+	 * is the caller's to read, from the tiles ([S11.2]).
+	 */
+	sourceOr(kind: SourceKind | null): SourceStyle {
+		return focused(unstyled(kind));
+	},
+
+	/** The focused source's style, as [`sourceOr`] gives it for tiles nobody has read yet. */
 	get source(): SourceStyle {
-		return focused();
+		return this.sourceOr(null);
 	},
 
 	/** The committed recipe, ignoring any gesture in progress. */

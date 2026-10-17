@@ -10,7 +10,7 @@ import { browser, expect, $ } from '@wdio/globals';
 import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { LAUNCHER, fire, invoke, openPane, openProject, switchTo, waitForGone } from '../support';
+import { LAUNCHER, fire, invoke, openProject, readAs, switchTo, waitForGone } from '../support';
 
 const DIR = mkdtempSync(join(tmpdir(), 'studio-e2e-project-'));
 
@@ -21,7 +21,7 @@ describe('saving a project and opening it again', () => {
 
 	it('writes a manifest and a pipeline anyone could read', async () => {
 		// Something worth having survived, so that reopening can be about more than "a window opened".
-		await openPane('Style');
+		await readAs('vectorShortbread');
 		await $('button=Shadow').click();
 		await browser.waitUntil(
 			async () => (await invoke<Recipe>('style')).sources.debug?.appearance?.preset === 'shadow',

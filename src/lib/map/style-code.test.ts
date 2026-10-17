@@ -93,11 +93,12 @@ describe('styleCode', () => {
 		expect(code).toContain('"visible": false');
 	});
 
-	// A derived style is assembled from whatever the tiles turned out to contain, so there is no
+	// The inspector style is assembled from whatever the tiles turned out to contain, so there is no
 	// builder to name - and style.json is the honest form for a style with no shorter description.
-	it('has no code for a style that was derived rather than chosen', () => {
-		expect(canGenerateCode(recipe({ preset: 'derived' } as Partial<Appearance>))).toBe(false);
-		expect(styleCode(recipe({ preset: 'derived' } as Partial<Appearance>))).toBeNull();
+	it('has no code for the inspector style', () => {
+		const inspector = { type: 'inspector', overrides: {} } as Appearance;
+		expect(canGenerateCode(inspector)).toBe(false);
+		expect(styleCode(inspector)).toBeNull();
 	});
 });
 

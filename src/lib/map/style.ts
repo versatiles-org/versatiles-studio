@@ -53,8 +53,7 @@ export interface StyleSource {
 /**
  * Builds the style a vector appearance describes over the given sources.
  *
- * Returns `null` for a recipe with no builder - `derived` is S4.4's, and until that exists there is
- * nothing to render rather than something wrong to render.
+ * `null` only for a preset this build has no builder for, which no recipe this build writes can say.
  */
 export function renderStyle(
 	appearance: VectorAppearance,
@@ -254,9 +253,10 @@ export function hillshadeStyle(
 export type StyleBasis =
 	/** The chosen preset draws these tiles. */
 	| 'preset'
-	/** `derived` was chosen, and it drew. */
-	| 'derived'
-	/** A preset was chosen, could not draw these tiles, and derived layers stood in for it. */
+	/** The inspector style: the tiles are read as no schema a builder knows, and every layer they
+	 *  contain is drawn in a colour of its own ([S11.2](../../../docs/history.md)). */
+	| 'inspector'
+	/** A preset was chosen, could not draw these tiles, and the inspector layers stood in for it. */
 	| 'fallback'
 	/** Drawn as imagery, with whatever adjustment the recipe carries (S6.3). */
 	| 'raster'
@@ -313,24 +313,26 @@ export function styleFor(
 
 	if (!isVectorKind(kind) || renderable !== 'vector') return { style: null, basis: 'none' };
 
-	// The derived builder is handed layers and sources and never sees a recipe, so the overrides go
+	// The inspector builder is handed layers and sources and never sees a recipe, so the overrides go
 	// on here instead - the tree that writes them is offered on these styles too ([Q51]).
-	const overrides = appearance.type === 'vector' ? appearance.overrides : {};
-	const derive = (basis: StyleBasis): { style: StyleSpecification | null; basis: StyleBasis } => {
-		const derived = deriveStyle(layers, sources, serverBaseUrl);
-		return derived ? { style: withOverrides(derived, overrides), basis } : { style: null, basis: 'none' };
+	const overrides = appearance.type === 'vector' || appearance.type === 'inspector' ? appearance.overrides : {};
+	const inspect = (basis: StyleBasis): { style: StyleSpecification | null; basis: StyleBasis } => {
+		const drawn = deriveStyle(layers, sources, serverBaseUrl);
+		return drawn ? { style: withOverrides(drawn, overrides), basis } : { style: null, basis: 'none' };
 	};
 
-	// A raster appearance on a vector source has nothing to say; derive rather than draw nothing.
-	if (appearance.type !== 'vector') return derive('derived');
+	// **The kind picks the editor** ([S11.2]). Tiles of no schema a builder knows are drawn as the
+	// inspector style whatever the appearance says - a theme over them is a control that does nothing
+	// - and so is anything whose appearance is not a theme: the inspector's own, or a raster one left
+	// over from a reading that changed.
+	if (kind === 'vectorOther' || appearance.type !== 'vector') return inspect('inspector');
 
-	// Built from what the tiles have rather than from what a schema expects (S4.4).
-	if (appearance.preset === 'derived') return derive('derived');
-
+	// A theme over a schema it was built for. If it still draws nothing, the reading is wrong - the
+	// tiles are not what they were read as - and the inspector style stands in, saying so.
 	const rendered = renderStyle(appearance, sources, serverBaseUrl, schemaOf(kind));
 	if (rendered && drawsAnything(rendered, mountedLayers)) return { style: rendered, basis: 'preset' };
 
-	return derive('fallback');
+	return inspect('fallback');
 }
 
 /**

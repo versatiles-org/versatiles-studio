@@ -41,11 +41,7 @@ export const PRESETS: { id: Preset; label: string; note: string }[] = [
 	{ id: 'graybeard', label: 'Graybeard', note: 'greys' },
 	{ id: 'neutrino', label: 'Neutrino', note: 'muted colours' },
 	{ id: 'shadow', label: 'Shadow', note: 'dark greys' },
-	{ id: 'eclipse', label: 'Eclipse', note: 'dark, full colour' },
-	// Not one of `@versatiles/style`'s six. The others know what `water_polygons` means; this one
-	// knows only what the tiles turn out to contain, which is the only thing that works when they
-	// are not Shortbread (S4.4, D2).
-	{ id: 'derived', label: 'From the data', note: 'every layer these tiles actually have' }
+	{ id: 'eclipse', label: 'Eclipse', note: 'dark, full colour' }
 ];
 
 export const KIND_OPTIONS: SourceKind[] = [
@@ -193,6 +189,9 @@ export function editing(appearance: { type: string } & Record<string, unknown>):
 		recolor: appearance.type === 'vector' ? (appearance.recolor as Recolor) : null,
 		raster: appearance.type === 'raster' ? (appearance.adjust as RasterAdjust) : {},
 		shade: appearance.type === 'hillshade' ? (appearance.shade as Hillshade) : {},
-		overrides: appearance.type === 'vector' ? (appearance.overrides as Record<string, unknown>) : {}
+		overrides:
+			appearance.type === 'vector' || appearance.type === 'inspector'
+				? (appearance.overrides as Record<string, unknown>)
+				: {}
 	};
 }

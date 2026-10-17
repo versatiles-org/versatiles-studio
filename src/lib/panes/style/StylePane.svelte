@@ -131,7 +131,9 @@
 		source ? sourceKind(source.tileFormat, source.tileSchema, source.layers, sourceStyle.kind) : null
 	);
 	const kind = $derived(reading?.kind ?? null);
-	const vector = $derived(kind === null || isVector(kind));
+	/// A schema a builder knows, so a theme is something to choose. `vectorOther` is vector too, but
+	/// its editor is the inspector style, which has no theme ([S11.2]).
+	const themed = $derived(kind === null || (isVector(kind) && kind !== 'vectorOther'));
 	/// Which builder the preset goes through - `osm()`, `omt()` or `protomaps()` - and so which one the
 	/// exported code calls.
 	const schema = $derived(schemaOf(kind));
@@ -246,7 +248,7 @@
 			<h2 class="section-label">These tiles</h2>
 			<label class="kind">
 				<span class="name">Read as</span>
-				<select value={kind} onchange={(event) => chooseKind(event.currentTarget.value)}>
+				<select aria-label="Read as" value={kind} onchange={(event) => chooseKind(event.currentTarget.value)}>
 					{#each KIND_OPTIONS as option (option)}
 						<option value={option}>{KIND_LABELS[option]}</option>
 					{/each}
@@ -350,13 +352,22 @@
 			<!-- `nearest` is what a scan of a printed map or any pixel art wants; smoothing those
 			     turns crisp edges into mush at every zoom that is not exactly native. -->
 			<p class="note">Smooth blends between pixels. Square keeps them as they are.</p>
-		{:else if vector}
+		{:else if kind === 'vectorOther'}
+			<!-- **The kind picks the editor** ([S11.2]). Tiles no builder knows are drawn as the
+			     inspector style: every layer they contain, in a colour of its own. There is no theme to
+			     choose and nothing to recolour; what can be changed is each layer, in the Layers pane. -->
+			<h2 class="section-label">Inspector style</h2>
+			<p class="note">
+				Every layer these tiles contain, each in its own colour. Change a layer's colour, zoom range or filter in the
+				Layers pane. To draw them as a map, read them as the schema they follow.
+			</p>
+		{:else if themed}
 			<h2 class="section-label">Preset</h2>
 			{#if basis === 'fallback'}
 				<!-- S6.2: the preset is still what the recipe says, and it is not what the map is
 				     showing. Saying so here is cheaper than leaving someone to compare the two. -->
 				<p class="note substituted">
-					These tiles have none of the layers this preset draws, so they are drawn from what the tiles actually contain.
+					These tiles have none of the layers this preset draws, so they are shown as the inspector style instead.
 				</p>
 			{/if}
 			<div class="presets">
@@ -440,7 +451,7 @@
 			>
 				style.json
 			</button>
-			<!-- Disabled rather than hidden for a derived style: the reason it cannot be written as
+			<!-- Disabled rather than hidden for the inspector style: the reason it cannot be written as
 			     code is worth saying, and a button that vanishes says nothing. -->
 			<button
 				type="button"
@@ -448,7 +459,7 @@
 				disabled={!rendered || exporting !== null || code === null}
 				title={code !== null
 					? 'The preset and what was changed, as code'
-					: 'A derived style has no builder to call - export it as style.json'}
+					: 'The inspector style has no builder to call - export it as style.json'}
 				onclick={() => rendered && actions.exportAs('ts', code)}
 			>
 				@versatiles/style code

@@ -31,6 +31,11 @@ function raster(adjust: Record<string, unknown> = {}): Appearance {
 	return { type: 'raster', adjust } as Appearance;
 }
 
+/** The inspector appearance: no theme, only the layer tree's changes (S11.2). */
+function inspector(overrides: Record<string, unknown> = {}): Appearance {
+	return { type: 'inspector', overrides } as Appearance;
+}
+
 describe('renderStyle', () => {
 	it('renders a preset over the project’s own tiles', () => {
 		const style = renderStyle(recipe(), SOURCES, BASE);
@@ -55,11 +60,6 @@ describe('renderStyle', () => {
 		expect(JSON.stringify(style.sprite)).toContain(BASE);
 		const remote = JSON.stringify({ glyphs: style.glyphs, sprite: style.sprite });
 		expect(remote).not.toContain('versatiles.org');
-	});
-
-	it('has nothing to render for a preset that does not exist yet', () => {
-		// `derived` is S4.4. Until it exists, no style is the honest answer.
-		expect(renderStyle(recipe({ preset: 'derived' }), SOURCES, BASE)).toBeNull();
 	});
 
 	it('applies the recolouring rather than ignoring it', () => {
@@ -132,12 +132,18 @@ describe('overrides on every basis the layer tree is offered on', () => {
 	const SHORTBREAD = ['water_polygons', 'street_polygons', 'boundaries'];
 
 	/** Hides the first drawn layer of whatever `styleFor` picks, the way the tree's eye does. */
-	function hideFirstLayer(preset: string, mountedLayers: string[]) {
+	function hideFirstLayer(appearance: 'colorful' | 'inspector', mountedLayers: string[]) {
 		const target = { kind: 'vectorShortbread' as const, tileFormat: 'mvt', layers: OWN, mountedLayers };
-		const plain = styleFor(recipe({ preset }), target, SOURCES, BASE);
+		const plain = styleFor(appearance === 'inspector' ? inspector() : recipe(), target, SOURCES, BASE);
 		// The tree lists the ids of the style on the map, so an override keys on those.
 		const id = plain.style!.layers.find((layer) => 'source-layer' in layer)!.id;
-		const hidden = styleFor(recipe({ preset, overrides: { [id]: { visible: false } } }), target, SOURCES, BASE);
+		const overrides = { [id]: { visible: false } };
+		const hidden = styleFor(
+			appearance === 'inspector' ? inspector(overrides) : recipe({ overrides }),
+			target,
+			SOURCES,
+			BASE
+		);
 		return { id, plain: plain.style!, basis: hidden.basis, hidden: hidden.style! };
 	}
 
@@ -154,9 +160,9 @@ describe('overrides on every basis the layer tree is offered on', () => {
 		expect(layerNamed(hidden, id).layout).toMatchObject({ visibility: 'none' });
 	});
 
-	it('hides a layer of a derived style', () => {
-		const { basis, hidden, id } = hideFirstLayer('derived', OWN_NAMES);
-		expect(basis).toBe('derived');
+	it('hides a layer of the inspector style', () => {
+		const { basis, hidden, id } = hideFirstLayer('inspector', OWN_NAMES);
+		expect(basis).toBe('inspector');
 		expect(layerNamed(hidden, id).layout).toMatchObject({ visibility: 'none' });
 	});
 
@@ -170,12 +176,12 @@ describe('overrides on every basis the layer tree is offered on', () => {
 
 	// Visibility is only the eye. Colour, filter and zoom range ride the same override down the same
 	// path, so one of them standing in for the rest is enough to know the path is connected.
-	it('carries the rest of an override into a derived style too', () => {
+	it('carries the rest of an override into the inspector style too', () => {
 		const target = { kind: 'vectorShortbread' as const, tileFormat: 'mvt', layers: OWN, mountedLayers: OWN_NAMES };
-		const plain = styleFor(recipe({ preset: 'derived' }), target, SOURCES, BASE).style!;
+		const plain = styleFor(inspector(), target, SOURCES, BASE).style!;
 		const id = plain.layers.find((layer) => layer.type === 'line')!.id;
 		const patched = styleFor(
-			recipe({ preset: 'derived', overrides: { [id]: { paint: { 'line-color': '#ff0000' }, minZoom: 7 } } }),
+			inspector({ [id]: { paint: { 'line-color': '#ff0000' }, minZoom: 7 } }),
 			target,
 			SOURCES,
 			BASE
@@ -185,13 +191,13 @@ describe('overrides on every basis the layer tree is offered on', () => {
 	});
 
 	it('leaves the layers nobody touched exactly as they were', () => {
-		const { plain, hidden, id } = hideFirstLayer('derived', OWN_NAMES);
+		const { plain, hidden, id } = hideFirstLayer('inspector', OWN_NAMES);
 		const others = (style: StyleSpecification) => JSON.stringify(style.layers.filter((l) => l.id !== id));
 		expect(others(hidden)).toEqual(others(plain));
 	});
 
 	it('still validates as a style once an override is on it', () => {
-		const { hidden } = hideFirstLayer('derived', OWN_NAMES);
+		const { hidden } = hideFirstLayer('inspector', OWN_NAMES);
 		expect(validateStyleMin(hidden)).toEqual([]);
 	});
 });
@@ -319,14 +325,22 @@ describe('styleFor', () => {
 		expect(style!.layers.some((layer) => 'source-layer' in layer && layer['source-layer'] === 'places')).toBe(true);
 	});
 
-	it('keeps `derived` distinct from falling back to it', () => {
+	it('keeps the inspector style distinct from falling back to it', () => {
 		const chosen = styleFor(
-			recipe({ preset: 'derived' }),
+			inspector(),
 			{ kind: 'vectorShortbread', tileFormat: 'mvt', layers: PLACES, mountedLayers: ['places'] },
 			SOURCES,
 			BASE
 		);
-		expect(chosen.basis).toBe('derived');
+		expect(chosen.basis).toBe('inspector');
+	});
+
+	// **The kind picks the editor** (S11.2). Tiles read as no schema are the inspector style whatever
+	// the appearance says - even a theme that would have drawn them, had they been read as Shortbread.
+	it('draws tiles read as "other" as the inspector style, whatever the appearance says', () => {
+		const target = { kind: 'vectorOther' as const, tileFormat: 'mvt', layers: PLACES, mountedLayers: SHORTBREAD };
+		expect(styleFor(recipe(), target, SOURCES, BASE).basis).toBe('inspector');
+		expect(styleFor(inspector(), target, SOURCES, BASE).basis).toBe('inspector');
 	});
 
 	// Raster has no vector layers to derive from, and inventing something to draw would be worse
@@ -342,9 +356,9 @@ describe('styleFor', () => {
 		expect(style).toBeNull();
 	});
 
-	it('reports `none` for a derived preset with nothing to derive', () => {
+	it('reports `none` for the inspector style with nothing to draw', () => {
 		const { basis } = styleFor(
-			recipe({ preset: 'derived' }),
+			inspector(),
 			{ kind: 'vectorShortbread', tileFormat: 'mvt', layers: [], mountedLayers: [] },
 			SOURCES,
 			BASE

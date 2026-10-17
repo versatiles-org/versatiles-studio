@@ -15,7 +15,7 @@
  */
 
 import { browser, expect, $, $$ } from '@wdio/globals';
-import { invoke, openPane, openProject } from '../support';
+import { invoke, openPane, openProject, readAs } from '../support';
 
 type Recipe = { sources: Record<string, { appearance?: { preset?: string } }> };
 type Graph = { id: number; name: string };
@@ -76,7 +76,7 @@ describe('selecting another source', () => {
 			timeout: 10_000,
 			timeoutMsg: 'the row never became the selected one'
 		});
-		await openPane('Style');
+		await readAs('vectorShortbread');
 		await $('button=Neutrino').click();
 
 		await browser.waitUntil(async () => (await presetOf(second.name)) === 'neutrino', {

@@ -63,9 +63,6 @@ pub enum Preset {
 	Graybeard,
 	Neutrino,
 	Shadow,
-	/// Built from the layers the tiles actually contain, rather than from a Shortbread assumption
-	/// (D2, S4.4). A recipe rather than a fixed style, so it re-derives when the pipeline changes.
-	Derived,
 }
 
 /// The adjustments applied to every colour in the style at once (D1).
@@ -305,11 +302,24 @@ pub struct Hillshade {
 #[serde(tag = "type", rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
 pub enum Appearance {
-	/// Vector tiles: a preset, the adjustments over it, and whatever layers were changed by hand.
+	/// Vector tiles of a schema a builder knows: a preset, the adjustments over it, and whatever
+	/// layers were changed by hand.
 	Vector {
 		preset: Preset,
 		recolor: Recolor,
 		/// By layer id. Empty for a style nobody has edited by hand.
+		overrides: BTreeMap<String, LayerOverride>,
+	},
+	/// Vector tiles of no schema a builder knows, drawn as an inspector style: every layer the tiles
+	/// contain in a colour of its own (D2, [S11.2](../../../docs/history.md)).
+	///
+	/// **A kind, not a preset.** This used to be `Preset::Derived`, a seventh button beside the
+	/// themes, which left the themes offered over tiles they could not draw and the inspector style
+	/// one click away from tiles that had a theme. What the tiles *are* decides the editor; a theme
+	/// is a choice inside one of them. So "read as Vector · other" is how a person asks for this,
+	/// over any tiles, and the only thing it carries is the layer tree's changes.
+	Inspector {
+		/// By layer id, keyed on the ids the inspector style gives its layers.
 		overrides: BTreeMap<String, LayerOverride>,
 	},
 	/// Raster tiles drawn as an image, adjusted (D11).
@@ -342,14 +352,28 @@ impl Appearance {
 			Some(SourceKind::RasterDem) => Self::Hillshade {
 				shade: Hillshade::default(),
 			},
+			// Tiles no builder knows start on the inspector style, which is the only one that draws
+			// them - a theme over them would be a control that does nothing ([S11.2]).
+			Some(SourceKind::VectorOther) => Self::Inspector {
+				overrides: BTreeMap::new(),
+			},
 			_ => Self::default(),
 		}
 	}
 
-	/// Whether this appearance describes vector tiles, which is what a preset and a tree need.
+	/// Whether this appearance describes vector tiles, which is what a layer tree needs.
 	#[must_use]
 	pub fn is_vector(&self) -> bool {
-		matches!(self, Self::Vector { .. })
+		matches!(self, Self::Vector { .. } | Self::Inspector { .. })
+	}
+
+	/// The per-layer changes, for the two appearances that have layers to change.
+	#[must_use]
+	pub fn overrides_mut(&mut self) -> Option<&mut BTreeMap<String, LayerOverride>> {
+		match self {
+			Self::Vector { overrides, .. } | Self::Inspector { overrides } => Some(overrides),
+			Self::Raster { .. } | Self::Hillshade { .. } => None,
+		}
 	}
 }
 
@@ -558,10 +582,10 @@ impl Recipe {
 	/// than overrides. This is the deliberate clear-out, and it returns how many went so a caller can
 	/// say so rather than silently changing the file.
 	pub fn prune_overrides(&mut self, source: &str, present: &[String]) -> usize {
-		let Some(SourceStyle {
-			appearance: Appearance::Vector { overrides, .. },
-			..
-		}) = self.sources.get_mut(source)
+		let Some(overrides) = self
+			.sources
+			.get_mut(source)
+			.and_then(|style| style.appearance.overrides_mut())
 		else {
 			return 0;
 		};
@@ -615,7 +639,8 @@ impl Recipe {
 	/// nothing, and a user who undid every change would still see the layer marked as edited.
 	///
 	/// Does nothing for a raster source: there are no layers to override, and creating a vector
-	/// appearance to hold the patch would silently change what the source is.
+	/// appearance to hold the patch would silently change what the source is. An inspector source
+	/// takes it like a themed one - its layers are what the tree lists ([S11.2]).
 	pub fn set_override(&mut self, source: &str, layer: impl Into<String>, patch: LayerOverride) {
 		let layer = layer.into();
 
@@ -633,7 +658,7 @@ impl Recipe {
 
 		// `None`, so a source that has to be created is created as vector. An entry that already
 		// exists keeps whatever it is, which is what leaves a raster source alone below.
-		let Appearance::Vector { overrides, .. } = &mut self.source_mut(source, None).appearance else {
+		let Some(overrides) = self.source_mut(source, None).appearance.overrides_mut() else {
 			return;
 		};
 
@@ -1010,9 +1035,31 @@ mod tests {
 
 	fn overrides_of(recipe: &Recipe) -> &BTreeMap<String, LayerOverride> {
 		match &recipe.source(GRAPH).expect("the source is styled").appearance {
-			Appearance::Vector { overrides, .. } => overrides,
-			other => panic!("expected a vector appearance, got {other:?}"),
+			Appearance::Vector { overrides, .. } | Appearance::Inspector { overrides } => overrides,
+			other => panic!("expected an appearance with layers, got {other:?}"),
 		}
+	}
+
+	/// The kind picks the editor ([S11.2]): tiles no builder knows start on the inspector style, and
+	/// the tree's changes land on it the way they land on a themed source.
+	#[test]
+	fn tiles_of_no_known_schema_start_on_the_inspector_style_and_take_overrides() {
+		let mut recipe = Recipe::default();
+		recipe.source_mut(GRAPH, Some(SourceKind::VectorOther));
+		assert!(matches!(
+			recipe.source(GRAPH).unwrap().appearance,
+			Appearance::Inspector { .. }
+		));
+		recipe.set_override(
+			GRAPH,
+			"derived:parcels",
+			LayerOverride {
+				visible: Some(false),
+				..LayerOverride::default()
+			},
+		);
+		assert_eq!(overrides_of(&recipe).len(), 1);
+		assert_eq!(recipe.prune_overrides(GRAPH, &[]), 1);
 	}
 
 	/// An untouched recolour is "leave everything alone", not a list of identity values - otherwise

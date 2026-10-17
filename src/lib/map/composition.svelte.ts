@@ -70,7 +70,7 @@ const sources = $derived.by(() => {
 		out[graph.name] = {
 			graph: graph.id,
 			hidden: source?.hidden ?? [],
-			overrides: appearance?.type === 'vector' ? appearance.overrides : {},
+			overrides: appearance?.type === 'vector' || appearance?.type === 'inspector' ? appearance.overrides : {},
 			style: composed.bases.find((entry) => entry.name === graph.name)?.style ?? null
 		};
 	}

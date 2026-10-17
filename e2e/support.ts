@@ -109,6 +109,20 @@ export async function choose(select: ChainablePromiseElement, value: string): Pr
 }
 
 /**
+ * Reads the selected source's tiles as a schema, so the Style pane offers that schema's themes.
+ *
+ * **The kind picks the editor** (S11.2): `from_debug` draws tiles of no schema a builder knows, so
+ * an untouched Style pane shows them as the inspector style, with no theme to press. A spec that
+ * wants to press one says what the tiles should be read as first - which is what a person does too.
+ */
+export async function readAs(kind: 'vectorShortbread' | 'vectorOther'): Promise<void> {
+	await openPane('Style');
+	const picker = browser.$('select[aria-label="Read as"]');
+	await picker.waitForDisplayed({ timeout: 10_000, timeoutMsg: 'no "Read as" picker' });
+	await choose(picker, kind);
+}
+
+/**
  * Opens a pane by name, and leaves it open whether or not it already was.
  *
  * **Not a click.** Which panes are open is remembered app-wide, so a spec that toggles blindly

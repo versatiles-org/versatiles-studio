@@ -100,6 +100,19 @@ describe('what the pane offers for each kind of tileset', () => {
 		expect(screen.queryByText('Opacity')).toBeNull();
 	});
 
+	// **The kind picks the editor** (S11.2). Tiles no builder knows have no theme to choose and nothing
+	// to recolour: the pane says what they are drawn as, and where a layer can be changed.
+	it('offers no theme and no recolouring for tiles of no known schema', () => {
+		open({ appearance: { type: 'inspector', overrides: {} }, layers: ['parcels', 'roads'] });
+
+		expect(screen.getByText('Inspector style')).toBeTruthy();
+		expect(screen.queryByText('Preset')).toBeNull();
+		expect(screen.queryByText('Colorful')).toBeNull();
+		expect(screen.queryByText('Invert brightness')).toBeNull();
+		// Reading them as a schema is how a theme comes back, and the picker is still there to do it.
+		expect(screen.getByLabelText('Read as')).toBeTruthy();
+	});
+
 	// Nothing published says how VersaTiles packs elevation, so it says so rather than guessing.
 	it('says an unreadable DEM encoding cannot be shaded, and offers the picker', () => {
 		open({

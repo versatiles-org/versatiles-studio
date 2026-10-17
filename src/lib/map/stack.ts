@@ -13,22 +13,34 @@
  */
 
 import type { StyleSpecification } from 'maplibre-gl';
-import type { Preview, Recipe, Segment, SourceStyle } from '../ipc/commands';
+import type { Preview, Recipe, Segment, SourceKind, SourceStyle } from '../ipc/commands';
 import { sourceKind } from './source-kind';
 import { declaredLayers } from './tile-json';
 import { composeStyle, type Composed, type StackEntry } from './style';
 
 /**
- * What a source that has never been styled looks like.
+ * What a source that has never been styled looks like, given what its tiles are.
  *
- * The same default the core creates on first touch. Duplicated deliberately rather than fetched:
- * the webview draws before it has asked the core anything, and a source with no entry yet must draw
- * as a preset rather than as nothing.
+ * The same default the core creates on first touch - `Appearance::for_kind` - because the webview
+ * draws before it has asked the core anything, and a source with no entry yet must draw as what it
+ * will be rather than as nothing. **One copy**, here, read by the stack and by the state module alike
+ * ([S11.2](../../../docs/history.md)): there were three, and all said "Colorful" whatever the tiles
+ * were - so a `from_csv` result opened on a preset that could not draw it and a note explaining why.
+ *
+ * `null` is a kind nobody has read yet, which gets the themed default the core gives it too.
  */
-export const UNSTYLED_SOURCE: SourceStyle = {
-	kind: null,
-	appearance: { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} }
-};
+export function unstyled(kind: SourceKind | null): SourceStyle {
+	switch (kind) {
+		case 'rasterImage':
+			return { kind: null, appearance: { type: 'raster', adjust: {} } };
+		case 'rasterDem':
+			return { kind: null, appearance: { type: 'hillshade', shade: {} } };
+		case 'vectorOther':
+			return { kind: null, appearance: { type: 'inspector', overrides: {} } };
+		default:
+			return { kind: null, appearance: { type: 'vector', preset: 'colorful', recolor: {}, overrides: {} } };
+	}
+}
 
 /**
  * The layers a derived style should draw: **every layer the source declares**, not the ones a probe
@@ -59,14 +71,17 @@ export function drawableLayers(built: Preview): { name: string; geometry: string
 
 /** One source's place in the stack, from what was built and how the recipe says to draw it. */
 export function entryFor(built: Preview, recipe: Recipe): StackEntry {
-	const style = recipe.sources[built.name] ?? UNSTYLED_SOURCE;
-	const hidden = recipe.sources[built.name]?.hidden ?? [];
+	const stored = recipe.sources[built.name];
 	const layers = declaredLayers(built.info);
+	// The reading first, because what an unstyled source defaults to depends on it.
+	const kind = sourceKind(built.info.tileFormat, built.info.tileSchema, layers, stored?.kind).kind;
+	const style = stored ?? unstyled(kind);
+	const hidden = stored?.hidden ?? [];
 	return {
 		name: built.name,
 		tileUrl: built.tileUrl,
 		appearance: style.appearance,
-		kind: sourceKind(built.info.tileFormat, built.info.tileSchema, layers, style.kind).kind,
+		kind,
 		tileFormat: built.info.tileFormat,
 		tileSchema: built.info.tileSchema,
 		layers: drawableLayers(built),
