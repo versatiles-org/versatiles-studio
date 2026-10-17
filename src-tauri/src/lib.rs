@@ -99,6 +99,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::sources::recent_sources,
 		commands::sources::forget_recent,
 		commands::sources::inspect_tile,
+		commands::analysis::measure_sizes,
 		commands::views::list_views,
 		commands::views::save_view,
 		commands::views::delete_view,

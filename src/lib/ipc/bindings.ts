@@ -198,6 +198,19 @@ export const commands = {
 	storedBytes: number,
 	layers: LayerInspection[],
 } | null, string>(__TAURI_INVOKE("inspect_tile", { source, z, x, y })),
+	/**
+	 *  Walks every tile size of a graph's output (S14.1, B1).
+	 * 
+	 *  **A job, and a queued one.** A walk over a large container is seconds of disk, and the job bar is
+	 *  where a person watches it and stops it. `Queued` rather than `Latest`, because `Latest` supersedes
+	 *  within a window - and the window's preview builds are `Latest` too, so measuring would cancel the
+	 *  build the map is waiting on.
+	 * 
+	 *  **Only a graph that is a container**, for now: see [`measure::container_behind`]. The container is
+	 *  opened again rather than reached through the mounted pipeline, because `from_container` answers a
+	 *  size by reading the tile body - the index is what makes this fast.
+	 */
+	measureSizes: (graph: number) => typedError<Sizes, string>(__TAURI_INVOKE("measure_sizes", { graph })),
 	listViews: () => typedError<View[], string>(__TAURI_INVOKE("list_views")),
 	/**  Saves a view, replacing any of the same name. */
 	saveView: (view: View) => typedError<null, string>(__TAURI_INVOKE("save_view", { view })),
@@ -719,7 +732,7 @@ export type Appearance_Deserialize =
  *  **The library's word, stored as a string** ([S11.3](../../../docs/history.md)). It used to be
  *  an enum of v5's five builder names, translated to v7's themes in the webview; the library
  *  has twenty-four now and lists them itself, so this end stores what it says and never
- *  renders one ([Q36]). The webview checks the name against the builder's list and treats one
+ *  renders one (Q36). The webview checks the name against the builder's list and treats one
  *  it does not know as the default rather than as an error.
  */
 theme?: string; recolor: Recolor_Deserialize; 
@@ -764,7 +777,7 @@ export type Appearance_Serialize =
  *  **The library's word, stored as a string** ([S11.3](../../../docs/history.md)). It used to be
  *  an enum of v5's five builder names, translated to v7's themes in the webview; the library
  *  has twenty-four now and lists them itself, so this end stores what it says and never
- *  renders one ([Q36]). The webview checks the name against the builder's list and treats one
+ *  renders one (Q36). The webview checks the name against the builder's list and treats one
  *  it does not know as the default rather than as an error.
  */
 theme: string; recolor: Recolor_Serialize; 
@@ -1550,6 +1563,16 @@ export type Level =
 /**  Something the user asked for did not happen. */
 "error";
 
+/**  The same figures for one zoom level. */
+export type LevelSizes = {
+	level: number,
+	tiles: number,
+	bytes: number,
+	p50: number,
+	p95: number,
+	max: number,
+};
+
 /**
  *  What a build of one graph came to.
  * 
@@ -2119,6 +2142,28 @@ export type Segment_Serialize = {
 
 /**  Which sidebar a pane sits in. */
 export type Side = "left" | "right";
+
+/**  One tile, and what it weighs. */
+export type SizedTile = {
+	z: number,
+	x: number,
+	y: number,
+	bytes: number,
+};
+
+/**  What a source's tiles weigh, overall and per zoom level. */
+export type Sizes = {
+	tiles: number,
+	/**  Every tile's stored bytes, added up. */
+	bytes: number,
+	p50: number,
+	p95: number,
+	max: number,
+	/**  One entry per level that holds a tile, ascending. */
+	levels: LevelSizes[],
+	/**  The biggest tiles, biggest first - at most [`BIGGEST`]. */
+	biggest: SizedTile[],
+};
 
 /**
  *  What a source's tiles are, as far as drawing them is concerned ([S6.1](../../../docs/history.md)).
