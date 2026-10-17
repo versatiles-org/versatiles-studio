@@ -22,14 +22,21 @@
 </div>
 
 <style>
+	/* **Quieter than anything that can be clicked**: no shadow to lift it off the map, a surface the
+	   map shows through, and small secondary text. A result list or a menu stands out from the map;
+	   this should read as a note beside the control, not as a second control.
+
+	   **The blur does the reading, not the opacity.** At 72% a road or a label behind it competed with
+	   12px secondary text, and over a light map the dark theme's box turned a muddy grey. A heavy blur
+	   turns whatever is behind into a wash of its colour, so the surface can stay see-through - and
+	   passive - at 86%, and the text keeps its contrast over a city or an image. */
 	.tooltip {
-		padding: var(--space-2) var(--space-3);
-		background: var(--float-bg);
-		border: 1px solid var(--rule);
+		padding: var(--space-1) var(--space-2);
+		background: color-mix(in srgb, var(--surface) 86%, transparent);
+		backdrop-filter: blur(12px) saturate(0.7);
 		border-radius: var(--radius);
-		box-shadow: var(--shadow);
 		color: var(--ink-2);
-		font-size: var(--text-sm);
+		font-size: var(--text-xs);
 		line-height: 1.6;
 		pointer-events: none;
 

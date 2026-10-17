@@ -229,7 +229,7 @@
 		<Tooltip id={hintId} shown={hintShown}>
 			<dl>
 				<dt>Berlin</dt>
-				<dd>a place</dd>
+				<dd>a place or address</dd>
 				<dt>52.52, 13.40</dt>
 				<dd>latitude, longitude</dd>
 				<dt>12/2200/1343</dt>
@@ -298,8 +298,8 @@
 		}
 	}
 
-	/* The list and the hint share a spot: under the whole strip, not only the field - the strip's left
-	   edge is the search icon. */
+	/* The list sits under the whole strip, not only the field: the strip's left edge is the search
+	   icon, and the list is a menu with a column of icons of its own. */
 	.below {
 		position: absolute;
 		top: calc(100% + var(--space-2) + 1px);
@@ -308,9 +308,14 @@
 		z-index: 2;
 	}
 
-	/* The hint passes the pointer through to the map, so its box must too - and it is as wide as its
-	   three lines, not the list's width: empty space beside them would read as room for results. */
+	/* **The hint is a caption for the field, not a second panel.** Its text starts where typed text
+	   starts - the field's padding less the tooltip's own - so `52.52, 13.40` sits where yours will, in
+	   the same face; it hangs close under the strip; and it is as wide as its three lines, since empty
+	   space beside them would read as room for results. It passes the pointer through to the map, so
+	   its box must too. Overrides `.below` by coming after it. */
 	.hint {
+		top: calc(100% + 1px + var(--space-1));
+		left: calc(var(--space-3) - var(--space-2));
 		width: max-content;
 		pointer-events: none;
 	}
@@ -318,13 +323,13 @@
 	dl {
 		display: grid;
 		grid-template-columns: auto 1fr;
-		gap: 0 var(--space-4);
+		gap: 0 var(--space-3);
 		margin: 0;
 	}
 
+	/* The shape of the example is the point, so it is set apart by the face, not by a brighter ink. */
 	dt {
 		font-family: var(--font-mono);
-		color: var(--ink);
 	}
 
 	dd {
