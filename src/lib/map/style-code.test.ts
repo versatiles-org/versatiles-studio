@@ -119,6 +119,13 @@ describe('forExport', () => {
 		expect(JSON.stringify(out)).toContain(placeholderFor('berlin'));
 	});
 
+	/** The map's style carries Svelte proxies, which `structuredClone` refuses - the problems log
+	 *  filled with "The object can not be cloned" once the style check ran on every change. */
+	it('copies a style with proxies in it', () => {
+		const reactive = { ...style, layers: new Proxy([], {}) } as typeof style;
+		expect(() => forExport(reactive)).not.toThrow();
+	});
+
 	it('leaves the style it was given alone', () => {
 		forExport(style);
 		expect(JSON.stringify(style)).toContain('studio://');

@@ -63,7 +63,10 @@ export const BUNDLED_SPRITE = 'sprites/base';
  * host, `'bundled'` for one written into a bundle that carries its own copies.
  */
 export function forExport(style: StyleSpecification, assets: 'public' | 'bundled' = 'public'): StyleSpecification {
-	const copy = structuredClone(style) as StyleSpecification;
+	// **Through JSON, not `structuredClone`.** The map's style is derived from reactive state, and
+	// parts of it - a recipe's overrides - are Svelte proxies, which `structuredClone` refuses with
+	// "The object can not be cloned". A style is JSON by definition, so the round trip loses nothing.
+	const copy = JSON.parse(JSON.stringify(style)) as StyleSpecification;
 	for (const [name, source] of Object.entries(copy.sources ?? {})) {
 		if (!('tiles' in source) || !Array.isArray(source.tiles)) continue;
 		// **Only the sources Studio serves itself.** `throughQueue` puts every mount behind
