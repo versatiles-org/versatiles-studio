@@ -85,6 +85,7 @@ versatiles-studio/
 │           ├── analysis.rs     probe stats, in-memory per container      (Q4)
 │           ├── measure.rs      what every tile weighs, over the index    (B1, Q72)
 │           ├── heat.rs         those sizes as squares, for the map       (B1, Q72)
+│           ├── contents.rs     what each layer holds, from a sample      (B2, Q72)
 │           ├── dissect.rs      one drawn tile, taken apart               (A4, Q72)
 │           ├── assets.rs       install, pin, verify; glyph generation    (G7, D9)
 │           ├── paths.rs        the guard on a path assembled from data

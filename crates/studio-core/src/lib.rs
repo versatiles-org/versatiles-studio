@@ -28,6 +28,7 @@ pub mod analysis;
 pub mod archive;
 pub mod assets;
 pub mod bundle;
+pub mod contents;
 pub mod diagnostics;
 pub mod dissect;
 pub mod estimate;

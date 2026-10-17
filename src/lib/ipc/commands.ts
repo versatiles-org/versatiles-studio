@@ -369,6 +369,8 @@ export const mountHeat = (graph: number, detail: number, colours: string[]) =>
 export const unmountHeat = (graph: number) => unwrap(commands.unmountHeat(graph));
 /** One tile's stored size, from the index - `null` where there is none. */
 export const tileBytes = (graph: number, z: number, x: number, y: number) => unwrap(commands.tileBytes(graph, z, x, y));
+/** Reads what a graph's vector tiles hold, layer by layer per level, as a job - a sample unless `full` (S14.7). */
+export const scanContents = (graph: number, full: boolean) => unwrap(commands.scanContents(graph, full));
 /** The drawn tile at `z/x/y` in brief, for the map's popup (S14.6). */
 export const summariseTile = (graph: number, z: number, x: number, y: number) =>
 	unwrap(commands.summariseTile(graph, z, x, y));

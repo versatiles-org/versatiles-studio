@@ -4,6 +4,7 @@
 
 use crate::state::AppState;
 use std::sync::Arc;
+use studio_core::contents::{self, Contents};
 use studio_core::dissect::{self, Dissection, TileSummary};
 use studio_core::graphs::GraphId;
 use studio_core::heat::{self, Heat};
@@ -78,6 +79,51 @@ pub async fn measure_sizes(window: tauri::Window, state: State<'_, AppState>, gr
 
 	rx.await
 		.unwrap_or_else(|_| Err("the measurement was cancelled".to_string()))
+}
+
+/// Reads what a graph's vector tiles hold, layer by layer per level (S14.7, B2) - a sample, unless
+/// `full`.
+///
+/// **The drawn tiles**, like the tile dialog: a transformed output has no index to measure, but its
+/// tiles can be read, so this works for every source - sampled, and saying so. A job in the queued
+/// lane for the reason [`measure_sizes`] is.
+#[tauri::command]
+#[specta::specta]
+pub async fn scan_contents(
+	window: tauri::Window,
+	state: State<'_, AppState>,
+	graph: GraphId,
+	full: bool,
+) -> Result<Contents, String> {
+	let source = state
+		.previews
+		.drawn(window.label(), graph)
+		.ok_or_else(|| "this source has not been drawn yet".to_string())?;
+	let name = {
+		let held = state.project(&window).await;
+		let project = held.lock().await;
+		project
+			.graphs
+			.get(graph)
+			.map_or_else(|| "a source".to_string(), |found| found.name.clone())
+	};
+
+	let (tx, rx) = tokio::sync::oneshot::channel();
+	state.jobs.submit(
+		format!("Reading the layers of {name}"),
+		Lane::Queued,
+		window.label(),
+		move |handle| async move {
+			let outcome = contents::scan(source.as_ref(), full, |done, total| {
+				handle.counted(done, total, "decoding tiles");
+			})
+			.await;
+			let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
+			outcome.map(|_| ())
+		},
+	);
+
+	rx.await.unwrap_or_else(|_| Err("the scan was cancelled".to_string()))
 }
 
 /// Where a graph's heat map is served, and over which levels (S14.3).

@@ -88,6 +88,13 @@
 	--map-heat-2: #e0b400;
 	--map-heat-3: #f08c00;
 	--map-heat-4: #e03131;
+	/* What a layer's bytes are spent on (S14.7): geometry, the key and value tables, each feature's
+	   tag references, and ids - four kinds that sit side by side in one bar, so four hues apart
+	   rather than one ramp, which would read as an order. */
+	--bytes-geometry: #1c7ed6;
+	--bytes-properties: #ae3ec9;
+	--bytes-tags: #f08c00;
+	--bytes-ids: #2f9e44;
 	/* Controls that float over the map need to stay legible against whatever is under them, so
 	   they sit on a near-opaque white rather than on --surface. */
 	--float-bg: rgb(255 255 255 / 0.94);
@@ -221,6 +228,10 @@
 		--map-heat-2: #fcc419;
 		--map-heat-3: #ff922b;
 		--map-heat-4: #ff6b6b;
+		--bytes-geometry: #4dabf7;
+		--bytes-properties: #da77f2;
+		--bytes-tags: #ffa94d;
+		--bytes-ids: #69db7c;
 		--float-bg: rgb(25 33 31 / 0.94);
 		--scrim: rgb(0 0 0 / 0.6);
 

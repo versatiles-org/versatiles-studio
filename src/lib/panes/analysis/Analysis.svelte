@@ -2,7 +2,9 @@
 	import Group from '../../common/Group.svelte';
 	import Note from '../../common/Note.svelte';
 	import { bytes, count, kilobytes } from '../../common/format';
+	import LayerShares from './LayerShares.svelte';
 	import type { Measurement } from '../../state/analysis.svelte';
+	import type { Scan } from '../../state/contents.svelte';
 
 	// What the selected source weighs (S14.2, B1, [Q72]).
 	//
@@ -21,7 +23,10 @@
 		onShowTile,
 		onInspectTile,
 		heatOn = false,
-		onToggleHeat
+		onToggleHeat,
+		scan,
+		scanStale = false,
+		onScan
 	}: {
 		/** The selected source's name, or `null` when none is selected. */
 		graph: string | null;
@@ -36,6 +41,12 @@
 		/** Whether the heat map is on - the same switch as the one on the map (S14.3). */
 		heatOn?: boolean;
 		onToggleHeat?: () => void;
+		/** What the source's layers hold, as far as they have been read (S14.7). */
+		scan: Scan;
+		/** Whether they were read from a build the map no longer draws. */
+		scanStale?: boolean;
+		/** Reads the layers - a sample, unless `full`. */
+		onScan: (full: boolean) => void;
 	} = $props();
 
 	/** The budget a vector tile is usually held to - and the line a row is marked for crossing. */
@@ -43,6 +54,12 @@
 
 	const sizes = $derived(measurement.sizes);
 </script>
+
+{#snippet read()}
+	<button type="button" class="quiet" disabled={scan.running} onclick={() => onScan(false)}>
+		{scan.contents ? 'Read again' : 'Read layers'}
+	</button>
+{/snippet}
 
 {#snippet measure()}
 	<button type="button" class="quiet" disabled={measurement.running} onclick={onMeasure}>
@@ -105,7 +122,7 @@
 			{#if onToggleHeat}
 				<!-- Here as well as on the map: this is where the question is asked, and the map is where
 				     the answer is drawn. -->
-				<button type="button" class="link heat" aria-pressed={heatOn} onclick={onToggleHeat}>
+				<button type="button" class="link alone" aria-pressed={heatOn} onclick={onToggleHeat}>
 					{heatOn ? 'Hide the heat map' : 'Show the heat map'}
 				</button>
 			{/if}
@@ -147,6 +164,26 @@
 				</table>
 			</Group>
 		{/if}
+
+		<Group title="Layers" action={read}>
+			{#if scan.running}
+				<Note live>Decoding tiles…</Note>
+			{/if}
+			{#if scan.error}
+				<Note tone="problem">{scan.error}</Note>
+			{/if}
+			{#if scan.contents}
+				{#if scanStale}
+					<Note tone="aside">Read before the last change to this source.</Note>
+				{/if}
+				<LayerShares contents={scan.contents} />
+				{#if scan.contents.sampled && !scan.running}
+					<button type="button" class="link alone" onclick={() => onScan(true)}>Read every tile</button>
+				{/if}
+			{:else if !scan.running && !scan.error}
+				<Note>Read layers decodes a sample of the tiles the map draws, and splits each layer's bytes.</Note>
+			{/if}
+		</Group>
 	{/if}
 </div>
 
@@ -157,7 +194,7 @@
 	}
 
 	/* A link on a line of its own, not stretched across the pane by the group's column. */
-	.heat {
+	.alone {
 		align-self: flex-start;
 	}
 </style>

@@ -41,6 +41,8 @@ const show = (props: Partial<Parameters<typeof render<typeof Analysis>>[1] & obj
 		onMeasure: vi.fn(),
 		onShowTile: vi.fn(),
 		onInspectTile: vi.fn(),
+		scan: { contents: null, error: null, running: false, build: null },
+		onScan: vi.fn(),
 		...props
 	});
 
@@ -108,5 +110,66 @@ describe('the heat map switch', () => {
 		cleanup();
 		show({ heatOn: true, onToggleHeat });
 		expect(screen.getByRole('button', { name: 'Hide the heat map' })).toBeTruthy();
+	});
+
+	describe('the layers', () => {
+		const layer = (name: string, bytes: number, features: number) => ({
+			name,
+			tiles: 1,
+			features,
+			bytes,
+			geometryBytes: bytes / 2,
+			propertyBytes: bytes / 4,
+			tagBytes: bytes / 8,
+			idBytes: 0,
+			otherBytes: bytes / 8
+		});
+		const contents = {
+			sampled: true,
+			read: 4,
+			undecodable: 0,
+			levels: [
+				{ level: 13, tiles: 4, read: 2, layers: [layer('water', 3000, 5), layer('roads', 1000, 7)] },
+				{ level: 14, tiles: 16, read: 2, layers: [layer('roads', 4000, 9)] }
+			]
+		};
+		const scanned = { contents, error: null, running: false, build: 'b' };
+		const names = () =>
+			screen
+				.getAllByRole('row')
+				.slice(1)
+				.map((row) => row.querySelector('.name')?.textContent);
+
+		it('reads them only when asked', async () => {
+			const onScan = vi.fn();
+			show({ onScan });
+			await fireEvent.click(screen.getByRole('button', { name: 'Read layers' }));
+			expect(onScan).toHaveBeenCalledWith(false);
+		});
+
+		it('ranks them over every level by their share, and says the answer is a sample', () => {
+			show({ measurement: measured(), scan: scanned });
+			const table = screen.getByRole('table', { name: 'Layers' });
+			const rows = within(table).getAllByRole('row').slice(1);
+			expect(rows.map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent))).toEqual([
+				['63%', '5 kB', '16'],
+				['38%', '3 kB', '5']
+			]);
+			expect(screen.getByText(/A sample: 4 of 20 tiles read/)).toBeTruthy();
+		});
+
+		it('narrows to one level', async () => {
+			show({ measurement: measured(), scan: scanned });
+			await fireEvent.change(screen.getByLabelText('Zoom'), { target: { value: '13' } });
+			expect(names()).toEqual(['water', 'roads']);
+			expect(screen.getByText(/A sample: 2 of 4 tiles read/)).toBeTruthy();
+		});
+
+		it('offers to read every tile after a sample', async () => {
+			const onScan = vi.fn();
+			show({ measurement: measured(), scan: scanned, onScan });
+			await fireEvent.click(screen.getByRole('button', { name: 'Read every tile' }));
+			expect(onScan).toHaveBeenCalledWith(true);
+		});
 	});
 });

@@ -26,6 +26,7 @@ import { anyExtension, askForSource } from '../common/import';
 import { fitToBounds } from '../map/add-source';
 import { tileForLngLat, tileToLngLat } from '../map/tile-grid';
 import { analysis } from './analysis.svelte';
+import { scans } from './contents.svelte';
 import { composition } from '../map/composition.svelte';
 import {
 	addGraph,
@@ -630,6 +631,7 @@ export const workbench = {
 			recipe.restored(found);
 			// Measured figures belong to the project they were measured in, and graph ids start again.
 			analysis.clear();
+			scans.clear();
 			await graphs.refresh();
 			if (graphs.first) document.show(await getGraph(graphs.first.id));
 			await this.syncContainers();

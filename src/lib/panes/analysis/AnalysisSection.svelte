@@ -5,6 +5,7 @@
 	import { workbench } from '../../state/workbench.svelte';
 	import { heat } from '../../state/heat.svelte';
 	import { tileDialog } from '../../state/tile-dialog.svelte';
+	import { scans } from '../../state/contents.svelte';
 
 	// The Analysis pane, connected (S14.2): the selected graph's figures, and the build they are about.
 
@@ -22,6 +23,11 @@
 	onShowTile={(z, x, y) => workbench.showTile(z, x, y)}
 	onInspectTile={(z, x, y) => {
 		if (selected) void tileDialog.open(selected.id, z, x, y);
+	}}
+	scan={selected ? scans.of(selected.id) : scans.of(-1)}
+	scanStale={selected ? scans.stale(selected.id, build) : false}
+	onScan={(full) => {
+		if (selected) void scans.scan(selected.id, build, full);
 	}}
 	heatOn={heat.on}
 	onToggleHeat={() => {

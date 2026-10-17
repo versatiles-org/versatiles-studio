@@ -104,6 +104,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::analysis::tile_bytes,
 		commands::analysis::dissect_tile,
 		commands::analysis::summarise_tile,
+		commands::analysis::scan_contents,
 		commands::views::list_views,
 		commands::views::save_view,
 		commands::views::delete_view,

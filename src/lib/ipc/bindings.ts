@@ -250,6 +250,15 @@ export const commands = {
 	/**  Its layers, the heaviest first; none for a raster tile. */
 	layers: LayerSummary[],
 } | null, string>(__TAURI_INVOKE("summarise_tile", { graph, z, x, y })),
+	/**
+	 *  Reads what a graph's vector tiles hold, layer by layer per level (S14.7, B2) - a sample, unless
+	 *  `full`.
+	 * 
+	 *  **The drawn tiles**, like the tile dialog: a transformed output has no index to measure, but its
+	 *  tiles can be read, so this works for every source - sampled, and saying so. A job in the queued
+	 *  lane for the reason [`measure_sizes`] is.
+	 */
+	scanContents: (graph: number, full: boolean) => typedError<Contents, string>(__TAURI_INVOKE("scan_contents", { graph, full })),
 	listViews: () => typedError<View[], string>(__TAURI_INVOKE("list_views")),
 	/**  Saves a view, replacing any of the same name. */
 	saveView: (view: View) => typedError<null, string>(__TAURI_INVOKE("save_view", { view })),
@@ -960,6 +969,18 @@ export type ContainerInfo = {
 	tileJson: any,
 };
 
+/**  What a source's vector tiles hold. */
+export type Contents = {
+	/**  Whether only some tiles were read. */
+	sampled: boolean,
+	/**  Tiles read, over every level. */
+	read: number,
+	/**  Tiles that would not decode as vector tiles. */
+	undecodable: number,
+	/**  One entry per level that holds a tile, ascending. */
+	levels: LevelContents[],
+};
+
 /**  The control a parameter should be edited with. */
 export type Control = { kind: "text" } | 
 /**
@@ -1518,6 +1539,24 @@ export type Lane =
  */
 "latest";
 
+/**  One layer's features and bytes, summed over the tiles read. */
+export type LayerContents = {
+	name: string,
+	/**  Tiles read that carry it. */
+	tiles: number,
+	features: number,
+	/**
+	 *  Its encoded bytes, and their split: geometry, the key and value tables, each feature's tag
+	 *  references, ids, and the framing - which add up to `bytes`.
+	 */
+	bytes: number,
+	geometryBytes: number,
+	propertyBytes: number,
+	tagBytes: number,
+	idBytes: number,
+	otherBytes: number,
+};
+
 /**  One layer: what it holds, and what its bytes are spent on. */
 export type LayerDissection = {
 	name: string,
@@ -1696,6 +1735,17 @@ export type Level =
 "warn" | 
 /**  Something the user asked for did not happen. */
 "error";
+
+/**  One level's layers. */
+export type LevelContents = {
+	level: number,
+	/**  Tiles the level holds. */
+	tiles: number,
+	/**  Tiles of it that were read. */
+	read: number,
+	/**  Its layers, the heaviest first. */
+	layers: LayerContents[],
+};
 
 /**  The same figures for one zoom level. */
 export type LevelSizes = {
