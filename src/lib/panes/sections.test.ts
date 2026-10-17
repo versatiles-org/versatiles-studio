@@ -80,7 +80,8 @@ describe('an empty window', () => {
 	it('renders every pane, each saying it has nothing yet', () => {
 		for (const id of Object.keys(PANES) as PaneId[]) section(id);
 		expect(screen.getByText('No sources yet.')).toBeTruthy();
-		expect(screen.getByText('No source selected.')).toBeTruthy();
+		// Pipeline and Analysis both follow the selection, and both say there is none.
+		expect(screen.getAllByText('No source selected.')).toHaveLength(2);
 		expect(screen.getByText(/Nothing to style yet/)).toBeTruthy();
 		expect(screen.getByText('Nothing is being drawn yet.')).toBeTruthy();
 	});

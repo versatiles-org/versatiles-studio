@@ -37,6 +37,16 @@ export function megabytes(count: number): string {
 	return `${(count / 1e6).toFixed(1)} MB`;
 }
 
+/// Always kilobytes, for a column of **tile** sizes (S14.2).
+///
+/// The same argument as `megabytes`, one unit down: a tile is tens of kilobytes, and the budget a
+/// vector tile is held to - 500 kB - is quoted in this unit. One decimal below ten, where the digit
+/// still says something; none above, where it would only be noise in a column.
+export function kilobytes(count: number): string {
+	const kb = count / 1e3;
+	return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} kB`;
+}
+
 /// Thousands separated, for counts that are read rather than compared - "1,048,576 tiles".
 export function count(value: number): string {
 	return value.toLocaleString('en-US');

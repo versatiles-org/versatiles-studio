@@ -83,6 +83,7 @@ versatiles-studio/
 │           ├── tabular.rs      a delimited file's header                 (E2)
 │           ├── suggest.rs      values a field could take                 (E2)
 │           ├── analysis.rs     probe stats, in-memory per container      (Q4)
+│           ├── measure.rs      what every tile weighs, over the index    (B1, Q72)
 │           ├── assets.rs       install, pin, verify; glyph generation    (G7, D9)
 │           ├── paths.rs        the guard on a path assembled from data
 │           ├── store.rs        recents and named views, outliving a window (A7, Q21)

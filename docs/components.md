@@ -41,6 +41,7 @@ lib/panes/style/      StylePane · StyleSection
 lib/panes/layers/     LayersPane · LayersSection · LayerRow
 lib/panes/project/    CopyDialog
 lib/panes/inspector/  Inspector · InspectorSection
+lib/panes/analysis/   Analysis · AnalysisSection - what the selected source weighs (S14, Q72)
 lib/map/              MapCanvas · MapControls · Dropdown · TileGrid · TileActivity · SearchBox · Tooltip · Views · FeaturePopup · CropOverlay
 lib/common/           used by more than one owner: Help · HelpTrigger · Menu · Picker · ColorPicker · JsonTree · Modal · RemoteDialog · LandingScreen · the kit: Group · Field · Note · Tabs · Icon (S12, S13)
 ```
@@ -73,7 +74,7 @@ src/App.svelte · src/Launcher.svelte   the two pages
 lib/shell/                             frame: AppShell, Sidebar, Pane, StatusBar, dialogs
 lib/map/                               the map surface and its overlays
 lib/panes/<pane>/                      one folder per pane, named for the pane
-                                       sources · pipeline · style · layers · inspector · project
+                                       sources · pipeline · style · layers · inspector · analysis · project
 lib/panes/registry.ts                  every pane id, its title and its scope - checked against
                                        the core's catalogue by registry.test.ts (S10.9)
 lib/common/                            used by more than one owner

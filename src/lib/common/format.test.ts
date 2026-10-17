@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bytes, count, duration, megabytes } from './format';
+import { bytes, count, duration, kilobytes, megabytes } from './format';
 
 describe('duration', () => {
 	it('stops pretending to be precise as it gets further away', () => {
@@ -28,6 +28,15 @@ describe('megabytes', () => {
 
 	it('does not round a real size away to nothing it can be confused with', () => {
 		expect(megabytes(0)).toBe('0.0 MB');
+	});
+});
+
+describe('kilobytes', () => {
+	it('holds the unit for a column of tile sizes, a decimal only where it says something', () => {
+		expect(kilobytes(380)).toBe('0.4 kB');
+		expect(kilobytes(9_400)).toBe('9.4 kB');
+		expect(kilobytes(38_200)).toBe('38 kB');
+		expect(kilobytes(1_250_000)).toBe('1250 kB');
 	});
 });
 

@@ -24,6 +24,8 @@ import type { Map as MaplibreMap } from 'maplibre-gl';
 import { save } from '@tauri-apps/plugin-dialog';
 import { anyExtension, askForSource } from '../common/import';
 import { fitToBounds } from '../map/add-source';
+import { tileToLngLat } from '../map/tile-grid';
+import { analysis } from './analysis.svelte';
 import { composition } from '../map/composition.svelte';
 import {
 	addGraph,
@@ -424,6 +426,18 @@ export const workbench = {
 		if (map && bbox) fitToBounds(map, bbox, true);
 	},
 
+	/**
+	 * Frames one tile, for a list that names one (S14.2) - the biggest tiles, and later a check's
+	 * example. Animated, for the reason `resetView` is.
+	 */
+	showTile(z: number, x: number, y: number): void {
+		const map = mapOf();
+		if (!map) return;
+		const [west, north] = tileToLngLat(x, y, z);
+		const [east, south] = tileToLngLat(x + 1, y + 1, z);
+		fitToBounds(map, [west, south, east, north], true);
+	},
+
 	// -- the document ----------------------------------------------------------------------------
 
 	/**
@@ -602,6 +616,8 @@ export const workbench = {
 			const found = await read();
 			if (!found) return;
 			recipe.restored(found);
+			// Measured figures belong to the project they were measured in, and graph ids start again.
+			analysis.clear();
 			await graphs.refresh();
 			if (graphs.first) document.show(await getGraph(graphs.first.id));
 			await this.syncContainers();

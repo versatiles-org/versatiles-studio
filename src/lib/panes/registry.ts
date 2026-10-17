@@ -18,6 +18,7 @@
  */
 
 import type { Component } from 'svelte';
+import AnalysisSection from './analysis/AnalysisSection.svelte';
 import InspectorSection from './inspector/InspectorSection.svelte';
 import LayersSection from './layers/LayersSection.svelte';
 import PipelineSection from './pipeline/PipelineSection.svelte';
@@ -50,7 +51,8 @@ export const PANES = {
 	// stack became project-wide, which is why the two are adjacent and why the id is new.
 	layers: { title: 'Layers', scope: 'project', component: LayersSection },
 	// Both sides of the selected graph: what it reads and what it produced.
-	inspector: { title: 'Inspector', scope: 'selection', component: InspectorSection }
+	inspector: { title: 'Inspector', scope: 'selection', component: InspectorSection },
+	analysis: { title: 'Analysis', scope: 'selection', component: AnalysisSection }
 } as const satisfies Record<string, PaneEntry>;
 
 export type PaneId = keyof typeof PANES;

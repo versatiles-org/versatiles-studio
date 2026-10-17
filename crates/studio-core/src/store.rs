@@ -336,6 +336,10 @@ const PANES: &[(&str, Side, bool)] = &[
 	// export dialog - the moment that description is about to matter. A layout naming it is
 	// reconciled away by `reconcile_panes`, so an old file costs nothing.
 	("inspector", Side::Right, true),
+	// What the selected source weighs, and whether it is valid ([Q72](../../docs/decisions.md)).
+	// Below the Inspector, which says what the tiles are; this says what they cost. Closed on a fresh
+	// install: nothing is in it until somebody presses Measure.
+	("analysis", Side::Right, false),
 ];
 
 impl Layout {
@@ -671,6 +675,7 @@ mod tests {
 			pane("pipeline", Side::Left, true),
 			pane("style", Side::Right, false),
 			pane("layers", Side::Right, false),
+			pane("analysis", Side::Left, true),
 		];
 		layout.save(&dir)?;
 		assert_eq!(Layout::load(&dir), layout);
@@ -723,7 +728,7 @@ mod tests {
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
 		// `sources` arrives beside the pane it was split out of, not at the end - see below.
-		assert_eq!(ids, ["sources", "pipeline", "style", "layers", "inspector"]);
+		assert_eq!(ids, ["sources", "pipeline", "style", "layers", "inspector", "analysis"]);
 		assert!(!layout.panes[1].open, "the remembered pane kept its own state");
 	}
 
@@ -740,7 +745,7 @@ mod tests {
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
 		// The remembered one keeps its place; the arrivals follow in catalogue order - except
 		// `sources`, which was split out of `pipeline` and belongs beside it.
-		assert_eq!(ids, ["inspector", "sources", "pipeline", "style", "layers"]);
+		assert_eq!(ids, ["inspector", "sources", "pipeline", "style", "layers", "analysis"]);
 	}
 
 	/// **A pane split out of another is not a new pane.** `sources` was the top half of `pipeline`
@@ -760,7 +765,7 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		assert_eq!(ids, ["style", "layers", "sources", "pipeline", "inspector"]);
+		assert_eq!(ids, ["style", "layers", "sources", "pipeline", "inspector", "analysis"]);
 
 		let sources = layout.panes.iter().find(|p| p.id == "sources").unwrap();
 		assert_eq!(sources.side, Side::Left, "and on the side the half it left was on");
@@ -783,7 +788,7 @@ mod tests {
 		.normalised();
 
 		let ids: Vec<&str> = layout.panes.iter().map(|p| p.id.as_str()).collect();
-		assert_eq!(ids, ["sources", "pipeline", "style", "layers", "inspector"]);
+		assert_eq!(ids, ["sources", "pipeline", "style", "layers", "inspector", "analysis"]);
 
 		let layers = layout.panes.iter().find(|p| p.id == "layers").unwrap();
 		assert_eq!(layers.side, Side::Left);

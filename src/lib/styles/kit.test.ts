@@ -119,7 +119,7 @@ describe('the kit', () => {
 	it('is never restyled', () => {
 		const parts =
 			'note|hint|empty|nothing|reset|section-label|toolbar|list-row|icon|quiet|chevron|pane-body|field|group|' +
-			'popover|tabs|tab|add|facts|link|button';
+			'popover|tabs|tab|add|facts|figures|link|button';
 		const offenders = users.flatMap((path) =>
 			[...styles(read(path)).matchAll(new RegExp(`^\\s*\\.(?:${parts})\\b[^{]*\\{`, 'gm'))].map(
 				(m) => `${path}: ${m[0].trim()}`

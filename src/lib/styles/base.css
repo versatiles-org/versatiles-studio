@@ -458,6 +458,36 @@ samp {
 	min-width: 0;
 }
 
+/*
+ * Figures: a table of numbers, read down its columns (S14.2). The first column names the row and
+ * reads left; every other column is a number and lines up on the right, in tabular digits, for the
+ * reason `input[type='number']` does.
+ */
+.figures {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--text-sm);
+	font-variant-numeric: tabular-nums;
+}
+
+.figures th {
+	padding: 0 0 var(--space-1) var(--space-3);
+	border-bottom: 1px solid var(--rule);
+	color: var(--ink-2);
+	font-weight: normal;
+	text-align: right;
+}
+
+.figures td {
+	padding: var(--space-1) 0 0 var(--space-3);
+	text-align: right;
+}
+
+.figures :is(th, td):first-child {
+	padding-left: 0;
+	text-align: left;
+}
+
 /* The rotating ▸ of a disclosure. Four components drew it; one rule turns it. */
 .chevron {
 	display: inline-block;

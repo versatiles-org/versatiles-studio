@@ -45,7 +45,7 @@ describe('component organisation', () => {
 	/// happened: `panes/sources/` existed for two releases and `components.md` listed the other five.
 	/// Adding a pane is now a line here and a line there, which is the point.
 	it('keeps components in the folders the scheme names', () => {
-		const panes = 'inspector|layers|pipeline|project|sources|style';
+		const panes = 'analysis|inspector|layers|pipeline|project|sources|style';
 		const allowed = new RegExp(
 			`^src/((App|Launcher)\\.svelte|lib/(shell|common|map|panes/(${panes}))/[A-Za-z]+\\.svelte)$`
 		);

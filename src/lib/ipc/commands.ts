@@ -362,6 +362,11 @@ export const forgetRecent = (source: string) => unwrap(commands.forgetRecent(sou
 export const inspectTile = (source: string, z: number, x: number, y: number) =>
 	unwrap(commands.inspectTile(source, z, x, y));
 
+// -- analysis --------------------------------------------------------------------------------
+
+/** Walks every tile size of a graph's output, as a job (S14.1). Refused for a transformed output. */
+export const measureSizes = (graph: number) => unwrap(commands.measureSizes(graph));
+
 // -- views -----------------------------------------------------------------------------------
 
 export const listViews = () => unwrap(commands.listViews());
