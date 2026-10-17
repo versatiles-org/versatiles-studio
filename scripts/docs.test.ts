@@ -248,13 +248,16 @@ describe('documentation size', () => {
 		// glossary that joins them.
 		// Raised for Q71, the kit for every surface: seven decisions made once, each of which a reader
 		// arriving from a component has to be able to find.
-		'docs/decisions.md': 5950,
+		// Raised for Q72, which supersedes Q12 and settles where cluster B and a single tile are shown.
+		'docs/decisions.md': 6200,
 		// Raised for Release 6, which records S10 as built and S11 as planned.
 		// Raised for S13, the kit everywhere, which names what every excluded surface had drifted to.
-		'docs/history.md': 6800,
+		// Raised for Release 7, which plans S14: the pane's tables, the heat map and the tile dialog.
+		'docs/history.md': 7800,
 		'docs/features.md': 2700,
 		// Raised for the glossary: one thing, five names, and where each is used.
-		'docs/ui.md': 2550,
+		// Raised for the Analysis pane's row (S14).
+		'docs/ui.md': 2600,
 		'docs/layers.md': 2300,
 		'docs/ecosystem.md': 2000,
 		// Raised for the second principle. The first had been the only one written down, and the

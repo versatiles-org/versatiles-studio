@@ -668,3 +668,80 @@ were renamed with them.
 with the seven files that are the kit exempt, and adds five claims to S12's: no tab strip of a
 component's own, no glyph typed as text, no floating surface off the popover face, no disabled fade
 of a component's own, no `accent-color` outside `base.css`.
+
+---
+
+## Release 7 - what the tiles weigh
+
+Cluster B, which [Q12](decisions.md) kept out of release 1 because the analysis it needed sat in a
+binary. versatiles-rs 4.15 publishes it as data, so what is left is mostly the surfaces it is read on
+([Q72](decisions.md)). Three questions, a surface each: how big are the tiles and what are they made
+of, are they valid, and what is inside this one.
+
+---
+
+### S14 · Measure, check and dissect
+
+**What the code does before this stage.** `analysis.rs` stops at container metadata and the real zoom
+range. The one look inside a tile is the feature popup, and it has four faults: it opens only on a
+feature, so an empty or broken tile cannot be looked at; it reads the last container in the preview
+rather than the tile the map draws, at the map's zoom, which past the data is a tile that does not
+exist; its size is the uncompressed one, in a field documented as stored; and it reopens the
+container on every click.
+
+| Item       | Work                                                                                      | Feature        |
+| ---------- | ----------------------------------------------------------------------------------------- | -------------- |
+| **S14.1**  | The size walk: per level count, sum, max, a histogram for p50/p95, the 20 biggest; a job  | B1             |
+| **S14.2**  | The Analysis pane: summary, per zoom, biggest tiles - for the selected source             | B1             |
+| **S14.3**  | The heat map: a deeper level's tiles as squares inside the level the map shows            | B1             |
+| **S14.4**  | `dissect_tile`: one tile of the drawn source - layer stats, attributes, features, issues  | A4             |
+| **S14.5**  | The tile dialog: the tile drawn alone, four tabs, moving between tiles, Show on map       | A4             |
+| **S14.6**  | The feature popup reads the drawn tile and opens the dialog; its four faults go           | A8, A4         |
+| **S14.7**  | The contents scan, sampled: the Layers table, its stacked bar and a zoom picker           | B2             |
+| **S14.8**  | Checks: MVT and TileJSON in the pane, a badge and a Repair button where the chain ends    | B3             |
+| **S14.9**  | Style validation beside the Style pane's export                                           | B3             |
+| **S14.10** | Sizes of a transformed output, sampled and labelled as estimates                          | B1             |
+| **S14.11** | Upstream: per-attribute bytes, and `from_container` sizes from the index; then Attributes | B2             |
+| **S14.12** | A small container fixture, and one e2e story per surface                                  | infrastructure |
+
+**Numbered in build order.** Sizes first, because they are index reads and the heat map is what was
+asked for. The tile dialog before the contents scan and the checks, because every list after it
+opens a tile. The last two wait on sampling being honest and on upstream.
+
+**The Analysis pane** follows the selected source, as the Inspector does: the output open, the input
+containers folded, each with its own Measure. Results are cached per source and marked stale by an
+edit, not cleared. Four columns at most, for a 300 px pane:
+
+| Table         | Columns                            | Behaviour                                                      |
+| ------------- | ---------------------------------- | -------------------------------------------------------------- |
+| Summary       | tiles, total, p50, p95, max        | when measured, and whether sampled                             |
+| Per zoom      | zoom, tiles, mean, max             | a row over 500 kB is marked; a click sets the heat map's level |
+| Biggest tiles | tile, size, largest layer, Inspect | Inspect opens the dialog; the row flies the map                |
+| Layers        | layer, share, bytes, features      | a stacked bar of geometry, properties, tags, ids               |
+| Checks        | spec, issue, count, example        | the example opens the dialog                                   |
+
+**The heat map.** The map shows four to ten tiles of the level it requests, so colouring those says
+nothing. It draws a **deeper level** inside them: at zoom 8, each tile carries its 64×64 tiles of
+zoom 14 as squares.
+
+- The detail level defaults to the source's deepest, and the legend sets it. Past 256 squares a side
+  a square is the largest tile under it - the question is where the worst are.
+- The core draws it: a raster tile per view tile, a pixel per detail tile, served beside the source's
+  mount and drawn with nearest resampling. One `tile_size_stream` read per view tile, no tile bodies.
+- Four fixed bands - under 50 kB, 200 kB, 500 kB, and above. A fixed scale means the same colour in
+  every file. The colours are tokens, handed to the core when the overlay mounts. A missing tile is
+  transparent: no tile must not look like a small one.
+- Hovering names the detail tile and its size; a click opens the dialog on it. The legend is a
+  popover from the map control, with the source's name and the detail level's p50, p95 and max.
+- **Only over an index**: a container, or a chain that only reads one. Every square of a transformed
+  output would be a tile produced, so it has none, and the legend says so.
+
+**The tile dialog** draws the tile in its own coordinates, with the buffer past the edge, the
+vertices and the ring winding - what the map's clipping hides. Tabs: Layers (features, vertices, the
+byte split, extent, version), Attributes (per key: features, distinct values, bytes), Features (id,
+type, vertices, bytes, properties), Issues (each selects its feature; a repair preview gives the size
+after `repair_tile`). Parent, child and neighbour buttons and an address field move without closing
+it. Geometry comes from the core, which decoded it already and whose feature indices the issues
+use, capped at 5 000 features and 200 000 vertices under [Q3](decisions.md) - and the dialog says
+when. Ways in: Inspect in the biggest tiles, a heat-map square, a check's example, the popup, and
+"Inspect tile…" in the native menu.

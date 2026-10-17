@@ -535,6 +535,28 @@ went through it - a character in the UI font is a different weight on every plat
 text-field rule in `base.css` reaches only text fields**: as a bare `input` it had framed a slider and
 padded a colour well, which two components undid and one did not.
 
+### Q72 - Cluster B enters, on the right, and a tile opens in a dialog
+
+**Supersedes [Q12](#q12---cluster-b-stays-out-of-release-1---superseded-by-q72).** Its reason was
+that `layer_stats()` sat in the binary. versatiles-rs 4.15 publishes `probe_report`: per-zoom sizes,
+the biggest tiles, the per-layer byte split and MVT validation, as data, with progress on the
+runtime's event bus. Studio adds what it lacks - percentiles and the heat map from its own walk over
+`tile_size_stream` - and asks upstream for the per-attribute split.
+
+**Analysis is a pane of its own on the right**, under the Inspector: the right pane is what things
+turn out to be, and the Inspector keeps "nothing else". It follows the selected source, the output
+open because that is what gets published, the inputs folded.
+
+**The heat map draws a deeper level** inside the one the map shows, which is four to ten tiles and
+says nothing coloured. Fixed bands, so a colour means the same in every file. Only over an index:
+every square of a transformed output would be an export.
+
+**A tile opens in a dialog that draws it.** The map could not show the buffer, the winding or a
+degenerate ring anyway, and the dialog has the width a feature table needs.
+
+**Findings are not diagnostics.** That panel is the session's own errors and its report; findings
+about the data go in the pane, with the fix inline where the chain ends.
+
 ## Dependencies and packaging
 
 ### Q8 - Release early under v0.x
@@ -596,7 +618,7 @@ disk, ~1 GB of downloads before the first run. Detecting an existing JVM makes t
 to the audience that needs it; bundling one adds 50-190 MB to ship, sign and update; Docker is absent
 in the public administrations this targets.
 
-### Q12 - Cluster B stays out of release 1
+### Q12 - Cluster B stays out of release 1 - **superseded by [Q72](#q72---cluster-b-enters-on-the-right-and-a-tile-opens-in-a-dialog)**
 
 The algorithm for B2's per-layer byte breakdown exists and is proven, but **it is not reachable as a
 library**: `mod tools;` is declared in `main.rs`, so `layer_stats()` is binary-only. B1, B2 and B3 are

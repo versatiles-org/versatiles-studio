@@ -30,10 +30,10 @@ The cheapest valuable additions, in order:
   the official `homebrew-cask` repository. $99/year; the lead time is account approval.
 - **Windows builds and a certificate** - OV, EV, or Azure Artifact Signing. Get quotes first
   ([Q10](decisions.md)).
-- **B1, B2, B3** - tile size statistics, byte breakdown, spec validation with a repair button.
-  Cheaper than once assumed: the per-layer breakdown already exists and the size scan is index-only
-  ([Q12](decisions.md)), so what remains is mostly visualisation. Only B2's per-attribute split is
-  new analysis work.
+- **B1, B2, B3, A4** - tile size statistics with a heat map, byte breakdown, spec validation with a
+  repair button, and a dialog that dissects one tile. Planned as S14 in
+  [Release 7](history.md) ([Q72](decisions.md)): upstream's `probe_report` already computes most of
+  it, so what remains is mostly the surfaces. Only B2's per-attribute split is new analysis work.
 - **F5, F4** - embed snippet and static site export. Without these, a user who has made a map still
   has to ask us what to do next.
 

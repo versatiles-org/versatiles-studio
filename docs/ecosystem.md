@@ -62,11 +62,11 @@ reformatting the file and dropping its comments.
 Small changes to versatiles-rs that Studio is a good reason to make. None blocks Studio; each
 removes a workaround.
 
-| Ask                                       | Why                                                                             | Raised by           |
-| ----------------------------------------- | ------------------------------------------------------------------------------- | ------------------- |
-| **A compute/render split in `probe`**     | Studio needs data, not `PrettyPrint` text; the CLI would gain `--json` for free | [Q4](decisions.md)  |
-| **`tools` moved into `versatiles`'s lib** | `layer_stats()` is binary-only, so B2's breakdown cannot be imported            | [Q12](decisions.md) |
-| **An ignored `x-` namespace in `Config`** | `deny_unknown_fields` stops one file serving as both project and serve config   | [Q6](decisions.md)  |
+| Ask                                       | Why                                                                           | Raised by           |
+| ----------------------------------------- | ----------------------------------------------------------------------------- | ------------------- |
+| **Bytes per attribute in `LayerStats`**   | B2's per-attribute split; the per-layer half is in `probe_report` since 4.15  | [Q72](decisions.md) |
+| **`from_container` sizes from the index** | It reads tile bodies to answer `tile_size_stream`, which the heat map calls   | [Q72](decisions.md) |
+| **An ignored `x-` namespace in `Config`** | `deny_unknown_fields` stops one file serving as both project and serve config | [Q6](decisions.md)  |
 
 #### Still open
 
@@ -79,7 +79,9 @@ removes a workaround.
 **Twelve more were filed and have landed**, in 4.8.0 through 4.10.0 - the lossless syntax tree
 ([Q23](decisions.md)), `check_pipeline`, `compatible_transforms`, a comment-preserving formatter,
 per-operation `summary`/`details`, and a configurable cache header among them. Each is read in the
-released source rather than taken from the issue being closed.
+released source rather than taken from the issue being closed. Two more came with 4.15: `probe`
+split into compute and render as `probe_report`, which also made `layer_stats()` reachable
+([Q72](decisions.md)).
 
 ### Filed, and what came back
 

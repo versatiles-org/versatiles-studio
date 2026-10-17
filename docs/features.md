@@ -43,19 +43,19 @@ The foundation. Everything else renders into this surface.
 
 ## Cluster B · Analyse & QA
 
-| ID     | Stage     | Feature                                                                                                   | Basis                                       |
-| ------ | --------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| **B1** | `next`    | Tile size heat map per zoom; p50/p95/max; top-N largest tiles, clickable                                  | `probe -dd`; index-only                     |
-| **B2** | `next`    | **Byte breakdown per layer and per attribute** - which layer, which property is eating your z14 tiles     | `tile_breakdown.rs` does the per-layer half |
-| **B3** | `next`    | Spec validation against MVT 2.1, versatiles-spec, TileJSON and the style schema, with a **repair button** | `probe -ddd` emits a `fix:` suggestion      |
-| **B4** | `later`   | Coverage map: which tiles exist versus what the bounding box claims - find holes                          | `probe -dd`; index-only                     |
-| **B5** | `later`   | **Container diff**: compare two versions visually and statistically - a regression test per rebuild       | new; first feature needing two maps         |
-| **B6** | `someday` | Compression comparison (gzip/brotli/zstd) and raster format comparison, with visual difference            | `versatiles_image`, convert                 |
-| **B7** | `someday` | Attribute statistics: value distribution per property - the basis for filtering and styling decisions     | `versatiles_geometry`                       |
-| **B8** | `someday` | Glyph and sprite check: missing glyphs for a language, style references to icons that do not exist        | `versatiles-glyphs-rs`                      |
-| **B9** | `someday` | Load-time estimate for a viewport at 3G/4G speeds                                                         | derived from B1                             |
+| ID     | Stage     | Feature                                                                                                     | Basis                                  |
+| ------ | --------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **B1** | `next`    | Heat map of a deeper level's tile sizes inside the level shown; p50/p95/max; top-N largest tiles, clickable | `tile_size_stream`; index-only         |
+| **B2** | `next`    | **Byte breakdown per layer and per attribute** - which layer, which property is eating your z14 tiles       | `probe_report` does the per-layer half |
+| **B3** | `next`    | Spec validation against MVT 2.1, versatiles-spec, TileJSON and the style schema, with a **repair button**   | `probe_report`, `vector_repair`        |
+| **B4** | `later`   | Coverage map: which tiles exist versus what the bounding box claims - find holes                            | `probe -dd`; index-only                |
+| **B5** | `later`   | **Container diff**: compare two versions visually and statistically - a regression test per rebuild         | new; first feature needing two maps    |
+| **B6** | `someday` | Compression comparison (gzip/brotli/zstd) and raster format comparison, with visual difference              | `versatiles_image`, convert            |
+| **B7** | `someday` | Attribute statistics: value distribution per property - the basis for filtering and styling decisions       | `versatiles_geometry`                  |
+| **B8** | `someday` | Glyph and sprite check: missing glyphs for a language, style references to icons that do not exist          | `versatiles-glyphs-rs`                 |
+| **B9** | `someday` | Load-time estimate for a viewport at 3G/4G speeds                                                           | derived from B1                        |
 
-**Where the strongest differentiation lies**, and entirely after release 1 ([Q2](decisions.md)). Mostly a visual front-end for analysis `versatiles probe` already performs, which makes it cheaper than it looks ([Q12](decisions.md)).
+**Where the strongest differentiation lies**, and entirely after release 1 ([Q2](decisions.md)). Mostly a visual front-end for analysis `versatiles probe` already performs, which makes it cheaper than it looks; planned as S14 ([Q72](decisions.md)).
 
 ---
 
@@ -167,4 +167,4 @@ Stages 0 and 5 carry little that is user-visible on their own: stage 0 is the sh
 
 If we get one thing genuinely right, it should probably be one of these:
 
-1. **C1 + C3 - pipeline editing with live preview.** The most visually convincing feature, and the one that makes "Studio" the right word. Stage 2 ([Q11](decisions.md)). 2. **B2 - byte breakdown per layer and attribute.** Everyone who builds vector tiles has this problem; nobody solves it well. Cheaper than it looks, since the per-layer measurement already exists ([Q12](decisions.md)).
+1. **C1 + C3 - pipeline editing with live preview.** The most visually convincing feature, and the one that makes "Studio" the right word. Stage 2 ([Q11](decisions.md)). 2. **B2 - byte breakdown per layer and attribute.** Everyone who builds vector tiles has this problem; nobody solves it well. Cheaper than it looks, since the per-layer measurement already exists ([Q72](decisions.md)).
