@@ -1,5 +1,8 @@
 <script lang="ts">
 	import type { DemEncoding, Hillshade, RasterAdjust, Recolor, SourceKind, SourceStyle } from '../../ipc/commands';
+	import Field from '../../common/Field.svelte';
+	import Group from '../../common/Group.svelte';
+	import Note from '../../common/Note.svelte';
 	import { KIND_LABELS, isVector, sourceKind } from '../../map/source-kind';
 	import { DEFAULT_THEME, isTheme, schemaOf, themesFor } from '../../map/builders';
 	import { demEncoding, type StyleBasis } from '../../map/style';
@@ -234,7 +237,7 @@
 	     moves every row beside it, and these sit in a column. -->
 	<button
 		type="button"
-		class="clear"
+		class="icon clear"
 		class:idle={!changed}
 		tabindex={changed ? 0 : -1}
 		aria-hidden={!changed}
@@ -244,378 +247,287 @@
 	>
 {/snippet}
 
-<!-- **Says so rather than drawing nothing.** With no source there is no reading, no preset and
-     nothing to export, and every section below falls away - which left an empty column once this
+{#snippet resetShade()}
+	<button type="button" class="quiet" onclick={() => actions.setHillshade({})}>reset</button>
+{/snippet}
+{#snippet resetRasterAll()}
+	<button type="button" class="quiet" onclick={resetRaster}>reset</button>
+{/snippet}
+{#snippet resetRecolor()}
+	<button type="button" class="quiet" onclick={reset}>reset</button>
+{/snippet}
+
+<!-- **Says so rather than drawing nothing.** With no source there is no reading, no theme and
+     nothing to export, and every group below falls away - which left an empty column once this
      pane stopped being hidden along with the rest ([Q54]). -->
 {#if !source}
-	<p class="nothing">Nothing to style yet. Add a source to see how it is drawn.</p>
+	<Note tone="empty">Nothing to style yet. Add a source to see how it is drawn.</Note>
 {:else}
-	<section class="style-pane">
+	<!-- Groups of the kit, one per thing this pane says (S12.5): what the tiles are, the editor their
+	     kind picks, and the export. The pane title is the header's; these headings are the second
+	     level and the last ([Q70]). -->
+	<div class="pane-body">
 		{#if reading}
-			<h2 class="section-label">These tiles</h2>
-			<label class="kind">
-				<span class="name">Read as</span>
+			<Group title="These tiles">
 				<!-- Only the kinds this format can be ([S11.4]): a reading the format rules out is a set of
 				     controls that do nothing, and `styleFor` would draw nothing under them. -->
-				<select aria-label="Read as" value={kind} onchange={(event) => chooseKind(event.currentTarget.value)}>
-					{#each kindOptions(source.tileFormat) as option (option)}
-						<option value={option}>{KIND_LABELS[option]}</option>
-					{/each}
-				</select>
-			</label>
-			<p class="note">{BASIS_NOTE[reading.basis]}.</p>
+				<Field label="Read as">
+					<select aria-label="Read as" value={kind} onchange={(event) => chooseKind(event.currentTarget.value)}>
+						{#each kindOptions(source.tileFormat) as option (option)}
+							<option value={option}>{KIND_LABELS[option]}</option>
+						{/each}
+					</select>
+				</Field>
+				<Note>{BASIS_NOTE[reading.basis]}.</Note>
+			</Group>
 		{/if}
 
 		{#if kind === 'rasterDem'}
-			<h2 class="section-label">
-				Hillshade
-				{#if shaded}
-					<button type="button" class="reset" onclick={() => actions.setHillshade({})}>reset</button>
+			<Group title="Hillshade" action={shaded ? resetShade : undefined}>
+				<Field label="Encoding">
+					<select
+						value={encoding ?? ''}
+						onchange={(event) => setShade({ encoding: encodingChoice(event.currentTarget.value) })}
+					>
+						<option value="">Not set</option>
+						<option value="mapbox">Mapbox</option>
+						<option value="terrarium">Terrarium</option>
+					</select>
+				</Field>
+
+				{#if !encoding}
+					<!-- Nothing published says how `dem/versatiles` packs elevation, and a guess would draw
+					     convincing relief of the wrong mountains. Better to ask than to invent. -->
+					<Note>
+						These tiles do not say how their elevation is packed, so nothing can be shaded yet. Pick the encoding if you
+						know it.
+					</Note>
+				{:else}
+					{#each HILLSHADE_SLIDERS as slider (slider.key)}
+						{#snippet trail()}
+							<span class="amount">{shadeValue(slider.key)}{slider.unit}</span>
+							{@render clearer(shade[slider.key] != null, () => clearShade(slider.key), slider.label)}
+						{/snippet}
+						<Field label={slider.label} {trail}>
+							<input
+								type="range"
+								min={slider.min}
+								max={slider.max}
+								step={slider.step}
+								value={shadeValue(slider.key)}
+								onchange={(event) => setShade({ [slider.key]: Number(event.currentTarget.value) })}
+							/>
+						</Field>
+					{/each}
+
+					{#each HILLSHADE_COLOURS as swatch (swatch.key)}
+						{#snippet trail()}
+							{@render clearer(shade[swatch.key] != null, () => clearShade(swatch.key), swatch.label)}
+						{/snippet}
+						<Field label={swatch.label} {trail}>
+							<input
+								type="color"
+								value={shade[swatch.key] ?? token(swatch.token)}
+								onchange={(event) => setShade({ [swatch.key]: event.currentTarget.value })}
+							/>
+						</Field>
+					{/each}
 				{/if}
-			</h2>
-
-			<label class="kind">
-				<span class="name">Encoding</span>
-				<select
-					value={encoding ?? ''}
-					onchange={(event) => setShade({ encoding: encodingChoice(event.currentTarget.value) })}
-				>
-					<option value="">Not set</option>
-					<option value="mapbox">Mapbox</option>
-					<option value="terrarium">Terrarium</option>
-				</select>
-			</label>
-
-			{#if !encoding}
-				<!-- Nothing published says how `dem/versatiles` packs elevation, and a guess would draw
-				     convincing relief of the wrong mountains. Better to ask than to invent. -->
-				<p class="note unavailable">
-					These tiles do not say how their elevation is packed, so nothing can be shaded yet. Pick the encoding if you
-					know it.
-				</p>
-			{:else}
-				{#each HILLSHADE_SLIDERS as slider (slider.key)}
-					<label class="slider">
-						<span class="name">{slider.label}</span>
+			</Group>
+		{:else if kind === 'rasterImage'}
+			<Group title="Adjust" action={rasterAdjusted ? resetRasterAll : undefined}>
+				{#each RASTER_SLIDERS as slider (slider.key)}
+					{#snippet trail()}
+						<span class="amount">{rasterValue(slider.key)}{slider.unit}</span>
+						{@render clearer(rasterAdjust[slider.key] != null, () => clearRaster(slider.key), slider.label)}
+					{/snippet}
+					<Field label={slider.label} {trail}>
 						<input
 							type="range"
 							min={slider.min}
 							max={slider.max}
 							step={slider.step}
-							value={shadeValue(slider.key)}
-							onchange={(event) => setShade({ [slider.key]: Number(event.currentTarget.value) })}
+							value={rasterValue(slider.key)}
+							oninput={(event) => previewRaster(slider.key, event.currentTarget.value)}
+							onchange={commitRaster}
+							onpointercancel={() => (rasterPending = null)}
 						/>
-						<span class="amount">{shadeValue(slider.key)}{slider.unit}</span>
-						{@render clearer(shade[slider.key] != null, () => clearShade(slider.key), slider.label)}
-					</label>
+					</Field>
 				{/each}
 
-				{#each HILLSHADE_COLOURS as swatch (swatch.key)}
-					<label class="kind">
-						<span class="name">{swatch.label}</span>
-						<input
-							type="color"
-							value={shade[swatch.key] ?? token(swatch.token)}
-							onchange={(event) => setShade({ [swatch.key]: event.currentTarget.value })}
-						/>
-						{@render clearer(shade[swatch.key] != null, () => clearShade(swatch.key), swatch.label)}
-					</label>
-				{/each}
-			{/if}
-		{:else if kind === 'rasterImage'}
-			<h2 class="section-label">
-				Adjust
-				{#if rasterAdjusted}
-					<button type="button" class="reset" onclick={resetRaster}>reset</button>
-				{/if}
-			</h2>
-
-			{#each RASTER_SLIDERS as slider (slider.key)}
-				<label class="slider">
-					<span class="name">{slider.label}</span>
-					<input
-						type="range"
-						min={slider.min}
-						max={slider.max}
-						step={slider.step}
-						value={rasterValue(slider.key)}
-						oninput={(event) => previewRaster(slider.key, event.currentTarget.value)}
-						onchange={commitRaster}
-						onpointercancel={() => (rasterPending = null)}
-					/>
-					<span class="amount">{rasterValue(slider.key)}{slider.unit}</span>
-					{@render clearer(rasterAdjust[slider.key] != null, () => clearRaster(slider.key), slider.label)}
-				</label>
-			{/each}
-
-			<label class="kind">
-				<span class="name">Scaling</span>
-				<select
-					value={rasterAdjust.resampling ?? 'linear'}
-					onchange={(event) => setResampling(event.currentTarget.value)}
-				>
-					<option value="linear">Smooth</option>
-					<option value="nearest">Keep pixels square</option>
-				</select>
-			</label>
-			<!-- `nearest` is what a scan of a printed map or any pixel art wants; smoothing those
-			     turns crisp edges into mush at every zoom that is not exactly native. -->
-			<p class="note">Smooth blends between pixels. Square keeps them as they are.</p>
+				<Field label="Scaling">
+					<select
+						value={rasterAdjust.resampling ?? 'linear'}
+						onchange={(event) => setResampling(event.currentTarget.value)}
+					>
+						<option value="linear">Smooth</option>
+						<option value="nearest">Keep pixels square</option>
+					</select>
+				</Field>
+				<!-- `nearest` is what a scan of a printed map or any pixel art wants; smoothing those
+				     turns crisp edges into mush at every zoom that is not exactly native. -->
+				<Note>Smooth blends between pixels. Square keeps them as they are.</Note>
+			</Group>
 		{:else if kind === 'vectorOther'}
 			<!-- **The kind picks the editor** ([S11.2]). Tiles no builder knows are drawn as the
 			     inspector style: every layer they contain, in a colour of its own. There is no theme to
 			     choose and nothing to recolour; what can be changed is each layer, in the Layers pane. -->
-			<h2 class="section-label">Inspector style</h2>
-			<p class="note">
-				Every layer these tiles contain, each in its own colour. Change a layer's colour, zoom range or filter in the
-				Layers pane. To draw them as a map, read them as the schema they follow.
-			</p>
+			<Group title="Inspector style">
+				<Note>
+					Every layer these tiles contain, each in its own colour. Change a layer's colour, zoom range or filter in the
+					Layers pane. To draw them as a map, read them as the schema they follow.
+				</Note>
+			</Group>
 		{:else if themed}
-			<h2 class="section-label">Theme</h2>
-			{#if basis === 'fallback'}
-				<!-- S6.2: the theme is still what the recipe says, and it is not what the map is
-				     showing. Saying so here is cheaper than leaving someone to compare the two - and
-				     since the kind picks the editor ([S11.4]), the fix is a reading rather than another
-				     theme, so it is offered where the problem is stated. -->
-				<p class="note substituted">
-					These tiles have none of the layers this theme draws, so they are shown as the inspector style instead. They
-					are probably not {kind === null ? 'this schema' : KIND_LABELS[kind]}.
-					<button type="button" class="reset" onclick={() => chooseKind('vectorOther')}>Read as Vector · other</button>
-				</p>
-			{/if}
-			<!-- **The library's list, in a dropdown** ([S11.3]). Twenty-four themes do not fit as
-			     buttons, and the list is the builder's rather than Studio's: the five palettes with
-			     their dark partners first, then the lookalikes with what each one is after. -->
-			<label class="kind">
-				<span class="name">Theme</span>
-				<select
-					aria-label="Theme"
-					value={knownTheme ? storedTheme : DEFAULT_THEME}
-					onchange={(event) => actions.setTheme(event.currentTarget.value)}
-				>
-					<optgroup label="Palettes">
-						{#each themes.palettes as theme (theme.id)}
-							<option value={theme.id}>{theme.label}</option>
-						{/each}
-					</optgroup>
-					<optgroup label="Lookalikes">
-						{#each themes.lookalikes as theme (theme.id)}
-							<option value={theme.id}>{theme.label} · after {theme.resembles}{theme.dark ? ', dark' : ''}</option>
-						{/each}
-					</optgroup>
-				</select>
-			</label>
-			{#if !knownTheme}
-				<p class="note substituted">
-					This project names a theme ({storedTheme}) this build does not have, so the default is drawn until another is
-					chosen.
-				</p>
-			{/if}
-
-			<h2 class="section-label">
-				Adjust
-				{#if adjusted}
-					<button type="button" class="reset" onclick={reset}>reset</button>
+			<Group title="Theme">
+				{#if basis === 'fallback'}
+					{#snippet readAsOther()}
+						<button type="button" class="quiet" onclick={() => chooseKind('vectorOther')}>Read as Vector · other</button
+						>
+					{/snippet}
+					<!-- S6.2: the theme is still what the recipe says, and it is not what the map is
+					     showing. Saying so here is cheaper than leaving someone to compare the two - and
+					     since the kind picks the editor ([S11.4]), the fix is a reading rather than another
+					     theme, so it is offered where the problem is stated. -->
+					<Note tone="aside" action={readAsOther}>
+						These tiles have none of the layers this theme draws, so they are shown as the inspector style instead. They
+						are probably not {kind === null ? 'this schema' : KIND_LABELS[kind]}.
+					</Note>
 				{/if}
-			</h2>
+				<!-- **The library's list, in a dropdown** ([S11.3]). Twenty-four themes do not fit as
+				     buttons, and the list is the builder's rather than Studio's: the five palettes with
+				     their dark partners first, then the lookalikes with what each one is after. -->
+				<Field label="Theme">
+					<select
+						aria-label="Theme"
+						value={knownTheme ? storedTheme : DEFAULT_THEME}
+						onchange={(event) => actions.setTheme(event.currentTarget.value)}
+					>
+						<optgroup label="Palettes">
+							{#each themes.palettes as theme (theme.id)}
+								<option value={theme.id}>{theme.label}</option>
+							{/each}
+						</optgroup>
+						<optgroup label="Lookalikes">
+							{#each themes.lookalikes as theme (theme.id)}
+								<option value={theme.id}>{theme.label} · after {theme.resembles}{theme.dark ? ', dark' : ''}</option>
+							{/each}
+						</optgroup>
+					</select>
+				</Field>
+				{#if !knownTheme}
+					<Note tone="aside">
+						This project names a theme ({storedTheme}) this build does not have, so the default is drawn until another
+						is chosen.
+					</Note>
+				{/if}
+			</Group>
 
-			<label class="toggle">
-				<input
-					type="checkbox"
-					checked={(vectorAppearance?.recolor ?? {}).invertBrightness ?? false}
-					onchange={(event) => invert(event.currentTarget.checked)}
-				/>
-				Invert brightness
+			<Group title="Adjust" action={adjusted ? resetRecolor : undefined}>
 				<!-- D5's whole feature. Hues are kept, so a light style becomes a dark one rather than a
-			     photographic negative. -->
-				<span class="note">light ↔ dark</span>
-			</label>
-
-			{#each RECOLOR_SLIDERS as slider (slider.key)}
-				<label class="slider">
-					<span class="name">{slider.label}</span>
+				     photographic negative. -->
+				<Field label="Invert brightness">
 					<input
-						type="range"
-						min={slider.min}
-						max={slider.max}
-						step={slider.step}
-						value={value(slider.key)}
-						oninput={(event) => preview(slider.key, event.currentTarget.value)}
-						onchange={() => actions.commitRecolor()}
-						onpointercancel={() => actions.cancelRecolor()}
+						type="checkbox"
+						title="Light becomes dark; the hues are kept"
+						checked={(vectorAppearance?.recolor ?? {}).invertBrightness ?? false}
+						onchange={(event) => invert(event.currentTarget.checked)}
 					/>
-					<span class="amount">{value(slider.key)}{slider.unit}</span>
-					{@render clearer(value(slider.key) !== slider.neutral, () => clearRecolor(slider.key), slider.label)}
-				</label>
-			{/each}
+				</Field>
 
-			<p class="note">These apply to every colour in the style at once.</p>
+				{#each RECOLOR_SLIDERS as slider (slider.key)}
+					{#snippet trail()}
+						<span class="amount">{value(slider.key)}{slider.unit}</span>
+						{@render clearer(value(slider.key) !== slider.neutral, () => clearRecolor(slider.key), slider.label)}
+					{/snippet}
+					<Field label={slider.label} {trail}>
+						<input
+							type="range"
+							min={slider.min}
+							max={slider.max}
+							step={slider.step}
+							value={value(slider.key)}
+							oninput={(event) => preview(slider.key, event.currentTarget.value)}
+							onchange={() => actions.commitRecolor()}
+							onpointercancel={() => actions.cancelRecolor()}
+						/>
+					</Field>
+				{/each}
 
-			{#if inert.length > 0}
-				<!-- S6.7: the tree lists layers, so an override whose layer this preset does not have is
-				     invisible. It is kept rather than dropped - the presets share a namespace, and it
-				     applies again under one that has the layer - so clearing is offered, never automatic. -->
-				<p class="note substituted">
-					{inert.length}
-					{inert.length === 1 ? 'change applies' : 'changes apply'} to layers this theme does not draw. They come back under
-					a theme that has them.
-					<button type="button" class="reset" onclick={() => actions.pruneOverrides(presentIds)}> clear </button>
-				</p>
-			{/if}
+				<Note>These apply to every colour in the style at once.</Note>
+
+				{#if inert.length > 0}
+					{#snippet pruneInert()}
+						<button type="button" class="quiet" onclick={() => actions.pruneOverrides(presentIds)}>clear</button>
+					{/snippet}
+					<!-- S6.7: the tree lists layers, so an override whose layer this theme does not have is
+					     invisible. It is kept rather than dropped - the themes share a namespace, and it
+					     applies again under one that has the layer - so clearing is offered, never automatic. -->
+					<Note tone="aside" action={pruneInert}>
+						{inert.length}
+						{inert.length === 1 ? 'change applies' : 'changes apply'} to layers this theme does not draw. They come back under
+						a theme that has them.
+					</Note>
+				{/if}
+			</Group>
 		{/if}
 
 		<!-- The one control here that is not about the selected source: a `style.json` is the map,
 		     every drawn source in the Layers pane's order. The Pipeline pane's export writes tiles, so
 		     both say what they write (S10.6). -->
-		<h2 class="section-label">Export map style</h2>
-		<p class="note">The whole map: every source that is drawn, in the order the Layers pane shows.</p>
-		<div class="exports">
-			<button
-				type="button"
-				class="button"
-				disabled={!rendered || exporting !== null}
-				onclick={() => rendered && actions.exportAs('json', null)}
-			>
-				style.json
-			</button>
-			<!-- Disabled rather than hidden for the inspector style: the reason it cannot be written as
-			     code is worth saying, and a button that vanishes says nothing. -->
-			<button
-				type="button"
-				class="button"
-				disabled={!rendered || exporting !== null || code === null}
-				title={code !== null
-					? 'The theme and what was changed, as code'
-					: 'The inspector style has no builder to call - export it as style.json'}
-				onclick={() => rendered && actions.exportAs('ts', code)}
-			>
-				@versatiles/style code
-			</button>
-			<button
-				type="button"
-				class="button"
-				disabled={!rendered || exporting !== null}
-				title="The style, its glyphs and its sprites, as one .zip"
-				onclick={() => rendered && actions.exportBundle()}
-			>
-				Bundle
-			</button>
-		</div>
+		<Group title="Export map style">
+			<Note>The whole map: every source that is drawn, in the order the Layers pane shows.</Note>
+			<div class="toolbar">
+				<button
+					type="button"
+					class="button"
+					disabled={!rendered || exporting !== null}
+					onclick={() => rendered && actions.exportAs('json', null)}
+				>
+					style.json
+				</button>
+				<!-- Disabled rather than hidden for the inspector style: the reason it cannot be written as
+				     code is worth saying, and a button that vanishes says nothing. -->
+				<button
+					type="button"
+					class="button"
+					disabled={!rendered || exporting !== null || code === null}
+					title={code !== null
+						? 'The theme and what was changed, as code'
+						: 'The inspector style has no builder to call - export it as style.json'}
+					onclick={() => rendered && actions.exportAs('ts', code)}
+				>
+					@versatiles/style code
+				</button>
+				<button
+					type="button"
+					class="button"
+					disabled={!rendered || exporting !== null}
+					title="The style, its glyphs and its sprites, as one .zip"
+					onclick={() => rendered && actions.exportBundle()}
+				>
+					Bundle
+				</button>
+			</div>
 
-		{#if missingFonts.length > 0}
-			<p class="note" role="status">
-				No glyphs were found for {missingFonts.join(', ')} - install the family under Assets, or MapLibre will fall back.
-			</p>
-		{/if}
-	</section>
+			{#if missingFonts.length > 0}
+				<Note>
+					No glyphs were found for {missingFonts.join(', ')} - install the family under Assets, or MapLibre will fall back.
+				</Note>
+			{/if}
+		</Group>
+	</div>
 {/if}
 
 <style>
-	.nothing {
-		margin: 0;
-		font-size: var(--text-sm);
-		color: var(--ink-2);
-		line-height: 1.5;
+	/* What is this pane's own: the number a slider reads, which must not twitch as digits change
+	   width, and the per-field reset that keeps its place while hidden so no row shifts. */
+	.amount {
+		min-width: 3rem;
+		text-align: right;
 	}
 
-	.style-pane {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-3);
-	}
-
-	.reset {
-		margin-left: var(--space-2);
-		color: var(--accent);
-	}
-
-	.toggle {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-	}
-
-	.slider {
-		display: grid;
-		grid-template-columns: 5.5rem 1fr 3rem auto;
-		align-items: center;
-		gap: var(--space-2);
-		color: var(--ink-2);
-		font-size: var(--text-xs);
-
-		.name {
-			white-space: nowrap;
-		}
-
-		/* A number that changes as the slider moves; without this the row twitches as digits
-		   change width. */
-		.amount {
-			font-family: var(--font-mono);
-			font-variant-numeric: tabular-nums;
-			text-align: right;
-		}
-
-		input {
-			min-width: 0;
-		}
-	}
-
-	.kind {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-		color: var(--ink-2);
-		font-size: var(--text-xs);
-
-		.name {
-			flex: 0 0 auto;
-			white-space: nowrap;
-		}
-
-		select {
-			flex: 1 1 auto;
-			min-width: 0;
-		}
-	}
-
-	/* The reason a section is absent, which is a different thing from a hint about one that is
-	   present - so it reads as a statement rather than as small print under a control. */
-	/* A statement about what the map is showing, not a hint about a control - so it sits above the
-	   presets rather than under them, and reads before the thing it is explaining. */
-	/* A per-field reset, quiet until the field has something to reset. `visibility` rather than
-	   `display`, so the column keeps its width and no row shifts as values change. */
-	.clear {
-		background: none;
-		border: none;
-		padding: 0 var(--space-1);
-		color: var(--ink-2);
-		cursor: pointer;
-		line-height: 1;
-
-		&.idle {
-			visibility: hidden;
-		}
-	}
-
-	.substituted {
-		border-left: 2px solid var(--rule);
-		padding-left: var(--space-2);
-	}
-
-	.unavailable {
-		padding: var(--space-2) 0;
-	}
-
-	.note {
-		margin: 0;
-		color: var(--ink-2);
-		font-size: var(--text-xs);
-	}
-	.note {
-		margin: 0;
-		color: var(--ink-2);
-		font-size: var(--text-xs);
+	.clear.idle {
+		visibility: hidden;
 	}
 </style>

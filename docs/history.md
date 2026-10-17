@@ -607,7 +607,7 @@ each, every one written well, in isolation.
 | **S12.2** | ✓ The parts: `Group`, `Field`, `Note`, and the base classes | infrastructure |
 | **S12.3** | ✓ Sources on the kit                                        | infrastructure |
 | **S12.4** | ✓ Pipeline on the kit: the pane, the crop, the node cards   | infrastructure |
-| **S12.5** | Style on the kit                                            | infrastructure |
+| **S12.5** | ✓ Style on the kit                                          | infrastructure |
 | **S12.6** | Layers on the kit                                           | infrastructure |
 | **S12.7** | Inspector on the kit                                        | infrastructure |
 | **S12.8** | `kit.test.ts`: a pane that spells a part by hand fails      | infrastructure |
