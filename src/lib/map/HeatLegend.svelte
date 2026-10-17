@@ -1,59 +1,65 @@
 <script lang="ts">
+	import Field from '../common/Field.svelte';
 	import Note from '../common/Note.svelte';
 	import { kilobytes } from '../common/format';
 	import type { LevelSizes } from '../ipc/commands';
+	import { squareLevel } from '../state/heat.svelte';
 
-	// What the heat map's colours mean, and what it is drawing (S14.3).
+	// What the heat map's colours mean, what it is drawing, and how it sits over the map (S14.3).
 	//
-	// **The bands are the core's numbers**, handed back with the mount, so the legend and the pixels
-	// cannot disagree about where 200 kB is.
+	// **The ramp runs from nought to the maximum**, and the maximum is a field: the same 30 kB tile is
+	// dark against a vector tile's 500 kB budget and bright against a landcover layer's own 50 kB.
+	// It is committed on change rather than on each keystroke, since each value redraws every square.
+	//
+	// **The level a square stands for moves with the zoom**, so the sentence that names it does too.
 	let {
 		source,
-		bands,
-		detail,
-		minZoom,
+		deepest,
 		zoom,
+		max,
+		opacity,
+		only,
 		figures = null,
-		error = null
+		error = null,
+		onMax = () => {},
+		onOpacity = () => {},
+		onOnly = () => {}
 	}: {
 		/** The source's name. */
 		source: string | null;
-		/** Where the colour changes, in bytes. Empty while nothing is drawn. */
-		bands: number[];
-		detail: number | null;
-		/** The lowest map zoom it is drawn at. */
-		minZoom: number | null;
-		/** The map's zoom now, to say when it is too far out to draw anything. */
+		/** The deepest level a square stands for; `null` while nothing is drawn. */
+		deepest: number | null;
+		/** The map's zoom now, which picks the level a square is. */
 		zoom: number;
-		/** The detail level's own figures, when the source has been measured. */
+		/** The size at the white end, in bytes. */
+		max: number;
+		/** How opaque the squares are, 0 to 1. */
+		opacity: number;
+		/** Whether the source's own layers are hidden. */
+		only: boolean;
+		/** The figures of the level a square is now, when the source has been measured. */
 		figures?: LevelSizes | null;
 		error?: string | null;
+		onMax?: (bytes: number) => void;
+		onOpacity?: (opacity: number) => void;
+		onOnly?: (only: boolean) => void;
 	} = $props();
 
-	const labels = $derived(
-		bands.length === 3
-			? [
-					`under ${kilobytes(bands[0])}`,
-					`under ${kilobytes(bands[1])}`,
-					`under ${kilobytes(bands[2])}`,
-					`${kilobytes(bands[2])} and over`
-				]
-			: []
-	);
+	const level = $derived(deepest === null ? null : squareLevel(zoom, deepest));
 </script>
 
 <div class="legend popover" role="group" aria-label="Heat map legend">
 	{#if error}
 		<Note tone="problem">{error}</Note>
-	{:else if detail !== null}
+	{:else if level !== null}
 		<p class="what">
-			{#if source}<strong>{source}</strong>,{/if} each square a tile of zoom {detail}
+			{#if source}<strong>{source}</strong>,{/if} each square a tile of zoom {level}
 		</p>
-		<ul>
-			{#each labels as label, index (label)}
-				<li><span class="swatch" style="background: var(--map-heat-{index + 1})"></span>{label}</li>
-			{/each}
-		</ul>
+		<div class="ramp" aria-hidden="true"></div>
+		<div class="ends">
+			<span>0</span>
+			<span>{kilobytes(max)} and over</span>
+		</div>
 		{#if figures}
 			<dl class="facts">
 				<dt>Median</dt>
@@ -64,9 +70,35 @@
 				<dd>{kilobytes(figures.max)}</dd>
 			</dl>
 		{/if}
-		{#if minZoom !== null && zoom < minZoom}
-			<Note>Zoom in to {minZoom} or closer to see the squares.</Note>
-		{/if}
+		{#snippet unit()}kB{/snippet}
+		<Field label="Maximum" trail={unit}>
+			<input
+				type="number"
+				min="1"
+				step="10"
+				value={Math.round(max / 1000)}
+				onchange={(event) => {
+					const kb = Number(event.currentTarget.value);
+					if (kb > 0) onMax(kb * 1000);
+					else event.currentTarget.value = String(Math.round(max / 1000));
+				}}
+			/>
+		</Field>
+		{#snippet percent()}{Math.round(opacity * 100)}%{/snippet}
+		<Field label="Opacity" trail={percent}>
+			<input
+				type="range"
+				min="0"
+				max="100"
+				step="5"
+				value={Math.round(opacity * 100)}
+				oninput={(event) => onOpacity(Number(event.currentTarget.value) / 100)}
+			/>
+		</Field>
+		<label class="only">
+			<input type="checkbox" checked={only} onchange={(event) => onOnly(event.currentTarget.checked)} />
+			Heat map only
+		</label>
 	{:else}
 		<Note live>Drawing…</Note>
 	{/if}
@@ -77,7 +109,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
-		width: 13rem;
+		width: 15rem;
 		padding: var(--space-3);
 		font-size: var(--text-xs);
 	}
@@ -87,26 +119,31 @@
 		color: var(--ink-2);
 	}
 
-	ul {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-		margin: 0;
-		padding: 0;
-		list-style: none;
+	/* The ramp the core draws with, from the same tokens it was handed. */
+	.ramp {
+		height: 0.7rem;
+		border-radius: var(--radius);
+		background: linear-gradient(
+			to right,
+			var(--map-heat-1),
+			var(--map-heat-2),
+			var(--map-heat-3),
+			var(--map-heat-4),
+			var(--map-heat-5)
+		);
 	}
 
-	li {
+	.ends {
+		display: flex;
+		justify-content: space-between;
+		margin-top: calc(-1 * var(--space-1));
+		color: var(--ink-2);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.only {
 		display: flex;
 		align-items: center;
 		gap: var(--space-2);
-	}
-
-	/* The colour at the opacity it is drawn at, so the swatch and the square look alike. */
-	.swatch {
-		width: 0.9em;
-		height: 0.9em;
-		border-radius: var(--radius);
-		opacity: 0.75;
 	}
 </style>

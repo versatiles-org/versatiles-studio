@@ -1,18 +1,22 @@
-//! The heat map: a deeper level's tile sizes, drawn inside the level the map shows (S14.3, B1).
+//! The heat map: tile sizes as squares, a few levels deeper than the map shows (S14.3, B1).
 //!
 //! **Not the tiles on screen.** A map shows four to ten tiles of the level it requests, so colouring
-//! those says nothing. This draws a *detail* level inside them instead: at zoom 8 with the detail
-//! level at 14, each tile carries its 64×64 tiles of zoom 14, one pixel each, and MapLibre draws the
-//! pixels as squares ([Q72]).
+//! those says nothing. Each heat tile draws the tiles [`LOOK`] levels below it instead, one pixel
+//! each - 64 a side - and MapLibre draws the pixels as squares ([Q72]).
+//!
+//! **The squares follow the zoom.** A heat tile at level `z` draws level `z + LOOK`, up to the
+//! deepest level asked for: at zoom 1 a square is a tile of zoom 7, from zoom 8 on it is one of
+//! zoom 14. So the heat map draws at every zoom, each heat tile reads at most 4096 sizes, and the
+//! legend says which level a square is. A fixed detail level drawn from far above it would mean a
+//! million sizes per heat tile, or nothing.
 //!
 //! **A tile source of its own**, served beside the graph's mount, so the map reads it like any other
 //! raster and the core does the work where the index is. Each heat tile is one `tile_size_stream`
-//! over the detail tiles it covers - an index read, no tile body.
+//! over the tiles it covers - an index read, no tile body.
 //!
-//! **Past 256 a side, a pixel is the largest of the tiles under it**: the question is where the
-//! worst tiles are, and an average would hide one bad tile among fifteen good ones. And no heat
-//! tiles more than [`SPAN`] levels above the detail level, where one heat tile would mean reading a
-//! million sizes; the map says to zoom in instead.
+//! **A ramp, not bands** - black for nothing, white for the maximum and above - and the maximum is
+//! the caller's: 500 kB is the budget a vector tile is held to, but a landcover layer that will be
+//! merged into something bigger wants its 50 kB to span the whole ramp.
 //!
 //! [Q72]: ../../../docs/decisions.md
 
@@ -23,55 +27,75 @@ use versatiles_container::{SharedTileSource, SourceType, Tile, TileSource, TileS
 use versatiles_core::{TileBBox, TileCompression, TileCoord, TileFormat, TileJSON, TilePyramid, TileStream};
 use versatiles_image::{DynamicImage, DynamicImageTraitConvert};
 
-/// Where the colour changes, in stored bytes: under 50 kB, 200 kB, 500 kB, and above.
-///
-/// **Fixed, not relative to the container**, so a colour means the same in every file. A scale fitted
-/// to each container would paint its biggest tile red even when every tile is fine. 500 kB is the
-/// ceiling a vector tile is usually held to.
-pub const BANDS: [u32; 3] = [50_000, 200_000, 500_000];
+/// How many levels below a heat tile its squares are: 64 a side.
+pub const LOOK: u8 = 6;
 
-/// How many levels above the detail level heat tiles are drawn.
-pub const SPAN: u8 = 10;
+/// The colours a size runs through, as RGBA, from nothing to the maximum and above.
+pub type Ramp = Vec<[u8; 4]>;
 
-/// The most pixels a heat tile has a side.
-const SIDE: u32 = 256;
-
-/// One colour per band, as RGBA.
-pub type Palette = [[u8; 4]; 4];
-
-/// Which band a size falls in, `0` to `3`.
+/// The colour of `bytes` on `ramp`, which spans nought to `max` evenly; past `max`, the last colour.
 #[must_use]
-pub fn band(bytes: u32) -> usize {
-	BANDS.iter().filter(|&&edge| bytes >= edge).count()
+pub fn colour(ramp: &[[u8; 4]], bytes: u32, max: u32) -> [u8; 4] {
+	let Some(&last) = ramp.last() else {
+		return [0; 4];
+	};
+	if ramp.len() < 2 || bytes >= max {
+		return last;
+	}
+	let at = f64::from(bytes) / f64::from(max.max(1)) * (ramp.len() - 1) as f64;
+	#[expect(
+		clippy::cast_possible_truncation,
+		clippy::cast_sign_loss,
+		reason = "`at` is within 0..len-1"
+	)]
+	let below = at.floor() as usize;
+	let along = at - below as f64;
+	let (a, b) = (ramp[below], ramp[(below + 1).min(ramp.len() - 1)]);
+	let mut mixed = [0u8; 4];
+	for channel in 0..4 {
+		#[expect(clippy::cast_possible_truncation, clippy::cast_sign_loss, reason = "between two u8s")]
+		let value = (f64::from(a[channel]) + (f64::from(b[channel]) - f64::from(a[channel])) * along).round() as u8;
+		mixed[channel] = value;
+	}
+	mixed
 }
 
-/// Reads a `#rrggbb` colour, as the webview hands its tokens over.
+/// Reads a `#rrggbb` or `#rgb` colour, as the webview hands its tokens over - a minified stylesheet
+/// writes black as `#000`.
 pub fn parse_colour(text: &str) -> Result<[u8; 4]> {
 	let hex = text.trim().trim_start_matches('#');
-	ensure!(hex.len() == 6, "a colour has to be #rrggbb, not {text:?}");
-	let channel = |at: usize| u8::from_str_radix(&hex[at..at + 2], 16).with_context(|| format!("reading {text:?}"));
+	let long: String = match hex.len() {
+		6 => hex.to_string(),
+		3 => hex.chars().flat_map(|c| [c, c]).collect(),
+		_ => anyhow::bail!("a colour has to be #rrggbb or #rgb, not {text:?}"),
+	};
+	let channel = |at: usize| u8::from_str_radix(&long[at..at + 2], 16).with_context(|| format!("reading {text:?}"));
 	Ok([channel(0)?, channel(2)?, channel(4)?, 255])
 }
 
-/// The heat map of one source at one detail level.
+/// The heat map of one source, down to one level.
 #[derive(Debug)]
 pub struct Heat {
 	sizes: SharedTileSource,
-	detail: u8,
-	palette: Palette,
+	deepest: u8,
+	ramp: Ramp,
+	max: u32,
 	metadata: TileSourceMetadata,
 	tilejson: TileJSON,
 }
 
 impl Heat {
-	/// A heat map of `sizes` at `detail`, which must be a level the source has tiles at.
-	pub async fn new(sizes: SharedTileSource, detail: u8, palette: Palette) -> Result<Self> {
+	/// A heat map of `sizes` whose squares go no deeper than `deepest`, which must be a level the
+	/// source has tiles at; `max` is the size at the end of `ramp`.
+	pub async fn new(sizes: SharedTileSource, deepest: u8, ramp: Ramp, max: u32) -> Result<Self> {
+		ensure!(ramp.len() >= 2, "a ramp needs two colours at least");
+		ensure!(max > 0, "the maximum has to be above nought");
 		let pyramid = sizes.tile_pyramid().await.context("reading the tile pyramid")?;
-		let base = pyramid.level_bbox(detail);
-		ensure!(!base.is_empty(), "there are no tiles at zoom {detail}");
+		let base = pyramid.level_bbox(deepest);
+		ensure!(!base.is_empty(), "there are no tiles at zoom {deepest}");
 
 		let mut drawn = TilePyramid::new_empty();
-		for level in detail.saturating_sub(SPAN)..=detail {
+		for level in 0..=deepest {
 			drawn.set_level_bbox(at_level(&base, level)?);
 		}
 		let metadata = TileSourceMetadata::new(
@@ -84,36 +108,35 @@ impl Heat {
 		metadata.update_tilejson(&mut tilejson);
 		Ok(Self {
 			sizes,
-			detail,
-			palette,
+			deepest,
+			ramp,
+			max,
 			metadata,
 			tilejson,
 		})
 	}
 
-	/// The lowest level heat tiles are drawn at.
+	/// The level a heat tile at `level` draws as squares.
 	#[must_use]
-	pub fn min_zoom(&self) -> u8 {
-		self.detail.saturating_sub(SPAN)
+	pub fn detail_at(&self, level: u8) -> u8 {
+		level.saturating_add(LOOK).min(self.deepest)
 	}
 
-	/// The heat tile at `coord`: a pixel per detail tile, `None` where there are none at all.
+	/// The heat tile at `coord`: a pixel per tile of [`Self::detail_at`], `None` where there are none.
 	async fn draw(&self, coord: &TileCoord) -> Result<Option<Tile>> {
-		if coord.level > self.detail || coord.level < self.min_zoom() {
+		if coord.level > self.deepest {
 			return Ok(None);
 		}
-		let depth = self.detail - coord.level;
-		let full = 1u32 << depth;
-		let side = full.min(SIDE);
-		let per = full / side;
+		let detail = self.detail_at(coord.level);
+		let depth = detail - coord.level;
+		let side = 1u32 << depth;
 		let (x0, y0) = (coord.x << depth, coord.y << depth);
-		let bbox = TileBBox::from_min_and_max(self.detail, x0, y0, x0 + full - 1, y0 + full - 1)?;
+		let bbox = TileBBox::from_min_and_max(detail, x0, y0, x0 + side - 1, y0 + side - 1)?;
 
 		let mut cells: Vec<Option<u32>> = vec![None; (side * side) as usize];
 		let mut stream = self.sizes.tile_size_stream(bbox).await?;
 		while let Some((at, bytes)) = stream.next().await {
-			let cell = (((at.y - y0) / per) * side + (at.x - x0) / per) as usize;
-			cells[cell] = Some(cells[cell].map_or(bytes, |kept| kept.max(bytes)));
+			cells[((at.y - y0) * side + (at.x - x0)) as usize] = Some(bytes);
 		}
 		if cells.iter().all(Option::is_none) {
 			return Ok(None);
@@ -121,7 +144,7 @@ impl Heat {
 
 		let pixels: Vec<u8> = cells
 			.iter()
-			.flat_map(|cell| cell.map_or([0; 4], |bytes| self.palette[band(bytes)]))
+			.flat_map(|cell| cell.map_or([0; 4], |bytes| colour(&self.ramp, bytes, self.max)))
 			.collect();
 		let image = DynamicImage::from_raw(side as usize, side as usize, pixels)?;
 		Ok(Some(Tile::from_image(image, TileFormat::PNG)?))
@@ -224,12 +247,10 @@ mod tests {
 		})
 	}
 
-	const PALETTE: Palette = [
-		[0, 255, 0, 255],
-		[255, 255, 0, 255],
-		[255, 128, 0, 255],
-		[255, 0, 0, 255],
-	];
+	/// Black to white through grey, so a pixel's value says where on the ramp it sits.
+	fn ramp() -> Ramp {
+		vec![[0, 0, 0, 255], [255, 255, 255, 255]]
+	}
 
 	async fn image(heat: &Heat, z: u8, x: u32, y: u32) -> Option<DynamicImage> {
 		let tile = heat.tile(&TileCoord::new(z, x, y).unwrap()).await.unwrap()?;
@@ -238,63 +259,62 @@ mod tests {
 	}
 
 	#[test]
-	fn a_size_falls_in_one_of_four_bands() {
-		assert_eq!(
-			[band(0), band(49_999), band(50_000), band(499_999), band(500_000)],
-			[0, 0, 1, 2, 3]
-		);
+	fn runs_from_black_at_nought_to_white_at_the_maximum_and_past_it() {
+		let ramp = ramp();
+		assert_eq!(colour(&ramp, 0, 500_000), [0, 0, 0, 255]);
+		assert_eq!(colour(&ramp, 250_000, 500_000), [128, 128, 128, 255]);
+		assert_eq!(colour(&ramp, 500_000, 500_000), [255, 255, 255, 255]);
+		assert_eq!(colour(&ramp, 900_000, 500_000), [255, 255, 255, 255]);
+		// Between stops of a longer ramp: halfway from the second to the third.
+		let three = vec![[0, 0, 0, 255], [0, 0, 200, 255], [200, 0, 0, 255]];
+		assert_eq!(colour(&three, 75, 100), [100, 0, 100, 255]);
 	}
 
 	#[test]
 	fn reads_a_token_colour() {
 		assert_eq!(parse_colour("#0e7c7b").unwrap(), [14, 124, 123, 255]);
+		assert_eq!(parse_colour("#fff").unwrap(), [255, 255, 255, 255]);
 		assert!(parse_colour("rgb(1, 2, 3)").is_err());
 	}
 
-	/// The heart of it: at zoom 0, the four tiles of zoom 1 are four pixels, each in its own colour,
+	/// The heart of it: at zoom 0, the four tiles of zoom 1 are four pixels, each its own shade,
 	/// and the one that is missing is transparent rather than "small".
 	#[tokio::test]
-	async fn draws_each_detail_tile_as_a_pixel() -> Result<()> {
+	async fn draws_each_tile_below_as_a_pixel() -> Result<()> {
 		let heat = Heat::new(
-			index(vec![(1, 0, 0, 10), (1, 1, 0, 600_000), (1, 0, 1, 100_000)]),
+			index(vec![(1, 0, 0, 0), (1, 1, 0, 600_000), (1, 0, 1, 250_000)]),
 			1,
-			PALETTE,
+			ramp(),
+			500_000,
 		)
 		.await?;
 		let drawn = image(&heat, 0, 0, 0).await.expect("a heat tile");
 		assert_eq!(drawn.dimensions(), (2, 2));
 		let pixel = |x, y| drawn.get_pixel(x, y).0;
-		assert_eq!(pixel(0, 0), PALETTE[0]);
-		assert_eq!(pixel(1, 0), PALETTE[3]);
-		assert_eq!(pixel(0, 1), PALETTE[1]);
+		assert_eq!(pixel(0, 0), [0, 0, 0, 255]);
+		assert_eq!(pixel(1, 0), [255, 255, 255, 255], "over the maximum is the maximum");
+		assert_eq!(pixel(0, 1), [128, 128, 128, 255]);
 		assert_eq!(pixel(1, 1)[3], 0, "no tile is transparent, not small");
 		Ok(())
 	}
 
-	/// More detail tiles than pixels: a pixel is the worst tile under it, not the average.
+	/// The squares follow the zoom: [`LOOK`] levels down, but never past the deepest asked for.
 	#[tokio::test]
-	async fn a_pixel_over_many_tiles_is_the_largest() -> Result<()> {
-		// Zoom 9 under zoom 0 is 512 a side; at 256 pixels, each pixel covers two by two.
-		let heat = Heat::new(index(vec![(9, 0, 0, 10), (9, 1, 1, 700_000)]), 9, PALETTE).await?;
-		let drawn = image(&heat, 0, 0, 0).await.expect("a heat tile");
-		assert_eq!(drawn.dimensions(), (256, 256));
-		assert_eq!(drawn.get_pixel(0, 0).0, PALETTE[3]);
+	async fn draws_the_level_six_below_and_no_deeper_than_asked() -> Result<()> {
+		let heat = Heat::new(index(vec![(14, 8800, 5373, 10), (8, 137, 83, 10)]), 14, ramp(), 1).await?;
+		assert_eq!([heat.detail_at(0), heat.detail_at(8), heat.detail_at(12)], [6, 14, 14]);
+		let far = image(&heat, 2, 2, 1).await.expect("zoom 8 under zoom 2");
+		assert_eq!(far.dimensions(), (64, 64));
+		let near = image(&heat, 12, 2200, 1343).await.expect("zoom 14 under zoom 12");
+		assert_eq!(near.dimensions(), (4, 4));
+		assert!(image(&heat, 2, 0, 0).await.is_none(), "no tiles under it");
 		Ok(())
 	}
 
 	#[tokio::test]
-	async fn draws_nothing_where_there_are_no_tiles_or_too_far_up() -> Result<()> {
-		let heat = Heat::new(index(vec![(12, 0, 0, 10)]), 12, PALETTE).await?;
-		assert!(image(&heat, 1, 1, 1).await.is_none(), "no tiles under it");
-		assert!(image(&heat, 1, 0, 0).await.is_none(), "more than SPAN levels up");
-		assert!(image(&heat, 2, 0, 0).await.is_some());
-		assert_eq!(heat.min_zoom(), 2);
-		Ok(())
-	}
-
-	#[tokio::test]
-	async fn refuses_a_level_with_no_tiles() {
-		let error = Heat::new(index(vec![(3, 0, 0, 10)]), 5, PALETTE).await.unwrap_err();
+	async fn refuses_a_level_with_no_tiles_and_a_maximum_of_nought() {
+		let error = Heat::new(index(vec![(3, 0, 0, 10)]), 5, ramp(), 1).await.unwrap_err();
 		assert!(format!("{error}").contains("zoom 5"));
+		assert!(Heat::new(index(vec![(3, 0, 0, 10)]), 3, ramp(), 0).await.is_err());
 	}
 }

@@ -721,18 +721,17 @@ edit, not cleared. Four columns at most, for a 300 px pane:
 | Checks        | spec, issue, count, example        | the example opens the dialog                                   |
 
 **The heat map.** The map shows four to ten tiles of the level it requests, so colouring those says
-nothing. It draws a **deeper level** inside them: at zoom 8, each tile carries its 64×64 tiles of
-zoom 14 as squares.
+nothing. Each heat tile carries the tiles six levels below it as squares, 64 a side: at zoom 1 tiles
+of zoom 7, from zoom 8 on tiles of zoom 14.
 
-- The detail level defaults to the source's deepest, and the legend sets it. Past 256 squares a side
-  a square is the largest tile under it - the question is where the worst are.
-- The core draws it: a raster tile per view tile, a pixel per detail tile, served beside the source's
-  mount and drawn with nearest resampling. One `tile_size_stream` read per view tile, no tile bodies.
-- Four fixed bands - under 50 kB, 200 kB, 500 kB, and above. A fixed scale means the same colour in
-  every file. The colours are tokens, handed to the core when the overlay mounts. A missing tile is
-  transparent: no tile must not look like a small one.
-- Hovering names the detail tile and its size; a click opens the dialog on it. The legend is a
-  popover from the map control, with the source's name and the detail level's p50, p95 and max.
+- The squares follow the zoom, no deeper than the legend's stepper allows; the legend names the level.
+- The core draws it: a pixel per tile below, served beside the source's mount, drawn with nearest
+  resampling. One `tile_size_stream` read per heat tile, no tile bodies.
+- A ramp, black through blue, red and yellow to white, up to a maximum set in the legend - 500 kB
+  by default. The colours are tokens, handed to the core. No tile is transparent, not small.
+- The legend sets the opacity, and "Heat map only" hides the source's layers; the basemap stays.
+- Hovering names the tile and its size; a click opens the dialog. The legend adds that level's p50,
+  p95 and max.
 - **Only over an index**: a container, or a chain that only reads one. Every square of a transformed
   output would be a tile produced, so it has none, and the legend says so.
 

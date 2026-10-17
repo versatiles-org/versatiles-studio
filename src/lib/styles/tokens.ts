@@ -26,7 +26,8 @@ export type MapToken =
 	| '--map-heat-1'
 	| '--map-heat-2'
 	| '--map-heat-3'
-	| '--map-heat-4';
+	| '--map-heat-4'
+	| '--map-heat-5';
 
 /**
  * The computed value of a token from `:root`.

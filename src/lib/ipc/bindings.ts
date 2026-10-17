@@ -195,12 +195,12 @@ export const commands = {
 	 */
 	measureSizes: (graph: number) => typedError<Sizes, string>(__TAURI_INVOKE("measure_sizes", { graph })),
 	/**
-	 *  Mounts a heat map of a graph's tile sizes at `detail` (S14.3).
+	 *  Mounts a heat map of a graph's tile sizes, squares no deeper than `deepest` (S14.3).
 	 * 
-	 *  `colours` are the four band colours as `#rrggbb`, from the webview's tokens - the core draws the
-	 *  pixels, but the palette is the theme's.
+	 *  `colours` are the ramp's stops as `#rrggbb`, from the webview's tokens - the core draws the
+	 *  pixels, but the colours are the theme's; `max` is the size at the last of them.
 	 */
-	mountHeat: (graph: number, detail: number, colours: string[]) => typedError<HeatMount, string>(__TAURI_INVOKE("mount_heat", { graph, detail, colours })),
+	mountHeat: (graph: number, deepest: number, colours: string[], max: number) => typedError<HeatMount, string>(__TAURI_INVOKE("mount_heat", { graph, deepest, colours, max })),
 	/**  Takes a graph's heat map down. Nothing to do when there is none. */
 	unmountHeat: (graph: number) => typedError<null, string>(__TAURI_INVOKE("unmount_heat", { graph })),
 	/**  One tile's stored size, for the heat map's hover - `None` where there is no tile. */
@@ -1378,15 +1378,13 @@ export type GraphInfo = {
 	running: number,
 };
 
-/**  Where a graph's heat map is served, and over which levels (S14.3). */
+/**  Where a graph's heat map is served, and how deep it goes (S14.3). */
 export type HeatMount = {
 	tileUrl: string,
-	/**  The lowest level it is drawn at; above this, one heat tile would be a million sizes. */
-	minZoom: number,
-	/**  The detail level, which is also the deepest level it is drawn at. */
-	maxZoom: number,
-	/**  Where the colour changes, in bytes - the legend's numbers. */
-	bands: number[],
+	/**  The deepest level its squares are; a heat tile at zoom `z` draws `min(z + 6, deepest)`. */
+	deepest: number,
+	/**  The size at the white end of the ramp, in bytes. */
+	max: number,
 };
 
 /**

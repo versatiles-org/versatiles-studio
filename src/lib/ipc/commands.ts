@@ -363,9 +363,9 @@ export const forgetRecent = (source: string) => unwrap(commands.forgetRecent(sou
 /** Walks every tile size of a graph's output, as a job (S14.1). Refused for a transformed output. */
 export const measureSizes = (graph: number) => unwrap(commands.measureSizes(graph));
 
-/** Serves a heat map of a graph's tile sizes at `detail`, in the four band colours (S14.3). */
-export const mountHeat = (graph: number, detail: number, colours: string[]) =>
-	unwrap(commands.mountHeat(graph, detail, colours));
+/** Serves a heat map of a graph's tile sizes, squares no deeper than `deepest`, on a ramp ending at `max` bytes (S14.3). */
+export const mountHeat = (graph: number, deepest: number, colours: string[], max: number) =>
+	unwrap(commands.mountHeat(graph, deepest, colours, max));
 export const unmountHeat = (graph: number) => unwrap(commands.unmountHeat(graph));
 /** One tile's stored size, from the index - `null` where there is none. */
 export const tileBytes = (graph: number, z: number, x: number, y: number) => unwrap(commands.tileBytes(graph, z, x, y));

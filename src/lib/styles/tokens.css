@@ -81,13 +81,15 @@
 	   selection and that is what the accent means everywhere else in the window. */
 	--map-crop-dim: #10161a;
 	--map-crop-edge: var(--accent);
-	/* The heat map's four bands (S14.3): under 50 kB, under 200 kB, under 500 kB, and over. Green to
-	   red, because the question is "is this fine" - and the last band is the one colour that says no.
-	   Drawn at partial opacity over the map, so the tokens are opaque. */
-	--map-heat-1: #2f9e44;
-	--map-heat-2: #e0b400;
-	--map-heat-3: #f08c00;
-	--map-heat-4: #e03131;
+	/* The heat map's ramp (S14.3): nothing to the maximum and over, black through dark blue, red and
+	   yellow to white - the order of QGIS's inferno and magma, so lightness alone says which is bigger,
+	   in grey and to a colour-blind eye. The same in both themes: a ramp that changed with the theme
+	   would make one measurement two pictures. Drawn at partial opacity, so the tokens are opaque. */
+	--map-heat-1: #000000;
+	--map-heat-2: #1f1a6e;
+	--map-heat-3: #c62b40;
+	--map-heat-4: #f6c021;
+	--map-heat-5: #ffffff;
 	/* What a layer's bytes are spent on (S14.7): geometry, the key and value tables, each feature's
 	   tag references, and ids - four kinds that sit side by side in one bar, so four hues apart
 	   rather than one ramp, which would read as an order. */
@@ -223,11 +225,12 @@
 		--map-label: #e4eae8;
 		/* Dimming a dark map needs to go darker still, or the crop reads as no crop at all. */
 		--map-crop-dim: #05080a;
-		/* Lifted a step: the same four meanings, over a dark map. */
-		--map-heat-1: #40c057;
-		--map-heat-2: #fcc419;
-		--map-heat-3: #ff922b;
-		--map-heat-4: #ff6b6b;
+		/* The ramp does not change: one measurement, one picture. */
+		--map-heat-1: #000000;
+		--map-heat-2: #1f1a6e;
+		--map-heat-3: #c62b40;
+		--map-heat-4: #f6c021;
+		--map-heat-5: #ffffff;
 		--bytes-geometry: #4dabf7;
 		--bytes-properties: #da77f2;
 		--bytes-tags: #ffa94d;

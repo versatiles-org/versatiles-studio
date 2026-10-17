@@ -126,17 +126,15 @@ pub async fn scan_contents(
 	rx.await.unwrap_or_else(|_| Err("the scan was cancelled".to_string()))
 }
 
-/// Where a graph's heat map is served, and over which levels (S14.3).
+/// Where a graph's heat map is served, and how deep it goes (S14.3).
 #[derive(serde::Serialize, Clone, specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct HeatMount {
 	pub tile_url: String,
-	/// The lowest level it is drawn at; above this, one heat tile would be a million sizes.
-	pub min_zoom: u8,
-	/// The detail level, which is also the deepest level it is drawn at.
-	pub max_zoom: u8,
-	/// Where the colour changes, in bytes - the legend's numbers.
-	pub bands: Vec<u32>,
+	/// The deepest level its squares are; a heat tile at zoom `z` draws `min(z + 6, deepest)`.
+	pub deepest: u8,
+	/// The size at the white end of the ramp, in bytes.
+	pub max: u32,
 }
 
 /// The name a graph's heat map is mounted under: beside its own mount, and taken down with it.
@@ -146,30 +144,26 @@ fn heat_mount(mount: &str) -> String {
 	format!("{mount}~heat")
 }
 
-/// Mounts a heat map of a graph's tile sizes at `detail` (S14.3).
+/// Mounts a heat map of a graph's tile sizes, squares no deeper than `deepest` (S14.3).
 ///
-/// `colours` are the four band colours as `#rrggbb`, from the webview's tokens - the core draws the
-/// pixels, but the palette is the theme's.
+/// `colours` are the ramp's stops as `#rrggbb`, from the webview's tokens - the core draws the
+/// pixels, but the colours are the theme's; `max` is the size at the last of them.
 #[tauri::command]
 #[specta::specta]
 pub async fn mount_heat(
 	window: tauri::Window,
 	state: State<'_, AppState>,
 	graph: GraphId,
-	detail: u8,
+	deepest: u8,
 	colours: Vec<String>,
+	max: u32,
 ) -> Result<HeatMount, String> {
 	let Indexed { mount, container, .. } = indexed(&window, &state, graph).await?;
-	let palette: heat::Palette = match colours
+	let ramp = colours
 		.iter()
 		.map(|c| heat::parse_colour(c))
 		.collect::<anyhow::Result<Vec<_>>>()
-	{
-		Ok(parsed) => parsed
-			.try_into()
-			.map_err(|_| "the heat map takes exactly four colours".to_string())?,
-		Err(error) => return Err(format!("{error:#}")),
-	};
+		.map_err(|e| format!("{e:#}"))?;
 
 	let mut server = state.server.lock().await;
 	let source = server
@@ -177,8 +171,9 @@ pub async fn mount_heat(
 		.reader_from_str(&container)
 		.await
 		.map_err(|e| format!("{e:#}"))?;
-	let drawn = Heat::new(source, detail, palette).await.map_err(|e| format!("{e:#}"))?;
-	let min_zoom = drawn.min_zoom();
+	let drawn = Heat::new(source, deepest, ramp, max)
+		.await
+		.map_err(|e| format!("{e:#}"))?;
 	let name = heat_mount(&mount);
 	server
 		.mount(&name, Arc::new(drawn))
@@ -186,9 +181,8 @@ pub async fn mount_heat(
 		.map_err(|e| format!("{e:#}"))?;
 	Ok(HeatMount {
 		tile_url: server.tile_url(&name),
-		min_zoom,
-		max_zoom: detail,
-		bands: heat::BANDS.to_vec(),
+		deepest,
+		max,
 	})
 }
 

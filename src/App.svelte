@@ -35,7 +35,7 @@
 	import TileGrid from './lib/map/TileGrid.svelte';
 	import HeatMap from './lib/map/HeatMap.svelte';
 	import HeatLegend from './lib/map/HeatLegend.svelte';
-	import { heat } from './lib/state/heat.svelte';
+	import { heat, squareLevel } from './lib/state/heat.svelte';
 	import { analysis } from './lib/state/analysis.svelte';
 	import { requestedZoom } from './lib/map/tile-grid';
 	import TileActivity from './lib/map/TileActivity.svelte';
@@ -75,11 +75,18 @@
 		untrack(() => void heat.follow(of?.graph ?? null, of?.build ?? null, of?.info.maxZoom ?? null));
 	});
 
-	/// The detail level's own figures, when the source has been measured and the figures still apply.
+	/// What "heat map only" hides: the layers the selected source draws, by their ids on the map.
+	const heatHides = $derived(
+		composition.rows.filter((row) => row.source === composition.editedName && !row.hidden).map((row) => row.id)
+	);
+
+	/// The figures of the level a square stands for now, when the source has been measured and the
+	/// figures still apply.
 	const heatFigures = $derived.by(() => {
 		const drawn = heat.drawn;
 		if (!heatOf || !drawn || analysis.stale(heatOf.graph, heatOf.build)) return null;
-		return analysis.of(heatOf.graph).sizes?.levels.find((level) => level.level === drawn.detail) ?? null;
+		const level = squareLevel(mapZoom, drawn.deepest);
+		return analysis.of(heatOf.graph).sizes?.levels.find((sizes) => sizes.level === level) ?? null;
 	});
 
 	/// The map's zoom, as of the last gesture that ended.
@@ -297,7 +304,10 @@
 				{map}
 				mount={heat.on ? heat.mount : null}
 				graph={heat.drawn?.graph ?? null}
-				detail={heat.drawn?.detail ?? null}
+				deepest={heat.drawn?.deepest ?? null}
+				opacity={heat.opacity}
+				only={heat.only}
+				layers={heatHides}
 				onPick={(z, x, y) => {
 					if (heat.drawn) void tileDialog.open(heat.drawn.graph, z, x, y);
 				}}
@@ -363,7 +373,7 @@
 					heat={heatOf
 						? {
 								on: heat.on,
-								level: heat.drawn?.detail ?? heatOf.info.maxZoom,
+								level: heat.drawn?.deepest ?? heatOf.info.maxZoom,
 								min: heatOf.info.minZoom,
 								max: heatOf.info.maxZoom
 							}
@@ -378,12 +388,16 @@
 					{#snippet heatLegend()}
 						<HeatLegend
 							source={heatOf?.name ?? null}
-							bands={heat.mount?.bands ?? []}
-							detail={heat.drawn?.detail ?? null}
-							minZoom={heat.mount?.minZoom ?? null}
+							deepest={heat.drawn?.deepest ?? null}
 							zoom={mapZoom}
+							max={heat.max}
+							opacity={heat.opacity}
+							only={heat.only}
 							figures={heatFigures}
 							error={heat.error}
+							onMax={(bytes) => void heat.setMax(bytes)}
+							onOpacity={(value) => (heat.opacity = value)}
+							onOnly={(value) => (heat.only = value)}
 						/>
 					{/snippet}
 					{#snippet views()}<Views {map} />{/snippet}
