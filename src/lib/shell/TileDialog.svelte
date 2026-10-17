@@ -1,14 +1,14 @@
 <script lang="ts">
 	import Modal from '../common/Modal.svelte';
-	import Icon from '../common/Icon.svelte';
 	import Tabs from '../common/Tabs.svelte';
 	import Note from '../common/Note.svelte';
 	import Field from '../common/Field.svelte';
 	import JsonTree from '../common/JsonTree.svelte';
 	import TileDrawing from './TileDrawing.svelte';
+	import TileNavigator from './TileNavigator.svelte';
 	import { bytes, kilobytes, count, ordinal } from '../common/format';
 	import type { Dissection } from '../ipc/commands';
-	import { children, neighbour, parent, parseAddress, type TileAt } from '../state/tile-dialog.svelte';
+	import type { TileAt } from '../state/tile-dialog.svelte';
 
 	// One tile, taken apart (S14.5, A4, [Q72]).
 	//
@@ -16,8 +16,8 @@
 	// on the right are what the bytes are spent on. A row picked in a tab is the feature outlined in
 	// the drawing, and a feature clicked in the drawing is the row - one selection, two views of it.
 	//
-	// **Moving without closing.** Parent, children and neighbours are a click each, and the address
-	// takes one typed; the selection is about one tile and goes with it.
+	// **Moving without closing.** `TileNavigator` puts the neighbours, children and parent a click
+	// away, and the address takes one typed; the selection is about one tile and goes with it.
 	//
 	// Every way in - Inspect in the Analysis pane, a heat-map square, the native menu - opens this
 	// with a source and a tile, and the dialog does the rest.
@@ -49,19 +49,12 @@
 	let focus = $state<number | null>(null);
 	let selected = $state<{ layer: number; index: number } | null>(null);
 	let showVertices = $state(false);
-	let address = $state('');
-
 	// A new tile is a new subject: what was picked in the last one names nothing in this one.
 	$effect(() => {
-		address = `${at.z}/${at.x}/${at.y}`;
+		void at;
 		focus = null;
 		selected = null;
 	});
-
-	const typed = $derived(parseAddress(address));
-	const up = $derived(parent(at.z, at.x, at.y));
-	const down = $derived(children(at.z, at.x, at.y));
-	const beside = (dx: number, dy: number) => neighbour(at.z, at.x, at.y, dx, dy);
 
 	const vector = $derived(dissection !== null && dissection.layers.length > 0);
 	const extent = $derived(dissection?.layers[focus ?? 0]?.extent ?? 4096);
@@ -79,10 +72,6 @@
 		tab = 'features';
 	}
 
-	function go(target: { z: number; x: number; y: number } | null) {
-		if (target) onGo(target.z, target.x, target.y);
-	}
-
 	const tabs = $derived([
 		{ id: 'layers', label: 'Layers' },
 		{ id: 'attributes', label: 'Attributes' },
@@ -96,45 +85,7 @@
 </script>
 
 <Modal title="Tile {at.z}/{at.x}/{at.y}" width="64rem" {onClose}>
-	<div class="moves" role="group" aria-label="Move to another tile">
-		<form
-			class="address"
-			onsubmit={(event) => {
-				event.preventDefault();
-				go(typed);
-			}}
-		>
-			<Field label="Tile">
-				<input type="text" bind:value={address} aria-invalid={typed === null} spellcheck="false" />
-			</Field>
-			<button type="submit" class="button" disabled={typed === null}>Go</button>
-		</form>
-		<button type="button" class="button" disabled={!up} onclick={() => go(up)}>Parent</button>
-		<div class="quads" role="group" aria-label="Children">
-			{#each down as child, i (i)}
-				<button
-					type="button"
-					class="button"
-					aria-label="Child {['north-west', 'north-east', 'south-west', 'south-east'][i]}"
-					title="{child.z}/{child.x}/{child.y}"
-					onclick={() => go(child)}>{['NW', 'NE', 'SW', 'SE'][i]}</button
-				>
-			{/each}
-		</div>
-		<div class="compass" role="group" aria-label="Neighbours">
-			{#each [{ label: 'West', icon: 'left', dx: -1, dy: 0 }, { label: 'North', icon: 'up', dx: 0, dy: -1 }, { label: 'South', icon: 'down', dx: 0, dy: 1 }, { label: 'East', icon: 'right', dx: 1, dy: 0 }] as const as move (move.label)}
-				{@const target = beside(move.dx, move.dy)}
-				<button
-					type="button"
-					class="icon"
-					aria-label={move.label}
-					title={target ? `${move.label}: ${target.z}/${target.x}/${target.y}` : move.label}
-					disabled={!target}
-					onclick={() => go(target)}><Icon name={move.icon} /></button
-				>
-			{/each}
-		</div>
-	</div>
+	<TileNavigator {at} {onGo} />
 
 	{#if error}
 		<Note tone="problem">{error}</Note>
@@ -356,30 +307,6 @@
 </Modal>
 
 <style>
-	.moves {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--space-3);
-	}
-
-	.address {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-
-		input {
-			width: 10rem;
-			font-family: var(--font-mono);
-		}
-	}
-
-	.quads,
-	.compass {
-		display: flex;
-		gap: var(--space-1);
-	}
-
 	.sizes {
 		grid-template-columns: repeat(3, auto minmax(0, 1fr));
 	}

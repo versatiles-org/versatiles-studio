@@ -108,6 +108,16 @@ describe('the tile dialog', () => {
 		expect(screen.getByText(/feature 1\/1/)).toBeTruthy();
 	});
 
+	/** The top row of the world has nothing north of it; west of x = 0 wraps round, as the map does. */
+	it('cannot step past the pole, and wraps round the antimeridian', async () => {
+		const { onGo } = show({ at: { graph: 1, z: 2, x: 0, y: 0 } });
+		for (const name of ['North-west', 'North', 'North-east']) {
+			expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
+		}
+		await fireEvent.click(screen.getByRole('button', { name: 'West' }));
+		expect(onGo).toHaveBeenLastCalledWith(2, 3, 0);
+	});
+
 	it('draws a hole dashed, apart from an outer ring', () => {
 		show();
 		const rings = [...document.querySelectorAll('path.ring')];
@@ -122,6 +132,8 @@ describe('the tile dialog', () => {
 		expect(onGo).toHaveBeenLastCalledWith(15, 17601, 10747);
 		await fireEvent.click(screen.getByRole('button', { name: 'East' }));
 		expect(onGo).toHaveBeenLastCalledWith(14, 8801, 5373);
+		await fireEvent.click(screen.getByRole('button', { name: 'North-west' }));
+		expect(onGo).toHaveBeenLastCalledWith(14, 8799, 5372);
 
 		const field = screen.getByLabelText('Tile');
 		await fireEvent.input(field, { target: { value: '12/2200/1343' } });

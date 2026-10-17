@@ -34,7 +34,7 @@ judgement, and judgements drift.
 ```text
 App.svelte            the workbench: one window, one project
 Launcher.svelte       the launcher: what ⌘N opens, and what starts with nothing open (S7.5)
-lib/shell/            the frame and its bar: AppShell · AlphaRibbon · Sidebar · Pane · PaneResizer · Boundary · StatusBar · JobsPanel · DiagnosticsPanel · BarPanel · BarRow · UpdateDialog · AssetsDialog · TileDialog · TileDrawing
+lib/shell/            the frame and its bar: AppShell · AlphaRibbon · Sidebar · Pane · PaneResizer · Boundary · StatusBar · JobsPanel · DiagnosticsPanel · BarPanel · BarRow · UpdateDialog · AssetsDialog · TileDialog · TileDrawing · TileNavigator
 lib/panes/sources/    SourcesPane · SourcesSection - which graphs there are and which are drawn; order is the Layers pane's (Q50, Q62)
 lib/panes/pipeline/   PipelinePane · PipelineSection and its parts: GraphList · NodeChain · NodeCard · NodeArgument · VplEditor · CropSection · ExportDialog
 lib/panes/style/      StylePane · StyleSection
