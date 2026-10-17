@@ -1,5 +1,7 @@
 <script lang="ts">
 	import Modal from '../../common/Modal.svelte';
+	import Group from '../../common/Group.svelte';
+	import Note from '../../common/Note.svelte';
 	import type { Bounds, Compression, Estimate, Preview } from '../../ipc/commands';
 	import { bytes, count } from '../../common/format';
 	import { untrack } from 'svelte';
@@ -131,7 +133,7 @@
 </script>
 
 <Modal title="Export {name}" width="32rem" onClose={onCancel}>
-	<dl>
+	<dl class="facts">
 		{#if produces}
 			<dt>Produces</dt>
 			<dd>{produces.info.tileFormat} · zoom {produces.info.minZoom}-{produces.info.maxZoom}</dd>
@@ -172,20 +174,21 @@
 				<option value="zstd">Zstd</option>
 			</select>
 			{#if fixedEncoding}
-				<span class="aside">MBTiles sets its own.</span>
+				<Note>MBTiles sets its own.</Note>
 			{/if}
 		</dd>
 	</dl>
 
 	{#if produces && produces.layers.length > 0}
 		<!-- Probed from one tile, so the counts are that tile's. Said here rather than left to be
-		     inferred from a number that looks like a total and is not. -->
-		<section class="layers">
-			<h3 class="section-label">
-				{produces.layers.length === 1 ? '1 layer' : `${produces.layers.length} layers`}, {features} features in the sampled
-				tile
-			</h3>
-			<ul>
+		     inferred from a number that looks like a total and is not. A group of the kit (S13): its
+		     heading is sentence case like every heading inside a dialog or a pane. -->
+		<Group
+			title="{produces.layers.length === 1
+				? '1 layer'
+				: `${produces.layers.length} layers`}, {features} features in the sampled tile"
+		>
+			<ul class="layers">
 				{#each produces.layers as layer (layer.name)}
 					<li>
 						<span class="name truncate" title={layer.name}>{layer.name}</span>
@@ -198,28 +201,30 @@
 					</li>
 				{/each}
 			</ul>
-		</section>
+		</Group>
 	{/if}
 
 	<!-- Directly above the button that commits the run, which is the only place it can change a
 		     decision. `aria-live` because the answer arrives while this is open, replacing the button
 		     that asked for it. -->
-	<p class="cost" aria-live="polite" class:waiting={running}>
+	<div class="cost" aria-live="polite" class:waiting={running}>
 		{#if failed}
-			<span class="problem">{failed}</span>
+			<Note tone="problem">{failed}</Note>
 		{:else if asked === null}
 			<button type="button" class="button" disabled={running} onclick={() => void estimate()}>
 				{running ? 'Estimating…' : 'Estimate size'}
 			</button>
 		{:else if asked.tiles === 0}
-			Nothing to write - this crop selects no tiles.
+			<Note>Nothing to write - this crop selects no tiles.</Note>
 		{:else}
-			<strong>{cost}</strong>
-			<span class="basis">{count(asked.tiles)} tiles, from {asked.sampled} sampled</span>
+			<p class="amount">
+				<strong>{cost}</strong>
+				<span class="basis">{count(asked.tiles)} tiles, from {asked.sampled} sampled</span>
+			</p>
 		{/if}
-	</p>
+	</div>
 
-	<p class="note">Change what is written with the crop in the Pipeline pane.</p>
+	<Note>Change what is written with the crop in the Pipeline pane.</Note>
 
 	{#snippet actions()}
 		<button type="button" class="button" onclick={onCancel}>Cancel</button>
@@ -230,46 +235,19 @@
 </Modal>
 
 <style>
-	dl {
-		display: grid;
-		/* The value column may shrink, which is what keeps a long extent from widening the dialog. */
-		grid-template-columns: auto minmax(0, 1fr);
-		gap: var(--space-1) var(--space-3);
-		margin: 0;
-		font-size: var(--text-sm);
-	}
-
-	dt {
-		color: var(--ink-2);
-	}
-
-	dd {
-		margin: 0;
-		min-width: 0;
-	}
-
 	.mono {
 		font-family: var(--font-mono);
 		font-size: var(--text-mono-adjust);
 	}
 
+	/* The facts are the kit's; what is this dialog's own is the layer list and the cost line. */
 	.layers {
 		min-width: 0;
-
-		h3 {
-			margin: 0 0 var(--space-2);
-		}
-
-		ul {
-			margin: 0;
-			padding: 0;
-			list-style: none;
-			/* A graph with twenty layers must not push the button that commits off the screen. */
-			max-height: 14rem;
-			overflow-y: auto;
-			overscroll-behavior: contain;
-			font-size: var(--text-sm);
-		}
+		/* A graph with twenty layers must not push the button that commits off the screen. */
+		max-height: 14rem;
+		overflow-y: auto;
+		overscroll-behavior: contain;
+		font-size: var(--text-sm);
 
 		li {
 			display: grid;
@@ -295,49 +273,38 @@
 		}
 	}
 
-	.aside {
-		margin-left: var(--space-2);
-		color: var(--ink-2);
-		font-size: var(--text-xs);
-	}
-
-	.note {
-		margin: 0;
-		color: var(--ink-2);
-		font-size: var(--text-xs);
-	}
-
-	.problem {
-		margin: 0;
-		color: var(--error);
-		font-size: var(--text-sm);
-	}
-
 	/* Set apart from the description above it: this is the consequence of it, not more of it. */
 	.cost {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-1);
-		margin: 0;
 		padding-top: var(--space-3);
 		border-top: 1px solid var(--rule);
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-		min-height: 2.5em;
+		/* Two lines' worth, so the buttons under it do not move when the answer lands. */
+		min-height: 3.2em;
 
 		/* The column stretches its children; the button is a control and takes its own width. */
 		button {
 			align-self: flex-start;
 		}
 
+		&.waiting {
+			opacity: 0.7;
+		}
+	}
+
+	.amount {
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-1);
+		margin: 0;
+		color: var(--ink-2);
+		font-size: var(--text-sm);
+
 		strong {
 			color: var(--ink);
 			font-variant-numeric: tabular-nums;
 		}
-	}
-
-	.waiting {
-		opacity: 0.7;
 	}
 
 	.basis {

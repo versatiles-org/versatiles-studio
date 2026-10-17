@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { untrack } from 'svelte';
 	import Modal from '../../common/Modal.svelte';
+	import Note from '../../common/Note.svelte';
 	import { describeSteps, fromSteps, parseSteps, type Step } from './steps';
 
 	// The helper behind a per-zoom curve - `raster_format`'s `quality` and `quality_translucent`
@@ -79,9 +80,9 @@
 	{#if unreadable}
 		<!-- Said rather than corrected: the value is somebody's, and `check` is what explains what is
 		     wrong with it, in the operation's own words. Use would overwrite it, so it says so. -->
-		<p class="note" role="status">
+		<Note>
 			<code>{value}</code> is not a per-zoom curve, so there is nothing to show. Building one here replaces it.
-		</p>
+		</Note>
 	{/if}
 
 	<div class="steps">
@@ -116,7 +117,7 @@
 				/>
 				<button
 					type="button"
-					class="remove"
+					class="icon danger drop"
 					title="Remove"
 					aria-label="Remove the step at zoom {step.zoom}"
 					onclick={() => (steps = steps.filter((_, at) => at !== index))}>×</button
@@ -124,12 +125,12 @@
 			</div>
 		{/each}
 
-		<button type="button" class="link" onclick={add}>+ step</button>
+		<button type="button" class="add" onclick={add}>+ step</button>
 	</div>
 
 	<!-- The two things the written form hides: which zooms get what, and what will actually be
 	     written. Both read-only, so neither can come to disagree with the rows. -->
-	<dl class="reading">
+	<dl class="facts reading">
 		<dt>Resolves to</dt>
 		<dd>{describeSteps(steps)}</dd>
 		<dt>Writes</dt>
@@ -173,56 +174,14 @@
 		white-space: nowrap;
 	}
 
-	.remove {
+	/* At the far end of the row, where every other row's × is. */
+	.drop {
 		margin-left: auto;
-		border: 0;
-		background: none;
-		padding: 0 var(--space-1);
-		color: var(--ink-2);
-		cursor: pointer;
-		line-height: 1;
-
-		&:hover {
-			color: var(--ink);
-		}
 	}
 
-	.link {
-		align-self: flex-start;
-		border: 0;
-		background: none;
-		padding: 0;
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-		cursor: pointer;
-
-		&:hover {
-			color: var(--ink);
-		}
-	}
-
+	/* Set apart from the rows above: it is what they come to, not another of them. */
 	.reading {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
-		gap: var(--space-1) var(--space-3);
-		margin: 0;
 		padding-top: var(--space-3);
 		border-top: 1px solid var(--rule);
-		font-size: var(--text-sm);
-
-		dt {
-			color: var(--ink-2);
-		}
-
-		dd {
-			margin: 0;
-			min-width: 0;
-		}
-	}
-
-	.note {
-		margin: 0 0 var(--space-3);
-		color: var(--ink-2);
-		font-size: var(--text-sm);
 	}
 </style>

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import Modal from '../../common/Modal.svelte';
+	import Group from '../../common/Group.svelte';
+	import Note from '../../common/Note.svelte';
 	import type { CopyPlan } from '../../ipc/commands';
 	import { bytes as formatBytes, count } from '../../common/format';
 
@@ -25,9 +27,6 @@
 		onWrite: (zip: boolean) => void;
 	} = $props();
 
-	let dialog = $state<HTMLDialogElement>();
-	$effect(() => dialog?.showModal());
-
 	/// A zip by default: a copy exists to be sent to somebody, and one file is what you attach.
 	let zip = $state(true);
 
@@ -35,26 +34,27 @@
 </script>
 
 <Modal title="Save a copy" width="32rem" onClose={onCancel}>
-	<p class="lead">
+	<Note tone="lead">
 		Carries the data your pipelines read, and rewrites them to name the copies - so the result opens on another machine.
-	</p>
+	</Note>
 
-	<fieldset>
-		<legend class="section-label">As</legend>
-		<label class="choice">
-			<input type="radio" bind:group={zip} value={true} />
-			<span>One <code>.zip</code> file</span>
-		</label>
-		<label class="choice">
-			<input type="radio" bind:group={zip} value={false} />
-			<span>A folder</span>
-		</label>
-	</fieldset>
+	<!-- Groups of the kit (S13): the heading is the group's, and the choices are a radio group it names. -->
+	<Group title="As">
+		<div class="choices" role="radiogroup" aria-label="As">
+			<label class="choice">
+				<input type="radio" bind:group={zip} value={true} />
+				<span>One <code>.zip</code> file</span>
+			</label>
+			<label class="choice">
+				<input type="radio" bind:group={zip} value={false} />
+				<span>A folder</span>
+			</label>
+		</div>
+	</Group>
 
-	<section>
-		<h3 class="section-label">Carries</h3>
+	<Group title="Carries">
 		{#if plan.carry.length === 0}
-			<p class="note">Nothing - every source is a URL, so the copy needs no data beside it.</p>
+			<Note tone="empty">Nothing - every source is a URL, so the copy needs no data beside it.</Note>
 		{:else}
 			<p class="total">
 				<strong>{count(plan.carry.length)} files · {formatBytes(total)}</strong>
@@ -68,14 +68,13 @@
 				{/each}
 			</ul>
 		{/if}
-	</section>
+	</Group>
 
 	<!-- Said rather than refused: a project with one moved source is still worth copying, and the
 		     copy keeps the name it had so it works wherever that file does exist. -->
 	{#if plan.missing.length > 0}
-		<section class="missing">
-			<h3 class="section-label">Not found, so not carried</h3>
-			<ul class="files">
+		<Group title="Not found, so not carried">
+			<ul class="files missing">
 				{#each plan.missing as reference (reference.graph + reference.field + reference.value)}
 					<li>
 						<span class="path truncate">{reference.value}</span>
@@ -83,7 +82,7 @@
 					</li>
 				{/each}
 			</ul>
-		</section>
+		</Group>
 	{/if}
 
 	{#snippet actions()}
@@ -95,24 +94,10 @@
 </Modal>
 
 <style>
-	.lead,
-	.note {
-		margin: 0;
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-	}
-
-	fieldset {
+	.choices {
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-2);
-		margin: 0;
-		padding: 0;
-		border: 0;
-	}
-
-	legend {
-		padding: 0;
 	}
 
 	.choice {
@@ -120,12 +105,6 @@
 		align-items: center;
 		gap: var(--space-2);
 		font-size: var(--text-sm);
-	}
-
-	section {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-2);
 	}
 
 	.total {

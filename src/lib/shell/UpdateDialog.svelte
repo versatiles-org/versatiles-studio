@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { updates } from '../state/updates.svelte';
 	import Modal from '../common/Modal.svelte';
+	import Note from '../common/Note.svelte';
 
 	// Auto-update, as a person sees it (G4, S5.8, [Q47]).
 	//
@@ -47,7 +48,7 @@
 		{:else if state.kind === 'ready'}
 			<p><strong>{state.version}</strong> is installed, and starts with the next launch.</p>
 		{:else if state.kind === 'failed'}
-			<p class="problem">{state.message}</p>
+			<Note tone="problem">{state.message}</Note>
 		{/if}
 	</div>
 
@@ -87,10 +88,6 @@
 		strong {
 			font-variant-numeric: tabular-nums;
 		}
-	}
-
-	.problem {
-		color: var(--error);
 	}
 
 	/* Scrolls on its own axis and wraps: release notes are somebody else's Markdown, and a long line

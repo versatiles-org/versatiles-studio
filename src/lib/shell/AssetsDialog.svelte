@@ -3,6 +3,7 @@
 	import { megabytes } from '../common/format';
 	import { jobs } from '../state/jobs.svelte';
 	import Modal from '../common/Modal.svelte';
+	import Note from '../common/Note.svelte';
 
 	// Font families, installed on demand (G7, S4.1, [Q9]).
 	//
@@ -80,12 +81,12 @@
 </script>
 
 <Modal title="Fonts" width="34rem" {onClose}>
-	<p class="lead">
+	<Note tone="lead">
 		Studio ships Latin glyphs and the sprite set. A family here covers everything its script has - install one when a
 		map needs text Studio cannot draw yet.
-	</p>
+	</Note>
 
-	{#if problem}<p class="problem" role="alert">{problem}</p>{/if}
+	{#if problem}<Note tone="problem">{problem}</Note>{/if}
 
 	<ul class="list">
 		{#each families as family (family.id)}
@@ -107,7 +108,7 @@
 	</ul>
 
 	{#if families.length === 0 && !problem}
-		<p class="lead">No families in this build's manifest.</p>
+		<Note tone="empty">No families in this build's manifest.</Note>
 	{/if}
 
 	{#snippet actions()}
@@ -121,14 +122,6 @@
 </Modal>
 
 <style>
-	/* No margins: the modal body is a flex column with its own gap. */
-	.lead {
-		margin: 0;
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-		line-height: 1.5;
-	}
-
 	.list {
 		margin: 0;
 		padding: 0;
@@ -167,12 +160,6 @@
 			color: var(--ink-2);
 			font-size: var(--text-xs);
 		}
-	}
-
-	.problem {
-		margin: 0;
-		color: var(--error);
-		font-size: var(--text-sm);
 	}
 
 	/* Away from `Done`: one fetches, the other leaves, and they should not be neighbours. */

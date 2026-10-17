@@ -18,15 +18,21 @@
 	// It is read out as it changes, and it holds two lines' height while empty so the controls
 	// under it do not jump when the answer lands. Five components had each written that pattern
 	// with a reserved height of their own.
+	//
+	// `lead` is the one sentence at the top of a dialog saying what it does, at body size - the
+	// dialogs each had one as `.lead` or `.hint`, in two sizes.
 	let {
 		tone = 'hint',
 		live = false,
+		id,
 		action,
 		children
 	}: {
-		tone?: 'hint' | 'empty' | 'aside' | 'problem';
+		tone?: 'hint' | 'empty' | 'aside' | 'problem' | 'lead';
 		/** Announced as it changes, with room held for the answer. */
 		live?: boolean;
+		/** For a control's `aria-describedby` to point at. */
+		id?: string;
 		/** A `.quiet` button offering the fix, rendered after the text. */
 		action?: Snippet;
 		children: Snippet;
@@ -34,6 +40,7 @@
 </script>
 
 <p
+	{id}
 	class="note {tone}"
 	class:live
 	role={tone === 'problem' ? 'alert' : undefined}
@@ -53,7 +60,8 @@
 		overflow-wrap: anywhere;
 	}
 
-	.empty {
+	.empty,
+	.lead {
 		font-size: var(--text-sm);
 		line-height: 1.5;
 	}

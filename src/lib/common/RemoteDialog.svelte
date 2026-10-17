@@ -1,5 +1,8 @@
 <script lang="ts">
 	import Modal from './Modal.svelte';
+	import Group from './Group.svelte';
+	import Note from './Note.svelte';
+	import Tabs from './Tabs.svelte';
 	import { importOpening, type Opening } from '../ipc/commands';
 	import { EXTRA, fetchCatalog, type Shortcut } from './catalog';
 	import { bytes } from './format';
@@ -101,15 +104,6 @@
 	const firstTab = (): Tab => (recents.length > 0 ? 'recent' : 'catalog');
 	let tab = $state<Tab>(firstTab());
 
-	/// Arrow keys move between tabs, as a tab list does everywhere else.
-	function onTabKey(event: KeyboardEvent) {
-		if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-		event.preventDefault();
-		const at = TABS.findIndex((candidate) => candidate.id === tab);
-		tab = TABS[(at + (event.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length].id;
-		document.getElementById(`remote-tab-${tab}`)?.focus();
-	}
-
 	function choose(address: string) {
 		url = address;
 		field?.focus();
@@ -139,7 +133,7 @@
 			aria-describedby="remote-verdict"
 		/>
 		<!-- Live, so a screen reader hears the answer to the check without hunting for it. -->
-		<p id="remote-verdict" class="verdict {verdict.state}" aria-live="polite">
+		<Note id="remote-verdict" live tone={verdict.state === 'refused' ? 'problem' : 'hint'}>
 			{#if verdict.state === 'not-a-url'}
 				An address starting with https:// or sftp://
 			{:else if verdict.state === 'checking'}
@@ -149,34 +143,27 @@
 			{:else if verdict.state === 'refused'}
 				{verdict.reason}
 			{/if}
-		</p>
+		</Note>
 	</form>
 
 	<!-- Under the field rather than behind a tab: it is what the field accepts, read while typing. -->
-	<p class="hint">
+	<Note>
 		Tile containers - <code>.versatiles</code>, <code>.pmtiles</code> - over HTTPS or SFTP, read in pieces as the map needs
 		them, so nothing is downloaded. Or a tile server, by its TileJSON address. GeoJSON, CSV, MBTiles and TAR open from disk
 		only.
-	</p>
+	</Note>
 
-	<div class="tabs" role="tablist" aria-label="Where to start from">
-		{#each TABS as { id, label } (id)}
-			<button
-				type="button"
-				role="tab"
-				id="remote-tab-{id}"
-				aria-selected={tab === id}
-				aria-controls="remote-panel"
-				tabindex={tab === id ? 0 : -1}
-				onclick={() => (tab = id)}
-				onkeydown={onTabKey}>{label}</button
-			>
-		{/each}
-	</div>
+	<Tabs
+		items={TABS}
+		selected={tab}
+		onSelect={(id) => (tab = id as Tab)}
+		label="Where to start from"
+		controls="remote-panel"
+	/>
 
 	<!-- The one part that scrolls. Field, hint and buttons stay put, so Open is never below the fold
 	     of an 880×580 launcher - which is where it was when this was one long column. -->
-	<div class="panel" id="remote-panel" role="tabpanel" aria-labelledby="remote-tab-{tab}">
+	<div class="panel" id="remote-panel" role="tabpanel" aria-label={tab === 'recent' ? 'Recent' : 'Catalog'}>
 		{#if tab === 'recent'}
 			{#if recents.length}
 				<ul class="list">
@@ -189,12 +176,11 @@
 					{/each}
 				</ul>
 			{:else}
-				<p class="hint">Nothing opened from an address yet - the catalog has some to start from.</p>
+				<Note tone="empty">Nothing opened from an address yet - the catalog has some to start from.</Note>
 			{/if}
 		{:else}
 			{#each groups as [publisher, shortcuts] (publisher)}
-				<section>
-					<h3 class="section-label">{publisher}</h3>
+				<Group title={publisher}>
 					<ul class="list">
 						{#each shortcuts as shortcut (shortcut.url)}
 							<li>
@@ -212,13 +198,13 @@
 							</li>
 						{/each}
 					</ul>
-				</section>
+				</Group>
 			{/each}
 
 			{#if catalogue === undefined}
-				<p class="hint">Loading the catalogue of download.versatiles.org…</p>
+				<Note tone="empty">Loading the catalogue of download.versatiles.org…</Note>
 			{:else if catalogue === null}
-				<p class="hint">The catalogue of download.versatiles.org could not be loaded - Studio may be offline.</p>
+				<Note tone="empty">The catalogue of download.versatiles.org could not be loaded - Studio may be offline.</Note>
 			{/if}
 		{/if}
 	</div>
@@ -243,45 +229,6 @@
 		}
 	}
 
-	.verdict {
-		margin: 0;
-		min-height: 1.4em;
-		font-size: var(--text-sm);
-		color: var(--ink-2);
-
-		&.refused {
-			color: var(--error);
-		}
-	}
-
-	.hint {
-		margin: 0;
-		color: var(--ink-2);
-		font-size: var(--text-sm);
-	}
-
-	.tabs {
-		display: flex;
-		gap: var(--space-1);
-		border-bottom: 1px solid var(--rule);
-
-		button {
-			padding: var(--space-2) var(--space-3);
-			border: 0;
-			border-bottom: 2px solid transparent;
-			margin-bottom: -1px;
-			background: none;
-			color: var(--ink-2);
-			cursor: pointer;
-
-			&[aria-selected='true'] {
-				border-bottom-color: currentColor;
-				color: var(--ink);
-				font-weight: 600;
-			}
-		}
-	}
-
 	/* A fixed height, so switching tabs does not resize the dialog under the pointer - and allowed to
 	   shrink below it, which is what keeps the buttons on screen in a short window: it is the only
 	   child of the dialog that can give way. */
@@ -293,16 +240,6 @@
 		min-height: 0;
 		overflow-y: auto;
 		margin-top: calc(-1 * var(--space-2));
-	}
-
-	section {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-	}
-
-	h3 {
-		margin: 0;
 	}
 
 	.list {
@@ -320,12 +257,8 @@
 		gap: var(--space-4);
 		width: 100%;
 		padding: var(--space-1) var(--space-3);
-		border: 0;
 		border-radius: var(--radius);
-		background: none;
-		color: inherit;
 		text-align: left;
-		cursor: pointer;
 
 		&:hover,
 		&:focus-visible {
