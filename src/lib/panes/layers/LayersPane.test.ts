@@ -13,7 +13,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
 import { build } from '../../map/builders';
 import LayersPane from './LayersPane.svelte';
 
-const own = build('colorful', {})! as unknown as import('maplibre-gl').StyleSpecification;
+const own = build('colorful', {}) as unknown as import('maplibre-gl').StyleSpecification;
 
 const rowsOf = (source: string, hidden: (id: string) => string | null = () => null) =>
 	own.layers.map((layer) => ({

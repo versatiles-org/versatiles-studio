@@ -381,18 +381,6 @@ describe('styleFor over the other schemas', () => {
 			expect(source.maxzoom).toBe(maxzoom);
 			expect(JSON.stringify(source)).toContain('/tiles/berlin/');
 		});
-
-		// `satellite` only overlays Shortbread, so over these tiles there is nothing to build - which
-		// is the same answer as a preset that draws nothing, and gets the same fallback.
-		it(`falls back to the layers for satellite over ${kind}`, () => {
-			const { basis } = styleFor(
-				recipe({ preset: 'satellite' }),
-				{ ...target, layers: [{ name: layers[0], geometry: 'polygon' }] },
-				SOURCES,
-				BASE
-			);
-			expect(basis).toBe('fallback');
-		});
 	}
 });
 

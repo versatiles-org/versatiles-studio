@@ -74,8 +74,6 @@ export function renderStyle(
 		recolorOptions(appearance.recolor),
 		schema
 	);
-	if (!style) return null;
-
 	return withOverrides(style, appearance.overrides);
 }
 

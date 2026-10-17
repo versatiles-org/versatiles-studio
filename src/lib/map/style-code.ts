@@ -106,10 +106,7 @@ export function fontsUsed(style: StyleSpecification): string[] {
 	return [...fonts].sort();
 }
 
-/**
- * A preset with no builder behind it cannot be written as a builder call - `derived`, and `satellite`
- * over tiles that are not Shortbread.
- */
+/** A preset with no builder behind it cannot be written as a builder call - `derived`. */
 export function canGenerateCode(appearance: Appearance, schema: Schema = 'shortbread'): boolean {
 	// Raster and hillshade have no `@versatiles/style` builder at all, so there is no call to write
 	// - `style.json` is the honest form for those (S6.4).

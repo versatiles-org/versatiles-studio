@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { osm, satellite } from '@versatiles/style';
+import { osm } from '@versatiles/style';
 import { omt } from '@versatiles/style/omt';
 import { protomaps } from '@versatiles/style/protomaps';
 import {
@@ -28,13 +28,6 @@ describe('styleCode', () => {
 		expect(code.trimEnd().endsWith('export default style;')).toBe(true);
 	});
 
-	it('writes satellite as the builder of its own name', () => {
-		const code = styleCode(recipe({ preset: 'satellite' }))!;
-		expect(code).toContain("import { satellite } from '@versatiles/style';");
-		expect(code).toContain('const style = satellite({');
-		expect(code).not.toContain('"theme"');
-	});
-
 	it('calls the builder the tiles need, imported from its subpath', () => {
 		const code = styleCode(recipe({ preset: 'graybeard' }), undefined, 'openmaptiles')!;
 		expect(code).toContain("import { omt } from '@versatiles/style/omt';");
@@ -43,11 +36,6 @@ describe('styleCode', () => {
 		expect(styleCode(recipe(), undefined, 'protomaps')).toContain(
 			"import { protomaps } from '@versatiles/style/protomaps';"
 		);
-	});
-
-	it('has no code for satellite over tiles it cannot overlay', () => {
-		expect(canGenerateCode(recipe({ preset: 'satellite' }), 'openmaptiles')).toBe(false);
-		expect(styleCode(recipe({ preset: 'satellite' }), undefined, 'protomaps')).toBeNull();
 	});
 
 	it('says nothing about adjustments that were never made', () => {
@@ -71,11 +59,10 @@ describe('styleCode', () => {
 	 */
 	it('writes options the builder accepts, for every preset and schema', () => {
 		const recolor = { invertBrightness: true, rotate: 35, saturate: -0.5, tint: 0.5, tintColor: '#f00', blend: 0.2 };
-		const builders = { osm, omt, protomaps, satellite };
+		const builders = { osm, omt, protomaps };
 		for (const schema of ['shortbread', 'openmaptiles', 'protomaps'] as const) {
-			for (const preset of ['colorful', 'eclipse', 'graybeard', 'neutrino', 'shadow', 'satellite'] as const) {
-				const code = styleCode(recipe({ preset, recolor }), undefined, schema);
-				if (code === null) continue;
+			for (const preset of ['colorful', 'eclipse', 'graybeard', 'neutrino', 'shadow'] as const) {
+				const code = styleCode(recipe({ preset, recolor }), undefined, schema)!;
 				const name = code.match(/const style = (\w+)\(/)![1] as keyof typeof builders;
 				const options = JSON.parse(code.slice(code.indexOf('({') + 1, code.indexOf('});') + 1));
 				const result = builders[name].validateOptions(options);

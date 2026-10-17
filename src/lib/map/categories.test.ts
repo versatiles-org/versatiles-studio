@@ -60,7 +60,7 @@ describe('the table against the presets themselves', () => {
 	const presets = Object.keys(THEMES) as (keyof typeof THEMES)[];
 	const schemas = ['shortbread', 'openmaptiles', 'protomaps'] as const;
 	const styles = () =>
-		schemas.flatMap((schema) => presets.map((preset) => build(preset, { tiles: 'x/{z}/{x}/{y}' }, {}, schema)!));
+		schemas.flatMap((schema) => presets.map((preset) => build(preset, { tiles: 'x/{z}/{x}/{y}' }, {}, schema)));
 
 	it('has a category for every prefix the presets use', () => {
 		const unknown = new Set<string>();

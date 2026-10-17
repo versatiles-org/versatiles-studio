@@ -16,7 +16,7 @@
  * `omt({ theme: 'gray' })`, and nobody has to pick a preset per schema.
  */
 
-import { osm, satellite } from '@versatiles/style';
+import { osm } from '@versatiles/style';
 import type { RecolorOptions, TileSource } from '@versatiles/style';
 import { omt } from '@versatiles/style/omt';
 import { protomaps } from '@versatiles/style/protomaps';
@@ -64,11 +64,11 @@ export const THEMES = {
 	shadow: 'gray-dark'
 } as const;
 
-/** A preset that has a builder behind it - every one but `derived`, on some schema. */
-export type BuiltPreset = keyof typeof THEMES | 'satellite';
+/** A preset that has a builder behind it - every one but `derived`. */
+export type BuiltPreset = keyof typeof THEMES;
 
 export function isBuiltPreset(preset: Preset): preset is BuiltPreset {
-	return preset === 'satellite' || preset in THEMES;
+	return preset in THEMES;
 }
 
 /**
@@ -125,22 +125,6 @@ export function recolorOptions(recolor: Recolor): RecolorOptions {
 export const PUBLIC_BASE = 'https://tiles.versatiles.org';
 
 /**
- * versatiles.org's satellite imagery, as the TileJSON its server publishes - with absolute tile URLs.
- *
- * **Spelled out rather than fetched,** because the published one says `/tiles/satellite/{z}/{x}/{y}`,
- * relative to its own host, and MapLibre resolves that against the *page*: every tile was a request
- * into Studio's webview. Inline it also costs no request, and the extent is the server's own.
- */
-export const IMAGERY: TileSource = {
-	tilejson: '3.0.0',
-	tiles: [`${PUBLIC_BASE}/tiles/satellite/{z}/{x}/{y}`],
-	bounds: [-180, -85.051129, 180, 85.051129],
-	minzoom: 0,
-	maxzoom: 19,
-	attribution: "<a href='https://versatiles.org/sources/'>VersaTiles sources</a>"
-};
-
-/**
  * What a builder needs to be told: where the vector tiles are, and where the assets are. Each one
  * omitted is the builder's own default under [`PUBLIC_BASE`] - except the tiles of `protomaps()`,
  * which has no default and throws without them.
@@ -160,20 +144,19 @@ export interface BuildCall {
 }
 
 /**
- * The call a preset is built with over a schema, or `null` where there is none - also what
- * `style-code.ts` writes into the generated code, so the code and the map cannot describe two
- * different styles.
+ * The call a preset is built with over a schema - also what `style-code.ts` writes into the generated
+ * code, so the code and the map cannot describe two different styles.
  *
- * **`satellite` only exists for Shortbread.** It draws the vector tiles as an overlay on imagery, and
- * the overlay is `osm()`'s; over another schema there is nothing to call. The recolouring applies to
- * the overlay - the imagery has its own raster controls, which Studio does not offer for this preset.
+ * Every preset is a theme of every schema's builder since v7, so there is always a call to make.
+ * `satellite` used to be the exception - imagery with an `osm()` overlay, Shortbread only - and left
+ * with [S11.1](../../../docs/history.md): it is a background, not a way to draw vector data.
  */
 export function buildCall(
 	preset: BuiltPreset,
 	schema: Schema,
 	urls: BuildUrls,
 	recolor: RecolorOptions = {}
-): BuildCall | null {
+): BuildCall {
 	const { tiles, ...assets } = urls;
 	const recolored = Object.keys(recolor).length > 0 ? { recolor } : {};
 	const target = SCHEMAS[schema];
@@ -182,18 +165,6 @@ export function buildCall(
 	// in Studio is `tauri://localhost`: the imagery was a 404 and the satellite map black. Outside a
 	// browser they use versatiles.org, so tests in Node never saw it. Naming the base makes both agree.
 	const named = { base: PUBLIC_BASE, ...(tiles === undefined ? {} : { [target.tiles]: tiles }), ...assets };
-
-	if (preset === 'satellite') {
-		if (schema !== 'shortbread') return null;
-		return {
-			name: 'satellite',
-			module: target.module,
-			options: {
-				urls: { satellite: IMAGERY, ...named },
-				...(Object.keys(recolored).length > 0 ? { osmOverlay: recolored } : {})
-			}
-		};
-	}
 	return { name: target.name, module: target.module, options: { theme: THEMES[preset], urls: named, ...recolored } };
 }
 
@@ -221,7 +192,7 @@ export function tileset(schema: Schema, tiles: string[]): TileSource {
 }
 
 /**
- * Builds a preset's style over a schema, or `null` where the preset has nothing to draw it with.
+ * Builds a preset's style over a schema.
  *
  * **Without the slots.** The builders lay four invisible `slot-*` layers where a fill, a street, a
  * symbol and a label run begin, for an application to insert its own layers at. Studio inserts by
@@ -234,11 +205,10 @@ export function build(
 	urls: BuildUrls,
 	recolor: RecolorOptions = {},
 	schema: Schema = 'shortbread'
-): StyleSpecification | null {
+): StyleSpecification {
 	const call = buildCall(preset, schema, urls, recolor);
-	if (!call) return null;
-	const builder = call.name === 'satellite' ? satellite : SCHEMAS[schema].builder;
-	return withoutSlots((builder as (options: object) => unknown)(call.options) as StyleSpecification);
+	const builder = SCHEMAS[schema].builder as (options: object) => unknown;
+	return withoutSlots(builder(call.options) as StyleSpecification);
 }
 
 /** A built style without its `slot-*` layers - see [`build`] for why Studio has no use for them. */

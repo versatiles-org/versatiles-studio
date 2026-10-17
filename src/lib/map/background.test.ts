@@ -44,6 +44,11 @@ describe('buildBackground', () => {
 		const raster = Object.entries(style!.sources).filter(([, source]) => source.type === 'raster');
 		expect(raster).toHaveLength(1);
 		expect(style!.layers.some((layer) => 'source' in layer && layer.source === raster[0][0])).toBe(true);
+		// The tiles themselves, not only the document listing them: tiles.versatiles.org publishes
+		// them relative to its host, and MapLibre would resolve that against Studio's own page.
+		const imagery = raster[0][1] as { url?: string; tiles?: string[] };
+		expect(imagery.url).toBeUndefined();
+		expect(imagery.tiles?.[0]).toMatch(/^https:\/\/tiles\.versatiles\.org\//);
 	});
 });
 

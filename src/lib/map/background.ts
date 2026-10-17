@@ -20,11 +20,30 @@
  */
 
 import type { StyleSpecification } from 'maplibre-gl';
-import { osm, satellite, type Palette } from '@versatiles/style';
-import { IMAGERY, localAssets, PUBLIC_BASE, tileset, withoutSlots } from './builders';
+import { osm, satellite, type Palette, type TileSource } from '@versatiles/style';
+import { localAssets, PUBLIC_BASE, tileset, withoutSlots } from './builders';
 
 /** Where the background's tiles come from. Only this is remote. */
 const TILES = `${PUBLIC_BASE}/tiles/osm/{z}/{x}/{y}`;
+
+/**
+ * versatiles.org's satellite imagery, as the TileJSON its server publishes - with absolute tile URLs.
+ *
+ * **Spelled out rather than fetched,** because the published one says `/tiles/satellite/{z}/{x}/{y}`,
+ * relative to its own host, and MapLibre resolves that against the *page*: every tile was a request
+ * into Studio's webview. Inline it also costs no request, and the extent is the server's own.
+ *
+ * Here rather than in `builders.ts` since [S11.1](../../../docs/history.md): the background is the
+ * only place Studio draws imagery under a vector overlay.
+ */
+export const IMAGERY: TileSource = {
+	tilejson: '3.0.0',
+	tiles: [`${PUBLIC_BASE}/tiles/satellite/{z}/{x}/{y}`],
+	bounds: [-180, -85.051129, 180, 85.051129],
+	minzoom: 0,
+	maxzoom: 19,
+	attribution: "<a href='https://versatiles.org/sources/'>VersaTiles sources</a>"
+};
 
 export type BackgroundId =
 	'none' | 'positrino' | 'positrino-dark' | 'colorful' | 'muted' | 'colorful-dark' | 'satellite' | 'satellite-plain';

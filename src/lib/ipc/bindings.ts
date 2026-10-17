@@ -1627,11 +1627,16 @@ export type Pipeline = {
 /**
  *  Where a style starts before anything is adjusted.
  * 
- *  The six are named as `@versatiles/style` v5 named its builders. v6 folded five of them into one
- *  `osm()` builder with a `theme` each, and the webview translates (`builders.ts`) rather than this
- *  changing the names: they are what every saved project says.
+ *  The five are named as `@versatiles/style` v5 named its builders. v6 folded them into one `osm()`
+ *  builder with a `theme` each, and the webview translates (`builders.ts`) rather than this changing
+ *  the names: they are what every saved project says.
+ * 
+ *  **No `satellite`** ([S11.1](../../../docs/history.md)). It was imagery with an OSM overlay - a
+ *  background with a themed vector source on top, which Studio already says with the background
+ *  control and a theme - and offering it as a way to draw *vector* data was a control that drew
+ *  something else.
  */
-export type Preset = "colorful" | "eclipse" | "graybeard" | "neutrino" | "shadow" | "satellite" | 
+export type Preset = "colorful" | "eclipse" | "graybeard" | "neutrino" | "shadow" | 
 /**
  *  Built from the layers the tiles actually contain, rather than from a Shortbread assumption
  *  (D2, S4.4). A recipe rather than a fixed style, so it re-derives when the pipeline changes.
