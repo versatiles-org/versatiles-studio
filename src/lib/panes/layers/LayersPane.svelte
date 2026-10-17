@@ -72,7 +72,9 @@
 	const specOf = (source: string, ownId: string) => styleOf(source)?.layers.find((layer) => layer.id === ownId);
 	const overrideOf = (source: string, ownId: string) => sources[source]?.overrides[ownId] ?? {};
 
-	/// Whether an eye covers this group: the path itself, or one above it.
+	/// Whether an eye covers this group: the path itself, one above it, or the source's own row -
+	/// whose path is empty and whose eye hides everything the source draws without stopping its build
+	/// (`WHOLE_SOURCE` in `map/categories.ts`). The switch that stops a build is in the Sources pane.
 	const closedOn = (node: Group) => {
 		const hidden = sources[node.source]?.hidden ?? [];
 		return hidden.find((path) => covers(path, node.path)) ?? null;
@@ -143,7 +145,9 @@
 						class="eye"
 						aria-pressed={closed === null}
 						aria-label={closed === null ? `Hide ${node.label}` : `Show ${node.label}`}
-						title={closed !== null && closed !== node.path ? `Hidden by the eye on ${closed}` : undefined}
+						title={closed !== null && closed !== node.path
+							? `Hidden by the eye on ${closed === '' ? node.source : closed}`
+							: undefined}
 						onclick={() => toggleGroup(node)}
 					>
 						{closed === null ? '◉' : '○'}

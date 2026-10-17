@@ -114,6 +114,23 @@ describe('the eye', () => {
 
 		expect(actions.setHidden).toHaveBeenCalledWith(1, 'Points of interest', false);
 	});
+
+	// The eye on the source's own row hides everything it draws and leaves it built - the Sources
+	// pane holds the switch that stops a build. Stored as the empty path, which is what the whole
+	// source is called in the tree (S8.1).
+	it('hides a whole source from its own row, and shows it again from any row under it', async () => {
+		const closing = draw();
+		await fireEvent.click(screen.getByRole('button', { name: 'Hide osm' }));
+		expect(closing.setHidden).toHaveBeenCalledWith(1, '', true);
+		cleanup();
+
+		const opening = draw({ sources: { osm: { graph: 1, hidden: [''], overrides: {}, style: own } } } as never);
+		expect(screen.getByRole('button', { name: 'Show osm' })).toBeTruthy();
+		await fireEvent.click(screen.getByRole('button', { name: 'Expand osm' }));
+		// Every category reads as closed by the eye above it, and pressing one opens that eye.
+		await fireEvent.click(screen.getByRole('button', { name: 'Show Labels' }));
+		expect(opening.setHidden).toHaveBeenCalledWith(1, '', false);
+	});
 });
 
 describe('the nudges', () => {

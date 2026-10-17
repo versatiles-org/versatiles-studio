@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { THEMES, build } from './builders';
-import { CATEGORIES, categoryOf, headingOf, parts } from './categories';
+import { CATEGORIES, WHOLE_SOURCE, categoryOf, covers, headingOf, hiddenBy, parts } from './categories';
 
 describe('parts', () => {
 	it('splits an id into the path a person reads down', () => {
@@ -29,6 +29,24 @@ describe('categoryOf', () => {
 		expect(categoryOf('derived:water_polygons')).toBeNull();
 		expect(headingOf('derived:water_polygons')).toBe('derived');
 		expect(headingOf('label-place-city')).toBe('Labels');
+	});
+});
+
+describe('the eyes', () => {
+	it('answers for the nearest closed eye above a layer', () => {
+		expect(hiddenBy('label-place-city', ['Labels', 'Labels/label/place'])).toBe('Labels/label/place');
+		expect(hiddenBy('label-place-city', ['Roads & rails'])).toBeNull();
+	});
+
+	// The eye on a source's own row. It used to store the empty path, which `ancestors` never
+	// produces, so the row read as hidden while every layer stayed on the map (S8.1).
+	it('hides every layer of a source from its own row, and names that eye last', () => {
+		expect(covers(WHOLE_SOURCE, 'Labels')).toBe(true);
+		expect(covers(WHOLE_SOURCE, WHOLE_SOURCE)).toBe(true);
+		expect(hiddenBy('label-place-city', [WHOLE_SOURCE])).toBe(WHOLE_SOURCE);
+		expect(hiddenBy('water', [WHOLE_SOURCE])).toBe(WHOLE_SOURCE);
+		// A category eye is nearer than the source's, so it is the one a person is offered to open.
+		expect(hiddenBy('label-place-city', [WHOLE_SOURCE, 'Labels'])).toBe('Labels');
 	});
 });
 

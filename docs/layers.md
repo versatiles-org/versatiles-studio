@@ -118,6 +118,12 @@ An eye is stored as a path within one source - `Labels/label/place` - and hides 
 `hiddenBy()` answers which eye closed a given layer, nearest first, so the pane can offer to open
 the one that did rather than the one that was pressed.
 
+**The source's own row has an eye too, stored as the empty path** (`WHOLE_SOURCE`). It hides every
+layer the source draws and nothing else: the graph stays built and mounted, so the rows stay in the
+tree and the eye can be found again. That is the difference between the two switches a source has -
+the eye here says whether it is _painted_; the switch in the Sources pane says whether it _runs_
+([Q49](decisions.md)), and a source that does not run has no rows here at all.
+
 Two categories were folded into others when `@versatiles/style` v7 moved their layers, and eyes
 stored under them still work: `Sites` reads as `Land & water/site` and `Points of interest` as
 `Labels/poi` (`currentPath()`). The stored path is never rewritten - a match reports it as stored, so

@@ -142,15 +142,28 @@ export function currentPath(stored: string): string {
 	return (rest.length > 0 ? [renamed[0], ...rest] : renamed).join('/');
 }
 
-/** Whether a stored eye covers this path: the path itself, or one above it. */
+/**
+ * The path of a source's own row in the tree: no category, no level, no layer.
+ *
+ * **An eye stored here hides every layer the source draws, and nothing else changes.** The graph is
+ * still built and mounted - that is the switch in the Sources pane - so the rows stay in the tree
+ * and the eye can be found again. Before this was spelled out, the row stored the empty path and
+ * nothing read it: the row went grey while the map went on drawing the source (S8.1).
+ */
+export const WHOLE_SOURCE = '';
+
+/** Whether a stored eye covers this path: the path itself, one above it, or the whole source. */
 export function covers(stored: string, path: string): boolean {
 	const current = currentPath(stored);
+	if (current === WHOLE_SOURCE) return true;
 	return path === current || path.startsWith(`${current}/`);
 }
 
 /**
  * Whether an eye above this layer is closed. Says which, as stored, so the pane can offer to open
  * the one that did.
+ *
+ * Nearest first, so the source's own eye comes last: it is above every category.
  */
 export function hiddenBy(id: string, hidden: Iterable<string>): string | null {
 	const stored = [...hidden];
@@ -158,5 +171,5 @@ export function hiddenBy(id: string, hidden: Iterable<string>): string | null {
 		const found = stored.find((eye) => currentPath(eye) === path);
 		if (found !== undefined) return found;
 	}
-	return null;
+	return stored.includes(WHOLE_SOURCE) ? WHOLE_SOURCE : null;
 }

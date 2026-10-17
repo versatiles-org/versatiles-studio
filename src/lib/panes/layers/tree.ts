@@ -61,7 +61,8 @@ export interface Group {
 	/**
 	 * Its path within the source, which is what an eye is stored as - `Labels/label/place`.
 	 *
-	 * Empty at the top level, where the node is the whole source and its eye is the source's own.
+	 * Empty at the top level, where the node is the whole source: an eye stored there hides every
+	 * layer the source draws while the graph stays built - `WHOLE_SOURCE` in `map/categories.ts`.
 	 * **Not unique**: a category split across two places is two nodes with one path, which is what
 	 * makes one eye hide both parts.
 	 */
