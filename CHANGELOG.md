@@ -3,6 +3,115 @@
 What changed in each release. Written for someone deciding whether
 to update, not for the next developer - the commit log is that.
 
+## v0.4.0 - 2026-10-18
+
+### Features
+
+- the analysis pane's layer table sorts by any column, its bars kept to the heaviest layer's scale
+- the tile dialog's tables sort by any column - largest or A first, reversed on a second click, back to the tile's order on a third
+- the tile dialog draws each layer in its own colour, matched by a swatch beside its name, and fades the rest when one is picked
+- the tile dialog pins what was picked under its list - a layer's bytes, a feature's properties, the repair - so it stays in view however long the list is
+- the tile dialog's navigator sits on the drawing's corner with the parent as its zoom-out, and the drawing shows the tile and an eighth of buffer, counting what reaches further
+- the tile dialog keeps one size for every tile, with the address, the sizes and Show on map on its title row and a ✕ instead of a footer
+- the tile dialog moves by a 3×3 grid - neighbours around the tile, diagonals included, its quarters to zoom in - with the parent and the address beside it
+- the heat map draws six levels below the zoom on a black-to-white ramp up to a settable maximum, with an opacity slider and a heat-map-only switch
+- the Style pane checks the style as it would be exported against the MapLibre style spec and lists what fails, layers named by id
+- the layer scan checks the drawn tiles against the vector tile spec and the TileJSON, raises a count on the Analysis pane and offers vector_repair at the end of the chain
+- the Analysis pane reads a sample of the drawn tiles and ranks their layers by share, with a bar of what each spends its bytes on and a zoom picker
+- the map's popup names the drawn tile at the level the map requested, says stored from decompressed, opens on any click and leads to the tile dialog
+- the tile dialog draws one tile alone with its layers, attributes, features and issues, moves between tiles, and opens from Inspect, the heat map and the Map menu
+- the core dissects the drawn tile into layers, attributes, features with geometry as encoded, issues and a repair preview
+- the heat map draws a deeper level's tile sizes as squares inside the map's tiles, with a legend and a level stepper
+- the Analysis pane measures the selected source and lists its sizes per zoom and its biggest tiles
+- the core walks a container's tile sizes per level, with percentiles and the biggest tiles, as a queued job
+- add the kit's Tabs, Icon, BarPanel and BarRow parts, and a live Note
+- add the kit's parts, Group, Field and Note, with the base classes and the one label width
+- offer "Read as" only the kinds the tile format allows, and offer the fix when a theme draws nothing
+- choose the theme from the palettes versatiles-style provides, stored by the library's own name
+- make "Vector · other" the inspector style, a kind rather than a preset, and let the default appearance follow the kind
+- drop the satellite preset from the Style pane, which is a background and not a way to draw vector data
+- distinguish the switch that stops a build from the eye that hides a layer, and name what each export writes
+- call a graph a source wherever a person reads it, with a glossary joining the two words
+- name the selected graph in the Pipeline, Style and Inspector pane headers
+- read the layer stack top of the map first, the way the sources list reads
+- enhance coordinate parsing and ranking logic for improved accuracy and context
+- update tooltip and search box hints for improved clarity and user experience
+- hint the map search field with a multi-line tooltip of place, coordinate and tile examples
+- search places, coordinates, tiles and bounding boxes from one field, with geocoding from geocode.versatiles.org
+- curate the background maps for data, context and imagery, with a labels switch
+- enhance button hover state for improved user interaction
+- split the map controls into a search strip and a display column, with zoom, compass and a readout
+- enhance RemoteDialog with tabbed navigation for recent and catalog shortcuts
+- implement remote file opening dialog and associated catalog fetching logic
+- add support for OpenMapTiles and Protomaps schemas
+- add upgrade scripts and update package.json
+
+### Fixes
+
+- update glyphs-latin and fonts versions and digests in manifest.json
+- build on versatiles-rs 5.4 - a composite keeps the sources upstream says it needs, and an unclosed ring is a check of its own
+- a source's extent counts every zoom level, not only the deepest - versatiles-rs 5.2 and its geo_extent, so satellite.versatiles is the world rather than Guadeloupe
+- the tile dialog draws every n-th feature of each layer past its cap, now 20,000, instead of the first 5,000, which drew one sorted layer two thirds across
+- the tile dialog scrolls a long list inside its tab panel, as tall as the drawing, instead of scrolling the whole dialog
+- Measure and Read layers are buttons, and the Analysis pane only offers to show the heat map, not to hide it
+- the style export copies the map's style through JSON, since structuredClone refuses the Svelte proxies inside it and the style check failed on every change
+- a choice shows a value its list lacks, a live note holds one line, and the style exports fit one row
+- a menu keeps the keyboard when a choice leads to a second list, the inspector's title sits at body size, and a screenshot walk photographs every surface
+- keep a folded pane's contents mounted so its tab, draft and filter survive the fold
+- let the eye on a source's own row in the Layers pane hide every layer it draws
+- resolve the builders' default URLs against tiles.versatiles.org, so satellite imagery draws in Studio
+- keep eyes stored under the pre-v7 "Sites" and "Points of interest" categories working
+- refactor map background handling and update style builders
+
+### Refactoring
+
+- put the Pipeline tabs on Tabs, the delete confirm on quiet danger, the inspector's facts on the kit, and rename the classes that clashed with a part
+- draw every glyph button, switch, eye and chevron with the shared Icon instead of text
+- put the launcher on the kit - Note for its lines, the icon for forget, the link for github
+- put the status bar's panels and the boundary on the kit - BarPanel, BarRow, Tabs and the link
+- put the map's controls and the popups on the kit - one popover face, one cursor highlight, arrows in every panel, and the map's own button class
+- put the six dialogs on the kit - Group, Note, Tabs, facts and the add and icon buttons
+- put the Inspector on the kit
+- put the Layers pane and the layer row on the kit
+- put the Style pane on the kit
+- put the Pipeline pane, the crop and the node cards on the kit, and give the sidebar one surface
+- put the Sources pane on the kit
+- move each pane's wiring out of App.svelte into a Section beside it, and name the selection once
+- one typed pane registry with title and scope, checked against the core's catalogue
+- give the Style pane the data-and-actions shape the other panes have, with its export dialogs in a state module
+
+### Documentation
+
+- say why the web upgrade skips @tauri-apps/api and keeps WebdriverIO on 9
+- S14 plans the Analysis pane, the deep-level heat map and the tile dialog, and Q72 supersedes Q12
+- shorten the S13 and Q71 entries, and raise the three document budgets on purpose
+- S13 in the history, Q71 in the decision log, the widened kit in styling.md and the new parts in the inventory
+- specify the kit, the two heading levels and the one density, and plan S12
+- record Q69, the kind picks the editor, and update the UI concept and history for S11
+- record the left-pane work as S10, after the S8 and S9 the history already had, and plan S11
+- bring the pane header comments in line with Q50 and Q62
+- remove outdated planning documents and identifiers sections from README
+
+### Tests
+
+- openProject waits for the chain as well as the map, so a story cannot press a button the window has not enabled yet
+- kit.test.ts covers every component - notes, tabs, glyphs, popovers, disabled fades and the accent of native controls
+- refuse a pane that spells a part of the kit by hand, and put the pane header's chevron on the kit
+
+### Chores
+
+- bump actions/upload-artifact in the action group
+- upgrade dependencies
+- update tauri-plugin-dialog to version 2.8.3 and syn to version 3.0.9
+- update @tauri-apps/api to version 2.12.4 and modify upgrade:rust script
+- update dependencies and devDependencies in package.json
+
+### Other
+
+- style: give base.css a baseline for native controls, a pressed state, one disabled opacity, and the popover, add, link and facts parts
+- Update dependencies across the project
+- style: add latest release badge to README for improved visibility
+
 ## v0.3.0 - 2026-08-30
 
 ### Features
