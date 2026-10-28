@@ -445,11 +445,23 @@ jobs:
       # cask pointing at a file that no longer exists - which is what a hand-edited copy in this
       # repository kept doing while the naming was being settled.
       #
-      # `PAT_TOKEN` because `github.token` is scoped to this repository and cannot start a workflow
-      # in another. The same secret and the same call versatiles-rs already uses for its formula.
+      # **A token from the release GitHub App, not `github.token`.** That one is scoped to this
+      # repository and cannot start a workflow in another. The app token is valid for an hour, for
+      # the tap and Actions only - the same app versatiles-rs uses for its formula. It replaced a
+      # personal access token, whose expiry failed releases with nothing more than a 401.
+      - name: Create token for the Homebrew tap
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: versatiles-org
+          repositories: homebrew-versatiles
+          permission-actions: write
+
       - name: Update the Homebrew cask
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: gh workflow run update_cask.yml --repo versatiles-org/homebrew-versatiles --ref main
 
   # -------------------------------------------------------------------------------------------
