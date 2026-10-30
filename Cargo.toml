@@ -5,23 +5,24 @@ resolver = "3"
 [workspace.package]
 version = "0.4.0"
 edition = "2024"
-# 1.85 is edition 2024's floor; 1.94 is what versatiles-rs 4.10 requires.
+# 1.85 is edition 2024's floor; 1.98 is what versatiles-rs 5.4 requires.
 # This is an application, not a library - we control the build toolchain, so tracking security
-# updates matters more than a low MSRV.
-rust-version = "1.94"
+# updates matters more than a low MSRV. Keep it at versatiles-rs' own: `cargo upgrade` takes the
+# newest release this version can build, so being behind quietly downgrades versatiles-rs.
+rust-version = "1.98"
 license = "MIT"
 repository = "https://github.com/versatiles-org/versatiles-studio"
 
 [workspace.dependencies]
 # versatiles-rs - consumed as a library, never shelled out to (see docs/architecture.md)
-versatiles_core = "5.4.0"
-versatiles_container = "5.4.0"
-versatiles_pipeline = "5.4.0"
-versatiles_geometry = "5.4.0"
-versatiles_image = "5.4.0"
+versatiles_core = "5.5.0"
+versatiles_container = "5.5.0"
+versatiles_pipeline = "5.5.0"
+versatiles_geometry = "5.5.0"
+versatiles_image = "5.5.0"
 # `server` for the data plane, `codegen` for `all_operation_metadata()` (C2), `sftp` for remote
 # sources (A2). Explicitly not `cli` - that pulls clap, env_logger and termimad into a GUI app.
-versatiles = { version = "5.4.0", default-features = false, features = ["server", "codegen", "sftp", "gdal"] }
+versatiles = { version = "5.5.0", default-features = false, features = ["server", "codegen", "sftp", "gdal"] }
 
 # GDAL compiled from source and linked statically, with a deliberately narrow driver set (Q19, Q20).
 # `bundled` on `gdal-sys` is what pulls `gdal-src`; the drivers are named on `gdal-src` itself

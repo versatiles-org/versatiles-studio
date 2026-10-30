@@ -71,7 +71,7 @@ npm install
 npm run tauri dev
 ```
 
-Needs Rust 1.94+, Node 24+, and on Linux `libwebkit2gtk-4.1-dev librsvg2-dev patchelf`. The first
+Needs Rust 1.98+, Node 24+, and on Linux `libwebkit2gtk-4.1-dev librsvg2-dev patchelf`. The first
 build compiles GDAL from source and takes a while.
 
 [CONTRIBUTING.md](CONTRIBUTING.md) covers the rest: the script conventions, coverage, the sample

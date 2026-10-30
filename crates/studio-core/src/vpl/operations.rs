@@ -483,6 +483,9 @@ mod tests {
 			// Lists of numbers of no fixed length - which bands to read, what counts as nodata.
 			"BandIndices",
 			"NodataValues",
+			// `elevation:colour,…` with any number of stops. An editor for them would be better than a
+			// line, and is a feature, as with the source text above.
+			"ColorRamp",
 		];
 
 		let unrecognised: Vec<String> = registry()
