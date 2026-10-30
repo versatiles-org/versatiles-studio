@@ -68,7 +68,8 @@ jobs:
   rust:
     name: Rust
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # 22 minutes on a good day, so a slow Codecov upload alone was enough to run out at 25.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
       # Tauri needs WebKitGTK to build on Linux, even for `cargo test` of the shell crate.
