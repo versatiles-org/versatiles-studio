@@ -3,6 +3,35 @@
 What changed in each release. Written for someone deciding whether
 to update, not for the next developer - the commit log is that.
 
+## v0.5.0 - 2026-10-30
+
+### Features
+
+- npm run install-local builds the app and puts it in /Applications - the new copy is complete before the old one goes
+- raise the map's ground from DEM sources by default, as @versatiles/style does - a Style pane checkbox switches it off, and the topmost source wins
+- edit dem_colorize's ramp in a dialog - colours by elevation with a preview, while the written stops stay the field
+- draw and dissect MapLibre Tiles - versatiles-rs 5.5 stores MLT in every container, and a source now tells MapLibre so it stops decoding them as MVT
+- start a coloured relief from a DEM container - the new source menu stacks versatiles-rs 5.5's dem_hillshade over dem_colorize
+
+### Fixes
+
+- a served tile that hits its deadline cancels its work too - versatiles-rs 5.5's CancelToken reaches the GDAL warp that dropping the future could not
+- update release workflow to use GitHub App token for Homebrew tap
+
+### Documentation
+
+- update Rust version requirement to 1.98 in CONTRIBUTING.md
+- bring the list of pipeline operations up to versatiles-rs 5.5
+
+### CI
+
+- give the Rust job 35 minutes - it takes 22, so a slow Codecov upload alone ran it out of time at 25
+
+### Chores
+
+- move the sprites pin to versatiles-style v7.1.0
+- update dependencies in package.json and Cargo.toml
+
 ## v0.4.0 - 2026-10-18
 
 ### Features
