@@ -276,6 +276,10 @@ pub struct Hillshade {
 	pub highlight: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub accent: Option<String>,
+	/// Whether this source raises the map's ground. `None` is yes, as it is in `@versatiles/style`, so
+	/// only switching it off is something a recipe holds.
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub terrain: Option<bool>,
 }
 
 /// How one source is drawn ([S6.4](../../../docs/history.md)).
@@ -670,6 +674,21 @@ mod tests {
 	use super::*;
 
 	const GRAPH: &str = "basemap";
+
+	/// **Left on is not a setting**, so a hillshade nobody touched still compares equal to a fresh one.
+	#[test]
+	fn only_switching_terrain_off_is_stored() -> serde_json::Result<()> {
+		assert_eq!(serde_json::to_value(Hillshade::default())?, serde_json::json!({}));
+
+		let off = Hillshade {
+			terrain: Some(false),
+			..Hillshade::default()
+		};
+		let written = serde_json::to_value(&off)?;
+		assert_eq!(written, serde_json::json!({ "terrain": false }));
+		assert_eq!(serde_json::from_value::<Hillshade>(written)?, off);
+		Ok(())
+	}
 
 	fn edited() -> Recipe {
 		let mut recipe = Recipe::default();

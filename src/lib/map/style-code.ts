@@ -15,6 +15,7 @@ import { isExpression } from '@maplibre/maplibre-gl-style-spec';
 import type { StyleSpecification } from 'maplibre-gl';
 import type { Appearance } from '../ipc/commands';
 import { buildCall, recolorOptions, spriteAt, themeOrDefault, type BuildCall, type Schema } from './builders';
+import { TERRAIN_SUFFIX } from './style';
 import { SCHEME } from './tile-queue';
 
 /**
@@ -75,7 +76,8 @@ export function forExport(style: StyleSpecification, assets: 'public' | 'bundled
 		// somebody's working URL; replacing it turned a style that draws into one that does not, and
 		// said nothing about having done so.
 		if (!source.tiles.some((url) => typeof url === 'string' && url.startsWith(`${SCHEME}://`))) continue;
-		source.tiles = [placeholderFor(name)];
+		// A terrain reads the same tiles as its relief, so it is the same address to fill in.
+		source.tiles = [placeholderFor(name.endsWith(TERRAIN_SUFFIX) ? name.slice(0, -TERRAIN_SUFFIX.length) : name)];
 	}
 	copy.glyphs = assets === 'bundled' ? BUNDLED_GLYPHS : `${PUBLIC_ASSETS}/glyphs/{fontstack}/{range}.pbf`;
 	// The list form, keeping the sheet's id: the layers name their icons `base:…` (see `spriteAt`).

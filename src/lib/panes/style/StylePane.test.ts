@@ -157,6 +157,32 @@ describe('what the pane offers for each kind of tileset', () => {
 		expect(actions.setKind).toHaveBeenCalledWith(null);
 	});
 
+	describe('terrain', () => {
+		const dem = (shade: Record<string, unknown>) => ({
+			kind: 'rasterDem',
+			appearance: { type: 'hillshade', shade },
+			tileFormat: 'png',
+			tileSchema: 'dem/mapbox'
+		});
+		const box = () => screen.getByLabelText('3D terrain') as HTMLInputElement;
+
+		it('is on until switched off, and only switching it off is stored', async () => {
+			const actions = open(dem({}) as never);
+			expect(box().checked).toBe(true);
+
+			await fireEvent.click(box());
+			expect(actions.setHillshade).toHaveBeenLastCalledWith({ terrain: false });
+		});
+
+		it('stores nothing when switched back on', async () => {
+			const actions = open(dem({ terrain: false }) as never);
+			expect(box().checked).toBe(false);
+
+			await fireEvent.click(box());
+			expect(actions.setHillshade).toHaveBeenLastCalledWith({ terrain: undefined });
+		});
+	});
+
 	// Nothing published says how VersaTiles packs elevation, so it says so rather than guessing.
 	it('says an unreadable DEM encoding cannot be shaded, and offers the picker', () => {
 		open({

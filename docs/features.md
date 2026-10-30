@@ -89,7 +89,7 @@ The foundation. Everything else renders into this surface.
 | **D8**  | `4`         | Export as `style.json`, as `@versatiles/style` code, or as a complete bundle                                      | `@versatiles/style`                                                                                                       |
 | **D9**  | `4 stretch` | **Generate SDF glyphs from your own fonts** - drop in a TTF/OTF, get a glyph set Studio can serve                 | `versatiles-glyphs-rs`                                                                                                    |
 | **D11** | `6`         | **Style raster tiles** - brightness, contrast, saturation, hue, opacity and resampling on imagery                 | MapLibre `raster-*` paint; the sliders D1 already has                                                                     |
-| **D12** | `6`         | **Style DEM tiles** - hillshade from the encoding the container declares, and terrain if 3-D is in scope          | MapLibre `hillshade`; `tile_schema` names the encoding. Displaying a DEM, where E4 produces one                           |
+| **D12** | `6`         | **Style DEM tiles** - hillshade from the encoding the container declares, on 3D terrain unless switched off       | MapLibre `hillshade`; `tile_schema` names the encoding. Displaying a DEM, where E4 produces one                           |
 | **D10** | `someday`   | **Generate sprite sheets from your own icons** - drop in SVGs, get a packed sheet at every ratio Studio can serve | `versatiles-style/scripts` - build tooling, **not exported** (see [ecosystem](ecosystem.md#map-assets-fonts-and-sprites)) |
 
 ---

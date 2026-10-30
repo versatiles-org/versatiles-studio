@@ -319,6 +319,14 @@
 						know it.
 					</Note>
 				{:else}
+					<Field label="3D terrain">
+						<input
+							type="checkbox"
+							title="Raises the map's ground by this elevation. Tilt the map to see it."
+							checked={shade.terrain !== false}
+							onchange={(event) => setShade({ terrain: event.currentTarget.checked ? undefined : false })}
+						/>
+					</Field>
 					{#each HILLSHADE_SLIDERS as slider (slider.key)}
 						{#snippet trail()}
 							<span class="amount">{shadeValue(slider.key)}{slider.unit}</span>

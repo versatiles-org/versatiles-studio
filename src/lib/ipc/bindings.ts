@@ -1422,6 +1422,11 @@ export type Hillshade_Deserialize = {
 	shadow?: string | null,
 	highlight?: string | null,
 	accent?: string | null,
+	/**
+	 *  Whether this source raises the map's ground. `None` is yes, as it is in `@versatiles/style`, so
+	 *  only switching it off is something a recipe holds.
+	 */
+	terrain?: boolean | null,
 };
 
 /**
@@ -1443,6 +1448,11 @@ export type Hillshade_Serialize = {
 	shadow?: string | null,
 	highlight?: string | null,
 	accent?: string | null,
+	/**
+	 *  Whether this source raises the map's ground. `None` is yes, as it is in `@versatiles/style`, so
+	 *  only switching it off is something a recipe holds.
+	 */
+	terrain?: boolean | null,
 };
 
 /**  One way of bringing data in. */

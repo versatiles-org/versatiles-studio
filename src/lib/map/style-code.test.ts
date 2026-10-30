@@ -169,6 +169,24 @@ describe('forExport', () => {
 	});
 });
 
+describe('forExport of a terrain', () => {
+	it('keeps the terrain, reading the same address as its relief', () => {
+		const url = 'studio://127.0.0.1:1/alps/{z}/{x}/{y}';
+		const out = forExport({
+			version: 8,
+			sources: {
+				alps: { type: 'raster-dem', tiles: [url] },
+				'alps:terrain': { type: 'raster-dem', tiles: [url] }
+			},
+			terrain: { source: 'alps:terrain' },
+			layers: []
+		} as never);
+
+		expect(out.terrain).toEqual({ source: 'alps:terrain' });
+		expect((out.sources['alps:terrain'] as { tiles: string[] }).tiles).toEqual([placeholderFor('alps')]);
+	});
+});
+
 describe('forExport assets', () => {
 	const style = {
 		version: 8,

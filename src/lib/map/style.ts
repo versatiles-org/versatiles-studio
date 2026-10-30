@@ -209,11 +209,24 @@ export function hillshadePaint(shade: Hillshade): Record<string, unknown> {
 }
 
 /**
+ * What a terrain's source is called, after the source of the relief it raises.
+ *
+ * **Two sources over the same tiles, as `@versatiles/style` has.** MapLibre loads a terrain source's
+ * tiles one zoom level coarser, so a hillshade sharing it would be drawn from half the resolution.
+ * A colon because a graph name cannot hold one, so this cannot collide with a graph called `x-terrain`.
+ */
+export const TERRAIN_SUFFIX = ':terrain';
+
+/**
  * A style that draws one elevation source as relief (S6.6, D12).
  *
  * Returns `null` when the encoding is unknown - the recipe may say, and otherwise the container's
  * schema does. Neither saying anything is the case that has to draw nothing: a `raster-dem` source
  * with the wrong encoding produces relief that looks right and is not.
+ *
+ * **`terrain` names the relief's own source, and that is only a request.** The map has one ground and
+ * MapLibre needs a second source for it, so [`composeStyle`] decides which entry gets it and adds the
+ * source then - see `TERRAIN_SUFFIX`.
  */
 export function hillshadeStyle(
 	shade: Hillshade,
@@ -230,6 +243,7 @@ export function hillshadeStyle(
 		sources: {
 			[source.name]: { type: 'raster-dem', tiles: [throughQueue(source.tileUrl)], encoding }
 		},
+		...(shade.terrain === false ? {} : { terrain: { source: source.name } }),
 		layers: [
 			{
 				id: `${source.name}:hillshade`,
@@ -681,6 +695,17 @@ export function composeStyle(
 		}
 	}
 
+	// **The topmost that asks.** The map has one ground, so a second elevation source can draw its
+	// relief but cannot raise anything; the one on top is the one being looked at. Never the background,
+	// which is a basemap and did not ask for anything here.
+	const raised = drawn.filter(({ name, style }) => name !== BACKGROUND && style.terrain).at(-1);
+	let terrain: StyleSpecification['terrain'];
+	if (raised) {
+		const relief = renamer(raised.name, raised.style)(raised.style.terrain!.source);
+		terrain = { source: `${relief}${TERRAIN_SUFFIX}` };
+		sources[terrain.source] = sources[relief];
+	}
+
 	// **One run per segment, and each source's own layer order kept inside its runs.** The background
 	// is not in `order` and never can be, so it is laid at the bottom on its own.
 	const laid: Segment[] = [
@@ -743,6 +768,7 @@ export function composeStyle(
 			...(glyphs ? { glyphs } : {}),
 			...(sprite ? { sprite } : {}),
 			sources,
+			...(terrain ? { terrain } : {}),
 			layers
 		} as StyleSpecification,
 		bases,

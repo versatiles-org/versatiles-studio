@@ -6,6 +6,7 @@ import {
 	drawsAnything,
 	hillshadePaint,
 	hillshadeStyle,
+	TERRAIN_SUFFIX,
 	rasterPaint,
 	rasterStyle,
 	renderStyle,
@@ -775,6 +776,45 @@ describe('hillshade', () => {
 		expect(demEncoding('dem/versatiles')).toBeNull();
 		expect(demEncoding(null)).toBeNull();
 		expect(demEncoding('rgb')).toBeNull();
+	});
+
+	describe('terrain', () => {
+		const dem = (name: string, terrain?: boolean) =>
+			({
+				name,
+				kind: 'rasterDem',
+				tileFormat: 'png',
+				tileSchema: 'dem/mapbox',
+				tileUrl: `http://127.0.0.1:1/${name}/{z}/{x}/{y}`,
+				layers: [],
+				mountedLayers: [],
+				appearance: { type: 'hillshade', shade: { terrain } }
+			}) as never;
+		const compose = (...entries: never[]) => composeStyle(entries, BASE).style!;
+
+		it('raises the ground by default, from a source of its own', () => {
+			const style = compose(dem('alps'));
+			expect(style.terrain).toEqual({ source: `alps${TERRAIN_SUFFIX}` });
+			expect(style.sources[`alps${TERRAIN_SUFFIX}`]).toEqual(style.sources.alps);
+			// Sharing it would draw the hillshade from tiles a zoom level coarser.
+			expect(style.layers.find((layer) => layer.type === 'hillshade')).toMatchObject({ source: 'alps' });
+		});
+
+		it('adds nothing when switched off', () => {
+			const style = compose(dem('alps', false));
+			expect(style.terrain).toBeUndefined();
+			expect(Object.keys(style.sources)).toEqual(['alps']);
+		});
+
+		it('takes the topmost of several, which is the last of a bottom-first stack', () => {
+			const style = compose(dem('lower'), dem('upper'));
+			expect(style.terrain).toEqual({ source: `upper${TERRAIN_SUFFIX}` });
+			expect(Object.keys(style.sources).sort()).toEqual(['lower', 'upper', `upper${TERRAIN_SUFFIX}`]);
+		});
+
+		it('skips one that is switched off for the next one down', () => {
+			expect(compose(dem('lower'), dem('upper', false)).terrain).toEqual({ source: `lower${TERRAIN_SUFFIX}` });
+		});
 	});
 
 	it('draws relief from a declared encoding', () => {
