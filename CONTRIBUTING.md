@@ -30,6 +30,8 @@ npm run tauri dev
 
 ```sh
 npm run bundle           # → target/release/bundle/
+npm run bundle-local     # the same, with no signing key and fetching the assets if missing
+npm run install-local    # bundle-local, then into /Applications - macOS only
 ```
 
 ## Checking

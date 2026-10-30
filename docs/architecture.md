@@ -135,6 +135,7 @@ versatiles-studio/
 │   ├── docs-pdf.sh             every planning document as one PDF
 │   ├── run.ts                  every `{action}:*` script, for one action
 │   ├── bundle-local.ts         one command for an installer on this machine
+│   ├── install-local.ts        · install-local.test.ts - and into /Applications on a Mac
 │   ├── spawn.ts                starting a child process portably
 │   ├── release.ts              check, bump, tag, push, publish            (S5.6)
 │   ├── latest-json.ts          the manifest the updater reads           (S5.8)

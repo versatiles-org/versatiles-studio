@@ -13,6 +13,7 @@
 		"build:web": "vite build",
 		"bundle": "tauri build",
 		"bundle-local": "tsx scripts/bundle-local.ts",
+		"install-local": "tsx scripts/install-local.ts",
 		"check": "tsx scripts/run.ts check",
 		"check:format": "tsx scripts/run.ts check:format",
 		"check:format:web": "prettier --check .",
