@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use versatiles::{config::Config, server::TileServer};
 use versatiles_container::{SharedTileSource, SourceType, Tile, TileSource, TileSourceMetadata, TilesRuntime};
-use versatiles_core::{TileBBox, TileCoord, TileJSON, TilePyramid, TileSize, TileStream};
+use versatiles_core::{CancelToken, TileBBox, TileCoord, TileJSON, TilePyramid, TileSize, TileStream};
 
 /// How long one served tile may take before the work behind it is abandoned.
 ///
@@ -45,9 +45,10 @@ const SERVE_DEADLINE: Duration = Duration::from_secs(30);
 /// source and never mount one, so a conversion that legitimately takes an hour is untouched - and
 /// `tile_stream` is left alone here for the same reason, since it is how bulk work reads.
 ///
-/// Cancellation is not complete and is worth knowing: dropping the future stops the operation
-/// *driving* the work, but a `spawn_blocking` chunk already running finishes. The residual is one
-/// block rather than the whole request, which is why abandoning one costs a bounded amount.
+/// **Giving up has to cancel, not only stop waiting.** Dropping the future stops the operation
+/// *driving* the work, but a GDAL warp on the blocking pool would run to its end. The server runs each
+/// tile under a `CancelToken`, and cancels it when the client goes away - which a timeout here is not,
+/// because the client is still there, waiting for this error. So the timeout cancels that token too.
 ///
 /// [vt#264]: https://github.com/versatiles-org/versatiles-rs/issues/264
 #[derive(Debug)]
@@ -61,13 +62,16 @@ impl TileSource for Deadlined {
 	async fn tile(&self, coord: &TileCoord) -> Result<Option<Tile>> {
 		match tokio::time::timeout(self.limit, self.inner.tile(coord)).await {
 			Ok(tile) => tile,
-			Err(_) => bail!(
-				"gave up building tile {}/{}/{} after {} s - this pipeline takes longer than that per tile at this zoom",
-				coord.level,
-				coord.x,
-				coord.y,
-				self.limit.as_secs()
-			),
+			Err(_) => {
+				CancelToken::current().cancel();
+				bail!(
+					"gave up building tile {}/{}/{} after {} s - this pipeline takes longer than that per tile at this zoom",
+					coord.level,
+					coord.x,
+					coord.y,
+					self.limit.as_secs()
+				)
+			}
 		}
 	}
 
@@ -315,6 +319,23 @@ mod tests {
 
 		assert!(format!("{error}").contains("3/1/2"), "{error}");
 		assert!(format!("{error}").contains("gave up"), "{error}");
+		Ok(())
+	}
+
+	/// **Giving up reaches the work on the blocking pool**, through the token the server runs each tile
+	/// under. Nothing else stops a GDAL warp nobody is waiting for any more.
+	#[tokio::test]
+	async fn giving_up_on_a_tile_cancels_its_work() -> Result<()> {
+		let served = Deadlined {
+			inner: Arc::new(NeverAnswers(a_source().await?)),
+			limit: Duration::from_millis(50),
+		};
+
+		let token = CancelToken::new();
+		let tile = TileCoord::new(3, 1, 2)?;
+		assert!(token.clone().scope(served.tile(&tile)).await.is_err());
+
+		assert!(token.is_cancelled(), "the work should have been told to stop");
 		Ok(())
 	}
 
