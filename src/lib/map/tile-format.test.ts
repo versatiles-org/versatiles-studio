@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { renderableAs, whyNotRenderable } from './tile-format';
+import { renderableAs, vectorEncoding, whyNotRenderable } from './tile-format';
+
+describe('vectorEncoding', () => {
+	it('declares MLT, which MapLibre would otherwise read as MVT', () => {
+		expect(renderableAs('mlt')).toBe('vector');
+		expect(vectorEncoding('MLT')).toEqual({ encoding: 'mlt' });
+	});
+
+	it('says nothing for MVT, the default', () => {
+		expect(vectorEncoding('mvt')).toEqual({});
+	});
+});
 
 describe('renderableAs', () => {
 	it('draws vector tiles as vector', () => {

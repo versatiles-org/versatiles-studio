@@ -289,6 +289,10 @@ pub async fn summarise(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result
 }
 
 /// Each layer's byte split, from upstream's own measurement, and its attributes.
+///
+/// Measured as MVT whatever the tile is stored as: upstream decodes MLT through MVT, and has no split
+/// of MLT's own columns to report. For an MLT tile these are what the layers would cost as MVT, so
+/// they compare with each other rather than adding up to `raw_bytes`.
 fn layers(vector: &VectorTile) -> Result<Vec<LayerDissection>> {
 	let stats = layer_stats(vector).context("measuring the layers")?;
 	Ok(vector
@@ -537,6 +541,8 @@ fn clamp<T: TryInto<u32>>(value: T) -> u32 {
 mod tests {
 	use super::*;
 	use geo_types::{Geometry, LineString, Polygon, coord};
+	use versatiles_container::Tile;
+	use versatiles_core::TileFormat;
 	use versatiles_geometry::geo::GeoFeature;
 
 	fn feature(id: u64, geometry: Geometry<f64>, props: &[(&str, GeoValue)]) -> GeoFeature {
@@ -658,6 +664,24 @@ mod tests {
 			.max();
 		assert!(east > Some(4000), "drawn as far east as {east:?}");
 		assert_eq!(found.iter().filter(|f| f.layer == 1).count(), 5);
+		Ok(())
+	}
+
+	/// **An MLT tile comes apart like any other**, because upstream decodes it into the same model.
+	#[test]
+	fn takes_an_mlt_tile_apart() -> Result<()> {
+		let layer = VectorTileLayer::from_features(
+			"buildings".to_string(),
+			vec![feature(7, square(0.0, 10.0), &[])],
+			4096,
+			2,
+		)?;
+		let blob = VectorTile::new(vec![layer]).to_mlt_blob()?;
+		let mut tile = Tile::from_blob(blob, TileCompression::Uncompressed, TileFormat::MLT);
+
+		let vector = tile.as_vector()?;
+		assert_eq!(layers(vector)?[0].name, "buildings");
+		assert_eq!(features(vector).0.len(), 1);
 		Ok(())
 	}
 

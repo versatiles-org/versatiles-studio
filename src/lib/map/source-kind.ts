@@ -14,6 +14,7 @@
  */
 
 import { guessSchema } from '@versatiles/style';
+import { renderableAs } from './tile-format';
 import type { SchemaName } from '@versatiles/style';
 import type { SourceKind } from '../ipc/commands';
 
@@ -94,7 +95,7 @@ export function sourceKind(
 	// No declaration, or one this does not know. The format splits vector from raster reliably;
 	// nothing after that is reliable, which is what `basis: 'inferred'` is telling the pane to say.
 	const format = tileFormat.toLowerCase();
-	if (format === 'mvt') {
+	if (renderableAs(format) === 'vector') {
 		return { kind: guessedKind(layers) ?? 'vectorOther', basis: 'inferred' };
 	}
 

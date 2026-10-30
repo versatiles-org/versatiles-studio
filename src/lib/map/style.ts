@@ -37,7 +37,7 @@ import {
 } from './builders';
 import { hiddenBy } from './categories';
 import { throughQueue } from './tile-queue';
-import { renderableAs } from './tile-format';
+import { renderableAs, vectorEncoding } from './tile-format';
 
 /** The themed half of [`Appearance`], which is what a theme and a layer tree need. */
 export type VectorAppearance = Extract<Appearance, { type: 'vector' }>;
@@ -315,7 +315,9 @@ export function styleFor(
 	const overrides = appearance.type === 'vector' || appearance.type === 'inspector' ? appearance.overrides : {};
 	const inspect = (basis: StyleBasis): { style: StyleSpecification | null; basis: StyleBasis } => {
 		const drawn = deriveStyle(layers, sources, serverBaseUrl);
-		return drawn ? { style: withOverrides(drawn, overrides), basis } : { style: null, basis: 'none' };
+		return drawn
+			? { style: declaringEncoding(withOverrides(drawn, overrides), tileFormat), basis }
+			: { style: null, basis: 'none' };
 	};
 
 	// **The kind picks the editor** ([S11.2]). Tiles of no schema a builder knows are drawn as the
@@ -327,9 +329,25 @@ export function styleFor(
 	// A theme over a schema it was built for. If it still draws nothing, the reading is wrong - the
 	// tiles are not what they were read as - and the inspector style stands in, saying so.
 	const rendered = renderStyle(appearance, sources, serverBaseUrl, schemaOf(kind));
-	if (drawsAnything(rendered, mountedLayers)) return { style: rendered, basis: 'preset' };
+	if (drawsAnything(rendered, mountedLayers))
+		return { style: declaringEncoding(rendered, tileFormat), basis: 'preset' };
 
 	return inspect('fallback');
+}
+
+/**
+ * The style with its vector sources saying how their tiles are encoded.
+ *
+ * On the finished style rather than in the builders, because the themes are `@versatiles/style`'s and
+ * take no such option - and because every vector source here reads the one set of tiles.
+ */
+function declaringEncoding(style: StyleSpecification, tileFormat: string): StyleSpecification {
+	const encoding = vectorEncoding(tileFormat);
+	const sources = Object.entries(style.sources).map(([name, source]) => [
+		name,
+		source.type === 'vector' ? { ...source, ...encoding } : source
+	]);
+	return { ...style, sources: Object.fromEntries(sources) };
 }
 
 /**

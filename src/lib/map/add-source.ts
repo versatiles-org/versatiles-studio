@@ -7,7 +7,7 @@
 import type { LayerSpecification, Map as MaplibreMap, SourceSpecification } from 'maplibre-gl';
 import type { OpenedContainer } from '../ipc/commands';
 import { token } from '../styles/tokens';
-import { renderableAs } from './tile-format';
+import { renderableAs, vectorEncoding } from './tile-format';
 import { role } from './theme';
 import { throughQueue } from './tile-queue';
 import { tilesOnly } from './tile-swap';
@@ -82,7 +82,8 @@ function sourceFor(kind: 'vector' | 'raster', tileUrl: string, info: OpenedConta
 		tiles: [throughQueue(tileUrl)],
 		minzoom: info.minZoom,
 		maxzoom: info.maxZoom,
-		...(info.bbox ? { bounds: info.bbox } : {})
+		...(info.bbox ? { bounds: info.bbox } : {}),
+		...(kind === 'vector' ? vectorEncoding(info.tileFormat) : {})
 	} as SourceSpecification;
 }
 

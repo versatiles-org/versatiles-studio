@@ -48,7 +48,7 @@ const RASTER_KINDS: SourceKind[] = ['rasterImage', 'rasterDem'];
  *
  * **The format has the final say**, and `styleFor` already gives it: a vector source read as imagery
  * draws nothing, and the pane then shows raster sliders that do nothing. So the picker offers only
- * the kinds the format can be - the four vector readings for `mvt`, the two raster ones for an image
+ * the kinds the format can be - the four vector readings for `mvt` and `mlt`, the two raster ones for an image
  * - and leaves every choice *within* a format open, which is where a correction means something. A
  * format the map cannot draw at all offers everything, since nothing is right and the person may
  * know what the tiles were meant to be.

@@ -1,7 +1,7 @@
 /**
  * What MapLibre can do with a container's tiles.
  *
- * `TileFormat` upstream is `avif | bin | geojson | jpg | json | mvt | png | svg | topojson | webp`,
+ * `TileFormat` upstream is `avif | bin | geojson | jpg | json | mlt | mvt | png | svg | topojson | webp`,
  * and only some of those are things a map can draw. Studio used to treat "not `mvt`" as "raster",
  * which put a raster layer over `bin`, `json`, `geojson`, `topojson` and `svg` alike - MapLibre then
  * fetched every tile and failed to decode it, one `createImageBitmap` error per tile, with a blank
@@ -15,7 +15,7 @@
 const RASTER = new Set(['avif', 'jpg', 'png', 'webp']);
 
 /** Formats MapLibre renders as a vector source. */
-const VECTOR = new Set(['mvt']);
+const VECTOR = new Set(['mlt', 'mvt']);
 
 export type Renderable = 'vector' | 'raster' | null;
 
@@ -27,11 +27,21 @@ export function renderableAs(tileFormat: string): Renderable {
 	return null;
 }
 
+/**
+ * What a vector source has to say for MapLibre to decode these tiles.
+ *
+ * **MapLibre assumes MVT and is not told otherwise by the bytes**, so an MLT source that does not
+ * declare itself is one decode error per tile and a blank map. Nothing for MVT, its default.
+ */
+export function vectorEncoding(tileFormat: string): { encoding?: 'mlt' } {
+	return tileFormat.toLowerCase() === 'mlt' ? { encoding: 'mlt' } : {};
+}
+
 /** Why a format cannot be shown, in words a user can act on. */
 export function whyNotRenderable(tileFormat: string): string {
 	const format = tileFormat.toLowerCase();
 	if (format === 'bin') {
 		return 'The tile format could not be determined, so the tiles cannot be drawn on the map.';
 	}
-	return `Tiles are ${format}, which the map cannot draw. Vector tiles (mvt) and images (png, jpg, webp, avif) can be.`;
+	return `Tiles are ${format}, which the map cannot draw. Vector tiles (mvt, mlt) and images (png, jpg, webp, avif) can be.`;
 }

@@ -63,6 +63,7 @@ describe('sourceKind', () => {
 		// basemap style drawn over somebody's data because one layer name matched is the mistake.
 		it('needs three of a schema’s layers, not one generic name', () => {
 			expect(sourceKind('mvt', null, ['places', 'roads']).kind).toBe('vectorOther');
+			expect(sourceKind('mlt', null, ['places', 'roads']).kind).toBe('vectorOther');
 			expect(sourceKind('mvt', null, ['places', 'roads', 'water']).kind).toBe('vectorProtomaps');
 		});
 

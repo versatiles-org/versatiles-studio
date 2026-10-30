@@ -233,7 +233,14 @@
 	/// The code export is the one whose contents depend on what this pane knows - the preset, what was
 	/// changed, which layers are present and which builder to call - so it is produced here and handed
 	/// out; the JSON is the map and the caller already has it.
-	const code = $derived(canGenerateCode(appearance, schema) ? styleCode(appearance, presentIds, schema) : null);
+	///
+	/// **No code for MLT.** A builder call has no way to say how the tiles are encoded, so what it wrote
+	/// would ask MapLibre to read them as MVT. `style.json` carries the encoding.
+	const code = $derived(
+		canGenerateCode(appearance, schema) && source?.tileFormat.toLowerCase() !== 'mlt'
+			? styleCode(appearance, presentIds, schema)
+			: null
+	);
 
 	const adjusted = $derived(Object.values(vectorAppearance?.recolor ?? {}).some((v) => v !== undefined && v !== null));
 

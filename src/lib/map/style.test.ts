@@ -139,6 +139,17 @@ describe('overrides on every basis the layer tree is offered on', () => {
 	const OWN_NAMES = OWN.map((layer) => layer.name);
 	const SHORTBREAD = ['water_polygons', 'street_polygons', 'boundaries'];
 
+	/** MapLibre would read these as MVT, one decode error per tile, if the source did not say. */
+	it('declares MLT on the vector sources of both a theme and the inspector style', () => {
+		const target = { kind: 'vectorShortbread' as const, tileFormat: 'mlt', layers: OWN, mountedLayers: SHORTBREAD };
+		for (const appearance of [recipe(), inspector()]) {
+			const { style } = styleFor(appearance, target, SOURCES, BASE);
+			const vector = Object.values(style!.sources).filter((source) => source.type === 'vector');
+			expect(vector.length).toBeGreaterThan(0);
+			expect(vector.every((source) => 'encoding' in source && source.encoding === 'mlt')).toBe(true);
+		}
+	});
+
 	/** Hides the first drawn layer of whatever `styleFor` picks, the way the tree's eye does. */
 	function hideFirstLayer(appearance: 'colorful' | 'inspector', mountedLayers: string[]) {
 		const target = { kind: 'vectorShortbread' as const, tileFormat: 'mvt', layers: OWN, mountedLayers };

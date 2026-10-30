@@ -21,8 +21,9 @@ versatiles_pipeline = "5.5.0"
 versatiles_geometry = "5.5.0"
 versatiles_image = "5.5.0"
 # `server` for the data plane, `codegen` for `all_operation_metadata()` (C2), `sftp` for remote
-# sources (A2). Explicitly not `cli` - that pulls clap, env_logger and termimad into a GUI app.
-versatiles = { version = "5.5.0", default-features = false, features = ["server", "codegen", "sftp", "gdal"] }
+# sources (A2), `mlt` to take MapLibre Tiles apart rather than only serving their bytes. Explicitly
+# not `cli` - that pulls clap, env_logger and termimad into a GUI app.
+versatiles = { version = "5.5.0", default-features = false, features = ["server", "codegen", "sftp", "gdal", "mlt"] }
 
 # GDAL compiled from source and linked statically, with a deliberately narrow driver set (Q19, Q20).
 # `bundled` on `gdal-sys` is what pulls `gdal-src`; the drivers are named on `gdal-src` itself
