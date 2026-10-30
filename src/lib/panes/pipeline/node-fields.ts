@@ -175,6 +175,9 @@ export function summarise(field: FieldInfo): string {
 		case 'steps':
 			type = `${control.min}-${control.max}, per zoom`;
 			break;
+		case 'ramp':
+			type = 'colours by elevation';
+			break;
 		default:
 			// **Exhaustive on purpose.** `Control` is generated from the Rust enum, so a variant added
 			// upstream arrives here silently: a `default` that answered "text" described a colour picker

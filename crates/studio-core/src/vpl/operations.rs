@@ -109,6 +109,12 @@ pub enum Control {
 		#[cfg_attr(feature = "bindings", specta(type = u32))]
 		max_zoom: u8,
 	},
+	/// Colours by elevation: `dem_colorize`'s `0:00a000,1000:c8b464`, any number of stops.
+	///
+	/// Text with a helper beside it, the shape [`Control::Steps`] has and for the same reason. The
+	/// bounds that control carries have no counterpart: any finite elevation is a stop, and the only
+	/// rule, that they ascend, is one the helper keeps by sorting.
+	Ramp,
 	/// An enum, with every accepted spelling.
 	Choice {
 		options: Vec<String>,
@@ -198,6 +204,7 @@ fn control_for(field: &VPLFieldMeta) -> Control {
 		// The two bounds are the parser's own, and neither is stated in `bounds`: the field's type is
 		// the curve rather than a number, so upstream has nothing to put there. Taken from
 		// `parse_quality`, which refuses a zoom above 31 and a value above 100.
+		"ColorRamp" => return Control::Ramp,
 		"QualityByZoom" => {
 			return Control::Steps {
 				min: 0,
@@ -483,9 +490,6 @@ mod tests {
 			// Lists of numbers of no fixed length - which bands to read, what counts as nodata.
 			"BandIndices",
 			"NodataValues",
-			// `elevation:colour,…` with any number of stops. An editor for them would be better than a
-			// line, and is a feature, as with the source text above.
-			"ColorRamp",
 		];
 
 		let unrecognised: Vec<String> = registry()
@@ -634,6 +638,11 @@ mod tests {
 				max_exclusive: false
 			}
 		);
+	}
+
+	#[test]
+	fn a_colour_ramp_has_its_own_control() {
+		assert_eq!(field("dem_colorize", "ramp").control, Control::Ramp);
 	}
 
 	#[test]

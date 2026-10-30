@@ -3,6 +3,7 @@
 	import type { FieldInfo } from '../../ipc/commands';
 	import HelpTrigger from '../../common/HelpTrigger.svelte';
 	import Note from '../../common/Note.svelte';
+	import RampDialog from './RampDialog.svelte';
 	import StepsDialog from './StepsDialog.svelte';
 	import type { HelpContent } from '../../state/help.svelte';
 	import { askForPath } from '../../common/import';
@@ -87,6 +88,9 @@
 	/// Whether its helper is up. Local and per row: two nodes can both hold a `quality`.
 	let editingCurve = $state(false);
 
+	/// Colours by elevation: `0:00a000,1000:c8b464`. The same shape as a curve, and for the same reason.
+	let editingRamp = $state(false);
+
 	/// Whether this row draws with the shared text box.
 	///
 	/// **Named rather than left to `{:else}`.** Five controls share that input - plain text, a path, a
@@ -114,7 +118,8 @@
 				// keeps it from being a text box that holds a word the operation then refuses.
 				return true;
 			case 'steps':
-				// The written form, with `StepsDialog` behind a button - the same shape as a path.
+			case 'ramp':
+				// The written form, with a dialog behind a button - the same shape as a path.
 				return true;
 			case 'choice':
 			case 'boolean':
@@ -303,6 +308,14 @@
 						aria-label={`Set ${name} per zoom`}
 						onclick={() => (editingCurve = true)}><Icon name="steps" size="1em" /></button
 					>
+				{:else if control?.kind === 'ramp'}
+					<button
+						type="button"
+						class="icon"
+						title="Set the colours by elevation…"
+						aria-label={`Set ${name} by elevation`}
+						onclick={() => (editingRamp = true)}><Icon name="steps" size="1em" /></button
+					>
 				{:else if isPath}
 					<!-- `…` rather than a folder: it is what a field that opens a dialog has said
 					     everywhere for thirty years, and it stays legible at the size this row is. -->
@@ -340,6 +353,18 @@
 					editingCurve = false;
 				}}
 				onClose={() => (editingCurve = false)}
+			/>
+		{/if}
+
+		{#if control?.kind === 'ramp' && editingRamp}
+			<RampDialog
+				{value}
+				{name}
+				onUse={(next) => {
+					onCommit(next);
+					editingRamp = false;
+				}}
+				onClose={() => (editingRamp = false)}
 			/>
 		{/if}
 

@@ -402,6 +402,29 @@ describe('a colour field', () => {
 	});
 });
 
+/** A colour ramp has the shape of a per-zoom curve: its text stays the field, with a dialog beside it. */
+describe('a colour ramp', () => {
+	const RAMP_FIELD = {
+		name: 'ramp',
+		doc: '',
+		required: false,
+		sources: false,
+		accepts: [],
+		default: null,
+		control: { kind: 'ramp' as const }
+	};
+
+	it('is edited as the text it is written as, with the helper shut until asked for', async () => {
+		render(NodeArgument, { name: 'ramp', field: RAMP_FIELD, value: '0:000000', onCommit: () => {} });
+
+		expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('0:000000');
+		expect(screen.queryByLabelText(/^Elevation of stop/)).toBeNull();
+
+		await fireEvent.click(screen.getByLabelText('Set ramp by elevation'));
+		expect(screen.getByLabelText('Elevation of stop 1, in metres')).toBeTruthy();
+	});
+});
+
 /**
  * A per-zoom curve is a text field with a helper, which is the whole shape of the decision: the
  * written form is what the VPL holds and what `check` reports on, so it stays the field, and the

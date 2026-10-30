@@ -1071,6 +1071,14 @@ maxExclusive: boolean } | { kind: "boolean" } |
 min: number; max: number; 
 /**  The deepest zoom a breakpoint may name. */
 maxZoom: number } | 
+/**
+ *  Colours by elevation: `dem_colorize`'s `0:00a000,1000:c8b464`, any number of stops.
+ * 
+ *  Text with a helper beside it, the shape [`Control::Steps`] has and for the same reason. The
+ *  bounds that control carries have no counterpart: any finite elevation is a stop, and the only
+ *  rule, that they ascend, is one the helper keeps by sorting.
+ */
+{ kind: "ramp" } | 
 /**  An enum, with every accepted spelling. */
 { kind: "choice"; options: string[] } | 
 /**  `Vec<String>` - a list of values, written as a VPL array. */
