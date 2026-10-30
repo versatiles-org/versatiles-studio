@@ -21,9 +21,10 @@
 		remove: (id) => void workbench.remove(id),
 		setEnabled: (id, enabled) => void workbench.toggleGraph(id, enabled),
 		addNode: (operation) => void workbench.newGraph(operation),
-		// Both doors add a graph rather than writing into the selected one - the list they hang off
+		// The doors add a graph rather than writing into the selected one - the list they hang off
 		// is what adds sources ([Q50]).
 		openSource: () => void workbench.pick(undefined, 'new'),
-		openPipeline: () => void workbench.pick(workbench.pipelineKind, 'new')
+		openPipeline: () => void workbench.pick(workbench.pipelineKind, 'new'),
+		openRelief: () => void workbench.newRelief()
 	}}
 />

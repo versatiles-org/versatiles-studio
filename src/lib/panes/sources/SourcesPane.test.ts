@@ -26,10 +26,15 @@ const OPERATIONS = [
 
 let tauri: TauriStub;
 
-const actions = () => ({ addNode: vi.fn(), openSource: vi.fn(), openPipeline: vi.fn() });
+const actions = () => ({ addNode: vi.fn(), openSource: vi.fn(), openPipeline: vi.fn(), openRelief: vi.fn() });
 
 /** The pane over an empty project, with the graph list's + row showing. */
-function open(extra: { addNode: () => void; openSource: () => void; openPipeline: () => void }) {
+function open(extra: {
+	addNode: () => void;
+	openSource: () => void;
+	openPipeline: () => void;
+	openRelief: () => void;
+}) {
 	render(SourcesPane, {
 		operations: OPERATIONS as never,
 		graphs: [],
@@ -57,13 +62,14 @@ afterEach(() => {
 });
 
 describe('starting a graph', () => {
-	it('offers three doors and no fourth', async () => {
+	it('offers four doors and no fifth', async () => {
 		open(actions());
 
 		expect(await screen.findByText('From a file…')).toBeTruthy();
 		expect(screen.getByText('From VPL node…')).toBeTruthy();
 		expect(screen.getByText('From VPL file…')).toBeTruthy();
-		expect(screen.getAllByRole('menuitem')).toHaveLength(3);
+		expect(screen.getByText('Coloured relief…')).toBeTruthy();
+		expect(screen.getAllByRole('menuitem')).toHaveLength(4);
 		// The cards these replaced: a kind is not a way to start a graph any more.
 		expect(screen.queryByText('Tile container')).toBeNull();
 	});
@@ -91,6 +97,16 @@ describe('starting a graph', () => {
 
 		expect(graphActions.openSource).toHaveBeenCalled();
 		expect(graphActions.openPipeline).not.toHaveBeenCalled();
+		expect(graphActions.addNode).not.toHaveBeenCalled();
+	});
+
+	it('starts a relief through its own door', async () => {
+		const graphActions = actions();
+		open(graphActions);
+
+		(await screen.findByText('Coloured relief…')).click();
+
+		expect(graphActions.openRelief).toHaveBeenCalled();
 		expect(graphActions.addNode).not.toHaveBeenCalled();
 	});
 

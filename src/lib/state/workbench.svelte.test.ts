@@ -13,6 +13,7 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { askForSource } from '../common/import';
 
 /** Every call the workbench makes, in order, so a sequence can be asserted as one. */
 const calls = vi.hoisted(() => [] as string[]);
@@ -269,6 +270,29 @@ describe('where an opened file lands', () => {
 		await workbench.open('/data/x.csv');
 
 		expect(ipc.addGraph).toHaveBeenCalled();
+	});
+});
+
+describe('starting a coloured relief', () => {
+	it('reads the one file twice, with the hillshade on top', async () => {
+		vi.mocked(askForSource).mockResolvedValue('/maps/dem.versatiles');
+		ipc.importReadNode.mockResolvedValue('from_container filename="dem"');
+		ipc.addGraph.mockResolvedValue(doc(5));
+
+		await workbench.newRelief();
+
+		expect(ipc.addGraph).toHaveBeenCalledWith(
+			'/maps/dem.versatiles',
+			'from_stacked_raster [ from_container filename="dem" | dem_hillshade, from_container filename="dem" | dem_colorize ]'
+		);
+	});
+
+	it('adds nothing when no file was chosen', async () => {
+		vi.mocked(askForSource).mockResolvedValue(null);
+
+		await workbench.newRelief();
+
+		expect(ipc.addGraph).not.toHaveBeenCalled();
 	});
 });
 

@@ -43,6 +43,8 @@
 			openSource: () => void;
 			/** Opens a `.vpl` as a graph of its own. */
 			openPipeline: () => void;
+			/** Asks for a DEM container and starts a coloured relief from it. */
+			openRelief: () => void;
 		};
 	} = $props();
 
@@ -65,11 +67,12 @@
 			.map((operation) => ({ id: operation.name, label: operation.name, description: operation.summary }))
 	);
 
-	/// **Three doors: bring data, write a graph, or open one already written.**
+	/// **Four doors: bring data, write a graph, open one already written, or start from a recipe.**
 	///
 	/// The data door is first because it is the common one and it asks the least - point at a file and
 	/// Studio reads it, the same way a dropped file is read. The other two are for saying what a graph
-	/// should be when there is no file that answers it, and for a pipeline written earlier.
+	/// should be when there is no file that answers it, and for a pipeline written earlier. The relief
+	/// is here because its shape is the one thing the list of operations cannot suggest.
 	///
 	/// **The data door does not name a format.** Which `from_*` node a file becomes is the catalogue's
 	/// answer, from the file itself - three formats wear `.json`, so a door per format would be a
@@ -89,7 +92,8 @@
 			description: 'Start a source on a read operation',
 			disabled: reads.length === 0
 		},
-		{ id: 'file', label: 'From VPL file…', description: 'Open a pipeline that already exists' }
+		{ id: 'file', label: 'From VPL file…', description: 'Open a pipeline that already exists' },
+		{ id: 'relief', label: 'Coloured relief…', description: 'Elevation tiles, tinted and shaded' }
 	]);
 
 	const items = $derived(page === 'doors' ? doors : reads);
@@ -108,6 +112,10 @@
 		}
 		if (id === 'file') {
 			actions.openPipeline();
+			return;
+		}
+		if (id === 'relief') {
+			actions.openRelief();
 			return;
 		}
 		page = 'operations';

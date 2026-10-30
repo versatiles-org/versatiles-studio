@@ -309,6 +309,33 @@ export const workbench = {
 		}
 	},
 
+	/**
+	 * Starts a coloured relief from a DEM container: its colours, with its hillshade on top.
+	 *
+	 * **Asks for the file first, because the chain names it twice.** The two are one source read two
+	 * ways inside `from_stacked_raster`, which lays its first source over the others - a shape the list
+	 * of operations gives no hint of, and an empty one would leave two path fields to fill with the
+	 * same thing.
+	 */
+	async newRelief(): Promise<void> {
+		const source = await askForSource(
+			kinds,
+			kinds.find((kind) => kind.id === 'container')
+		);
+		if (!source) return;
+		try {
+			const read = await importReadNode('container', source);
+			const relief = `from_stacked_raster [ ${read} | dem_hillshade, ${read} | dem_colorize ]`;
+			const opened = await this.setText(relief, 'replaced', source, 'new');
+			document.show(opened);
+			// A container that holds no elevation is refused by both operations, and says so here.
+			if (opened.diagnostics.length > 0) return status.fail(opened.diagnostics[0].message);
+			await this.refresh();
+		} catch (error) {
+			status.fail(error);
+		}
+	},
+
 	/** Shows another graph's chain. The map is a separate question ([Q32]). */
 	async select(id: number): Promise<void> {
 		const found = await getGraph(id);

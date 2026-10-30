@@ -273,6 +273,23 @@ mod tests {
 		Ok(())
 	}
 
+	/// **The coloured relief the Sources pane starts from builds**, into imagery rather than elevation:
+	/// its schema is what stops the Style pane offering a hillshade of a hillshade.
+	#[tokio::test]
+	async fn a_coloured_relief_builds_as_imagery() -> Result<()> {
+		let (runtime, dir) = (versatiles::runtime::create_runtime(), fixtures());
+		let read = r#"from_debug format=png | meta_update schema="dem/mapbox""#;
+		let relief = format!("from_stacked_raster [ {read} | dem_hillshade, {read} | dem_colorize ]");
+
+		let source = build(&runtime, parse(&relief), &dir).await?;
+
+		let info = crate::analysis::describe(&source, "preview").await?;
+		assert_eq!(info.tile_format, "png");
+		assert_ne!(info.tile_schema.as_deref(), Some("dem/mapbox"));
+		assert!(source.tile(&versatiles_core::TileCoord::new(3, 1, 2)?).await?.is_some());
+		Ok(())
+	}
+
 	/// **And an edit to the read node itself is not reused.** This is the direction that matters: a
 	/// head kept for a `filename` that has since changed would serve a preview of the previous file,
 	/// which is worse than the slow rebuild it saved.
