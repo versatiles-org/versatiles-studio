@@ -250,6 +250,7 @@
 				{properties}
 				{fits}
 				{suggestions}
+				{problems}
 				onToggle={nodeActions.setEnabled}
 				onCommit={nodeActions.commitValue}
 				onRemove={nodeActions.removeProperty}

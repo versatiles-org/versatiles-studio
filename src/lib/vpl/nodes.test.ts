@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isChainHead, isOn, samePath, walk } from './nodes';
+import { isChainHead, isOn, problemsAt, samePath, walk } from './nodes';
 import type { VplNode, VplPipeline } from '../ipc/commands';
 
 /** A minimal node, positioned. Only the fields these functions read. */
@@ -106,5 +106,33 @@ describe('isOn', () => {
 		expect(isOn([0, 0, 1], off)).toBe(false);
 		expect(isOn([0, 1, 0], off)).toBe(true);
 		expect(isOn([0], off), 'the composite still runs, with one source fewer').toBe(true);
+	});
+});
+
+describe('problemsAt', () => {
+	//  merge [ read(8..12), write(14..19) ](0..21)
+	const merge: VplNode = {
+		...node('merge', 0, 21, [pipeline([node('read', 8, 12), node('write', 14, 19)])]),
+		sourcesSpan: { start: 6, end: 21 }
+	};
+	const [read, write] = merge.sources[0].nodes;
+	const problem = (start: number, end: number) => ({ message: `at ${start}`, span: { start, end } });
+
+	it('gives a problem to the node whose name or parameter it points at', () => {
+		const onRead = problem(8, 12);
+		expect(problemsAt(read, [onRead])).toEqual([onRead]);
+		expect(problemsAt(write, [onRead])).toEqual([]);
+	});
+
+	/** The composite's span covers its sources, and their problems are not its own. */
+	it('leaves a source’s problem to the source', () => {
+		const onRead = problem(8, 12);
+		const onMerge = problem(0, 5);
+		expect(problemsAt(merge, [onRead, onMerge])).toEqual([onMerge]);
+	});
+
+	/** An empty span means the whole document, which no one node is to blame for. */
+	it('marks no node for a problem about the whole document', () => {
+		expect(problemsAt(merge, [problem(0, 0)])).toEqual([]);
 	});
 });

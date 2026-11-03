@@ -132,3 +132,29 @@ describe('what a click does', () => {
 		expect(onToggle).toHaveBeenCalledWith([0, 1, 0], false);
 	});
 });
+
+describe('problems', () => {
+	//  from_debug(0..10) | raster_flatten(13..27)
+	const positioned = pipeline([
+		{ ...node('from_debug'), nameSpan: { start: 0, end: 10 }, span: { start: 0, end: 10 } },
+		{ ...node('raster_flatten'), nameSpan: { start: 13, end: 27 }, span: { start: 13, end: 27 } }
+	]);
+
+	it('marks the node a problem points at, with its message, and no other', () => {
+		render(NodeChain, {
+			pipeline: positioned,
+			disabled: [],
+			enabled: true,
+			problems: [{ message: 'unknown parameter', span: { start: 13, end: 27 } }],
+			onToggle: noop,
+			onCommit: noop,
+			onRemove: noop,
+			onSet: noop,
+			onRemoveNode: noop,
+			onAddOperation: noop
+		});
+		const marks = screen.getAllByRole('img', { name: 'unknown parameter' });
+		expect(marks).toHaveLength(1);
+		expect(marks[0].closest('.node')?.textContent).toContain('raster_flatten');
+	});
+});

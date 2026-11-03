@@ -10,7 +10,7 @@
  * `[0, 1, 0]` is the first node of the second source of the first node.
  */
 
-import type { VplNode, VplPipeline } from '../ipc/commands';
+import type { Diagnostic, Span, VplNode, VplPipeline } from '../ipc/commands';
 
 export interface Located {
 	path: number[];
@@ -43,6 +43,27 @@ export function walk(pipeline: VplPipeline, path: number[] = [], depth = 0): (Lo
  * node of any parent, which is a different and narrower rule.
  */
 export const isChainHead = (path: number[]): boolean => path.length === 1 && path[0] === 0;
+
+const within = (at: number, span: Span): boolean => at >= span.start && at < span.end;
+
+/**
+ * The problems that are about this node, rather than one it reads from.
+ *
+ * Upstream reports a problem by node path, and the core turns that into the span of the node's name
+ * or of the parameter's key - so the span starts inside exactly one node's own text. A node's span
+ * runs through its `[…]` block, which holds the nodes it reads from; a problem in there is theirs.
+ *
+ * An empty span is the core saying "the whole document" - an empty pipeline, or a path it cannot
+ * follow - which no single node should be marked for.
+ */
+export function problemsAt(node: VplNode, problems: Diagnostic[]): Diagnostic[] {
+	return problems.filter(
+		({ span }) =>
+			span.end > span.start &&
+			within(span.start, node.span) &&
+			!(node.sourcesSpan && within(span.start, node.sourcesSpan))
+	);
+}
 
 /** Whether a node's eye is on - not in the graph's switched-off set ([Q49]). */
 export function isOn(path: number[], off: number[][]): boolean {

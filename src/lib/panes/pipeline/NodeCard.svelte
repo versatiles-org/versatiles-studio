@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Icon from '../../common/Icon.svelte';
-	import type { FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../../ipc/commands';
+	import type { Diagnostic, FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../../ipc/commands';
 	import {
 		addableFields,
 		editFor,
@@ -39,6 +39,7 @@
 		operations = [],
 		properties = [],
 		suggestions = {},
+		problems = [],
 		onToggle,
 		onCommit,
 		onRemove,
@@ -59,6 +60,8 @@
 		properties?: string[];
 		/** Per-field values read from what the node points at - a CSV's own columns (S3.4). */
 		suggestions?: Record<string, string[]>;
+		/** What is wrong with this node itself, not with the nodes it reads from. */
+		problems?: Diagnostic[];
 		/** Switches this node on or off. The head node has none - see `isHead`. */
 		onToggle: (path: number[], on: boolean) => void;
 		onCommit: (span: Span, value: string) => void;
@@ -162,7 +165,7 @@
 	const control = (key: string) => field(key)?.control;
 </script>
 
-<div class="node">
+<div class="node" class:faulty={problems.length > 0}>
 	<div class="title">
 		<!-- **The switch is what runs, not what is being looked at** ([Q49]). Off, this operation is
 		     not in the pipeline that builds - the pipe runs *through* it rather than stopping at it,
@@ -195,6 +198,17 @@
 			     already selection - and hovering names would flash a popover per node while scanning a
 			     chain ([Q33]). -->
 			<HelpTrigger content={operationHelp(meta)} />
+		{/if}
+
+		{#if problems.length > 0}
+			<!-- **On the node, not only in the VPL tab** - the badge there says how many, and this says
+			     where. The messages are the tab's, in full, on hover. -->
+			<span
+				class="problem"
+				role="img"
+				aria-label={problems.map((p) => p.message).join('\n')}
+				title={problems.map((p) => p.message).join('\n')}><Icon name="problem" size="1em" /></span
+			>
 		{/if}
 
 		{#if !isHead}
@@ -287,6 +301,17 @@
 		border: var(--pipe-width) solid var(--pipe);
 		border-radius: var(--radius);
 		background: var(--surface);
+
+		/* A node with a problem keeps its shape and takes the error colour on its edge, so a long
+		   chain can be scanned for it without reading each title. */
+		&.faulty {
+			border-color: var(--error);
+		}
+	}
+
+	.problem {
+		flex: none;
+		color: var(--error);
 	}
 
 	/* The header sits on its own ground, above the arguments. This used to belong to the selected

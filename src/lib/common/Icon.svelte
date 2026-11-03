@@ -28,7 +28,9 @@
 		| 'browse'
 		| 'steps'
 		| 'draw'
-		| 'chevron';
+		| 'chevron'
+		// A node the pipeline cannot be built from as written.
+		| 'problem';
 </script>
 
 <script lang="ts">
@@ -128,6 +130,9 @@
 		<rect x="2.5" y="4" width="11" height="8" rx="0.5" stroke-dasharray="2 1.6" />
 	{:else if name === 'chevron'}
 		<path d="m6 3 5 5-5 5" />
+	{:else if name === 'problem'}
+		<circle cx="8" cy="8" r="6.5" />
+		<path d="M8 4.5v4.5M8 11.5v0.01" />
 	{/if}
 </svg>
 

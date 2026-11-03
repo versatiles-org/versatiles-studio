@@ -1,6 +1,6 @@
 <script lang="ts">
-	import type { Fit, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
-	import { walk, isChainHead, isOn } from '../../vpl/nodes';
+	import type { Diagnostic, Fit, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
+	import { walk, isChainHead, isOn, problemsAt } from '../../vpl/nodes';
 	import NodeCard from './NodeCard.svelte';
 	import Picker from '../../common/Picker.svelte';
 
@@ -21,6 +21,7 @@
 		properties = [],
 		fits = [],
 		suggestions = {},
+		problems = [],
 		onToggle,
 		onCommit,
 		onRemove,
@@ -29,6 +30,8 @@
 		onAddOperation
 	}: {
 		pipeline: VplPipeline;
+		/** What is wrong with the document, as the VPL tab underlines it. Each node is marked for its own. */
+		problems?: Diagnostic[];
 		/** Node paths switched off in this graph ([Q49]). */
 		disabled: number[][];
 		/** Whether the graph itself is switched on. Off, the whole chain reads as not running. */
@@ -122,6 +125,7 @@
 				{operations}
 				{properties}
 				suggestions={suggestions[row.path.join('.')] ?? {}}
+				problems={problemsAt(row.node, problems)}
 				{onToggle}
 				{onCommit}
 				{onRemove}
