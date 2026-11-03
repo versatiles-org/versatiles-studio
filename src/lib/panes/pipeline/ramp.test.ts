@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_RAMP, fromRamp, hasDuplicates, parseRamp, rampGradient } from './ramp';
+import { DEFAULT_RAMP, fromRamp, hasDuplicates, parseRamp, rampGradient, rampName } from './ramp';
 
 describe('parseRamp', () => {
 	it('reads stops, whatever their spelling', () => {
@@ -14,6 +14,21 @@ describe('parseRamp', () => {
 		for (const text of ['', ',', '0', ':ff0000', 'x:ff0000', '0:nope', '0:ff0000,0:00ff00', '5:ff0000,1:00ff00']) {
 			expect(parseRamp(text), text).toBeNull();
 		}
+	});
+
+	it('reads a named ramp as the stops it stands for', () => {
+		expect(parseRamp(' default ')).toEqual(parseRamp(DEFAULT_RAMP));
+		expect(parseRamp('Default')).toBeNull();
+	});
+});
+
+describe('rampName', () => {
+	it('knows the names upstream knows, and nothing else', () => {
+		expect(rampName('default')).toBe('default');
+		expect(rampName(' default ')).toBe('default');
+		expect(rampName(DEFAULT_RAMP)).toBeNull();
+		expect(rampName('toString')).toBeNull();
+		expect(rampName('')).toBeNull();
 	});
 });
 
