@@ -96,7 +96,7 @@ pub async fn describe(reader: &SharedTileSource, label: &str) -> Result<Containe
 		min_zoom: pyramid.level_min().unwrap_or(0),
 		max_zoom: pyramid.level_max().unwrap_or(0),
 		bbox: extent(&pyramid),
-		tile_schema: reader.tilejson().tile_schema.map(|schema| schema.to_string()),
+		tile_schema: reader.tilejson().tile_schema.as_ref().map(ToString::to_string),
 		// versatiles has its own JSON value type; round-tripping through the wire format is the
 		// cheapest honest conversion, and this runs once per open, not per tile.
 		tile_json: serde_json::from_str(&reader.tilejson().stringify()).context("parsing TileJSON")?,
