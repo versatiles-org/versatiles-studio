@@ -7,10 +7,11 @@
 
 use crate::state::AppState;
 use std::collections::HashMap;
+use std::path::Path;
 use studio_core::graphs::GraphId;
 use studio_core::history::{EditKind, Target};
 use studio_core::jobs::{JobHandle, Lane};
-use studio_core::preview::VPLPipeline;
+use studio_core::preview::{BuiltHead, VPLPipeline};
 use studio_core::style::Recipe;
 use studio_core::vpl::{Diagnostic, Document, OperationInfo, ParseError, Pipeline, Span, Token, operations, validate};
 use tauri::{AppHandle, State};
@@ -511,24 +512,60 @@ pub struct Previews(std::sync::Mutex<HashMap<(String, GraphId), Built>>);
 /// which is where the cost is. Same key, same lifetime, dropped by the same `forget`.
 ///
 /// [vt#259]: https://github.com/versatiles-org/versatiles-rs/issues/259
+///
+/// **And the containers a window opened, before any graph has built them.** Opening a container
+/// mounts it for the inspector, and the graph it becomes builds the same `from_container` node next.
+/// Offered here, that build takes the opened source as its head instead of reading the file again.
 #[derive(Default)]
-pub struct Heads(std::sync::Mutex<HashMap<(String, GraphId), studio_core::preview::BuiltHead>>);
+pub struct Heads {
+	built: std::sync::Mutex<HashMap<(String, GraphId), BuiltHead>>,
+	opened: std::sync::Mutex<HashMap<String, Vec<BuiltHead>>>,
+}
 
 impl Heads {
-	fn get(&self, window: &str, graph: GraphId) -> Option<studio_core::preview::BuiltHead> {
-		self.0.lock().ok()?.get(&(window.to_string(), graph)).cloned()
+	fn get(&self, window: &str, graph: GraphId) -> Option<BuiltHead> {
+		self.built.lock().ok()?.get(&(window.to_string(), graph)).cloned()
 	}
 
-	fn put(&self, window: &str, graph: GraphId, head: studio_core::preview::BuiltHead) {
-		if let Ok(mut held) = self.0.lock() {
+	/// The head a build of `pipeline` can take: the graph's own last one if the pipeline still starts
+	/// with it, otherwise a container this window opened that it starts with.
+	fn reusable(&self, window: &str, graph: GraphId, pipeline: &VPLPipeline, dir: &Path) -> Option<BuiltHead> {
+		self
+			.get(window, graph)
+			.filter(|head| head.heads(pipeline, dir))
+			.or_else(|| {
+				let opened = self.opened.lock().ok()?;
+				opened
+					.get(window)?
+					.iter()
+					.find(|head| head.heads(pipeline, dir))
+					.cloned()
+			})
+	}
+
+	fn put(&self, window: &str, graph: GraphId, head: BuiltHead) {
+		if let Ok(mut held) = self.built.lock() {
 			held.insert((window.to_string(), graph), head);
+		}
+	}
+
+	/// Keeps a container this window has just opened, for the build that follows. Opening the same
+	/// container again replaces it, as its mount is replaced.
+	pub fn offer(&self, window: &str, head: BuiltHead) {
+		if let Ok(mut opened) = self.opened.lock() {
+			let held = opened.entry(window.to_string()).or_default();
+			held.retain(|other| !other.same_node(&head));
+			held.push(head);
 		}
 	}
 
 	/// Forgets a window's heads, when its project goes.
 	pub fn forget(&self, window: &str) {
-		if let Ok(mut held) = self.0.lock() {
+		if let Ok(mut held) = self.built.lock() {
 			held.retain(|(label, _), _| label != window);
+		}
+		if let Ok(mut opened) = self.opened.lock() {
+			opened.remove(window);
 		}
 	}
 }
@@ -881,7 +918,7 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, at
 	let mut server = state.server.lock().await;
 	// Reusing the read node when the edit was after it: a transform costs a parameter parse, while a
 	// read node costs whatever the source costs to load - seconds for a large CSV ([vt#259]).
-	let reusable = state.heads.get(&window, graph);
+	let reusable = state.heads.reusable(&window, graph, &wanted, &dir);
 	let (source, head) = studio_core::preview::build_reusing(server.runtime(), wanted, &dir, reusable.as_ref()).await?;
 	state.heads.put(&window, graph, head);
 

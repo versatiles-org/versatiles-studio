@@ -15,7 +15,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::sync::Arc;
 use versatiles_container::TilesRuntime;
-use versatiles_pipeline::{PipelineFactory, PipelineReader};
+use versatiles_pipeline::{PipelineFactory, PipelineReader, VPLNode};
 // Re-exported so the command layer can name what it hands `build` without taking a dependency on
 // `versatiles_pipeline` of its own - the core is the layer that owns pipeline types.
 /// What a build produces, named here so a caller that keeps one need not depend on the container crate.
@@ -84,6 +84,53 @@ pub struct BuiltHead {
 	source: SharedTileSource,
 }
 
+impl BuiltHead {
+	/// Whether `pipeline` starts with this read node, in `dir` - so a build may take it as its head.
+	#[must_use]
+	pub fn heads(&self, pipeline: &VPLPipeline, dir: &Path) -> bool {
+		pipeline
+			.pipeline
+			.first()
+			.is_some_and(|node| self.key == head_key(node, dir))
+	}
+
+	/// Whether two heads are the same read node in the same directory, whichever was built first.
+	#[must_use]
+	pub fn same_node(&self, other: &BuiltHead) -> bool {
+		self.key == other.key
+	}
+
+	/// The source the read node built, for whoever needs it before any pipeline does.
+	#[must_use]
+	pub fn source(&self) -> &SharedTileSource {
+		&self.source
+	}
+}
+
+fn head_key(node: &VPLNode, dir: &Path) -> String {
+	format!("{}\n{node}", dir.display())
+}
+
+/// Builds a read node on its own, as the head of a pipeline that does not exist yet.
+///
+/// **What opening a container goes through** ([`crate::analysis::open`] is the plain reader). The
+/// inspector needs the container mounted the moment it opens, and the preview builds the same
+/// `from_container` node a moment later. Built here, the two are one source: the preview takes it
+/// as its head, and a remote container's index is read once rather than twice. `from_container`
+/// forwards every call to the reader it opens, so serving it is serving the container.
+pub async fn build_head(runtime: &TilesRuntime, node: VPLNode, dir: &Path) -> Result<BuiltHead> {
+	let key = head_key(&node, dir);
+	let factory = PipelineFactory::new_runtime_reader(dir, runtime.clone());
+	let built = factory
+		.read_operation_from_node(node)
+		.await
+		.context("building the source")?;
+	Ok(BuiltHead {
+		key,
+		source: SharedTileSource::from(built),
+	})
+}
+
 /// Builds a pipeline, reusing an already-built read node when the pipeline still starts with it.
 ///
 /// **The read node is the whole cost.** A transform parses its parameters and wraps its input; a read
@@ -112,25 +159,18 @@ pub async fn build_reusing(
 	dir: &Path,
 	reusable: Option<&BuiltHead>,
 ) -> Result<(SharedTileSource, BuiltHead)> {
+	let reusable = reusable.filter(|head| head.heads(&pipeline, dir)).cloned();
 	let (node, tail) = pipeline.split().context("splitting the pipeline")?;
-	let key = format!("{}\n{node}", dir.display());
 
-	let source = match reusable.filter(|head| head.key == key) {
-		Some(head) => head.source.clone(),
-		None => {
-			let factory = PipelineFactory::new_runtime_reader(dir, runtime.clone());
-			let built = factory
-				.read_operation_from_node(node)
-				.await
-				.context("building the source")?;
-			SharedTileSource::from(built)
-		}
+	let head = match reusable {
+		Some(head) => head,
+		None => build_head(runtime, node, dir).await?,
 	};
 
-	let reader = PipelineReader::from_parts(source.clone(), tail, "preview", dir, runtime.clone())
+	let reader = PipelineReader::from_parts(head.source.clone(), tail, "preview", dir, runtime.clone())
 		.await
 		.context("building the pipeline")?;
-	Ok((Arc::new(reader), BuiltHead { key, source }))
+	Ok((Arc::new(reader), head))
 }
 
 /// What arrives at the node at `index` in the top-level chain, reusing an already-built read node.
@@ -154,27 +194,19 @@ pub async fn source_before(
 	if index == 0 {
 		return Ok(None);
 	}
+	let reusable = reusable.filter(|head| head.heads(&pipeline, dir)).cloned();
 	let (node, tail) = pipeline.split().context("splitting the pipeline")?;
 	if index > tail.len() {
 		return Ok(None);
 	}
 
-	let key = format!("{}\n{node}", dir.display());
-	let source = match reusable.filter(|head| head.key == key) {
-		Some(head) => head.source.clone(),
-		None => {
-			let factory = PipelineFactory::new_runtime_reader(dir, runtime.clone());
-			SharedTileSource::from(
-				factory
-					.read_operation_from_node(node)
-					.await
-					.context("building the source")?,
-			)
-		}
+	let head = match reusable {
+		Some(head) => head,
+		None => build_head(runtime, node, dir).await?,
 	};
 
 	let reader = PipelineReader::from_parts(
-		source.clone(),
+		head.source.clone(),
 		tail[..index - 1].to_vec(),
 		"preview",
 		dir,
@@ -182,7 +214,7 @@ pub async fn source_before(
 	)
 	.await
 	.context("building the pipeline")?;
-	Ok(Some((Arc::new(reader), BuiltHead { key, source })))
+	Ok(Some((Arc::new(reader), head)))
 }
 
 #[cfg(test)]
@@ -270,6 +302,25 @@ mod tests {
 		.await?;
 
 		assert!(Arc::ptr_eq(&first.source, &second.source), "the source was read again");
+		Ok(())
+	}
+
+	/// **A container opened on its own is the head the pipeline then builds on**, so opening a remote
+	/// one reads its index once. A head for another file must not be taken, or the preview would
+	/// show the wrong container.
+	#[tokio::test]
+	async fn an_opened_read_node_is_the_head_its_pipeline_takes() -> Result<()> {
+		let (runtime, dir) = (versatiles::runtime::create_runtime(), fixtures());
+		let read = "from_debug format=pbf";
+		let opened = build_head(&runtime, parse(read).pipeline.remove(0), &dir).await?;
+
+		let pipeline = parse(&format!("{read} | filter bbox=[13.3,52.4,13.5,52.6]"));
+		assert!(opened.heads(&pipeline, &dir));
+		assert!(!opened.heads(&parse("from_debug format=png"), &dir));
+
+		let (_, head) = build_reusing(&runtime, pipeline, &dir, Some(&opened)).await?;
+		assert!(Arc::ptr_eq(opened.source(), head.source()), "the source was read again");
+		assert!(head.same_node(&opened));
 		Ok(())
 	}
 
