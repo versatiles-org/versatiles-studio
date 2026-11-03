@@ -10,7 +10,12 @@
 	// good trade.
 	export type Status =
 		| { kind: 'idle' }
-		| { kind: 'busy'; message: string; fraction?: number }
+		/**
+		 * `waiting` asks for the moving bar when there is no `fraction` to fill one with: something is
+		 * under way, it may take a while, and nothing can say how far it has got. Not every busy
+		 * message is that - "Saved x" is one too - so it is asked for rather than assumed.
+		 */
+		| { kind: 'busy'; message: string; fraction?: number; waiting?: boolean }
 		/**
 		 * `message` is the line to show - the cause of a chain rather than the whole of it ([Q59]) -
 		 * and `full` is what it was cut from, for the tooltip. Equal when there was nothing to cut.
@@ -92,6 +97,7 @@
 			pace?: string;
 			error?: boolean;
 			cancel?: number;
+			waiting?: boolean;
 		} => {
 			if (status.kind === 'error') return { message: status.message, full: status.full, error: true };
 			if (job) {
@@ -102,7 +108,9 @@
 					cancel: job.id
 				};
 			}
-			if (status.kind === 'busy') return { message: status.message, fraction: status.fraction };
+			if (status.kind === 'busy') {
+				return { message: status.message, fraction: status.fraction, waiting: status.waiting };
+			}
 			// Below the others on purpose: a job or a failure is something the user started or needs
 			// to act on, while this is the map catching up. It fills the bar when nothing else needs
 			// it, which is exactly when a slow pipeline leaves someone wondering (S2.16).
@@ -123,7 +131,7 @@
 <!-- Always present, even when idle. A bar that appears and disappears moves everything else with
      it; a quiet one costs a row and keeps the layout still. -->
 <div class="strip" class:error={line.error}>
-	{#if line.fraction !== undefined || line.cancel !== undefined}
+	{#if line.fraction !== undefined || line.cancel !== undefined || line.waiting}
 		<div
 			class="progress"
 			class:indeterminate={line.fraction === undefined}

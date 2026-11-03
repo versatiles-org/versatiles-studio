@@ -236,7 +236,7 @@ export const workbench = {
 	/** Opens whatever the pipeline now reads, naming each one in the bar as it goes. */
 	async syncContainers(): Promise<void> {
 		if (!document.current) return;
-		await preview.syncContainers(document.current, (source) => status.busy(`Opening ${filename(source)}…`));
+		await preview.syncContainers(document.current, (source) => status.waiting(`Opening ${filename(source)}…`));
 	},
 
 	/**
@@ -619,7 +619,7 @@ export const workbench = {
 	 */
 	async open(source: string, into: Into = 'current'): Promise<void> {
 		// A remote container reads its index over the network, so this is not always instant.
-		status.busy(`Opening ${filename(source)}…`);
+		status.waiting(`Opening ${filename(source)}…`);
 		try {
 			// **What it is, not what it is called.** Three formats wear `.json`, so the kind comes from
 			// reading the document when its name cannot settle it - and a TileJSON on disk is refused

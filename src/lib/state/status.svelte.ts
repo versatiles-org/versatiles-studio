@@ -30,6 +30,17 @@ export const status = {
 	},
 
 	/**
+	 * Says what is happening, with a moving bar because nothing can say how far along it is.
+	 *
+	 * For a wait that can be long - opening a remote container reads its whole index first - so the
+	 * bar shows the app is working rather than stuck. A filling bar needs versatiles-rs to report
+	 * progress first (#21).
+	 */
+	waiting(message: string): void {
+		current = { kind: 'busy', message, waiting: true };
+	},
+
+	/**
 	 * Quiets a "busy" that has finished.
 	 *
 	 * **Only a busy one.** An error is a state somebody has to read and dismiss, and an operation

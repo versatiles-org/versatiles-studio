@@ -29,6 +29,17 @@ describe('what the bar says', () => {
 		expect(status.current).toEqual({ kind: 'error', message: 'from the core' });
 	});
 
+	// A plain busy message has no bar, because some of them are done already ("Saved x"); a wait
+	// asks for the moving one.
+	it('marks a wait, and only a wait, for the moving bar', () => {
+		status.busy('Saved x.vpl');
+		expect(status.current).toEqual({ kind: 'busy', message: 'Saved x.vpl' });
+		status.waiting('Opening planet.pmtiles…');
+		expect(status.current).toEqual({ kind: 'busy', message: 'Opening planet.pmtiles…', waiting: true });
+		status.settle();
+		expect(status.current).toEqual({ kind: 'idle' });
+	});
+
 	it('settles a busy message', () => {
 		status.busy('Opening…');
 		expect(status.current.kind).toBe('busy');

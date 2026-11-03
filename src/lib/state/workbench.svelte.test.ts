@@ -112,7 +112,12 @@ vi.mock('./project.svelte', () => ({
 }));
 vi.mock('./style.svelte', () => ({ style: { restored: note('style.restored') } }));
 vi.mock('./status.svelte', () => ({
-	status: { busy: says('status.busy'), settle: note('status.settle'), fail: says('status.fail') }
+	status: {
+		busy: says('status.busy'),
+		waiting: says('status.waiting'),
+		settle: note('status.settle'),
+		fail: says('status.fail')
+	}
 }));
 
 const { workbench } = await import('./workbench.svelte');
@@ -150,7 +155,7 @@ describe('opening a file', () => {
 		ipc.importOpening.mockResolvedValue({ refused: null, kind: null });
 		await workbench.open('/maps/berlin.versatiles');
 
-		expect(calls[0]).toBe('status.busy(Opening berlin.versatiles…)');
+		expect(calls[0]).toBe('status.waiting(Opening berlin.versatiles…)');
 	});
 
 	// Three formats wear `.json`, so a TileJSON on disk is refused with a sentence rather than opened
@@ -345,6 +350,6 @@ describe('what the OS hands over', () => {
 		ipc.isProject.mockResolvedValue(false);
 		ipc.importOpening.mockResolvedValue({ refused: null, kind: null });
 		await workbench.openPath('/maps/berlin.versatiles');
-		expect(calls[0]).toBe('status.busy(Opening berlin.versatiles…)');
+		expect(calls[0]).toBe('status.waiting(Opening berlin.versatiles…)');
 	});
 });
