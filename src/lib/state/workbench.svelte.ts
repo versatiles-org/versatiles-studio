@@ -312,10 +312,12 @@ export const workbench = {
 	/**
 	 * Starts a coloured relief from a DEM container: its colours, with its hillshade on top.
 	 *
-	 * **Asks for the file first, because the chain names it twice.** The two are one source read two
-	 * ways inside `from_stacked_raster`, which lays its first source over the others - a shape the list
-	 * of operations gives no hint of, and an empty one would leave two path fields to fill with the
-	 * same thing.
+	 * **One operation since versatiles-rs 5.6.** `dem_hillshade ramp=default` draws the shading over
+	 * `dem_colorize`'s hypsometric tint, pixel for pixel what the two stacked in `from_stacked_raster`
+	 * gave, from one read of the file rather than two. The ramp is a field like any other, so someone
+	 * who wants other colours edits it there.
+	 *
+	 * **Asks for the file first,** because a relief of nothing is an error, not a starting point.
 	 */
 	async newRelief(): Promise<void> {
 		const source = await askForSource(
@@ -325,10 +327,10 @@ export const workbench = {
 		if (!source) return;
 		try {
 			const read = await importReadNode('container', source);
-			const relief = `from_stacked_raster [ ${read} | dem_hillshade, ${read} | dem_colorize ]`;
+			const relief = `${read} | dem_hillshade ramp=default`;
 			const opened = await this.setText(relief, 'replaced', source, 'new');
 			document.show(opened);
-			// A container that holds no elevation is refused by both operations, and says so here.
+			// A container that holds no elevation is refused by the hillshade, and says so here.
 			if (opened.diagnostics.length > 0) return status.fail(opened.diagnostics[0].message);
 			await this.refresh();
 		} catch (error) {

@@ -72,7 +72,7 @@
 	/// The data door is first because it is the common one and it asks the least - point at a file and
 	/// Studio reads it, the same way a dropped file is read. The other two are for saying what a graph
 	/// should be when there is no file that answers it, and for a pipeline written earlier. The relief
-	/// is here because its shape is the one thing the list of operations cannot suggest.
+	/// is here because nothing in the list of operations says a hillshade can carry its own colours.
 	///
 	/// **The data door does not name a format.** Which `from_*` node a file becomes is the catalogue's
 	/// answer, from the file itself - three formats wear `.json`, so a door per format would be a

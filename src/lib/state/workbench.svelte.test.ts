@@ -274,7 +274,7 @@ describe('where an opened file lands', () => {
 });
 
 describe('starting a coloured relief', () => {
-	it('reads the one file twice, with the hillshade on top', async () => {
+	it('reads the file once and shades it over its colours', async () => {
 		vi.mocked(askForSource).mockResolvedValue('/maps/dem.versatiles');
 		ipc.importReadNode.mockResolvedValue('from_container filename="dem"');
 		ipc.addGraph.mockResolvedValue(doc(5));
@@ -283,7 +283,7 @@ describe('starting a coloured relief', () => {
 
 		expect(ipc.addGraph).toHaveBeenCalledWith(
 			'/maps/dem.versatiles',
-			'from_stacked_raster [ from_container filename="dem" | dem_hillshade, from_container filename="dem" | dem_colorize ]'
+			'from_container filename="dem" | dem_hillshade ramp=default'
 		);
 	});
 

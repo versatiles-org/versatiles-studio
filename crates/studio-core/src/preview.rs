@@ -279,7 +279,7 @@ mod tests {
 	async fn a_coloured_relief_builds_as_imagery() -> Result<()> {
 		let (runtime, dir) = (versatiles::runtime::create_runtime(), fixtures());
 		let read = r#"from_debug format=png | meta_update schema="dem/mapbox""#;
-		let relief = format!("from_stacked_raster [ {read} | dem_hillshade, {read} | dem_colorize ]");
+		let relief = format!("{read} | dem_hillshade ramp=default");
 
 		let source = build(&runtime, parse(&relief), &dir).await?;
 
