@@ -132,6 +132,11 @@
 		box-sizing: border-box;
 		overflow-y: auto;
 		padding: var(--space-5);
+		/* A value with no spaces in it - a ramp, a curve, a path, a URL - breaks where it has to rather
+		   than widening the dialog, which `overflow-y: auto` would then scroll sideways. `anywhere`
+		   rather than `break-word`, because only it lets a grid or flex cell shrink below that value.
+		   `.truncate` still wins where a caller chose an ellipsis. */
+		overflow-wrap: anywhere;
 	}
 
 	h2 {

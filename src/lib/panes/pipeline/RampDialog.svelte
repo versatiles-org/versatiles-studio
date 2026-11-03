@@ -4,9 +4,9 @@
 	import { untrack } from 'svelte';
 	import Modal from '../../common/Modal.svelte';
 	import Note from '../../common/Note.svelte';
-	import { DEFAULT_RAMP, fromRamp, hasDuplicates, parseRamp, rampGradient, type RampStop } from './ramp';
+	import { NAMED_RAMPS, fromRamp, hasDuplicates, parseRamp, rampGradient, rampName, type RampStop } from './ramp';
 
-	// The helper behind `dem_colorize`'s `ramp`.
+	// The helper behind `dem_colorize`'s and `dem_hillshade`'s `ramp`.
 	//
 	// **A helper, not the field**, and it commits once, on Use, for the reasons `StepsDialog` gives. What
 	// this one shows that the written form hides is the colours themselves, spaced by elevation.
@@ -24,21 +24,39 @@
 		onClose: () => void;
 	} = $props();
 
-	/// **An unset parameter opens on the default it stands for**, because that is what the map is
-	/// showing, and adjusting it is likelier than starting again from nothing.
+	/// **An unset parameter opens on `default`**, because adjusting the stock colours is likelier than
+	/// starting from nothing. Not "what the map shows": unset is the tint for `dem_colorize` and no
+	/// colours at all for `dem_hillshade`, so the note below says neither.
 	const unset = untrack(() => value.trim() === '');
 
-	/// The dialog's own draft - see `StepsDialog`, which explains the `untrack`.
-	let stops = $state<RampStop[]>(untrack(() => parseRamp(unset ? DEFAULT_RAMP : value)) ?? []);
+	/// **A named ramp stays a name** until one of its stops is edited. Writing `default` rather than
+	/// its ten stops keeps the document short and follows upstream if its tint changes; the stops are
+	/// only there to look at and to start a custom ramp from.
+	let preset = $state<string | null>(untrack(() => rampName(value) ?? (unset ? 'default' : null)));
 
-	const encoded = $derived(fromRamp(stops));
+	/// The dialog's own draft - see `StepsDialog`, which explains the `untrack`.
+	let stops = $state<RampStop[]>(untrack(() => parseRamp(preset ?? value)) ?? []);
+
+	const encoded = $derived(preset ?? fromRamp(stops));
 	const unreadable = $derived(!unset && parseRamp(value) === null);
 	/// Sorting keeps the stops ascending, but not apart. Said here, rather than left for `check`.
 	const duplicates = $derived(hasDuplicates(stops));
 
-	/// Sorted on every change, so a stop moved past its neighbour goes where it now belongs.
+	/// Sorted on every change, so a stop moved past its neighbour goes where it now belongs. Any edit
+	/// makes the ramp custom, since the name no longer says what the stops are.
 	function replace(next: RampStop[]): void {
 		stops = [...next].sort((a, b) => a.meters - b.meters);
+		preset = null;
+	}
+
+	/// Picking a name shows its stops; picking `custom` keeps the stops as they are, to edit.
+	function choose(name: string): void {
+		if (name === '') {
+			preset = null;
+			return;
+		}
+		stops = parseRamp(name) ?? [];
+		preset = name;
 	}
 
 	/// Continues from the highest stop, so adding a row alone does not change the colours.
@@ -51,11 +69,24 @@
 <Modal title="Colours by elevation: {name}" width="26rem" {onClose}>
 	{#if unreadable}
 		<Note>
-			<code>{value}</code> is not a list of stops, so there is nothing to show. Building one here replaces it.
+			<code>{value}</code> is not a list of stops or a ramp's name, so there is nothing to show. Building one here replaces
+			it.
 		</Note>
 	{:else if unset}
-		<Note tone="empty">Not set, so these are the default colours. Use writes them into the parameter.</Note>
+		<Note tone="empty">Not set. Use writes the colours below into the parameter.</Note>
 	{/if}
+
+	<dl class="facts">
+		<dt><label for="ramp-preset">Colours</label></dt>
+		<dd>
+			<select id="ramp-preset" value={preset ?? ''} onchange={(event) => choose(event.currentTarget.value)}>
+				{#each Object.keys(NAMED_RAMPS) as name (name)}
+					<option value={name}>{name}</option>
+				{/each}
+				<option value="">custom</option>
+			</select>
+		</dd>
+	</dl>
 
 	<div class="preview" data-testid="ramp-preview" style:background-image={rampGradient(stops)}></div>
 
@@ -102,7 +133,7 @@
 
 	<dl class="facts reading">
 		<dt>Writes</dt>
-		<dd><code>{encoded || '(nothing - uses the default colours)'}</code></dd>
+		<dd><code>{encoded || '(nothing - clears the parameter)'}</code></dd>
 	</dl>
 
 	{#snippet actions()}

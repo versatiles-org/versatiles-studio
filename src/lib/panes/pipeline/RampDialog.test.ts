@@ -40,13 +40,45 @@ describe('the round trip', () => {
 		const onUse = open('');
 		expect(onUse).not.toHaveBeenCalled();
 		await use();
-		expect(onUse).toHaveBeenCalledWith(DEFAULT_RAMP);
+		expect(onUse).toHaveBeenCalledWith('default');
+	});
+
+	it('shows a named ramp’s stops and writes its name back', async () => {
+		const onUse = open('default');
+		expect(elevation(1).valueAsNumber).toBe(-11000);
+		await use();
+		expect(onUse).toHaveBeenCalledWith('default');
 	});
 
 	it('says so when the value is not a ramp', () => {
 		open('nonsense');
 		expect(screen.getByText('nonsense')).toBeTruthy();
 		expect(screen.queryByLabelText('Elevation of stop 1, in metres')).toBeNull();
+	});
+});
+
+describe('named ramps', () => {
+	const pick = (name: string) => fireEvent.change(screen.getByLabelText('Colours'), { target: { value: name } });
+
+	it('writes the stops once one of a named ramp’s stops is edited', async () => {
+		const onUse = open('default');
+		await move(1, -12000);
+		await use();
+		expect(onUse).toHaveBeenCalledWith(DEFAULT_RAMP.replace('-11000', '-12000'));
+	});
+
+	it('replaces custom stops with a named ramp when one is picked', async () => {
+		const onUse = open('0:000000');
+		await pick('default');
+		await use();
+		expect(onUse).toHaveBeenCalledWith('default');
+	});
+
+	it('spells a named ramp out when custom is picked, to edit from', async () => {
+		const onUse = open('default');
+		await pick('');
+		await use();
+		expect(onUse).toHaveBeenCalledWith(DEFAULT_RAMP);
 	});
 });
 
