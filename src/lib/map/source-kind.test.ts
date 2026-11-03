@@ -15,6 +15,13 @@ describe('sourceKind', () => {
 			expect(sourceKind('mvt', 'openmaptiles', [])).toEqual({ kind: 'vectorOpenMapTiles', basis: 'declared' });
 		});
 
+		it('takes the land cover from the schema as other vector tiles', () => {
+			expect(sourceKind('mvt', 'versatiles/landcover@1.0', ['landcover'])).toEqual({
+				kind: 'vectorOther',
+				basis: 'declared'
+			});
+		});
+
 		it('reads every dem encoding as elevation', () => {
 			for (const schema of ['dem/mapbox', 'dem/terrarium', 'dem/versatiles']) {
 				expect(sourceKind('png', schema, []).kind, schema).toBe('rasterDem');

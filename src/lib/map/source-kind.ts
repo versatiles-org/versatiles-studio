@@ -36,6 +36,9 @@ export interface KindReading {
 const BY_SCHEMA: Record<string, SourceKind> = {
 	'shortbread@1.0': 'vectorShortbread',
 	openmaptiles: 'vectorOpenMapTiles',
+	// The land cover alone, which no builder draws as a basemap - `osm()` draws it under OSM. Declared
+	// rather than guessed, so the pane says so; `other` is what the guess would have said too.
+	'versatiles/landcover@1.0': 'vectorOther',
 	rgb: 'rasterImage',
 	rgba: 'rasterImage',
 	'dem/mapbox': 'rasterDem',
