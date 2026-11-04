@@ -1,0 +1,34 @@
+{
+  "fill" : {
+    "solid" : "srgb:0.11373,0.11373,0.11373,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : false,
+          "image-name" : "glyph.svg",
+          "name" : "glyph"
+        },
+        {
+          "glass" : false,
+          "image-name" : "hexagon.svg",
+          "name" : "hexagon"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : [
+      "macOS"
+    ]
+  }
+}

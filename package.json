@@ -38,6 +38,7 @@
 		"generate:bindings": "UPDATE_BINDINGS=1 cargo test -p versatiles-studio bindings",
 		"release": "tsx scripts/release.ts",
 		"assets:fetch": "tsx scripts/fetch-assets.ts",
+		"compile-icon": "tsx scripts/compile-icon.ts",
 		"assets:check": "tsx scripts/update-assets.ts",
 		"assets:update": "tsx scripts/update-assets.ts --update",
 		"upgrade": "tsx scripts/run.ts upgrade",

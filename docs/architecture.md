@@ -96,7 +96,7 @@ versatiles-studio/
 ├── src-tauri/                  deliberately thin
 │   ├── tauri.conf.json         · tauri.macos.conf.json - one name each way
 │   ├── capabilities/
-│   ├── icons/                  generated from app-icon.png
+│   ├── icons/                  from app-icon.png, except Icon.icon, Assets.car
 │   ├── resources/              bundled tier, shipped as archives         (Q9)
 │   │   ├── sprites.tar.gz
 │   │   └── glyphs.tar.gz
@@ -136,6 +136,7 @@ versatiles-studio/
 │   ├── run.ts                  every `{action}:*` script, for one action
 │   ├── bundle-local.ts         one command for an installer on this machine
 │   ├── install-local.ts        · install-local.test.ts - and into /Applications on a Mac
+│   ├── compile-icon.ts         Icon.icon into Assets.car
 │   ├── spawn.ts                starting a child process portably
 │   ├── release.ts              check, bump, tag, push, publish            (S5.6)
 │   ├── latest-json.ts          the manifest the updater reads           (S5.8)

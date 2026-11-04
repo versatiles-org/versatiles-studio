@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- The hexagon of versatiles-documentation/public/versatiles.svg, on the same square canvas as glyph.svg. -->
+<svg width="1024" height="1024" version="1.1" viewBox="-7.528 -5.1035 46.4 46.4" xmlns="http://www.w3.org/2000/svg">
+	<g transform="translate(-36.82 -130.74)">
+		<g transform="matrix(.37509 0 0 .37509 -63.953 101.53)" stroke-linecap="round">
+			<path
+				transform="matrix(.70538 0 0 .70538 54.155 15.902)"
+				d="m363.33 224.65-59.232-34.198v-68.396l59.232-34.198 59.232 34.198v68.396z"
+				fill="#1d1d1d"
+				stroke-width="4.5354"
+			/>
+		</g>
+	</g>
+</svg>
