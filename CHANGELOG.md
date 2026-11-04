@@ -3,6 +3,34 @@
 What changed in each release. Written for someone deciding whether
 to update, not for the next developer - the commit log is that.
 
+## v0.6.0 - 2026-11-04
+
+### Features
+
+- give macOS 26 an Icon Composer icon, compiled ahead because tauri build crashes compiling it
+- show a moving bar while a container opens (#21)
+- mark the node a VPL problem points at, in red, with its message on hover
+- offer named colour ramps in the ramp dialog, and write default for an unset ramp
+- start a coloured relief with dem_hillshade ramp=default, which reads the file once
+- read the declared versatiles/landcover@1.0 schema as other vector tiles
+
+### Fixes
+
+- prevent tokenless uploads for Dependabot in Codecov actions
+- add missing dependencies to ignore list for major version updates
+- pin the sprites to versatiles-style v8.1.1, matching the npm dependency
+- let long values in dialogs wrap instead of scrolling the dialog sideways
+- borrow the tile schema, which versatiles-rs 5.6 no longer copies
+
+### Performance
+
+- open a container once, and let the preview build on the source it opened
+
+### Chores
+
+- bump the cargo group across 1 directory with 3 updates
+- update dependencies to latest versions
+
 ## v0.5.0 - 2026-10-30
 
 ### Features

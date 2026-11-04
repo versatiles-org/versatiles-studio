@@ -6912,7 +6912,7 @@ dependencies = [
 
 [[package]]
 name = "studio-core"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -8165,7 +8165,7 @@ dependencies = [
 
 [[package]]
 name = "versatiles-studio"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "anyhow",
  "serde",
