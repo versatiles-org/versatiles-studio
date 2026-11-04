@@ -16,6 +16,17 @@ updates:
       # outright. Drop this once svelte-check accepts 7.
       - dependency-name: typescript
         update-types: ['version-update:semver-major']
+      # @wdio/tauri-service 1.5.1 peers on `webdriverio ^9` and pulls in @wdio/globals 9 itself, so
+      # a wdio 10 runner cannot load the specs. The `vrt.depsUpgrade.ignore` list in package.json
+      # holds the same line. Drop both once the Tauri service supports 10.
+      - dependency-name: '@wdio/cli'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@wdio/local-runner'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@wdio/mocha-framework'
+        update-types: ['version-update:semver-major']
+      - dependency-name: webdriverio
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: /
