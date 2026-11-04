@@ -47,8 +47,11 @@ jobs:
       - run: npm run coverage:web
       - name: Upload coverage
         # A fork's pull request has no access to the secret, and failing someone's first
-        # contribution on a missing token is the worst possible first impression.
-        if: ${{ !github.event.pull_request.head.repo.fork }}
+        # contribution on a missing token is the worst possible first impression. Dependabot's runs
+        # get no secrets either, and Codecov refuses a tokenless upload to a protected branch.
+        # `github.actor` rather than the PR author: it is what GitHub withholds secrets by, and a
+        # re-run keeps it.
+        if: ${{ !github.event.pull_request.head.repo.fork && github.actor != 'dependabot[bot]' }}
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
@@ -115,7 +118,7 @@ jobs:
       # The core carries the logic and has no Tauri types, so it tests without a display server.
       - run: npm run coverage:rust
       - name: Upload coverage
-        if: ${{ !github.event.pull_request.head.repo.fork }}
+        if: ${{ !github.event.pull_request.head.repo.fork && github.actor != 'dependabot[bot]' }}
         uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
