@@ -15,13 +15,13 @@
 		},
 		"glyphs-latin": {
 			"repo": "versatiles-org/versatiles-frontend",
-			"version": "v3.16.1",
+			"version": "v3.17.1",
 			"purpose": "Source of the Latin-only glyph subset bundled in the installer (S0.6). frontend-tiny keeps glyphs below codepoint 1024 and replaces higher ranges with valid-but-empty tiles, so non-Latin text renders blank rather than erroring. Only assets/glyphs is used; the JS is bundled by Vite (Q5).",
 			"assets": {
 				"tiny": {
 					"file": "frontend-tiny.tar.gz",
-					"digest": "sha256:f31b74b12f6ea82378e3b3f3ddda5388d94a69634cdeb6da405d59f7e12e78eb",
-					"bytes": 1859301
+					"digest": "sha256:f74eb397d81729b5ac59a0d43fbb5d457da2ddafe1c7d1dfff3c918336773b48",
+					"bytes": 1877161
 				}
 			}
 		},
