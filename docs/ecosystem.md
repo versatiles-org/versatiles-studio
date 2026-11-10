@@ -27,10 +27,11 @@ A Rust workspace, consumed as a library dependency rather than shelled out to.
 ```text
 read       from_container, from_tilejson, from_tile, from_color, from_geo, from_csv,
            from_gdal_raster, from_gdal_dem, from_grid, from_merged_vector, from_stacked,
-           from_stacked_raster, from_debug
+           from_stacked_raster, from_h3, from_debug
 general    filter, meta_update, remap_coords
 vector     vector_repair, vector_overzoom, vector_filter_layers, vector_filter_features,
-           vector_filter_properties, vector_update_properties, vector_reduce_to_style
+           vector_filter_properties, vector_update_properties, vector_reduce_to_style,
+           vector_mask
 raster     raster_overview, raster_flatten, raster_levels, raster_tile_resize,
            raster_format, raster_overscale, raster_mask
 dem        dem_overview, dem_tile_resize, dem_quantize, dem_overscale, dem_hillshade,
