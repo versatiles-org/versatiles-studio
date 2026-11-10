@@ -3,13 +3,13 @@
 	"sources": {
 		"sprites": {
 			"repo": "versatiles-org/versatiles-style",
-			"version": "v8.1.1",
+			"version": "v9.1.0",
 			"purpose": "Sprite sheet for the bundled tier (S0.6) and the asset manager (G7).",
 			"assets": {
 				"sprites": {
 					"file": "sprites.tar.gz",
-					"digest": "sha256:2d3266d99a8ce96f56d64f67ba2dbd3cf5d7547a5f9ade3f0e31f949188358de",
-					"bytes": 855499
+					"digest": "sha256:213786415c738338e0c95744af81d363893456e45471b06d2c8907e32be52903",
+					"bytes": 855495
 				}
 			}
 		},
