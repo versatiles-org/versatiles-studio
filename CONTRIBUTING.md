@@ -48,7 +48,8 @@ check                    the one command before a commit
 ├── check:format         prettier · cargo fmt --check
 ├── check:types          svelte-check over src/, tsc over scripts/
 ├── check:lint           eslint · clippy -D warnings
-└── check:test           vitest with coverage · cargo test
+├── check:test           vitest with coverage · cargo test
+└── check:assets         are the pins in assets/manifest.json still the newest releases?
 
 fix                      the writing counterparts
 ├── fix:format           prettier --write · cargo fmt
@@ -63,10 +64,10 @@ Where the two toolchains differ, the group goes one level deeper: `check:lint:we
 and `check:lint:rust` is clippy alone. That is what lets CI run the Node half on a runner with no
 cargo and the cargo half on one with no browser, without either restating the command.
 
-`assets:*` is deliberately the exception - noun-first, and with no aggregate. The three are
-alternatives rather than a set, and `assets:check` asks GitHub whether a newer upstream release
-exists; sweeping a network call and an unrelated release into the command run before every commit is
-how a check teaches people to ignore it.
+`check:assets` is the one check that reaches the network: it asks GitHub whether a newer upstream
+release exists. It runs last, so a release upstream never hides a problem in the code, and it needs a
+connection. `assets:fetch` is the exception to the naming - noun-first, with no aggregate - because it
+is a download a build needs rather than a check, and the only one of its kind.
 
 **Coverage**
 
@@ -95,7 +96,7 @@ They are found automatically if a `versatiles-rs` checkout sits beside this one,
 ## Upgrading dependencies
 
 ```sh
-npm run upgrade          # upgrade:web, then upgrade:rust
+npm run upgrade          # upgrade:web, upgrade:rust, then upgrade:assets
 ```
 
 `upgrade:web` is `vrt deps-upgrade`: every npm dependency to its latest release within the peer
@@ -108,11 +109,13 @@ same minor as the `tauri` crate, so move both together by hand. The WDIO package
 ## Pinned assets
 
 ```sh
-npm run assets:check     # fails if a pin is stale, or a digest moved under an unchanged tag
-npm run assets:update    # move the pins deliberately
+npm run check:assets     # fails if a pin is stale, or a digest moved under an unchanged tag
+npm run upgrade:assets   # move every pin to the newest release
 ```
 
-Both are metadata-only, so neither downloads anything.
+Both are metadata-only, so neither downloads anything; run `assets:fetch` afterwards to build with the
+new pins. The sprites pin has to name the same release as the `@versatiles/style` dependency, which
+`guards.test.ts` checks - `npm run upgrade` moves both.
 
 ## Releasing
 

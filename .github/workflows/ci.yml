@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 # Least privilege, applied at the workflow level so every job inherits it. Nothing here writes:
-# the jobs check out, build and test. The GITHUB_TOKEN passed to `assets:check` only lifts the
+# the jobs check out, build and test. The GITHUB_TOKEN passed to `check:assets` only lifts the
 # unauthenticated GitHub API rate limit, which needs no extra scope.
 permissions:
   contents: read
@@ -64,7 +64,7 @@ jobs:
       - run: npm run build
       # Fails when an upstream release moves past a pin, or when a pinned digest changes under an
       # unchanged tag. Metadata-only, so it costs nothing (Q9).
-      - run: npm run assets:check
+      - run: npm run check:assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

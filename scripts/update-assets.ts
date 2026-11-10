@@ -7,8 +7,8 @@
  * GitHub returns a `digest` on every release asset, so both modes are metadata-only: nothing is
  * downloaded, even though the font archives total ~190 MB.
  *
- *   npm run assets:check    exit 1 if a newer release exists, or if a pinned digest has changed
- *   npm run assets:update   rewrite the manifest at the newest release of each source
+ *   npm run check:assets     exit 1 if a newer release exists, or if a pinned digest has changed
+ *   npm run upgrade:assets   rewrite the manifest at the newest release of each source
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -145,7 +145,7 @@ async function main(): Promise<void> {
 		await writeFile(MANIFEST, `${JSON.stringify(manifest, null, '\t')}\n`);
 		console.log(problems.length ? `Updated:\n  ${problems.join('\n  ')}` : 'Already current - nothing changed.');
 	} else if (problems.length) {
-		console.error(`Pins are out of date:\n  ${problems.join('\n  ')}\n\nRun \`npm run assets:update\` to move them.`);
+		console.error(`Pins are out of date:\n  ${problems.join('\n  ')}\n\nRun \`npm run upgrade:assets\` to move them.`);
 		process.exit(1);
 	} else {
 		console.log('All pins current.');

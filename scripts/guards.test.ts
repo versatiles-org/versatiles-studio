@@ -54,6 +54,28 @@ describe('assertSafeSegment', () => {
 });
 
 /**
+ * The sprites come from the same `versatiles-style` release as the style code that names them.
+ *
+ * `upgrade:web` moves the npm dependency and `upgrade:assets` moves the pin, each to the newest
+ * release, so they normally land together. Moved by hand, one of them gets forgotten: the upgrade to
+ * style 9.1.0 left the sprites on 8.1.1 with every check green. This is the offline half of the pin
+ * checks - `check:assets` asks GitHub, this asks nothing.
+ */
+describe('the sprite pin', () => {
+	const root = fileURLToPath(new URL('../', import.meta.url));
+	const read = (path: string) => JSON.parse(readFileSync(join(root, path), 'utf8'));
+
+	it('matches the @versatiles/style dependency', () => {
+		const pinned = read('assets/manifest.json').sources.sprites.version;
+		const range: string = read('package.json').dependencies['@versatiles/style'];
+		const declared = /^[\^~]?(\d+\.\d+\.\d+)$/.exec(range)?.[1];
+
+		expect(declared, `"${range}" is not a plain or ^/~ version`).toBeDefined();
+		expect(pinned, 'move both together: npm run upgrade').toBe(`v${declared}`);
+	});
+});
+
+/**
  * The version is stated in three files and has to be one number.
  *
  * `package.json` is what the release workflow reads and compares against the tag; `tauri.conf.json`
@@ -257,8 +279,8 @@ describe('npm scripts', () => {
 	const NO_AGGREGATE = new Set(['assets']);
 
 	it('names every script action-first', () => {
-		// `assets:*` is the documented exception: three alternatives on one subject, one of which
-		// reaches the network, so sweeping them into an aggregate would be wrong.
+		// `assets:fetch` is the documented exception: a download a build needs, not a check or an
+		// upgrade, and the only member of its group - so there is nothing for an aggregate to run.
 		const offenders = Object.keys(scripts).filter((name) => {
 			const [head] = name.split(':');
 			return name.includes(':') && !scripts[head] && !NO_AGGREGATE.has(head);

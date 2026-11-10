@@ -6,7 +6,7 @@
 //!
 //! **Pinned, never `latest`.** The manifest names a release version and a digest for every archive,
 //! and it is compiled in rather than read from disk - a pinned version that a file beside the
-//! binary could change is not pinned. Moving one is `npm run assets:update`, deliberately.
+//! binary could change is not pinned. Moving one is `npm run upgrade:assets`, deliberately.
 //!
 //! **Never unpacked.** An archive is served as it arrives: the embedded server reads `.tar.gz`
 //! directly ([`ServerManager::mount_static`](crate::server::ServerManager::mount_static)), so
