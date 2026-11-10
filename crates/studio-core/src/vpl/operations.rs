@@ -421,6 +421,7 @@ mod tests {
 				"meta_update.tilejson_update_file",
 				"meta_update.vector_layers_file",
 				"raster_mask.geojson",
+				"vector_mask.geojson",
 				"vector_reduce_to_style.style",
 				"vector_update_properties.data_source_path",
 			]
@@ -522,6 +523,7 @@ mod tests {
 	fn a_file_field_is_filtered_by_what_it_reads() {
 		assert_eq!(field("from_gdal_raster", "cutline").accepts, ["geojson", "json"]);
 		assert_eq!(field("raster_mask", "geojson").accepts, ["geojson", "json"]);
+		assert_eq!(field("vector_mask", "geojson").accepts, ["geojson", "json"]);
 		assert_eq!(
 			field("vector_update_properties", "data_source_path").accepts,
 			["csv", "tsv"]
