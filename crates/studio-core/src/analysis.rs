@@ -192,7 +192,11 @@ pub(crate) mod tests {
 		let runtime = versatiles::runtime::create_runtime();
 		let started = std::time::Instant::now();
 
-		let (_source, info) = open(&runtime, "https://download.versatiles.org/osm.versatiles").await?;
+		let (_source, info) = open(
+			&runtime,
+			"https://download.versatiles.org/osm-vector/osm-vector.versatiles",
+		)
+		.await?;
 
 		// The point of byte-range reads: a planet file opens from its header, not its bulk.
 		assert!(

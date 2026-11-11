@@ -286,7 +286,7 @@ fn an_opened_container_becomes_a_read_node() {
 		"berlin.versatiles",
 		"/data/My Tiles/berlin.versatiles",
 		"/data/it's here.versatiles",
-		"https://download.versatiles.org/osm.versatiles",
+		"https://download.versatiles.org/osm-vector/osm-vector.versatiles",
 		"/data/Grüße.versatiles",
 	] {
 		let vpl = read_node("from_container", source);

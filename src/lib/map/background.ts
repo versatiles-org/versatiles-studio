@@ -24,12 +24,12 @@ import { osm, satellite, type Palette, type TileSource } from '@versatiles/style
 import { localAssets, PUBLIC_BASE, tileset, withoutSlots } from './builders';
 
 /** Where the background's tiles come from. Only this is remote. */
-const TILES = `${PUBLIC_BASE}/tiles/osm/{z}/{x}/{y}`;
+const TILES = `${PUBLIC_BASE}/tiles/osm-vector/{z}/{x}/{y}`;
 
 /**
  * versatiles.org's satellite imagery, as the TileJSON its server publishes - with absolute tile URLs.
  *
- * **Spelled out rather than fetched,** because the published one says `/tiles/satellite/{z}/{x}/{y}`,
+ * **Spelled out rather than fetched,** because the published one says `/tiles/satellite-raster/{z}/{x}/{y}`,
  * relative to its own host, and MapLibre resolves that against the *page*: every tile was a request
  * into Studio's webview. Inline it also costs no request, and the extent is the server's own.
  *
@@ -38,7 +38,7 @@ const TILES = `${PUBLIC_BASE}/tiles/osm/{z}/{x}/{y}`;
  */
 export const IMAGERY: TileSource = {
 	tilejson: '3.0.0',
-	tiles: [`${PUBLIC_BASE}/tiles/satellite/{z}/{x}/{y}`],
+	tiles: [`${PUBLIC_BASE}/tiles/satellite-raster/{z}/{x}/{y}`],
 	bounds: [-180, -85.051129, 180, 85.051129],
 	minzoom: 0,
 	maxzoom: 19,
