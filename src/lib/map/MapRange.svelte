@@ -66,7 +66,9 @@
 		left: 50%;
 		transform: translateX(-50%);
 		z-index: 6;
-		display: flex;
+		/* A grid rather than a flex row, so a long message wraps and the button keeps its width. */
+		display: grid;
+		grid-template-columns: 1fr auto;
 		align-items: center;
 		gap: var(--space-3);
 		max-width: calc(100% - 2 * var(--space-4));
@@ -77,9 +79,5 @@
 		box-shadow: var(--shadow);
 		color: var(--ink);
 		font-size: var(--text-sm);
-	}
-
-	.button {
-		flex: none;
 	}
 </style>
