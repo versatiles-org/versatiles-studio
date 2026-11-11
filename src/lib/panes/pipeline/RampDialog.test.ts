@@ -117,3 +117,39 @@ describe('editing', () => {
 		expect(onUse).toHaveBeenCalledWith('0:ff000080');
 	});
 });
+
+describe('the generator (#17)', () => {
+	const field = (label: string) => screen.getByLabelText(label) as HTMLInputElement | HTMLSelectElement;
+	const generate = () => fireEvent.click(screen.getByText('Replace the stops'));
+
+	it('replaces the stops with a gradient over the range, and writes them on Use', async () => {
+		const onUse = open('default');
+		await fireEvent.change(field('Gradient'), { target: { value: 'greys' } });
+		await fireEvent.input(field('From'), { target: { value: '100' } });
+		await fireEvent.input(field('To'), { target: { value: '900' } });
+		await generate();
+		expect(onUse).not.toHaveBeenCalled();
+		await use();
+		expect(onUse).toHaveBeenCalledWith('100:000000,900:ffffff');
+	});
+
+	// Highlighting a band: everything outside it left empty, and the tiles' cost said out loud.
+	it('leaves the outside transparent, and says what that costs', async () => {
+		const onUse = open('');
+		await fireEvent.change(field('Gradient'), { target: { value: 'greys' } });
+		await fireEvent.change(field('Outside'), { target: { value: 'transparent' } });
+		await fireEvent.click(screen.getByLabelText('Reverse'));
+		await generate();
+		expect(screen.getByText(/Transparent colours make RGBA tiles/)).toBeTruthy();
+		await use();
+		expect(onUse).toHaveBeenCalledWith('-0.01:ffffff00,0:ffffff,3000:000000,3000.01:00000000');
+	});
+
+	it('will not generate over a range that is not one', async () => {
+		open('default');
+		await fireEvent.input(field('From'), { target: { value: '500' } });
+		await fireEvent.input(field('To'), { target: { value: '100' } });
+		expect((screen.getByText('Replace the stops') as HTMLButtonElement).disabled).toBe(true);
+		expect(screen.getByText('The highest elevation has to be above the lowest.')).toBeTruthy();
+	});
+});
