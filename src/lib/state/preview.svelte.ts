@@ -334,7 +334,7 @@ export const preview = {
 		//
 		// **And not over a camera the window already has.** A reloaded window comes back to where it
 		// was looking; a new one has nothing to come back to, so the data decides.
-		if (!wasFramed && !restored && result.info.bbox) fitToBounds(map, result.info.bbox);
+		if (!wasFramed && !restored && result.info.bbox) fitToBounds(map, result.info.bbox, false, result.info);
 
 		// The hairlines are what a *styled* map does not need: when the recipe renders these tiles,
 		// its own layers draw them and a line over the top would be a second opinion (S4.3). Asked

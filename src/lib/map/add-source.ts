@@ -138,9 +138,29 @@ const PADDING = 24;
  *
  * Animated when a person asked for it and instant when the data simply appeared: a first preview
  * arriving should already be framed, not glide into place.
+ *
+ * **Within the source's zoom range, when there is one** (#16). The extent alone decides a zoom by
+ * its size: a city extract at z14-16 frames at about z11, where MapLibre asks for no tiles and the
+ * map stays empty. Below `minZoom` that is nothing at all, and far above `maxZoom` it is one
+ * overzoomed tile, so the camera stays between the two.
  */
-export function fitToBounds(map: MaplibreMap, bbox: [number, number, number, number], animate = false): void {
-	map.fitBounds(bbox, { padding: PADDING, duration: animate ? 400 : 0 });
+export function fitToBounds(
+	map: MaplibreMap,
+	bbox: [number, number, number, number],
+	animate = false,
+	zooms?: { minZoom: number; maxZoom: number }
+): void {
+	const duration = animate ? 400 : 0;
+	if (!zooms) {
+		map.fitBounds(bbox, { padding: PADDING, duration });
+		return;
+	}
+	// `fitBounds` takes a `maxZoom` but no `minZoom`, so the camera is worked out first and raised.
+	const camera = map.cameraForBounds(bbox, { padding: PADDING, maxZoom: zooms.maxZoom });
+	// No camera when the window is too small for the padding, which `fitBounds` would also skip.
+	if (!camera) return;
+	const zoom = Math.max(camera.zoom ?? zooms.minZoom, zooms.minZoom);
+	map.easeTo({ ...camera, zoom, duration });
 }
 
 /**

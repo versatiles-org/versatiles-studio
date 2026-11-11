@@ -456,8 +456,8 @@ export const workbench = {
 	 */
 	resetView(): void {
 		const map = mapOf();
-		const bbox = composition.editedName === null ? null : (preview.built[composition.editedName]?.info.bbox ?? null);
-		if (map && bbox) fitToBounds(map, bbox, true);
+		const info = composition.editedName === null ? null : (preview.built[composition.editedName]?.info ?? null);
+		if (map && info?.bbox) fitToBounds(map, info.bbox, true, info);
 	},
 
 	/**

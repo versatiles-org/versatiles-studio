@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { LayerSpecification, Map as MaplibreMap } from 'maplibre-gl';
-import { addContainerToMap, removeContainerFromMap } from './add-source';
+import { addContainerToMap, fitToBounds, removeContainerFromMap } from './add-source';
 
 /** A raster mount, which is the whole of what a `png` container draws. */
 function raster(name: string, tileFormat = 'png', revision = 1, maxZoom = 14) {
@@ -204,5 +204,60 @@ describe('removeContainerFromMap', () => {
 		const fake = fakeMap();
 		removeContainerFromMap(fake.map, 'gone');
 		expect(fake.errors).toEqual([]);
+	});
+});
+
+/**
+ * Framing a source within its zoom range (#16).
+ *
+ * The camera maths is MapLibre's. What is Studio's is the clamp, so the map here answers
+ * `cameraForBounds` with the zoom the extent alone would give, and records where it was sent.
+ */
+describe('framing a source', () => {
+	const BERLIN: [number, number, number, number] = [13.3, 52.4, 13.5, 52.6];
+
+	/** A map whose extent alone frames at `fitted`, capped at the `maxZoom` it is asked for. */
+	function camera(fitted: number) {
+		const moves: { zoom?: number; duration?: number }[] = [];
+		const asked: { maxZoom?: number }[] = [];
+		const map = {
+			cameraForBounds: (_bbox: unknown, options: { maxZoom?: number }) => {
+				asked.push(options);
+				return { center: [13.4, 52.5], zoom: Math.min(fitted, options.maxZoom ?? Infinity), bearing: 0 };
+			},
+			easeTo: (options: { zoom?: number; duration?: number }) => void moves.push(options),
+			fitBounds: () => void moves.push({})
+		} as unknown as MaplibreMap;
+		return { map, moves, asked };
+	}
+
+	// The case the issue starts from: the extent is a city, so it frames at about z11, and the
+	// source has nothing below z14. MapLibre would ask for no tiles at all.
+	it('goes no lower than the lowest zoom with tiles', () => {
+		const { map, moves } = camera(11);
+		fitToBounds(map, BERLIN, false, { minZoom: 14, maxZoom: 16 });
+		expect(moves).toEqual([expect.objectContaining({ zoom: 14, duration: 0 })]);
+	});
+
+	// A source that stops at z4, around a small extent: far above it there is one overzoomed tile.
+	it('goes no higher than the highest zoom with tiles', () => {
+		const { map, moves, asked } = camera(11);
+		fitToBounds(map, BERLIN, true, { minZoom: 0, maxZoom: 4 });
+		expect(asked).toEqual([expect.objectContaining({ maxZoom: 4 })]);
+		expect(moves).toEqual([expect.objectContaining({ zoom: 4, duration: 400 })]);
+	});
+
+	it('frames the extent as it is when that is already within the range', () => {
+		const { map, moves } = camera(11);
+		fitToBounds(map, BERLIN, false, { minZoom: 0, maxZoom: 16 });
+		expect(moves).toEqual([expect.objectContaining({ zoom: 11 })]);
+	});
+
+	// `cameraForBounds` has no answer when the window is smaller than the padding.
+	it('leaves the camera alone when no camera fits', () => {
+		const { map, moves } = camera(11);
+		(map as unknown as { cameraForBounds: () => undefined }).cameraForBounds = () => undefined;
+		fitToBounds(map, BERLIN, false, { minZoom: 14, maxZoom: 16 });
+		expect(moves).toEqual([]);
 	});
 });
