@@ -99,6 +99,10 @@ pub struct RasterDissection {
 	pub schema: Option<String>,
 	/// What is worth fixing about it, the most serious first.
 	pub checks: Vec<RasterCheck>,
+	/// How many pixels have each value from 0 to 255: one list per channel, in the tile's own
+	/// order - grey; grey, alpha; red, green, blue; or those and alpha. A fully transparent pixel is
+	/// counted in alpha only, since its colour is never seen.
+	pub histogram: Vec<Vec<u32>>,
 	/// The heights an elevation tile encodes - `None` for imagery, and for a DEM in an encoding
 	/// nothing here can decode.
 	pub elevation: Option<Elevation>,
@@ -125,6 +129,8 @@ pub struct Elevation {
 	pub max: f64,
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub mean: f64,
+	/// How many pixels fall in each of [`HEIGHT_BINS`] equal steps from `min` to `max`.
+	pub histogram: Vec<u32>,
 }
 
 /// Something about a raster tile worth fixing - the raster counterpart of a [`TileIssue`].
@@ -401,6 +407,48 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 	Ok(Some(found))
 }
 
+/// How many steps a DEM tile's height histogram has: enough to show a terrace, few enough that each
+/// step of a 512 px tile still holds a readable number of pixels.
+pub const HEIGHT_BINS: usize = 64;
+
+/// What a DEM tile's heights add up to, or `None` when no pixel carries one.
+fn elevation(encoding: &str, heights: &[f64]) -> Option<Elevation> {
+	if heights.is_empty() {
+		return None;
+	}
+	let min = heights.iter().copied().fold(f64::INFINITY, f64::min);
+	let max = heights.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+	let mut histogram = vec![0u32; HEIGHT_BINS];
+	let span = max - min;
+	for &height in heights {
+		// A flat tile is all in the first step; the highest height belongs in the last, not past it.
+		#[expect(
+			clippy::cast_possible_truncation,
+			clippy::cast_sign_loss,
+			clippy::cast_precision_loss,
+			reason = "the step is between 0 and HEIGHT_BINS, and clamped to it"
+		)]
+		let step = if span > 0.0 {
+			(((height - min) / span) * HEIGHT_BINS as f64).floor() as usize
+		} else {
+			0
+		};
+		histogram[step.min(HEIGHT_BINS - 1)] += 1;
+	}
+	#[expect(
+		clippy::cast_precision_loss,
+		reason = "a tile's pixel count is far inside f64's precision"
+	)]
+	let mean = heights.iter().sum::<f64>() / heights.len() as f64;
+	Some(Elevation {
+		encoding: encoding.to_string(),
+		min,
+		max,
+		mean,
+		histogram,
+	})
+}
+
 /// What a decoded raster tile holds, and what it says in metres if `schema` is a DEM we can read.
 fn raster(image: &DynamicImage, schema: Option<&TileSchema>) -> Result<RasterDissection> {
 	let color = image.color();
@@ -416,13 +464,21 @@ fn raster(image: &DynamicImage, schema: Option<&TileSchema>) -> Result<RasterDis
 	let mut translucent = 0u32;
 	let mut colours: HashSet<u32> = HashSet::new();
 	let decode = decoder(schema).filter(|_| color.channel_count() >= 3);
-	let (mut low, mut high, mut sum, mut heights) = (f64::INFINITY, f64::NEG_INFINITY, 0.0, 0u32);
+	let mut heights: Vec<f64> = Vec::new();
+	let depth = usize::from(color.channel_count());
+	let mut histogram = vec![vec![0u32; 256]; depth];
 	for pixel in image.iter_pixels() {
+		if alpha && pixel[depth - 1] == 0 {
+			histogram[depth - 1][0] += 1;
+		} else {
+			for (channel, &value) in pixel.iter().enumerate() {
+				histogram[channel][usize::from(value)] += 1;
+			}
+		}
 		if let Some((_, decode)) = decode
 			&& !(alpha && pixel[3] == 0)
 		{
-			let metres = decode([pixel[0], pixel[1], pixel[2]]);
-			(low, high, sum, heights) = (low.min(metres), high.max(metres), sum + metres, heights + 1);
+			heights.push(decode([pixel[0], pixel[1], pixel[2]]));
 		}
 		if alpha {
 			match pixel.last().copied().unwrap_or(255) {
@@ -456,12 +512,8 @@ fn raster(image: &DynamicImage, schema: Option<&TileSchema>) -> Result<RasterDis
 		image: format!("data:image/png;base64,{}", STANDARD.encode(png.as_slice())),
 		schema: schema.map(|schema| schema.as_str().to_string()),
 		checks: Vec::new(),
-		elevation: decode.filter(|_| heights > 0).map(|(encoding, _)| Elevation {
-			encoding: encoding.to_string(),
-			min: low,
-			max: high,
-			mean: sum / f64::from(heights),
-		}),
+		elevation: decode.and_then(|(encoding, _)| elevation(encoding, &heights)),
+		histogram,
 	})
 }
 
@@ -976,6 +1028,14 @@ mod tests {
 		assert_eq!((found.channels.as_str(), found.alpha), ("RGBA", true));
 		assert_eq!((found.transparent, found.translucent), (1, 1));
 		assert_eq!((found.colours, found.colours_capped), (3, false));
+		// Red is 255 in the three pixels that show; the transparent one is counted in alpha alone.
+		assert_eq!(found.histogram.len(), 4);
+		assert_eq!(found.histogram[0][255], 3);
+		assert_eq!(found.histogram[0].iter().sum::<u32>(), 3);
+		assert_eq!(
+			(found.histogram[3][0], found.histogram[3][128], found.histogram[3][255]),
+			(1, 1, 2)
+		);
 
 		let opaque = raster(&DynamicImage::from_raw(1, 2, vec![10, 20, 30, 10, 20, 30])?, None)?;
 		assert_eq!((opaque.channels.as_str(), opaque.alpha), ("RGB", false));
@@ -993,6 +1053,10 @@ mod tests {
 			.expect("a Terrarium tile has heights");
 		assert_eq!(found.encoding, "terrarium");
 		assert_eq!((found.min, found.max, found.mean), (0.0, 1000.0, 500.0));
+		// The lowest in the first step and the highest in the last, not one past it.
+		assert_eq!(found.histogram.len(), HEIGHT_BINS);
+		assert_eq!((found.histogram[0], found.histogram[HEIGHT_BINS - 1]), (1, 1));
+		assert_eq!(found.histogram.iter().sum::<u32>(), 2);
 
 		let mapbox = DynamicImage::from_raw(1, 1, vec![1, 134, 160])?;
 		let found = raster(&mapbox, Some(&TileSchema::RasterDEMMapbox))?.elevation.unwrap();

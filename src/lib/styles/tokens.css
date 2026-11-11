@@ -85,6 +85,12 @@
 	--swatch-imagery-land: #5f6b45;
 	--swatch-imagery-water: #1f3a52;
 	--swatch-imagery-road: #c9b98f;
+	/* A raster tile's channels in the tile dialog's histogram. Red, green and blue because that is
+	   what they are, kept apart for red-green colour blindness by lightness - a dark red against a
+	   light green - and named in a legend beside them, so colour is never the only way to tell. */
+	--channel-red: #a8201a;
+	--channel-green: #55b04f;
+	--channel-blue: #2a5bc4;
 	/* The crop (F2, S5.2). Two tokens because the overlay does two things: it dims everything the
 	   export will not write, and traces the edge of what it will. The dim is a near-black rather
 	   than a grey - it has to darken any basemap without tinting it - and is drawn at partial
@@ -228,6 +234,9 @@
 		--swatch-imagery-land: #5f6b45;
 		--swatch-imagery-water: #1f3a52;
 		--swatch-imagery-road: #c9b98f;
+		--channel-red: #b8342b;
+		--channel-green: #55a74b;
+		--channel-blue: #5a82e6;
 		--map-bg: #1b1f22;
 		--map-grid: #fff;
 		--map-grid-halo: #0007;

@@ -10,6 +10,8 @@
 	import TileDrawing, { layerColour, reach } from './TileDrawing.svelte';
 	import TileNavigator from './TileNavigator.svelte';
 	import RasterTile, { type PointedPixel } from './RasterTile.svelte';
+	import PixelHistogram, { type Series } from './PixelHistogram.svelte';
+	import { share as part, step, summarise } from './pixel-stats';
 	import { bytes, kilobytes, count, ordinal } from '../common/format';
 	import type { Dissection } from '../ipc/commands';
 	import { parseAddress, type TileAt } from '../state/tile-dialog.svelte';
@@ -81,6 +83,41 @@
 	const raster = $derived(dissection?.raster ?? null);
 	/// A height as the dialog writes it: to the decimetre, which is what Mapbox's encoding resolves.
 	const metres = (value: number) => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} m`;
+
+	/// The colour channels as lines, named and coloured for what they are. Alpha is left out: an
+	/// opaque tile's alpha is one spike as tall as the tile, and the facts already say how much shows.
+	const CHANNELS: Record<string, { name: string; colour: string }[]> = {
+		grey: [{ name: 'grey', colour: 'var(--ink-2)' }],
+		'grey + alpha': [{ name: 'grey', colour: 'var(--ink-2)' }],
+		RGB: [
+			{ name: 'red', colour: 'var(--channel-red)' },
+			{ name: 'green', colour: 'var(--channel-green)' },
+			{ name: 'blue', colour: 'var(--channel-blue)' }
+		],
+		RGBA: [
+			{ name: 'red', colour: 'var(--channel-red)' },
+			{ name: 'green', colour: 'var(--channel-green)' },
+			{ name: 'blue', colour: 'var(--channel-blue)' }
+		]
+	};
+	const channelSeries = $derived<Series[]>(
+		raster ? (CHANNELS[raster.channels] ?? []).map((one, at) => ({ ...one, counts: raster.histogram[at] ?? [] })) : []
+	);
+	/// A DEM's heights as bars: its channels mean nothing one at a time, so they are not drawn.
+	const heightSeries = $derived<Series[]>(
+		raster?.elevation ? [{ name: 'heights', colour: 'var(--accent)', counts: raster.elevation.histogram }] : []
+	);
+	const describeValue = (value: number) =>
+		`Value ${value}: ` + channelSeries.map((one) => `${one.name} ${count(one.counts[value] ?? 0)}`).join(' · ');
+	function heightRange(index: number): [number, number] {
+		const elevation = raster?.elevation;
+		return elevation ? step(elevation.min, elevation.max, elevation.histogram.length, index) : [0, 0];
+	}
+	const describeHeights = (index: number) => {
+		const [low, high] = heightRange(index);
+		const pixels = raster?.elevation?.histogram[index] ?? 0;
+		return `${metres(low)} to ${metres(high)}: ${count(pixels)} ${pixels === 1 ? 'pixel' : 'pixels'}`;
+	};
 	/// A share of the tile's pixels, as "12%" - or "under 1%" rather than a "0%" that is not nothing.
 	const share = (pixels: number) => {
 		if (!raster) return '';
@@ -529,6 +566,68 @@
 						</dl>
 						<!-- The raster counterpart of the Issues tab: what is worth fixing, and why. The serious
 						     ones change the data; the rest only cost bytes. -->
+						<Group title="Histogram">
+							{#if raster.elevation}
+								<PixelHistogram
+									series={heightSeries}
+									bars
+									ticks={[
+										{ at: 0, text: metres(raster.elevation.min) },
+										{ at: raster.elevation.histogram.length - 1, text: metres(raster.elevation.max) }
+									]}
+									describe={describeHeights}
+									label="Pixels by height"
+								/>
+								<details>
+									<summary>As a table</summary>
+									<table class="figures" aria-label="Pixels by height">
+										<thead><tr><th scope="col">Heights</th><th scope="col">Pixels</th></tr></thead>
+										<tbody>
+											{#each raster.elevation.histogram as pixels, index (index)}
+												{#if pixels > 0}
+													{@const [low, high] = heightRange(index)}
+													<tr><th scope="row">{metres(low)} – {metres(high)}</th><td>{count(pixels)}</td></tr>
+												{/if}
+											{/each}
+										</tbody>
+									</table>
+								</details>
+							{:else if channelSeries.length > 0}
+								<PixelHistogram
+									series={channelSeries}
+									ticks={[
+										{ at: 0, text: '0' },
+										{ at: 128, text: '128' },
+										{ at: 255, text: '255' }
+									]}
+									describe={describeValue}
+									label="Pixels by value, per channel"
+								/>
+								<!-- The chart's twin, and where clipping shows: the share of a channel at either end. -->
+								<table class="figures" aria-label="Channels">
+									<thead>
+										<tr
+											><th scope="col">Channel</th><th scope="col">Lowest</th><th scope="col">Highest</th><th
+												scope="col">Mean</th
+											><th scope="col">At 0</th><th scope="col">At 255</th></tr
+										>
+									</thead>
+									<tbody>
+										{#each channelSeries as one (one.name)}
+											{@const figures = summarise(one.counts)}
+											<tr>
+												<th scope="row">{one.name}</th>
+												<td>{figures.min ?? '-'}</td>
+												<td>{figures.max ?? '-'}</td>
+												<td>{figures.mean === null ? '-' : figures.mean.toFixed(1)}</td>
+												<td>{part(figures.atZero)}</td>
+												<td>{part(figures.atTop)}</td>
+											</tr>
+										{/each}
+									</tbody>
+								</table>
+							{/if}
+						</Group>
 						<Group title="Checks">
 							{#each raster.checks as check (check.kind)}
 								<Note tone={check.serious ? 'problem' : 'aside'}>{check.label}</Note>

@@ -8,6 +8,13 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/svelte';
 import TileDialog from './TileDialog.svelte';
+
+// jsdom has no `ResizeObserver`, and the histograms measure their width with one.
+globalThis.ResizeObserver ??= class {
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+} as unknown as typeof ResizeObserver;
 import { reach } from './TileDrawing.svelte';
 import type { Dissection, FeatureDissection, LayerDissection, RasterDissection } from '../ipc/commands';
 
@@ -162,6 +169,9 @@ describe('the tile dialog', () => {
 	});
 
 	describe('a raster tile', () => {
+		/** A channel's 256 counts, from the values that have any. */
+		const counts = (at: Record<number, number>) => Array.from({ length: 256 }, (_, value) => at[value] ?? 0);
+
 		/** Four pixels: one transparent, one half so. The image itself is never decoded in jsdom. */
 		const raster = (over: Partial<RasterDissection> = {}): Dissection => ({
 			...tile,
@@ -183,6 +193,13 @@ describe('the tile dialog', () => {
 				schema: 'rgba',
 				elevation: null,
 				checks: [],
+				// 65,536 of the 262,144 pixels are transparent and counted in alpha only.
+				histogram: [
+					counts({ 0: 98_304, 255: 98_304 }),
+					counts({ 128: 196_608 }),
+					counts({ 10: 196_608 }),
+					counts({ 0: 65_536, 128: 1000, 255: 195_608 })
+				],
 				...over
 			}
 		});
@@ -210,7 +227,7 @@ describe('the tile dialog', () => {
 					channels: 'RGB',
 					alpha: false,
 					schema: 'dem/terrarium',
-					elevation: { encoding: 'terrarium', min: -12.5, max: 1843.25, mean: 402.04 }
+					elevation: { encoding: 'terrarium', min: -12.5, max: 1843.25, mean: 402.04, histogram: [3, 0, 7] }
 				})
 			});
 			const facts = within(screen.getByLabelText("The tile's pixels"));
@@ -243,6 +260,49 @@ describe('the tile dialog', () => {
 		it('says so when there is nothing to fix', () => {
 			show({ dissection: raster() });
 			expect(screen.getByText('Nothing to fix in this tile.')).toBeTruthy();
+		});
+
+		// The twin of the chart, and where clipping shows: half the red is at 0 and half at 255.
+		it('counts each colour channel, and says where one is clipped', () => {
+			show({ dissection: raster() });
+			expect(screen.getByRole('slider', { name: 'Pixels by value, per channel' })).toBeTruthy();
+			const rows = within(screen.getByRole('table', { name: 'Channels' }))
+				.getAllByRole('row')
+				.slice(1)
+				.map((row) => [...row.children].map((cell) => cell.textContent?.trim()).join(' '));
+			expect(rows).toEqual(['red 0 255 127.5 50% 50%', 'green 128 128 128.0 - -', 'blue 10 10 10.0 - -']);
+			// Alpha is in the facts, not drawn as a fourth line.
+			expect(screen.queryByText('alpha')).toBeNull();
+		});
+
+		it('reads the counts at a value from the keyboard', async () => {
+			show({ dissection: raster() });
+			const chart = screen.getByRole('slider', { name: 'Pixels by value, per channel' });
+			await fireEvent.keyDown(chart, { key: 'End' });
+			expect(chart.getAttribute('aria-valuetext')).toBe('Value 255: red 98,304 · green 0 · blue 0');
+		});
+
+		// A DEM's channels mean nothing one at a time, so its heights are counted instead.
+		it('counts a DEM tile by height rather than by channel', async () => {
+			show({
+				dissection: raster({
+					channels: 'RGB',
+					alpha: false,
+					schema: 'dem/terrarium',
+					elevation: { encoding: 'terrarium', min: 0, max: 300, mean: 120, histogram: [5, 0, 1] }
+				})
+			});
+			expect(screen.queryByRole('table', { name: 'Channels' })).toBeNull();
+			const chart = screen.getByRole('slider', { name: 'Pixels by height' });
+			await fireEvent.keyDown(chart, { key: 'Home' });
+			expect(chart.getAttribute('aria-valuetext')).toBe('0 m to 100 m: 5 pixels');
+			const rows = within(screen.getByRole('table', { name: 'Pixels by height' }))
+				.getAllByRole('row')
+				.slice(1);
+			expect(rows.map((row) => [...row.children].map((cell) => cell.textContent?.trim()).join(' '))).toEqual([
+				'0 m – 100 m 5',
+				'200 m – 300 m 1'
+			]);
 		});
 
 		it('offers no heights for imagery', () => {

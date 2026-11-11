@@ -45,9 +45,14 @@ const KIT = new Set([
 
 /**
  * Components whose SVG is a drawing of data rather than a glyph - the tile dialog draws a tile's
- * geometry (S14.5), and the Analysis pane charts the tile sizes (#23), which no icon could.
+ * geometry (S14.5), the Analysis pane charts the tile sizes (#23), and the tile dialog counts a
+ * raster tile's pixels - none of which an icon could.
  */
-const DRAWINGS = new Set(['lib/shell/TileDrawing.svelte', 'lib/panes/analysis/SizeHistogram.svelte']);
+const DRAWINGS = new Set([
+	'lib/shell/TileDrawing.svelte',
+	'lib/shell/PixelHistogram.svelte',
+	'lib/panes/analysis/SizeHistogram.svelte'
+]);
 
 const files = [...components(), 'App.svelte', 'Launcher.svelte'];
 const users = files.filter((path) => !KIT.has(path));

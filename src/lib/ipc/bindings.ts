@@ -1218,6 +1218,8 @@ export type Elevation = {
 	min: number,
 	max: number,
 	mean: number,
+	/**  How many pixels fall in each of [`HEIGHT_BINS`] equal steps from `min` to `max`. */
+	histogram: number[],
 };
 
 /**
@@ -2208,6 +2210,12 @@ export type RasterDissection = {
 	schema: string | null,
 	/**  What is worth fixing about it, the most serious first. */
 	checks: RasterCheck[],
+	/**
+	 *  How many pixels have each value from 0 to 255: one list per channel, in the tile's own
+	 *  order - grey; grey, alpha; red, green, blue; or those and alpha. A fully transparent pixel is
+	 *  counted in alpha only, since its colour is never seen.
+	 */
+	histogram: number[][],
 	/**
 	 *  The heights an elevation tile encodes - `None` for imagery, and for a DEM in an encoding
 	 *  nothing here can decode.
