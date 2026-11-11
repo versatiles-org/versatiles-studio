@@ -39,6 +39,7 @@
 	import { analysis } from './lib/state/analysis.svelte';
 	import { requestedZoom } from './lib/map/tile-grid';
 	import TileActivity from './lib/map/TileActivity.svelte';
+	import MapRange from './lib/map/MapRange.svelte';
 	import CropOverlay from './lib/map/CropOverlay.svelte';
 	import { bboxField } from './lib/state/bbox.svelte';
 	import MapControls from './lib/map/MapControls.svelte';
@@ -315,6 +316,14 @@
 			<!-- Always mounted: it draws nothing until tiles have been pending for a second (S2.16), so it
 		     has no visibility of its own to toggle. -->
 			<TileActivity {map} />
+			<!-- Draws nothing while the camera can see the data; says why not, and offers the way back,
+			     when it cannot (#16). The same graph and the same framing as "Reset view". -->
+			<MapRange
+				{map}
+				mount={composition.editedName}
+				extent={composition.editedBuild?.info ?? null}
+				onShow={() => workbench.resetView()}
+			/>
 			<!-- Always mounted: with no crop it draws nothing, and drawing mode is a prop rather than a
 		     mount, so leaving it does not have to tear down the rectangle it just made. -->
 			<!-- **One rectangle on the map, whoever is asking for it** ([Q53]). The crop sets it, and so
