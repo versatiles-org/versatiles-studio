@@ -236,7 +236,11 @@ export const workbench = {
 	/** Opens whatever the pipeline now reads, naming each one in the bar as it goes. */
 	async syncContainers(): Promise<void> {
 		if (!document.current) return;
-		await preview.syncContainers(document.current, (source) => status.waiting(`Opening ${filename(source)}…`));
+		await preview.syncContainers(
+			document.current,
+			(source) => status.waiting(`Opening ${filename(source)}…`),
+			({ step, fraction }) => status.advance(step, fraction)
+		);
 	},
 
 	/**
@@ -638,7 +642,7 @@ export const workbench = {
 				// pipeline it had just opened.
 				await this.applyDocument(await openVpl(source));
 			} else if (kind.id === 'container') {
-				const result = await preview.mount(source);
+				const result = await preview.mount(source, ({ step, fraction }) => status.advance(step, fraction));
 				document.show(await this.setText(result.vpl, 'replaced', source, into));
 			} else {
 				const opened = await this.setText(await importReadNode(kind.id, source), 'replaced', source, into);

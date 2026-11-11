@@ -179,8 +179,11 @@ export const commands = {
 	 *  round trip. Re-opening the same path replaces the mount rather than stacking duplicates - see
 	 *  [`ServerManager::mount`](studio_core::server::ServerManager::mount), which is where that is
 	 *  actually enforced.
+	 * 
+	 *  `progress` hears how far the open has got: reading the tile index, then computing the tile
+	 *  pyramid (#21). Nothing is sent on it once this returns.
 	 */
-	openContainer: (source: string) => typedError<OpenedContainer, string>(__TAURI_INVOKE("open_container", { source })),
+	openContainer: (source: string, progress: Channel<OpenProgress>) => typedError<OpenedContainer, string>(__TAURI_INVOKE("open_container", { source, progress })),
 	/**  The recently opened sources, newest first (A7). */
 	recentSources: () => typedError<RecentEntry[], string>(__TAURI_INVOKE("recent_sources")),
 	/**  Drops one entry - for a path that has gone away, or that the user wants gone. */
@@ -1878,6 +1881,14 @@ export type NodeSuggestions = {
 	/**  The node's path, as `0.1.2`. */
 	path: string,
 	fields: FieldSuggestion[],
+};
+
+/**  What an open is doing, and how far along it is. */
+export type OpenProgress = {
+	/**  Upstream's own words for the step, such as "reading the tile index". */
+	step: string,
+	/**  From 0 to 1, or `None` when the step has no known total, as MBTiles' pyramid does not. */
+	fraction: number | null,
 };
 
 export type OpenedContainer = {

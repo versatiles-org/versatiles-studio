@@ -37,7 +37,14 @@ import type { Map as MaplibreMap } from 'maplibre-gl';
 import { addContainerToMap, fitToBounds, removeContainerFromMap } from '../map/add-source';
 import { whyNotRenderable } from '../map/tile-format';
 import { walk } from '../vpl/nodes';
-import { mountGraph, openContainer, type DocumentView, type OpenedContainer, type Preview } from '../ipc/commands';
+import {
+	mountGraph,
+	openContainer,
+	type DocumentView,
+	type OpenedContainer,
+	type OpenProgress,
+	type Preview
+} from '../ipc/commands';
 
 /** What a refresh did, for the caller to say in the status bar. */
 export type Refreshed =
@@ -136,9 +143,11 @@ let held = $state(empty());
  *
  * Does not put it on the map - the map shows what the *pipeline* produces (C3), and a container is
  * only ever an input to that.
+ *
+ * `onProgress` hears how far the open has got, for the caller to show (#21).
  */
-async function mount(source: string): Promise<OpenedContainer> {
-	const result = await openContainer(source);
+async function mount(source: string, onProgress?: (progress: OpenProgress) => void): Promise<OpenedContainer> {
+	const result = await openContainer(source, onProgress);
 	held.containers = [...held.containers.filter((c) => c.info.source !== result.info.source), result];
 	return result;
 }
@@ -353,9 +362,13 @@ export const preview = {
 	 * apart, which is the one thing merging the modes was meant to prevent.
 	 *
 	 * `onOpening` is called before each container that has to be read, which is not always instant:
-	 * a remote one reads its index over the network.
+	 * a remote one reads its index over the network. `onProgress` then hears how far that one has got.
 	 */
-	async syncContainers(pipeline: DocumentView, onOpening: (source: string) => void): Promise<void> {
+	async syncContainers(
+		pipeline: DocumentView,
+		onOpening: (source: string) => void,
+		onProgress?: (progress: OpenProgress) => void
+	): Promise<void> {
 		// A plain Set, not `SvelteSet`: this is a local working set inside one call, never held in
 		// `$state` and never read reactively, so there is nothing for a reactive wrapper to do.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
@@ -371,7 +384,7 @@ export const preview = {
 		for (const source of wanted) {
 			if (held.containers.some((c) => c.info.source === source)) continue;
 			onOpening(source);
-			await mount(source);
+			await mount(source, onProgress);
 		}
 	},
 

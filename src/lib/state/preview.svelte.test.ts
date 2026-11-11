@@ -330,6 +330,23 @@ describe('the containers the document reads', () => {
 		expect(opening).toEqual(['berlin.mbtiles']);
 	});
 
+	// The open reports how far it has got (#21), and the caller is the one that shows it.
+	it("passes the open's progress to the caller", async () => {
+		ipc.openContainer.mockImplementation(
+			(source: string, onProgress: (progress: { step: string; fraction: number | null }) => void) => {
+				onProgress({ step: 'reading the tile index', fraction: 0.5 });
+				return Promise.resolve({ info: { source } });
+			}
+		);
+		const heard: unknown[] = [];
+		await preview.syncContainers(
+			withNodes(readNode('planet.pmtiles')),
+			() => {},
+			(progress) => void heard.push(progress)
+		);
+		expect(heard).toEqual([{ step: 'reading the tile index', fraction: 0.5 }]);
+	});
+
 	it('drops one the document no longer names', async () => {
 		await preview.syncContainers(withNodes(readNode('berlin.mbtiles')), () => {});
 		await preview.syncContainers(withNodes(readNode('paris.mbtiles')), () => {});

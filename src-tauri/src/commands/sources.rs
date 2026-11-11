@@ -3,9 +3,10 @@
 use crate::state::AppState;
 use studio_core::{
 	analysis::{self, ContainerInfo},
+	opening::{OpenProgress, Opening},
 	store::RecentEntry,
 };
-use tauri::State;
+use tauri::{State, ipc::Channel};
 
 /// Opens a container, mounts it on the embedded server, and returns what is cheap to know.
 ///
@@ -18,12 +19,16 @@ use tauri::State;
 /// round trip. Re-opening the same path replaces the mount rather than stacking duplicates - see
 /// [`ServerManager::mount`](studio_core::server::ServerManager::mount), which is where that is
 /// actually enforced.
+///
+/// `progress` hears how far the open has got: reading the tile index, then computing the tile
+/// pyramid (#21). Nothing is sent on it once this returns.
 #[tauri::command]
 #[specta::specta]
 pub async fn open_container(
 	window: tauri::Window,
 	state: State<'_, AppState>,
 	source: String,
+	progress: Channel<OpenProgress>,
 ) -> Result<OpenedContainer, String> {
 	// `from_container filename="berlin.mbtiles"` in a `.vpl` means *beside that file*, not beside
 	// wherever Studio was started - and *that file* belongs to this window's project (S7.1).
@@ -52,17 +57,28 @@ pub async fn open_container(
 		.next()
 		.ok_or("the read node did not parse into a node")?;
 
-	let mut server = state.server.lock().await;
+	// A send fails only when the window has gone, and an open is not worth failing over that.
+	let opening = Opening::new(std::sync::Arc::new(move |step| {
+		let _ = progress.send(step);
+	}));
 
 	// **Built as the pipeline's head, not opened as a bare reader**, so the preview that follows
 	// takes this source rather than opening the file again. For a remote container that was a second
 	// download of its whole index, and a second walk over it to find the zoom range.
-	let head = studio_core::preview::build_head(server.runtime(), node, &dir)
+	//
+	// **On the open's own runtime, and before the server is locked.** The runtime is what lets its
+	// progress be told apart from the server's other work (see `studio_core::opening`). And the
+	// server's lock is held only for the mount: a planet-sized index can take minutes, and the
+	// other windows should not wait for it.
+	let head = studio_core::preview::build_head(opening.runtime(), node, &dir)
 		.await
 		.map_err(|e| format!("{e:#}"))?;
 	let info = analysis::describe(head.source(), &resolved)
 		.await
 		.map_err(|e| format!("{e:#}"))?;
+	drop(opening);
+
+	let mut server = state.server.lock().await;
 	server
 		.mount(&mount, head.source().clone())
 		.await

@@ -40,6 +40,41 @@ describe('what the bar says', () => {
 		expect(status.current).toEqual({ kind: 'idle' });
 	});
 
+	// Opening a large container reads its index, then computes its pyramid. The bar fills for each,
+	// and the message stays the one the wait began with (#21).
+	it('fills a wait with how far it has got, keeping its message', () => {
+		status.waiting('Opening planet.pmtiles…');
+		status.advance('reading the tile index', 0.426);
+		expect(status.current).toEqual({
+			kind: 'busy',
+			message: 'Opening planet.pmtiles…',
+			waiting: true,
+			fraction: 0.426,
+			detail: 'reading the tile index · 42%'
+		});
+
+		// MBTiles cannot say how many tiles its pyramid has, so the bar goes back to moving.
+		status.advance('computing the tile pyramid', null);
+		expect(status.current).toEqual({
+			kind: 'busy',
+			message: 'Opening planet.pmtiles…',
+			waiting: true,
+			detail: 'computing the tile pyramid'
+		});
+	});
+
+	// Progress can arrive after the wait it belonged to, and must not draw a bar under a message
+	// about something else, or over a failure.
+	it('ignores progress when nothing is waiting', () => {
+		status.busy('Saved x.vpl');
+		status.advance('reading the tile index', 0.5);
+		expect(status.current).toEqual({ kind: 'busy', message: 'Saved x.vpl' });
+
+		status.fail('it broke');
+		status.advance('reading the tile index', 0.5);
+		expect(status.current).toEqual({ kind: 'error', message: 'it broke' });
+	});
+
 	it('settles a busy message', () => {
 		status.busy('Opening…');
 		expect(status.current.kind).toBe('busy');

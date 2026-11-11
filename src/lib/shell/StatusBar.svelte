@@ -14,8 +14,11 @@
 		 * `waiting` asks for the moving bar when there is no `fraction` to fill one with: something is
 		 * under way, it may take a while, and nothing can say how far it has got. Not every busy
 		 * message is that - "Saved x" is one too - so it is asked for rather than assumed.
+		 *
+		 * `detail` is the step under way, such as "reading the tile index · 42%", shown beside the
+		 * message where a job's pace goes.
 		 */
-		| { kind: 'busy'; message: string; fraction?: number; waiting?: boolean }
+		| { kind: 'busy'; message: string; fraction?: number; waiting?: boolean; detail?: string }
 		/**
 		 * `message` is the line to show - the cause of a chain rather than the whole of it ([Q59]) -
 		 * and `full` is what it was cut from, for the tooltip. Equal when there was nothing to cut.
@@ -109,7 +112,7 @@
 				};
 			}
 			if (status.kind === 'busy') {
-				return { message: status.message, fraction: status.fraction, waiting: status.waiting };
+				return { message: status.message, fraction: status.fraction, waiting: status.waiting, pace: status.detail };
 			}
 			// Below the others on purpose: a job or a failure is something the user started or needs
 			// to act on, while this is the map catching up. It fills the bar when nothing else needs

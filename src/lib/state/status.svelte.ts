@@ -33,11 +33,28 @@ export const status = {
 	 * Says what is happening, with a moving bar because nothing can say how far along it is.
 	 *
 	 * For a wait that can be long - opening a remote container reads its whole index first - so the
-	 * bar shows the app is working rather than stuck. A filling bar needs versatiles-rs to report
-	 * progress first (#21).
+	 * bar shows the app is working rather than stuck. `advance` fills it once there is something to
+	 * fill it with.
 	 */
 	waiting(message: string): void {
 		current = { kind: 'busy', message, waiting: true };
+	},
+
+	/**
+	 * Says how far a wait has got, keeping its message: "Opening planet.pmtiles…" stays, and the
+	 * step and its percentage go beside it (#21).
+	 *
+	 * **Only a wait.** Progress that arrives after the wait has ended, or after it failed, belongs to
+	 * nothing on screen any more.
+	 */
+	advance(step: string, fraction: number | null): void {
+		if (current.kind !== 'busy' || !current.waiting) return;
+		const { message } = current;
+		if (fraction === null) {
+			current = { kind: 'busy', message, waiting: true, detail: step };
+		} else {
+			current = { kind: 'busy', message, waiting: true, fraction, detail: `${step} · ${Math.floor(fraction * 100)}%` };
+		}
 	},
 
 	/**

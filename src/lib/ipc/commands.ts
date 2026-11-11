@@ -19,6 +19,7 @@
  *   exactly one line - see `failure.ts`.
  */
 
+import { Channel } from '@tauri-apps/api/core';
 import { commands as generated } from './bindings';
 import { namingFailures } from './failure';
 import { unwrap } from './unwrap';
@@ -34,6 +35,8 @@ import type {
 	Bounds,
 	Compression,
 	NewProblem,
+	OpenedContainer,
+	OpenProgress,
 	SourceKind,
 	RasterAdjust_Serialize as RasterAdjust,
 	Hillshade_Serialize as Hillshade,
@@ -350,8 +353,27 @@ export const setLayerOverride = (graph: number, layer: string, patch: LayerOverr
 
 // -- sources ---------------------------------------------------------------------------------
 
-/** Opens a container and mounts it on the embedded server (A1). Does not touch the pipeline. */
-export const openContainer = (source: string) => unwrap(commands.openContainer(source));
+/**
+ * Opens a container and mounts it on the embedded server (A1). Does not touch the pipeline.
+ *
+ * `onProgress` hears each step of the open and how far it has got (#21). It hears nothing once the
+ * open has settled, even if a message is still on its way: by then the bar says something else.
+ */
+export async function openContainer(
+	source: string,
+	onProgress: (progress: OpenProgress) => void = () => {}
+): Promise<OpenedContainer> {
+	let settled = false;
+	const channel = new Channel<OpenProgress>();
+	channel.onmessage = (progress) => {
+		if (!settled) onProgress(progress);
+	};
+	try {
+		return await unwrap(commands.openContainer(source, channel));
+	} finally {
+		settled = true;
+	}
+}
 
 /** Recently opened sources, newest first (A7). */
 export const recentSources = () => unwrap(commands.recentSources());
