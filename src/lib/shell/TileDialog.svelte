@@ -15,6 +15,7 @@
 	import { bytes, kilobytes, count, ordinal } from '../common/format';
 	import type { Dissection } from '../ipc/commands';
 	import { parseAddress, type TileAt } from '../state/tile-dialog.svelte';
+	import { pixelPosition } from '../map/tile-grid';
 
 	// One tile, taken apart (S14.5, A4, [Q72]).
 	//
@@ -286,8 +287,14 @@
 							{/if}
 							<span aria-live="polite">
 								{#if pointed}
-									Pixel {pointed.x}, {pointed.y}{pointed.value === null ? '' : ` · ${pointed.value}`}{pointed.metres ===
-									null
+									Pixel {pointed.x}, {pointed.y} at {pixelPosition(
+										at.z,
+										at.x,
+										at.y,
+										pointed.x,
+										pointed.y,
+										raster.width
+									)}{pointed.value === null ? '' : ` · ${pointed.value}`}{pointed.metres === null
 										? ''
 										: ` · ${metres(pointed.metres)}`}
 								{:else}

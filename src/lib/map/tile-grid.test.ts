@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { requestedZoom, tileCenter, tileForLngLat, tileRing, tileToLngLat } from './tile-grid';
+import { pixelPosition, requestedZoom, tileCenter, tileForLngLat, tileRing, tileToLngLat } from './tile-grid';
 
 // Web Mercator arithmetic is easy to get subtly wrong, so these check against values that can be
 // verified by hand rather than against whatever the implementation happens to produce.
@@ -103,5 +103,24 @@ describe('requestedZoom', () => {
 	// Nothing of ours on the map: the map's own zoom is the only answer there is.
 	it('falls back to the map zoom with no source to follow', () => {
 		expect(requestedZoom(14.6, null)).toBe(14);
+	});
+});
+
+/** Where a pixel of a tile is, for the tile dialog's readout. */
+describe('pixelPosition', () => {
+	// Zoom 1, a tile two pixels wide: the middle of pixel (0, 1) of tile 1/0 is a quarter of a tile
+	// east of the meridian and three quarters down the northern tile - 45° E, 40.98° N. Its twin on
+	// tile 0/1 is seven eighths of the way down the map, at 79.17° S.
+	it('names the middle of the pixel, with each hemisphere', () => {
+		expect(pixelPosition(1, 1, 0, 0, 1, 2)).toBe('41°N 45°E');
+		expect(pixelPosition(1, 0, 1, 0, 1, 2)).toBe('79°S 135°W');
+	});
+
+	// At zoom 14, a pixel of a 512 px tile is about 0.00004° wide: five decimals tell neighbours apart.
+	it('writes as many decimals as a pixel has there', () => {
+		const berlin = pixelPosition(14, 8800, 5373, 0, 0, 512);
+		expect(berlin).toMatch(/^52\.\d{5}°N 13\.\d{5}°E$/);
+		expect(pixelPosition(14, 8800, 5373, 1, 0, 512)).not.toBe(berlin);
+		expect(pixelPosition(2, 2, 1, 100, 100, 256)).toMatch(/^\d+\.\d°N \d+\.\d°E$/);
 	});
 });

@@ -31,6 +31,23 @@ export function tileToLngLat(x: number, y: number, z: number): [number, number] 
 }
 
 /**
+ * Where the middle of one pixel of a tile is, in degrees, and written to the precision a pixel has
+ * there - "47.42100°N 10.98530°E" - for the tile dialog's readout.
+ *
+ * **As many decimals as tell neighbouring pixels apart, and no more.** A pixel at zoom 14 of a
+ * 512 px tile is about 0.00004° wide, so five decimals; at zoom 2 it is 0.7°, so one. More digits
+ * than that would be precision the pixel does not have.
+ */
+export function pixelPosition(z: number, x: number, y: number, px: number, py: number, size: number): string {
+	const [lng, lat] = tileToLngLat(x + (px + 0.5) / size, y + (py + 0.5) / size, z);
+	const degrees = 360 / (2 ** z * size);
+	const decimals = Math.min(8, Math.max(0, Math.ceil(-Math.log10(degrees))));
+	const write = (value: number, positive: string, negative: string) =>
+		`${Math.abs(value).toFixed(decimals)}°${value < 0 ? negative : positive}`;
+	return `${write(lat, 'N', 'S')} ${write(lng, 'E', 'W')}`;
+}
+
+/**
  * The zoom level MapLibre asks a source for, at a given map zoom (A5).
  *
  * **MapLibre's own rule, not a guess.** `Transform.coveringZoomLevel` is
