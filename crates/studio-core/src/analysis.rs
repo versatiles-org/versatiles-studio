@@ -131,6 +131,41 @@ pub(crate) mod tests {
 		);
 	}
 
+	/// A container that declares the world and holds one city (#16, its second example).
+	///
+	/// The extent the map frames and the notice checks against has to be where the tiles are. The
+	/// declared one would frame the world, where a city at z8-z10 is a few pixels.
+	#[tokio::test]
+	async fn the_extent_is_where_the_tiles_are_not_what_the_metadata_declares() -> Result<()> {
+		let runtime = versatiles::runtime::create_test_runtime();
+		let vpl = "from_debug format=png | filter bbox=[13.3,52.4,13.5,52.6] level_min=8 level_max=10 \
+		           | meta_update bounds=[-180,-85,180,85]";
+
+		for format in ["versatiles", "mbtiles", "pmtiles"] {
+			let target = crate::testing::path(&format!("declares-the-world.{format}"));
+			let pipeline = crate::vpl::Document::parse(vpl)?.to_pipeline();
+			let source = crate::preview::build(&runtime, pipeline, std::path::Path::new(".")).await?;
+			runtime.write_to_path(source, &target).await?;
+
+			let (reader, info) = open(&runtime, target.to_str().unwrap()).await?;
+
+			// The premise, so a writer that stops copying the bounds cannot make this pass for nothing.
+			let declared = reader.tilejson().bounds.map(|b| b.as_array());
+			assert!(
+				declared.is_some_and(|[west, _, east, _]| west < -179.0 && east > 179.0),
+				"{format} should declare the world, got {declared:?}"
+			);
+
+			let [west, south, east, north] = info.bbox.unwrap_or_else(|| panic!("{format} should have an extent"));
+			assert!(
+				west > 12.0 && east < 15.0 && south > 51.0 && north < 54.0,
+				"{format} should be framed around Berlin, got {west} {south} {east} {north}"
+			);
+			assert_eq!((info.min_zoom, info.max_zoom), (8, 10), "{format}");
+		}
+		Ok(())
+	}
+
 	/// Where the sample containers live.
 	///
 	/// They are not vendored: `berlin.versatiles` alone is 25 MB, and binaries in git age badly.
