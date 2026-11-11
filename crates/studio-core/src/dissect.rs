@@ -25,7 +25,7 @@ use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use versatiles_container::{TileSource, describe_issue_kind};
-use versatiles_core::{TileCompression, TileCoord, TileFormat};
+use versatiles_core::{TileCompression, TileCoord, TileFormat, TileSchema};
 use versatiles_geometry::geo::GeoValue;
 use versatiles_geometry::vector_tile::{
 	GeoValuePBF, GeomType, VectorTile, VectorTileLayer, layer_stats, repair_tile, validate_tile, varint_len,
@@ -95,6 +95,49 @@ pub struct RasterDissection {
 	pub colours_capped: bool,
 	/// The pixels as a PNG `data:` URL.
 	pub image: String,
+	/// What the source says its tiles are, such as `rgb` or `dem/terrarium`, if it says.
+	pub schema: Option<String>,
+	/// The heights an elevation tile encodes - `None` for imagery, and for a DEM in an encoding
+	/// nothing here can decode.
+	pub elevation: Option<Elevation>,
+}
+
+/// What a DEM tile's colours say in metres.
+///
+/// **The formulas are upstream's**, from `versatiles_pipeline`'s DEM operations, which do not expose
+/// them: `R * 65536 + G * 256 + B` is the raw value, then `raw * 0.1 - 10000` for Mapbox and
+/// `raw / 256 - 32768` for Terrarium. `dem/versatiles` has no decoder there either.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct Elevation {
+	/// `mapbox` or `terrarium`.
+	pub encoding: String,
+	/// The lowest, highest and mean height, in metres, over the pixels that carry one - a fully
+	/// transparent pixel is no data, not a height.
+	// Always finite: there is no `Elevation` without a height to take them from. The override is the
+	// one on every `f64` that crosses (see `store.rs`), so they are numbers rather than `number | null`.
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
+	pub min: f64,
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
+	pub max: f64,
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
+	pub mean: f64,
+}
+
+/// A DEM encoding's name, and how it turns a pixel's red, green and blue into metres.
+type Decoder = (&'static str, fn([u8; 3]) -> f64);
+
+/// How a DEM encoding turns a pixel into metres, or `None` for a schema that is not one we can read.
+fn decoder(schema: Option<&TileSchema>) -> Option<Decoder> {
+	fn raw([r, g, b]: [u8; 3]) -> f64 {
+		f64::from((u32::from(r) << 16) | (u32::from(g) << 8) | u32::from(b))
+	}
+	match schema? {
+		TileSchema::RasterDEMMapbox => Some(("mapbox", |rgb| raw(rgb) * 0.1 - 10_000.0)),
+		TileSchema::RasterDEMTerrarium => Some(("terrarium", |rgb| raw(rgb) / 256.0 - 32_768.0)),
+		_ => None,
+	}
 }
 
 /// One layer: what it holds, and what its bytes are spent on.
@@ -229,7 +272,8 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 		raster: None,
 	};
 	if !format.is_vector() {
-		found.raster = Some(raster(tile.as_image().context("decoding the image")?)?);
+		let schema = source.tilejson().tile_schema.clone();
+		found.raster = Some(raster(tile.as_image().context("decoding the image")?, schema.as_ref())?);
 		return Ok(Some(found));
 	}
 
@@ -255,8 +299,8 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 	Ok(Some(found))
 }
 
-/// What a decoded raster tile holds.
-fn raster(image: &DynamicImage) -> Result<RasterDissection> {
+/// What a decoded raster tile holds, and what it says in metres if `schema` is a DEM we can read.
+fn raster(image: &DynamicImage, schema: Option<&TileSchema>) -> Result<RasterDissection> {
 	let color = image.color();
 	let alpha = color.has_alpha();
 	let channels = match (color.channel_count(), alpha) {
@@ -269,7 +313,15 @@ fn raster(image: &DynamicImage) -> Result<RasterDissection> {
 	let mut transparent = 0u32;
 	let mut translucent = 0u32;
 	let mut colours: HashSet<u32> = HashSet::new();
+	let decode = decoder(schema).filter(|_| color.channel_count() >= 3);
+	let (mut low, mut high, mut sum, mut heights) = (f64::INFINITY, f64::NEG_INFINITY, 0.0, 0u32);
 	for pixel in image.iter_pixels() {
+		if let Some((_, decode)) = decode
+			&& !(alpha && pixel[3] == 0)
+		{
+			let metres = decode([pixel[0], pixel[1], pixel[2]]);
+			(low, high, sum, heights) = (low.min(metres), high.max(metres), sum + metres, heights + 1);
+		}
 		if alpha {
 			match pixel.last().copied().unwrap_or(255) {
 				0 => transparent += 1,
@@ -300,6 +352,13 @@ fn raster(image: &DynamicImage) -> Result<RasterDissection> {
 		colours: clamp(colours.len()),
 		colours_capped: colours.len() >= MAX_COLOURS,
 		image: format!("data:image/png;base64,{}", STANDARD.encode(png.as_slice())),
+		schema: schema.map(|schema| schema.as_str().to_string()),
+		elevation: decode.filter(|_| heights > 0).map(|(encoding, _)| Elevation {
+			encoding: encoding.to_string(),
+			min: low,
+			max: high,
+			mean: sum / f64::from(heights),
+		}),
 	})
 }
 
@@ -809,15 +868,70 @@ mod tests {
 	fn counts_what_a_raster_tile_holds() -> Result<()> {
 		// Opaque red, nothing, half-transparent red, opaque red again.
 		let pixels = vec![255, 0, 0, 255, 0, 0, 0, 0, 255, 0, 0, 128, 255, 0, 0, 255];
-		let found = raster(&DynamicImage::from_raw(2, 2, pixels)?)?;
+		let found = raster(&DynamicImage::from_raw(2, 2, pixels)?, None)?;
 		assert_eq!((found.width, found.height), (2, 2));
 		assert_eq!((found.channels.as_str(), found.alpha), ("RGBA", true));
 		assert_eq!((found.transparent, found.translucent), (1, 1));
 		assert_eq!((found.colours, found.colours_capped), (3, false));
 
-		let opaque = raster(&DynamicImage::from_raw(1, 2, vec![10, 20, 30, 10, 20, 30])?)?;
+		let opaque = raster(&DynamicImage::from_raw(1, 2, vec![10, 20, 30, 10, 20, 30])?, None)?;
 		assert_eq!((opaque.channels.as_str(), opaque.alpha), ("RGB", false));
 		assert_eq!((opaque.transparent, opaque.translucent, opaque.colours), (0, 0, 1));
+		Ok(())
+	}
+
+	/// A DEM tile's heights, by upstream's formulas: Terrarium's (128, 0, 0) is 0 m and
+	/// (131, 232, 0) is 1000 m; Mapbox's (1, 134, 160) is 0 m.
+	#[test]
+	fn reads_the_heights_a_dem_tile_encodes() -> Result<()> {
+		let terrarium = DynamicImage::from_raw(2, 1, vec![128, 0, 0, 131, 232, 0])?;
+		let found = raster(&terrarium, Some(&TileSchema::RasterDEMTerrarium))?
+			.elevation
+			.expect("a Terrarium tile has heights");
+		assert_eq!(found.encoding, "terrarium");
+		assert_eq!((found.min, found.max, found.mean), (0.0, 1000.0, 500.0));
+
+		let mapbox = DynamicImage::from_raw(1, 1, vec![1, 134, 160])?;
+		let found = raster(&mapbox, Some(&TileSchema::RasterDEMMapbox))?.elevation.unwrap();
+		assert_eq!((found.encoding.as_str(), found.min), ("mapbox", 0.0));
+		Ok(())
+	}
+
+	/// A fully transparent pixel is no data: its colour says nothing about the height there.
+	#[test]
+	fn leaves_no_data_out_of_the_heights() -> Result<()> {
+		let pixels = vec![128, 0, 0, 255, 255, 255, 255, 0];
+		let image = DynamicImage::from_raw(2, 1, pixels)?;
+		let found = raster(&image, Some(&TileSchema::RasterDEMTerrarium))?
+			.elevation
+			.unwrap();
+		assert_eq!((found.min, found.max), (0.0, 0.0));
+
+		let nothing = DynamicImage::from_raw(1, 1, vec![0, 0, 0, 0])?;
+		assert!(
+			raster(&nothing, Some(&TileSchema::RasterDEMTerrarium))?
+				.elevation
+				.is_none()
+		);
+		Ok(())
+	}
+
+	/// Imagery has no heights, and `dem/versatiles` none that anything here can read - but both
+	/// say what they are.
+	#[test]
+	fn reads_heights_only_from_an_encoding_it_knows() -> Result<()> {
+		let image = DynamicImage::from_raw(1, 1, vec![128, 0, 0])?;
+		let imagery = raster(&image, Some(&TileSchema::RasterRGB))?;
+		assert_eq!(
+			(imagery.schema.as_deref(), imagery.elevation.is_none()),
+			(Some("rgb"), true)
+		);
+		let own = raster(&image, Some(&TileSchema::RasterDEMVersatiles))?;
+		assert_eq!(
+			(own.schema.as_deref(), own.elevation.is_none()),
+			(Some("dem/versatiles"), true)
+		);
+		assert!(raster(&image, None)?.schema.is_none());
 		Ok(())
 	}
 
@@ -826,7 +940,7 @@ mod tests {
 	fn sends_the_pixels_losslessly() -> Result<()> {
 		let pixels: Vec<u8> = (0..16u8 * 4).map(|i| i.wrapping_mul(37)).collect();
 		let image = DynamicImage::from_raw(4, 4, pixels.clone())?;
-		let url = raster(&image)?.image;
+		let url = raster(&image, None)?.image;
 		let encoded = url.strip_prefix("data:image/png;base64,").expect("a PNG data URL");
 		let blob = versatiles_core::Blob::from(STANDARD.decode(encoded)?);
 		let back = DynamicImage::from_blob(&blob, TileFormat::PNG)?;

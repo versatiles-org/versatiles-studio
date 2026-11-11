@@ -180,6 +180,8 @@ describe('the tile dialog', () => {
 				colours: 4321,
 				coloursCapped: false,
 				image: 'data:image/png;base64,AAAA',
+				schema: 'rgba',
+				elevation: null,
 				...over
 			}
 		});
@@ -198,6 +200,35 @@ describe('the tile dialog', () => {
 		it('says plainly when nothing shows through', () => {
 			show({ dissection: raster({ channels: 'RGB', alpha: false, transparent: 0, translucent: 0 }) });
 			expect(screen.getByText('none - the tile has no alpha channel')).toBeTruthy();
+		});
+
+		// A DEM's colours are not its picture, so its heights are what the facts lead with.
+		it('reads the heights of a DEM tile, and offers to draw them', () => {
+			show({
+				dissection: raster({
+					channels: 'RGB',
+					alpha: false,
+					schema: 'dem/terrarium',
+					elevation: { encoding: 'terrarium', min: -12.5, max: 1843.25, mean: 402.04 }
+				})
+			});
+			const facts = within(screen.getByLabelText("The tile's pixels"));
+			expect(facts.getByText('dem/terrarium')).toBeTruthy();
+			expect(facts.getByText('-12.5 m to 1,843.3 m, mean 402 m')).toBeTruthy();
+			expect((screen.getByLabelText('Draw the heights') as HTMLInputElement).checked).toBe(true);
+			expect(screen.getByText('Point at a pixel for its value and height.')).toBeTruthy();
+		});
+
+		it("says why a DEM in VersaTiles' own encoding shows no heights", () => {
+			show({ dissection: raster({ schema: 'dem/versatiles' }) });
+			expect(screen.getByText(/VersaTiles' own DEM encoding has no decoder yet/)).toBeTruthy();
+			expect(screen.queryByLabelText('Draw the heights')).toBeNull();
+		});
+
+		it('offers no heights for imagery', () => {
+			show({ dissection: raster() });
+			expect(screen.queryByLabelText('Draw the heights')).toBeNull();
+			expect(screen.getByText('Point at a pixel for its value.')).toBeTruthy();
 		});
 
 		it('says when it stopped counting colours', () => {

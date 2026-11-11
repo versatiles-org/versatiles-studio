@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { spell } from './RasterTile.svelte';
+import { metres, spell } from './RasterTile.svelte';
 
 /** A pixel's value, written for the channels the tile has - a canvas always gives four. */
 describe('spelling a pixel', () => {
@@ -18,5 +18,19 @@ describe('spelling a pixel', () => {
 
 	it('pads a small channel to two digits', () => {
 		expect(spell([0, 5, 15, 255], 'RGB')).toBe('#00050f');
+	});
+});
+
+/** The height a pixel encodes - the same formulas as the core's, which the tile's range comes from. */
+describe('reading a height', () => {
+	it('decodes Terrarium and Mapbox as upstream does', () => {
+		expect(metres([128, 0, 0, 255], 'terrarium')).toBe(0);
+		expect(metres([131, 232, 0, 255], 'terrarium')).toBe(1000);
+		expect(metres([128, 0, 128, 255], 'terrarium')).toBe(0.5);
+		expect(metres([1, 134, 160, 255], 'mapbox')).toBe(0);
+	});
+
+	it('reads no height from a pixel that is no data', () => {
+		expect(metres([128, 0, 0, 0], 'terrarium')).toBeNull();
 	});
 });

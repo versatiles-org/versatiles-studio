@@ -64,6 +64,9 @@
 
 	/// The pixel under the pointer, for a raster tile.
 	let pointed = $state<PointedPixel | null>(null);
+	/// Whether a DEM tile is drawn as its heights rather than the colours that encode them. Kept
+	/// from one tile to the next, since it is a way of looking at a source, not at one tile.
+	let relief = $state(true);
 
 	// A new tile is a new subject: what was picked in the last one names nothing in this one.
 	$effect(() => {
@@ -75,6 +78,8 @@
 
 	const vector = $derived(dissection !== null && dissection.layers.length > 0);
 	const raster = $derived(dissection?.raster ?? null);
+	/// A height as the dialog writes it: to the decimetre, which is what Mapbox's encoding resolves.
+	const metres = (value: number) => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} m`;
 	/// A share of the tile's pixels, as "12%" - or "under 1%" rather than a "0%" that is not nothing.
 	const share = (pixels: number) => {
 		if (!raster) return '';
@@ -210,7 +215,7 @@
 								onSelect={select}
 							/>
 						{:else if raster}
-							<RasterTile {raster} onPoint={(pixel) => (pointed = pixel)} />
+							<RasterTile {raster} {relief} onPoint={(pixel) => (pointed = pixel)} />
 						{:else}
 							<div class="blank">
 								{#if error}
@@ -237,12 +242,20 @@
 								>{/if}
 						</figcaption>
 					{:else if raster}
-						<figcaption aria-live="polite">
-							{#if pointed}
-								<span>Pixel {pointed.x}, {pointed.y}{pointed.value === null ? '' : ` · ${pointed.value}`}</span>
-							{:else}
-								<span>Point at a pixel for its value.</span>
+						<figcaption>
+							{#if raster.elevation}
+								<label><input type="checkbox" bind:checked={relief} /> Draw the heights</label>
 							{/if}
+							<span aria-live="polite">
+								{#if pointed}
+									Pixel {pointed.x}, {pointed.y}{pointed.value === null ? '' : ` · ${pointed.value}`}{pointed.metres ===
+									null
+										? ''
+										: ` · ${metres(pointed.metres)}`}
+								{:else}
+									Point at a pixel for its value{raster.elevation ? ' and height' : ''}.
+								{/if}
+							</span>
 						</figcaption>
 					{/if}
 				</figure>
@@ -502,7 +515,25 @@
 							</dd>
 							<dt>Colours</dt>
 							<dd>{raster.coloursCapped ? `more than ${count(raster.colours)}` : count(raster.colours)}</dd>
+							{#if raster.schema}
+								<dt>Schema</dt>
+								<dd>{raster.schema}</dd>
+							{/if}
+							{#if raster.elevation}
+								<dt>Heights</dt>
+								<dd>
+									{metres(raster.elevation.min)} to {metres(raster.elevation.max)}, mean {metres(raster.elevation.mean)}
+								</dd>
+							{/if}
 						</dl>
+						{#if raster.schema?.startsWith('dem/') && !raster.elevation}
+							<!-- Said rather than left blank: a DEM with no heights shown looks like one with none. -->
+							<Note tone="aside">
+								{raster.schema === 'dem/versatiles'
+									? "VersaTiles' own DEM encoding has no decoder yet, so its heights cannot be shown."
+									: 'Every pixel is transparent, so there are no heights to show.'}
+							</Note>
+						{/if}
 					</div>
 				{/if}
 			</div>

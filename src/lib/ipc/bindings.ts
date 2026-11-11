@@ -1202,6 +1202,25 @@ export type EditKind =
 "replaced";
 
 /**
+ *  What a DEM tile's colours say in metres.
+ * 
+ *  **The formulas are upstream's**, from `versatiles_pipeline`'s DEM operations, which do not expose
+ *  them: `R * 65536 + G * 256 + B` is the raw value, then `raw * 0.1 - 10000` for Mapbox and
+ *  `raw / 256 - 32768` for Terrarium. `dem/versatiles` has no decoder there either.
+ */
+export type Elevation = {
+	/**  `mapbox` or `terrarium`. */
+	encoding: string,
+	/**
+	 *  The lowest, highest and mean height, in metres, over the pixels that carry one - a fully
+	 *  transparent pixel is no data, not a height.
+	 */
+	min: number,
+	max: number,
+	mean: number,
+};
+
+/**
  *  What is running this, for the header of a copied report.
  * 
  *  **Half of it can only be answered here.** The webview knows its own engine and its GPU; the
@@ -2175,6 +2194,13 @@ export type RasterDissection = {
 	coloursCapped: boolean,
 	/**  The pixels as a PNG `data:` URL. */
 	image: string,
+	/**  What the source says its tiles are, such as `rgb` or `dem/terrarium`, if it says. */
+	schema: string | null,
+	/**
+	 *  The heights an elevation tile encodes - `None` for imagery, and for a DEM in an encoding
+	 *  nothing here can decode.
+	 */
+	elevation: Elevation | null,
 };
 
 export type RecentEntry = {
