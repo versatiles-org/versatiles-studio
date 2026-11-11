@@ -2170,6 +2170,16 @@ export type RasterAdjust_Serialize = {
 	resampling?: Resampling | null,
 };
 
+/**  Something about a raster tile worth fixing - the raster counterpart of a [`TileIssue`]. */
+export type RasterCheck = {
+	/**  `lossy_dem`, `maybe_lossy_dem`, `unused_alpha`, `transparent` or `one_colour`. */
+	kind: string,
+	/**  What is wrong and why, in a sentence. */
+	label: string,
+	/**  Whether it changes the data, rather than only costing bytes. */
+	serious: boolean,
+};
+
 /**
  *  A raster tile, taken apart: its pixels, and what they add up to.
  * 
@@ -2196,6 +2206,8 @@ export type RasterDissection = {
 	image: string,
 	/**  What the source says its tiles are, such as `rgb` or `dem/terrarium`, if it says. */
 	schema: string | null,
+	/**  What is worth fixing about it, the most serious first. */
+	checks: RasterCheck[],
 	/**
 	 *  The heights an elevation tile encodes - `None` for imagery, and for a DEM in an encoding
 	 *  nothing here can decode.

@@ -97,6 +97,8 @@ pub struct RasterDissection {
 	pub image: String,
 	/// What the source says its tiles are, such as `rgb` or `dem/terrarium`, if it says.
 	pub schema: Option<String>,
+	/// What is worth fixing about it, the most serious first.
+	pub checks: Vec<RasterCheck>,
 	/// The heights an elevation tile encodes - `None` for imagery, and for a DEM in an encoding
 	/// nothing here can decode.
 	pub elevation: Option<Elevation>,
@@ -123,6 +125,103 @@ pub struct Elevation {
 	pub max: f64,
 	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
 	pub mean: f64,
+}
+
+/// Something about a raster tile worth fixing - the raster counterpart of a [`TileIssue`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct RasterCheck {
+	/// `lossy_dem`, `maybe_lossy_dem`, `unused_alpha`, `transparent` or `one_colour`.
+	pub kind: String,
+	/// What is wrong and why, in a sentence.
+	pub label: String,
+	/// Whether it changes the data, rather than only costing bytes.
+	pub serious: bool,
+}
+
+/// Whether a format throws detail away: `Some(true)` for JPEG and lossy WebP, `Some(false)` for PNG
+/// and lossless WebP, `None` for AVIF, which is either and does not say so in a way read cheaply.
+fn lossy(format: TileFormat, stored: &[u8]) -> Option<bool> {
+	match format {
+		TileFormat::JPG => Some(true),
+		TileFormat::PNG => Some(false),
+		TileFormat::WEBP => webp_is_lossy(stored),
+		_ => None,
+	}
+}
+
+/// Whether a WebP file's image is lossy, from its first image chunk: `VP8 ` is lossy and `VP8L`
+/// lossless. An extended file (`VP8X`) puts other chunks first, so they are walked past.
+fn webp_is_lossy(bytes: &[u8]) -> Option<bool> {
+	if bytes.len() < 12 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WEBP" {
+		return None;
+	}
+	let mut at = 12;
+	while at + 8 <= bytes.len() {
+		let size = u32::from_le_bytes(bytes[at + 4..at + 8].try_into().ok()?) as usize;
+		match &bytes[at..at + 4] {
+			b"VP8 " => return Some(true),
+			b"VP8L" => return Some(false),
+			// Chunks are padded to an even length.
+			_ => at += 8 + size + (size & 1),
+		}
+	}
+	None
+}
+
+/// What is worth fixing about a raster tile, the most serious first.
+fn checks(raster: &RasterDissection, format: TileFormat, stored: &[u8]) -> Vec<RasterCheck> {
+	let check = |kind: &str, label: &str, serious: bool| RasterCheck {
+		kind: kind.to_string(),
+		label: label.to_string(),
+		serious,
+	};
+	let mut found = Vec::new();
+	let pixels = raster.width * raster.height;
+
+	// The one that is a data error rather than a cost: a DEM's colours are its heights, so a format
+	// that changes colours changes the terrain.
+	if raster
+		.schema
+		.as_deref()
+		.is_some_and(|schema| schema.starts_with("dem/"))
+	{
+		match lossy(format, stored) {
+			Some(true) => found.push(check(
+				"lossy_dem",
+				"Heights are stored lossy. In a DEM the colours are the heights, so a lossy format changes the terrain - use PNG or lossless WebP.",
+				true,
+			)),
+			None => found.push(check(
+				"maybe_lossy_dem",
+				"Heights are stored as AVIF, which is usually lossy - and in a DEM the colours are the heights. Use PNG or lossless WebP to be sure.",
+				true,
+			)),
+			Some(false) => {}
+		}
+	}
+	if raster.alpha && raster.transparent == pixels {
+		found.push(check(
+			"transparent",
+			"Every pixel is transparent, so the tile shows nothing and could be left out.",
+			false,
+		));
+	} else if raster.alpha && raster.transparent == 0 && raster.translucent == 0 {
+		found.push(check(
+			"unused_alpha",
+			"Every pixel is opaque, so the alpha channel only adds bytes - RGB would do.",
+			false,
+		));
+	}
+	if raster.colours == 1 && raster.transparent < pixels {
+		found.push(check(
+			"one_colour",
+			"Every pixel is the same colour - often filler such as open sea or no data, which a smaller tile or none would show as well.",
+			false,
+		));
+	}
+	found
 }
 
 /// A DEM encoding's name, and how it turns a pixel's red, green and blue into metres.
@@ -273,7 +372,10 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 	};
 	if !format.is_vector() {
 		let schema = source.tilejson().tile_schema.clone();
-		found.raster = Some(raster(tile.as_image().context("decoding the image")?, schema.as_ref())?);
+		let stored = tile.as_blob(&TileCompression::Uncompressed)?.as_slice().to_vec();
+		let mut pixels = raster(tile.as_image().context("decoding the image")?, schema.as_ref())?;
+		pixels.checks = checks(&pixels, format, &stored);
+		found.raster = Some(pixels);
 		return Ok(Some(found));
 	}
 
@@ -353,6 +455,7 @@ fn raster(image: &DynamicImage, schema: Option<&TileSchema>) -> Result<RasterDis
 		colours_capped: colours.len() >= MAX_COLOURS,
 		image: format!("data:image/png;base64,{}", STANDARD.encode(png.as_slice())),
 		schema: schema.map(|schema| schema.as_str().to_string()),
+		checks: Vec::new(),
 		elevation: decode.filter(|_| heights > 0).map(|(encoding, _)| Elevation {
 			encoding: encoding.to_string(),
 			min: low,
@@ -932,6 +1035,78 @@ mod tests {
 			(Some("dem/versatiles"), true)
 		);
 		assert!(raster(&image, None)?.schema.is_none());
+		Ok(())
+	}
+
+	/// A WebP file's first image chunk says which it is; an extended file has others before it.
+	#[test]
+	fn tells_lossy_webp_from_lossless() -> Result<()> {
+		let file = |chunks: &[u8]| [b"RIFF".as_slice(), &[0; 4], b"WEBP", chunks].concat();
+		assert_eq!(webp_is_lossy(&file(b"VP8 \x00\x00\x00\x00")), Some(true));
+		assert_eq!(webp_is_lossy(&file(b"VP8L\x00\x00\x00\x00")), Some(false));
+		// VP8X (10 bytes), then ALPH of 3 bytes padded to 4, then the image.
+		let extended = [
+			b"VP8X\x0a\x00\x00\x00".as_slice(),
+			&[0; 10],
+			b"ALPH\x03\x00\x00\x00",
+			&[0; 4],
+			b"VP8 \x00\x00\x00\x00",
+		]
+		.concat();
+		assert_eq!(webp_is_lossy(&file(&extended)), Some(true));
+		assert_eq!(webp_is_lossy(b"not a webp file"), None);
+
+		// And a real one, from upstream's own encoder at a lossy quality.
+		let image = DynamicImage::from_raw(8, 8, vec![90; 8 * 8 * 3])?;
+		let lossy = image.to_blob(TileFormat::WEBP, Some(80), None)?;
+		assert_eq!(webp_is_lossy(lossy.as_slice()), Some(true));
+		Ok(())
+	}
+
+	fn checked(pixels: Vec<u8>, width: u32, schema: Option<TileSchema>, format: TileFormat) -> Result<Vec<String>> {
+		let image = DynamicImage::from_raw(width as usize, 1, pixels)?;
+		let found = raster(&image, schema.as_ref())?;
+		let stored = image.to_blob(format, Some(80), None)?;
+		Ok(checks(&found, format, stored.as_slice())
+			.into_iter()
+			.map(|check| check.kind)
+			.collect())
+	}
+
+	/// The one that is a data error: a DEM in a lossy format has had its terrain changed.
+	#[test]
+	fn says_when_heights_are_stored_lossy() -> Result<()> {
+		let dem = Some(TileSchema::RasterDEMTerrarium);
+		let heights = vec![128, 0, 0, 131, 232, 0];
+		assert_eq!(
+			checked(heights.clone(), 2, dem.clone(), TileFormat::JPG)?,
+			["lossy_dem"]
+		);
+		assert_eq!(
+			checked(heights.clone(), 2, dem.clone(), TileFormat::WEBP)?,
+			["lossy_dem"]
+		);
+		assert!(checked(heights.clone(), 2, dem, TileFormat::PNG)?.is_empty());
+		// Imagery may well be JPEG: that is a choice, not a mistake.
+		assert!(checked(heights, 2, Some(TileSchema::RasterRGB), TileFormat::JPG)?.is_empty());
+		Ok(())
+	}
+
+	#[test]
+	fn says_what_only_costs_bytes() -> Result<()> {
+		// Opaque everywhere, but stored with alpha.
+		let opaque = vec![10, 20, 30, 255, 40, 50, 60, 255];
+		assert_eq!(checked(opaque, 2, None, TileFormat::PNG)?, ["unused_alpha"]);
+		// Nothing to see at all - and not also "one colour", which would say the same twice.
+		let empty = vec![0, 0, 0, 0, 0, 0, 0, 0];
+		assert_eq!(checked(empty, 2, None, TileFormat::PNG)?, ["transparent"]);
+		// One colour, opaque, without alpha.
+		assert_eq!(
+			checked(vec![7, 7, 7, 7, 7, 7], 2, None, TileFormat::PNG)?,
+			["one_colour"]
+		);
+		// Two colours and part transparent: nothing to say.
+		assert!(checked(vec![10, 20, 30, 255, 0, 0, 0, 0], 2, None, TileFormat::PNG)?.is_empty());
 		Ok(())
 	}
 

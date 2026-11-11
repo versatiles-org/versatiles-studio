@@ -4,6 +4,7 @@
 	import SortHeader from '../common/SortHeader.svelte';
 	import { sortRows, type Sort } from '../common/sort';
 	import Note from '../common/Note.svelte';
+	import Group from '../common/Group.svelte';
 	import Field from '../common/Field.svelte';
 	import JsonTree from '../common/JsonTree.svelte';
 	import TileDrawing, { layerColour, reach } from './TileDrawing.svelte';
@@ -526,6 +527,15 @@
 								</dd>
 							{/if}
 						</dl>
+						<!-- The raster counterpart of the Issues tab: what is worth fixing, and why. The serious
+						     ones change the data; the rest only cost bytes. -->
+						<Group title="Checks">
+							{#each raster.checks as check (check.kind)}
+								<Note tone={check.serious ? 'problem' : 'aside'}>{check.label}</Note>
+							{:else}
+								<Note tone="empty">Nothing to fix in this tile.</Note>
+							{/each}
+						</Group>
 						{#if raster.schema?.startsWith('dem/') && !raster.elevation}
 							<!-- Said rather than left blank: a DEM with no heights shown looks like one with none. -->
 							<Note tone="aside">

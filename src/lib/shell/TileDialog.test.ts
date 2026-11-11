@@ -182,6 +182,7 @@ describe('the tile dialog', () => {
 				image: 'data:image/png;base64,AAAA',
 				schema: 'rgba',
 				elevation: null,
+				checks: [],
 				...over
 			}
 		});
@@ -223,6 +224,25 @@ describe('the tile dialog', () => {
 			show({ dissection: raster({ schema: 'dem/versatiles' }) });
 			expect(screen.getByText(/VersaTiles' own DEM encoding has no decoder yet/)).toBeTruthy();
 			expect(screen.queryByLabelText('Draw the heights')).toBeNull();
+		});
+
+		// The raster counterpart of the Issues tab, with the data error set apart from the costs.
+		it('lists what is worth fixing, the data errors as problems', () => {
+			show({
+				dissection: raster({
+					checks: [
+						{ kind: 'lossy_dem', label: 'Heights are stored lossy.', serious: true },
+						{ kind: 'unused_alpha', label: 'The alpha channel only adds bytes.', serious: false }
+					]
+				})
+			});
+			expect(screen.getByRole('alert').textContent).toContain('Heights are stored lossy.');
+			expect(screen.getByText('The alpha channel only adds bytes.')).toBeTruthy();
+		});
+
+		it('says so when there is nothing to fix', () => {
+			show({ dissection: raster() });
+			expect(screen.getByText('Nothing to fix in this tile.')).toBeTruthy();
 		});
 
 		it('offers no heights for imagery', () => {
