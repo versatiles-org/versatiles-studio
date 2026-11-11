@@ -97,6 +97,9 @@ pub struct RasterDissection {
 	pub image: String,
 	/// What the source says its tiles are, such as `rgb` or `dem/terrarium`, if it says.
 	pub schema: Option<String>,
+	/// How the stored file is written, read from its headers: `PNG, 8-bit RGBA`, `WebP, lossy with
+	/// alpha`, `JPEG, progressive, 4:2:0`. `None` where the headers say nothing this reads.
+	pub stored: Option<String>,
 	/// What is worth fixing about it, the most serious first.
 	pub checks: Vec<RasterCheck>,
 	/// How many pixels have each value from 0 to 255: one list per channel, in the tile's own
@@ -157,21 +160,123 @@ fn lossy(format: TileFormat, stored: &[u8]) -> Option<bool> {
 	}
 }
 
-/// Whether a WebP file's image is lossy, from its first image chunk: `VP8 ` is lossy and `VP8L`
-/// lossless. An extended file (`VP8X`) puts other chunks first, so they are walked past.
-fn webp_is_lossy(bytes: &[u8]) -> Option<bool> {
+/// What a WebP file's chunks say: whether its image is lossy, and whether it has alpha.
+///
+/// The first image chunk decides the first: `VP8 ` is lossy and `VP8L` lossless. An extended file
+/// (`VP8X`) puts other chunks first, so they are walked past - and its flags, or an `ALPH` chunk,
+/// say it has alpha. A lossless image says so in its own header instead.
+struct WebP {
+	lossy: bool,
+	alpha: bool,
+}
+
+fn webp(bytes: &[u8]) -> Option<WebP> {
 	if bytes.len() < 12 || &bytes[0..4] != b"RIFF" || &bytes[8..12] != b"WEBP" {
 		return None;
 	}
+	let mut alpha = false;
 	let mut at = 12;
 	while at + 8 <= bytes.len() {
 		let size = u32::from_le_bytes(bytes[at + 4..at + 8].try_into().ok()?) as usize;
+		let data = bytes.get(at + 8..).unwrap_or_default();
 		match &bytes[at..at + 4] {
-			b"VP8 " => return Some(true),
-			b"VP8L" => return Some(false),
-			// Chunks are padded to an even length.
-			_ => at += 8 + size + (size & 1),
+			b"VP8 " => return Some(WebP { lossy: true, alpha }),
+			// The signature byte, then 14 bits of width, 14 of height, and the alpha bit.
+			// A header too short to read still says lossless; it just says nothing about alpha.
+			b"VP8L" => {
+				let header = data
+					.get(1..5)
+					.and_then(|bytes| bytes.try_into().ok())
+					.map(u32::from_le_bytes);
+				return Some(WebP {
+					lossy: false,
+					alpha: alpha || header.is_some_and(|header| (header >> 28) & 1 == 1),
+				});
+			}
+			b"VP8X" => alpha |= data.first().is_some_and(|flags| flags & 0x10 != 0),
+			b"ALPH" => alpha = true,
+			_ => {}
 		}
+		// Chunks are padded to an even length.
+		at += 8 + size + (size & 1);
+	}
+	None
+}
+
+/// Whether a WebP file's image is lossy - see [`webp`].
+fn webp_is_lossy(bytes: &[u8]) -> Option<bool> {
+	webp(bytes).map(|found| found.lossy)
+}
+
+/// How a stored raster tile is written, from its headers - see [`RasterDissection::stored`].
+fn stored(format: TileFormat, bytes: &[u8]) -> Option<String> {
+	match format {
+		TileFormat::PNG => png(bytes),
+		TileFormat::WEBP => webp(bytes).map(|found| {
+			let kind = if found.lossy { "lossy" } else { "lossless" };
+			format!("WebP, {kind}{}", if found.alpha { " with alpha" } else { "" })
+		}),
+		TileFormat::JPG => jpeg(bytes),
+		TileFormat::AVIF => Some("AVIF".to_string()),
+		_ => None,
+	}
+}
+
+/// A PNG's bit depth, colour type and interlacing, from its `IHDR` - which the format puts first.
+fn png(bytes: &[u8]) -> Option<String> {
+	if bytes.get(0..8)? != b"\x89PNG\r\n\x1a\n" || bytes.get(12..16)? != b"IHDR" {
+		return None;
+	}
+	let (depth, colour, interlaced) = (*bytes.get(24)?, *bytes.get(25)?, *bytes.get(28)? == 1);
+	let colour = match colour {
+		0 => "grey",
+		2 => "RGB",
+		3 => "palette",
+		4 => "grey + alpha",
+		6 => "RGBA",
+		_ => return None,
+	};
+	Some(format!(
+		"PNG, {depth}-bit {colour}{}",
+		if interlaced { ", interlaced" } else { "" }
+	))
+}
+
+/// A JPEG's process and chroma subsampling, from its start-of-frame marker.
+fn jpeg(bytes: &[u8]) -> Option<String> {
+	if bytes.get(0..2)? != [0xff, 0xd8] {
+		return None;
+	}
+	let mut at = 2;
+	while at + 4 <= bytes.len() {
+		if bytes[at] != 0xff {
+			return None;
+		}
+		let marker = bytes[at + 1];
+		let length = usize::from(u16::from_be_bytes([bytes[at + 2], bytes[at + 3]]));
+		// Start of frame: 0xc0 to 0xcf, except the three that are not frames.
+		if (0xc0..=0xcf).contains(&marker) && ![0xc4, 0xc8, 0xcc].contains(&marker) {
+			let frame = bytes.get(at + 4..at + 2 + length)?;
+			let process = match marker {
+				0xc2 | 0xc6 | 0xca | 0xce => "progressive",
+				_ => "baseline",
+			};
+			let components = *frame.get(5)?;
+			if components == 1 {
+				return Some(format!("JPEG, {process}, grey"));
+			}
+			// The first component is luma; its sampling factors against chroma's give the ratio.
+			let sampling = *frame.get(7)?;
+			let subsampling = match (sampling >> 4, sampling & 0x0f) {
+				(1, 1) => "4:4:4",
+				(2, 1) => "4:2:2",
+				(2, 2) => "4:2:0",
+				(1, 2) => "4:4:0",
+				_ => "unusual subsampling",
+			};
+			return Some(format!("JPEG, {process}, {subsampling}"));
+		}
+		at += 2 + length;
 	}
 	None
 }
@@ -378,9 +483,10 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 	};
 	if !format.is_vector() {
 		let schema = source.tilejson().tile_schema.clone();
-		let stored = tile.as_blob(&TileCompression::Uncompressed)?.as_slice().to_vec();
+		let file = tile.as_blob(&TileCompression::Uncompressed)?.as_slice().to_vec();
 		let mut pixels = raster(tile.as_image().context("decoding the image")?, schema.as_ref())?;
-		pixels.checks = checks(&pixels, format, &stored);
+		pixels.checks = checks(&pixels, format, &file);
+		pixels.stored = stored(format, &file);
 		found.raster = Some(pixels);
 		return Ok(Some(found));
 	}
@@ -512,6 +618,7 @@ fn raster(image: &DynamicImage, schema: Option<&TileSchema>) -> Result<RasterDis
 		image: format!("data:image/png;base64,{}", STANDARD.encode(png.as_slice())),
 		schema: schema.map(|schema| schema.as_str().to_string()),
 		checks: Vec::new(),
+		stored: None,
 		elevation: decode.and_then(|(encoding, _)| elevation(encoding, &heights)),
 		histogram,
 	})
@@ -1172,6 +1279,63 @@ mod tests {
 		// Two colours and part transparent: nothing to say.
 		assert!(checked(vec![10, 20, 30, 255, 0, 0, 0, 0], 2, None, TileFormat::PNG)?.is_empty());
 		Ok(())
+	}
+
+	/// What upstream's own encoders write, read back from the headers.
+	#[test]
+	fn reads_how_a_stored_tile_is_written() -> Result<()> {
+		let rgb = DynamicImage::from_raw(8, 8, vec![90; 8 * 8 * 3])?;
+		let rgba = DynamicImage::from_raw(8, 8, [90, 60, 30, 128].repeat(64))?;
+		let grey = DynamicImage::from_raw(8, 8, vec![90; 8 * 8])?;
+		let written = |image: &DynamicImage, format, quality| -> Result<Option<String>> {
+			Ok(stored(format, image.to_blob(format, quality, None)?.as_slice()))
+		};
+
+		assert_eq!(
+			written(&rgba, TileFormat::PNG, None)?.as_deref(),
+			Some("PNG, 8-bit RGBA")
+		);
+		assert_eq!(written(&rgb, TileFormat::PNG, None)?.as_deref(), Some("PNG, 8-bit RGB"));
+		assert_eq!(
+			written(&grey, TileFormat::PNG, None)?.as_deref(),
+			Some("PNG, 8-bit grey")
+		);
+		assert_eq!(
+			written(&rgb, TileFormat::WEBP, Some(80))?.as_deref(),
+			Some("WebP, lossy")
+		);
+		assert_eq!(
+			written(&rgba, TileFormat::WEBP, Some(80))?.as_deref(),
+			Some("WebP, lossy with alpha")
+		);
+		assert_eq!(
+			written(&rgba, TileFormat::WEBP, Some(100))?.as_deref(),
+			Some("WebP, lossless with alpha")
+		);
+		let jpeg = written(&rgb, TileFormat::JPG, Some(80))?.expect("a JPEG says how it is written");
+		assert!(jpeg.starts_with("JPEG, baseline, 4:"), "{jpeg}");
+		assert_eq!(written(&rgb, TileFormat::AVIF, Some(80))?.as_deref(), Some("AVIF"));
+		Ok(())
+	}
+
+	/// The cases upstream does not write, from headers made by hand.
+	#[test]
+	fn reads_progressive_jpegs_and_interlaced_pngs() {
+		// SOI, then a progressive start of frame: 3 components, luma sampled 1x1 - so 4:4:4.
+		let sof2 = [
+			0xff, 0xd8, 0xff, 0xc2, 0x00, 0x11, 8, 0, 8, 0, 8, 3, 1, 0x11, 0, 2, 0x11, 1, 3, 0x11, 1,
+		];
+		assert_eq!(jpeg(&sof2).as_deref(), Some("JPEG, progressive, 4:4:4"));
+		// One component: its id, sampling and table, then the frame ends - eleven bytes with the length.
+		let mut grey = sof2[..15].to_vec();
+		grey[5] = 0x0b;
+		grey[11] = 1;
+		assert_eq!(jpeg(&grey).as_deref(), Some("JPEG, progressive, grey"));
+
+		let mut png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR".to_vec();
+		png.extend([0, 0, 1, 0, 0, 0, 1, 0, 8, 3, 0, 0, 1]);
+		assert_eq!(super::png(&png).as_deref(), Some("PNG, 8-bit palette, interlaced"));
+		assert_eq!(super::png(b"not a png"), None);
 	}
 
 	/// The dialog draws and reads the pixels it is sent, so they have to be the tile's, exactly.

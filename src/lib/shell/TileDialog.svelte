@@ -542,6 +542,11 @@
 					<!-- Where a vector tile's tabs are: what the pixels add up to. -->
 					<div class="contents">
 						<dl class="facts" aria-label="The tile's pixels">
+							{#if raster.stored}
+								<!-- What explains a size: the same pixels weigh very different amounts by how they are written. -->
+								<dt>Stored as</dt>
+								<dd>{raster.stored}</dd>
+							{/if}
 							<dt>Size</dt>
 							<dd>{raster.width} × {raster.height} px</dd>
 							<dt>Channels</dt>

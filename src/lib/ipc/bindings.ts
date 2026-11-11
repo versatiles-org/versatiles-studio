@@ -2208,6 +2208,11 @@ export type RasterDissection = {
 	image: string,
 	/**  What the source says its tiles are, such as `rgb` or `dem/terrarium`, if it says. */
 	schema: string | null,
+	/**
+	 *  How the stored file is written, read from its headers: `PNG, 8-bit RGBA`, `WebP, lossy with
+	 *  alpha`, `JPEG, progressive, 4:2:0`. `None` where the headers say nothing this reads.
+	 */
+	stored: string | null,
 	/**  What is worth fixing about it, the most serious first. */
 	checks: RasterCheck[],
 	/**

@@ -193,6 +193,7 @@ describe('the tile dialog', () => {
 				schema: 'rgba',
 				elevation: null,
 				checks: [],
+				stored: 'PNG, 8-bit RGBA',
 				// 65,536 of the 262,144 pixels are transparent and counted in alpha only.
 				histogram: [
 					counts({ 0: 98_304, 255: 98_304 }),
@@ -212,6 +213,7 @@ describe('the tile dialog', () => {
 			expect(facts.getByText('RGBA')).toBeTruthy();
 			expect(facts.getByText('25% transparent, under 1% partly')).toBeTruthy();
 			expect(facts.getByText('4,321')).toBeTruthy();
+			expect(facts.getByText('PNG, 8-bit RGBA')).toBeTruthy();
 			expect(screen.queryByRole('tablist')).toBeNull();
 		});
 
