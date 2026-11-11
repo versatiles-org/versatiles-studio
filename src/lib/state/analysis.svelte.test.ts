@@ -10,7 +10,16 @@ vi.mock('../ipc/commands', () => ipc);
 
 const { analysis } = await import('./analysis.svelte');
 
-const sizes = { tiles: 1, bytes: 10, p50: 10, p95: 10, max: 10, levels: [], biggest: [] } as Sizes;
+const sizes = {
+	tiles: 1,
+	bytes: 10,
+	p50: 10,
+	p95: 10,
+	max: 10,
+	histogram: { empty: 0, first: 6, counts: [1] },
+	levels: [],
+	biggest: []
+} as Sizes;
 
 beforeEach(() => {
 	vi.clearAllMocks();

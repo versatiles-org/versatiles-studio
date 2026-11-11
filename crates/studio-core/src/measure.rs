@@ -48,6 +48,8 @@ pub struct Sizes {
 	pub p50: u32,
 	pub p95: u32,
 	pub max: u32,
+	/// Every level's tiles together, for the chart's "All levels" (#23).
+	pub histogram: Histogram,
 	/// One entry per level that holds a tile, ascending.
 	pub levels: Vec<LevelSizes>,
 	/// The biggest tiles, biggest first - at most [`BIGGEST`].
@@ -67,6 +69,33 @@ pub struct LevelSizes {
 	pub p50: u32,
 	pub p95: u32,
 	pub max: u32,
+	/// How many tiles there are of each size, for the chart (#23).
+	pub histogram: Histogram,
+}
+
+/// Bucketing for the chart: two buckets to the doubling, so each spans a factor of √2.
+///
+/// Coarser than the walk's own sixteen, which are for reading percentiles: a chart of those would
+/// have hundreds of bars, most of them a few tiles high. Eight of the walk's buckets make exactly one
+/// of these, so merging them loses no tile and moves none across a boundary.
+pub const CHART_STEPS: u32 = 2;
+
+/// Tile counts by size (#23).
+///
+/// Bucket `i` holds the tiles from `2^(i/2)` bytes up to, but not including, `2^((i+1)/2)` - see
+/// [`CHART_STEPS`]. Only the run of buckets from the smallest tile to the biggest is sent, so a level
+/// is a few dozen numbers rather than sixty-four, most of them zero.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct Histogram {
+	/// Tiles of no bytes at all, which a log scale has nowhere to put.
+	#[cfg_attr(feature = "bindings", specta(type = specta_typescript::Number))]
+	pub empty: u64,
+	/// The bucket `counts[0]` is.
+	pub first: u32,
+	#[cfg_attr(feature = "bindings", specta(type = Vec<specta_typescript::Number>))]
+	pub counts: Vec<u64>,
 }
 
 /// One tile, and what it weighs.
@@ -151,6 +180,7 @@ pub async fn walk(source: &dyn TileSource, progress: impl Fn(u64, u64), cancelle
 		p50: overall.p50,
 		p95: overall.p95,
 		max: overall.max,
+		histogram: overall.histogram,
 		levels,
 		biggest,
 	})
@@ -219,6 +249,33 @@ impl Tally {
 			p50: self.percentile(0.5),
 			p95: self.percentile(0.95),
 			max: self.max,
+			histogram: self.chart(),
+		}
+	}
+
+	/// The walk's buckets merged into the chart's - see [`CHART_STEPS`].
+	fn chart(&self) -> Histogram {
+		// The walk's buckets per chart bucket: sixteen to the doubling over two. Held to that by
+		// `the_chart_buckets_are_whole_walk_buckets`.
+		const MERGED: usize = 8;
+		let mut counts = vec![0u64; (BUCKETS - 1).div_ceil(MERGED)];
+		// Bucket 0 is the empty tiles; the rest are sixteen to the doubling from one byte up.
+		for (index, count) in self.histogram.iter().enumerate().skip(1) {
+			counts[(index - 1) / MERGED] += count;
+		}
+		let Some(first) = counts.iter().position(|&count| count > 0) else {
+			return Histogram {
+				empty: self.histogram[0],
+				first: 0,
+				counts: Vec::new(),
+			};
+		};
+		let last = counts.iter().rposition(|&count| count > 0).unwrap_or(first);
+		Histogram {
+			empty: self.histogram[0],
+			#[expect(clippy::cast_possible_truncation, reason = "there are 64 chart buckets")]
+			first: first as u32,
+			counts: counts[first..=last].to_vec(),
 		}
 	}
 
@@ -390,6 +447,77 @@ mod tests {
 		Ok(())
 	}
 
+	/// The chart's buckets (#23) are made of whole walk buckets, or merging would split some.
+	#[test]
+	fn the_chart_buckets_are_whole_walk_buckets() {
+		assert_eq!(STEPS, 8.0 * f64::from(CHART_STEPS));
+	}
+
+	/// The promise in #23: the bars add up to the tile count beside them, per level and overall.
+	#[tokio::test]
+	async fn the_chart_keeps_every_tile() -> Result<()> {
+		let mut sizes: Vec<_> = (0..500u32).map(|i| at(9, i, 0, 37 * i * i)).collect();
+		sizes.extend((0..40u32).map(|i| at(4, i % 16, i / 16, 5000 + i)));
+		let found = walk(&Index::new(sizes), |_, _| {}, || false).await?;
+		let held = |histogram: &Histogram| histogram.empty + histogram.counts.iter().sum::<u64>();
+
+		assert_eq!(held(&found.histogram), found.tiles);
+		for level in &found.levels {
+			assert_eq!(held(&level.histogram), level.tiles, "zoom {}", level.level);
+		}
+		Ok(())
+	}
+
+	/// Bucket `i` runs from `2^(i/2)` bytes up to `2^((i+1)/2)`, and a power of two starts a bucket.
+	#[tokio::test]
+	async fn the_chart_buckets_are_where_their_bounds_say() -> Result<()> {
+		// 1000 bytes is between 2^9.5 (724) and 2^10 (1024); 1024 is the next bucket's first size.
+		let found = walk(
+			&Index::new(vec![at(2, 0, 0, 1000), at(2, 1, 0, 1024)]),
+			|_, _| {},
+			|| false,
+		)
+		.await?;
+		assert_eq!(
+			found.histogram,
+			Histogram {
+				empty: 0,
+				first: 19,
+				counts: vec![1, 1]
+			}
+		);
+		Ok(())
+	}
+
+	/// Only the run from the smallest tile to the biggest is sent, gaps inside it included.
+	#[tokio::test]
+	async fn the_chart_is_trimmed_to_the_tiles_it_has() -> Result<()> {
+		let found = walk(
+			&Index::new(vec![at(2, 0, 0, 1), at(2, 1, 0, 4), at(2, 2, 0, 0)]),
+			|_, _| {},
+			|| false,
+		)
+		.await?;
+		assert_eq!(
+			found.histogram,
+			Histogram {
+				empty: 1,
+				first: 0,
+				counts: vec![1, 0, 0, 0, 1]
+			}
+		);
+		let nothing = walk(&Index::new(vec![at(3, 0, 0, 0)]), |_, _| {}, || false).await?;
+		assert_eq!(
+			nothing.histogram,
+			Histogram {
+				empty: 1,
+				first: 0,
+				counts: vec![]
+			}
+		);
+		Ok(())
+	}
+
 	#[tokio::test]
 	async fn an_empty_tile_is_counted_as_nothing() -> Result<()> {
 		let found = walk(&Index::new(vec![at(3, 0, 0, 0)]), |_, _| {}, || false).await?;
@@ -473,6 +601,8 @@ mod tests {
 		assert_eq!(found.tiles, pyramid.count_tiles());
 		assert_eq!(found.levels.iter().map(|level| level.tiles).sum::<u64>(), found.tiles);
 		assert!(found.p50 <= found.p95 && found.p95 <= found.max);
+		let charted = found.histogram.empty + found.histogram.counts.iter().sum::<u64>();
+		assert_eq!(charted, found.tiles, "the chart's bars add up to every tile");
 		Ok(())
 	}
 }

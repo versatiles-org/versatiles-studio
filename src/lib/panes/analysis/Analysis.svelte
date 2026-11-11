@@ -4,6 +4,7 @@
 	import { bytes, count, kilobytes } from '../../common/format';
 	import LayerShares from './LayerShares.svelte';
 	import SpecChecks from './SpecChecks.svelte';
+	import SizeHistogram from './SizeHistogram.svelte';
 	import type { Measurement } from '../../state/analysis.svelte';
 	import type { Scan } from '../../state/contents.svelte';
 
@@ -60,6 +61,18 @@
 	const BUDGET = 500_000;
 
 	const sizes = $derived(measurement.sizes);
+
+	/// Which level the histogram shows, or `null` for all of them (#23). Kept across a new
+	/// measurement, and dropped back to all when the level it names has no tiles any more.
+	let chartLevel = $state<number | null>(null);
+	const charted = $derived.by(() => {
+		if (!sizes) return null;
+		const level = chartLevel === null ? undefined : sizes.levels.find((entry) => entry.level === chartLevel);
+		return level
+			? { histogram: level.histogram, p50: level.p50, p95: level.p95, label: `zoom ${level.level}` }
+			: { histogram: sizes.histogram, p50: sizes.p50, p95: sizes.p95, label: 'all levels' };
+	});
+	const shownLevel = $derived(charted?.label === 'all levels' ? null : chartLevel);
 </script>
 
 {#snippet read()}
@@ -104,6 +117,34 @@
 					<dd>{kilobytes(sizes.max)}</dd>
 				</dl>
 
+				{#if charted}
+					<dl class="facts">
+						<dt><label for="histogram-level">Sizes of</label></dt>
+						<dd>
+							<select
+								id="histogram-level"
+								value={shownLevel ?? ''}
+								onchange={(event) => {
+									const picked = event.currentTarget.value;
+									chartLevel = picked === '' ? null : Number(picked);
+								}}
+							>
+								<option value="">all levels</option>
+								{#each sizes.levels as level (level.level)}
+									<option value={level.level}>zoom {level.level}</option>
+								{/each}
+							</select>
+						</dd>
+					</dl>
+					<SizeHistogram
+						histogram={charted.histogram}
+						p50={charted.p50}
+						p95={charted.p95}
+						budget={BUDGET}
+						label={charted.label}
+					/>
+				{/if}
+
 				<table class="figures" aria-label="Sizes per zoom level">
 					<thead>
 						<tr><th scope="col">Zoom</th><th scope="col">Tiles</th><th scope="col">Mean</th><th scope="col">Max</th></tr
@@ -112,7 +153,16 @@
 					<tbody>
 						{#each sizes.levels as level (level.level)}
 							<tr>
-								<th scope="row">{level.level}</th>
+								<!-- The level is also the way to chart it: the row is where the question comes up. -->
+								<th scope="row"
+									><button
+										type="button"
+										class="link"
+										aria-pressed={shownLevel === level.level}
+										aria-label="Chart the sizes at zoom {level.level}"
+										onclick={() => (chartLevel = shownLevel === level.level ? null : level.level)}>{level.level}</button
+									></th
+								>
 								<td>{count(level.tiles)}</td>
 								<td>{kilobytes(level.tiles === 0 ? 0 : level.bytes / level.tiles)}</td>
 								<!-- Marked rather than coloured whole: the row is fine, one tile in it is not. -->

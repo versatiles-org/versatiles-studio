@@ -50,7 +50,15 @@ describe('the heat map legend', () => {
 	it('shows the figures when the source has been measured', () => {
 		render(HeatLegend, {
 			...base,
-			figures: { level: 14, tiles: 9, bytes: 9, p50: 12_000, p95: 340_000, max: 610_000 }
+			figures: {
+				level: 14,
+				tiles: 9,
+				bytes: 9,
+				p50: 12_000,
+				p95: 340_000,
+				max: 610_000,
+				histogram: { empty: 0, first: 0, counts: [] }
+			}
 		});
 		expect(screen.getByText('340 kB')).toBeTruthy();
 		expect(screen.getByText('610 kB')).toBeTruthy();

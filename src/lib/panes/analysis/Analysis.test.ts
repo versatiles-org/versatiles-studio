@@ -10,15 +10,39 @@ import Analysis from './Analysis.svelte';
 import type { Checks, Sizes } from '../../ipc/commands';
 import type { Measurement } from '../../state/analysis.svelte';
 
+// jsdom has no `ResizeObserver`, and the histogram measures its width with one.
+globalThis.ResizeObserver ??= class {
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+} as unknown as typeof ResizeObserver;
+
 const sizes: Sizes = {
 	tiles: 3,
 	bytes: 1_300_000,
 	p50: 200_000,
 	p95: 900_000,
 	max: 900_000,
+	histogram: { empty: 0, first: 35, counts: [2, 0, 0, 0, 1] },
 	levels: [
-		{ level: 0, tiles: 1, bytes: 200_000, p50: 200_000, p95: 200_000, max: 200_000 },
-		{ level: 1, tiles: 2, bytes: 1_100_000, p50: 200_000, p95: 900_000, max: 900_000 }
+		{
+			level: 0,
+			tiles: 1,
+			bytes: 200_000,
+			p50: 200_000,
+			p95: 200_000,
+			max: 200_000,
+			histogram: { empty: 0, first: 35, counts: [1] }
+		},
+		{
+			level: 1,
+			tiles: 2,
+			bytes: 1_100_000,
+			p50: 200_000,
+			p95: 900_000,
+			max: 900_000,
+			histogram: { empty: 0, first: 35, counts: [1, 0, 0, 0, 1] }
+		}
 	],
 	biggest: [
 		{ z: 1, x: 1, y: 0, bytes: 900_000 },
@@ -78,6 +102,54 @@ describe('the analysis pane', () => {
 		]);
 		expect(within(rows[1]).getByText('900 kB').classList.contains('over')).toBe(true);
 		expect(within(rows[0]).getAllByText('200 kB')[1].classList.contains('over')).toBe(false);
+	});
+
+	describe('the histogram (#23)', () => {
+		const chart = () => screen.getByRole('slider', { name: /^Tile sizes/ });
+		const table = () => screen.getByRole('table', { name: /^Tiles by size/ });
+		const rows = () =>
+			within(table())
+				.getAllByRole('row')
+				.slice(1)
+				.map((row) => [...row.children].map((cell) => cell.textContent?.trim()).join(' '));
+
+		it('charts every level once measured, with a table of the same counts', () => {
+			show({ measurement: measured({ sizes }) });
+			expect(chart().getAttribute('aria-label')).toBe('Tile sizes, all levels');
+			// The 900 kB tile falls in 741 kB to 1.0 MB, two doublings above the two of 200 kB.
+			expect(rows()).toEqual(['185 kB – 262 kB 2', '741 kB – 1.0 MB 1']);
+		});
+
+		it('is not drawn before anything is measured', () => {
+			show({ measurement: measured() });
+			expect(screen.queryByRole('slider')).toBeNull();
+		});
+
+		it('narrows to one level, from the selector or from the zoom table', async () => {
+			show({ measurement: measured({ sizes }) });
+			await fireEvent.change(screen.getByLabelText('Sizes of'), { target: { value: '0' } });
+			expect(chart().getAttribute('aria-label')).toBe('Tile sizes, zoom 0');
+			expect(rows()).toEqual(['185 kB – 262 kB 1']);
+
+			await fireEvent.click(screen.getByRole('button', { name: 'Chart the sizes at zoom 1' }));
+			expect(chart().getAttribute('aria-label')).toBe('Tile sizes, zoom 1');
+			// The same row again goes back to every level.
+			await fireEvent.click(screen.getByRole('button', { name: 'Chart the sizes at zoom 1' }));
+			expect(chart().getAttribute('aria-label')).toBe('Tile sizes, all levels');
+		});
+
+		// One stop for the keyboard, and the arrows walk the bars; what is said is the readout.
+		it('reads out a bar at a time from the keyboard', async () => {
+			show({ measurement: measured({ sizes }) });
+			expect(chart().getAttribute('aria-valuetext')).toMatch(/^all levels: median 200 kB, 95% 900 kB/);
+			await fireEvent.keyDown(chart(), { key: 'ArrowRight' });
+			expect(chart().getAttribute('aria-valuetext')).toBe('2 tiles from 185 to 262 kB');
+			await fireEvent.keyDown(chart(), { key: 'End' });
+			await fireEvent.keyDown(chart(), { key: 'ArrowLeft' });
+			expect(chart().getAttribute('aria-valuetext')).toBe('0 tiles from 524 to 741 kB');
+			await fireEvent.keyDown(chart(), { key: 'Escape' });
+			expect(chart().getAttribute('aria-valuetext')).toMatch(/^all levels/);
+		});
 	});
 
 	it('frames a tile from the list of the biggest', async () => {

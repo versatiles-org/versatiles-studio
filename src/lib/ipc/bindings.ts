@@ -1458,6 +1458,21 @@ export type Hillshade_Serialize = {
 	terrain?: boolean | null,
 };
 
+/**
+ *  Tile counts by size (#23).
+ * 
+ *  Bucket `i` holds the tiles from `2^(i/2)` bytes up to, but not including, `2^((i+1)/2)` - see
+ *  [`CHART_STEPS`]. Only the run of buckets from the smallest tile to the biggest is sent, so a level
+ *  is a few dozen numbers rather than sixty-four, most of them zero.
+ */
+export type Histogram = {
+	/**  Tiles of no bytes at all, which a log scale has nowhere to put. */
+	empty: number,
+	/**  The bucket `counts[0]` is. */
+	first: number,
+	counts: number[],
+};
+
 /**  One way of bringing data in. */
 export type ImportKind = {
 	/**  Stable identifier, used by the caller to say which card was chosen. */
@@ -1818,6 +1833,8 @@ export type LevelSizes = {
 	p50: number,
 	p95: number,
 	max: number,
+	/**  How many tiles there are of each size, for the chart (#23). */
+	histogram: Histogram,
 };
 
 /**
@@ -2434,6 +2451,8 @@ export type Sizes = {
 	p50: number,
 	p95: number,
 	max: number,
+	/**  Every level's tiles together, for the chart's "All levels" (#23). */
+	histogram: Histogram,
 	/**  One entry per level that holds a tile, ascending. */
 	levels: LevelSizes[],
 	/**  The biggest tiles, biggest first - at most [`BIGGEST`]. */
