@@ -8,6 +8,7 @@
 	import JsonTree from '../common/JsonTree.svelte';
 	import TileDrawing, { layerColour, reach } from './TileDrawing.svelte';
 	import TileNavigator from './TileNavigator.svelte';
+	import RasterTile, { type PointedPixel } from './RasterTile.svelte';
 	import { bytes, kilobytes, count, ordinal } from '../common/format';
 	import type { Dissection } from '../ipc/commands';
 	import { parseAddress, type TileAt } from '../state/tile-dialog.svelte';
@@ -61,14 +62,25 @@
 	let address = $derived(`${at.z}/${at.x}/${at.y}`);
 	const typed = $derived(parseAddress(address));
 
+	/// The pixel under the pointer, for a raster tile.
+	let pointed = $state<PointedPixel | null>(null);
+
 	// A new tile is a new subject: what was picked in the last one names nothing in this one.
 	$effect(() => {
 		void at;
 		focus = null;
 		selected = null;
+		pointed = null;
 	});
 
 	const vector = $derived(dissection !== null && dissection.layers.length > 0);
+	const raster = $derived(dissection?.raster ?? null);
+	/// A share of the tile's pixels, as "12%" - or "under 1%" rather than a "0%" that is not nothing.
+	const share = (pixels: number) => {
+		if (!raster) return '';
+		const percent = (pixels / (raster.width * raster.height)) * 100;
+		return percent > 0 && percent < 1 ? 'under 1%' : `${Math.round(percent)}%`;
+	};
 	const total = $derived(dissection?.layers.reduce((sum, layer) => sum + layer.features, 0) ?? 0);
 	const extent = $derived(dissection?.layers[focus ?? 0]?.extent ?? 4096);
 	/** Features reaching past the buffer the drawing shows - counted, since they are not seen whole. */
@@ -197,6 +209,8 @@
 								vertices={showVertices}
 								onSelect={select}
 							/>
+						{:else if raster}
+							<RasterTile {raster} onPoint={(pixel) => (pointed = pixel)} />
 						{:else}
 							<div class="blank">
 								{#if error}
@@ -206,7 +220,9 @@
 								{:else if !dissection}
 									<Note tone="empty">This source has no tile at {at.z}/{at.x}/{at.y}.</Note>
 								{:else}
-									<Note tone="aside">A raster tile has nothing to take apart beyond its size.</Note>
+									<!-- A vector tile with no layers: a raster one has its pixels drawn above. -->
+									<Note tone="aside">This tile holds no layers, so there is nothing to take apart beyond its size.</Note
+									>
 								{/if}
 							</div>
 						{/if}
@@ -219,6 +235,14 @@
 							{#if beyond > 0}<span
 									>{count(beyond)} {beyond === 1 ? 'feature reaches' : 'features reach'} past the buffer shown.</span
 								>{/if}
+						</figcaption>
+					{:else if raster}
+						<figcaption aria-live="polite">
+							{#if pointed}
+								<span>Pixel {pointed.x}, {pointed.y}{pointed.value === null ? '' : ` · ${pointed.value}`}</span>
+							{:else}
+								<span>Point at a pixel for its value.</span>
+							{/if}
 						</figcaption>
 					{/if}
 				</figure>
@@ -455,6 +479,30 @@
 								</Note>
 							</div>
 						{/if}
+					</div>
+				{:else if raster}
+					<!-- Where a vector tile's tabs are: what the pixels add up to. -->
+					<div class="contents">
+						<dl class="facts" aria-label="The tile's pixels">
+							<dt>Size</dt>
+							<dd>{raster.width} × {raster.height} px</dd>
+							<dt>Channels</dt>
+							<dd>{raster.channels}</dd>
+							<dt>Transparency</dt>
+							<dd>
+								{#if !raster.alpha}
+									none - the tile has no alpha channel
+								{:else if raster.transparent === 0 && raster.translucent === 0}
+									none - every pixel is opaque
+								{:else}
+									{share(raster.transparent)} transparent{raster.translucent > 0
+										? `, ${share(raster.translucent)} partly`
+										: ''}
+								{/if}
+							</dd>
+							<dt>Colours</dt>
+							<dd>{raster.coloursCapped ? `more than ${count(raster.colours)}` : count(raster.colours)}</dd>
+						</dl>
 					</div>
 				{/if}
 			</div>

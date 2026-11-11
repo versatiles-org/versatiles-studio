@@ -9,7 +9,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/svelte';
 import TileDialog from './TileDialog.svelte';
 import { reach } from './TileDrawing.svelte';
-import type { Dissection, FeatureDissection, LayerDissection } from '../ipc/commands';
+import type { Dissection, FeatureDissection, LayerDissection, RasterDissection } from '../ipc/commands';
 
 // jsdom has no `showModal`, and `Modal` calls it on mount.
 beforeAll(() => {
@@ -71,7 +71,8 @@ const tile: Dissection = {
 	features: [square(0, 0), square(1, 0), square(1, 1, -50)],
 	every: 1,
 	issues: [{ layer: 'buildings', feature: 1, kind: 'OrphanInnerRing', label: 'a ring winds the wrong way' }],
-	repair: { rawBytes: 1_100_000, issuesLeft: 0 }
+	repair: { rawBytes: 1_100_000, issuesLeft: 0 },
+	raster: null
 };
 
 const at = { graph: 3, z: 14, x: 8800, y: 5373 };
@@ -154,10 +155,55 @@ describe('the tile dialog', () => {
 		expect(screen.getByText(/Every 3rd feature of each layer is drawn and listed - 3 of/)).toBeTruthy();
 	});
 
-	it('takes a raster tile no further than its size', () => {
-		show({ dissection: { ...tile, format: 'png', layers: [], features: [], issues: [], repair: null } });
-		expect(screen.getByText('A raster tile has nothing to take apart beyond its size.')).toBeTruthy();
+	it('says a vector tile with no layers has nothing more to take apart', () => {
+		show({ dissection: { ...tile, layers: [], features: [], issues: [], repair: null } });
+		expect(screen.getByText(/This tile holds no layers/)).toBeTruthy();
 		expect(screen.queryByRole('tablist')).toBeNull();
+	});
+
+	describe('a raster tile', () => {
+		/** Four pixels: one transparent, one half so. The image itself is never decoded in jsdom. */
+		const raster = (over: Partial<RasterDissection> = {}): Dissection => ({
+			...tile,
+			format: 'png',
+			layers: [],
+			features: [],
+			issues: [],
+			repair: null,
+			raster: {
+				width: 512,
+				height: 512,
+				channels: 'RGBA',
+				alpha: true,
+				transparent: 65_536,
+				translucent: 1000,
+				colours: 4321,
+				coloursCapped: false,
+				image: 'data:image/png;base64,AAAA',
+				...over
+			}
+		});
+
+		it('shows its pixels, and what they add up to, where the tabs would be', () => {
+			show({ dissection: raster() });
+			expect(screen.getByRole('img', { name: "The tile's pixels, 512 by 512" })).toBeTruthy();
+			const facts = within(screen.getByLabelText("The tile's pixels"));
+			expect(facts.getByText('512 × 512 px')).toBeTruthy();
+			expect(facts.getByText('RGBA')).toBeTruthy();
+			expect(facts.getByText('25% transparent, under 1% partly')).toBeTruthy();
+			expect(facts.getByText('4,321')).toBeTruthy();
+			expect(screen.queryByRole('tablist')).toBeNull();
+		});
+
+		it('says plainly when nothing shows through', () => {
+			show({ dissection: raster({ channels: 'RGB', alpha: false, transparent: 0, translucent: 0 }) });
+			expect(screen.getByText('none - the tile has no alpha channel')).toBeTruthy();
+		});
+
+		it('says when it stopped counting colours', () => {
+			show({ dissection: raster({ colours: 65_536, coloursCapped: true }) });
+			expect(screen.getByText('more than 65,536')).toBeTruthy();
+		});
 	});
 
 	/** One stray vertex a tile away used to draw the tile in the middle third of its own square. */

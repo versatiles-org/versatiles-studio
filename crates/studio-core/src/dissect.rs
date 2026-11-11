@@ -21,14 +21,16 @@
 //! [Q3]: ../../../docs/decisions.md
 
 use anyhow::{Context, Result};
+use base64::{Engine, engine::general_purpose::STANDARD};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use versatiles_container::{TileSource, describe_issue_kind};
-use versatiles_core::{TileCompression, TileCoord};
+use versatiles_core::{TileCompression, TileCoord, TileFormat};
 use versatiles_geometry::geo::GeoValue;
 use versatiles_geometry::vector_tile::{
 	GeoValuePBF, GeomType, VectorTile, VectorTileLayer, layer_stats, repair_tile, validate_tile, varint_len,
 };
+use versatiles_image::{DynamicImage, DynamicImageTraitConvert};
 
 /// The most features a dissection carries geometry for.
 pub const MAX_FEATURES: usize = 20_000;
@@ -60,6 +62,39 @@ pub struct Dissection {
 	pub issues: Vec<TileIssue>,
 	/// What `vector_repair` would make of it, when there is anything to repair.
 	pub repair: Option<RepairPreview>,
+	/// The pixels and what they add up to, for a raster tile. `None` for a vector one.
+	pub raster: Option<RasterDissection>,
+}
+
+/// How many distinct colours a raster dissection counts before it stops: past this, "a photograph"
+/// is the answer, and the exact number would only cost a set of millions.
+pub const MAX_COLOURS: usize = 65_536;
+
+/// A raster tile, taken apart: its pixels, and what they add up to.
+///
+/// **The pixels are sent, losslessly.** A JPEG or a WebP is decoded here and written again as a PNG,
+/// so the dialog draws and reads exactly what the pipeline's own decoder sees - and the webview needs
+/// to read nothing it might decode differently.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct RasterDissection {
+	pub width: u32,
+	pub height: u32,
+	/// `grey`, `grey + alpha`, `RGB` or `RGBA`.
+	pub channels: String,
+	/// Whether the tile carries an alpha channel at all.
+	pub alpha: bool,
+	/// Pixels nothing shows through: alpha 0.
+	pub transparent: u32,
+	/// Pixels partly see-through: alpha neither 0 nor 255.
+	pub translucent: u32,
+	/// Distinct colours, alpha included - counted up to [`MAX_COLOURS`].
+	pub colours: u32,
+	/// Whether counting stopped at [`MAX_COLOURS`], so there are more.
+	pub colours_capped: bool,
+	/// The pixels as a PNG `data:` URL.
+	pub image: String,
 }
 
 /// One layer: what it holds, and what its bytes are spent on.
@@ -191,8 +226,10 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 		every: 1,
 		issues: Vec::new(),
 		repair: None,
+		raster: None,
 	};
 	if !format.is_vector() {
+		found.raster = Some(raster(tile.as_image().context("decoding the image")?)?);
 		return Ok(Some(found));
 	}
 
@@ -216,6 +253,54 @@ pub async fn dissect(source: &dyn TileSource, z: u8, x: u32, y: u32) -> Result<O
 		});
 	}
 	Ok(Some(found))
+}
+
+/// What a decoded raster tile holds.
+fn raster(image: &DynamicImage) -> Result<RasterDissection> {
+	let color = image.color();
+	let alpha = color.has_alpha();
+	let channels = match (color.channel_count(), alpha) {
+		(1, _) => "grey",
+		(2, _) => "grey + alpha",
+		(3, _) => "RGB",
+		_ => "RGBA",
+	};
+
+	let mut transparent = 0u32;
+	let mut translucent = 0u32;
+	let mut colours: HashSet<u32> = HashSet::new();
+	for pixel in image.iter_pixels() {
+		if alpha {
+			match pixel.last().copied().unwrap_or(255) {
+				0 => transparent += 1,
+				255 => {}
+				_ => translucent += 1,
+			}
+		}
+		if colours.len() < MAX_COLOURS {
+			// Packed into one number: four channels at most, a byte each.
+			colours.insert(
+				pixel
+					.iter()
+					.fold(0u32, |packed, &channel| (packed << 8) | u32::from(channel)),
+			);
+		}
+	}
+
+	let png = image
+		.to_blob(TileFormat::PNG, None, None)
+		.context("encoding the pixels as PNG")?;
+	Ok(RasterDissection {
+		width: image.width(),
+		height: image.height(),
+		channels: channels.to_string(),
+		alpha,
+		transparent,
+		translucent,
+		colours: clamp(colours.len()),
+		colours_capped: colours.len() >= MAX_COLOURS,
+		image: format!("data:image/png;base64,{}", STANDARD.encode(png.as_slice())),
+	})
 }
 
 /// One tile in brief: what the map's popup says about the tile under a click (S14.6, A8).
@@ -716,6 +801,50 @@ mod tests {
 			brief.layers.windows(2).all(|w| w[0].bytes >= w[1].bytes),
 			"the heaviest first"
 		);
+		Ok(())
+	}
+
+	/// What a raster tile's pixels add up to: transparency counted per kind, colours with alpha.
+	#[test]
+	fn counts_what_a_raster_tile_holds() -> Result<()> {
+		// Opaque red, nothing, half-transparent red, opaque red again.
+		let pixels = vec![255, 0, 0, 255, 0, 0, 0, 0, 255, 0, 0, 128, 255, 0, 0, 255];
+		let found = raster(&DynamicImage::from_raw(2, 2, pixels)?)?;
+		assert_eq!((found.width, found.height), (2, 2));
+		assert_eq!((found.channels.as_str(), found.alpha), ("RGBA", true));
+		assert_eq!((found.transparent, found.translucent), (1, 1));
+		assert_eq!((found.colours, found.colours_capped), (3, false));
+
+		let opaque = raster(&DynamicImage::from_raw(1, 2, vec![10, 20, 30, 10, 20, 30])?)?;
+		assert_eq!((opaque.channels.as_str(), opaque.alpha), ("RGB", false));
+		assert_eq!((opaque.transparent, opaque.translucent, opaque.colours), (0, 0, 1));
+		Ok(())
+	}
+
+	/// The dialog draws and reads the pixels it is sent, so they have to be the tile's, exactly.
+	#[test]
+	fn sends_the_pixels_losslessly() -> Result<()> {
+		let pixels: Vec<u8> = (0..16u8 * 4).map(|i| i.wrapping_mul(37)).collect();
+		let image = DynamicImage::from_raw(4, 4, pixels.clone())?;
+		let url = raster(&image)?.image;
+		let encoded = url.strip_prefix("data:image/png;base64,").expect("a PNG data URL");
+		let blob = versatiles_core::Blob::from(STANDARD.decode(encoded)?);
+		let back = DynamicImage::from_blob(&blob, TileFormat::PNG)?;
+		assert_eq!(back.iter_pixels().flatten().copied().collect::<Vec<u8>>(), pixels);
+		Ok(())
+	}
+
+	/// A raster pipeline's tile, end to end: sizes as before, and now the pixels too.
+	#[tokio::test]
+	async fn takes_a_raster_tile_apart() -> Result<()> {
+		let runtime = versatiles::runtime::create_test_runtime();
+		let pipeline = crate::vpl::Document::parse("from_debug format=png")?.to_pipeline();
+		let source = crate::preview::build(&runtime, pipeline, std::path::Path::new(".")).await?;
+		let found = dissect(source.as_ref(), 3, 2, 5).await?.expect("a debug tile");
+		assert!(found.layers.is_empty() && found.features.is_empty());
+		let raster = found.raster.expect("a raster tile has its pixels taken apart");
+		assert!(raster.width > 0 && raster.width == raster.height);
+		assert!(raster.image.starts_with("data:image/png;base64,"));
 		Ok(())
 	}
 }

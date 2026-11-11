@@ -235,6 +235,8 @@ export const commands = {
 	issues: TileIssue[],
 	/**  What `vector_repair` would make of it, when there is anything to repair. */
 	repair: RepairPreview | null,
+	/**  The pixels and what they add up to, for a raster tile. `None` for a vector one. */
+	raster: RasterDissection | null,
 } | null, string>(__TAURI_INVOKE("dissect_tile", { graph, z, x, y })),
 	/**
 	 *  The drawn tile at `z/x/y` in brief, for the map's popup (S14.6, A8) - `None` where it has none.
@@ -1160,6 +1162,8 @@ export type Dissection = {
 	issues: TileIssue[],
 	/**  What `vector_repair` would make of it, when there is anything to repair. */
 	repair: RepairPreview | null,
+	/**  The pixels and what they add up to, for a raster tile. `None` for a vector one. */
+	raster: RasterDissection | null,
 };
 
 /**  The whole document a view needs: the text, its tree, and its tokens. */
@@ -2145,6 +2149,32 @@ export type RasterAdjust_Serialize = {
 	 *  printed map or any pixel art wants.
 	 */
 	resampling?: Resampling | null,
+};
+
+/**
+ *  A raster tile, taken apart: its pixels, and what they add up to.
+ * 
+ *  **The pixels are sent, losslessly.** A JPEG or a WebP is decoded here and written again as a PNG,
+ *  so the dialog draws and reads exactly what the pipeline's own decoder sees - and the webview needs
+ *  to read nothing it might decode differently.
+ */
+export type RasterDissection = {
+	width: number,
+	height: number,
+	/**  `grey`, `grey + alpha`, `RGB` or `RGBA`. */
+	channels: string,
+	/**  Whether the tile carries an alpha channel at all. */
+	alpha: boolean,
+	/**  Pixels nothing shows through: alpha 0. */
+	transparent: number,
+	/**  Pixels partly see-through: alpha neither 0 nor 255. */
+	translucent: number,
+	/**  Distinct colours, alpha included - counted up to [`MAX_COLOURS`]. */
+	colours: number,
+	/**  Whether counting stopped at [`MAX_COLOURS`], so there are more. */
+	coloursCapped: boolean,
+	/**  The pixels as a PNG `data:` URL. */
+	image: string,
 };
 
 export type RecentEntry = {
