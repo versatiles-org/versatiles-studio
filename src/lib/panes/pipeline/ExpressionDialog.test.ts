@@ -59,14 +59,15 @@ afterEach(() => {
 });
 
 describe('the check', () => {
-	// One box for every verdict, so the dialog keeps its size while they change under the typing.
+	// One box for every verdict, so the dialog keeps its size while they change.
 	it('keeps one box for the verdict, whatever it is', async () => {
 		open({ value: '' });
 		await vi.advanceTimersByTimeAsync(0);
 		const status = screen.getByRole('status', { hidden: true });
 		expect(status.textContent).toContain('Empty');
 		await fireEvent.input(box(), { target: { value: '$zoom' } });
-		await vi.advanceTimersByTimeAsync(600);
+		await fireEvent.click(chip('Check'));
+		await vi.advanceTimersByTimeAsync(0);
 		expect(screen.getByRole('status', { hidden: true })).toBe(status);
 		expect(status.textContent).toContain('Reads as an expression.');
 	});
@@ -78,24 +79,35 @@ describe('the check', () => {
 		expect(screen.getByText('Reads as an expression.')).toBeTruthy();
 	});
 
-	// Not while a word is half-written: only once the typing stops, and in upstream's words.
-	it('waits for a pause, then says what is wrong', async () => {
+	// A pause is mostly a thought half-finished, so typing is never judged on its own.
+	it('checks when asked, and not while typing', async () => {
 		const { check } = open({
 			value: '$zoom',
 			check: async (text) => (text.endsWith('==') ? ["does not accept 'expr=$zoom =='"] : [])
 		});
 		await vi.advanceTimersByTimeAsync(0);
 		await fireEvent.input(box(), { target: { value: '$zoom ==' } });
-		await vi.advanceTimersByTimeAsync(300);
+		await vi.advanceTimersByTimeAsync(5000);
 		expect(check).toHaveBeenCalledTimes(1);
+		// The last verdict stands, said to be about what was there before.
 		expect(screen.getByText('Reads as an expression.')).toBeTruthy();
+		expect(screen.getByText('Changed since the check')).toBeTruthy();
 
-		await vi.advanceTimersByTimeAsync(300);
+		await fireEvent.click(chip('Check'));
+		await vi.advanceTimersByTimeAsync(0);
 		expect(check).toHaveBeenLastCalledWith('$zoom ==');
 		// In the box the verdicts share, laid out as upstream wrote it: unwrapped, in one width.
 		const message = screen.getByText("'vector_branch' does not accept 'expr=$zoom =='");
 		expect(message.tagName).toBe('PRE');
 		expect(message.closest('[role="status"]')).toBe(screen.getByRole('status', { hidden: true }));
+	});
+
+	it('checks on ⌘ or Ctrl + Enter too', async () => {
+		const { check } = open({ value: '$zoom' });
+		await vi.advanceTimersByTimeAsync(0);
+		await fireEvent.keyDown(box(), { key: 'Enter', ctrlKey: true });
+		await vi.advanceTimersByTimeAsync(0);
+		expect(check).toHaveBeenCalledTimes(2);
 	});
 });
 

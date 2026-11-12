@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount, tick, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import Group from '../../common/Group.svelte';
 	import Modal from '../../common/Modal.svelte';
 	import Note from '../../common/Note.svelte';
@@ -14,9 +14,10 @@
 	// properties, and the values those hold - each a click away from being written where the caret
 	// is.
 	//
-	// **Checked as it is typed, without being in the way.** The check waits for a pause, so a word
-	// half-written is not called wrong; until it answers, the last answer stays, faded, rather than
-	// the line flickering between verdicts. Nothing turns red while you type.
+	// **Checked when asked, not while typed.** It checked after every pause, and a pause is mostly
+	// a thought half-finished - `$layer ==` on its way to a value was called wrong each time. Now it
+	// is checked once on opening and then on Check (or ⌘/Ctrl+Enter); an edit since leaves the last
+	// verdict in its box, faded, as an answer about what was there before.
 	let {
 		value,
 		name,
@@ -62,29 +63,28 @@
 	let problems = $state<string[] | null>(null);
 	/// Whether the text has changed since that answer.
 	let changed = $state(false);
-	let timer: ReturnType<typeof setTimeout> | undefined;
+	/// Whether a check is on its way.
+	let checking = $state(false);
 	/// The newest question; an answer to an older one is dropped.
 	let asked = 0;
 
 	async function run(): Promise<void> {
 		const ticket = ++asked;
 		const text = draft.trim();
+		checking = true;
 		const found = text === '' ? [] : await check(text);
 		if (ticket !== asked) return;
 		problems = found;
 		changed = false;
+		checking = false;
 	}
 
-	/// Half a second after the typing stops: long enough not to judge a word being written, short
-	/// enough that the answer is there when the eyes come back to it.
-	function schedule(): void {
+	/// An edit leaves the last verdict standing, marked as being about what was there before.
+	const edited = (): void => {
 		changed = true;
-		clearTimeout(timer);
-		timer = setTimeout(() => void run(), 500);
-	}
+	};
 
 	onMount(() => void run());
-	onDestroy(() => clearTimeout(timer));
 
 	// -- what can be picked ---------------------------------------------------------------------
 
@@ -108,7 +108,7 @@
 		const next = insertAt(draft, selection.start, selection.end, piece);
 		draft = next.text;
 		selection = { start: next.caret, end: next.caret };
-		schedule();
+		edited();
 		await tick();
 		box?.focus();
 		box?.setSelectionRange(next.caret, next.caret);
@@ -125,15 +125,24 @@
 		bind:value={draft}
 		oninput={() => {
 			remember();
-			schedule();
+			edited();
+		}}
+		onkeydown={(event) => {
+			if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+				event.preventDefault();
+				void run();
+			}
 		}}
 		onkeyup={remember}
 		onclick={remember}
 		onselect={remember}></textarea>
 
-	<!-- **A box of its own, always there, of one height.** A verdict that came and went with the
-	     typing resized the dialog under the caret. Faded while the text has moved on from the answer,
-	     so the box never jumps between verdicts mid-word either. -->
+	<!-- **A box of its own, always there, of one height.** A verdict that came and went resized the
+	     dialog under the caret. Faded while the text has moved on from the answer. -->
+	<div class="check">
+		<button type="button" class="button" disabled={checking} onclick={() => void run()}>Check</button>
+		<span class="keys">{changed && problems !== null ? 'Changed since the check' : '⌘/Ctrl + Enter'}</span>
+	</div>
 	<div class="status" class:changed role="status" aria-live="polite">
 		{#if draft.trim() === ''}
 			<Note tone="aside">Empty: Use clears the parameter.</Note>
@@ -245,6 +254,17 @@
 		resize: vertical;
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
+	}
+
+	.check {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+
+		.keys {
+			font-size: var(--text-xs);
+			color: var(--ink-2);
+		}
 	}
 
 	/* Six lines of the message's own font, scrolling both ways inside rather than growing. */
