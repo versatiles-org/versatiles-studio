@@ -1,7 +1,7 @@
 <script lang="ts">
 	import Group from '../../common/Group.svelte';
 	import Note from '../../common/Note.svelte';
-	import { bytes, count, kilobytes } from '../../common/format';
+	import { bytes, count, kilobytes, megabytes } from '../../common/format';
 	import LayerShares from './LayerShares.svelte';
 	import SpecChecks from './SpecChecks.svelte';
 	import SizeHistogram from './SizeHistogram.svelte';
@@ -15,8 +15,10 @@
 	// "nothing else" - and because this one is opt-in: nothing is measured until somebody asks, since
 	// a walk over a planet is not something to start because a pane was unfolded.
 	//
-	// **Four columns at most.** The pane is about 300 px wide, and a fifth column is where a table
-	// starts wrapping its numbers.
+	// **The per-level table scrolls sideways rather than wrapping.** The pane is about 300 px wide, and
+	// five columns of numbers is where a table outgrows it. A number is never broken over two lines
+	// (`.figures` keeps it whole), so what gives is the table's width, inside a scroller of its own,
+	// which leaves the rest of the pane where it was.
 	let {
 		graph,
 		measurement,
@@ -145,34 +147,44 @@
 					/>
 				{/if}
 
-				<table class="figures" aria-label="Sizes per zoom level">
-					<thead>
-						<tr><th scope="col">Zoom</th><th scope="col">Tiles</th><th scope="col">Mean</th><th scope="col">Max</th></tr
-						>
-					</thead>
-					<tbody>
-						{#each sizes.levels as level (level.level)}
-							<tr>
-								<!-- The level is also the way to chart it: the row is where the question comes up. -->
-								<th scope="row"
-									><button
-										type="button"
-										class="link"
-										aria-pressed={shownLevel === level.level}
-										aria-label="Chart the sizes at zoom {level.level}"
-										onclick={() => (chartLevel = shownLevel === level.level ? null : level.level)}>{level.level}</button
-									></th
-								>
-								<td>{count(level.tiles)}</td>
-								<td>{kilobytes(level.tiles === 0 ? 0 : level.bytes / level.tiles)}</td>
-								<!-- Marked rather than coloured whole: the row is fine, one tile in it is not. -->
-								<td class:over={level.max > BUDGET} title={level.max > BUDGET ? 'over 500 kB' : undefined}
-									>{kilobytes(level.max)}</td
-								>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+				<!-- Focusable because it scrolls: a region that only a mouse can scroll is one a keyboard
+				     cannot read the end of. -->
+				<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+				<div class="scroll" role="region" aria-label="Sizes per zoom level" tabindex="0">
+					<table class="figures" aria-label="Sizes per zoom level">
+						<thead>
+							<tr
+								><th scope="col">Zoom</th><th scope="col">Tiles</th><th scope="col">Total</th><th scope="col">Mean</th
+								><th scope="col">Max</th></tr
+							>
+						</thead>
+						<tbody>
+							{#each sizes.levels as level (level.level)}
+								<tr>
+									<!-- The level is also the way to chart it: the row is where the question comes up. -->
+									<th scope="row"
+										><button
+											type="button"
+											class="link"
+											aria-pressed={shownLevel === level.level}
+											aria-label="Chart the sizes at zoom {level.level}"
+											onclick={() => (chartLevel = shownLevel === level.level ? null : level.level)}
+											>{level.level}</button
+										></th
+									>
+									<td>{count(level.tiles)}</td>
+									<!-- One unit down the column, so the levels compare at a glance - see `megabytes`. -->
+									<td>{megabytes(level.bytes)}</td>
+									<td>{kilobytes(level.tiles === 0 ? 0 : level.bytes / level.tiles)}</td>
+									<!-- Marked rather than coloured whole: the row is fine, one tile in it is not. -->
+									<td class:over={level.max > BUDGET} title={level.max > BUDGET ? 'over 500 kB' : undefined}
+										>{kilobytes(level.max)}</td
+									>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
 			{:else if !measurement.running && !measurement.error}
 				<Note>Measure reads every tile's size from the container's index - seconds, not minutes.</Note>
 			{/if}
@@ -262,6 +274,14 @@
 	/* What this pane decides for itself: which figure is over the budget. */
 	.over {
 		color: var(--error);
+	}
+
+	/* The per-level table, wider than the pane once it has five columns. `min-width: 0` because the
+	   group lays its children out as flex items, which otherwise grow to fit the table and push the
+	   pane wide instead of scrolling. */
+	.scroll {
+		min-width: 0;
+		overflow-x: auto;
 	}
 
 	/* A link on a line of its own, not stretched across the pane by the group's column. */

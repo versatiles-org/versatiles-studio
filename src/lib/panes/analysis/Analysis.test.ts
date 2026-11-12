@@ -96,12 +96,22 @@ describe('the analysis pane', () => {
 		show({ measurement: measured({ sizes }) });
 		const table = screen.getByRole('table', { name: 'Sizes per zoom level' });
 		const rows = within(table).getAllByRole('row').slice(1);
+		// Zoom, tiles, total, mean, max - the total in megabytes, one unit down its column.
 		expect(rows.map((row) => [...row.children].map((cell) => cell.textContent?.trim()).join(' '))).toEqual([
-			'0 1 200 kB 200 kB',
-			'1 2 550 kB 900 kB'
+			'0 1 0.2 MB 200 kB 200 kB',
+			'1 2 1.1 MB 550 kB 900 kB'
 		]);
 		expect(within(rows[1]).getByText('900 kB').classList.contains('over')).toBe(true);
 		expect(within(rows[0]).getAllByText('200 kB')[1].classList.contains('over')).toBe(false);
+	});
+
+	// Five columns are wider than the pane, so the table scrolls - and a keyboard has to be able to
+	// scroll it too, which is what the focus is for.
+	it('puts the table in a scroller a keyboard can reach', () => {
+		show({ measurement: measured({ sizes }) });
+		const region = screen.getByRole('region', { name: 'Sizes per zoom level' });
+		expect(region.tabIndex).toBe(0);
+		expect(within(region).getByRole('table', { name: 'Sizes per zoom level' })).toBeTruthy();
 	});
 
 	describe('the histogram (#23)', () => {
