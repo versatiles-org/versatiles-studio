@@ -3,6 +3,7 @@
 	import type { FieldInfo } from '../../ipc/commands';
 	import HelpTrigger from '../../common/HelpTrigger.svelte';
 	import Note from '../../common/Note.svelte';
+	import ExpressionDialog from './ExpressionDialog.svelte';
 	import RampDialog from './RampDialog.svelte';
 	import StepsDialog from './StepsDialog.svelte';
 	import type { HelpContent } from '../../state/help.svelte';
@@ -10,6 +11,8 @@
 	import { bboxField, formatBbox, parseBbox } from '../../state/bbox.svelte';
 	import ColorPicker from '../../common/ColorPicker.svelte';
 	import { unhandled } from './node-fields';
+	import { vplCheckValue } from '../../ipc/commands';
+	import { vocabulary } from '../../state/vocabulary.svelte';
 
 	// One argument of a node: its name, its help, its control, and whether it can be removed (C2).
 	//
@@ -32,6 +35,7 @@
 		suggestions = [],
 		placeholder = '',
 		tentative = false,
+		operation = '',
 		onCommit,
 		onRemove,
 		removeLabel
@@ -49,6 +53,8 @@
 		placeholder?: string;
 		/** In the pane and not yet in the document - tinted to say so. */
 		tentative?: boolean;
+		/** The operation this belongs to - what the expression helper asks upstream about. */
+		operation?: string;
 		/** The way in this node's operation reads, when it is one - the file dialog's filter. */
 		/** Fired on blur, Enter or a choice - never per keystroke, which would reparse the document
 		 *  on every character and fight the caret. */
@@ -90,6 +96,7 @@
 
 	/// Colours by elevation: `0:00a000,1000:c8b464`. The same shape as a curve, and for the same reason.
 	let editingRamp = $state(false);
+	let editingExpression = $state(false);
 
 	/// Whether this row draws with the shared text box.
 	///
@@ -119,6 +126,7 @@
 				return true;
 			case 'steps':
 			case 'ramp':
+			case 'expression':
 				// The written form, with a dialog behind a button - the same shape as a path.
 				return true;
 			case 'choice':
@@ -308,6 +316,14 @@
 						aria-label={`Set ${name} per zoom`}
 						onclick={() => (editingCurve = true)}><Icon name="steps" size="1em" /></button
 					>
+				{:else if control?.kind === 'expression'}
+					<button
+						type="button"
+						class="icon"
+						title="Write the expression…"
+						aria-label={`Write ${name}`}
+						onclick={() => (editingExpression = true)}><Icon name="steps" size="1em" /></button
+					>
 				{:else if control?.kind === 'ramp'}
 					<button
 						type="button"
@@ -353,6 +369,23 @@
 					editingCurve = false;
 				}}
 				onClose={() => (editingCurve = false)}
+			/>
+		{/if}
+
+		{#if control?.kind === 'expression' && editingExpression}
+			<ExpressionDialog
+				{value}
+				{name}
+				{operation}
+				names={control.names}
+				vocabulary={vocabulary.current}
+				check={(text) => vplCheckValue(operation, name, text)}
+				onScan={() => vocabulary.scan()}
+				onUse={(next) => {
+					onCommit(next);
+					editingExpression = false;
+				}}
+				onClose={() => (editingExpression = false)}
 			/>
 		{/if}
 

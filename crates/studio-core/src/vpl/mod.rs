@@ -28,7 +28,10 @@ mod view;
 mod tests;
 
 pub use ast::{Comment, LineCol, Node, Pipeline, Property, Quote, Span, Str, Token, TokenKind, Value};
-pub use operations::{Control, FieldInfo, OperationInfo, max_sources, min_sources, operations, sources_are_branches};
+pub use operations::{
+	Control, EXPRESSION_NAMES, FieldInfo, OperationInfo, check_value, max_sources, min_sources, operations,
+	sources_are_branches,
+};
 // The registry itself stays inside the crate: `suggest` reads a node's declared fields, and
 // `operations()` would rebuild and sort the whole list once per node to answer that.
 pub(crate) use operations::registry;

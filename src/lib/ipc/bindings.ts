@@ -524,6 +524,14 @@ export const commands = {
 	 */
 	vplInsertNode: (text: string, span: Span, operation: string) => typedError<string, VplError>(__TAURI_INVOKE("vpl_insert_node", { text, span, operation })),
 	/**
+	 *  What is wrong with one value of one parameter, in upstream's words - nothing when it is fine.
+	 * 
+	 *  For the expression helper, which checks while it is being typed: the CEL compiler, run on the
+	 *  one value rather than on the document, so a half-written expression costs a parse and nothing is
+	 *  built (see `studio_core::vpl::check_value`).
+	 */
+	vplCheckValue: (operation: string, field: string, value: string) => __TAURI_INVOKE<string[]>("vpl_check_value", { operation, field, value }),
+	/**
 	 *  Adds an operation to the chain, immediately before the node whose name occupies `span` - the way
 	 *  into the start of a `vector_branch` branch, which [`vpl_insert_node`] cannot reach.
 	 */
@@ -1115,6 +1123,14 @@ maxZoom: number } |
 { kind: "choice"; options: string[] } | 
 /**  `Vec<String>` - a list of values, written as a VPL array. */
 { kind: "list" } | 
+/**
+ *  A feature expression: `vector_branch`'s and `vector_filter_features`'s `expr`.
+ * 
+ *  Text with a helper beside it, like [`Control::Ramp`]: the expression is what the VPL holds and
+ *  what `check` reports on, and the helper is where it is written with the names it can use in
+ *  front of you. `names` are the `$` names an expression reads besides a feature's properties.
+ */
+{ kind: "expression"; names: ExpressionName[] } | 
 /**  A fixed-size numeric array: a bbox is four, a colour or a centre three. */
 { kind: "numbers"; count: number } | 
 /**
@@ -1300,6 +1316,13 @@ export type Example = {
 	layer: string,
 	/**  The feature, by position in its layer; `None` for a layer-wide violation. */
 	feature: number | null,
+};
+
+/**  A name an expression reads besides a feature's own properties, and what it holds. */
+export type ExpressionName = {
+	/**  As written, `$` included. */
+	name: string,
+	doc: string,
 };
 
 /**  A family someone can install, and whether they have. */

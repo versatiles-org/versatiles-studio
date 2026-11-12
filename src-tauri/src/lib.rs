@@ -138,6 +138,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::vpl::vpl_set_property,
 		commands::vpl::vpl_remove_property,
 		commands::vpl::vpl_insert_node,
+		commands::vpl::vpl_check_value,
 		commands::vpl::vpl_insert_node_before,
 		commands::vpl::vpl_add_source,
 		commands::vpl::vpl_remove_node,

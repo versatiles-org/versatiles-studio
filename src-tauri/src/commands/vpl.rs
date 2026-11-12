@@ -405,6 +405,17 @@ pub fn vpl_set_property(text: String, span: Span, key: String, values: Vec<Strin
 	Ok(document.text().to_string())
 }
 
+/// What is wrong with one value of one parameter, in upstream's words - nothing when it is fine.
+///
+/// For the expression helper, which checks while it is being typed: the CEL compiler, run on the
+/// one value rather than on the document, so a half-written expression costs a parse and nothing is
+/// built (see `studio_core::vpl::check_value`).
+#[tauri::command]
+#[specta::specta]
+pub fn vpl_check_value(operation: String, field: String, value: String) -> Vec<String> {
+	studio_core::vpl::check_value(&operation, &field, &[value])
+}
+
 /// Adds an operation to the chain, immediately after the node whose name occupies `span`.
 ///
 /// The pipeline could only gain a transform by typing VPL before this; the graph could add a source

@@ -439,6 +439,10 @@ export const vplSetProperty = (
 	values: string[]
 ) => unwrap(commands.vplSetProperty(text, span, key, values));
 
+/** What is wrong with one value of one parameter, in upstream's words - nothing when it is fine. */
+export const vplCheckValue = (operation: string, field: string, value: string) =>
+	commands.vplCheckValue(operation, field, value);
+
 /** Adds an operation to the chain, right after the node whose name occupies `span`. */
 export const vplInsertNode = (text: string, span: Parameters<typeof commands.vplInsertNode>[1], operation: string) =>
 	unwrap(commands.vplInsertNode(text, span, operation));

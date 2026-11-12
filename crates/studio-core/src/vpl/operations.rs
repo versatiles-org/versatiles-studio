@@ -157,6 +157,14 @@ pub enum Control {
 	},
 	/// `Vec<String>` - a list of values, written as a VPL array.
 	List,
+	/// A feature expression: `vector_branch`'s and `vector_filter_features`'s `expr`.
+	///
+	/// Text with a helper beside it, like [`Control::Ramp`]: the expression is what the VPL holds and
+	/// what `check` reports on, and the helper is where it is written with the names it can use in
+	/// front of you. `names` are the `$` names an expression reads besides a feature's properties.
+	Expression {
+		names: Vec<ExpressionName>,
+	},
 	/// A fixed-size numeric array: a bbox is four, a colour or a centre three.
 	Numbers {
 		#[cfg_attr(feature = "bindings", specta(type = u32))]
@@ -180,6 +188,53 @@ pub enum Control {
 	/// the same bare row of numbers for both. The map already draws rectangles - it is how a crop is
 	/// set - so the one field where that machinery is the obvious answer had no way to reach it.
 	Bbox,
+}
+
+/// A name an expression reads besides a feature's own properties, and what it holds.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct ExpressionName {
+	/// As written, `$` included.
+	pub name: String,
+	pub doc: String,
+}
+
+/// The `$` names of a feature expression, in upstream's order (versatiles-rs 5.10).
+///
+/// **A copy**, because upstream keeps the list private (`feature_expr::Special`): the docs are its
+/// own, word for word. `the_expression_names_are_upstream_s` holds the copy to the parser - every
+/// name here compiles, and a name the parser does not know is refused - so a rename or a removal
+/// upstream fails a test here rather than offering a name that no longer works. A name *added*
+/// upstream is the one thing that cannot be caught, and is missing from the helper until it is
+/// added here.
+pub const EXPRESSION_NAMES: [(&str, &str); 7] = [
+	("$zoom", "The zoom level of the tile."),
+	("$x", "The column of the tile."),
+	("$y", "The row of the tile."),
+	("$layer", "The name of the feature's layer."),
+	(
+		"$type",
+		"The feature's geometry type, 'Point', 'LineString' or 'Polygon'.",
+	),
+	("$id", "The feature's id, or null."),
+	("$props", "All of the feature's properties, as a map."),
+];
+
+/// What is wrong with `values` written for `operation`'s `field`, in upstream's words - nothing
+/// when they are fine.
+///
+/// **Without building anything**: `VPLFieldMeta::validate` is the parser the field is decoded with,
+/// so what this accepts is what builds. For an expression that is the CEL compiler, which is what
+/// lets the helper check one while it is being typed. Empty for a field upstream does not judge,
+/// and for one this build does not know - an unknown operation is `validate`'s to report.
+#[must_use]
+pub fn check_value(operation: &str, field: &str, values: &[String]) -> Vec<String> {
+	registry()
+		.get(operation)
+		.and_then(|meta| meta.fields.iter().find(|candidate| candidate.name == field))
+		.and_then(|meta| meta.validate)
+		.map(|validate| validate(values))
+		.unwrap_or_default()
 }
 
 /// A ramp upstream knows by name, and the stops it stands for - what `ramp=default` means.
@@ -232,6 +287,17 @@ fn control_for(field: &VPLFieldMeta) -> Control {
 	match inner {
 		"GeoBBox" => return Control::Bbox,
 		"HexColor" => return Control::Color { hex: true },
+		"CelExpression" => {
+			return Control::Expression {
+				names: EXPRESSION_NAMES
+					.iter()
+					.map(|(name, doc)| ExpressionName {
+						name: (*name).to_string(),
+						doc: (*doc).to_string(),
+					})
+					.collect(),
+			};
+		}
 		"SeparatorChar" | "CsvDelimiter" => return Control::Char,
 		// `GeoDataLocation` and `TileFileLocation` are paths that refuse the wrong extension rather than
 		// merely suggesting one - which is `accepts` saying `Only` rather than `Suggested`, not a
@@ -543,9 +609,6 @@ mod tests {
 			"String",
 			// A byte count *or* the word `none`, so a number control could not express half of it.
 			"MaxTileBytes",
-			// Source text in a language of its own. An editor with highlighting would be better than a
-			// line, and is a feature; text is the honest control until there is one.
-			"CelExpression",
 			"RegexPattern",
 			"TileJSON",
 			"VectorLayers",
@@ -712,6 +775,38 @@ mod tests {
 				step: Some(0.1)
 			}
 		);
+	}
+
+	/// An expression has a helper of its own, and carries the names it can read.
+	#[test]
+	fn an_expression_has_its_own_control() {
+		for (operation, field_name) in [("vector_branch", "expr"), ("vector_filter_features", "expr")] {
+			let Control::Expression { names } = field(operation, field_name).control else {
+				panic!("{operation}.{field_name} is an expression");
+			};
+			assert_eq!(names.len(), EXPRESSION_NAMES.len());
+		}
+	}
+
+	/// **The copy, held to the parser.** Every `$` name here compiles; one the parser does not know
+	/// is refused, which is what makes the first half mean something.
+	#[test]
+	fn the_expression_names_are_upstream_s() {
+		for (name, _) in EXPRESSION_NAMES {
+			let problems = check_value("vector_filter_features", "expr", &[format!("{name} != null")]);
+			assert!(problems.is_empty(), "{name}: {problems:?}");
+		}
+		let refused = check_value("vector_filter_features", "expr", &["$nope == 1".to_string()]);
+		assert!(!refused.is_empty(), "an unknown $ name is refused");
+	}
+
+	/// What is checked as you type: a broken expression says why, a good one says nothing.
+	#[test]
+	fn an_expression_is_checked_without_building() {
+		assert!(check_value("vector_branch", "expr", &["$layer == 'streets'".to_string()]).is_empty());
+		let broken = check_value("vector_branch", "expr", &["$layer == ".to_string()]);
+		assert!(!broken.is_empty());
+		assert!(check_value("no_such_operation", "expr", &["((".to_string()]).is_empty());
 	}
 
 	#[test]

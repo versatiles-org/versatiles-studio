@@ -449,6 +449,38 @@ describe('a colour field', () => {
 	});
 });
 
+/** An expression is the line it is written as, with the helper behind a button. */
+describe('an expression', () => {
+	const EXPR_FIELD = {
+		name: 'expr',
+		doc: '',
+		required: true,
+		sources: false,
+		branches: false,
+		maxSources: null,
+		accepts: [],
+		default: null,
+		control: { kind: 'expression' as const, names: [{ name: '$zoom', doc: 'The zoom level of the tile.' }] }
+	};
+
+	it('is edited as text, and opens its helper with the names it can read', async () => {
+		// The helper checks what it opens on, and upstream finds nothing wrong with it.
+		tauri.answer('vpl_check_value', []);
+		render(NodeArgument, {
+			name: 'expr',
+			field: EXPR_FIELD,
+			value: '$zoom >= 12',
+			operation: 'vector_branch',
+			onCommit: () => {}
+		});
+		expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('$zoom >= 12');
+
+		await fireEvent.click(screen.getByLabelText('Write expr'));
+		expect((screen.getByLabelText('Expression for expr') as HTMLTextAreaElement).value).toBe('$zoom >= 12');
+		expect(screen.getByText('$zoom', { selector: 'button' })).toBeTruthy();
+	});
+});
+
 /** A colour ramp has the shape of a per-zoom curve: its text stays the field, with a dialog beside it. */
 describe('a colour ramp', () => {
 	const RAMP_FIELD = {

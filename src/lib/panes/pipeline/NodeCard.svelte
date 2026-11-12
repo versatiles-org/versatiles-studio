@@ -236,6 +236,7 @@
 		{#each node.properties as property (property.keySpan.start)}
 			{@const field = fieldOf(meta?.fields ?? [], property.key)}
 			<NodeArgument
+				operation={node.name}
 				name={property.key}
 				{field}
 				value={valueText(property)}
@@ -250,6 +251,7 @@
 			     simply there, and empty ([Q33]). -->
 		{#each missing as field (field.name)}
 			<NodeArgument
+				operation={node.name}
 				name={field.name}
 				{field}
 				value=""
@@ -266,6 +268,7 @@
 		{#if pending}
 			{@const field = fieldOf(meta?.fields ?? [], pending)}
 			<NodeArgument
+				operation={node.name}
 				name={pending}
 				{field}
 				value=""
