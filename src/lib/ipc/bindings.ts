@@ -1022,6 +1022,11 @@ export type Contents = {
 	levels: LevelContents[],
 	/**  What the tiles read and the TileJSON get wrong (S14.8). */
 	checks: Checks,
+	/**
+	 *  Each layer's properties over the tiles read, by layer name - what an expression can ask
+	 *  about, and the values it is likely to compare them with.
+	 */
+	properties: LayerProperties[],
 };
 
 /**  The control a parameter should be edited with. */
@@ -1795,6 +1800,12 @@ export type LayerOverride_Serialize = {
 	filter?: any | null,
 };
 
+/**  One layer's properties, the commonest first. */
+export type LayerProperties = {
+	layer: string,
+	keys: PropertyValues[],
+};
+
 /**  One layer of a [`TileSummary`]. */
 export type LayerSummary = {
 	name: string,
@@ -2109,6 +2120,20 @@ export type Property = {
 	value: Value,
 	/**  `key` through the end of the value. */
 	span: Span,
+};
+
+/**  One property of one layer, and what it holds. */
+export type PropertyValues = {
+	key: string,
+	/**  Features read that carry it. */
+	features: number,
+	/**  Its commonest values, at most [`TOP_VALUES`], the commonest first. */
+	values: ValueCount[],
+	/**
+	 *  Whether it holds values beyond those - more than [`TRACKED_VALUES`] different ones, so the
+	 *  list is the commonest of the first ones met rather than of all of them.
+	 */
+	more: boolean,
 };
 
 /**  How a string was written. Mirrors upstream's `CstStringKind`. */
@@ -2743,6 +2768,16 @@ export type TokenKind =
 export type Value = {
 	kind: "single",
 } & Str | { kind: "array"; items: Str[]; span: Span };
+
+/**  One value and how many features hold it. */
+export type ValueCount = {
+	/**
+	 *  **As an expression writes it** - `'primary'`, `14`, `2.5`, `true` - so what is offered is
+	 *  what is inserted, and a string with a quote in it arrives escaped.
+	 */
+	literal: string,
+	count: number,
+};
 
 /**
  *  A named view: a name, and where the camera was.

@@ -212,6 +212,7 @@ describe('the heat map switch', () => {
 			sampled: true,
 			read: 4,
 			undecodable: 0,
+			properties: [],
 			checks: { tilesWithIssues: 0, issues: [], tilejson: null } as Checks,
 			levels: [
 				{ level: 13, tiles: 4, read: 2, layers: [layer('water', 3000, 5), layer('roads', 1000, 7)] },
@@ -274,7 +275,7 @@ describe('the heat map switch', () => {
 
 	describe('the checks', () => {
 		const contents = (checks: Checks, sampled = false) => ({
-			contents: { sampled, read: 10, undecodable: 0, checks, levels: [] },
+			contents: { sampled, read: 10, undecodable: 0, checks, levels: [], properties: [] },
 			error: null,
 			running: false,
 			build: 'b'
