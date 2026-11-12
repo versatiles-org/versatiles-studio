@@ -13,6 +13,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/svelte';
+import { fireEvent } from '@testing-library/dom';
 import NodeChain from './NodeChain.svelte';
 import type { FieldInfo, OperationInfo, VplNode, VplPipeline } from '../../ipc/commands';
 
@@ -313,5 +314,50 @@ describe('a from_stacked', () => {
 	it('has no start rail in a source, which begins with its read', () => {
 		show(stacked);
 		expect(screen.queryAllByTestId('branch-start')).toHaveLength(0);
+	});
+});
+
+/** A slot folds to one line: its chain by name, how many, and whether anything in it is wrong. */
+describe('a folded slot', () => {
+	it('folds to its operations by name, and opens again', async () => {
+		show(branched);
+		const toggle = within(slot('then')).getByRole('button', { expanded: true });
+		await fireEvent.click(toggle);
+
+		expect(within(slot('then')).queryByLabelText('Switch off vector_mask')).toBeNull();
+		expect(slot('then').textContent).toContain('vector_mask');
+		expect(toggle.getAttribute('aria-expanded')).toBe('false');
+		// The other branch is left as it was.
+		expect(within(slot('else')).getByLabelText('Switch off vector_filter_layers')).toBeTruthy();
+
+		await fireEvent.click(toggle);
+		expect(within(slot('then')).getByLabelText('Switch off vector_mask')).toBeTruthy();
+	});
+
+	// Folding must not hide a problem: the line says one is there.
+	it('still says when something inside it is wrong', async () => {
+		const then = { nodes: [node('vector_mask')], span: { start: 10, end: 30 } };
+		render(NodeChain, {
+			pipeline: pipeline([node('from_debug'), node('vector_branch', [then])]),
+			disabled: [],
+			enabled: true,
+			operations: OPERATIONS,
+			problems: [{ message: 'needs a geojson', span: { start: 12, end: 23 } }],
+			onToggle: noop,
+			onCommit: noop,
+			onRemove: noop,
+			onSet: noop,
+			onRemoveNode: noop,
+			onAddOperation: noop
+		});
+		await fireEvent.click(within(slot('then')).getByRole('button', { expanded: true }));
+		expect(within(slot('then')).getByRole('img', { name: 'needs a geojson' })).toBeTruthy();
+	});
+
+	it('has nothing to fold while empty', () => {
+		show(oneBranch);
+		expect(slot('then').querySelector('.disclosure')).toBeTruthy();
+		// Its only button is the one that fills it.
+		expect(slot('else').querySelector('.disclosure')).toBeNull();
 	});
 });

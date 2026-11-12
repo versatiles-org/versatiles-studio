@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { Diagnostic, FieldInfo, Fit, OperationInfo, Span, VplNode, VplPipeline } from '../../ipc/commands';
 	import { isChainHead, isOn, problemsAt } from '../../vpl/nodes';
+	import { SvelteSet } from 'svelte/reactivity';
+	import Icon from '../../common/Icon.svelte';
 	import NodeCard from './NodeCard.svelte';
 	import NodeChain from './NodeChain.svelte';
 	import Picker from '../../common/Picker.svelte';
@@ -197,6 +199,27 @@
 		return slots;
 	}
 
+	// -- folding a slot -------------------------------------------------------------------------
+
+	/// **A slot folds to one line**, for the branch nobody is editing: its operations' names, how
+	/// many, and whether any of them has a problem - a long `then`, or a `vector_branch` inside a
+	/// branch, otherwise pushes everything below it out of the pane. Open by default, which is how
+	/// a slot was drawn before it could fold, and kept for as long as this chain is on screen.
+	///
+	/// By node and slot index, so editing inside a branch leaves its fold alone.
+	const folded = new SvelteSet<string>();
+	const uid = $props.id();
+
+	/// What a folded slot says it holds: its chain's operations, in order.
+	const summaryOf = (source: VplPipeline): string => source.nodes.map((node) => node.name).join(' → ');
+
+	/// The problems anywhere inside a source, so folding a slot cannot hide one. An empty span is
+	/// the core saying "the whole document", which no slot is marked for.
+	const problemsIn = (source: VplPipeline): Diagnostic[] =>
+		problems.filter(
+			({ span }) => span.end > span.start && span.start >= source.span.start && span.start < source.span.end
+		);
+
 	// -- what fits (S2.14) --------------------------------------------------------------------
 
 	/// Why each operation was refused, by name. Absent means nothing ruled it out.
@@ -256,35 +279,66 @@
 		{#snippet box()}
 			<div class="slots">
 				{#each slots as slot (slot.key)}
+					{@const key = `${index}:${slot.index}`}
+					{@const shut = folded.has(key)}
+					{@const id = `${uid}-${index}-${slot.index}`}
 					<section class="slot" aria-label={slot.name || 'another source'}>
-						{#if slot.name}
+						{#if slot.source}
+							{@const trouble = problemsIn(slot.source)}
+							<button
+								type="button"
+								class="disclosure slot-name"
+								aria-expanded={!shut}
+								aria-controls={id}
+								onclick={() => (shut ? folded.delete(key) : folded.add(key))}
+							>
+								<span class="chevron" class:open={!shut} aria-hidden="true"><Icon name="chevron" size="1em" /></span>
+								<span class="name">{slot.name}</span>
+								{#if shut}
+									<span class="summary">{summaryOf(slot.source)}</span>
+									<span class="count">{slot.source.nodes.length}</span>
+									{#if trouble.length > 0}
+										<span
+											class="problem"
+											role="img"
+											aria-label={trouble.map((p) => p.message).join('\n')}
+											title={trouble.map((p) => p.message).join('\n')}><Icon name="problem" size="1em" /></span
+										>
+									{/if}
+								{:else if slot.caption}
+									<span class="caption">{slot.caption}</span>
+								{/if}
+							</button>
+						{:else if slot.name}
 							<p class="slot-name">
 								<span class="name">{slot.name}</span>
 								{#if slot.caption}<span class="caption">{slot.caption}</span>{/if}
 							</p>
 						{/if}
-						{#if slot.source}
-							<NodeChain
-								pipeline={slot.source}
-								path={[...here, slot.index]}
-								kind={field?.branches ? 'branch' : 'source'}
-								{disabled}
-								{enabled}
-								{operations}
-								{properties}
-								{fits}
-								{suggestions}
-								{problems}
-								{onToggle}
-								{onCommit}
-								{onRemove}
-								{onSet}
-								{onRemoveNode}
-								{onAddOperation}
-								{onAddOperationBefore}
-								{onAddSource}
-							/>
-						{:else}
+						{#if slot.source && !shut}
+							<div {id}>
+								<NodeChain
+									pipeline={slot.source}
+									path={[...here, slot.index]}
+									kind={field?.branches ? 'branch' : 'source'}
+									{disabled}
+									{enabled}
+									{operations}
+									{properties}
+									{fits}
+									{suggestions}
+									{problems}
+									{onToggle}
+									{onCommit}
+									{onRemove}
+									{onSet}
+									{onRemoveNode}
+									{onAddOperation}
+									{onAddOperationBefore}
+									{onAddSource}
+								/>
+							</div>
+						{:else if !slot.source}
 							<!-- An empty slot says what it does while empty, and is where it is filled. -->
 							<div class="vacant" class:next={slot.fill === 'read'}>
 								{#if slot.fill === 'read' && onAddSource && reads.length > 0}
@@ -399,10 +453,46 @@
 		color: var(--ink-2);
 
 		.name {
+			flex: none;
 			color: var(--ink);
 			font-weight: 700;
 			text-transform: uppercase;
 			letter-spacing: 0.07em;
+		}
+	}
+
+	/* The slot's heading as a disclosure: the whole line is the control, as `Group`'s is. */
+	.disclosure {
+		width: 100%;
+		min-width: 0;
+		padding: 0;
+		border: 0;
+		background: none;
+		font: inherit;
+		font-size: var(--text-xs);
+		text-align: left;
+		color: var(--ink-2);
+		align-items: center;
+
+		/* Folded, the line is the chain: its operations by name, cut short at the edge rather than
+		   wrapping, since a summary that took three lines would not be one. */
+		.summary {
+			flex: 1;
+			min-width: 0;
+			overflow: hidden;
+			white-space: nowrap;
+			text-overflow: ellipsis;
+			font-family: var(--font-mono);
+		}
+
+		.count {
+			flex: none;
+			font-variant-numeric: tabular-nums;
+		}
+
+		.problem {
+			flex: none;
+			color: var(--error);
 		}
 	}
 
