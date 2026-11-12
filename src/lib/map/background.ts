@@ -22,6 +22,7 @@
 import type { StyleSpecification } from 'maplibre-gl';
 import { osm, satellite, type Palette, type TileSource } from '@versatiles/style';
 import { localAssets, PUBLIC_BASE, tileset, withoutSlots } from './builders';
+import { ON_TOP } from './style';
 
 /** Where the background's tiles come from. Only this is remote. */
 const TILES = `${PUBLIC_BASE}/tiles/osm-vector/{z}/{x}/{y}`;
@@ -122,14 +123,46 @@ export async function buildBackground(
 ): Promise<StyleSpecification | null> {
 	if (id === 'none') return null;
 	const urls = { base: PUBLIC_BASE, osm: tileset('shortbread', [TILES]), ...localAssets(serverUrl) };
-	const layers = labels ? {} : { layers: { labels: false } };
 
-	if (id === 'satellite' || id === 'satellite-plain') {
-		const osmOverlay = id === 'satellite-plain' ? false : labels ? true : layers;
-		return withoutSlots(satellite({ urls: { ...urls, satellite: IMAGERY }, osmOverlay }) as StyleSpecification);
-	}
-	return withoutSlots(osm({ theme: id as Palette, urls, ...layers }) as StyleSpecification);
+	const build = (withLabels: boolean): StyleSpecification => {
+		const layers = withLabels ? {} : { layers: { labels: false } };
+		if (id === 'satellite' || id === 'satellite-plain') {
+			const osmOverlay = id === 'satellite-plain' ? false : withLabels ? true : layers;
+			return withoutSlots(satellite({ urls: { ...urls, satellite: IMAGERY }, osmOverlay }) as StyleSpecification);
+		}
+		return withoutSlots(osm({ theme: id as Palette, urls, ...layers }) as StyleSpecification);
+	};
+
+	if (!labels || !hasLabels(id)) return build(labels);
+	return liftingLabels(build(true), build(false));
 }
+
+/**
+ * The background with its labels marked to be drawn over the whole stack, not under it.
+ *
+ * **A name under the data is a name nobody can read.** The background is laid beneath everything,
+ * which is right for its land and its roads and wrong for its labels: a source of building
+ * footprints covers the street names, and the map turns unreadable exactly where there is data.
+ *
+ * **The labels are what the switch turns off**, found by building the background both ways and
+ * taking the difference - so "the labels" means one thing for the switch and for this, and it is
+ * `@versatiles/style`'s answer rather than a guess from the layer names. POIs, transit symbols and
+ * one-way arrows are not labels by that answer, and they stay with the background.
+ */
+function liftingLabels(withLabels: StyleSpecification, without: StyleSpecification): StyleSpecification {
+	const plain = new Set(without.layers.map((layer) => layer.id));
+	return {
+		...withLabels,
+		layers: withLabels.layers.map((layer) =>
+			plain.has(layer.id)
+				? layer
+				: ({ ...layer, metadata: { ...asObject(layer.metadata), [ON_TOP]: true } } as typeof layer)
+		)
+	};
+}
+
+const asObject = (value: unknown): Record<string, unknown> =>
+	value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 
 /** Whether a background draws labels the switch can turn off. */
 export const hasLabels = (id: BackgroundId): boolean => id !== 'none' && id !== 'satellite-plain';

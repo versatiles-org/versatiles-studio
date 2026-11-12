@@ -496,6 +496,20 @@ function isVectorKind(kind: SourceKind): boolean {
 export const BACKGROUND = 'background';
 
 /**
+ * The layer-metadata key that lifts one of the background's layers over the whole stack.
+ *
+ * Only the background's layers are read for it: those are the ones laid at the bottom, and its
+ * labels are what has to come up from there - see `liftingLabels` in `background.ts`.
+ */
+export const ON_TOP = 'studio:on-top';
+
+/** Whether a layer asks to be drawn over the stack. */
+function onTop(layer: LayerSpecification): boolean {
+	const metadata = (layer as { metadata?: unknown }).metadata;
+	return Boolean(metadata && typeof metadata === 'object' && (metadata as Record<string, unknown>)[ON_TOP]);
+}
+
+/**
  * Where each of one source's runs starts and stops in its own layer list.
  *
  * **This is where the interleaving invariant is enforced**, because this is the only side that can:
@@ -624,6 +638,9 @@ export function composeStyle(
 	 * preset entry's exactly. Merging it here rather than choosing between it and the stack is what
 	 * makes the collision handling below apply to it too; choosing was the old rule, and it stopped
 	 * being reachable the moment S6.2 gave nearly every source something to draw.
+	 *
+	 * **Except its labels**, which `buildBackground` marks with [`ON_TOP`] and which are laid over
+	 * the whole stack instead, in their own order.
 	 */
 	background?: StyleSpecification | null,
 	/**
@@ -746,6 +763,8 @@ export function composeStyle(
 
 	// Walked in stack order rather than per source, because that *is* the paint order.
 	const taken = new Map<string, number>();
+	// The background's labels, held back from its run at the bottom and laid over everything at the end.
+	const lifted: LayerSpecification[] = [];
 	for (const segment of laid) {
 		const entry = drawn.find((candidate) => candidate.name === segment.source);
 		if (!entry) continue;
@@ -769,7 +788,7 @@ export function composeStyle(
 
 			// The background is drawn but is not a row: it is a map control, not part of the stack.
 			if (entry.name === BACKGROUND) {
-				layers.push(placed);
+				(onTop(layer) ? lifted : layers).push(placed);
 				continue;
 			}
 
@@ -778,6 +797,7 @@ export function composeStyle(
 			if (closed === null) layers.push(placed);
 		}
 	}
+	layers.push(...lifted);
 
 	return {
 		style: {

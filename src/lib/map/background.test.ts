@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BACKGROUNDS, backgroundOf, buildBackground, hasLabels } from './background';
-import { composeStyle } from './style';
+import { BACKGROUND, composeStyle, ON_TOP } from './style';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 
 const SERVER = 'http://127.0.0.1:1234';
@@ -167,6 +167,51 @@ describe('the labels switch', () => {
 		const without = await buildBackground('satellite', SERVER, false);
 		expect(without!.layers.some((layer) => layer.id.startsWith('label-'))).toBe(false);
 		expect(without!.layers.some((layer) => layer.type === 'raster')).toBe(true);
+	});
+
+	// The background lies under the stack, so its names lay under the data and were covered by it.
+	describe('lifts the labels over everything', () => {
+		const lifted = (style: { layers: { id: string; metadata?: unknown }[] }) =>
+			style.layers.filter((layer) => (layer.metadata as Record<string, unknown> | undefined)?.[ON_TOP]);
+
+		it('marks exactly what the switch takes off', async () => {
+			for (const id of ['positrino', 'satellite'] as const) {
+				const withLabels = (await buildBackground(id, SERVER))!;
+				const without = new Set((await buildBackground(id, SERVER, false))!.layers.map((layer) => layer.id));
+				const marked = lifted(withLabels).map((layer) => layer.id);
+				expect(marked.length, id).toBeGreaterThan(0);
+				expect(marked, id).toEqual(withLabels.layers.map((layer) => layer.id).filter((layer) => !without.has(layer)));
+			}
+		});
+
+		it('marks nothing with the switch off', async () => {
+			expect(lifted((await buildBackground('positrino', SERVER, false))!)).toEqual([]);
+		});
+
+		it('lays them over a source, and keeps the rest of the background under it', async () => {
+			const entry = {
+				name: 'berlin',
+				tileUrl: `${SERVER}/tiles/berlin/{z}/{x}/{y}`,
+				appearance: { type: 'inspector', overrides: {} },
+				kind: 'vectorOther',
+				tileFormat: 'mvt',
+				layers: [{ name: 'buildings', geometry: 'polygon' }],
+				mountedLayers: ['buildings']
+			} as never;
+			const background = (await buildBackground('positrino', SERVER))!;
+			const ids = composeStyle([entry], SERVER, background).style!.layers.map((layer) => layer.id);
+
+			const labels = lifted(background).map((layer) => `${BACKGROUND}/${layer.id}`);
+			const data = ids.filter((id) => id.startsWith('berlin/'));
+			expect(data.length).toBeGreaterThan(0);
+			// The labels are the top of the map, in the order the background drew them in.
+			expect(ids.slice(-labels.length)).toEqual(labels);
+			// The land and the roads are still the bottom: every other background layer comes before the data.
+			const under = ids.filter((id) => id.startsWith(`${BACKGROUND}/`) && !labels.includes(id));
+			expect(under.length).toBeGreaterThan(0);
+			expect(ids.slice(0, under.length)).toEqual(under);
+			expect(ids.slice(under.length, under.length + data.length)).toEqual(data);
+		});
 	});
 
 	// Imagery only has no overlay at all, so there is nothing for the switch to do.
