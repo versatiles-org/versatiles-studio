@@ -428,6 +428,17 @@ pub fn vpl_insert_node_before(text: String, span: Span, operation: String) -> Re
 	Ok(document.text().to_string())
 }
 
+/// Gives the node whose name occupies `span` another source - a `vector_branch` branch, a
+/// `from_stacked` layer - holding just `operation`. Refused past the operation's limit; see
+/// `Document::add_source`.
+#[tauri::command]
+#[specta::specta]
+pub fn vpl_add_source(text: String, span: Span, operation: String) -> Result<String, VplError> {
+	let mut document = Document::parse(text)?;
+	document.add_source(span, &operation)?;
+	Ok(document.text().to_string())
+}
+
 /// Removes the node whose name occupies `span`, and the separator that joined it to the chain.
 ///
 /// Refused when it would empty the pipeline - see `Document::remove_node` for why that is a message

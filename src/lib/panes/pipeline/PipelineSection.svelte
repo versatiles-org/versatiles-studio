@@ -6,6 +6,7 @@
 	import { workbench } from '../../state/workbench.svelte';
 	import {
 		fieldSuggestions,
+		vplAddSource,
 		vplInsertNodeBefore,
 		vplRemoveProperty,
 		vplSetProperty,
@@ -72,6 +73,7 @@
 		addOperation: (afterNameSpan, operation) => void workbench.addOperation(afterNameSpan, operation),
 		addOperationBefore: (beforeNameSpan, operation) =>
 			void workbench.editText((text) => vplInsertNodeBefore(text, beforeNameSpan, operation)),
+		addSource: (nameSpan, operation) => void workbench.editText((text) => vplAddSource(text, nameSpan, operation)),
 		remove: (span) => void workbench.removeNode(span),
 		commitValue: (span, value) => void workbench.editText((text) => vplSetValue(text, span, value)),
 		removeProperty: (span) => void workbench.editText((text) => vplRemoveProperty(text, span)),

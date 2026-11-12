@@ -529,6 +529,12 @@ export const commands = {
 	 */
 	vplInsertNodeBefore: (text: string, span: Span, operation: string) => typedError<string, VplError>(__TAURI_INVOKE("vpl_insert_node_before", { text, span, operation })),
 	/**
+	 *  Gives the node whose name occupies `span` another source - a `vector_branch` branch, a
+	 *  `from_stacked` layer - holding just `operation`. Refused past the operation's limit; see
+	 *  `Document::add_source`.
+	 */
+	vplAddSource: (text: string, span: Span, operation: string) => typedError<string, VplError>(__TAURI_INVOKE("vpl_add_source", { text, span, operation })),
+	/**
 	 *  Removes the node whose name occupies `span`, and the separator that joined it to the chain.
 	 * 
 	 *  Refused when it would empty the pipeline - see `Document::remove_node` for why that is a message
@@ -1333,6 +1339,11 @@ export type FieldInfo = {
 	 *  `false` for every other field.
 	 */
 	branches: boolean,
+	/**
+	 *  For the sources field, how many sources the operation takes at most, when upstream says;
+	 *  the editor stops offering another source there.
+	 */
+	maxSources: number | null,
 	control: Control,
 	/**
 	 *  Extensions to filter a file dialog by, or empty to offer everything.

@@ -85,6 +85,8 @@
 			addOperation: (afterNameSpan: Span, operation: string) => void;
 			/** Inserts a transform before the node whose name occupies `span` - the start of a branch. */
 			addOperationBefore: (beforeNameSpan: Span, operation: string) => void;
+			/** Gives the node whose name occupies `span` another source, of just that operation. */
+			addSource: (nameSpan: Span, operation: string) => void;
 			remove: (span: Span) => void;
 			commitValue: (span: Span, value: string) => void;
 			removeProperty: (span: Span) => void;
@@ -260,6 +262,7 @@
 				onRemoveNode={nodeActions.remove}
 				onAddOperation={nodeActions.addOperation}
 				onAddOperationBefore={nodeActions.addOperationBefore}
+				onAddSource={nodeActions.addSource}
 			/>
 		{/if}
 	</div>

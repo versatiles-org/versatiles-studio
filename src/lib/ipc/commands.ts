@@ -450,6 +450,10 @@ export const vplInsertNodeBefore = (
 	operation: string
 ) => unwrap(commands.vplInsertNodeBefore(text, span, operation));
 
+/** Gives a node another source holding just `operation` - a branch, a layer of a stack. */
+export const vplAddSource = (text: string, span: Parameters<typeof commands.vplAddSource>[1], operation: string) =>
+	unwrap(commands.vplAddSource(text, span, operation));
+
 /** Removes a node and the separator that joined it. Refused when it would empty the pipeline. */
 export const vplRemoveNode = (text: string, span: Parameters<typeof commands.vplRemoveNode>[1]) =>
 	unwrap(commands.vplRemoveNode(text, span));

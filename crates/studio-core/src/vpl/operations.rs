@@ -36,6 +36,16 @@ pub fn min_sources(name: &str) -> usize {
 		.map_or(1, |field| field.min_sources.max(1))
 }
 
+/// How many sources an operation takes at most - two for `vector_branch`, `then` and `else` - or
+/// `None` when upstream sets no limit, or does not know the operation.
+#[must_use]
+pub fn max_sources(name: &str) -> Option<usize> {
+	registry()
+		.get(name)
+		.and_then(|meta| meta.fields.iter().find(|field| field.is_sources))
+		.and_then(|field| field.max_sources)
+}
+
 /// Whether an operation's sources are branches rather than chains that read (versatiles-rs 5.10).
 ///
 /// `vector_branch [ then, else ]` is the one that has them: each source begins with a transform and
@@ -325,6 +335,10 @@ pub struct FieldInfo {
 	/// on the tiles arriving at the operation, so the editor offers transforms at its start too.
 	/// `false` for every other field.
 	pub branches: bool,
+	/// For the sources field, how many sources the operation takes at most, when upstream says;
+	/// the editor stops offering another source there.
+	#[cfg_attr(feature = "bindings", specta(type = Option<u32>))]
+	pub max_sources: Option<usize>,
 	pub control: Control,
 	/// Extensions to filter a file dialog by, or empty to offer everything.
 	///
@@ -396,6 +410,7 @@ pub fn operations() -> Vec<OperationInfo> {
 					required: field.is_required,
 					sources: field.is_sources,
 					branches: field.is_sources && field.sources_are_branches,
+					max_sources: field.max_sources.filter(|_| field.is_sources),
 					control: control_for(field),
 					accepts: field
 						.accepts
@@ -897,6 +912,8 @@ mod tests {
 		assert!(branches.sources && branches.branches);
 		assert!(!field("from_stacked", "sources").branches);
 		assert!(!field("vector_branch", "expr").branches);
+		assert_eq!(branches.max_sources, Some(2), "then and else");
+		assert_eq!(field("from_stacked", "sources").max_sources, None);
 		assert!(sources_are_branches("vector_branch"));
 		assert!(!sources_are_branches("from_stacked"));
 		assert!(!sources_are_branches("no_such_operation"));

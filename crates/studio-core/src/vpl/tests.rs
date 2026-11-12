@@ -646,6 +646,58 @@ fn an_operation_can_be_put_at_the_start_of_a_branch() {
 	assert_eq!(document.pipeline().nodes[1].sources[0].nodes[0].name, "vector_repair");
 }
 
+/// The `[ … ]` block, written from the chain: the first branch opens it, the second goes in after
+/// the first, and there is no third.
+#[test]
+fn a_vector_branch_gains_its_branches_one_at_a_time() {
+	let mut document = Document::parse("from_debug format=pbf | vector_branch expr=\"$layer == 'x'\"").unwrap();
+	let branch = |document: &Document| document.pipeline().nodes[1].name_span;
+
+	document.add_source(branch(&document), "vector_repair").unwrap();
+	assert_eq!(
+		document.text(),
+		"from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_repair ]"
+	);
+
+	document.add_source(branch(&document), "vector_filter_layers").unwrap();
+	assert_eq!(
+		document.text(),
+		"from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_repair, vector_filter_layers ]"
+	);
+	assert_eq!(document.pipeline().nodes[1].sources.len(), 2);
+
+	let refused = document.add_source(branch(&document), "vector_repair").unwrap_err();
+	assert!(format!("{refused}").contains("at most two sources"), "{refused}");
+}
+
+/// The same action is a composite's next source, where upstream sets no limit - and the block
+/// keeps the author's spacing before its `]`.
+#[test]
+fn a_composite_gains_another_source_inside_its_brackets() {
+	let mut document =
+		Document::parse("from_stacked [ from_debug format=png,\n  from_color ]\n| raster_flatten").unwrap();
+	let stacked = document.pipeline().nodes[0].name_span;
+	document.add_source(stacked, "from_debug").unwrap();
+
+	assert_eq!(
+		document.text(),
+		"from_stacked [ from_debug format=png,\n  from_color, from_debug ]\n| raster_flatten"
+	);
+	assert_eq!(document.pipeline().nodes.len(), 2, "the outer chain is untouched");
+}
+
+/// `[ ]` parses as no sources, so it is filled rather than given a leading comma.
+#[test]
+fn an_empty_block_is_filled() {
+	let mut document = Document::parse("from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ ]").unwrap();
+	let branch = document.pipeline().nodes[1].name_span;
+	document.add_source(branch, "vector_repair").unwrap();
+	assert_eq!(
+		document.text(),
+		"from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_repair ]"
+	);
+}
+
 #[test]
 fn inserting_before_nothing_is_refused() {
 	let mut document = Document::parse("from_debug format=pbf").unwrap();

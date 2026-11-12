@@ -21,6 +21,7 @@ function field(over: Partial<FieldInfo> = {}): FieldInfo {
 		required: false,
 		sources: false,
 		branches: false,
+		maxSources: null,
 		accepts: [],
 		control: { kind: 'text' },
 		default: null,

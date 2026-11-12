@@ -28,7 +28,7 @@ mod view;
 mod tests;
 
 pub use ast::{Comment, LineCol, Node, Pipeline, Property, Quote, Span, Str, Token, TokenKind, Value};
-pub use operations::{Control, FieldInfo, OperationInfo, min_sources, operations, sources_are_branches};
+pub use operations::{Control, FieldInfo, OperationInfo, max_sources, min_sources, operations, sources_are_branches};
 // The registry itself stays inside the crate: `suggest` reads a node's declared fields, and
 // `operations()` would rebuild and sort the whole list once per node to answer that.
 pub(crate) use operations::registry;
@@ -337,6 +337,51 @@ impl Document {
 			.map(|(_, node)| node.span.start)
 			.ok_or_else(|| ParseError::at("no operation at that position".to_string(), span))?;
 		self.replace(Span { start: at, end: at }, &format!("{operation} | "))
+	}
+
+	/// Gives the node whose name occupies `span` one more source, a chain of just `operation`.
+	///
+	/// **The `[ … ]` block was the one part of a pipeline only typing could make.** A composite's
+	/// sources, `from_stacked [ a, b ]`, and a `vector_branch`'s branches, `[ then, else ]`, are
+	/// written there and nowhere else, so a node picked from the chain arrived without them, marked
+	/// wrong, with the VPL tab the only way on.
+	///
+	/// * No block yet: one is opened after the node's parameters, ` [ operation ]`.
+	/// * A block with sources: `, operation` after the last of them, inside the brackets, so the
+	///   author's spacing before `]` stays where it was.
+	/// * An empty `[ ]`, which parses as no sources at all: filled.
+	///
+	/// **Refused past upstream's limit** ([`max_sources`]): `vector_branch` has a `then` and an
+	/// `else` and nothing after them, and a third would be a document that parses and does not build.
+	/// Which operation suits a source - a read for a composite, a transform for a branch - is the
+	/// editor's to offer and `validate`'s to mark, as for [`insert_after`](Self::insert_after).
+	pub fn add_source(&mut self, span: Span, operation: &str) -> Result<(), ParseError> {
+		let node = self
+			.pipeline()
+			.node_at(span.start)
+			.map(|(_, node)| node.clone())
+			.ok_or_else(|| ParseError::at("no operation at that position".to_string(), span))?;
+		if let Some(most) = max_sources(&node.name)
+			&& node.sources.len() >= most
+		{
+			let count = match most {
+				1 => "one source".to_string(),
+				2 => "two sources".to_string(),
+				n => format!("{n} sources"),
+			};
+			return Err(ParseError::at(format!("'{}' takes at most {count}", node.name), span));
+		}
+		match (node.sources_span, node.sources.last()) {
+			(None, _) => {
+				let at = node.span.end;
+				self.replace(Span { start: at, end: at }, &format!(" [ {operation} ]"))
+			}
+			(Some(_), Some(last)) => {
+				let at = last.span.end;
+				self.replace(Span { start: at, end: at }, &format!(", {operation}"))
+			}
+			(Some(block), None) => self.replace(block, &format!("[ {operation} ]")),
+		}
 	}
 
 	/// Removes the node whose name occupies `span`, and the separator that joined it to the chain.

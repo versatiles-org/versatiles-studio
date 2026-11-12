@@ -159,58 +159,63 @@ describe('problems', () => {
 	});
 });
 
+// -- branches and sources -------------------------------------------------------------
+
+const sources = (branches: boolean, maxSources: number | null = null): FieldInfo => ({
+	name: 'sources',
+	doc: '',
+	required: true,
+	sources: true,
+	branches,
+	maxSources,
+	control: { kind: 'text' },
+	accepts: [],
+	default: null
+});
+const operation = (name: string, kind: string, fields: FieldInfo[] = []): OperationInfo => ({
+	name,
+	kind,
+	summary: '',
+	details: '',
+	fields
+});
+const OPERATIONS = [
+	operation('vector_branch', 'transform', [sources(true, 2)]),
+	operation('from_stacked', 'read', [sources(false)]),
+	operation('from_debug', 'read'),
+	operation('vector_repair', 'transform')
+];
+
+/** `from_debug | vector_branch [ vector_mask, vector_filter_layers ]` */
+const branched = pipeline([
+	node('from_debug'),
+	node('vector_branch', [pipeline([node('vector_mask')]), pipeline([node('vector_filter_layers')])])
+]);
+
+function show(input: VplPipeline, onAddOperationBefore = vi.fn(), onAddSource = vi.fn()) {
+	render(NodeChain, {
+		pipeline: input,
+		disabled: [],
+		enabled: true,
+		operations: OPERATIONS,
+		onToggle: noop,
+		onCommit: noop,
+		onRemove: noop,
+		onSet: noop,
+		onRemoveNode: noop,
+		onAddOperation: noop,
+		onAddOperationBefore,
+		onAddSource
+	});
+	return onAddOperationBefore;
+}
+
 /**
  * The start of a branch. Every rail inserts after the node above it, so a chain's first node had no
  * way in ahead of it - right for a chain that reads, wrong for `vector_branch`'s branches, which
  * start with a transform.
  */
 describe('the start of a branch', () => {
-	const sources = (branches: boolean): FieldInfo => ({
-		name: 'sources',
-		doc: '',
-		required: true,
-		sources: true,
-		branches,
-		control: { kind: 'text' },
-		accepts: [],
-		default: null
-	});
-	const operation = (name: string, kind: string, fields: FieldInfo[] = []): OperationInfo => ({
-		name,
-		kind,
-		summary: '',
-		details: '',
-		fields
-	});
-	const OPERATIONS = [
-		operation('vector_branch', 'transform', [sources(true)]),
-		operation('from_stacked', 'read', [sources(false)]),
-		operation('vector_repair', 'transform')
-	];
-
-	/** `from_debug | vector_branch [ vector_mask, vector_filter_layers ]` */
-	const branched = pipeline([
-		node('from_debug'),
-		node('vector_branch', [pipeline([node('vector_mask')]), pipeline([node('vector_filter_layers')])])
-	]);
-
-	function show(input: VplPipeline, onAddOperationBefore = vi.fn()) {
-		render(NodeChain, {
-			pipeline: input,
-			disabled: [],
-			enabled: true,
-			operations: OPERATIONS,
-			onToggle: noop,
-			onCommit: noop,
-			onRemove: noop,
-			onSet: noop,
-			onRemoveNode: noop,
-			onAddOperation: noop,
-			onAddOperationBefore
-		});
-		return onAddOperationBefore;
-	}
-
 	it('offers a way in above the first node of each branch', () => {
 		show(branched);
 		const starts = screen.getAllByTestId('branch-start');
@@ -236,5 +241,39 @@ describe('the start of a branch', () => {
 			{ start: 0, end: 'vector_filter_layers'.length },
 			'vector_repair'
 		);
+	});
+});
+
+/** The `[ … ]` block, written from the chain rather than typed: one more branch, or one more source. */
+describe('another source', () => {
+	/** `from_debug | vector_branch [ vector_mask ]` - room for an `else`. */
+	const oneBranch = pipeline([node('from_debug'), node('vector_branch', [pipeline([node('vector_mask')])])]);
+
+	it('offers a branch while the operation has room for one, and no more after that', () => {
+		show(oneBranch);
+		expect(within(screen.getByTestId('add-source')).getByRole('button').textContent).toContain('+ branch…');
+		cleanup();
+		show(branched);
+		expect(screen.queryAllByTestId('add-source'), 'then and else are all there is').toHaveLength(0);
+	});
+
+	it('offers a composite its next source, from the reads', async () => {
+		Element.prototype.scrollIntoView = () => {};
+		const onAddSource = vi.fn();
+		show(stacked, vi.fn(), onAddSource);
+		within(screen.getByTestId('add-source')).getByRole('button', { name: '+ source…' }).click();
+		expect(await screen.findByRole('option', { name: 'from_debug' })).toBeTruthy();
+		expect(screen.queryByRole('option', { name: 'vector_repair' }), 'a source has to read').toBeNull();
+		screen.getByRole('option', { name: 'from_debug' }).click();
+		expect(onAddSource).toHaveBeenCalledWith({ start: 0, end: 'from_stacked'.length }, 'from_debug');
+	});
+
+	it('starts a branch with a transform', async () => {
+		Element.prototype.scrollIntoView = () => {};
+		const onAddSource = vi.fn();
+		show(oneBranch, vi.fn(), onAddSource);
+		within(screen.getByTestId('add-source')).getByRole('button', { name: '+ branch…' }).click();
+		(await screen.findByRole('option', { name: 'vector_repair' })).click();
+		expect(onAddSource).toHaveBeenCalledWith({ start: 0, end: 'vector_branch'.length }, 'vector_repair');
 	});
 });

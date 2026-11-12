@@ -28,7 +28,8 @@
 		onSet,
 		onRemoveNode,
 		onAddOperation,
-		onAddOperationBefore
+		onAddOperationBefore,
+		onAddSource
 	}: {
 		pipeline: VplPipeline;
 		/** What is wrong with the document, as the VPL tab underlines it. Each node is marked for its own. */
@@ -59,6 +60,8 @@
 		onAddOperation: (afterNameSpan: Span, operation: string) => void;
 		/** Inserts before a node. Only offered at the start of a branch - see `isBranchHead`. */
 		onAddOperationBefore?: (beforeNameSpan: Span, operation: string) => void;
+		/** Gives a node another source of just this operation - a branch, or a layer of a stack. */
+		onAddSource?: (nameSpan: Span, operation: string) => void;
 	} = $props();
 
 	const rows = $derived(walk(pipeline));
@@ -88,6 +91,38 @@
 	/// has to be the read, and wrong for a branch, which starts from the tiles arriving at its
 	/// operation and begins with a transform. Without this, a new first step went in by typing VPL.
 	const opensBranch = $derived(rows.map((row) => isBranchHead(row.path, pipeline, branching)));
+
+	/// **Another source, from the chain** - the `[ … ]` block was the one part of a pipeline only
+	/// typing could write. Offered under a node's own sources, one level in, as long as upstream's
+	/// limit leaves room: `vector_branch` has a `then` and an `else` and no more.
+	///
+	/// What a source starts with is the operation's to say. A branch starts from the tiles arriving
+	/// at it, so it is offered the transforms; a composite's source reads something of its own, so it
+	/// is offered the reads.
+	const sourcesOf = $derived(
+		new Map(
+			operations.flatMap((operation) => {
+				const field = operation.fields.find((candidate) => candidate.sources);
+				return field ? [[operation.name, field] as const] : [];
+			})
+		)
+	);
+	const reads = $derived(
+		operations
+			.filter((operation) => operation.kind === 'read')
+			.sort((a, b) => a.name.localeCompare(b.name))
+			.map((operation) => ({ value: operation.name, description: operation.summary }))
+	);
+	const sourcePicker = $derived(
+		rows.map((row) => {
+			const field = sourcesOf.get(row.node.name);
+			if (!field || !onAddSource) return null;
+			if (field.maxSources !== null && row.node.sources.length >= field.maxSources) return null;
+			const items = field.branches ? choices : reads;
+			if (items.length === 0) return null;
+			return { label: field.branches ? '+ branch…' : '+ source…', items };
+		})
+	);
 
 	/// Only transforms. A read node belongs at the head and gets there by adding a source (Q14);
 	/// offering one here would produce a document that parses and is then immediately marked wrong.
@@ -142,6 +177,18 @@
 					placeholder="Filter operations…"
 					items={choices}
 					onPick={(name) => onAddOperationBefore(row.node.nameSpan, name)}
+				/>
+			</div>
+		{/if}
+		{#if sourcePicker[index]}
+			{@const picker = sourcePicker[index]}
+			<div class="rail" class:inactive={!enabled} style:--depth={row.depth + 1} data-testid="add-source">
+				<span class="stem" aria-hidden="true"></span>
+				<Picker
+					label={picker.label}
+					placeholder="Filter operations…"
+					items={picker.items}
+					onPick={(name) => onAddSource?.(row.node.nameSpan, name)}
 				/>
 			</div>
 		{/if}

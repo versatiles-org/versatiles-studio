@@ -31,6 +31,7 @@ const PATH_FIELD = (name: string, accepts: string[] = []) => ({
 	required: false,
 	sources: false,
 	branches: false,
+	maxSources: null,
 	accepts,
 	default: null,
 	control: { kind: 'path' as const }
@@ -43,6 +44,7 @@ const BBOX_FIELD = {
 	required: false,
 	sources: false,
 	branches: false,
+	maxSources: null,
 	accepts: [],
 	default: null,
 	control: { kind: 'bbox' as const }
@@ -55,6 +57,7 @@ const CHOICE_FIELD = (over: Record<string, unknown> = {}) => ({
 	required: false,
 	sources: false,
 	branches: false,
+	maxSources: null,
 	accepts: [],
 	default: null,
 	control: { kind: 'choice' as const, options: ['256', '512'] },
@@ -68,6 +71,7 @@ const COLOR_FIELD = (hex: boolean) => ({
 	required: false,
 	sources: false,
 	branches: false,
+	maxSources: null,
 	accepts: [],
 	default: null,
 	control: { kind: 'color' as const, hex }
@@ -128,6 +132,7 @@ describe('which parameters offer a file picker', () => {
 				required: false,
 				sources: false,
 				branches: false,
+				maxSources: null,
 				accepts: [],
 				default: null,
 				control: {
@@ -155,6 +160,7 @@ describe('a number', () => {
 		required: false,
 		sources: false,
 		branches: false,
+		maxSources: null,
 		accepts: [],
 		default: null,
 		control: { kind: 'number' as const, integer, min: 0, max: 1, minExclusive: false, maxExclusive: false, step }
@@ -451,6 +457,7 @@ describe('a colour ramp', () => {
 		required: false,
 		sources: false,
 		branches: false,
+		maxSources: null,
 		accepts: [],
 		default: null,
 		control: { kind: 'ramp' as const, presets: [{ name: 'default', stops: '0:000000,100:ffffff' }] }
@@ -479,6 +486,7 @@ describe('a per-zoom curve', () => {
 		required: false,
 		sources: false,
 		branches: false,
+		maxSources: null,
 		accepts: [],
 		default: null,
 		control: { kind: 'steps' as const, min: 0, max: 100, maxZoom: 31 }

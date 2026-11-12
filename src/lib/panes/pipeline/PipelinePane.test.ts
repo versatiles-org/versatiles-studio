@@ -57,6 +57,7 @@ const nodeActions = {
 	setEnabled: noop,
 	addOperation: noop,
 	addOperationBefore: noop,
+	addSource: noop,
 	remove: noop,
 	commitValue: noop,
 	removeProperty: noop,
