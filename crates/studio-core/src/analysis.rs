@@ -641,16 +641,74 @@ fn commonest_geometry(layer: &versatiles_geometry::vector_tile::VectorTileLayer)
 	for feature in &layer.features {
 		counts[feature.geom_type as usize] += 1;
 	}
-	// Descending specificity, so the first maximum found is the more specific one.
+	// Descending specificity, and a later candidate wins only by having *more* - so a tie keeps the
+	// more specific one. Not `max_by_key`, which looks like it does this and returns the *last* of
+	// equal maxima: an even split between polygons and points came out as `point`.
 	[
 		(GeomType::MultiPolygon, "polygon"),
 		(GeomType::MultiLineString, "line"),
 		(GeomType::MultiPoint, "point"),
 	]
 	.into_iter()
-	.max_by_key(|(kind, _)| counts[*kind as usize])
 	.filter(|(kind, _)| counts[*kind as usize] > 0)
+	.reduce(|best, next| {
+		if counts[next.0 as usize] > counts[best.0 as usize] {
+			next
+		} else {
+			best
+		}
+	})
 	.map_or_else(|| "unknown".to_string(), |(_, name)| name.to_string())
+}
+
+#[cfg(test)]
+mod geometry_tests {
+	use super::commonest_geometry;
+	use versatiles_geometry::vector_tile::{GeomType, VectorTileFeature, VectorTileLayer};
+
+	/// A layer of features of these types, in this order. Only the type is read, so no geometry.
+	fn layer(types: &[GeomType]) -> VectorTileLayer {
+		let mut layer = VectorTileLayer::new_standard("test");
+		layer.features = types
+			.iter()
+			.map(|&geom_type| VectorTileFeature {
+				geom_type,
+				..VectorTileFeature::default()
+			})
+			.collect();
+		layer
+	}
+
+	#[test]
+	fn the_majority_wins() {
+		use GeomType::*;
+		assert_eq!(
+			commonest_geometry(&layer(&[MultiPoint, MultiPoint, MultiPolygon])),
+			"point"
+		);
+		assert_eq!(
+			commonest_geometry(&layer(&[MultiLineString, MultiPolygon, MultiLineString])),
+			"line"
+		);
+	}
+
+	#[test]
+	fn a_tie_goes_to_the_more_specific() {
+		use GeomType::*;
+		assert_eq!(commonest_geometry(&layer(&[MultiPoint, MultiPolygon])), "polygon");
+		assert_eq!(commonest_geometry(&layer(&[MultiPoint, MultiLineString])), "line");
+		assert_eq!(commonest_geometry(&layer(&[MultiLineString, MultiPolygon])), "polygon");
+		assert_eq!(
+			commonest_geometry(&layer(&[MultiPoint, MultiLineString, MultiPolygon])),
+			"polygon"
+		);
+	}
+
+	#[test]
+	fn nothing_nameable_is_unknown() {
+		assert_eq!(commonest_geometry(&layer(&[])), "unknown");
+		assert_eq!(commonest_geometry(&layer(&[GeomType::Unknown])), "unknown");
+	}
 }
 
 /// Whether one transform can be appended to what a node produces (S2.14).
