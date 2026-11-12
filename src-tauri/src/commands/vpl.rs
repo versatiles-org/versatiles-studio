@@ -581,6 +581,10 @@ pub struct Built {
 	pub preview: Preview,
 	/// The tiles themselves, for whatever has to read the drawn tile rather than a container (S14.4).
 	pub source: studio_core::preview::SharedTileSource,
+	/// Whether all the pipeline does is read a container, so that `source`'s tile sizes are the
+	/// index's ([`studio_core::measure::reads_a_container`]). Decided for the pipeline this was built
+	/// from, not the graph's current one, which may have moved on while the build ran.
+	pub indexed: bool,
 }
 
 impl Previews {
@@ -588,6 +592,15 @@ impl Previews {
 	pub fn drawn(&self, window: &str, graph: GraphId) -> Option<studio_core::preview::SharedTileSource> {
 		let held = self.0.lock().ok()?;
 		held.get(&(window.to_string(), graph)).map(|built| built.source.clone())
+	}
+
+	/// [`drawn`](Self::drawn), and whether its tile sizes come from a container's index
+	/// ([`Built::indexed`]) - which is what measuring them and the heat map need.
+	pub fn drawn_indexed(&self, window: &str, graph: GraphId) -> Option<(studio_core::preview::SharedTileSource, bool)> {
+		let held = self.0.lock().ok()?;
+		held
+			.get(&(window.to_string(), graph))
+			.map(|built| (built.source.clone(), built.indexed))
 	}
 
 	/// The preview for this graph, if the last one was built from the same pipeline on the same mount.
@@ -915,6 +928,7 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, at
 	}
 
 	handle.working("building the pipeline");
+	let indexed = studio_core::measure::reads_a_container(&wanted);
 	let mut server = state.server.lock().await;
 	// Reusing the read node when the edit was after it: a transform costs a parameter parse, while a
 	// read node costs whatever the source costs to load - seconds for a large CSV ([vt#259]).
@@ -946,6 +960,7 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, at
 			dir,
 			preview: preview.clone(),
 			source,
+			indexed,
 		},
 	);
 	Ok(preview)
@@ -1094,6 +1109,7 @@ mod preview_cache_tests {
 				dir: dir(),
 				preview: preview("berlin"),
 				source: studio_core::preview::stand_in(),
+				indexed: false,
 			},
 		);
 		cache
@@ -1157,6 +1173,7 @@ mod preview_cache_tests {
 				dir: dir(),
 				preview: preview("other"),
 				source: studio_core::preview::stand_in(),
+				indexed: false,
 			},
 		);
 
@@ -1181,6 +1198,7 @@ mod preview_cache_tests {
 				dir: dir(),
 				preview: preview("berlin"),
 				source: studio_core::preview::stand_in(),
+				indexed: false,
 			},
 		);
 

@@ -10,38 +10,48 @@ use studio_core::graphs::GraphId;
 use studio_core::heat::{self, Heat};
 use studio_core::jobs::Lane;
 use studio_core::measure::{self, Sizes};
+use studio_core::preview::SharedTileSource;
 use tauri::State;
 
 /// Why a graph has no index to read sizes from.
 const TRANSFORMED: &str = "this source transforms its tiles, so they have no index to read sizes from - only a source that reads a container unchanged can be measured yet";
 
-/// A graph that is a container: its name, its mount and the container it reads.
+/// A graph that is a container: its name, its mount and the tiles the map draws for it.
 struct Indexed {
 	name: String,
 	mount: String,
-	container: String,
+	source: SharedTileSource,
 }
 
-/// The container behind a graph, or why there is none (see [`measure::container_behind`]).
+/// The drawn source of a graph that only reads a container, or why there is none (see
+/// [`measure::reads_a_container`]).
 ///
-/// **The container is opened again rather than reached through the mounted pipeline**, because
-/// `from_container` answers a size by reading the tile body - the index is what makes all of this
-/// fast.
+/// **The source the map draws, not the container opened again.** Until versatiles-rs 5.10
+/// `from_container` answered a size by reading the tile body, so this reopened the container by its
+/// filename to reach the index - once per measurement, once per heat map and once per *hover* over
+/// one, each a header and an index read, and a round trip for a remote container. 5.10 passes the
+/// index's sizes through, and the pipeline around it passes them on; so this is the same index, read
+/// through the copy that is already open, and it describes the build the map is showing.
 async fn indexed(window: &tauri::Window, state: &AppState, graph: GraphId) -> Result<Indexed, String> {
-	let held = state.project(window).await;
-	let project = held.lock().await;
-	let Some(found) = project.graphs.get(graph) else {
-		return Err("that source is no longer open".to_string());
+	let (name, mount) = {
+		let held = state.project(window).await;
+		let project = held.lock().await;
+		let Some(found) = project.graphs.get(graph) else {
+			return Err("that source is no longer open".to_string());
+		};
+		if found.drawn().is_none() {
+			return Err("this source is switched off, so it has no tiles to measure".to_string());
+		}
+		(found.name.clone(), project.mount(&found.name))
 	};
-	let Some(pipeline) = found.drawn() else {
-		return Err("this source is switched off, so it has no tiles to measure".to_string());
-	};
-	let container = measure::container_behind(&pipeline, &project.dir).ok_or_else(|| TRANSFORMED.to_string())?;
-	Ok(Indexed {
-		name: found.name.clone(),
-		mount: project.mount(&found.name),
-		container,
-	})
+	let (source, indexed) = state
+		.previews
+		.drawn_indexed(window.label(), graph)
+		.ok_or_else(|| "this source has not been drawn yet".to_string())?;
+	if !indexed {
+		return Err(TRANSFORMED.to_string());
+	}
+	Ok(Indexed { name, mount, source })
 }
 
 /// Walks every tile size of a graph's output (S14.1, B1).
@@ -53,8 +63,7 @@ async fn indexed(window: &tauri::Window, state: &AppState, graph: GraphId) -> Re
 #[tauri::command]
 #[specta::specta]
 pub async fn measure_sizes(window: tauri::Window, state: State<'_, AppState>, graph: GraphId) -> Result<Sizes, String> {
-	let Indexed { name, container, .. } = indexed(&window, &state, graph).await?;
-	let runtime = state.server.lock().await.runtime().clone();
+	let Indexed { name, source, .. } = indexed(&window, &state, graph).await?;
 
 	let (tx, rx) = tokio::sync::oneshot::channel();
 	state.jobs.submit(
@@ -62,15 +71,11 @@ pub async fn measure_sizes(window: tauri::Window, state: State<'_, AppState>, gr
 		Lane::Queued,
 		window.label(),
 		move |handle| async move {
-			let outcome = async {
-				let source = runtime.reader_from_str(&container).await?;
-				measure::walk(
-					source.as_ref(),
-					|done, total| handle.counted(done, total, "reading tile sizes"),
-					|| handle.is_cancelled(),
-				)
-				.await
-			}
+			let outcome = measure::walk(
+				source.as_ref(),
+				|done, total| handle.counted(done, total, "reading tile sizes"),
+				|| handle.is_cancelled(),
+			)
 			.await;
 			let _ = tx.send(outcome.as_ref().map_err(|e| format!("{e:#}")).cloned());
 			outcome.map(|_| ())
@@ -158,7 +163,7 @@ pub async fn mount_heat(
 	colours: Vec<String>,
 	max: u32,
 ) -> Result<HeatMount, String> {
-	let Indexed { mount, container, .. } = indexed(&window, &state, graph).await?;
+	let Indexed { mount, source, .. } = indexed(&window, &state, graph).await?;
 	let ramp = colours
 		.iter()
 		.map(|c| heat::parse_colour(c))
@@ -166,11 +171,6 @@ pub async fn mount_heat(
 		.map_err(|e| format!("{e:#}"))?;
 
 	let mut server = state.server.lock().await;
-	let source = server
-		.runtime()
-		.reader_from_str(&container)
-		.await
-		.map_err(|e| format!("{e:#}"))?;
 	let drawn = Heat::new(source, deepest, ramp, max)
 		.await
 		.map_err(|e| format!("{e:#}"))?;
@@ -218,14 +218,10 @@ pub async fn tile_bytes(
 	x: u32,
 	y: u32,
 ) -> Result<Option<u32>, String> {
-	let Indexed { container, .. } = indexed(&window, &state, graph).await?;
-	let runtime = state.server.lock().await.runtime().clone();
-	let found = async {
-		let source = runtime.reader_from_str(&container).await?;
-		measure::tile_bytes(source.as_ref(), z, x, y).await
-	}
-	.await;
-	found.map_err(|e| format!("{e:#}"))
+	let Indexed { source, .. } = indexed(&window, &state, graph).await?;
+	measure::tile_bytes(source.as_ref(), z, x, y)
+		.await
+		.map_err(|e| format!("{e:#}"))
 }
 
 /// Takes apart the tile the map draws for a graph at `z/x/y` (S14.4, A4) - `None` where it has none.

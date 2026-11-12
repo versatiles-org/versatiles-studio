@@ -12,14 +12,18 @@
 //!
 //! **Over an index, or not at all, here.** A container answers `tile_size_stream` from its index
 //! without reading a tile body, which is what makes a whole-pyramid walk a matter of seconds.
-//! [`container_behind`] says when a graph is one: a chain that only reads a container is that
+//! [`reads_a_container`] says when a graph is one: a chain that only reads a container is that
 //! container. Anything that transforms tiles has no index - each size would be a tile produced.
+//!
+//! **Measured through the drawn source**, the one the map is showing. Since versatiles-rs 5.10
+//! `from_container` passes its container's sizes through rather than reading every tile body to
+//! learn them, and the pipeline around it passes them on - so there is no second copy of the
+//! container to open, and what is measured is the build that is drawn.
 //!
 //! [Q72]: ../../../docs/decisions.md
 
 use anyhow::{Context, Result};
 use serde::Serialize;
-use std::path::Path;
 use versatiles_container::TileSource;
 use versatiles_pipeline::VPLPipeline;
 
@@ -109,24 +113,14 @@ pub struct SizedTile {
 	pub bytes: u32,
 }
 
-/// The container a pipeline is, when all it does is read one.
+/// Whether all a pipeline does is read a container, so that its tile sizes are the index's.
 ///
 /// **Exactly one node, and it is `from_container`.** One transform after it and the sizes are the
-/// transform's, which the index knows nothing about. The filename is resolved the way the pipeline
-/// resolves it - against the project directory - unless it is absolute or a URL.
+/// transform's, which the index knows nothing about - and asking for them would make every tile
+/// once, which is an export rather than a measurement.
 #[must_use]
-pub fn container_behind(pipeline: &VPLPipeline, dir: &Path) -> Option<String> {
-	let [node] = pipeline.pipeline.as_slice() else {
-		return None;
-	};
-	if node.name != "from_container" || !node.sources.is_empty() {
-		return None;
-	}
-	let filename = node.properties.get("filename")?.first()?;
-	if filename.contains("://") || Path::new(filename).is_absolute() {
-		return Some(filename.clone());
-	}
-	Some(dir.join(filename).to_string_lossy().into_owned())
+pub fn reads_a_container(pipeline: &VPLPipeline) -> bool {
+	matches!(pipeline.pipeline.as_slice(), [node] if node.name == "from_container" && node.sources.is_empty())
 }
 
 /// Walks every tile's size, level by level.
@@ -562,29 +556,20 @@ mod tests {
 
 	#[test]
 	fn a_chain_that_only_reads_a_container_is_that_container() {
-		let dir = Path::new("/project");
-		assert_eq!(
-			container_behind(&pipeline("from_container filename='data/a.versatiles'"), dir),
-			Some("/project/data/a.versatiles".to_string())
-		);
-		assert_eq!(
-			container_behind(&pipeline("from_container filename='/abs/a.mbtiles'"), dir),
-			Some("/abs/a.mbtiles".to_string())
-		);
-		assert_eq!(
-			container_behind(&pipeline("from_container filename='https://x.org/a.pmtiles'"), dir),
-			Some("https://x.org/a.pmtiles".to_string())
-		);
+		assert!(reads_a_container(&pipeline(
+			"from_container filename='data/a.versatiles'"
+		)));
+		assert!(reads_a_container(&pipeline(
+			"from_container filename='https://x.org/a.pmtiles'"
+		)));
 	}
 
 	#[test]
 	fn a_transform_or_another_reader_is_not() {
-		let dir = Path::new("/project");
-		assert_eq!(
-			container_behind(&pipeline("from_container filename='a.versatiles' | vector_repair"), dir),
-			None
-		);
-		assert_eq!(container_behind(&pipeline("from_debug format=pbf"), dir), None);
+		assert!(!reads_a_container(&pipeline(
+			"from_container filename='a.versatiles' | vector_repair"
+		)));
+		assert!(!reads_a_container(&pipeline("from_debug format=pbf")));
 	}
 
 	/// The real thing, when this machine has the sample containers: every tile counted once.
@@ -603,6 +588,50 @@ mod tests {
 		assert!(found.p50 <= found.p95 && found.p95 <= found.max);
 		let charted = found.histogram.empty + found.histogram.counts.iter().sum::<u64>();
 		assert_eq!(charted, found.tiles, "the chart's bars add up to every tile");
+		Ok(())
+	}
+
+	/// **The drawn source answers from the index.** Measurement and the heat map read the build the
+	/// map draws, which wraps its read node the way `preview::build_reusing` does. Every layer of
+	/// that has to pass the sizes on; one that fell back to the trait's default would read every
+	/// tile body, which this index refuses.
+	#[tokio::test]
+	async fn a_built_pipeline_passes_the_index_sizes_through() -> Result<()> {
+		let head: versatiles_container::SharedTileSource =
+			Arc::new(Index::new(vec![at(0, 0, 0, 1000), at(1, 1, 0, 400)]));
+		let runtime = versatiles::runtime::create_runtime();
+		let built = versatiles_pipeline::PipelineReader::from_parts(
+			head,
+			Vec::new(),
+			"preview",
+			std::path::Path::new("."),
+			runtime,
+		)
+		.await?;
+
+		let found = walk(&built, |_, _| {}, || false).await?;
+		assert_eq!((found.tiles, found.bytes), (2, 1400));
+		Ok(())
+	}
+
+	/// And `from_container` itself passes its container's sizes on (versatiles-rs 5.10): measured
+	/// through a build, a real container weighs what it weighs opened on its own.
+	#[tokio::test]
+	async fn a_built_container_weighs_what_the_container_does() -> Result<()> {
+		let Some(path) = crate::analysis::tests::sample_container("berlin.versatiles") else {
+			eprintln!("skipping: no sample containers here");
+			return Ok(());
+		};
+		let runtime = versatiles::runtime::create_runtime();
+		let vpl = format!("from_container filename='{}'", path.to_string_lossy());
+		let pipeline = VPLPipeline::from_str(&vpl)?;
+		assert!(reads_a_container(&pipeline));
+
+		let built = crate::preview::build(&runtime, pipeline, std::path::Path::new(".")).await?;
+		let opened = runtime.reader_from_str(&path.to_string_lossy()).await?;
+		let through = walk(built.as_ref(), |_, _| {}, || false).await?;
+		let direct = walk(opened.as_ref(), |_, _| {}, || false).await?;
+		assert_eq!(through, direct);
 		Ok(())
 	}
 }
