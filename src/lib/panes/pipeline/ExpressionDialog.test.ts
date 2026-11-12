@@ -59,6 +59,18 @@ afterEach(() => {
 });
 
 describe('the check', () => {
+	// One box for every verdict, so the dialog keeps its size while they change under the typing.
+	it('keeps one box for the verdict, whatever it is', async () => {
+		open({ value: '' });
+		await vi.advanceTimersByTimeAsync(0);
+		const status = screen.getByRole('status', { hidden: true });
+		expect(status.textContent).toContain('Empty');
+		await fireEvent.input(box(), { target: { value: '$zoom' } });
+		await vi.advanceTimersByTimeAsync(600);
+		expect(screen.getByRole('status', { hidden: true })).toBe(status);
+		expect(status.textContent).toContain('Reads as an expression.');
+	});
+
 	it('says an expression reads, on opening', async () => {
 		const { check } = open({ value: '$zoom >= 12' });
 		await vi.advanceTimersByTimeAsync(0);
@@ -80,7 +92,10 @@ describe('the check', () => {
 
 		await vi.advanceTimersByTimeAsync(300);
 		expect(check).toHaveBeenLastCalledWith('$zoom ==');
-		expect(screen.getByText("'vector_branch' does not accept 'expr=$zoom =='")).toBeTruthy();
+		// In the box the verdicts share, laid out as upstream wrote it: unwrapped, in one width.
+		const message = screen.getByText("'vector_branch' does not accept 'expr=$zoom =='");
+		expect(message.tagName).toBe('PRE');
+		expect(message.closest('[role="status"]')).toBe(screen.getByRole('status', { hidden: true }));
 	});
 });
 

@@ -322,7 +322,7 @@
 						class="icon"
 						title="Write the expression…"
 						aria-label={`Write ${name}`}
-						onclick={() => (editingExpression = true)}><Icon name="steps" size="1em" /></button
+						onclick={() => (editingExpression = true)}><Icon name="rename" size="1em" /></button
 					>
 				{:else if control?.kind === 'ramp'}
 					<button

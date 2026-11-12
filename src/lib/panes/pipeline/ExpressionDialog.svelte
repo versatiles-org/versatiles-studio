@@ -131,17 +131,20 @@
 		onclick={remember}
 		onselect={remember}></textarea>
 
-	<!-- Faded while the text has moved on from the answer, so the line never jumps between
-	     verdicts mid-word. -->
-	<div class="status" class:changed>
+	<!-- **A box of its own, always there, of one height.** A verdict that came and went with the
+	     typing resized the dialog under the caret. Faded while the text has moved on from the answer,
+	     so the box never jumps between verdicts mid-word either. -->
+	<div class="status" class:changed role="status" aria-live="polite">
 		{#if draft.trim() === ''}
-			<Note live tone="aside">Empty: Use clears the parameter.</Note>
+			<Note tone="aside">Empty: Use clears the parameter.</Note>
 		{:else if problems === null}
-			<Note live tone="aside">Checking…</Note>
+			<Note tone="aside">Checking…</Note>
 		{:else if problems.length === 0}
-			<Note live tone="aside">Reads as an expression.</Note>
+			<Note tone="aside">Reads as an expression.</Note>
 		{:else}
-			<Note live tone="problem">'{operation}' {problems.join(' ')}</Note>
+			<!-- Upstream's message as it is laid out: it repeats the expression and points under the
+			     column that is wrong (`| .......^`), which only lines up unwrapped and in one width. -->
+			<pre class="compiler">'{operation}' {problems.join('\n\n')}</pre>
 		{/if}
 	</div>
 
@@ -244,12 +247,30 @@
 		font-size: var(--text-sm);
 	}
 
+	/* Six lines of the message's own font, scrolling both ways inside rather than growing. */
 	.status {
+		box-sizing: border-box;
+		line-height: 1.4;
+		height: calc(6 * 1.4em + 2 * var(--space-3));
+		overflow: auto;
+		padding: var(--space-3) var(--space-4);
+		border: 1px solid var(--rule);
+		border-radius: var(--radius);
+		background: var(--chrome);
+		font-family: var(--font-mono);
+		font-size: var(--text-xs);
 		transition: opacity 120ms ease;
 
 		&.changed {
 			opacity: 0.45;
 		}
+	}
+
+	.compiler {
+		margin: 0;
+		font: inherit;
+		white-space: pre;
+		color: var(--ink);
 	}
 
 	.layer {
