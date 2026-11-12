@@ -284,8 +284,17 @@ describe('deriveStyle', () => {
 		expect(kinds('parcels')).toEqual(['fill', 'line']);
 		expect(kinds('sensors')).toEqual(['circle']);
 		expect(kinds('roads')).toEqual(['line']);
-		// An unnamed geometry gets the guess that hides the least.
-		expect(kinds('mystery')).toEqual(['line']);
+		// An unnamed geometry gets the guess that hides the least - and circles for whatever of it is
+		// points, which a line layer does not draw at all.
+		expect(kinds('mystery')).toEqual(['line', 'circle']);
+	});
+
+	// The probe reads one tile, so a point layer it did not see arrives as `unknown`. Drawn as a line
+	// alone, every one of its points was invisible.
+	it('draws the points of a layer the probe did not see', () => {
+		const circles = style.layers.find((l) => l.id === 'derived:mystery:points') as { type: string; filter?: unknown };
+		expect(circles.type).toBe('circle');
+		expect(circles.filter).toEqual(['==', '$type', 'Point']);
 	});
 
 	// A layer of building footprints drawn over the roads hides them, which is the map this exists

@@ -450,9 +450,26 @@ function paint(layer: DerivableLayer, source: string): LayerSpecification[] {
 			}
 		] as LayerSpecification[];
 	}
-	// Lines, and anything whose geometry the probe could not name: a hairline shows a line as itself
-	// and a polygon as its outline, so it is the guess that hides the least.
-	return [{ ...common, type: 'line', paint: { 'line-color': colour, 'line-width': 1 } }] as LayerSpecification[];
+	const line = { ...common, type: 'line', paint: { 'line-color': colour, 'line-width': 1 } };
+	if (layer.geometry === 'line') return [line] as LayerSpecification[];
+
+	// **Anything whose geometry the probe could not name** - and that is most of the point layers. The
+	// probe reads one tile, the centre one at the deepest zoom, and a layer missing from it arrives as
+	// `unknown`. In a pyramid that is `pois`, `place_labels` and `boundary_labels`: the points are the
+	// layers least likely to have a feature in any one tile. A hairline shows a line as itself and a
+	// polygon as its outline, but MapLibre draws nothing at all for a point on a line layer - so the
+	// points get circles of their own, and the map no longer had points only where the probe looked.
+	return [
+		line,
+		{
+			...common,
+			id: `${common.id}:points`,
+			type: 'circle',
+			// `$type` rather than `geometry-type`, because it matches a multipoint as a point too.
+			filter: ['==', '$type', 'Point'],
+			paint: { 'circle-color': colour, 'circle-radius': 2.5, 'circle-opacity': 0.85 }
+		}
+	] as LayerSpecification[];
 }
 
 /**
