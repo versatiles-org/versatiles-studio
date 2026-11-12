@@ -28,7 +28,7 @@ versatiles_pipeline.workspace = true
 sha2 = "0.11"
 # A raster tile's pixels as a data URL, for the tile dialog to draw and read. Already in the tree
 # through versatiles' own dependencies; named here because this crate calls it directly.
-base64 = "0.22"
+base64 = "0.23"
 # Writing that digest out. `sha2` 0.11 returns a `hybrid_array::Array`, which - unlike the
 # `GenericArray` it replaced - implements no `LowerHex`, so `{:x}` no longer spells a digest.
 hex = "0.4"

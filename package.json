@@ -67,7 +67,7 @@
 		"eslint-plugin-svelte": "^3.24.1",
 		"globals": "^17.14.0",
 		"jsdom": "^31.0.0",
-		"prettier": "^3.9.10",
+		"prettier": "^3.10.1",
 		"prettier-plugin-svelte": "^4.1.1",
 		"svelte": "^5.57.3",
 		"svelte-check": "^4.7.8",
@@ -75,7 +75,7 @@
 		"tsx": "^4.23.15",
 		"typescript": "^6.0.3",
 		"typescript-eslint": "^8.72.2",
-		"vite": "^8.3.7",
+		"vite": "^8.3.8",
 		"vitest": "^5.1.0",
 		"webdriverio": "^9.33.1"
 	},
@@ -87,7 +87,7 @@
 		"@tauri-apps/plugin-process": "^2.4.0",
 		"@tauri-apps/plugin-updater": "^2.14.1",
 		"@versatiles/style": "^9.1.0",
-		"maplibre-gl": "6.17.0"
+		"maplibre-gl": "6.18.0"
 	},
 	"allowScripts": {
 		"esbuild": true,
