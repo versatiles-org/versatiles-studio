@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { insertAt, keysOf, propertyRef, quoted, valuePiece } from './expression';
+import { insertAt, keysOf, propertyRef, quoted, tidyMessage, valuePiece } from './expression';
 
 describe('propertyRef', () => {
 	it('names a property by itself where it can', () => {
@@ -82,5 +82,50 @@ describe('valuePiece', () => {
 		expect(valuePiece('$zoom >= ', '12')).toBe('12');
 		expect(valuePiece('kind in [', "'a'")).toBe("'a'");
 		expect(valuePiece('', '12')).toBe('12');
+	});
+});
+
+/** Upstream's messages as `vplCheckValue` returned them for three expressions (versatiles-rs 5.11). */
+describe('tidyMessage', () => {
+	it('keeps the syntax error and its caret, and drops the rest', () => {
+		const message = [
+			"does not accept 'expr=(($zoom': Failed to compile CEL expression:",
+			'  (($zoom',
+			'',
+			"ERROR: <input>:1:8: Syntax error: mismatched input '<EOF>' expecting {'==', ')'}",
+			'| (($zoom',
+			'| .......^'
+		].join('\n');
+		expect(tidyMessage(message)).toBe(
+			["Syntax error: mismatched input '<EOF>' expecting {'==', ')'}", '| (($zoom', '| .......^'].join('\n')
+		);
+	});
+
+	it('keeps an unknown name’s explanation whole', () => {
+		const message = [
+			"does not accept 'expr=kind == 'primary' && $zom > 3': Failed to compile CEL expression:",
+			"  kind == 'primary' && $zom > 3",
+			'',
+			'`$zom` is not a name an expression can read. The names starting with `$` are `$zoom` and `$x`.'
+		].join('\n');
+		expect(tidyMessage(message)).toBe(
+			'`$zom` is not a name an expression can read. The names starting with `$` are `$zoom` and `$x`.'
+		);
+	});
+
+	it('says only that the parser crashed, without its insides or the command-line advice', () => {
+		const message = [
+			"does not accept 'expr=$layer == ': Failed to compile CEL expression:",
+			'  $layer == ',
+			'',
+			'Parser crashed (likely malformed CEL input): internal error: entered unreachable code: should have been properly implemented by generated context when reachable',
+			'',
+			'Common causes: unmatched brackets, trailing operators, unsupported tokens. Run `versatiles help pipeline` for the CEL operator cheat-sheet.'
+		].join('\n');
+		expect(tidyMessage(message)).toBe('Parser crashed (likely malformed CEL input)');
+	});
+
+	it('leaves a message it does not recognise to be shown whole', () => {
+		expect(tidyMessage("does not accept 'format=xyz'. Values: png, jpg")).toBeNull();
 	});
 });

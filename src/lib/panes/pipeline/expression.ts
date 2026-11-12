@@ -82,3 +82,39 @@ export function valuePiece(before: string, literal: string): string {
 	const operator = /(?:==|!=|<=|>=|<|>|\bin|&&|\|\||!|\(|,|\[)$/.test(tail);
 	return operand && !operator ? `== ${literal}` : literal;
 }
+
+/**
+ * Upstream's message about an expression, without what the dialog already shows or cannot use.
+ *
+ * Written for the command line, a message says which parameter refused what, repeats the
+ * expression, places the error as `<input>:1:8`, and ends with advice to run `versatiles help`.
+ * Beside the expression's own box, the first three say again what is in front of you and the last
+ * names a command there is none of here. What is left is upstream's words about what is wrong, and
+ * the caret lines pointing at the column - kept as they are, since they only line up untouched.
+ *
+ * **Only what is recognised is removed.** A message in a shape this does not know - another
+ * parameter's, or one a later upstream words differently - is shown whole, `null` here.
+ */
+export function tidyMessage(message: string): string | null {
+	const header = /^does not accept '[\s\S]*?': Failed to compile CEL expression:\n/.exec(message);
+	if (!header) return null;
+	const lines = message.slice(header[0].length).split('\n');
+	// The expression, repeated indented under the header, and the blank line after it.
+	if (lines[0]?.startsWith('  ')) lines.shift();
+	if (lines[0]?.trim() === '') lines.shift();
+	const kept = lines
+		.join('\n')
+		// Advice for the command line, as a paragraph of its own.
+		.replace(/\n*Common causes:[\s\S]*$/, '')
+		.split('\n')
+		.map((line) =>
+			line
+				// The place, which the caret lines below already show.
+				.replace(/^ERROR: <input>:\d+:\d+: /, '')
+				// What the parser said about itself when it crashed rather than answered.
+				.replace(/: internal error: .*$/, '')
+		)
+		.join('\n')
+		.trim();
+	return kept === '' ? null : kept;
+}

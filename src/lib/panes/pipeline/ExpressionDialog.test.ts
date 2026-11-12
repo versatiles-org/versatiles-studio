@@ -102,6 +102,22 @@ describe('the check', () => {
 		expect(message.closest('[role="status"]')).toBe(screen.getByRole('status', { hidden: true }));
 	});
 
+	// Upstream writes for the command line; the box keeps only what is wrong and where.
+	it('shows a compiler error without the parts the dialog already shows', async () => {
+		const real = [
+			"does not accept 'expr=(($zoom': Failed to compile CEL expression:",
+			'  (($zoom',
+			'',
+			"ERROR: <input>:1:8: Syntax error: mismatched input '<EOF>'",
+			'| (($zoom',
+			'| .......^'
+		].join('\n');
+		open({ value: '(($zoom', check: async () => [real] });
+		await vi.advanceTimersByTimeAsync(0);
+		const status = screen.getByRole('status', { hidden: true });
+		expect(status.textContent).toBe("Syntax error: mismatched input '<EOF>'\n| (($zoom\n| .......^");
+	});
+
 	it('checks on ⌘ or Ctrl + Enter too', async () => {
 		const { check } = open({ value: '$zoom' });
 		await vi.advanceTimersByTimeAsync(0);

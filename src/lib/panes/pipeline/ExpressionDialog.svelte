@@ -5,7 +5,7 @@
 	import Note from '../../common/Note.svelte';
 	import type { ExpressionName } from '../../ipc/commands';
 	import type { Vocabulary } from '../../state/vocabulary.svelte';
-	import { GEOMETRY_TYPES, insertAt, keysOf, propertyRef, quoted, valuePiece } from './expression';
+	import { GEOMETRY_TYPES, insertAt, keysOf, propertyRef, quoted, tidyMessage, valuePiece } from './expression';
 
 	// The helper behind an expression - `vector_branch`'s and `vector_filter_features`'s `expr`.
 	//
@@ -153,7 +153,9 @@
 		{:else}
 			<!-- Upstream's message as it is laid out: it repeats the expression and points under the
 			     column that is wrong (`| .......^`), which only lines up unwrapped and in one width. -->
-			<pre class="compiler">'{operation}' {problems.join('\n\n')}</pre>
+			<pre class="compiler">{problems
+					.map((problem) => tidyMessage(problem) ?? `'${operation}' ${problem}`)
+					.join('\n\n')}</pre>
 		{/if}
 	</div>
 
