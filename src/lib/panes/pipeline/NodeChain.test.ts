@@ -11,7 +11,7 @@
  * [Q49]: ../../../../docs/decisions.md
  */
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, within } from '@testing-library/svelte';
 import NodeChain from './NodeChain.svelte';
 import type { FieldInfo, OperationInfo, VplNode, VplPipeline } from '../../ipc/commands';
@@ -192,7 +192,8 @@ const branched = pipeline([
 	node('vector_branch', [pipeline([node('vector_mask')]), pipeline([node('vector_filter_layers')])])
 ]);
 
-function show(input: VplPipeline, onAddOperationBefore = vi.fn(), onAddSource = vi.fn()) {
+function show(input: VplPipeline) {
+	const spies = { onAddOperation: vi.fn(), onAddOperationBefore: vi.fn(), onAddSource: vi.fn() };
 	render(NodeChain, {
 		pipeline: input,
 		disabled: [],
@@ -203,170 +204,114 @@ function show(input: VplPipeline, onAddOperationBefore = vi.fn(), onAddSource = 
 		onRemove: noop,
 		onSet: noop,
 		onRemoveNode: noop,
-		onAddOperation: noop,
-		onAddOperationBefore,
-		onAddSource
+		...spies
 	});
-	return onAddOperationBefore;
+	return spies;
 }
 
+/** A slot of a box, by its name - `then`, `else`, `source 1`, or `another source`. */
+const slot = (name: string) => screen.getByRole('region', { name });
+/** A node's whole box, slots included. */
+const box = (name: string) =>
+	screen.getByLabelText(`Switch off ${name}`, { exact: true }).closest('.node') as HTMLElement;
+/** Picks `operation` from the picker behind `button`. */
+async function pick(button: HTMLElement, operation: string) {
+	button.click();
+	(await screen.findByRole('option', { name: operation })).click();
+}
+const span = (name: string) => ({ start: 0, end: name.length });
+
+/** `from_debug | vector_branch [ vector_mask ]` - a `then`, and room for an `else`. */
+const oneBranch = pipeline([node('from_debug'), node('vector_branch', [pipeline([node('vector_mask')])])]);
+
 /**
- * The start of a branch. Every rail inserts after the node above it, so a chain's first node had no
- * way in ahead of it - right for a chain that reads, wrong for `vector_branch`'s branches, which
- * start with a transform.
+ * **A node with sources is a box, and its sources are slots inside it.** Everything about the
+ * sources - their operations, a new branch, a new source - is inside the box; the rail below it
+ * only ever continues the chain the node is in.
  */
-describe('the start of a branch', () => {
-	it('offers a way in above the first node of each branch', () => {
-		show(branched);
-		const starts = screen.getAllByTestId('branch-start');
-		expect(starts).toHaveLength(2);
-		// Directly above the node it inserts before.
-		expect(starts[0].nextElementSibling?.textContent).toContain('vector_mask');
-		expect(starts[1].nextElementSibling?.textContent).toContain('vector_filter_layers');
-	});
-
-	it('offers none at the head of a chain that reads', () => {
-		show(stacked);
-		expect(screen.queryAllByTestId('branch-start')).toHaveLength(0);
-	});
-
-	it('inserts before that branch’s first node', async () => {
-		// jsdom has no layout, so it has no `scrollIntoView` - the picker keeps the active row in view.
+describe('a vector_branch', () => {
+	// jsdom has no layout, so it has no `scrollIntoView` - the picker keeps the active row in view.
+	beforeEach(() => {
 		Element.prototype.scrollIntoView = () => {};
-		const onAddOperationBefore = show(branched);
-		const otherwise = screen.getAllByTestId('branch-start')[1];
-		within(otherwise).getByRole('button', { name: '+ operation…' }).click();
-		(await screen.findByRole('option', { name: 'vector_repair' })).click();
-		expect(onAddOperationBefore).toHaveBeenCalledWith(
-			{ start: 0, end: 'vector_filter_layers'.length },
-			'vector_repair'
-		);
+	});
+
+	it('draws its branches inside its box, named then and else', () => {
+		show(branched);
+		expect(box('vector_branch').contains(slot('then'))).toBe(true);
+		expect(box('vector_branch').contains(slot('else'))).toBe(true);
+		expect(within(slot('then')).getByLabelText('Switch off vector_mask')).toBeTruthy();
+		expect(within(slot('else')).getByLabelText('Switch off vector_filter_layers')).toBeTruthy();
+	});
+
+	it('keeps the chain’s own rail outside the box, after it', async () => {
+		const { onAddOperation } = show(pipeline([...branched.nodes, node('vector_repair')]));
+		const outside = screen
+			.getAllByRole('button', { name: '+ operation…' })
+			.filter((button) => !box('vector_branch').contains(button));
+		// After from_debug, after vector_branch, after vector_repair.
+		expect(outside).toHaveLength(3);
+		await pick(outside[1], 'vector_repair');
+		expect(onAddOperation).toHaveBeenCalledWith(span('vector_branch'), 'vector_repair');
+	});
+
+	// No "+ branch": `else` is always there, and filling it is what writes it.
+	it('always shows else, empty meaning unchanged, and filling it adds the branch', async () => {
+		const { onAddSource } = show(oneBranch);
+		expect(slot('else').textContent).toContain('Unchanged: they pass through as they are.');
+		await pick(within(slot('else')).getByRole('button', { name: '+ operation…' }), 'vector_repair');
+		expect(onAddSource).toHaveBeenCalledWith(span('vector_branch'), 'vector_repair');
+	});
+
+	// VPL writes a branch by its position, and has no empty `then` to put before an `else`.
+	it('fills then first, and has else wait for it', async () => {
+		const { onAddSource } = show(pipeline([node('from_debug'), node('vector_branch')]));
+		expect(within(slot('else')).queryByRole('button')).toBeNull();
+		expect(slot('else').textContent).toContain('Add to then first.');
+		await pick(within(slot('then')).getByRole('button', { name: '+ operation…' }), 'vector_repair');
+		expect(onAddSource).toHaveBeenCalledWith(span('vector_branch'), 'vector_repair');
+	});
+
+	it('takes a transform at the start of a branch', async () => {
+		const { onAddOperationBefore } = show(oneBranch);
+		await pick(within(slot('then')).getByTestId('branch-start').querySelector('button')!, 'vector_repair');
+		expect(onAddOperationBefore).toHaveBeenCalledWith(span('vector_mask'), 'vector_repair');
+	});
+
+	it('nests: a branch inside a branch is a box inside the slot', () => {
+		const inner = node('vector_branch', [pipeline([node('vector_mask')])]);
+		show(pipeline([node('from_debug'), node('vector_branch', [pipeline([node('vector_repair')]), pipeline([inner])])]));
+		const otherwise = screen.getAllByRole('region', { name: 'else' });
+		// The outer else, and the inner one's, which is inside it.
+		expect(otherwise).toHaveLength(2);
+		expect(otherwise[0].contains(otherwise[1])).toBe(true);
 	});
 });
 
-/** The `[ … ]` block, written from the chain rather than typed: one more branch, or one more source. */
-describe('another source', () => {
-	/** `from_debug | vector_branch [ vector_mask ]` - room for an `else`. */
-	const oneBranch = pipeline([node('from_debug'), node('vector_branch', [pipeline([node('vector_mask')])])]);
-
-	it('offers a branch while the operation has room for one, and no more after that', () => {
-		show(oneBranch);
-		expect(within(screen.getByTestId('add-source')).getByRole('button').textContent).toContain('+ branch…');
-		cleanup();
-		show(branched);
-		expect(screen.queryAllByTestId('add-source'), 'then and else are all there is').toHaveLength(0);
+/** The same box for a composite, whose sources are not fixed: the next one is a slot of its own. */
+describe('a from_stacked', () => {
+	beforeEach(() => {
+		Element.prototype.scrollIntoView = () => {};
 	});
 
-	it('offers a composite its next source, from the reads', async () => {
-		Element.prototype.scrollIntoView = () => {};
-		const onAddSource = vi.fn();
-		show(stacked, vi.fn(), onAddSource);
-		within(screen.getByTestId('add-source')).getByRole('button', { name: '+ source…' }).click();
+	it('draws its sources inside its box, and a slot for the next', () => {
+		show(stacked);
+		for (const name of ['source 1', 'source 2', 'another source']) {
+			expect(box('from_stacked').contains(slot(name)), name).toBe(true);
+		}
+		expect(within(slot('source 1')).getByLabelText('Switch off raster_flatten')).toBeTruthy();
+	});
+
+	it('offers the next source from the reads', async () => {
+		const { onAddSource } = show(stacked);
+		within(slot('another source')).getByRole('button', { name: '+ source…' }).click();
 		expect(await screen.findByRole('option', { name: 'from_debug' })).toBeTruthy();
 		expect(screen.queryByRole('option', { name: 'vector_repair' }), 'a source has to read').toBeNull();
 		screen.getByRole('option', { name: 'from_debug' }).click();
-		expect(onAddSource).toHaveBeenCalledWith({ start: 0, end: 'from_stacked'.length }, 'from_debug');
+		expect(onAddSource).toHaveBeenCalledWith(span('from_stacked'), 'from_debug');
 	});
 
-	it('starts a branch with a transform', async () => {
-		Element.prototype.scrollIntoView = () => {};
-		const onAddSource = vi.fn();
-		show(oneBranch, vi.fn(), onAddSource);
-		within(screen.getByTestId('add-source')).getByRole('button', { name: '+ branch…' }).click();
-		(await screen.findByRole('option', { name: 'vector_repair' })).click();
-		expect(onAddSource).toHaveBeenCalledWith({ start: 0, end: 'vector_branch'.length }, 'vector_repair');
-	});
-});
-
-/**
- * Where everything is drawn. Read top to bottom, a `vector_branch` is the order the tiles take: the
- * node, then each branch under its name, then whatever comes after the node - and every rail where
- * its insertion lands.
- */
-describe('a branch in the chain', () => {
-	/** The chain, top to bottom: each node by name, each rail by what it is for. */
-	function layout(): string[] {
-		const chain = document.querySelector('.chain')!;
-		return [...chain.children].map((child) => {
-			const eye = child.querySelector('button[aria-label^="Switch o"]')?.getAttribute('aria-label');
-			if (eye) return eye.replace(/^Switch o(ff|n) /, '');
-			const testid = child.getAttribute('data-testid');
-			if (testid === 'branch-start') return `[${child.querySelector('.branch')?.textContent}]`;
-			if (testid === 'add-source') return child.querySelector('button')?.textContent?.trim() ?? '';
-			return '+';
-		});
-	}
-
-	it('draws the node, then its branches under their names, then what follows it', () => {
-		show(pipeline([...branched.nodes, node('vector_repair')]));
-		expect(layout()).toEqual([
-			'from_debug',
-			'+',
-			'vector_branch',
-			'[then]',
-			'vector_mask',
-			'+',
-			'[else]',
-			'vector_filter_layers',
-			'+',
-			// The rail after `vector_branch` inserts after its whole `[ … ]` block, so it is here.
-			'+',
-			'vector_repair',
-			'+'
-		]);
-	});
-
-	it('offers another branch under the last one, while there is room', () => {
-		show(pipeline([node('from_debug'), node('vector_branch', [pipeline([node('vector_mask')])])]));
-		expect(layout()).toEqual(['from_debug', '+', 'vector_branch', '[then]', 'vector_mask', '+', '+ branch…', '+']);
-	});
-
-	// An inner `vector_branch` closes before the one around it: its `+ branch` and its rail first.
-	// The outer one has both its branches, so only the inner one offers another - which is what
-	// tells the two orders apart.
-	it('closes a branch inside a branch before the one around it', () => {
-		const inner = node('vector_branch', [pipeline([node('vector_mask')])]);
-		const outer = node('vector_branch', [
-			pipeline([node('vector_repair')]),
-			pipeline([node('vector_filter_layers'), inner])
-		]);
-		show(pipeline([node('from_debug'), outer]));
-		expect(layout()).toEqual([
-			'from_debug',
-			'+',
-			'vector_branch',
-			'[then]',
-			'vector_repair',
-			'+',
-			'[else]',
-			'vector_filter_layers',
-			'+',
-			'vector_branch',
-			'[then]',
-			'vector_mask',
-			'+',
-			// The inner one's: another branch, then the way on after it.
-			'+ branch…',
-			'+',
-			// The outer one's, last.
-			'+'
-		]);
-	});
-
-	it('leaves a composite’s sources above it', () => {
+	it('has no start rail in a source, which begins with its read', () => {
 		show(stacked);
-		expect(layout()).toEqual([
-			'from_debug',
-			'+',
-			'raster_flatten',
-			'+',
-			'from_color',
-			'+',
-			'+ source…',
-			'from_stacked',
-			'+',
-			'raster_overview',
-			'+'
-		]);
+		expect(screen.queryAllByTestId('branch-start')).toHaveLength(0);
 	});
 });

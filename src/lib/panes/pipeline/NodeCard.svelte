@@ -1,4 +1,5 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
 	import Icon from '../../common/Icon.svelte';
 	import type { Diagnostic, FieldInfo, OperationInfo, Span, VplNode, VplProperty } from '../../ipc/commands';
 	import {
@@ -44,7 +45,8 @@
 		onCommit,
 		onRemove,
 		onSet,
-		onRemoveNode
+		onRemoveNode,
+		inside
 	}: {
 		node: VplNode;
 		path: number[];
@@ -75,6 +77,12 @@
 		 */
 		onSet: (span: Span, key: string, values: string[]) => void;
 		onRemoveNode: (span: Span) => void;
+		/**
+		 * What the node holds, drawn inside its box under the parameters: its sources, as slots
+		 * (`NodeChain` draws them). A node is a widening of the pipe, so what runs inside it belongs
+		 * inside its outline rather than beside it.
+		 */
+		inside?: Snippet;
 	} = $props();
 
 	const meta = $derived(operations.find((operation) => operation.name === node.name));
@@ -288,6 +296,10 @@
 			</div>
 		{/if}
 	</dl>
+
+	{#if inside}
+		{@render inside()}
+	{/if}
 </div>
 
 <style>
