@@ -488,6 +488,7 @@ mod tests {
 				"meta_update.tilejson_file",
 				"meta_update.tilejson_update_file",
 				"meta_update.vector_layers_file",
+				"raster_format.quality_map",
 				"raster_mask.geojson",
 				"vector_mask.geojson",
 				"vector_reduce_to_style.style",
