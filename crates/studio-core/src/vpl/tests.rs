@@ -807,6 +807,34 @@ fn switching_off_a_node_inside_a_branch_shortens_only_that_branch() {
 	);
 }
 
+/// `vector_branch`'s sources run on the tiles arriving at it, so their first node is a transform
+/// like any other: switching it off bypasses it, and the rest of the branch still runs.
+#[test]
+fn the_first_node_of_a_vector_branch_is_bypassed_not_a_head() {
+	let vpl = "from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_filter_layers filter=a | vector_filter_layers filter=b ]";
+	assert_eq!(
+		without(vpl, &[&[1, 0, 0]]).unwrap(),
+		"from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_filter_layers filter=b ]"
+	);
+}
+
+/// **The bug this is for.** With the `then` branch taken out, the `else` branch moved into its place
+/// and was applied to exactly the features the expression chose. An emptied branch stays where it
+/// is - upstream builds it as "unchanged" - so `else` still means else.
+#[test]
+fn an_emptied_vector_branch_keeps_its_place() {
+	let vpl = "from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_filter_layers filter=a, vector_filter_layers filter=c ]";
+	assert_eq!(
+		without(vpl, &[&[1, 0, 0]]).unwrap(),
+		"from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ , vector_filter_layers filter=c ]"
+	);
+	// And the `else` branch emptied leaves `then` alone.
+	assert_eq!(
+		without(vpl, &[&[1, 1, 0]]).unwrap(),
+		"from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_filter_layers filter=a,  ]"
+	);
+}
+
 /// A chain that reads nothing is not a chain, so its head takes it with it.
 #[test]
 fn switching_off_the_head_switches_off_the_chain_it_heads() {

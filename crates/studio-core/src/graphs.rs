@@ -280,24 +280,30 @@ impl Graphs {
 		// The head of a nested chain, so switching it off takes that source out of the composite
 		// above it. A path is a node index then pairs of source and node index, so a head one level
 		// down is `[ … , node, source, 0 ]`.
+		//
+		// **Not in a branch**, whose first node is a transform: switching it off bypasses it and
+		// leaves the branch where it is (see `Document::to_pipeline_without`), so no source is lost
+		// and there is nothing to count.
 		if path.len() >= 3 && path[path.len() - 1] == 0 {
 			let (parent_path, source) = (&path[..path.len() - 2], path[path.len() - 2]);
 			let parent = pipeline.at_path(parent_path).context("no operation at that position")?;
-			let left = (0..parent.sources.len())
-				.filter(|other| *other != source)
-				.filter(|other| {
-					let mut head = parent_path.to_vec();
-					head.extend_from_slice(&[*other, 0]);
-					!graph.disabled.contains(&head)
-				})
-				.count();
-			let needs = crate::vpl::min_sources(&parent.name);
-			let count = match needs {
-				1 => "one source".to_string(),
-				2 => "two sources".to_string(),
-				n => format!("{n} sources"),
-			};
-			ensure!(left >= needs, "'{}' needs at least {count}", parent.name);
+			if !crate::vpl::sources_are_branches(&parent.name) {
+				let left = (0..parent.sources.len())
+					.filter(|other| *other != source)
+					.filter(|other| {
+						let mut head = parent_path.to_vec();
+						head.extend_from_slice(&[*other, 0]);
+						!graph.disabled.contains(&head)
+					})
+					.count();
+				let needs = crate::vpl::min_sources(&parent.name);
+				let count = match needs {
+					1 => "one source".to_string(),
+					2 => "two sources".to_string(),
+					n => format!("{n} sources"),
+				};
+				ensure!(left >= needs, "'{}' needs at least {count}", parent.name);
+			}
 		}
 
 		let path = path.to_vec();
@@ -501,6 +507,22 @@ mod tests {
 		assert_eq!(
 			runs(&graphs, id).unwrap(),
 			"from_stacked [ from_color color=ff0000, from_color ]"
+		);
+	}
+
+	/// A branch is not a source a composite can run short of: switching off its first node bypasses
+	/// it, so `vector_branch`'s only branch may be emptied - which `min_sources` would have refused.
+	#[test]
+	fn the_first_node_of_a_vector_branch_can_be_switched_off() {
+		let mut graphs = graphs();
+		let vpl = "from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_filter_layers filter=a ]";
+		let id = graphs.add("a", doc(vpl), None);
+
+		graphs.set_node_enabled(id, &[1, 0, 0], false).unwrap();
+
+		assert_eq!(
+			runs(&graphs, id).unwrap(),
+			"from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [  ]"
 		);
 	}
 

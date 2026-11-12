@@ -36,6 +36,20 @@ pub fn min_sources(name: &str) -> usize {
 		.map_or(1, |field| field.min_sources.max(1))
 }
 
+/// Whether an operation's sources are branches rather than chains that read (versatiles-rs 5.10).
+///
+/// `vector_branch [ then, else ]` is the one that has them: each source begins with a transform and
+/// runs on the tiles arriving at the operation, so its first node is not a head the way
+/// `from_stacked`'s are, and the position of a source is what it means. `false` for an operation
+/// this build does not know.
+#[must_use]
+pub fn sources_are_branches(name: &str) -> bool {
+	registry()
+		.get(name)
+		.and_then(|meta| meta.fields.iter().find(|field| field.is_sources))
+		.is_some_and(|field| field.sources_are_branches)
+}
+
 /// The control a parameter should be edited with.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]

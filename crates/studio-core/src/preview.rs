@@ -427,4 +427,24 @@ mod tests {
 		assert!(info.max_zoom >= info.min_zoom);
 		Ok(())
 	}
+
+	/// An emptied `vector_branch` branch is kept in place rather than dropped, which is only right
+	/// if upstream builds it - as "unchanged" - and does not refuse it.
+	#[tokio::test]
+	async fn a_vector_branch_with_an_emptied_branch_builds() -> Result<()> {
+		let runtime = versatiles::runtime::create_runtime();
+		let document = Document::parse(
+			"from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_filter_layers filter=a, vector_filter_layers filter=c ]",
+		)
+		.unwrap();
+
+		for branch in [0, 1] {
+			let off = [vec![1, branch, 0]].into_iter().collect();
+			let wanted = document.to_pipeline_without(&off).expect("the head is still there");
+			assert_eq!(wanted.pipeline[1].sources.len(), 2, "both branches keep their places");
+			let source = build(&runtime, wanted, Path::new(".")).await?;
+			assert_eq!(crate::analysis::describe(&source, "preview").await?.tile_format, "mvt");
+		}
+		Ok(())
+	}
 }

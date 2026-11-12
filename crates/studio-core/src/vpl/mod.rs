@@ -28,7 +28,7 @@ mod view;
 mod tests;
 
 pub use ast::{Comment, LineCol, Node, Pipeline, Property, Quote, Span, Str, Token, TokenKind, Value};
-pub use operations::{Control, FieldInfo, OperationInfo, min_sources, operations};
+pub use operations::{Control, FieldInfo, OperationInfo, min_sources, operations, sources_are_branches};
 // The registry itself stays inside the crate: `suggest` reads a node's declared fields, and
 // `operations()` would rebuild and sort the whole list once per node to answer that.
 pub(crate) use operations::registry;
@@ -375,6 +375,10 @@ impl Document {
 	/// `from_stacked [ a ]` - the branch leaves the composite and everything after the composite
 	/// keeps running, which is the whole reason the eyes are per node rather than a cut point.
 	///
+	/// **Except in a branch** ([`sources_are_branches`]), whose first node is a transform: switching
+	/// it off bypasses it, and a branch with nothing left stays, empty, in its place - its position
+	/// is what it means, `then` or `else`.
+	///
 	/// Paths are the ones [`Pipeline::node_at`] produces: a node index, then pairs of source and
 	/// node index.
 	///
@@ -384,36 +388,62 @@ impl Document {
 		if off.is_empty() {
 			return Some(self.to_pipeline());
 		}
-		strip(self.to_pipeline(), &mut Vec::new(), off)
+		strip(self.to_pipeline(), &mut Vec::new(), off, false)
 	}
 }
 
 /// One chain with its switched-off nodes removed, or `None` when nothing is left of it.
-fn strip(pipeline: VPLPipeline, path: &mut Vec<usize>, off: &BTreeSet<Vec<usize>>) -> Option<VPLPipeline> {
+///
+/// **A branch is not a chain that reads** ([`sources_are_branches`]). `vector_branch [ then, else ]`
+/// runs each of its sources on the tiles arriving at it, so a branch's first node is a transform like
+/// any other: switching it off bypasses it, and the rest of the branch still runs. Read as a head,
+/// it took the branch with it - and the `else` branch slid into first place, where it was applied to
+/// exactly the features the expression had chosen for `then`.
+///
+/// **A branch with nothing left stays, empty, in its place**, for the same reason: its position is
+/// what it means. Upstream builds an empty branch as "unchanged", so `[ , else ]` is the operation
+/// with its `then` switched off and nothing else moved. Written out as text that does not read back -
+/// `[ ]` parses as no sources at all - but this tree is built, never parsed again; its text is a
+/// cache key.
+fn strip(
+	pipeline: VPLPipeline,
+	path: &mut Vec<usize>,
+	off: &BTreeSet<Vec<usize>>,
+	branch: bool,
+) -> Option<VPLPipeline> {
 	let mut kept: Vec<VPLNode> = Vec::new();
 	for (index, mut node) in pipeline.pipeline.into_iter().enumerate() {
 		path.push(index);
 		if off.contains(path.as_slice()) {
 			path.pop();
-			// The head, so the whole chain goes: what follows it has nothing to read.
-			if index == 0 {
+			// The head of a chain that reads, so the whole chain goes: what follows it has nothing to
+			// read. A branch's first node is only bypassed.
+			if index == 0 && !branch {
 				return None;
 			}
 			continue;
 		}
+		let branches = sources_are_branches(&node.name);
 		let sources = std::mem::take(&mut node.sources);
 		node.sources = sources
 			.into_iter()
 			.enumerate()
 			.filter_map(|(source, chain)| {
 				path.push(source);
-				let kept = strip(chain, path, off);
+				let kept = strip(chain, path, off, branches);
 				path.pop();
-				kept
+				if branches {
+					Some(kept.unwrap_or_else(|| VPLPipeline::new(Vec::new())))
+				} else {
+					kept
+				}
 			})
 			.collect();
 		kept.push(node);
 		path.pop();
+	}
+	if branch {
+		return Some(VPLPipeline::new(kept));
 	}
 	(!kept.is_empty()).then(|| VPLPipeline::new(kept))
 }
