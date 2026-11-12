@@ -1417,7 +1417,7 @@ export type GraphInfo = {
 /**  Where a graph's heat map is served, and how deep it goes (S14.3). */
 export type HeatMount = {
 	tileUrl: string,
-	/**  The deepest level its squares are; a heat tile at zoom `z` draws `min(z + 6, deepest)`. */
+	/**  The deepest level its squares are; a heat tile at zoom `z` draws `min(z + LOOK, deepest)` - see `studio_core::heat::LOOK`. */
 	deepest: number,
 	/**  The size at the white end of the ramp, in bytes. */
 	max: number,

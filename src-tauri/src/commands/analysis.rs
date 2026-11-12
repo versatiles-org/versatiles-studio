@@ -131,7 +131,7 @@ pub async fn scan_contents(
 #[serde(rename_all = "camelCase")]
 pub struct HeatMount {
 	pub tile_url: String,
-	/// The deepest level its squares are; a heat tile at zoom `z` draws `min(z + 6, deepest)`.
+	/// The deepest level its squares are; a heat tile at zoom `z` draws `min(z + LOOK, deepest)` - see `studio_core::heat::LOOK`.
 	pub deepest: u8,
 	/// The size at the white end of the ramp, in bytes.
 	pub max: u32,
