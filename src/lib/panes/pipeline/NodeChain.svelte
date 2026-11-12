@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Diagnostic, Fit, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
-	import { walk, isBranchHead, isChainHead, isOn, problemsAt } from '../../vpl/nodes';
+	import { walk, isBranchHead, isChainHead, isOn, nodeAt, problemsAt } from '../../vpl/nodes';
 	import NodeCard from './NodeCard.svelte';
 	import Picker from '../../common/Picker.svelte';
 
@@ -64,8 +64,6 @@
 		onAddSource?: (nameSpan: Span, operation: string) => void;
 	} = $props();
 
-	const rows = $derived(walk(pipeline));
-
 	/// Which rows are running.
 	///
 	/// **Each node answers for itself** ([Q49]). This used to be `feedsPreview`, which asked whether
@@ -75,8 +73,6 @@
 	///
 	/// The graph's own switch is the head node's, so an off graph shows a chain of off eyes without
 	/// this having to know about it.
-	const on = $derived(rows.map((row) => (isChainHead(row.path) ? enabled : isOn(row.path, disabled))));
-
 	/// The operations whose sources are branches - `vector_branch`, as upstream says (5.10).
 	const branching = $derived(
 		new Set(
@@ -85,6 +81,11 @@
 				.map((operation) => operation.name)
 		)
 	);
+
+	/// In the order the tiles move - for a branch, the node and then its branches (see `walk`).
+	const rows = $derived(walk(pipeline, branching));
+
+	const on = $derived(rows.map((row) => (isChainHead(row.path) ? enabled : isOn(row.path, disabled))));
 
 	/// **A way in at the start of each branch.** Every rail inserts after the node above it, so a
 	/// chain's first node never had one ahead of it - right for a chain that reads, whose first node
@@ -123,6 +124,56 @@
 			return { label: field.branches ? '+ branch…' : '+ source…', items };
 		})
 	);
+
+	/// What a branch is called on its first rail. `then` and `else` are `vector_branch`'s own words
+	/// for its two; an operation with branches that has none gets their position.
+	function branchLabel(path: number[]): string {
+		const branch = path.at(-2) ?? 0;
+		const parent = nodeAt(pipeline, path.slice(0, -2));
+		if (parent?.name === 'vector_branch') return branch === 0 ? 'then' : 'else';
+		return `branch ${branch + 1}`;
+	}
+
+	/// The chain as drawn: each node, and the rails around it.
+	///
+	/// **A rail goes where its insertion lands.** Every row's own rail inserts after that node's
+	/// text, which for a `vector_branch` is after the whole `[ … ]` block - so with the branches
+	/// below the node, that rail belongs below them too, and drawn between the node and `then` it
+	/// promised a place it would not write to. The same goes for `+ branch…`, which adds a branch
+	/// after the last one. A composite's `+ source…` stays above the node, under its sources.
+	type Item = { kind: 'row' | 'after' | 'start' | 'source'; index: number };
+	const items = $derived.by((): Item[] => {
+		const laid: Item[] = [];
+		/// What waits for a branching node's last descendant to be drawn, by that row's index.
+		const pending: Item[][] = [];
+		rows.forEach((row, index) => {
+			if (opensBranch[index]) laid.push({ kind: 'start', index });
+			const branches = branching.has(row.node.name);
+			if (!branches && sourcePicker[index]) laid.push({ kind: 'source', index });
+			laid.push({ kind: 'row', index });
+			if (branches) {
+				let last = index;
+				while (last + 1 < rows.length && within(row.path, rows[last + 1].path)) last += 1;
+				const after: Item[] = [
+					...(sourcePicker[index] ? [{ kind: 'source' as const, index }] : []),
+					{ kind: 'after', index }
+				];
+				// Ahead of whatever already waits at that row. Rows are visited outer first, so anything
+				// waiting there is an enclosing node's, and the inner one closes before it does.
+				pending[last] = [...after, ...(pending[last] ?? [])];
+				if (last === index) laid.push(...(pending[index] ?? []));
+				return;
+			}
+			laid.push({ kind: 'after', index }, ...(pending[index] ?? []));
+		});
+		// The pipe stops under the last node, unless there is something to add there.
+		if (transforms.length === 0 && laid.at(-1)?.kind === 'after') laid.pop();
+		return laid;
+	});
+
+	/// Whether `inner` is a node somewhere inside `outer`'s sources.
+	const within = (outer: number[], inner: number[]): boolean =>
+		inner.length > outer.length && outer.every((step, i) => inner[i] === step);
 
 	/// Only transforms. A read node belongs at the head and gets there by adding a source (Q14);
 	/// offering one here would produce a document that parses and is then immediately marked wrong.
@@ -168,49 +219,55 @@
 <!-- A graph that is off is a chain that is not running, whatever each node's own eye says - the
      same reading as a hidden layer whose filters keep their switches. -->
 <div class="chain" class:off={!enabled}>
-	{#each rows as row, index (row.path.join('.'))}
-		{#if opensBranch[index] && onAddOperationBefore && transforms.length > 0}
+	{#each items as item (`${item.kind}:${rows[item.index].path.join('.')}`)}
+		{@const row = rows[item.index]}
+		{#if item.kind === 'start'}
+			<!-- Where a branch begins, and what it is called: a branch starts from the tiles arriving at
+			     its operation, so a transform may go ahead of its first node. -->
 			<div class="rail" class:inactive={!enabled} style:--depth={row.depth} data-testid="branch-start">
 				<span class="stem" aria-hidden="true"></span>
-				<Picker
-					label="+ operation…"
-					placeholder="Filter operations…"
-					items={choices}
-					onPick={(name) => onAddOperationBefore(row.node.nameSpan, name)}
+				<span class="branch">{branchLabel(row.path)}</span>
+				{#if onAddOperationBefore && transforms.length > 0}
+					<Picker
+						label="+ operation…"
+						placeholder="Filter operations…"
+						items={choices}
+						onPick={(name) => onAddOperationBefore(row.node.nameSpan, name)}
+					/>
+				{/if}
+			</div>
+		{:else if item.kind === 'source'}
+			{@const picker = sourcePicker[item.index]}
+			{#if picker}
+				<div class="rail" class:inactive={!enabled} style:--depth={row.depth + 1} data-testid="add-source">
+					<span class="stem" aria-hidden="true"></span>
+					<Picker
+						label={picker.label}
+						placeholder="Filter operations…"
+						items={picker.items}
+						onPick={(name) => onAddSource?.(row.node.nameSpan, name)}
+					/>
+				</div>
+			{/if}
+		{:else if item.kind === 'row'}
+			<div class="row" class:inactive={!on[item.index]} style:--depth={row.depth}>
+				<NodeCard
+					node={row.node}
+					path={row.path}
+					on={on[item.index]}
+					isHead={isChainHead(row.path)}
+					{operations}
+					{properties}
+					suggestions={suggestions[row.path.join('.')] ?? {}}
+					problems={problemsAt(row.node, problems)}
+					{onToggle}
+					{onCommit}
+					{onRemove}
+					{onSet}
+					{onRemoveNode}
 				/>
 			</div>
-		{/if}
-		{#if sourcePicker[index]}
-			{@const picker = sourcePicker[index]}
-			<div class="rail" class:inactive={!enabled} style:--depth={row.depth + 1} data-testid="add-source">
-				<span class="stem" aria-hidden="true"></span>
-				<Picker
-					label={picker.label}
-					placeholder="Filter operations…"
-					items={picker.items}
-					onPick={(name) => onAddSource?.(row.node.nameSpan, name)}
-				/>
-			</div>
-		{/if}
-		<div class="row" class:inactive={!on[index]} style:--depth={row.depth}>
-			<NodeCard
-				node={row.node}
-				path={row.path}
-				on={on[index]}
-				isHead={isChainHead(row.path)}
-				{operations}
-				{properties}
-				suggestions={suggestions[row.path.join('.')] ?? {}}
-				problems={problemsAt(row.node, problems)}
-				{onToggle}
-				{onCommit}
-				{onRemove}
-				{onSet}
-				{onRemoveNode}
-			/>
-		</div>
-
-		{#if index < rows.length - 1 || transforms.length > 0}
+		{:else}
 			<!-- **The pipe does not go dark under a switched-off node** ([Q49]), because the tiles
 			     still flow: they skip it. What is dark is the node itself. The whole chain goes dark
 			     with the graph, which is the one case where nothing is flowing at all. -->
@@ -261,6 +318,15 @@
 		gap: var(--space-2);
 		min-height: var(--space-5);
 		padding-left: calc(var(--depth) * var(--space-4));
+	}
+
+	/* A branch's name on its first rail, set like the map controls' tags: small, quiet, and read as
+	   a label for what follows rather than as something to press. */
+	.branch {
+		color: var(--ink-2);
+		font-size: var(--text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.06em;
 	}
 
 	/* **The pipe, and the node's outline, are one object.** Same colour and same width, so a chain

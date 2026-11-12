@@ -137,6 +137,18 @@ describe('problemsAt', () => {
 	});
 });
 
+describe('walk, for an operation with branches', () => {
+	/** The tiles reach `merge` first and then its branches, so it is drawn above them. */
+	it('lists the node before its branches', () => {
+		expect(walk(nested, new Set(['merge'])).map((entry) => [entry.node.name, entry.depth])).toEqual([
+			['merge', 0],
+			['read', 1],
+			['write', 1],
+			['tile_convert', 0]
+		]);
+	});
+});
+
 describe('nodeAt', () => {
 	it('follows a path down through the sources', () => {
 		expect(nodeAt(nested, [1])?.name).toBe('tile_convert');

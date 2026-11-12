@@ -277,3 +277,96 @@ describe('another source', () => {
 		expect(onAddSource).toHaveBeenCalledWith({ start: 0, end: 'vector_branch'.length }, 'vector_repair');
 	});
 });
+
+/**
+ * Where everything is drawn. Read top to bottom, a `vector_branch` is the order the tiles take: the
+ * node, then each branch under its name, then whatever comes after the node - and every rail where
+ * its insertion lands.
+ */
+describe('a branch in the chain', () => {
+	/** The chain, top to bottom: each node by name, each rail by what it is for. */
+	function layout(): string[] {
+		const chain = document.querySelector('.chain')!;
+		return [...chain.children].map((child) => {
+			const eye = child.querySelector('button[aria-label^="Switch o"]')?.getAttribute('aria-label');
+			if (eye) return eye.replace(/^Switch o(ff|n) /, '');
+			const testid = child.getAttribute('data-testid');
+			if (testid === 'branch-start') return `[${child.querySelector('.branch')?.textContent}]`;
+			if (testid === 'add-source') return child.querySelector('button')?.textContent?.trim() ?? '';
+			return '+';
+		});
+	}
+
+	it('draws the node, then its branches under their names, then what follows it', () => {
+		show(pipeline([...branched.nodes, node('vector_repair')]));
+		expect(layout()).toEqual([
+			'from_debug',
+			'+',
+			'vector_branch',
+			'[then]',
+			'vector_mask',
+			'+',
+			'[else]',
+			'vector_filter_layers',
+			'+',
+			// The rail after `vector_branch` inserts after its whole `[ … ]` block, so it is here.
+			'+',
+			'vector_repair',
+			'+'
+		]);
+	});
+
+	it('offers another branch under the last one, while there is room', () => {
+		show(pipeline([node('from_debug'), node('vector_branch', [pipeline([node('vector_mask')])])]));
+		expect(layout()).toEqual(['from_debug', '+', 'vector_branch', '[then]', 'vector_mask', '+', '+ branch…', '+']);
+	});
+
+	// An inner `vector_branch` closes before the one around it: its `+ branch` and its rail first.
+	// The outer one has both its branches, so only the inner one offers another - which is what
+	// tells the two orders apart.
+	it('closes a branch inside a branch before the one around it', () => {
+		const inner = node('vector_branch', [pipeline([node('vector_mask')])]);
+		const outer = node('vector_branch', [
+			pipeline([node('vector_repair')]),
+			pipeline([node('vector_filter_layers'), inner])
+		]);
+		show(pipeline([node('from_debug'), outer]));
+		expect(layout()).toEqual([
+			'from_debug',
+			'+',
+			'vector_branch',
+			'[then]',
+			'vector_repair',
+			'+',
+			'[else]',
+			'vector_filter_layers',
+			'+',
+			'vector_branch',
+			'[then]',
+			'vector_mask',
+			'+',
+			// The inner one's: another branch, then the way on after it.
+			'+ branch…',
+			'+',
+			// The outer one's, last.
+			'+'
+		]);
+	});
+
+	it('leaves a composite’s sources above it', () => {
+		show(stacked);
+		expect(layout()).toEqual([
+			'from_debug',
+			'+',
+			'raster_flatten',
+			'+',
+			'from_color',
+			'+',
+			'+ source…',
+			'from_stacked',
+			'+',
+			'raster_overview',
+			'+'
+		]);
+	});
+});

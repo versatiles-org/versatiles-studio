@@ -20,13 +20,26 @@ export interface Located {
 export const samePath = (a: number[] | null, b: number[] | null): boolean =>
 	a !== null && b !== null && a.length === b.length && a.every((value, i) => value === b[i]);
 
-/** Every node in the pipeline, flattened, each with its path and how deeply it nests. */
-export function walk(pipeline: VplPipeline, path: number[] = [], depth = 0): (Located & { depth: number })[] {
+/**
+ * Every node in the pipeline, flattened, each with its path and how deeply it nests.
+ *
+ * **In the order the tiles move.** A composite's sources are read first and feed it, so they come
+ * above the node: `from_stacked [ a, b ]` is `a`, `b`, then `from_stacked`. A branch is the other
+ * way round - the tiles arrive at `vector_branch`, go through `then` or `else`, and leave it - so an
+ * operation in `branching` comes first and its branches below it. Drawn above, they read as inputs
+ * that ran before it.
+ */
+export function walk(
+	pipeline: VplPipeline,
+	branching: ReadonlySet<string> = new Set(),
+	path: number[] = [],
+	depth = 0
+): (Located & { depth: number })[] {
 	return pipeline.nodes.flatMap((node, index) => {
 		const here = [...path, index];
-		// Sources are drawn above the node they feed, because that is the direction the tiles move.
-		const nested = node.sources.flatMap((source, i) => walk(source, [...here, i], depth + 1));
-		return [...nested, { path: here, node, depth }];
+		const nested = node.sources.flatMap((source, i) => walk(source, branching, [...here, i], depth + 1));
+		const self = { path: here, node, depth };
+		return branching.has(node.name) ? [self, ...nested] : [...nested, self];
 	});
 }
 
