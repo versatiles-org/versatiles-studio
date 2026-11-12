@@ -13,7 +13,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use versatiles_pipeline::vpl::VPLFieldMeta;
-use versatiles_pipeline::{OperationMeta, all_operation_metadata};
+use versatiles_pipeline::{OperationMeta, all_operation_metadata, named_ramps};
 
 /// Operations by name, built once. `all_operation_metadata()` walks every factory on each call.
 pub fn registry() -> &'static HashMap<String, OperationMeta> {
@@ -128,7 +128,13 @@ pub enum Control {
 	/// Text with a helper beside it, the shape [`Control::Steps`] has and for the same reason. The
 	/// bounds that control carries have no counterpart: any finite elevation is a stop, and the only
 	/// rule, that they ascend, is one the helper keeps by sorting.
-	Ramp,
+	///
+	/// **The names come from upstream** ([`named_ramps`]), with the stops each stands for, so the
+	/// names the helper offers and the names `ramp=` parses cannot differ. Studio used to keep a copy
+	/// of the one name 5.6 had, and a name added there was one the helper could not offer.
+	Ramp {
+		presets: Vec<NamedRamp>,
+	},
 	/// An enum, with every accepted spelling.
 	Choice {
 		options: Vec<String>,
@@ -158,6 +164,15 @@ pub enum Control {
 	/// the same bare row of numbers for both. The map already draws rectangles - it is how a crop is
 	/// set - so the one field where that machinery is the obvious answer had no way to reach it.
 	Bbox,
+}
+
+/// A ramp upstream knows by name, and the stops it stands for - what `ramp=default` means.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct NamedRamp {
+	pub name: String,
+	/// As `ramp=` writes them: `elevation:colour`, comma-separated, ascending.
+	pub stops: String,
 }
 
 /// What a field's type is once `Option<…>` is off it, which is what every rule below reads.
@@ -218,7 +233,17 @@ fn control_for(field: &VPLFieldMeta) -> Control {
 		// The two bounds are the parser's own, and neither is stated in `bounds`: the field's type is
 		// the curve rather than a number, so upstream has nothing to put there. Taken from
 		// `parse_quality`, which refuses a zoom above 31 and a value above 100.
-		"ColorRamp" => return Control::Ramp,
+		"ColorRamp" => {
+			return Control::Ramp {
+				presets: named_ramps()
+					.iter()
+					.map(|(name, stops)| NamedRamp {
+						name: (*name).to_string(),
+						stops: (*stops).to_string(),
+					})
+					.collect(),
+			};
+		}
 		"QualityByZoom" => {
 			return Control::Steps {
 				min: 0,
@@ -658,7 +683,22 @@ mod tests {
 
 	#[test]
 	fn a_colour_ramp_has_its_own_control() {
-		assert_eq!(field("dem_colorize", "ramp").control, Control::Ramp);
+		assert!(matches!(field("dem_colorize", "ramp").control, Control::Ramp { .. }));
+	}
+
+	/// The names are upstream's, `default` first, each with the stops it parses to - so the helper
+	/// can show a name's colours and start a custom ramp from them.
+	#[test]
+	fn a_colour_ramp_offers_upstreams_named_ramps() {
+		let Control::Ramp { presets } = field("dem_hillshade", "ramp").control else {
+			panic!("dem_hillshade.ramp is a ramp");
+		};
+		let names: Vec<&str> = presets.iter().map(|preset| preset.name.as_str()).collect();
+		assert_eq!(names.first(), Some(&"default"));
+		for name in ["alpine", "bathymetry", "grayscale"] {
+			assert!(names.contains(&name), "{name} is missing from {names:?}");
+		}
+		assert!(presets.iter().all(|preset| preset.stops.contains(':')), "{presets:?}");
 	}
 
 	#[test]

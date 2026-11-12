@@ -6,7 +6,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/svelte';
 import { fireEvent } from '@testing-library/dom';
 import RampDialog from './RampDialog.svelte';
-import { DEFAULT_RAMP } from './ramp';
+
+/** What `default` stands for here - the shape of upstream's, so the tests do not follow its colours. */
+const DEFAULT_RAMP = '-11000:24507e,-200:8cb4d8,0:bcd8ec,0.01:a8c896,300:cad6a2';
+/** The field's presets, as `Control::Ramp` carries them: `default` first, and more than one. */
+const PRESETS = [
+	{ name: 'default', stops: DEFAULT_RAMP },
+	{ name: 'alpine', stops: '0:a9c39a,500:c6d4a4,4500:ffffff' }
+];
 
 afterEach(cleanup);
 
@@ -16,7 +23,7 @@ HTMLDialogElement.prototype.close = vi.fn();
 
 const open = (value: string) => {
 	const onUse = vi.fn();
-	render(RampDialog, { value, name: 'ramp', onUse, onClose: vi.fn() });
+	render(RampDialog, { value, name: 'ramp', presets: PRESETS, onUse, onClose: vi.fn() });
 	return onUse;
 };
 
@@ -72,6 +79,17 @@ describe('named ramps', () => {
 		await pick('default');
 		await use();
 		expect(onUse).toHaveBeenCalledWith('default');
+	});
+
+	// The names are the field's, so one added upstream is offered with nothing to change here.
+	it('offers every name the field carries, and writes the one picked', async () => {
+		const onUse = open('0:000000');
+		const offered = [...(screen.getByLabelText('Colours') as HTMLSelectElement).options].map((o) => o.value);
+		expect(offered).toEqual(['default', 'alpine', '']);
+		await pick('alpine');
+		expect(elevation(3).valueAsNumber).toBe(4500);
+		await use();
+		expect(onUse).toHaveBeenCalledWith('alpine');
 	});
 
 	it('spells a named ramp out when custom is picked, to edit from', async () => {

@@ -7,7 +7,6 @@
 	import {
 		DEFAULT_RANGE,
 		GRADIENTS,
-		NAMED_RAMPS,
 		fromRamp,
 		generateRamp,
 		hasDuplicates,
@@ -17,6 +16,7 @@
 		rampName,
 		rangeProblem,
 		type Generation,
+		type Presets,
 		type RampStop
 	} from './ramp';
 
@@ -27,6 +27,7 @@
 	let {
 		value,
 		name,
+		presets,
 		onUse,
 		onClose
 	}: {
@@ -34,6 +35,8 @@
 		value: string;
 		/** The parameter's name, for the title. */
 		name: string;
+		/** The ramps upstream knows by name - the field's control carries them, `default` first. */
+		presets: Presets;
 		onUse: (text: string) => void;
 		onClose: () => void;
 	} = $props();
@@ -42,17 +45,18 @@
 	/// starting from nothing. Not "what the map shows": unset is the tint for `dem_colorize` and no
 	/// colours at all for `dem_hillshade`, so the note below says neither.
 	const unset = untrack(() => value.trim() === '');
+	const opening = untrack(() => rampName('default', presets));
 
 	/// **A named ramp stays a name** until one of its stops is edited. Writing `default` rather than
 	/// its ten stops keeps the document short and follows upstream if its tint changes; the stops are
 	/// only there to look at and to start a custom ramp from.
-	let preset = $state<string | null>(untrack(() => rampName(value) ?? (unset ? 'default' : null)));
+	let preset = $state<string | null>(untrack(() => rampName(value, presets) ?? (unset ? opening : null)));
 
 	/// The dialog's own draft - see `StepsDialog`, which explains the `untrack`.
-	let stops = $state<RampStop[]>(untrack(() => parseRamp(preset ?? value)) ?? []);
+	let stops = $state<RampStop[]>(untrack(() => parseRamp(preset ?? value, presets)) ?? []);
 
 	const encoded = $derived(preset ?? fromRamp(stops));
-	const unreadable = $derived(!unset && parseRamp(value) === null);
+	const unreadable = $derived(!unset && parseRamp(value, presets) === null);
 	/// Sorting keeps the stops ascending, but not apart. Said here, rather than left for `check`.
 	const duplicates = $derived(hasDuplicates(stops));
 
@@ -69,7 +73,7 @@
 			preset = null;
 			return;
 		}
-		stops = parseRamp(name) ?? [];
+		stops = parseRamp(name, presets) ?? [];
 		preset = name;
 	}
 
@@ -118,7 +122,7 @@
 		<dt><label for="ramp-preset">Colours</label></dt>
 		<dd>
 			<select id="ramp-preset" value={preset ?? ''} onchange={(event) => choose(event.currentTarget.value)}>
-				{#each Object.keys(NAMED_RAMPS) as name (name)}
+				{#each presets as { name } (name)}
 					<option value={name}>{name}</option>
 				{/each}
 				<option value="">custom</option>

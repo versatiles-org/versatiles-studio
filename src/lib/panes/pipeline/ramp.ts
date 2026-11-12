@@ -6,6 +6,8 @@
  * short forms of those, and the elevations ascend.
  */
 
+import type { NamedRamp } from '../../ipc/commands';
+
 /** One stop. `color` is hex digits with no `#`, six or eight of them, the way this writes them. */
 export interface RampStop {
 	meters: number;
@@ -13,25 +15,20 @@ export interface RampStop {
 }
 
 /**
- * Upstream's hypsometric tint: what `ramp=default` stands for, and what `dem_colorize` uses when
- * `ramp` is not set.
+ * The ramps upstream knows by name, as the field's control carries them - `Control::Ramp`'s
+ * `presets`, from `named_ramps()` in versatiles-rs 5.10, `default` first.
  *
- * Copied because it is not exposed anywhere, and only ever used to draw the preview and to start
- * editing from: writing `default` still means whatever upstream's default has become.
+ * **Passed in rather than copied here.** This file used to hold the one name 5.6 had and its stops,
+ * so a name added upstream was one the dialog could not offer. The stops are only ever used to draw
+ * the preview and to start a custom ramp from: writing `default` still means whatever upstream's
+ * default has become.
  */
-export const DEFAULT_RAMP =
-	'-11000:24507e,-200:8cb4d8,0:bcd8ec,0.01:a8c896,300:cad6a2,800:e4dcae,1500:d6bf98,2500:bea58a,4000:e4e0dc,6000:ffffff';
-
-/**
- * The ramps upstream knows by name, and the stops each stands for. `ColorRamp::try_from` in
- * versatiles-rs 5.6 has one; a name added there needs adding here before the dialog can offer it.
- */
-export const NAMED_RAMPS: Readonly<Record<string, string>> = { default: DEFAULT_RAMP };
+export type Presets = readonly NamedRamp[];
 
 /** The name a written ramp is, or `null` when it is a list of stops or nothing upstream knows. */
-export function rampName(text: string): string | null {
+export function rampName(text: string, presets: Presets): string | null {
 	const name = text.trim();
-	return Object.hasOwn(NAMED_RAMPS, name) ? name : null;
+	return presets.some((preset) => preset.name === name) ? name : null;
 }
 
 /** A colour as this writes it, or `null` when it is not one. */
@@ -42,10 +39,13 @@ function normalise(color: string): string | null {
 	return null;
 }
 
-/** The stops a written ramp holds, a named one included, or `null` when upstream would refuse it. */
-export function parseRamp(text: string): RampStop[] | null {
-	const name = rampName(text);
-	if (name !== null) return parseRamp(NAMED_RAMPS[name]);
+/**
+ * The stops a written ramp holds, or `null` when upstream would refuse it. A name among `presets`
+ * reads as the stops it stands for; without them, only a list of stops reads.
+ */
+export function parseRamp(text: string, presets: Presets = []): RampStop[] | null {
+	const named = presets.find((preset) => preset.name === text.trim());
+	if (named) return parseRamp(named.stops);
 	const stops: RampStop[] = [];
 	for (const part of text.split(',').map((piece) => piece.trim())) {
 		if (part === '') continue;

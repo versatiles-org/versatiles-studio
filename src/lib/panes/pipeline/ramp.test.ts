@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-	DEFAULT_RAMP,
 	GRADIENTS,
 	fromRamp,
 	generateRamp,
@@ -11,6 +10,13 @@ import {
 	rampName,
 	rangeProblem
 } from './ramp';
+
+/** The field's presets, as `Control::Ramp` carries them from upstream. */
+const DEFAULT_RAMP = '-11000:24507e,-200:8cb4d8,0:bcd8ec,0.01:a8c896,300:cad6a2';
+const PRESETS = [
+	{ name: 'default', stops: DEFAULT_RAMP },
+	{ name: 'bathymetry', stops: '-11000:0b2545,0:cfe3f3,0.01:cfe3f300' }
+];
 
 describe('parseRamp', () => {
 	it('reads stops, whatever their spelling', () => {
@@ -28,18 +34,22 @@ describe('parseRamp', () => {
 	});
 
 	it('reads a named ramp as the stops it stands for', () => {
-		expect(parseRamp(' default ')).toEqual(parseRamp(DEFAULT_RAMP));
-		expect(parseRamp('Default')).toBeNull();
+		expect(parseRamp(' default ', PRESETS)).toEqual(parseRamp(DEFAULT_RAMP));
+		expect(parseRamp('bathymetry', PRESETS)).toEqual(parseRamp(PRESETS[1].stops));
+		expect(parseRamp('Default', PRESETS)).toBeNull();
+		// A name is only a name among the presets it is read with.
+		expect(parseRamp('default')).toBeNull();
 	});
 });
 
 describe('rampName', () => {
 	it('knows the names upstream knows, and nothing else', () => {
-		expect(rampName('default')).toBe('default');
-		expect(rampName(' default ')).toBe('default');
-		expect(rampName(DEFAULT_RAMP)).toBeNull();
-		expect(rampName('toString')).toBeNull();
-		expect(rampName('')).toBeNull();
+		expect(rampName('default', PRESETS)).toBe('default');
+		expect(rampName(' bathymetry ', PRESETS)).toBe('bathymetry');
+		expect(rampName(DEFAULT_RAMP, PRESETS)).toBeNull();
+		expect(rampName('toString', PRESETS)).toBeNull();
+		expect(rampName('', PRESETS)).toBeNull();
+		expect(rampName('default', [])).toBeNull();
 	});
 });
 

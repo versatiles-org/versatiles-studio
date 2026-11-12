@@ -360,6 +360,7 @@
 			<RampDialog
 				{value}
 				{name}
+				presets={control.presets}
 				onUse={(next) => {
 					onCommit(next);
 					editingRamp = false;

@@ -1082,8 +1082,12 @@ maxZoom: number } |
  *  Text with a helper beside it, the shape [`Control::Steps`] has and for the same reason. The
  *  bounds that control carries have no counterpart: any finite elevation is a stop, and the only
  *  rule, that they ascend, is one the helper keeps by sorting.
+ * 
+ *  **The names come from upstream** ([`named_ramps`]), with the stops each stands for, so the
+ *  names the helper offers and the names `ramp=` parses cannot differ. Studio used to keep a copy
+ *  of the one name 5.6 had, and a name added there was one the helper could not offer.
  */
-{ kind: "ramp" } | 
+{ kind: "ramp"; presets: NamedRamp[] } | 
 /**  An enum, with every accepted spelling. */
 { kind: "choice"; options: string[] } | 
 /**  `Vec<String>` - a list of values, written as a VPL array. */
@@ -1891,6 +1895,13 @@ export type Mounted =
  *  call must not act on the map on its way out.
  */
 { type: "superseded" };
+
+/**  A ramp upstream knows by name, and the stops it stands for - what `ramp=default` means. */
+export type NamedRamp = {
+	name: string,
+	/**  As `ramp=` writes them: `elevation:colour`, comma-separated, ascending. */
+	stops: string,
+};
 
 /**  A problem on its way in, before the ring gives it an id, a time and a count. */
 export type NewProblem = {

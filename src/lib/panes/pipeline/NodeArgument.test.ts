@@ -411,7 +411,7 @@ describe('a colour ramp', () => {
 		sources: false,
 		accepts: [],
 		default: null,
-		control: { kind: 'ramp' as const }
+		control: { kind: 'ramp' as const, presets: [{ name: 'default', stops: '0:000000,100:ffffff' }] }
 	};
 
 	it('is edited as the text it is written as, with the helper shut until asked for', async () => {
