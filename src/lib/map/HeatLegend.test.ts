@@ -20,10 +20,10 @@ describe('the heat map legend', () => {
 		expect(screen.getByText(/each square a tile of zoom 14/)).toBeTruthy();
 	});
 
-	/** Far out, a square is a tile six levels below the map's, not the deepest level. */
+	/** Far out, a square is a tile eight levels below the map's, not the deepest level. */
 	it('names a shallower level when the map is zoomed out', () => {
 		render(HeatLegend, { ...base, zoom: 1 });
-		expect(screen.getByText(/each square a tile of zoom 7/)).toBeTruthy();
+		expect(screen.getByText(/each square a tile of zoom 9/)).toBeTruthy();
 	});
 
 	it('sets the maximum in kilobytes, the opacity, and the heat map alone', async () => {

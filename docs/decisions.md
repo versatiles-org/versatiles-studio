@@ -548,7 +548,7 @@ turn out to be, and the Inspector keeps "nothing else". It follows the selected 
 open because that is what gets published, the inputs folded.
 
 **The heat map draws a deeper level** inside the one the map shows, which is four to ten tiles and
-says nothing coloured: six levels down, so the squares follow the zoom. A ramp up to a maximum the
+says nothing coloured: eight levels down, so the squares follow the zoom. A ramp up to a maximum the
 reader sets, 500 kB by default: fixed bands called every tile of a landcover layer fine. Only over
 an index: every square of a transformed output would be an export.
 

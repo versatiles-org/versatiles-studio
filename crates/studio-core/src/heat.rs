@@ -2,13 +2,18 @@
 //!
 //! **Not the tiles on screen.** A map shows four to ten tiles of the level it requests, so colouring
 //! those says nothing. Each heat tile draws the tiles [`LOOK`] levels below it instead, one pixel
-//! each - 64 a side - and MapLibre draws the pixels as squares ([Q72]).
+//! each - 256 a side, two screen pixels a square on a 512 px tile - and MapLibre draws the pixels
+//! as squares ([Q72]).
 //!
 //! **The squares follow the zoom.** A heat tile at level `z` draws level `z + LOOK`, up to the
-//! deepest level asked for: at zoom 1 a square is a tile of zoom 7, from zoom 8 on it is one of
-//! zoom 14. So the heat map draws at every zoom, each heat tile reads at most 4096 sizes, and the
-//! legend says which level a square is. A fixed detail level drawn from far above it would mean a
-//! million sizes per heat tile, or nothing.
+//! deepest level asked for: at zoom 1 a square is a tile of zoom 9, from zoom 6 on it is one of
+//! zoom 14. So the heat map draws at every zoom, each heat tile reads at most 65,536 sizes - an
+//! index read, no tile body - and the legend says which level a square is. A fixed detail level
+//! drawn from far above it would mean billions of sizes per heat tile, or nothing.
+//!
+//! **Eight levels, not more.** Six was 8 px squares, and zoomed out it left the deepest levels out
+//! of reach. Two pixels a square is as fine as a square can be and still be told from its
+//! neighbour; a ninth level would be one pixel, and four times the index read for each heat tile.
 //!
 //! **A tile source of its own**, served beside the graph's mount, so the map reads it like any other
 //! raster and the core does the work where the index is. Each heat tile is one `tile_size_stream`
@@ -27,8 +32,8 @@ use versatiles_container::{SharedTileSource, SourceType, Tile, TileSource, TileS
 use versatiles_core::{TileBBox, TileCompression, TileCoord, TileFormat, TileJSON, TilePyramid, TileStream};
 use versatiles_image::{DynamicImage, DynamicImageTraitConvert};
 
-/// How many levels below a heat tile its squares are: 64 a side.
-pub const LOOK: u8 = 6;
+/// How many levels below a heat tile its squares are: 256 a side.
+pub const LOOK: u8 = 8;
 
 /// The colours a size runs through, as RGBA, from nothing to the maximum and above.
 pub type Ramp = Vec<[u8; 4]>;
@@ -300,11 +305,11 @@ mod tests {
 
 	/// The squares follow the zoom: [`LOOK`] levels down, but never past the deepest asked for.
 	#[tokio::test]
-	async fn draws_the_level_six_below_and_no_deeper_than_asked() -> Result<()> {
-		let heat = Heat::new(index(vec![(14, 8800, 5373, 10), (8, 137, 83, 10)]), 14, ramp(), 1).await?;
-		assert_eq!([heat.detail_at(0), heat.detail_at(8), heat.detail_at(12)], [6, 14, 14]);
-		let far = image(&heat, 2, 2, 1).await.expect("zoom 8 under zoom 2");
-		assert_eq!(far.dimensions(), (64, 64));
+	async fn draws_the_level_eight_below_and_no_deeper_than_asked() -> Result<()> {
+		let heat = Heat::new(index(vec![(14, 8800, 5373, 10), (10, 550, 335, 10)]), 14, ramp(), 1).await?;
+		assert_eq!([heat.detail_at(0), heat.detail_at(6), heat.detail_at(12)], [8, 14, 14]);
+		let far = image(&heat, 2, 2, 1).await.expect("zoom 10 under zoom 2");
+		assert_eq!(far.dimensions(), (256, 256));
 		let near = image(&heat, 12, 2200, 1343).await.expect("zoom 14 under zoom 12");
 		assert_eq!(near.dimensions(), (4, 4));
 		assert!(image(&heat, 2, 0, 0).await.is_none(), "no tiles under it");

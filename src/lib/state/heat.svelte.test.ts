@@ -49,11 +49,11 @@ describe('the heat map', () => {
 		expect(heat.max).toBe(50_000);
 	});
 
-	/** A heat tile draws six levels below it, and never deeper than asked; raster tiles round. */
+	/** A heat tile draws eight levels below it, and never deeper than asked; raster tiles round. */
 	it('says which level a square is at a map zoom', () => {
-		expect(squareLevel(1, 14)).toBe(7);
-		expect(squareLevel(1.6, 14)).toBe(8);
-		expect(squareLevel(9, 14)).toBe(14);
+		expect(squareLevel(1, 14)).toBe(9);
+		expect(squareLevel(1.6, 14)).toBe(10);
+		expect(squareLevel(6, 14)).toBe(14);
 		expect(squareLevel(3, 5)).toBe(5);
 	});
 
@@ -68,20 +68,20 @@ describe('the heat map', () => {
 		expect(ipc.mountHeat).not.toHaveBeenCalled();
 	});
 
-	// Zoomed out, the squares stop short of the depth: at zoom 9 they are zoom 15 whatever is deeper.
+	// Zoomed out, the squares stop short of the depth: at zoom 7 they are zoom 15 whatever is deeper.
 	it('walks from the level on screen, and no deeper than the zoom can draw', async () => {
 		await heat.show(1, 'build-a', 18);
-		expect(squareLevel(9, 18)).toBe(15);
+		expect(squareLevel(7, 18)).toBe(15);
 
 		// Out from what is drawn - 14 - rather than from the depth, which would be 17 and still draw 15.
-		await heat.step(-1, 9, 0, 18);
+		await heat.step(-1, 7, 0, 18);
 		expect(heat.drawn?.deepest).toBe(14);
-		await heat.step(1, 9, 0, 18);
+		await heat.step(1, 7, 0, 18);
 		expect(heat.drawn?.deepest).toBe(15);
 
-		// 16 cannot be drawn from zoom 9, so the step does nothing rather than claiming it.
+		// 16 cannot be drawn from zoom 7, so the step does nothing rather than claiming it.
 		ipc.mountHeat.mockClear();
-		await heat.step(1, 9, 0, 18);
+		await heat.step(1, 7, 0, 18);
 		expect(ipc.mountHeat).not.toHaveBeenCalled();
 		expect(heat.drawn?.deepest).toBe(15);
 	});

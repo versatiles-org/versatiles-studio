@@ -25,7 +25,7 @@ import { requestedZoom } from '../map/tile-grid';
 import { token } from '../styles/tokens';
 
 /** How many levels below a heat tile its squares are - the core's `heat::LOOK`. */
-export const LOOK = 6;
+export const LOOK = 8;
 
 /** The size at the white end of the ramp until someone says otherwise: a vector tile's budget. */
 export const DEFAULT_MAX = 500_000;
@@ -147,7 +147,7 @@ export const heat = {
 	 * `max`.
 	 *
 	 * **From the level on screen, not from the stored depth.** The depth is only a floor the squares
-	 * stop at; above it they follow the zoom ([`squareLevel`]). So at zoom 9 a depth of 18 draws
+	 * stop at; above it they follow the zoom ([`squareLevel`]). So at zoom 7 a depth of 18 draws
 	 * zoom 15, and a step out from 18 to 17 drew 15 still - a button that did nothing. A step from
 	 * what is drawn always changes what is drawn.
 	 *
