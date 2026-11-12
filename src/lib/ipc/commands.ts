@@ -443,6 +443,13 @@ export const vplSetProperty = (
 export const vplInsertNode = (text: string, span: Parameters<typeof commands.vplInsertNode>[1], operation: string) =>
 	unwrap(commands.vplInsertNode(text, span, operation));
 
+/** Adds an operation right before the node whose name occupies `span` - the start of a branch. */
+export const vplInsertNodeBefore = (
+	text: string,
+	span: Parameters<typeof commands.vplInsertNodeBefore>[1],
+	operation: string
+) => unwrap(commands.vplInsertNodeBefore(text, span, operation));
+
 /** Removes a node and the separator that joined it. Refused when it would empty the pipeline. */
 export const vplRemoveNode = (text: string, span: Parameters<typeof commands.vplRemoveNode>[1]) =>
 	unwrap(commands.vplRemoveNode(text, span));

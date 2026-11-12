@@ -83,6 +83,8 @@
 			setEnabled: (path: number[], enabled: boolean) => void;
 			/** Inserts a transform after the node whose name occupies `span`. */
 			addOperation: (afterNameSpan: Span, operation: string) => void;
+			/** Inserts a transform before the node whose name occupies `span` - the start of a branch. */
+			addOperationBefore: (beforeNameSpan: Span, operation: string) => void;
 			remove: (span: Span) => void;
 			commitValue: (span: Span, value: string) => void;
 			removeProperty: (span: Span) => void;
@@ -257,6 +259,7 @@
 				onSet={(span, key, values) => nodeActions.setProperty(span, key, values)}
 				onRemoveNode={nodeActions.remove}
 				onAddOperation={nodeActions.addOperation}
+				onAddOperationBefore={nodeActions.addOperationBefore}
 			/>
 		{/if}
 	</div>

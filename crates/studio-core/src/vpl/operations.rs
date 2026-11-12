@@ -321,6 +321,10 @@ pub struct FieldInfo {
 	pub required: bool,
 	/// Fed by a `[ … ]` block rather than by a `key=value` pair, so it has no control.
 	pub sources: bool,
+	/// The sources are branches ([`sources_are_branches`]): each begins with a transform and runs
+	/// on the tiles arriving at the operation, so the editor offers transforms at its start too.
+	/// `false` for every other field.
+	pub branches: bool,
 	pub control: Control,
 	/// Extensions to filter a file dialog by, or empty to offer everything.
 	///
@@ -391,6 +395,7 @@ pub fn operations() -> Vec<OperationInfo> {
 					doc: field.doc.clone(),
 					required: field.is_required,
 					sources: field.is_sources,
+					branches: field.is_sources && field.sources_are_branches,
 					control: control_for(field),
 					accepts: field
 						.accepts
@@ -883,6 +888,18 @@ mod tests {
 	#[test]
 	fn a_boolean_is_a_checkbox() {
 		assert_eq!(field("from_csv", "has_header").control, Control::Boolean);
+	}
+
+	/// `vector_branch` runs its sources on its own input, so they are branches; a composite's are not.
+	#[test]
+	fn a_branch_operation_says_its_sources_are_branches() {
+		let branches = field("vector_branch", "sources");
+		assert!(branches.sources && branches.branches);
+		assert!(!field("from_stacked", "sources").branches);
+		assert!(!field("vector_branch", "expr").branches);
+		assert!(sources_are_branches("vector_branch"));
+		assert!(!sources_are_branches("from_stacked"));
+		assert!(!sources_are_branches("no_such_operation"));
 	}
 
 	/// `sources` is fed by the `[ … ]` block, so it must not appear as a text field.

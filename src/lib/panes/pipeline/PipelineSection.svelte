@@ -4,7 +4,13 @@
 	import { document } from '../../state/document.svelte';
 	import { exporting } from '../../state/export.svelte';
 	import { workbench } from '../../state/workbench.svelte';
-	import { fieldSuggestions, vplRemoveProperty, vplSetProperty, vplSetValue } from '../../ipc/commands';
+	import {
+		fieldSuggestions,
+		vplInsertNodeBefore,
+		vplRemoveProperty,
+		vplSetProperty,
+		vplSetValue
+	} from '../../ipc/commands';
 
 	// The Pipeline pane, connected (S10.10).
 	//
@@ -64,6 +70,8 @@
 	nodeActions={{
 		setEnabled: (path, enabled) => void workbench.toggleNode(path, enabled),
 		addOperation: (afterNameSpan, operation) => void workbench.addOperation(afterNameSpan, operation),
+		addOperationBefore: (beforeNameSpan, operation) =>
+			void workbench.editText((text) => vplInsertNodeBefore(text, beforeNameSpan, operation)),
 		remove: (span) => void workbench.removeNode(span),
 		commitValue: (span, value) => void workbench.editText((text) => vplSetValue(text, span, value)),
 		removeProperty: (span) => void workbench.editText((text) => vplRemoveProperty(text, span)),

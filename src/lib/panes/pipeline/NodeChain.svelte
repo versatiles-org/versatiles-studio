@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Diagnostic, Fit, OperationInfo, Span, VplPipeline } from '../../ipc/commands';
-	import { walk, isChainHead, isOn, problemsAt } from '../../vpl/nodes';
+	import { walk, isBranchHead, isChainHead, isOn, problemsAt } from '../../vpl/nodes';
 	import NodeCard from './NodeCard.svelte';
 	import Picker from '../../common/Picker.svelte';
 
@@ -27,7 +27,8 @@
 		onRemove,
 		onSet,
 		onRemoveNode,
-		onAddOperation
+		onAddOperation,
+		onAddOperationBefore
 	}: {
 		pipeline: VplPipeline;
 		/** What is wrong with the document, as the VPL tab underlines it. Each node is marked for its own. */
@@ -56,6 +57,8 @@
 		onSet: (span: Span, key: string, values: string[]) => void;
 		onRemoveNode: (span: Span) => void;
 		onAddOperation: (afterNameSpan: Span, operation: string) => void;
+		/** Inserts before a node. Only offered at the start of a branch - see `isBranchHead`. */
+		onAddOperationBefore?: (beforeNameSpan: Span, operation: string) => void;
 	} = $props();
 
 	const rows = $derived(walk(pipeline));
@@ -70,6 +73,21 @@
 	/// The graph's own switch is the head node's, so an off graph shows a chain of off eyes without
 	/// this having to know about it.
 	const on = $derived(rows.map((row) => (isChainHead(row.path) ? enabled : isOn(row.path, disabled))));
+
+	/// The operations whose sources are branches - `vector_branch`, as upstream says (5.10).
+	const branching = $derived(
+		new Set(
+			operations
+				.filter((operation) => operation.fields.some((field) => field.sources && field.branches))
+				.map((operation) => operation.name)
+		)
+	);
+
+	/// **A way in at the start of each branch.** Every rail inserts after the node above it, so a
+	/// chain's first node never had one ahead of it - right for a chain that reads, whose first node
+	/// has to be the read, and wrong for a branch, which starts from the tiles arriving at its
+	/// operation and begins with a transform. Without this, a new first step went in by typing VPL.
+	const opensBranch = $derived(rows.map((row) => isBranchHead(row.path, pipeline, branching)));
 
 	/// Only transforms. A read node belongs at the head and gets there by adding a source (Q14);
 	/// offering one here would produce a document that parses and is then immediately marked wrong.
@@ -116,6 +134,17 @@
      same reading as a hidden layer whose filters keep their switches. -->
 <div class="chain" class:off={!enabled}>
 	{#each rows as row, index (row.path.join('.'))}
+		{#if opensBranch[index] && onAddOperationBefore && transforms.length > 0}
+			<div class="rail" class:inactive={!enabled} style:--depth={row.depth} data-testid="branch-start">
+				<span class="stem" aria-hidden="true"></span>
+				<Picker
+					label="+ operation…"
+					placeholder="Filter operations…"
+					items={choices}
+					onPick={(name) => onAddOperationBefore(row.node.nameSpan, name)}
+				/>
+			</div>
+		{/if}
 		<div class="row" class:inactive={!on[index]} style:--depth={row.depth}>
 			<NodeCard
 				node={row.node}

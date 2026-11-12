@@ -44,6 +44,31 @@ export function walk(pipeline: VplPipeline, path: number[] = [], depth = 0): (Lo
  */
 export const isChainHead = (path: number[]): boolean => path.length === 1 && path[0] === 0;
 
+/** The node at `path`, or `undefined` when the path names none. */
+export function nodeAt(pipeline: VplPipeline, path: number[]): VplNode | undefined {
+	let chain: VplPipeline | undefined = pipeline;
+	let found: VplNode | undefined;
+	for (let level = 0; level < path.length; level += 2) {
+		found = chain?.nodes[path[level]];
+		if (level + 1 < path.length) chain = found?.sources[path[level + 1]];
+	}
+	return found;
+}
+
+/**
+ * Whether `path` is the first node of a branch - a source of an operation whose sources are
+ * branches (`FieldInfo.branches`), such as `vector_branch`'s `then` and `else`.
+ *
+ * **Not a chain head.** A branch runs on the tiles arriving at its operation, so its first node is
+ * a transform, and another transform may go ahead of it - which is why the chain draws a way in
+ * above it that no other first node gets.
+ */
+export function isBranchHead(path: number[], pipeline: VplPipeline, branching: ReadonlySet<string>): boolean {
+	if (path.length < 3 || path.at(-1) !== 0) return false;
+	const parent = nodeAt(pipeline, path.slice(0, -2));
+	return parent !== undefined && branching.has(parent.name);
+}
+
 const within = (at: number, span: Span): boolean => at >= span.start && at < span.end;
 
 /**

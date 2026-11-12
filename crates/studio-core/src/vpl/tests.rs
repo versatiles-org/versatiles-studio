@@ -620,6 +620,39 @@ fn an_operation_inserted_in_a_nested_chain_stays_in_it() {
 	assert_eq!(document.pipeline().nodes.len(), 2, "the outer chain is untouched");
 }
 
+/// The place `insert_after` cannot reach: the start of a `vector_branch` branch, whose first node
+/// is a transform. Each branch is its own chain, so `else` gains a node without `then` moving.
+#[test]
+fn an_operation_can_be_put_at_the_start_of_a_branch() {
+	let vpl = "from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_filter_layers filter=a, vector_filter_layers filter=c ]";
+	let mut document = Document::parse(vpl).unwrap();
+	let otherwise = document.pipeline().nodes[1].sources[1].nodes[0].name_span;
+	document.insert_before(otherwise, "vector_repair").unwrap();
+
+	assert_eq!(
+		document.text(),
+		"from_debug format=pbf | vector_branch expr=\"$layer == 'x'\" [ vector_filter_layers filter=a, vector_repair | vector_filter_layers filter=c ]"
+	);
+	let branch = &document.pipeline().nodes[1];
+	assert_eq!(branch.sources[0].nodes.len(), 1, "then is untouched");
+	assert_eq!(branch.sources[1].nodes[0].name, "vector_repair");
+	assert!(
+		crate::vpl::validate(&document).is_empty(),
+		"a branch may start with a transform"
+	);
+
+	let then = document.pipeline().nodes[1].sources[0].nodes[0].name_span;
+	document.insert_before(then, "vector_repair").unwrap();
+	assert_eq!(document.pipeline().nodes[1].sources[0].nodes[0].name, "vector_repair");
+}
+
+#[test]
+fn inserting_before_nothing_is_refused() {
+	let mut document = Document::parse("from_debug format=pbf").unwrap();
+	let nowhere = Span { start: 500, end: 504 };
+	assert!(document.insert_before(nowhere, "vector_repair").is_err());
+}
+
 /// Q11: the author's comments and spacing survive an edit that happens somewhere else.
 #[test]
 fn appending_keeps_the_comments_and_layout_around_it() {

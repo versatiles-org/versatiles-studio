@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isChainHead, isOn, problemsAt, samePath, walk } from './nodes';
+import { isBranchHead, isChainHead, isOn, nodeAt, problemsAt, samePath, walk } from './nodes';
 import type { VplNode, VplPipeline } from '../ipc/commands';
 
 /** A minimal node, positioned. Only the fields these functions read. */
@@ -134,5 +134,24 @@ describe('problemsAt', () => {
 	/** An empty span means the whole document, which no one node is to blame for. */
 	it('marks no node for a problem about the whole document', () => {
 		expect(problemsAt(merge, [problem(0, 0)])).toEqual([]);
+	});
+});
+
+describe('nodeAt', () => {
+	it('follows a path down through the sources', () => {
+		expect(nodeAt(nested, [1])?.name).toBe('tile_convert');
+		expect(nodeAt(nested, [0, 0, 1])?.name).toBe('write');
+		expect(nodeAt(nested, [0, 1, 0])).toBeUndefined();
+		expect(nodeAt(nested, [5])).toBeUndefined();
+	});
+});
+
+describe('isBranchHead', () => {
+	// The operation's name is all that says its sources are branches; `merge` stands in for one here.
+	it('is the first node of a source of an operation with branches', () => {
+		expect(isBranchHead([0, 0, 0], nested, new Set(['merge']))).toBe(true);
+		expect(isBranchHead([0, 0, 1], nested, new Set(['merge'])), 'not the first').toBe(false);
+		expect(isBranchHead([0, 0, 0], nested, new Set()), 'a source that reads').toBe(false);
+		expect(isBranchHead([0], nested, new Set(['merge'])), 'the chain head').toBe(false);
 	});
 });

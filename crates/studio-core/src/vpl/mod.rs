@@ -320,6 +320,25 @@ impl Document {
 		self.replace(Span { start: at, end: at }, &format!(" | {operation}"))
 	}
 
+	/// Adds an operation to the chain, immediately *before* the node whose name occupies `span`.
+	///
+	/// **For a branch** ([`sources_are_branches`]): `vector_branch [ vector_mask … ]` runs its
+	/// sources on the tiles arriving at it, so a branch's first node is a transform, and the only
+	/// way to put another one ahead of it was to type it. [`insert_after`](Self::insert_after) cannot
+	/// reach that place - every node it can name has the insertion land after it.
+	///
+	/// Textual for the same reasons as `insert_after`, and as little opinionated: before the head of
+	/// a chain that reads, the result parses and `validate` marks it, since a chain has to start with
+	/// a read. Offering it only where it makes sense is the editor's part.
+	pub fn insert_before(&mut self, span: Span, operation: &str) -> Result<(), ParseError> {
+		let at = self
+			.pipeline()
+			.node_at(span.start)
+			.map(|(_, node)| node.span.start)
+			.ok_or_else(|| ParseError::at("no operation at that position".to_string(), span))?;
+		self.replace(Span { start: at, end: at }, &format!("{operation} | "))
+	}
+
 	/// Removes the node whose name occupies `span`, and the separator that joined it to the chain.
 	///
 	/// **A comment between two nodes goes with the later one.** In a multi-line pipeline a comment

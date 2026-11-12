@@ -12,9 +12,9 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/svelte';
+import { cleanup, render, screen, within } from '@testing-library/svelte';
 import NodeChain from './NodeChain.svelte';
-import type { VplNode, VplPipeline } from '../../ipc/commands';
+import type { FieldInfo, OperationInfo, VplNode, VplPipeline } from '../../ipc/commands';
 
 /** A node with nothing but a name and somewhere to be. */
 function node(name: string, sources: VplPipeline[] = []): VplNode {
@@ -156,5 +156,85 @@ describe('problems', () => {
 		const marks = screen.getAllByRole('img', { name: 'unknown parameter' });
 		expect(marks).toHaveLength(1);
 		expect(marks[0].closest('.node')?.textContent).toContain('raster_flatten');
+	});
+});
+
+/**
+ * The start of a branch. Every rail inserts after the node above it, so a chain's first node had no
+ * way in ahead of it - right for a chain that reads, wrong for `vector_branch`'s branches, which
+ * start with a transform.
+ */
+describe('the start of a branch', () => {
+	const sources = (branches: boolean): FieldInfo => ({
+		name: 'sources',
+		doc: '',
+		required: true,
+		sources: true,
+		branches,
+		control: { kind: 'text' },
+		accepts: [],
+		default: null
+	});
+	const operation = (name: string, kind: string, fields: FieldInfo[] = []): OperationInfo => ({
+		name,
+		kind,
+		summary: '',
+		details: '',
+		fields
+	});
+	const OPERATIONS = [
+		operation('vector_branch', 'transform', [sources(true)]),
+		operation('from_stacked', 'read', [sources(false)]),
+		operation('vector_repair', 'transform')
+	];
+
+	/** `from_debug | vector_branch [ vector_mask, vector_filter_layers ]` */
+	const branched = pipeline([
+		node('from_debug'),
+		node('vector_branch', [pipeline([node('vector_mask')]), pipeline([node('vector_filter_layers')])])
+	]);
+
+	function show(input: VplPipeline, onAddOperationBefore = vi.fn()) {
+		render(NodeChain, {
+			pipeline: input,
+			disabled: [],
+			enabled: true,
+			operations: OPERATIONS,
+			onToggle: noop,
+			onCommit: noop,
+			onRemove: noop,
+			onSet: noop,
+			onRemoveNode: noop,
+			onAddOperation: noop,
+			onAddOperationBefore
+		});
+		return onAddOperationBefore;
+	}
+
+	it('offers a way in above the first node of each branch', () => {
+		show(branched);
+		const starts = screen.getAllByTestId('branch-start');
+		expect(starts).toHaveLength(2);
+		// Directly above the node it inserts before.
+		expect(starts[0].nextElementSibling?.textContent).toContain('vector_mask');
+		expect(starts[1].nextElementSibling?.textContent).toContain('vector_filter_layers');
+	});
+
+	it('offers none at the head of a chain that reads', () => {
+		show(stacked);
+		expect(screen.queryAllByTestId('branch-start')).toHaveLength(0);
+	});
+
+	it('inserts before that branch’s first node', async () => {
+		// jsdom has no layout, so it has no `scrollIntoView` - the picker keeps the active row in view.
+		Element.prototype.scrollIntoView = () => {};
+		const onAddOperationBefore = show(branched);
+		const otherwise = screen.getAllByTestId('branch-start')[1];
+		within(otherwise).getByRole('button', { name: '+ operation…' }).click();
+		(await screen.findByRole('option', { name: 'vector_repair' })).click();
+		expect(onAddOperationBefore).toHaveBeenCalledWith(
+			{ start: 0, end: 'vector_filter_layers'.length },
+			'vector_repair'
+		);
 	});
 });

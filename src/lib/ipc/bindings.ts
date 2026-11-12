@@ -524,6 +524,11 @@ export const commands = {
 	 */
 	vplInsertNode: (text: string, span: Span, operation: string) => typedError<string, VplError>(__TAURI_INVOKE("vpl_insert_node", { text, span, operation })),
 	/**
+	 *  Adds an operation to the chain, immediately before the node whose name occupies `span` - the way
+	 *  into the start of a `vector_branch` branch, which [`vpl_insert_node`] cannot reach.
+	 */
+	vplInsertNodeBefore: (text: string, span: Span, operation: string) => typedError<string, VplError>(__TAURI_INVOKE("vpl_insert_node_before", { text, span, operation })),
+	/**
 	 *  Removes the node whose name occupies `span`, and the separator that joined it to the chain.
 	 * 
 	 *  Refused when it would empty the pipeline - see `Document::remove_node` for why that is a message
@@ -1322,6 +1327,12 @@ export type FieldInfo = {
 	required: boolean,
 	/**  Fed by a `[ … ]` block rather than by a `key=value` pair, so it has no control. */
 	sources: boolean,
+	/**
+	 *  The sources are branches ([`sources_are_branches`]): each begins with a transform and runs
+	 *  on the tiles arriving at the operation, so the editor offers transforms at its start too.
+	 *  `false` for every other field.
+	 */
+	branches: boolean,
 	control: Control,
 	/**
 	 *  Extensions to filter a file dialog by, or empty to offer everything.
