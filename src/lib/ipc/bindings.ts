@@ -1057,7 +1057,14 @@ export type Control = { kind: "text" } |
 /**  `min` is the first value *not* accepted. */
 minExclusive: boolean; 
 /**  `max` is the first value *not* accepted. */
-maxExclusive: boolean } | { kind: "boolean" } | 
+maxExclusive: boolean; 
+/**
+ *  How far one press of an arrow key moves the value, or `None` for the browser's own, which
+ *  is 1. Upstream's, from versatiles-rs 5.10, and set only where the useful range is small:
+ *  `dem_hillshade.exaggeration` lives in `0..=1`, where a step of 1 goes from one end to the
+ *  other.
+ */
+step: number | null } | { kind: "boolean" } | 
 /**
  *  A value that changes with zoom: breakpoints, each holding until the next one.
  * 

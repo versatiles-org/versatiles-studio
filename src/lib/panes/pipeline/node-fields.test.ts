@@ -172,7 +172,17 @@ describe('summarise', () => {
 	it('says the range when the type has one', () => {
 		expect(
 			summarise(
-				field({ control: { kind: 'number', integer: true, min: 0, max: 15, minExclusive: false, maxExclusive: false } })
+				field({
+					control: {
+						kind: 'number',
+						integer: true,
+						min: 0,
+						max: 15,
+						minExclusive: false,
+						maxExclusive: false,
+						step: null
+					}
+				})
 			)
 		).toBe('whole number 0-15 · optional');
 	});
@@ -181,14 +191,30 @@ describe('summarise', () => {
 		expect(
 			summarise(
 				field({
-					control: { kind: 'number', integer: false, min: 0, max: null, minExclusive: false, maxExclusive: false }
+					control: {
+						kind: 'number',
+						integer: false,
+						min: 0,
+						max: null,
+						minExclusive: false,
+						maxExclusive: false,
+						step: null
+					}
 				})
 			)
 		).toContain('number from 0');
 		expect(
 			summarise(
 				field({
-					control: { kind: 'number', integer: false, min: null, max: 1, minExclusive: false, maxExclusive: false }
+					control: {
+						kind: 'number',
+						integer: false,
+						min: null,
+						max: 1,
+						minExclusive: false,
+						maxExclusive: false,
+						step: null
+					}
 				})
 			)
 		).toContain('number up to 1');

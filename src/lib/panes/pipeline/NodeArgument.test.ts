@@ -125,12 +125,47 @@ describe('which parameters offer a file picker', () => {
 				sources: false,
 				accepts: [],
 				default: null,
-				control: { kind: 'number', integer: true, min: null, max: null, minExclusive: false, maxExclusive: false }
+				control: {
+					kind: 'number',
+					integer: true,
+					min: null,
+					max: null,
+					minExclusive: false,
+					maxExclusive: false,
+					step: null
+				}
 			},
 			onCommit: () => {}
 		});
 
 		expect(screen.queryByLabelText('Choose a file for max_zoom_path')).toBeNull();
+	});
+});
+
+/** The arrow keys step by what upstream says is useful, and by the browser's own otherwise. */
+describe('a number', () => {
+	const NUMBER_FIELD = (integer: boolean, step: number | null) => ({
+		name: 'exaggeration',
+		doc: '',
+		required: false,
+		sources: false,
+		accepts: [],
+		default: null,
+		control: { kind: 'number' as const, integer, min: 0, max: 1, minExclusive: false, maxExclusive: false, step }
+	});
+	const box = () => screen.getByRole('spinbutton') as HTMLInputElement;
+
+	it('steps by upstream’s step where it gives one', () => {
+		render(NodeArgument, { name: 'exaggeration', field: NUMBER_FIELD(false, 0.05), value: '', onCommit: () => {} });
+		expect(box().step).toBe('0.05');
+	});
+
+	it('steps by one for an integer, and freely for a float, where it gives none', () => {
+		render(NodeArgument, { name: 'exaggeration', field: NUMBER_FIELD(true, null), value: '', onCommit: () => {} });
+		expect(box().step).toBe('1');
+		cleanup();
+		render(NodeArgument, { name: 'exaggeration', field: NUMBER_FIELD(false, null), value: '', onCommit: () => {} });
+		expect(box().step).toBe('any');
 	});
 });
 

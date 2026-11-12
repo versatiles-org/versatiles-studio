@@ -234,7 +234,7 @@
 				type="number"
 				{value}
 				placeholder={hint}
-				step={control.integer ? 1 : 'any'}
+				step={control.step ?? (control.integer ? 1 : 'any')}
 				min={control.min ?? undefined}
 				max={control.max ?? undefined}
 				onblur={(event) => onCommit(event.currentTarget.value)}

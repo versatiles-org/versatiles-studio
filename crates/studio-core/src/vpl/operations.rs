@@ -99,6 +99,12 @@ pub enum Control {
 		min_exclusive: bool,
 		/// `max` is the first value *not* accepted.
 		max_exclusive: bool,
+		/// How far one press of an arrow key moves the value, or `None` for the browser's own, which
+		/// is 1. Upstream's, from versatiles-rs 5.10, and set only where the useful range is small:
+		/// `dem_hillshade.exaggeration` lives in `0..=1`, where a step of 1 goes from one end to the
+		/// other.
+		#[cfg_attr(feature = "bindings", specta(type = Option<specta_typescript::Number>))]
+		step: Option<f64>,
 	},
 	Boolean,
 	/// A value that changes with zoom: breakpoints, each holding until the next one.
@@ -265,6 +271,8 @@ fn control_for(field: &VPLFieldMeta) -> Control {
 			max: bounds.max,
 			min_exclusive: bounds.min.is_some() && !bounds.min_inclusive,
 			max_exclusive: bounds.max.is_some() && !bounds.max_inclusive,
+			// Only beside `bounds`: upstream refuses a step on a field without them.
+			step: field.step,
 		};
 	}
 
@@ -290,6 +298,7 @@ fn number(integer: bool, min: Option<f64>, max: Option<f64>) -> Control {
 		max,
 		min_exclusive: false,
 		max_exclusive: false,
+		step: None,
 	}
 }
 
@@ -645,7 +654,8 @@ mod tests {
 				min: Some(0.0),
 				max: Some(30.0),
 				min_exclusive: false,
-				max_exclusive: false
+				max_exclusive: false,
+				step: None
 			}
 		);
 		assert_eq!(
@@ -655,7 +665,8 @@ mod tests {
 				min: Some(1024.0),
 				max: Some(32766.0),
 				min_exclusive: false,
-				max_exclusive: false
+				max_exclusive: false,
+				step: None
 			}
 		);
 	}
@@ -676,7 +687,8 @@ mod tests {
 				min: Some(0.0),
 				max: None,
 				min_exclusive: true,
-				max_exclusive: false
+				max_exclusive: false,
+				step: Some(0.1)
 			}
 		);
 	}
@@ -701,6 +713,20 @@ mod tests {
 		assert!(presets.iter().all(|preset| preset.stops.contains(':')), "{presets:?}");
 	}
 
+	/// **Upstream's step, where the range is small** (versatiles-rs 5.10). `exaggeration` is `0..=1`,
+	/// and a float box steps by 1 unless told otherwise - one press from one end to the other.
+	#[test]
+	fn a_number_carries_upstreams_step() {
+		let Control::Number { step, .. } = field("dem_hillshade", "exaggeration").control else {
+			panic!("dem_hillshade.exaggeration is a number");
+		};
+		assert_eq!(step, Some(0.05));
+		let Control::Number { step, .. } = field("from_csv", "min_zoom").control else {
+			panic!("from_csv.min_zoom is a number");
+		};
+		assert_eq!(step, None, "an integer steps by one without being told");
+	}
+
 	#[test]
 	fn a_float_is_a_number_without_bounds() {
 		assert_eq!(
@@ -710,7 +736,8 @@ mod tests {
 				min: None,
 				max: None,
 				min_exclusive: false,
-				max_exclusive: false
+				max_exclusive: false,
+				step: Some(0.01)
 			}
 		);
 	}
