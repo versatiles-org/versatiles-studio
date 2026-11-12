@@ -382,16 +382,19 @@
 					heat={heatOf
 						? {
 								on: heat.on,
-								level: heat.drawn?.deepest ?? heatOf.info.maxZoom,
+								// The level on screen, as the legend says it - not the depth, which zoomed out
+								// is only where the squares would stop, and read as a level they were not.
+								level: squareLevel(mapZoom, heat.drawn?.deepest ?? heatOf.info.maxZoom),
 								min: heatOf.info.minZoom,
-								max: heatOf.info.maxZoom
+								max: squareLevel(mapZoom, heatOf.info.maxZoom),
+								deepest: heatOf.info.maxZoom
 							}
 						: null}
 					onToggleHeat={() => {
 						if (heat.on) void heat.hide();
 						else if (heatOf) void heat.show(heatOf.graph, heatOf.build, heatOf.info.maxZoom);
 					}}
-					onHeatLevel={(by) => heatOf && void heat.step(by, heatOf.info.minZoom, heatOf.info.maxZoom)}
+					onHeatLevel={(by) => heatOf && void heat.step(by, mapZoom, heatOf.info.minZoom, heatOf.info.maxZoom)}
 					onReset={() => workbench.resetView()}
 				>
 					{#snippet heatLegend()}

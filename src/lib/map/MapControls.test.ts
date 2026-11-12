@@ -242,6 +242,16 @@ describe('the heat map button', () => {
 		expect(onToggleHeat).toHaveBeenCalledOnce();
 	});
 
+	// Zoomed out, the squares cannot go as deep as the source: the step in is off, and says why.
+	it('says to zoom in when the zoom is what stops it going deeper', () => {
+		open({ heat: { on: true, level: 15, min: 0, max: 15, deepest: 18 } });
+		const stepper = screen.getByRole('group', { name: 'Heat map detail level' });
+		expect(stepper.textContent).toContain('z15');
+		const into = stepper.querySelectorAll('button')[1];
+		expect(into.disabled).toBe(true);
+		expect(into.title).toBe('Zoom in for squares of a deeper level');
+	});
+
 	it('hides its stepper while it is off', () => {
 		open({ heat: { on: false, level: 14, min: 0, max: 14 } });
 		expect(screen.queryByRole('group', { name: 'Heat map detail level' })).toBeNull();

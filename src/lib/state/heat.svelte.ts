@@ -142,11 +142,24 @@ export const heat = {
 		if (was) await unmountHeat(was.graph).catch(() => {});
 	},
 
-	/** Walks the deepest level by `by`, within `min` and `max`. */
-	async step(by: number, min: number, max: number): Promise<void> {
+	/**
+	 * Walks the level the squares stand for by `by`, at map zoom `zoom`, within the source's `min` and
+	 * `max`.
+	 *
+	 * **From the level on screen, not from the stored depth.** The depth is only a floor the squares
+	 * stop at; above it they follow the zoom ([`squareLevel`]). So at zoom 9 a depth of 18 draws
+	 * zoom 15, and a step out from 18 to 17 drew 15 still - a button that did nothing. A step from
+	 * what is drawn always changes what is drawn.
+	 *
+	 * **Never deeper than this zoom can draw**, which is `squareLevel(zoom, max)`: a heat tile is
+	 * [`LOOK`] levels of squares and no more, and a depth past that is a number on a control and no
+	 * change on the map.
+	 */
+	async step(by: number, zoom: number, min: number, max: number): Promise<void> {
 		if (!drawn) return;
-		const deepest = Math.min(max, Math.max(min, drawn.deepest + by));
-		if (deepest !== drawn.deepest) await draw(drawn.graph, drawn.build, deepest);
+		const shown = squareLevel(zoom, drawn.deepest);
+		const deepest = Math.min(squareLevel(zoom, max), Math.max(min, shown + by));
+		if (deepest !== shown) await draw(drawn.graph, drawn.build, deepest);
 	},
 
 	/**

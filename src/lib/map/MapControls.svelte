@@ -67,8 +67,11 @@
 		/**
 		 * The heat map (S14.3): whether it is on, the detail level it draws, and the levels it may.
 		 * `null` hides the button - a source with no index has no sizes to draw.
+		 *
+		 * `max` is the deepest level the squares can stand for *at this zoom*, and `deepest` the
+		 * source's own; while `max` is short of `deepest`, going deeper is a matter of zooming in.
 		 */
-		heat?: { on: boolean; level: number; min: number; max: number } | null;
+		heat?: { on: boolean; level: number; min: number; max: number; deepest?: number } | null;
 		onToggleHeat?: () => void;
 		/** Walks the detail level a level in or out. */
 		onHeatLevel?: (by: number) => void;
@@ -271,7 +274,9 @@
 								type="button"
 								onclick={() => onHeatLevel(1)}
 								disabled={heat.level >= heat.max}
-								title="Squares for a level further in">+</button
+								title={heat.level >= heat.max && heat.max < (heat.deepest ?? heat.max)
+									? 'Zoom in for squares of a deeper level'
+									: 'Squares for a level further in'}>+</button
 							>
 						</div>
 					{/if}
