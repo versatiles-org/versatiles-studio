@@ -493,6 +493,11 @@ pub struct Preview {
 	/// operations chosen for a pipeline that no longer exists. It also costs nothing extra - the
 	/// source is already built and every check is a comparison against its declared tile type.
 	pub fits: Vec<studio_core::analysis::Fit>,
+	/// What can be a step inside a `vector_branch` branch of this, and why the rest cannot.
+	///
+	/// `fits`, with every transform that is not per-tile refused besides: a branch cannot run
+	/// `vector_overzoom`, whatever the tiles. Asked of the same build, for the same reason.
+	pub branch_fits: Vec<studio_core::analysis::Fit>,
 }
 
 /// What a build of one graph came to.
@@ -974,6 +979,7 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, at
 	handle.working("looking at what it contains");
 	let layers = studio_core::analysis::probe_layers(&source, &info).await;
 	let fits = studio_core::analysis::fitting(&source).await;
+	let branch_fits = studio_core::analysis::fitting_in_branch(&source).await;
 
 	server.mount(&mount, source.clone()).await?;
 	let preview = Preview {
@@ -982,6 +988,7 @@ async fn build_into(app: &AppHandle, handle: &JobHandle, wanted: VPLPipeline, at
 		info,
 		layers,
 		fits,
+		branch_fits,
 	};
 	state.previews.put(
 		&window,
@@ -1123,6 +1130,7 @@ mod preview_cache_tests {
 			},
 			layers: Vec::new(),
 			fits: Vec::new(),
+			branch_fits: Vec::new(),
 		}
 	}
 

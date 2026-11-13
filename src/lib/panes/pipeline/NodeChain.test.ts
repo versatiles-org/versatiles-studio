@@ -278,6 +278,42 @@ describe('a vector_branch', () => {
 		expect(onAddOperationBefore).toHaveBeenCalledWith(span('vector_mask'), 'vector_repair');
 	});
 
+	// A branch runs each tile on its own, so what reads other tiles is refused inside it, with
+	// upstream's reason, even where the tiles fit it (versatiles-rs#324).
+	it('offers inside a branch only what a branch can run', async () => {
+		const refused = 'vector_overzoom is not per-tile';
+		render(NodeChain, {
+			pipeline: oneBranch,
+			disabled: [],
+			enabled: true,
+			operations: [...OPERATIONS, operation('vector_overzoom', 'transform')],
+			fits: [{ name: 'vector_overzoom', reason: null }],
+			branchFits: [{ name: 'vector_overzoom', reason: refused }],
+			onToggle: noop,
+			onCommit: noop,
+			onRemove: noop,
+			onSet: noop,
+			onRemoveNode: noop,
+			onAddOperation: noop,
+			onAddOperationBefore: noop,
+			onAddSource: noop
+		});
+		const verdict = async (button: HTMLElement) => {
+			button.click();
+			const option = await screen.findByRole('option', { name: /vector_overzoom/ });
+			const disabled = option.getAttribute('aria-disabled');
+			button.click();
+			return disabled;
+		};
+		const pickers = () => screen.getAllByRole('button', { name: '+ operation…' });
+		const inside = pickers().filter((button) => box('vector_branch').contains(button));
+		const outside = pickers().filter((button) => !box('vector_branch').contains(button));
+		// The start of then, after vector_mask, and the empty else.
+		expect(inside).toHaveLength(3);
+		for (const button of inside) expect(await verdict(button)).toBe('true');
+		for (const button of outside) expect(await verdict(button)).toBe('false');
+	});
+
 	it('nests: a branch inside a branch is a box inside the slot', () => {
 		const inner = node('vector_branch', [pipeline([node('vector_mask')])]);
 		show(pipeline([node('from_debug'), node('vector_branch', [pipeline([node('vector_repair')]), pipeline([inner])])]));

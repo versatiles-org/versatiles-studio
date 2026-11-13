@@ -2111,6 +2111,13 @@ export type Preview = {
 	 *  source is already built and every check is a comparison against its declared tile type.
 	 */
 	fits: Fit[],
+	/**
+	 *  What can be a step inside a `vector_branch` branch of this, and why the rest cannot.
+	 * 
+	 *  `fits`, with every transform that is not per-tile refused besides: a branch cannot run
+	 *  `vector_overzoom`, whatever the tiles. Asked of the same build, for the same reason.
+	 */
+	branchFits: Fit[],
 };
 
 /**  One problem, as the panel lists it and the report prints it. */

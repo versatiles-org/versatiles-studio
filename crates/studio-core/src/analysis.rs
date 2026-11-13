@@ -737,8 +737,24 @@ pub struct Fit {
 /// Cheap enough to run on every preview: each check is a comparison against the source's declared
 /// tile type, so nothing here reads a tile.
 pub async fn fitting(source: &SharedTileSource) -> Vec<Fit> {
-	versatiles_pipeline::compatible_transforms(source.as_ref())
-		.await
+	fits_of(versatiles_pipeline::compatible_transforms(source.as_ref()).await)
+}
+
+/// Which transforms can be a step of a `vector_branch` branch on `source`, and why the rest cannot.
+///
+/// What [`fitting`] answers, and besides it refuses every transform that is not per-tile, such as
+/// `vector_overzoom`: a branch cannot run those, and building it fails. Upstream's answer
+/// ([vt#324](https://github.com/versatiles-org/versatiles-rs/issues/324)), with the words that
+/// failure would use.
+///
+/// Asked of the output rather than of each step. Upstream wants the tiles arriving at the step,
+/// but no transform changes the tile type, and the type is all either answer compares against.
+pub async fn fitting_in_branch(source: &SharedTileSource) -> Vec<Fit> {
+	fits_of(versatiles_pipeline::compatible_branch_transforms(source.as_ref()).await)
+}
+
+fn fits_of(verdicts: Vec<(versatiles_pipeline::OperationMeta, versatiles_pipeline::Compatibility)>) -> Vec<Fit> {
+	verdicts
 		.into_iter()
 		.map(|(meta, compatibility)| Fit {
 			name: meta.tag_name,
@@ -802,15 +818,42 @@ mod fit_tests {
 		assert_eq!(same.reason, None, "{} was refused for raster tiles too", same.name);
 	}
 
+	/// Inside a branch, what reads other tiles is refused even where the tiles fit it, and what
+	/// works on one tile alone is offered as it is after the node.
+	#[tokio::test]
+	async fn a_branch_refuses_what_is_not_per_tile() {
+		let after = fits_for("from_debug format=pbf").await;
+		let inside = branch_fits_for("from_debug format=pbf").await;
+		let verdict = |fits: &[Fit], name: &str| fits.iter().find(|fit| fit.name == name).unwrap().reason.clone();
+
+		assert_eq!(verdict(&after, "vector_overzoom"), None);
+		assert!(
+			verdict(&inside, "vector_overzoom").is_some(),
+			"vector_overzoom was offered in a branch"
+		);
+		assert_eq!(verdict(&inside, "vector_filter_layers"), None);
+		// What does not fit the tiles is still refused, so a branch never offers more.
+		for fit in inside.iter().filter(|fit| fit.reason.is_none()) {
+			assert_eq!(verdict(&after, &fit.name), None, "{} fits only in a branch", fit.name);
+		}
+	}
+
 	async fn fits_for(vpl: &str) -> Vec<Fit> {
+		fitting(&built(vpl).await).await
+	}
+
+	async fn branch_fits_for(vpl: &str) -> Vec<Fit> {
+		fitting_in_branch(&built(vpl).await).await
+	}
+
+	async fn built(vpl: &str) -> SharedTileSource {
 		let runtime = versatiles::runtime::create_runtime_builder()
 			.silent_progress(true)
 			.build();
 		let document = crate::vpl::Document::parse(vpl).unwrap();
-		let source = crate::preview::build(&runtime, document.to_pipeline(), std::path::Path::new("."))
+		crate::preview::build(&runtime, document.to_pipeline(), std::path::Path::new("."))
 			.await
-			.unwrap();
-		fitting(&source).await
+			.unwrap()
 	}
 
 	fn offered(fits: &[Fit]) -> Vec<&str> {

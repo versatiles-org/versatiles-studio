@@ -31,6 +31,7 @@
 		operations = [],
 		properties = [],
 		fits = [],
+		branchFits = [],
 		suggestions = {},
 		problems = [],
 		onToggle,
@@ -68,6 +69,12 @@
 		 * rather than to an empty one.
 		 */
 		fits?: Fit[];
+		/**
+		 * What can be a step inside a `vector_branch` branch: `fits`, with what is not per-tile
+		 * refused besides. The chain of a branch is handed these as its `fits`; this chain uses them
+		 * for the branches it holds empty.
+		 */
+		branchFits?: Fit[];
 		/** By node path, then by field. Each node is handed only its own. */
 		suggestions?: Record<string, Record<string, string[]>>;
 		/** Switches a node on or off. The head's eye is the graph's - see `NodeCard`. */
@@ -222,37 +229,40 @@
 
 	// -- what fits (S2.14) --------------------------------------------------------------------
 
-	/// Why each operation was refused, by name. Absent means nothing ruled it out.
-	const refusal = $derived(new Map(fits.map((fit) => [fit.name, fit.reason])));
-
-	/// **Unknown counts as fitting.** Before the first preview this map is empty, and an operation
-	/// the core did not mention is one nothing is known about - offering it is the honest default,
-	/// and it is what the picker did before it could ask.
-	const reasonFor = (name: string): string | null => refusal.get(name) ?? null;
-
-	const fitting = $derived(transforms.filter((operation) => reasonFor(operation.name) === null));
-	const misfits = $derived(transforms.filter((operation) => reasonFor(operation.name) !== null));
-
-	/// Group only when there is something to group by, so an ungrouped list is never labelled as
-	/// having been checked.
-	const grouped = $derived(misfits.length > 0);
-
 	/// What the picker offers: the ones that fit, then the ones that do not with their reason.
 	///
 	/// Refused operations stay on the list rather than being dropped - an operation someone knows
 	/// exists, silently missing, is a worse answer than one shown with why it cannot go here.
-	const choices = $derived([
-		...fitting.map((operation) => ({
-			value: operation.name,
-			description: operation.summary,
-			group: grouped ? 'Fits these tiles' : undefined
-		})),
-		...misfits.map((operation) => ({
-			value: operation.name,
-			unavailable: reasonFor(operation.name) ?? undefined,
-			group: 'Not for these tiles'
-		}))
-	]);
+	///
+	/// **Unknown counts as fitting.** Before the first preview `fits` is empty, and an operation the
+	/// core did not mention is one nothing is known about - offering it is the honest default, and
+	/// it is what the picker did before it could ask.
+	function choicesFor(fits: Fit[]) {
+		const refusal = new Map(fits.map((fit) => [fit.name, fit.reason]));
+		const reasonFor = (name: string): string | null => refusal.get(name) ?? null;
+		const fitting = transforms.filter((operation) => reasonFor(operation.name) === null);
+		const misfits = transforms.filter((operation) => reasonFor(operation.name) !== null);
+		// Group only when there is something to group by, so an ungrouped list is never labelled as
+		// having been checked.
+		const grouped = misfits.length > 0;
+		return [
+			...fitting.map((operation) => ({
+				value: operation.name,
+				description: operation.summary,
+				group: grouped ? 'Fits these tiles' : undefined
+			})),
+			...misfits.map((operation) => ({
+				value: operation.name,
+				unavailable: reasonFor(operation.name) ?? undefined,
+				group: 'Not for these tiles'
+			}))
+		];
+	}
+
+	/// For this chain's rails.
+	const choices = $derived(choicesFor(fits));
+	/// For an empty branch of a node in this chain, which is inside that branch.
+	const branchChoices = $derived(choicesFor(branchFits));
 </script>
 
 <!-- A graph that is off is a chain that is not running, whatever each node's own eye says - the
@@ -325,7 +335,8 @@
 									{enabled}
 									{operations}
 									{properties}
-									{fits}
+									fits={field?.branches ? branchFits : fits}
+									{branchFits}
 									{suggestions}
 									{problems}
 									{onToggle}
@@ -354,7 +365,7 @@
 									<Picker
 										label="+ operation…"
 										placeholder="Filter operations…"
-										items={choices}
+										items={branchChoices}
 										onPick={(name) => onAddSource(node.nameSpan, name)}
 									/>
 								{/if}

@@ -61,6 +61,7 @@
 	pipelineRevision={document.revision}
 	properties={producedProperties}
 	fits={composition.editedBuild?.fits ?? []}
+	branchFits={composition.editedBuild?.branchFits ?? []}
 	{suggestions}
 	crop={document.current ? { bounds: workbench.crop, drawing: workbench.drawing } : null}
 	cropActions={{

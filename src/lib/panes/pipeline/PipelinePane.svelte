@@ -34,6 +34,7 @@
 		operations = [],
 		properties = [],
 		fits = [],
+		branchFits = [],
 		suggestions = {},
 		graph = null,
 		pipeline,
@@ -50,6 +51,8 @@
 		properties?: string[];
 		/** What can be appended to what the map is showing (S2.14). */
 		fits?: Fit[];
+		/** What can be a step inside a `vector_branch` branch of it. */
+		branchFits?: Fit[];
 		/** Per-field values read from what a node points at, by node path then by field (S3.4). */
 		suggestions?: Record<string, Record<string, string[]>>;
 		/** The graph being edited, as the sources list holds it - its eyes and its counts ([Q49]). */
@@ -253,6 +256,7 @@
 				{operations}
 				{properties}
 				{fits}
+				{branchFits}
 				{suggestions}
 				{problems}
 				onToggle={nodeActions.setEnabled}
