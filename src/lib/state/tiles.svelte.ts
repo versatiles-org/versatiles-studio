@@ -49,6 +49,9 @@ export const MAP_PATIENCE = 1000;
  * patience with a blank square. Measured against the same pipeline: a gap of five answers in nine
  * and a half seconds, so this keeps what works and drops what does not.
  *
+ * Counted from when the tile gets a slot in the queue, so it times the build and not the wait for
+ * the tiles ahead of it.
+ *
  * [vt#264]: https://github.com/versatiles-org/versatiles-rs/issues/264
  */
 export const DEADLINE = 10_000;
@@ -301,13 +304,18 @@ export const fetchTile: AddProtocolAction = async (params, controller) => {
 	const abandon = () => own.abort();
 	controller.signal.addEventListener('abort', abandon);
 	let expired = false;
-	const deadline = setTimeout(() => {
-		expired = true;
-		own.abort();
-	}, DEADLINE);
+	let deadline: ReturnType<typeof setTimeout> | undefined;
 
 	try {
 		return await queue.run(async () => {
+			// **From the slot, not from the request.** Started any earlier, the deadline would
+			// measure how many tiles are ahead of this one rather than how slow it is: the seventh
+			// tile of a view would inherit the first six's build time, and condemn a whole zoom that
+			// builds every tile in time.
+			deadline = setTimeout(() => {
+				expired = true;
+				own.abort();
+			}, DEADLINE);
 			if (key && coord) mark(key, request, coord, 'rendering');
 			const response = await fetch(url, { signal: own.signal });
 			if (!response.ok) throw new TileError(response, url);

@@ -334,6 +334,32 @@ describe('a tile that never arrives', () => {
 		).toEqual(['3/1/1', '3/2/1']);
 	});
 
+	/**
+	 * **The deadline times the build, not the queue.** Six tiles take every slot, so a seventh waits
+	 * for them before it starts; counted from its request, it would run out while its own build was
+	 * well within the limit, and take the whole zoom down with it.
+	 */
+	it('starts the deadline when a tile gets its slot', async () => {
+		const BUILD = DEADLINE * 0.6;
+		vi.stubGlobal(
+			'fetch',
+			(_url: string, init?: { signal?: AbortSignal }) =>
+				new Promise<Response>((resolve, reject) => {
+					const built = setTimeout(() => resolve(new Response(new ArrayBuffer(8))), BUILD);
+					init?.signal?.addEventListener('abort', () => {
+						clearTimeout(built);
+						reject(new DOMException('aborted', 'AbortError'));
+					});
+				})
+		);
+
+		const asked = [1, 2, 3, 4, 5, 6, 7].map((x) => ask(`${SCHEME}://127.0.0.1:1/tiles/g/3/${x}/1`));
+		await vi.advanceTimersByTimeAsync(BUILD * 2 + 1);
+
+		for (const done of await Promise.all(asked)) expect(done).not.toBeInstanceOf(Error);
+		expect(tiles.busy.filter((mark) => mark.state === 'failed')).toEqual([]);
+	});
+
 	/** Cost follows depth, so a judgement about one zoom says nothing about another. */
 	it('leaves other zooms alone', async () => {
 		const tile = pending();
