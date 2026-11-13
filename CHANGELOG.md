@@ -3,6 +3,74 @@
 What changed in each release. Written for someone deciding whether
 to update, not for the next developer - the commit log is that.
 
+## v0.7.0 - 2026-11-13
+
+### Features
+
+- colour an expression from upstream's tokens, underline what its checker finds and say what it reads (closes #29)
+- offer inside a vector_branch branch only what a branch can run, from upstream's verdicts (closes #28)
+- write an expression in a dialog that offers its names, properties and values, and checks it as you pause
+- read each layer's property keys and commonest values in the layer scan
+- fold a slot to a one-line summary of its chain, problems included
+- draw a node's sources as slots inside its box, then and else fixed for vector_branch
+- draw a vector_branch's branches below it, named then and else, with each rail where it inserts
+- add a vector_branch branch or a composite's source from the chain
+- add an operation at the start of a vector_branch branch from the chain
+- step number fields by upstream's hint, 0.05 for hillshade exaggeration
+- offer upstream's named colour ramps in the ramp dialog, alpine, bathymetry and grayscale included
+- draw squares eight levels below a heat tile, 256 a side
+- draw the background's labels over every layer, not under the data
+- add each zoom level's total tile size to the per-zoom table
+- say how a raster tile is stored, from its PNG, WebP or JPEG headers
+- name the latitude and longitude of the raster pixel under the pointer
+- chart a raster tile's pixels per channel, or by height for a DEM
+- check raster tiles for lossy heights, unused alpha, transparency and a single colour
+- read the heights in a DEM tile, and draw them in grey
+- show a raster tile pixel for pixel, with its size, channels, transparency and colours
+- chart the tile sizes, over every level or one (closes #23)
+- generate a colour ramp from a gradient and an elevation range (#17)
+- say when the camera is outside the data's zoom range or extent, with a button back to it (#16)
+- use the renamed osm-vector and satellite-raster tilesets (closes #22)
+- fill the progress bar while a container opens, from versatiles-rs' index and pyramid progress (closes #21)
+- check the asset pins in `npm run check` and move them in `npm run upgrade`
+
+### Fixes
+
+- show an expression's error without the header, the repeated expression and the command-line advice
+- check an expression on Check or Cmd/Ctrl+Enter rather than at every pause
+- give the expression helper a pencil, and its verdict a fixed box that shows upstream's message unwrapped
+- switch off a vector_branch node without dropping its branch or moving else into then
+- build against versatiles-rs 5.10's field metadata
+- show and step the level the squares are drawn at, not a depth the zoom cannot reach
+- give a tie between geometries to the more specific one, as documented
+- draw the points of a layer the probe did not see in the inspector style
+- lay out the data range notice as a grid, not by restyling the button (#16)
+- keep the first preview and Reset view within the source's zoom range (#16)
+- pin the Latin glyphs to versatiles-frontend v3.17.1
+- pin the sprites to versatiles-style v9.1.0, matching the npm dependency
+
+### Performance
+
+- read tile sizes through the drawn source instead of reopening the container
+
+### Documentation
+
+- list vector_branch among the pipeline operations (#26)
+- say a heat tile draws LOOK levels down, not six
+- list vector_mask and from_h3 among the pipeline operations
+
+### Tests
+
+- frame a container by its tiles, not the world its metadata declares (closes #16)
+
+### Chores
+
+- update versatiles-rs to 5.12.0, with invert on vector_mask and raster_mask (closes #27)
+- update versatiles-rs to 5.11.0, with raster_format's quality_map picked from a file
+- update dependencies for prettier, vite, and maplibre-gl
+- move glyphs-latin to v3.17.2
+- upgrade dependencies, incl. versatiles 5.9.0 and @versatiles/style 9.1.0
+
 ## v0.6.0 - 2026-11-04
 
 ### Features
