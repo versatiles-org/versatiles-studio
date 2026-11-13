@@ -113,7 +113,9 @@
 		   perfectly still. */
 		border-top-color: transparent;
 		border-radius: 50%;
-		animation: -global-tile-busy-spin 900ms linear infinite;
+		/* By its plain name: `-global-` belongs only on the `@keyframes` below, which Svelte strips
+		   it from. Written here as well, the name matched nothing and the ring stood still. */
+		animation: tile-busy-spin 900ms linear infinite;
 	}
 
 	/*

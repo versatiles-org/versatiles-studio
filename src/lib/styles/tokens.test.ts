@@ -309,4 +309,16 @@ describe('design tokens', () => {
 		}
 		expect(offenders, 'write it bare - see docs/styling.md rule 6').toEqual([]);
 	});
+
+	/// `@keyframes -global-spin` defines a keyframes rule called `spin`: Svelte strips the prefix
+	/// there and nowhere else. An `animation` that says `-global-spin` names nothing, and the browser
+	/// quietly draws it still - which is how the map's tile spinner stopped turning.
+	it('name a global animation without its `-global-`', () => {
+		const offenders = styled.flatMap((path) =>
+			[...withoutComments(styleBlocks(path)).matchAll(/animation(?:-name)?\s*:[^;}]*-global-[^;}]*/g)].map(
+				([hit]) => `${path}: ${hit.trim()}`
+			)
+		);
+		expect(offenders, 'write the plain name; `-global-` belongs on the @keyframes only').toEqual([]);
+	});
 });
