@@ -31,7 +31,7 @@ read       from_container, from_tilejson, from_tile, from_color, from_geo, from_
 general    filter, meta_update, remap_coords
 vector     vector_repair, vector_overzoom, vector_filter_layers, vector_filter_features,
            vector_filter_properties, vector_update_properties, vector_reduce_to_style,
-           vector_mask
+           vector_mask, vector_branch
 raster     raster_overview, raster_flatten, raster_levels, raster_tile_resize,
            raster_format, raster_overscale, raster_mask
 dem        dem_overview, dem_tile_resize, dem_quantize, dem_overscale, dem_hillshade,
