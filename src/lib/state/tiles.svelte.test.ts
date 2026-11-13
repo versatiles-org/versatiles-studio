@@ -404,6 +404,23 @@ describe('a tile that never arrives', () => {
 		await again;
 	});
 
+	/** A reload asks again under a new revision, and the square says it is being tried. */
+	it('shows a retried tile as waiting, and as failed only if it fails again', async () => {
+		vi.stubGlobal('fetch', pending().fetch);
+
+		const gaveUp = ask(`${SCHEME}://127.0.0.1:1/tiles/g/3/1/1`);
+		await vi.advanceTimersByTimeAsync(DEADLINE + 1);
+		await gaveUp;
+
+		const retried = ask(`${SCHEME}://127.0.0.1:1/tiles/g/3/1/1?v=2`);
+		await vi.advanceTimersByTimeAsync(MAP_PATIENCE);
+		expect(tiles.busy.map((mark) => [mark.key, mark.state])).toEqual([['3/1/1', 'rendering']]);
+
+		await vi.advanceTimersByTimeAsync(DEADLINE);
+		await retried;
+		expect(tiles.busy.map((mark) => [mark.key, mark.state])).toEqual([['3/1/1', 'failed']]);
+	});
+
 	/** A coordinate that answers is no longer one that was given up on. */
 	it('clears the marker when the tile finally arrives', async () => {
 		vi.stubGlobal('fetch', pending().fetch);

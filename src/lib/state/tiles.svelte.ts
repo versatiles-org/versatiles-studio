@@ -297,6 +297,13 @@ export const fetchTile: AddProtocolAction = async (params, controller) => {
 		throw new Error(`tile ${key} was given up on: this zoom takes longer than ${DEADLINE} ms to build`);
 	}
 
+	// **A retry is waiting, not failed.** A reload or an edit asks for a coordinate that was given up
+	// on under a new revision; until this one ends, its square shows a tile on its way rather than
+	// the verdict on the one before - and gets that verdict back only if this attempt fails too.
+	if (key && key in refused) {
+		const { [key]: _retried, ...rest } = refused;
+		refused = rest;
+	}
 	if (key && coord) mark(key, request, coord, 'queued');
 
 	// Studio's own, so the deadline can end the wait without touching MapLibre's - which means
