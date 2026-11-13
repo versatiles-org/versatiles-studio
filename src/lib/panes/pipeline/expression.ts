@@ -2,11 +2,19 @@
  * The pieces behind [`Control::Expression`] - `vector_branch`'s and `vector_filter_features`'s `expr`.
  *
  * An expression is CEL with a few `$` names beside the feature's own properties; upstream compiles
- * it, and `vplCheckValue` is how the helper asks. What is here is only how the helper writes what
- * is picked into the text - nothing here decides whether an expression is right.
+ * it, and `vplCheckExpression` is how the helper asks. What is here is how the helper writes what is
+ * picked into the text, and how it draws upstream's answer - nothing here decides whether an
+ * expression is right.
  */
 
-import type { LayerProperties, PropertyValues, ValueCount } from '../../ipc/commands';
+import type {
+	ExpressionProblem,
+	ExpressionReads,
+	ExpressionToken,
+	LayerProperties,
+	PropertyValues,
+	ValueCount
+} from '../../ipc/commands';
 
 /**
  * The `$` names upstream compiles `$zoom` and the rest as. A property written as one of these
@@ -83,38 +91,63 @@ export function valuePiece(before: string, literal: string): string {
 	return operand && !operator ? `== ${literal}` : literal;
 }
 
+/** A run of the expression as the helper paints it. */
+export type Piece = {
+	text: string;
+	/** Upstream's word for the token, or `null` for the white space between tokens. */
+	kind: string | null;
+	/** Inside something upstream says is wrong. */
+	bad: boolean;
+	/** Where something is missing: a mark with no text, such as after a trailing `==`. */
+	missing?: boolean;
+};
+
 /**
- * Upstream's message about an expression, without what the dialog already shows or cannot use.
+ * `text` cut into runs at every token's and every problem's edges, each with its token's kind and
+ * whether a problem covers it - what the layer under the expression's box draws.
  *
- * Written for the command line, a message says which parameter refused what, repeats the
- * expression, places the error as `<input>:1:8`, and ends with advice to run `versatiles help`.
- * Beside the expression's own box, the first three say again what is in front of you and the last
- * names a command there is none of here. What is left is upstream's words about what is wrong, and
- * the caret lines pointing at the column - kept as they are, since they only line up untouched.
- *
- * **Only what is recognised is removed.** A message in a shape this does not know - another
- * parameter's, or one a later upstream words differently - is shown whole, `null` here.
+ * A problem that covers nothing is where something is missing, and is a mark of its own there.
+ * Offsets are UTF-16 units, as the core sends them, so they index `text` directly.
  */
-export function tidyMessage(message: string): string | null {
-	const header = /^does not accept '[\s\S]*?': Failed to compile CEL expression:\n/.exec(message);
-	if (!header) return null;
-	const lines = message.slice(header[0].length).split('\n');
-	// The expression, repeated indented under the header, and the blank line after it.
-	if (lines[0]?.startsWith('  ')) lines.shift();
-	if (lines[0]?.trim() === '') lines.shift();
-	const kept = lines
-		.join('\n')
-		// Advice for the command line, as a paragraph of its own.
-		.replace(/\n*Common causes:[\s\S]*$/, '')
-		.split('\n')
-		.map((line) =>
-			line
-				// The place, which the caret lines below already show.
-				.replace(/^ERROR: <input>:\d+:\d+: /, '')
-				// What the parser said about itself when it crashed rather than answered.
-				.replace(/: internal error: .*$/, '')
-		)
-		.join('\n')
-		.trim();
-	return kept === '' ? null : kept;
+export function paint(text: string, tokens: ExpressionToken[], problems: ExpressionProblem[]): Piece[] {
+	const clamp = (at: number) => Math.max(0, Math.min(text.length, at));
+	const edges = new Set([0, text.length]);
+	for (const { start, end } of [...tokens, ...problems]) {
+		edges.add(clamp(start));
+		edges.add(clamp(end));
+	}
+	const cuts = [...edges].sort((a, b) => a - b);
+	const missing = new Set(problems.filter(({ start, end }) => start === end).map(({ start }) => clamp(start)));
+	const out: Piece[] = [];
+	for (let index = 0; index < cuts.length; index++) {
+		const from = cuts[index];
+		if (missing.has(from)) out.push({ text: '', kind: null, bad: true, missing: true });
+		const to = cuts[index + 1];
+		if (to === undefined) break;
+		const token = tokens.find(({ start, end }) => start <= from && to <= end);
+		out.push({
+			text: text.slice(from, to),
+			kind: token?.kind ?? null,
+			bad: problems.some(({ start, end }) => start < to && from < end)
+		});
+	}
+	return out;
+}
+
+/** `a`, `a and b`, `a, b and c`. */
+const listed = (items: string[]): string =>
+	items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+
+/** How much of a tile one answer covers, and what reaching it takes. */
+const SCOPE: Record<ExpressionReads['scope'], string> = {
+	tile: 'one answer per tile, without decoding it',
+	layer: 'one answer per layer, without decoding its features',
+	feature: 'an answer per feature'
+};
+
+/** What a compiling expression reads, and how often it is answered, as a sentence. */
+export function readsLine(reads: ExpressionReads): string {
+	const read = [...reads.names, ...reads.properties];
+	if (read.length === 0) return 'Reads nothing: one answer for every tile.';
+	return `Reads ${listed(read)}: ${SCOPE[reads.scope]}.`;
 }

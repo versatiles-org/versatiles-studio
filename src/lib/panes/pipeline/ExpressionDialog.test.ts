@@ -7,6 +7,7 @@ import { cleanup, render, screen } from '@testing-library/svelte';
 import { fireEvent } from '@testing-library/dom';
 import ExpressionDialog from './ExpressionDialog.svelte';
 import type { Vocabulary } from '../../state/vocabulary.svelte';
+import type { ExpressionCheck } from '../../ipc/commands';
 
 // jsdom has no `showModal`, and the dialog's own effect calls it.
 HTMLDialogElement.prototype.showModal = vi.fn();
@@ -29,9 +30,12 @@ const READ: Vocabulary = {
 	]
 };
 
-function open(over: { value?: string; vocabulary?: Vocabulary; check?: (text: string) => Promise<string[]> } = {}) {
+type Check = ExpressionCheck;
+const FINE: Check = { problems: [], tokens: [], reads: { names: ['$zoom'], properties: [], scope: 'tile' } };
+
+function open(over: { value?: string; vocabulary?: Vocabulary; check?: (text: string) => Promise<Check> } = {}) {
 	const spies = {
-		check: vi.fn(over.check ?? (async () => [])),
+		check: vi.fn(over.check ?? (async () => FINE)),
 		onScan: vi.fn(),
 		onUse: vi.fn(),
 		onClose: vi.fn()
@@ -39,7 +43,6 @@ function open(over: { value?: string; vocabulary?: Vocabulary; check?: (text: st
 	render(ExpressionDialog, {
 		value: over.value ?? '',
 		name: 'expr',
-		operation: 'vector_branch',
 		names: NAMES,
 		vocabulary: over.vocabulary ?? READ,
 		...spies
@@ -58,6 +61,19 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
+/** `$zoom ==`, as upstream answers it: the value after `==` is missing. */
+const TRAILING: Check = {
+	problems: [{ message: 'The expression ends after `==`.', start: 8, end: 8 }],
+	tokens: [
+		{ kind: 'special', start: 0, end: 5 },
+		{ kind: 'operator', start: 6, end: 8 }
+	],
+	reads: null
+};
+
+/** The layer under the box: what it draws, as runs. */
+const painted = () => document.querySelector('.editor pre') as HTMLPreElement;
+
 describe('the check', () => {
 	// One box for every verdict, so the dialog keeps its size while they change.
 	it('keeps one box for the verdict, whatever it is', async () => {
@@ -72,50 +88,47 @@ describe('the check', () => {
 		expect(status.textContent).toContain('Reads as an expression.');
 	});
 
-	it('says an expression reads, on opening', async () => {
+	it('says an expression reads, and what it reads, on opening', async () => {
 		const { check } = open({ value: '$zoom >= 12' });
 		await vi.advanceTimersByTimeAsync(0);
 		expect(check).toHaveBeenCalledWith('$zoom >= 12');
 		expect(screen.getByText('Reads as an expression.')).toBeTruthy();
+		expect(screen.getByText('Reads $zoom: one answer per tile, without decoding it.')).toBeTruthy();
 	});
 
 	// A pause is mostly a thought half-finished, so typing is never judged on its own.
-	it('checks when asked, and not while typing', async () => {
-		const { check } = open({
-			value: '$zoom',
-			check: async (text) => (text.endsWith('==') ? ["does not accept 'expr=$zoom =='"] : [])
-		});
+	it('judges when asked, and not while typing', async () => {
+		open({ value: '$zoom', check: async (text) => (text.endsWith('==') ? TRAILING : FINE) });
 		await vi.advanceTimersByTimeAsync(0);
 		await fireEvent.input(box(), { target: { value: '$zoom ==' } });
 		await vi.advanceTimersByTimeAsync(5000);
-		expect(check).toHaveBeenCalledTimes(1);
-		// The last verdict stands, said to be about what was there before.
+		// The last verdict stands, said to be about what was there before, and underlines nothing.
 		expect(screen.getByText('Reads as an expression.')).toBeTruthy();
 		expect(screen.getByText('Changed since the check')).toBeTruthy();
+		expect(painted().querySelector('.bad')).toBeNull();
 
 		await fireEvent.click(chip('Check'));
 		await vi.advanceTimersByTimeAsync(0);
-		expect(check).toHaveBeenLastCalledWith('$zoom ==');
-		// In the box the verdicts share, laid out as upstream wrote it: unwrapped, in one width.
-		const message = screen.getByText("'vector_branch' does not accept 'expr=$zoom =='");
-		expect(message.tagName).toBe('PRE');
+		const message = screen.getByText('The expression ends after `==`.');
 		expect(message.closest('[role="status"]')).toBe(screen.getByRole('status', { hidden: true }));
+		// Marked where the value is missing: after the `==`, at the end.
+		expect(painted().querySelector('.missing')).toBeTruthy();
+		expect(box().getAttribute('aria-invalid')).toBe('true');
 	});
 
-	// Upstream writes for the command line; the box keeps only what is wrong and where.
-	it('shows a compiler error without the parts the dialog already shows', async () => {
-		const real = [
-			"does not accept 'expr=(($zoom': Failed to compile CEL expression:",
-			'  (($zoom',
-			'',
-			"ERROR: <input>:1:8: Syntax error: mismatched input '<EOF>'",
-			'| (($zoom',
-			'| .......^'
-		].join('\n');
-		open({ value: '(($zoom', check: async () => [real] });
+	// Upstream's tokens, asked for after a pause in the typing, colour what is in the box now.
+	it('colours the text as it is typed', async () => {
+		const { check } = open({ value: '', check: async () => TRAILING });
 		await vi.advanceTimersByTimeAsync(0);
-		const status = screen.getByRole('status', { hidden: true });
-		expect(status.textContent).toBe("Syntax error: mismatched input '<EOF>'\n| (($zoom\n| .......^");
+		await fireEvent.input(box(), { target: { value: '$zoom ==' } });
+		await vi.advanceTimersByTimeAsync(200);
+		expect(check).toHaveBeenLastCalledWith('$zoom ==');
+		expect(painted().querySelector('.special')?.textContent).toBe('$zoom');
+		expect(painted().querySelector('.operator')?.textContent).toBe('==');
+		expect(painted().textContent).toBe('$zoom ==\n');
+		// Still not judged: nothing underlined, and no message.
+		expect(painted().querySelector('.bad')).toBeNull();
+		expect(screen.queryByText('The expression ends after `==`.')).toBeNull();
 	});
 
 	it('checks on ⌘ or Ctrl + Enter too', async () => {

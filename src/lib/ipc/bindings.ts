@@ -524,13 +524,13 @@ export const commands = {
 	 */
 	vplInsertNode: (text: string, span: Span, operation: string) => typedError<string, VplError>(__TAURI_INVOKE("vpl_insert_node", { text, span, operation })),
 	/**
-	 *  What is wrong with one value of one parameter, in upstream's words - nothing when it is fine.
+	 *  What is wrong with a feature expression and where, its tokens, and what it reads.
 	 * 
-	 *  For the expression helper, which checks while it is being typed: the CEL compiler, run on the
-	 *  one value rather than on the document, so a half-written expression costs a parse and nothing is
-	 *  built (see `studio_core::vpl::check_value`).
+	 *  For the expression helper: upstream's checker, run on the one expression rather than on the
+	 *  document, so a half-written one costs a parse and nothing is built (see
+	 *  `studio_core::vpl::check_expression`).
 	 */
-	vplCheckValue: (operation: string, field: string, value: string) => __TAURI_INVOKE<string[]>("vpl_check_value", { operation, field, value }),
+	vplCheckExpression: (text: string) => __TAURI_INVOKE<ExpressionCheck>("vpl_check_expression", { text }),
 	/**
 	 *  Adds an operation to the chain, immediately before the node whose name occupies `span` - the way
 	 *  into the start of a `vector_branch` branch, which [`vpl_insert_node`] cannot reach.
@@ -1318,11 +1318,66 @@ export type Example = {
 	feature: number | null,
 };
 
+/**  What a check of an expression found. */
+export type ExpressionCheck = {
+	/**  What is wrong, each with where. Empty when the expression compiles. */
+	problems: ExpressionProblem[],
+	/**  Its tokens, for highlighting. There even when it does not compile. */
+	tokens: ExpressionToken[],
+	/**  What it reads, when it compiles. */
+	reads: ExpressionReads | null,
+};
+
 /**  A name an expression reads besides a feature's own properties, and what it holds. */
 export type ExpressionName = {
 	/**  As written, `$` included. */
 	name: string,
 	doc: string,
+};
+
+/**  Something wrong with an expression, and the text it covers. */
+export type ExpressionProblem = {
+	/**  What is wrong, without the expression or the position. */
+	message: string,
+	/**
+	 *  UTF-16 offsets into the text, `end` exclusive. Equal where something is missing, such as the
+	 *  value after a trailing `==`.
+	 */
+	start: number,
+	end: number,
+};
+
+/**  What a compiling expression reads, and so how much of a tile its answer depends on. */
+export type ExpressionReads = {
+	/**  The `$` names it reads, `$` included, in upstream's order. */
+	names: string[],
+	/**  The properties it reads by their own names, sorted. One read through `$props` is not listed. */
+	properties: string[],
+	scope: ExpressionScope,
+};
+
+/**
+ *  How much of a tile an expression's answer depends on. Below `feature`, the answer is reached
+ *  without decoding the tile's features.
+ */
+export type ExpressionScope = 
+/**  One answer for the whole tile. */
+"tile" | 
+/**  One answer per layer. */
+"layer" | 
+/**  An answer per feature. */
+"feature";
+
+/**  One token: what it is, for colouring it, and where. */
+export type ExpressionToken = {
+	/**
+	 *  Upstream's word for it: `special` for a `$` name, `property`, `function`, `operator`,
+	 *  `string`, `number`, `bool`, `null`, `bracket`, `punctuation`, `comment` or `unknown`.
+	 */
+	kind: string,
+	/**  UTF-16 offsets into the text, `end` exclusive. */
+	start: number,
+	end: number,
 };
 
 /**  A family someone can install, and whether they have. */

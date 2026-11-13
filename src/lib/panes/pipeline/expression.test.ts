@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { insertAt, keysOf, propertyRef, quoted, tidyMessage, valuePiece } from './expression';
+import { insertAt, keysOf, paint, propertyRef, quoted, readsLine, valuePiece } from './expression';
 
 describe('propertyRef', () => {
 	it('names a property by itself where it can', () => {
@@ -85,47 +85,54 @@ describe('valuePiece', () => {
 	});
 });
 
-/** Upstream's messages as `vplCheckValue` returned them for three expressions (versatiles-rs 5.11). */
-describe('tidyMessage', () => {
-	it('keeps the syntax error and its caret, and drops the rest', () => {
-		const message = [
-			"does not accept 'expr=(($zoom': Failed to compile CEL expression:",
-			'  (($zoom',
-			'',
-			"ERROR: <input>:1:8: Syntax error: mismatched input '<EOF>' expecting {'==', ')'}",
-			'| (($zoom',
-			'| .......^'
-		].join('\n');
-		expect(tidyMessage(message)).toBe(
-			["Syntax error: mismatched input '<EOF>' expecting {'==', ')'}", '| (($zoom', '| .......^'].join('\n')
+const token = (kind: string, start: number, end: number) => ({ kind, start, end });
+const problem = (start: number, end: number) => ({ message: 'wrong', start, end });
+
+describe('paint', () => {
+	it('colours each token and leaves the white space between them bare', () => {
+		const text = '$zoom >= 12';
+		const pieces = paint(text, [token('special', 0, 5), token('operator', 6, 8), token('number', 9, 11)], []);
+		expect(pieces.map(({ text, kind }) => [text, kind])).toEqual([
+			['$zoom', 'special'],
+			[' ', null],
+			['>=', 'operator'],
+			[' ', null],
+			['12', 'number']
+		]);
+		expect(pieces.map(({ text }) => text).join('')).toBe(text);
+	});
+
+	it('marks what a problem covers, cutting a token where the problem starts', () => {
+		const pieces = paint(
+			'kind == $zom',
+			[token('property', 0, 4), token('operator', 5, 7), token('special', 8, 12)],
+			[problem(9, 12)]
 		);
+		expect(pieces.filter(({ bad }) => bad).map(({ text, kind }) => [text, kind])).toEqual([['zom', 'special']]);
+		expect(pieces.find(({ text }) => text === '$')?.kind).toBe('special');
 	});
 
-	it('keeps an unknown name’s explanation whole', () => {
-		const message = [
-			"does not accept 'expr=kind == 'primary' && $zom > 3': Failed to compile CEL expression:",
-			"  kind == 'primary' && $zom > 3",
-			'',
-			'`$zom` is not a name an expression can read. The names starting with `$` are `$zoom` and `$x`.'
-		].join('\n');
-		expect(tidyMessage(message)).toBe(
-			'`$zom` is not a name an expression can read. The names starting with `$` are `$zoom` and `$x`.'
+	// After a trailing `==` the value is missing, which covers no text.
+	it('marks where something is missing, even at the end', () => {
+		const pieces = paint('$layer ==', [token('special', 0, 6), token('operator', 7, 9)], [problem(9, 9)]);
+		expect(pieces.at(-1)).toEqual({ text: '', kind: null, bad: true, missing: true });
+		expect(pieces.map(({ text }) => text).join('')).toBe('$layer ==');
+	});
+
+	it('never reaches past the text, whatever the offsets say', () => {
+		const pieces = paint('ab', [token('property', 0, 9)], [problem(5, 7)]);
+		expect(pieces.map(({ text }) => text).join('')).toBe('ab');
+	});
+});
+
+describe('readsLine', () => {
+	it('names what is read and how often it is answered', () => {
+		expect(readsLine({ names: ['$layer'], properties: [], scope: 'layer' })).toBe(
+			'Reads $layer: one answer per layer, without decoding its features.'
 		);
-	});
-
-	it('says only that the parser crashed, without its insides or the command-line advice', () => {
-		const message = [
-			"does not accept 'expr=$layer == ': Failed to compile CEL expression:",
-			'  $layer == ',
-			'',
-			'Parser crashed (likely malformed CEL input): internal error: entered unreachable code: should have been properly implemented by generated context when reachable',
-			'',
-			'Common causes: unmatched brackets, trailing operators, unsupported tokens. Run `versatiles help pipeline` for the CEL operator cheat-sheet.'
-		].join('\n');
-		expect(tidyMessage(message)).toBe('Parser crashed (likely malformed CEL input)');
-	});
-
-	it('leaves a message it does not recognise to be shown whole', () => {
-		expect(tidyMessage("does not accept 'format=xyz'. Values: png, jpg")).toBeNull();
+		expect(readsLine({ names: ['$zoom', '$layer'], properties: ['kind'], scope: 'feature' })).toBe(
+			'Reads $zoom, $layer and kind: an answer per feature.'
+		);
+		expect(readsLine({ names: [], properties: [], scope: 'tile' })).toBe('Reads nothing: one answer for every tile.');
 	});
 });

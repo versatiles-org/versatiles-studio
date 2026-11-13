@@ -465,12 +465,11 @@ describe('an expression', () => {
 
 	it('is edited as text, and opens its helper with the names it can read', async () => {
 		// The helper checks what it opens on, and upstream finds nothing wrong with it.
-		tauri.answer('vpl_check_value', []);
+		tauri.answer('vpl_check_expression', { problems: [], tokens: [], reads: null });
 		render(NodeArgument, {
 			name: 'expr',
 			field: EXPR_FIELD,
 			value: '$zoom >= 12',
-			operation: 'vector_branch',
 			onCommit: () => {}
 		});
 		expect((screen.getByRole('textbox') as HTMLInputElement).value).toBe('$zoom >= 12');
