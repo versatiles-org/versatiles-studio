@@ -1,8 +1,15 @@
 <script lang="ts">
-	import { Marker, type Map as MaplibreMap } from 'maplibre-gl';
+	import { untrack } from 'svelte';
+	import { Marker, type Map as MaplibreMap, type MapSourceDataEvent } from 'maplibre-gl';
+	import type { FeatureCollection } from 'geojson';
 	import { tiles } from '../state/tiles.svelte';
+	import { coveringLevels, tileRing, type CoveringSource } from './tile-grid';
+	import { SCHEME } from './tile-queue';
+	import { mapOverlay, type Overlay } from './overlay';
+	import { token } from '../styles/tokens';
+	import { role } from './theme';
 
-	// Which tiles the map is still waiting for (S2.16, C3).
+	// Which tiles the map is still waiting for, and which it gave up on (S2.16, C3).
 	//
 	// The status bar says how many; this says which. On a slow pipeline the two answer different
 	// questions - "is anything happening" and "is it the tile I am looking at" - and the second is
@@ -12,18 +19,22 @@
 	// tile's coordinate and its state at the same time; MapLibre reports both halves as "loading"
 	// (see `tile-queue.ts`).
 	//
-	// **A marker, not a wash over the square.** This used to shade the whole tile through a GeoJSON
-	// overlay, which put grey over the part of the map being looked at - and the tile underneath is
-	// usually the previous one, still perfectly readable while its replacement is on the way. So the
-	// shading hid the very thing it was reporting on. A spinner at the middle of the tile says the
-	// same thing, covers almost nothing, and being animated says *waiting* rather than *broken*.
+	// **Only the tiles of the level being drawn.** A request from the zoom before is still in the
+	// queue until MapLibre lets it go, and a spinner for it would sit at the middle of a square four
+	// times the size of the ones on screen, saying the map waits for something it will not draw.
 	//
-	// **Markers rather than layers**, which also takes a whole class of bug with it: a marker is not
-	// part of the style, so a restyle does not destroy it and nothing has to put it back or lift it
-	// above the layers drawn later. That was the entire reason this file reached for `mapOverlay`
-	// ([Q46]); with no source and no layers there is nothing left to lose.
+	// **Waiting is a spinner at the middle; giving up is an edge around the square.** A wash over a
+	// waiting tile hid the previous tile underneath, which is usually still perfectly readable while
+	// its replacement is on the way - so waiting covers almost nothing. A failed tile is the opposite
+	// case: nothing is coming, and what matters is *which area* is missing, which a dot at its middle
+	// does not say. A red line just inside its edge does, and leaves the square itself clear.
+	//
+	// The spinners are markers, which are not part of the style, so a restyle leaves them alone. The
+	// edges are a layer, kept on the map by `mapOverlay` ([Q46]).
 
 	let { map }: { map: MaplibreMap | undefined } = $props();
+
+	const SOURCE = 'studio:failed-tiles';
 
 	/// One marker per tile coordinate, so a redraw while the same tiles are still waiting leaves
 	/// them where they are - taking them down and putting them back would restart every spinner
@@ -33,6 +44,25 @@
 	/// reactive one would track changes nothing subscribes to.
 	// eslint-disable-next-line svelte/prefer-svelte-reactivity
 	const markers = new Map<string, Marker>();
+
+	/// The zoom levels the map draws Studio's tiles at right now. Nothing until the map says.
+	let levels = $state<number[]>([]);
+
+	/// The tiles worth marking: those of a level the map is drawing.
+	const shown = $derived(tiles.busy.filter((tile) => levels.includes(tile.coord.z)));
+
+	/// The edges, as lines rather than polygons: a line is drawn in the order it is written, so an
+	/// offset to its right is always inside the square - a polygon's ring could be rewound.
+	const edges = $derived<FeatureCollection>({
+		type: 'FeatureCollection',
+		features: shown
+			.filter((tile) => tile.state === 'failed')
+			.map(({ coord }) => ({
+				type: 'Feature',
+				properties: {},
+				geometry: { type: 'LineString', coordinates: tileRing(coord.x, coord.y, coord.z)[0] }
+			}))
+	});
 
 	/// The marker's own element. MapLibre positions *this* with a transform, so the part that spins
 	/// has to be a child of it - animating the same element would fight the placement every frame.
@@ -47,20 +77,61 @@
 
 	const TITLE = {
 		queued: 'Waiting for a slot',
-		rendering: 'Rendering this tile',
-		failed: 'Gave up on this tile - it took too long to build. Zoom in, or simplify the pipeline.'
+		rendering: 'Rendering this tile'
 	};
+
+	// Which levels are drawn follows the zoom and the sources. The sources are read when the style
+	// or a source changes, not on every frame of a zoom: `getStyle` copies the whole style.
+	$effect(() => {
+		const m = map;
+		if (!m) return;
+
+		let sources: CoveringSource[] = [];
+		const readSources = () => {
+			try {
+				sources = Object.values(m.getStyle()?.sources ?? {}).filter(
+					(source) => 'tiles' in source && !!source.tiles?.[0]?.startsWith(`${SCHEME}://`)
+				);
+			} catch {
+				// No style yet; the next `styledata` brings us round.
+				sources = [];
+			}
+		};
+		const update = () => {
+			const next = coveringLevels(m.getZoom(), sources);
+			// Assigned only when it differs, so a zoom within a level re-runs nothing.
+			if (next.join() !== untrack(() => levels).join()) levels = next;
+		};
+		const restyled = () => {
+			readSources();
+			update();
+		};
+		// A source being added or replaced says so as `metadata`; the rest are tiles arriving.
+		const sourced = (event: MapSourceDataEvent) => {
+			if (event.sourceDataType === 'metadata') restyled();
+		};
+
+		m.on('styledata', restyled);
+		m.on('sourcedata', sourced);
+		m.on('zoom', update);
+		restyled();
+		return () => {
+			m.off('styledata', restyled);
+			m.off('sourcedata', sourced);
+			m.off('zoom', update);
+		};
+	});
 
 	$effect(() => {
 		const m = map;
 		if (!m) return;
 
-		const busy = tiles.busy;
 		// A plain Set: a local working set inside one run, never held in `$state`.
 		// eslint-disable-next-line svelte/prefer-svelte-reactivity
 		const seen = new Set<string>();
 
-		for (const { key, center, state } of busy) {
+		for (const { key, center, state } of shown) {
+			if (state === 'failed') continue;
 			seen.add(key);
 			let marker = markers.get(key);
 			if (!marker) {
@@ -88,6 +159,43 @@
 			for (const marker of markers.values()) marker.remove();
 			markers.clear();
 		};
+	});
+
+	/// Held so a change in which tiles failed redraws rather than rebuilding the layer.
+	let overlay = $state<Overlay | null>(null);
+
+	$effect(() => {
+		const m = map;
+		if (!m) return;
+		const mounted = mapOverlay(m, {
+			source: SOURCE,
+			label: 'failed tiles',
+			layers: () => [
+				{
+					id: `${SOURCE}:edge`,
+					type: 'line',
+					source: SOURCE,
+					metadata: role('failed-edge'),
+					// Square caps close the corner where the line starts and ends.
+					layout: { 'line-cap': 'square', 'line-join': 'miter' },
+					// Offset by half its width, so the whole line falls inside the square and two
+					// failed neighbours show two edges rather than one line shared between them.
+					paint: { 'line-color': token('--map-failed'), 'line-width': 2, 'line-offset': 1 }
+				}
+			],
+			// `untrack`, because this is read from map events as well as from the effect below.
+			data: () => untrack(() => edges)
+		});
+		overlay = mounted;
+		return () => {
+			mounted.dispose();
+			overlay = null;
+		};
+	});
+
+	$effect(() => {
+		void edges;
+		overlay?.draw();
 	});
 </script>
 
@@ -125,17 +233,6 @@
 	:global(.tile-busy[data-state='queued'] .tile-busy-ring) {
 		opacity: 0.45;
 		animation-duration: 1800ms;
-	}
-
-	/*
-	 * Given up on: a closed ring in the error colour, and still. The spin says "something is
-	 * happening", which is the one thing this state is not - a marker that kept turning would
-	 * promise a tile that is never coming.
-	 */
-	:global(.tile-busy[data-state='failed'] .tile-busy-ring) {
-		border-color: var(--error);
-		animation: none;
-		opacity: 0.9;
 	}
 
 	@keyframes -global-tile-busy-spin {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { pixelPosition, requestedZoom, tileCenter, tileForLngLat, tileRing, tileToLngLat } from './tile-grid';
+import {
+	coveringLevels,
+	pixelPosition,
+	requestedZoom,
+	tileCenter,
+	tileForLngLat,
+	tileRing,
+	tileToLngLat
+} from './tile-grid';
 
 // Web Mercator arithmetic is easy to get subtly wrong, so these check against values that can be
 // verified by hand rather than against whatever the implementation happens to produce.
@@ -122,5 +130,21 @@ describe('pixelPosition', () => {
 		expect(berlin).toMatch(/^52\.\d{5}°N 13\.\d{5}°E$/);
 		expect(pixelPosition(14, 8800, 5373, 1, 0, 512)).not.toBe(berlin);
 		expect(pixelPosition(2, 2, 1, 100, 100, 256)).toMatch(/^\d+\.\d°N \d+\.\d°E$/);
+	});
+});
+
+describe('coveringLevels', () => {
+	it('is the requested level of each source, once', () => {
+		const vector = { type: 'vector' };
+		const raster256 = { type: 'raster', tileSize: 256 };
+		expect(coveringLevels(5.2, [vector, vector, raster256])).toEqual([5, 6]);
+	});
+
+	it('stops at a source’s deepest level, which the map draws overzoomed', () => {
+		expect(coveringLevels(12, [{ type: 'vector', maxzoom: 9 }])).toEqual([9]);
+	});
+
+	it('is nothing above a source’s shallowest level, where nothing is asked for', () => {
+		expect(coveringLevels(3, [{ type: 'vector', minzoom: 5 }])).toEqual([]);
 	});
 });

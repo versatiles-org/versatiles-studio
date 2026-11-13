@@ -14,6 +14,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { FeatureCollection } from 'geojson';
 
 const added: FakeMarker[] = [];
 
@@ -51,7 +52,7 @@ vi.mock('maplibre-gl', async (original) => ({
 const { cleanup, render } = await import('@testing-library/svelte');
 const { flushSync } = await import('svelte');
 const { default: TileActivity } = await import('./TileActivity.svelte');
-const { MAP_PATIENCE, fetchTile } = await import('../state/tiles.svelte');
+const { DEADLINE, MAP_PATIENCE, fetchTile, tiles } = await import('../state/tiles.svelte');
 const { SCHEME } = await import('./tile-queue');
 
 /** A tile request the test decides when to answer. */
@@ -76,7 +77,33 @@ const request = (n: number) =>
 /** The markers still on the map. */
 const live = () => added.filter((marker) => !marker.removed);
 
-const map = { on: () => {}, off: () => {} } as never;
+/**
+ * Enough of a map for the markers and the failed edges: a zoom, a style with one of Studio's
+ * sources in it, and the source and layer calls `mapOverlay` makes - with what was drawn kept.
+ */
+function fakeMap(zoom = 2) {
+	let data: FeatureCollection | null = null;
+	const layers = new Set<string>();
+	let source: { setData: (next: FeatureCollection) => void } | undefined;
+	const fake = {
+		on: () => {},
+		off: () => {},
+		getZoom: () => zoom,
+		getStyle: () => ({ sources: { g: { type: 'vector', tiles: [`${SCHEME}://127.0.0.1:1/tiles/g/{z}/{x}/{y}`] } } }),
+		getSource: () => source,
+		addSource: () => {
+			source = { setData: (next) => (data = next) };
+		},
+		removeSource: () => (source = undefined),
+		getLayer: (id: string) => (layers.has(id) ? { id } : undefined),
+		addLayer: (layer: { id: string }) => layers.add(layer.id),
+		moveLayer: () => {},
+		removeLayer: (id: string) => layers.delete(id)
+	};
+	return { map: fake as never, drawn: () => data?.features ?? [] };
+}
+
+const { map } = fakeMap();
 
 beforeEach(() => {
 	added.length = 0;
@@ -86,6 +113,7 @@ afterEach(() => {
 	vi.useRealTimers();
 	vi.unstubAllGlobals();
 	cleanup();
+	tiles.reset();
 });
 
 describe('the busy markers', () => {
@@ -181,6 +209,44 @@ describe('the busy markers', () => {
 
 		tile.deliver();
 		await inFlight;
+	});
+
+	/** A request from another zoom is on its way out, and the map will not draw what it brings. */
+	it('marks only the tiles of the level the map is drawing', async () => {
+		const tile = pending();
+		vi.stubGlobal('fetch', tile.fetch);
+		const inFlight = request(1);
+
+		render(TileActivity, { map: fakeMap(4).map });
+		await vi.advanceTimersByTimeAsync(MAP_PATIENCE);
+		flushSync();
+		expect(live(), 'a z2 tile, while the map draws z4').toHaveLength(0);
+
+		tile.deliver();
+		await inFlight;
+	});
+
+	/** What matters about a failed tile is which area is missing, so it is outlined, not dotted. */
+	it('outlines a tile it gave up on instead of putting a marker on it', async () => {
+		vi.stubGlobal(
+			'fetch',
+			(_url: string, init?: { signal?: AbortSignal }) =>
+				new Promise<Response>((_resolve, reject) =>
+					init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+				)
+		);
+		const failing = request(1).catch((error: unknown) => error);
+
+		const { map: m, drawn } = fakeMap();
+		render(TileActivity, { map: m });
+		await vi.advanceTimersByTimeAsync(DEADLINE + 1);
+		await failing;
+		flushSync();
+
+		expect(live()).toHaveLength(0);
+		const [edge, ...rest] = drawn();
+		expect(rest).toHaveLength(0);
+		expect(edge.geometry.type).toBe('LineString');
 	});
 
 	// A marker is not part of the style, so nothing else takes it down.

@@ -73,6 +73,32 @@ export function requestedZoom(mapZoom: number, source: { type: string; tileSize?
 	return Math.max(0, (rounds ? Math.round : Math.floor)(mapZoom + shift));
 }
 
+/** What `coveringLevels` needs to know about a source. */
+export interface CoveringSource {
+	type: string;
+	tileSize?: number;
+	minzoom?: number;
+	maxzoom?: number;
+}
+
+/**
+ * The zoom levels MapLibre draws these sources' tiles at, for a map zoom.
+ *
+ * [`requestedZoom`] per source, held to its range: past `maxzoom` the deepest tiles are drawn
+ * overzoomed, and below `minzoom` nothing is asked for at all. MapLibre's own default `maxzoom` is
+ * 22. A tile at any other level is one the map will not draw here - a request left over from the
+ * zoom before, still on its way out.
+ */
+export function coveringLevels(mapZoom: number, sources: Iterable<CoveringSource>): number[] {
+	const levels = new Set<number>();
+	for (const source of sources) {
+		const level = requestedZoom(mapZoom, source);
+		if (level < (source.minzoom ?? 0)) continue;
+		levels.add(Math.min(level, source.maxzoom ?? 22));
+	}
+	return [...levels].sort((a, b) => a - b);
+}
+
 /**
  * The middle of one tile, in degrees.
  *

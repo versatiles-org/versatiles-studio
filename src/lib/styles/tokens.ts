@@ -18,6 +18,7 @@ export type MapToken =
 	| '--map-feature'
 	| '--map-pending'
 	| '--map-label'
+	| '--map-failed'
 	| '--map-shade-shadow'
 	| '--map-shade-highlight'
 	| '--map-shade-accent'

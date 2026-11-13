@@ -26,6 +26,7 @@ export type LayerRole =
 	| 'pending-fill'
 	| 'pending-line'
 	| 'pending-label'
+	| 'failed-edge'
 	| 'crop-dim'
 	| 'crop-edge'
 	| 'crop-draft-fill'
@@ -54,6 +55,8 @@ const PAINT: Record<LayerRole, [property: ColourProperty, token: MapToken][]> = 
 	// The halo token is named for the grid and is simply the map's halo - the colour a label needs
 	// behind it to stay legible over arbitrary tiles. Two overlays want it now.
 	'pending-label': [['text-color', '--map-label']],
+	// The edge drawn inside a tile the map gave up on (S2.16).
+	'failed-edge': [['line-color', '--map-failed']],
 	// The crop, for the same reason the pending overlay needs two: a fill and a line name their
 	// colour differently (S5.2).
 	'crop-dim': [['fill-color', '--map-crop-dim']],

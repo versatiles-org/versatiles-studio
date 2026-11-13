@@ -185,13 +185,14 @@ export const tiles = {
 	 *
 	 * Behind a longer patience than the message ([`MAP_PATIENCE`]).
 	 */
-	get busy(): { key: string; center: [number, number]; state: Doing }[] {
+	get busy(): { key: string; coord: TileCoord; center: [number, number]; state: Doing }[] {
 		// **A tile that was given up on is marked whatever the patience says.** `marked` exists so a
 		// pipeline answering in half a second leaves the map alone; one that has already spent the
 		// deadline is past that argument, and its square would otherwise stay blank with no reason
 		// on screen for why.
 		const failed = Object.entries(refused).map(([key, coord]) => ({
 			key,
+			coord,
 			center: tileCenter(coord.x, coord.y, coord.z),
 			state: 'failed' as const
 		}));
@@ -201,6 +202,7 @@ export const tiles = {
 			.filter(([key]) => !(key in refused))
 			.map(([key, entry]) => ({
 				key,
+				coord: entry.coord,
 				center: tileCenter(entry.coord.x, entry.coord.y, entry.coord.z),
 				state: doingOf(entry)
 			}));
