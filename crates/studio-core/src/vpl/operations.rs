@@ -999,6 +999,13 @@ mod tests {
 	#[test]
 	fn a_boolean_is_a_checkbox() {
 		assert_eq!(field("from_csv", "has_header").control, Control::Boolean);
+		// Keeping what lies outside the polygon (versatiles-rs#323): a switch beside the mask's
+		// other fields, off unless set.
+		for mask in ["vector_mask", "raster_mask"] {
+			let invert = field(mask, "invert");
+			assert_eq!(invert.control, Control::Boolean, "{mask}");
+			assert_eq!(invert.default.as_deref(), Some("false"), "{mask}");
+		}
 	}
 
 	/// `vector_branch` runs its sources on its own input, so they are branches; a composite's are not.
