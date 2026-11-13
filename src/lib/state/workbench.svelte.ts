@@ -30,6 +30,7 @@ import { scans } from './contents.svelte';
 import { composition } from '../map/composition.svelte';
 import {
 	addGraph,
+	forgetBuilds,
 	formatGraph,
 	getGraph,
 	importKinds,
@@ -228,6 +229,32 @@ export const workbench = {
 				case 'unavailable':
 					return;
 			}
+		} catch (error) {
+			status.fail(error);
+		}
+	},
+
+	/**
+	 * Reads every source again and builds every graph from it (Map → Reload Map).
+	 *
+	 * For what an edit cannot reach: a source changed on disk, which the core would otherwise go on
+	 * serving as it was first read ([Q61]), and tiles given up on as too slow. Every graph comes back
+	 * under a new revision, so the map asks for every tile again.
+	 *
+	 * The same order as a window opening: the containers first, since a graph's build takes the one
+	 * opened for it, then the graphs.
+	 */
+	async reload(): Promise<void> {
+		try {
+			status.waiting('Reloading the map…');
+			await forgetBuilds();
+			preview.forgetContainers();
+			await this.syncContainers();
+			await graphs.remountAll(document.graph);
+			// The graph being edited, through the path that also draws its hairlines and settles the
+			// bar - or, with nothing being edited, the bar settled here.
+			if (document.current) await this.refresh();
+			else status.settle();
 		} catch (error) {
 			status.fail(error);
 		}

@@ -39,6 +39,8 @@ export interface Actions {
 	showUpdates: () => void;
 	/** Shows the problems panel in the status bar. */
 	showProblems: () => void;
+	/** Reads every source again and builds every graph from it - Map → Reload Map. */
+	reloadMap: () => void;
 	/** Opens the tile dialog on the tile under the middle of the map (S14.5). */
 	inspectTile: () => void;
 	/** Starts a problem report for this session. */
@@ -120,6 +122,8 @@ export const windowEvents = {
 							return actions.showUpdates();
 						case 'problems':
 							return actions.showProblems();
+						case 'reload-map':
+							return actions.reloadMap();
 						case 'inspect-tile':
 							return actions.inspectTile();
 						case 'report-problem':

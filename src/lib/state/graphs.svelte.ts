@@ -76,6 +76,18 @@ export const graphs = {
 	},
 
 	/**
+	 * Builds every drawn graph again, built or not, except `except` - for a reload, which the core
+	 * has just made forget every build (Map → Reload Map).
+	 *
+	 * The one left out is the graph being edited: `workbench.refresh` builds that one, and puts its
+	 * hairlines on the map too, which a build from here would not.
+	 */
+	async remountAll(except: number | null): Promise<void> {
+		const ids = list.filter((graph) => graph.enabled && graph.id !== except).map((graph) => graph.id);
+		if (ids.length > 0) await preview.mountAll(ids);
+	},
+
+	/**
 	 * Renames a graph, carrying its tiles with it.
 	 *
 	 * The stack is keyed by name and the core remounts under the new one, so the old entry is stale

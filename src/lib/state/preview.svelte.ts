@@ -251,6 +251,14 @@ export const preview = {
 	/** Forgets a graph's tiles - for one that has been removed, or switched off. */
 	forget,
 
+	/**
+	 * Forgets the containers this window opened, so `syncContainers` reads each of them again - for
+	 * a reload, after which what the inspector says about one must be what the file says now.
+	 */
+	forgetContainers(): void {
+		held.containers = [];
+	},
+
 	/** Opens a container and remembers it. See `mount`. */
 	mount,
 

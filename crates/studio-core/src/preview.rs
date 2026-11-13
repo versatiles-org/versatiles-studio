@@ -149,7 +149,8 @@ pub async fn build_head(runtime: &TilesRuntime, node: VPLNode, dir: &Path) -> Re
 ///
 /// The staleness this does not address is the one [Q61](../../docs/decisions.md) already names: a
 /// file changed on disk while its node stays as written. That was true before this and is no more
-/// true after it; an explicit reload is the answer to both, and there is not one yet.
+/// true after it; an explicit reload is the answer to both - Map → Reload Map, whose `forget_builds`
+/// in the app drops every head a window keeps, so the next build reads its source again.
 ///
 /// [vt#259]: https://github.com/versatiles-org/versatiles-rs/issues/259
 /// [vt#262]: https://github.com/versatiles-org/versatiles-rs/issues/262

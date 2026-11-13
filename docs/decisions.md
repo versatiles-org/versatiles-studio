@@ -233,9 +233,8 @@ supersedes what the lane was running, and skipping the submit would leave a buil
 pipeline to finish and mount something nobody asked for.
 
 The cost is that a source changed on disk is no longer picked up by editing something unrelated. It
-was never picked up without an edit either, so this narrows an accident rather than removing a feature
-
-- but an explicit reload is the honest answer, and there is not one yet.
+never was without an edit either; the honest answer is **Map → Reload Map** (`⌘R`), which forgets the
+window's builds and read nodes, so every source is read again and every tile asked for again.
 
 ### Q66 - A field's control comes from its type
 

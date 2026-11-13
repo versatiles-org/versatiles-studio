@@ -716,6 +716,22 @@ export const commands = {
 	 */
 	mountGraph: (graph: number) => typedError<Mounted, string>(__TAURI_INVOKE("mount_graph", { graph })),
 	/**
+	 *  Forgets every build and every read source this window holds, for Map → Reload Map.
+	 * 
+	 *  **What a reload is, said to the core.** Two caches stand between a graph and its source: a
+	 *  rebuild that would change nothing is skipped ([Q61]), and one that changes only the transforms
+	 *  reuses the read node it built last ([vt#259]). Both are right for an edit and both are wrong for
+	 *  a source that changed on disk, which neither can see. Forgotten, the next `mount_graph` of each
+	 *  graph reads its source again and mounts it under a new revision - so the map asks for every
+	 *  tile again, and a zoom level given up on as too slow is tried again with it.
+	 * 
+	 *  Only forgets: the webview mounts the graphs afterwards, as it does when a project opens.
+	 * 
+	 *  [Q61]: ../../../docs/decisions.md
+	 *  [vt#259]: https://github.com/versatiles-org/versatiles-rs/issues/259
+	 */
+	forgetBuilds: () => __TAURI_INVOKE<void>("forget_builds"),
+	/**
 	 *  Switches a graph on or off - the eye on its row in the sources list ([Q49]).
 	 * 
 	 *  Off means it is not built: no job when the project opens, no mount on the server, and no source

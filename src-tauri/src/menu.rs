@@ -133,10 +133,15 @@ fn file(app: &AppHandle) -> Result<Submenu<Wry>> {
 /// What is about the map and the source it draws (S14.5).
 ///
 /// No shortcut for Inspect Tile…: every free letter is one a text field in the panes may want.
+/// Reload Map takes `⌘R`, which no text field uses, and which is what reloading is everywhere else.
 fn map(app: &AppHandle) -> Result<Submenu<Wry>> {
-	Ok(SubmenuBuilder::new(app, "Map")
+	let map = SubmenuBuilder::new(app, "Map")
+		.text("reload-map", "Reload Map")
+		.separator()
 		.text("inspect-tile", "Inspect Tile…")
-		.build()?)
+		.build()?;
+	accelerate(&map, "reload-map", "CmdOrCtrl+R")?;
+	Ok(map)
 }
 
 /// What is about Studio rather than about the project. macOS puts these in the application submenu.

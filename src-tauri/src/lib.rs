@@ -157,6 +157,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::vpl::set_graph,
 		commands::vpl::format_graph,
 		commands::vpl::mount_graph,
+		commands::vpl::forget_builds,
 		commands::vpl::set_graph_enabled,
 		commands::vpl::set_node_enabled,
 		commands::vpl::undo,

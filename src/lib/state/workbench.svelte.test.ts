@@ -42,6 +42,7 @@ const doc = (graph: number, name = 'berlin', diagnostics: unknown[] = []) => ({
 
 const ipc = vi.hoisted(() => ({
 	addGraph: vi.fn(),
+	forgetBuilds: vi.fn(() => calls.push('forgetBuilds')),
 	formatGraph: vi.fn(),
 	getGraph: vi.fn(),
 	importKinds: vi.fn(),
@@ -90,6 +91,7 @@ vi.mock('./graphs.svelte', () => ({
 		remove: note('graphs.remove', Promise.resolve(null)),
 		rename: note('graphs.rename', Promise.resolve()),
 		mountAll: note('graphs.mountAll', Promise.resolve()),
+		remountAll: (except: number | null) => void calls.push(`graphs.remountAll(${except})`),
 		setEnabled: note('graphs.setEnabled', Promise.resolve()),
 		setNodeEnabled: note('graphs.setNodeEnabled', Promise.resolve())
 	}
@@ -100,7 +102,8 @@ vi.mock('./preview.svelte', () => ({
 		refresh: note('preview.refresh', Promise.resolve({ kind: 'shown' })),
 		syncContainers: note('preview.syncContainers', Promise.resolve()),
 		mount: note('preview.mount', Promise.resolve({ vpl: 'from_container filename=x' })),
-		clear: note('preview.clear')
+		clear: note('preview.clear'),
+		forgetContainers: note('preview.forgetContainers')
 	}
 }));
 vi.mock('./layout.svelte', () => ({ layout: { current: null } }));
@@ -147,6 +150,36 @@ describe('applying a document', () => {
 			'preview.refresh',
 			'status.settle'
 		]);
+	});
+});
+
+describe('reloading the map', () => {
+	/**
+	 * **Forget, then read again, in the order a window opens.** The core forgets first, or the builds
+	 * below would be answered from what it already had; the containers are opened before the graphs
+	 * are built, which take them as their sources; and the graph being edited is left to `refresh`,
+	 * which draws its hairlines and settles the bar.
+	 */
+	it('forgets every build, opens the containers again, then builds every graph', async () => {
+		state.current = doc(2);
+		state.graph = 2;
+		await workbench.reload();
+
+		expect(calls).toEqual([
+			'status.waiting(Reloading the map…)',
+			'forgetBuilds',
+			'preview.forgetContainers',
+			'preview.syncContainers',
+			'graphs.remountAll(2)',
+			'preview.refresh',
+			'status.settle'
+		]);
+	});
+
+	it('settles the bar itself when no graph is being edited', async () => {
+		await workbench.reload();
+		expect(calls.at(-1)).toBe('status.settle');
+		expect(calls).not.toContain('preview.refresh');
 	});
 });
 

@@ -531,6 +531,12 @@ export const saveVpl = (graph: number, path: string) => unwrap(commands.saveVpl(
  */
 export const mountGraph = (graph: number) => unwrap(commands.mountGraph(graph));
 
+/**
+ * Forgets every build and read source this window holds, so the next `mountGraph` of each graph
+ * reads its source again - the core's half of Map → Reload Map.
+ */
+export const forgetBuilds = () => commands.forgetBuilds();
+
 /** Switches a graph on or off ([Q49]). Durable: it is in `project.yaml`. */
 export const setGraphEnabled = (graph: number, enabled: boolean) => unwrap(commands.setGraphEnabled(graph, enabled));
 

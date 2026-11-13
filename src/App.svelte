@@ -211,6 +211,7 @@
 		showAssets: () => (assets = true),
 		showUpdates: () => (updating = true),
 		showProblems: () => panels.show('problems'),
+		reloadMap: () => void workbench.reload(),
 		inspectTile: () => {
 			const selected = workbench.selected;
 			const deepest = composition.editedBuild?.info.maxZoom;
