@@ -135,7 +135,7 @@ describe('the background picker', () => {
 		toggle().click();
 		flushSync();
 		const panel = screen.getByRole('group', { name: 'Background map' });
-		expect(panel.querySelectorAll('.swatch').length).toBe(8);
+		expect(panel.querySelectorAll('.swatch').length).toBe(11);
 		expect(panel.querySelectorAll('.swatch.none').length).toBe(1);
 	});
 

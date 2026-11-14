@@ -23,6 +23,7 @@ import type { StyleSpecification } from 'maplibre-gl';
 import { osm, satellite, type Palette, type TileSource } from '@versatiles/style';
 import { localAssets, PUBLIC_BASE, tileset, withoutSlots } from './builders';
 import { ON_TOP } from './style';
+import { PURE } from '../styles/tokens';
 
 /** Where the background's tiles come from. Only this is remote. */
 const TILES = `${PUBLIC_BASE}/tiles/osm-vector/{z}/{x}/{y}`;
@@ -47,14 +48,28 @@ export const IMAGERY: TileSource = {
 };
 
 export type BackgroundId =
-	'none' | 'positrino' | 'positrino-dark' | 'colorful' | 'muted' | 'colorful-dark' | 'satellite' | 'satellite-plain';
+	| 'none'
+	| PlainId
+	| 'positrino'
+	| 'positrino-dark'
+	| 'colorful'
+	| 'muted'
+	| 'colorful-dark'
+	| 'satellite'
+	| 'satellite-plain';
+
+/**
+ * The plain colours. Prefixed, because `gray` on its own is already one of `@versatiles/style`'s
+ * palettes, and a stored id must not mean two things.
+ */
+type PlainId = 'plain-black' | 'plain-gray' | 'plain-white';
 
 export interface Background {
 	id: BackgroundId;
 	/** What it says in the menu. */
 	label: string;
 	/** Grouping by purpose, so the quiet ones and the full maps are not shuffled together. */
-	group: 'off' | 'data' | 'context' | 'imagery';
+	group: 'off' | 'plain' | 'data' | 'context' | 'imagery';
 }
 
 /**
@@ -69,6 +84,9 @@ export interface Background {
  */
 export const BACKGROUNDS: Background[] = [
 	{ id: 'none', label: 'No background', group: 'off' },
+	{ id: 'plain-black', label: 'Black', group: 'plain' },
+	{ id: 'plain-gray', label: 'Gray', group: 'plain' },
+	{ id: 'plain-white', label: 'White', group: 'plain' },
 	{ id: 'positrino', label: 'Light', group: 'data' },
 	{ id: 'positrino-dark', label: 'Dark', group: 'data' },
 	{ id: 'colorful', label: 'Colorful', group: 'context' },
@@ -77,6 +95,26 @@ export const BACKGROUNDS: Background[] = [
 	{ id: 'satellite', label: 'Satellite', group: 'imagery' },
 	{ id: 'satellite-plain', label: 'Satellite, imagery only', group: 'imagery' }
 ];
+
+/**
+ * The plain backgrounds, and their colours.
+ *
+ * **Pure, not themed.** The map's own backdrop follows the window's theme, which is right for a
+ * neutral surface and wrong for judging a colour: whether a raster's dark edge is black, or a
+ * hillshade's mid-tone is grey, is a question asked against exactly black, grey or white. So these
+ * never change with the theme - which is also why the layer carries no theme role.
+ *
+ * **Nothing to fetch**, unlike every other background: one `background` layer and no source, so
+ * choosing one asks nothing of the network.
+ */
+const PLAIN: Record<PlainId, string> = {
+	'plain-black': PURE.black,
+	'plain-gray': PURE.gray,
+	'plain-white': PURE.white
+};
+
+/** Whether a background is one plain colour, drawn here rather than fetched. */
+export const isPlain = (id: BackgroundId): id is PlainId => id in PLAIN;
 
 /**
  * Ids an earlier build stored, and what each became.
@@ -122,6 +160,13 @@ export async function buildBackground(
 	labels = true
 ): Promise<StyleSpecification | null> {
 	if (id === 'none') return null;
+	if (isPlain(id)) {
+		return {
+			version: 8,
+			sources: {},
+			layers: [{ id: 'background', type: 'background', paint: { 'background-color': PLAIN[id] } }]
+		};
+	}
 	const urls = { base: PUBLIC_BASE, osm: tileset('shortbread', [TILES]), ...localAssets(serverUrl) };
 
 	const build = (withLabels: boolean): StyleSpecification => {
@@ -165,7 +210,7 @@ const asObject = (value: unknown): Record<string, unknown> =>
 	value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
 
 /** Whether a background draws labels the switch can turn off. */
-export const hasLabels = (id: BackgroundId): boolean => id !== 'none' && id !== 'satellite-plain';
+export const hasLabels = (id: BackgroundId): boolean => id !== 'none' && id !== 'satellite-plain' && !isPlain(id);
 
 /** The three colours a background is recognised by in its menu: the land, the water, a main road. */
 export interface Swatch {
@@ -182,6 +227,7 @@ export interface Swatch {
  */
 export function swatchOf(id: BackgroundId): Swatch | null {
 	if (id === 'none') return null;
+	if (isPlain(id)) return { land: PLAIN[id], water: PLAIN[id], road: PLAIN[id] };
 	if (id === 'satellite' || id === 'satellite-plain') {
 		return {
 			land: 'var(--swatch-imagery-land)',

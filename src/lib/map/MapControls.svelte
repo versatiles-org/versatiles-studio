@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
 	import type { Map as MaplibreMap } from 'maplibre-gl';
-	import { BACKGROUNDS, hasLabels, swatchOf, type BackgroundId } from './background';
+	import { BACKGROUNDS, hasLabels, isPlain, swatchOf, type BackgroundId } from './background';
 	import Dropdown from './Dropdown.svelte';
 	import Icon from '../common/Icon.svelte';
 	import Group from '../common/Group.svelte';
@@ -83,6 +83,7 @@
 	/** Grouped by what a background is for - see `BACKGROUNDS`. */
 	const groups = $derived([
 		{ label: '', items: BACKGROUNDS.filter((b) => b.group === 'off') },
+		{ label: 'Plain', items: BACKGROUNDS.filter((b) => b.group === 'plain') },
 		{ label: 'For data', items: BACKGROUNDS.filter((b) => b.group === 'data') },
 		{ label: 'Full map', items: BACKGROUNDS.filter((b) => b.group === 'context') },
 		{ label: 'Imagery', items: BACKGROUNDS.filter((b) => b.group === 'imagery') }
@@ -155,7 +156,9 @@
 			     `Dropdown` is the saved views' own control, so the two match by construction. -->
 			<Dropdown
 				label="Background map"
-				title="Background map: {backgroundLabel} - its tiles come from versatiles.org"
+				title={isPlain(background)
+					? `Background map: ${backgroundLabel}`
+					: `Background map: ${backgroundLabel} - its tiles come from versatiles.org`}
 				width="13rem"
 				placement="left"
 				bare

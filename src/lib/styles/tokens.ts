@@ -60,3 +60,12 @@ export function token(name: MapToken): string {
 	console.error(`design token ${name} arrived as ${value} rather than a colour - resolving it here`);
 	return resolved || '#ff00ff';
 }
+
+/**
+ * The plain map backgrounds' colours: exactly black, mid-grey and white.
+ *
+ * **Constants, not tokens.** Everything else here follows the theme, which is the point of a token;
+ * these are what a colour is judged against, so they must be the same in both themes. Written here
+ * rather than beside the background so every colour the map is given still comes from this folder.
+ */
+export const PURE = { black: '#000000', gray: '#808080', white: '#ffffff' } as const;

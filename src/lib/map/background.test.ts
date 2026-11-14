@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BACKGROUNDS, backgroundOf, buildBackground, hasLabels } from './background';
+import { BACKGROUNDS, backgroundOf, buildBackground, hasLabels, isPlain, swatchOf } from './background';
 import { BACKGROUND, composeStyle, ON_TOP } from './style';
 import { validateStyleMin } from '@maplibre/maplibre-gl-style-spec';
 
@@ -16,7 +16,7 @@ describe('buildBackground', () => {
 	 * from the network too.
 	 */
 	it('takes tiles from the network and assets from our own server', async () => {
-		for (const { id } of BACKGROUNDS.filter((b) => b.id !== 'none')) {
+		for (const { id } of BACKGROUNDS.filter((b) => b.id !== 'none' && !isPlain(b.id))) {
 			const style = await buildBackground(id, SERVER);
 			expect(style, id).not.toBeNull();
 
@@ -132,6 +132,47 @@ describe('every background', () => {
 	});
 });
 
+/**
+ * A plain colour is for judging the data's own colours against, so it is exactly that colour, in
+ * either theme, and costs nothing from the network.
+ */
+describe('the plain backgrounds', () => {
+	const COLOURS = { 'plain-black': '#000000', 'plain-gray': '#808080', 'plain-white': '#ffffff' } as const;
+
+	it('are one background layer of exactly their colour, and no source', async () => {
+		for (const [id, colour] of Object.entries(COLOURS)) {
+			const style = (await buildBackground(id as keyof typeof COLOURS, SERVER))!;
+			expect(style.sources, id).toEqual({});
+			expect(style.layers, id).toEqual([
+				{ id: 'background', type: 'background', paint: { 'background-color': colour } }
+			]);
+			// No theme role, so a theme change cannot repaint it.
+			expect(style.layers[0].metadata, id).toBeUndefined();
+		}
+	});
+
+	it('lie under the data once composed', async () => {
+		const entry = {
+			name: 'berlin',
+			tileUrl: `${SERVER}/tiles/berlin/{z}/{x}/{y}`,
+			appearance: { type: 'vector', theme: 'colorful', recolor: {}, overrides: {} },
+			kind: 'vectorShortbread',
+			tileFormat: 'mvt',
+			layers: [{ name: 'places', geometry: 'point' }],
+			mountedLayers: ['water_polygons']
+		} as never;
+		const { style } = composeStyle([entry], SERVER, await buildBackground('plain-black', SERVER));
+		const [bottom] = style!.layers;
+		expect(bottom.type).toBe('background');
+		expect((bottom as { paint: Record<string, unknown> }).paint['background-color']).toBe('#000000');
+	});
+
+	it('show their colour in the menu, and have no labels to switch', () => {
+		expect(swatchOf('plain-gray')).toEqual({ land: '#808080', water: '#808080', road: '#808080' });
+		for (const id of ['plain-black', 'plain-gray', 'plain-white'] as const) expect(hasLabels(id), id).toBe(false);
+	});
+});
+
 describe('backgroundOf', () => {
 	/** A persisted value from an older build must not be able to break the map. */
 	it('accepts only ids we know, and falls back to none', () => {
@@ -224,9 +265,9 @@ describe('the labels switch', () => {
 });
 
 describe('the catalogue', () => {
-	it('offers off, then quiet ones for data, then full maps, then imagery', () => {
+	it('offers off, then plain colours, then quiet ones for data, then full maps, then imagery', () => {
 		expect(BACKGROUNDS[0].id).toBe('none');
 		const groups = [...new Set(BACKGROUNDS.map((b) => b.group))];
-		expect(groups).toEqual(['off', 'data', 'context', 'imagery']);
+		expect(groups).toEqual(['off', 'plain', 'data', 'context', 'imagery']);
 	});
 });
