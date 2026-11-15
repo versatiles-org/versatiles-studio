@@ -12,7 +12,8 @@
 	// bars over the heights for a DEM, whose channels mean nothing one at a time.
 	//
 	// Drawn in pixels and read out below, for the reasons `SizeHistogram` gives: the dialog's column
-	// is as wide as the window, and a tooltip would cover the neighbours being compared.
+	// is as wide as the window, and a tooltip would cover the neighbours being compared. One line, as
+	// `SizeHistogram`'s is: a readout that wrapped would move the tables below while being pointed at.
 
 	let {
 		series,
@@ -61,9 +62,7 @@
 		return `M${left},${baseline}V${top + r}Q${left},${top} ${left + r},${top}H${left + w - r}Q${left + w},${top} ${left + w},${top + r}V${baseline}Z`;
 	}
 
-	const readout = $derived(
-		hovered === null ? `Point at the chart, or use the arrow keys, for the counts.` : describe(hovered)
-	);
+	const readout = $derived(hovered === null ? `Point at the chart for the counts.` : describe(hovered));
 
 	function point(event: PointerEvent): void {
 		const box = (event.currentTarget as SVGElement).getBoundingClientRect();
@@ -137,7 +136,7 @@
 			{/each}
 		</ul>
 	{/if}
-	<figcaption aria-hidden="true">{readout}</figcaption>
+	<figcaption class="readout" aria-hidden="true">{readout}</figcaption>
 </figure>
 
 <style>
@@ -182,10 +181,8 @@
 	}
 
 	figcaption {
-		min-height: 1.45em;
 		color: var(--ink-2);
 		font-size: var(--text-xs);
-		font-variant-numeric: tabular-nums;
 	}
 
 	.legend {

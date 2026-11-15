@@ -284,6 +284,17 @@ describe('the tile dialog', () => {
 			expect(chart.getAttribute('aria-valuetext')).toBe('Value 255: red 98,304 · green 0 · blue 0');
 		});
 
+		// A caption that wraps on one value and not the next moves the tables below it.
+		it('captions the chart in one line, at rest and on a value', async () => {
+			show({ dissection: raster() });
+			const chart = screen.getByRole('slider', { name: 'Pixels by value, per channel' });
+			const caption = chart.closest('figure')!.querySelector('figcaption')!;
+			expect(caption.classList.contains('readout')).toBe(true);
+			expect(caption.textContent).toBe('Point at the chart for the counts.');
+			await fireEvent.keyDown(chart, { key: 'End' });
+			expect(caption.textContent).toBe('Value 255: red 98,304 · green 0 · blue 0');
+		});
+
 		// A DEM's channels mean nothing one at a time, so its heights are counted instead.
 		it('counts a DEM tile by height rather than by channel', async () => {
 			show({
