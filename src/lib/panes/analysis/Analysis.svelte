@@ -19,6 +19,12 @@
 	// five columns of numbers is where a table outgrows it. A number is never broken over two lines
 	// (`.figures` keeps it whole), so what gives is the table's width, inside a scroller of its own,
 	// which leaves the rest of the pane where it was.
+	//
+	// **Progress is the button's, not a line over the figures** (the invariant in docs/ui.md). A
+	// note above them while a measurement ran pushed every figure down when it started and pulled it
+	// back when it ended - twice for one click, and with the pointer likely on the table. Now the
+	// button says it is measuring, a screen reader hears it from a status that takes no room, and the
+	// figures change once: when the new ones arrive.
 	let {
 		graph,
 		measurement,
@@ -85,7 +91,7 @@
 
 {#snippet measure()}
 	<button type="button" class="button" disabled={measurement.running} onclick={onMeasure}>
-		{sizes ? 'Measure again' : 'Measure'}
+		{measurement.running ? 'Measuring…' : sizes ? 'Measure again' : 'Measure'}
 	</button>
 {/snippet}
 
@@ -94,9 +100,7 @@
 		<Note tone="empty">No source selected.</Note>
 	{:else}
 		<Group title="Tile sizes" action={measure}>
-			{#if measurement.running}
-				<Note live>Reading every tile's size…</Note>
-			{/if}
+			<span class="visually-hidden" role="status">{measurement.running ? "Reading every tile's size…" : ''}</span>
 			{#if measurement.error}
 				<Note tone="problem">{measurement.error}</Note>
 			{/if}
@@ -185,7 +189,7 @@
 						</tbody>
 					</table>
 				</div>
-			{:else if !measurement.running && !measurement.error}
+			{:else if !measurement.error}
 				<Note>Measure reads every tile's size from the container's index - seconds, not minutes.</Note>
 			{/if}
 			{#if onToggleHeat && !heatOn}

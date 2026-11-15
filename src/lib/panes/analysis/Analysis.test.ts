@@ -89,7 +89,20 @@ describe('the analysis pane', () => {
 
 	it('cannot be pressed twice while a walk is running', () => {
 		show({ measurement: measured({ running: true }) });
-		expect((screen.getByRole('button', { name: 'Measure' }) as HTMLButtonElement).disabled).toBe(true);
+		expect((screen.getByRole('button', { name: 'Measuring…' }) as HTMLButtonElement).disabled).toBe(true);
+	});
+
+	// A note over the figures while measuring pushed them down at the start and back at the end.
+	it('says it is measuring at the button, leaving the figures where they are', () => {
+		show({ measurement: measured({ sizes }) });
+		const group = () => screen.getByRole('table', { name: 'Sizes per zoom level' }).closest('section')!;
+		const parts = () => [...group().querySelectorAll('.body > *')].map((part) => `${part.tagName}.${part.className}`);
+		const before = parts();
+		cleanup();
+		show({ measurement: measured({ sizes, running: true }) });
+		expect(screen.getByRole('button', { name: 'Measuring…' })).toBeTruthy();
+		expect(screen.getByRole('status').textContent).toBe("Reading every tile's size…");
+		expect(parts()).toEqual(before);
 	});
 
 	it('lists the figures per zoom, and marks a maximum over the budget', () => {
