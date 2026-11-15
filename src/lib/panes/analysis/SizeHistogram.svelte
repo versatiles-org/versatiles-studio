@@ -11,6 +11,11 @@
 	// **The values are under the chart, not in a floating tooltip.** In a pane this narrow a tooltip
 	// covers the bars beside the one pointed at, which are the ones it is being compared with. The same
 	// line answers the keyboard: the arrow keys move along the bars.
+	//
+	// **One line, whatever it says** (a `.readout`). It said the whole summary at rest, which wrapped
+	// to two or three lines in a narrow pane, and one line for a bar - so the table below jumped every
+	// time the pointer crossed onto the chart. At rest it is the two marks now; the hint to point is
+	// the slider's to say, since the bars answer the pointer on their own.
 
 	let {
 		histogram,
@@ -100,6 +105,9 @@
 		`${label}: median ${size(p50)}, 95% ${size(p95)}. Point at a bar, or use the arrow keys, for its tiles.`
 	);
 	const readout = $derived(hovered === null || !list[hovered] ? summary : describe(list[hovered]));
+	const caption = $derived(
+		hovered === null || !list[hovered] ? `median ${size(p50)}, 95% ${size(p95)}` : describe(list[hovered])
+	);
 
 	function point(event: PointerEvent): void {
 		const box = (event.currentTarget as SVGElement).getBoundingClientRect();
@@ -171,7 +179,7 @@
 			</svg>
 		</div>
 		<!-- Hidden from a screen reader, which hears the same words as the slider's value. -->
-		<figcaption aria-hidden="true">{readout}</figcaption>
+		<figcaption class="readout" aria-hidden="true">{caption}</figcaption>
 	</figure>
 
 	<!-- The chart's twin, for whoever reads tables rather than shapes - and for every count the bars
@@ -254,10 +262,8 @@
 	}
 
 	figcaption {
-		min-height: 1.45em;
 		color: var(--ink-2);
 		font-size: var(--text-xs);
-		font-variant-numeric: tabular-nums;
 	}
 
 	summary {

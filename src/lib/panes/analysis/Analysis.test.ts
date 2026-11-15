@@ -160,6 +160,17 @@ describe('the analysis pane', () => {
 			await fireEvent.keyDown(chart(), { key: 'Escape' });
 			expect(chart().getAttribute('aria-valuetext')).toMatch(/^all levels/);
 		});
+
+		// A caption that wrapped at rest and not on a bar moved the table every time the pointer
+		// crossed onto the chart.
+		it('captions the chart in one line, at rest and on a bar', async () => {
+			const { container } = show({ measurement: measured({ sizes }) });
+			const caption = () => container.querySelector('figcaption')!;
+			expect(caption().classList.contains('readout')).toBe(true);
+			expect(caption().textContent).toBe('median 200 kB, 95% 900 kB');
+			await fireEvent.keyDown(chart(), { key: 'ArrowRight' });
+			expect(caption().textContent).toBe('2 tiles from 185 to 262 kB');
+		});
 	});
 
 	it('frames a tile from the list of the biggest', async () => {

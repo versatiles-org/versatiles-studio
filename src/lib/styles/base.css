@@ -459,6 +459,23 @@ samp {
 }
 
 /*
+ * A readout: a line whose words change while someone is looking at it - what is under the pointer,
+ * the value of a bar - and which must not move what is below it (the invariant in docs/ui.md).
+ *
+ * **One line, always.** A long one is cut rather than wrapped and an empty one keeps its height, so
+ * how tall it is depends on nothing it says. Two facts that do not fit one line are two readouts,
+ * not one that wraps. `1lh` is one line of whatever the readout's font is; a webview without it
+ * still draws a line of text one line high.
+ */
+.readout {
+	min-height: 1lh;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-variant-numeric: tabular-nums;
+}
+
+/*
  * Figures: a table of numbers, read down its columns (S14.2). The first column names the row and
  * reads left; every other column is a number and lines up on the right, in tabular digits, for the
  * reason `input[type='number']` does.

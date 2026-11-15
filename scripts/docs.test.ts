@@ -257,7 +257,8 @@ describe('documentation size', () => {
 		'docs/features.md': 2700,
 		// Raised for the glossary: one thing, five names, and where each is used.
 		// Raised for the Analysis pane's row (S14).
-		'docs/ui.md': 2600,
+		// Raised for the invariant that nothing moves unless the user asked for more or less.
+		'docs/ui.md': 2700,
 		'docs/layers.md': 2300,
 		'docs/ecosystem.md': 2000,
 		// Raised for the second principle. The first had been the only one written down, and the

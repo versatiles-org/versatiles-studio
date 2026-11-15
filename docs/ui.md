@@ -53,6 +53,12 @@ True everywhere. These matter more than the arrangement.
 - **Every pane header says what the pane is about.** The chain alternates scope - Sources and Layers
   span the project, Pipeline, Style and the Inspector follow the selected graph - so the header
   carries either the word _project_ or the graph's name, and keeps carrying it while folded (S10.4).
+- **Nothing moves unless the user asked for more or less.** Opening a disclosure or adding a
+  parameter may grow the layout. Pointing at something, a job's progress and data arriving may not:
+  a caption that wraps to a second line on hover moves the table under it while the pointer is
+  still on the chart. So a hover readout is a `.readout`, one line that never wraps; progress shows
+  at the button that started it while the old results stay where they are; and a row whose value
+  is not known yet is drawn with a dash rather than left out.
 - **Undo is global** ([Q11](decisions.md) → G6).
 - **Jobs are never modal**, and the job bar expands into a drawer with a per-job log. A conversion
   that fails at minute 40 has to say why; a failed job stays until dismissed.
