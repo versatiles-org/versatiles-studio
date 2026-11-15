@@ -11,7 +11,7 @@
 	import TileNavigator from './TileNavigator.svelte';
 	import RasterTile, { type PointedPixel } from './RasterTile.svelte';
 	import PixelHistogram, { type Series } from './PixelHistogram.svelte';
-	import { share as part, step, summarise } from './pixel-stats';
+	import { pixelLines, share as part, step, summarise } from './pixel-stats';
 	import { bytes, kilobytes, count, ordinal } from '../common/format';
 	import type { Dissection } from '../ipc/commands';
 	import { parseAddress, type TileAt } from '../state/tile-dialog.svelte';
@@ -84,6 +84,20 @@
 	const raster = $derived(dissection?.raster ?? null);
 	/// A height as the dialog writes it: to the decimetre, which is what Mapbox's encoding resolves.
 	const metres = (value: number) => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} m`;
+	const pixelReadout = $derived(
+		pixelLines(
+			pointed && raster
+				? {
+						x: pointed.x,
+						y: pointed.y,
+						place: pixelPosition(at.z, at.x, at.y, pointed.x, pointed.y, raster.width),
+						value: pointed.value,
+						height: pointed.metres === null ? null : metres(pointed.metres)
+					}
+				: null,
+			!!raster?.elevation
+		)
+	);
 
 	/// The colour channels as lines, named and coloured for what they are. Alpha is left out: an
 	/// opaque tile's alpha is one spike as tall as the tile, and the facts already say how much shows.
@@ -281,26 +295,14 @@
 								>{/if}
 						</figcaption>
 					{:else if raster}
-						<figcaption>
+						<figcaption class="pixel">
+							<span class="pointed" aria-live="polite">
+								<span class="readout">{pixelReadout[0]}</span>
+								<span class="readout">{pixelReadout[1]}</span>
+							</span>
 							{#if raster.elevation}
 								<label><input type="checkbox" bind:checked={relief} /> Draw the heights</label>
 							{/if}
-							<span aria-live="polite">
-								{#if pointed}
-									Pixel {pointed.x}, {pointed.y} at {pixelPosition(
-										at.z,
-										at.x,
-										at.y,
-										pointed.x,
-										pointed.y,
-										raster.width
-									)}{pointed.value === null ? '' : ` · ${pointed.value}`}{pointed.metres === null
-										? ''
-										: ` · ${metres(pointed.metres)}`}
-								{:else}
-									Point at a pixel for its value{raster.elevation ? ' and height' : ''}.
-								{/if}
-							</span>
 						</figcaption>
 					{/if}
 				</figure>
@@ -746,6 +748,23 @@
 		margin-top: var(--space-2);
 		font-size: var(--text-xs);
 		color: var(--ink-2);
+
+		/* The pixel's two lines beside the switch, never under it: three rows would not fit the room
+		   the square leaves its caption. */
+		&.pixel {
+			flex-wrap: nowrap;
+			align-items: start;
+
+			label {
+				white-space: nowrap;
+			}
+		}
+	}
+
+	.pointed {
+		display: grid;
+		flex: 1 1 auto;
+		min-width: 0;
 	}
 
 	.contents {

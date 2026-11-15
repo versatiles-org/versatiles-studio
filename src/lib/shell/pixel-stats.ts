@@ -37,3 +37,26 @@ export function share(part: number): string {
 	const percent = part * 100;
 	return percent < 1 ? 'under 1%' : `${Math.round(percent)}%`;
 }
+
+/** The pixel under the pointer, with its parts already written as the dialog writes them. */
+export interface PixelParts {
+	x: number;
+	y: number;
+	/** Where it is, such as `52.52°N 13.40°E`. */
+	place: string;
+	value: string | null;
+	height: string | null;
+}
+
+/**
+ * What the tile dialog says about the pixel under the pointer: where it is, then what it holds.
+ *
+ * **Always two lines,** each a `.readout`. As one sentence it wrapped as the pointer crossed the
+ * tile - an address and a height are longer than the hint they replace - and the caption grew out
+ * of the room the square leaves it. Two lines that never wrap are the same height pointed at or not.
+ */
+export function pixelLines(pixel: PixelParts | null, heights: boolean): [string, string] {
+	if (!pixel) return [`Point at a pixel for its value${heights ? ' and height' : ''}.`, ''];
+	const holds = [pixel.value, pixel.height].filter((part) => part !== null).join(' · ');
+	return [`Pixel ${pixel.x}, ${pixel.y} at ${pixel.place}`, holds];
+}
