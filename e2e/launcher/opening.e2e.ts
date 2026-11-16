@@ -10,11 +10,10 @@ import { browser, expect, $, $$ } from '@wdio/globals';
 import { FIXTURE, LAUNCHER, fire, invoke, switchTo, waitForGone } from '../support';
 
 describe('opening a file', () => {
-	it('offers four doors, a place for the recent list, and says what it is', async () => {
+	it('offers three doors, a place for the recent list, and says what it is', async () => {
 		await expect($('h1')).toHaveText('VersaTiles Studio');
 		expect(await $$('button.door strong').map((door) => door.getText())).toEqual([
-			'Open a local file',
-			'Open a remote file',
+			'Open a file',
 			'Open a project folder',
 			'New empty project'
 		]);
@@ -22,13 +21,14 @@ describe('opening a file', () => {
 		// The second column holds its place whether or not anything has been opened yet.
 		await expect($('h2*=Recent')).toBeDisplayed();
 		// The version comes from the core, so the footer is also a check that the bridge answered.
-		await expect($('footer')).toHaveText(expect.stringMatching(/VersaTiles Studio \d+\.\d+\.\d+ · alpha/));
+		await expect($('footer')).toHaveText(expect.stringMatching(/VersaTiles Studio \d+\.\d+\.\d+ · beta/));
 		await expect($('button=github')).toBeDisplayed();
 	});
 
 	it('opens the file in a window of its own, and the launcher gets out of the way', async () => {
-		// What the local-file door does once the file picker has answered. The picker itself is a
-		// window of the operating system and WebDriver cannot see it, so the answer is supplied here.
+		// What the file door does once the file dialog has answered. The dialog is Studio's own now
+		// and could be driven, but this story is about the window that opens, so the answer is
+		// supplied here and the dialog is left to its own tests.
 		await fire('open_in_new_window', { source: FIXTURE });
 		await waitForGone(LAUNCHER);
 

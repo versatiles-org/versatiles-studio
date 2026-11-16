@@ -22,7 +22,8 @@ type Internals = { __TAURI_INTERNALS__: { invoke(command: string, args?: unknown
  *
  * **For what a story is not about.** Driving the UI is the point; this is for the state a story
  * needs to exist before it starts, and for the results of native dialogs, which WebDriver cannot
- * see - a file picker is a window of the operating system, not of the application.
+ * see - a save panel or a folder picker is a window of the operating system, not of the
+ * application. (The file dialog is Studio's own, and can be driven.)
  */
 export async function invoke<T>(command: string, args: Record<string, unknown> = {}): Promise<T> {
 	return browser.execute(
@@ -75,7 +76,7 @@ export async function waitForGone(label: string): Promise<void> {
  *
  * **Every spec starts at the launcher**, because that is the window the driver attaches to - see
  * `wdio.conf.ts`. This is the two gestures that get from there to a workbench, and it stands in for
- * the file picker, which is a window of the operating system and invisible to WebDriver.
+ * the file dialog, which no story here is about - the dialog has tests of its own.
  */
 export async function openProject(): Promise<void> {
 	await switchTo(LAUNCHER);

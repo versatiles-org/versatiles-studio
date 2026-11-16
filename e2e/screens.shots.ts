@@ -36,16 +36,26 @@ async function clickNamed(selector: string, text: string): Promise<void> {
 describe('every surface, photographed', () => {
 	before(() => mkdirSync(SHOTS, { recursive: true }));
 
-	it('the launcher and the remote dialog', async () => {
+	it('the launcher and the file dialog, on each of its tabs', async () => {
 		await switchTo(LAUNCHER);
 		await shot('01-launcher');
-		await $('button.door*=Open a remote file').click();
+		await $('button.door*=Open a file').click();
+		await $('[role="listbox"]').waitForDisplayed({ timeout: 10_000, timeoutMsg: 'the file dialog never appeared' });
+		await shot('02a-file-dialog-this-computer');
+		await clickNamed('[role="tab"]', 'SFTP server');
+		// The sign-in form, or - for a server connected to before - its folder.
+		await $('form.server-form, input[aria-label="Folder"]').waitForDisplayed({
+			timeout: 10_000,
+			timeoutMsg: 'the SFTP tab never showed its form or its folder'
+		});
+		await shot('02b-file-dialog-sftp');
+		await clickNamed('[role="tab"]', 'Web address');
 		await $('input[aria-label="Address of a remote file"]').waitForDisplayed({
 			timeout: 10_000,
-			timeoutMsg: 'it never appeared'
+			timeoutMsg: 'the Web address tab never showed its field'
 		});
 		await browser.pause(1500); // the catalogue
-		await shot('02-launcher-remote-dialog');
+		await shot('02c-file-dialog-web-address');
 		await $('button=Cancel').click();
 	});
 

@@ -14,8 +14,7 @@ describe('a WebdriverIO session against Studio', () => {
 		expect(await browser.getWindowHandles()).toEqual([LAUNCHER]);
 		await expect($('h1')).toBeExisting();
 		expect(await $$('button.door strong').map((door) => door.getText())).toEqual([
-			'Open a local file',
-			'Open a remote file',
+			'Open a file',
 			'Open a project folder',
 			'New empty project'
 		]);
