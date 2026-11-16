@@ -46,8 +46,6 @@
 	   rather than CSS. Deliberately separate from the chrome palette above - a grid over a dark
 	   basemap is a different decision from a focus ring, even where the value matches today. */
 	--map-bg: #f2f1ec; /* the map's background layer, and the element behind the canvas */
-	--map-grid: #000; /* z/x/y grid lines and labels (A5) */
-	--map-grid-halo: #fff7;
 	--map-feature: #2b6cb0; /* the hairline every vector layer gets until D2 */
 	/* A colour per layer in the tile dialog (S14.5), shared by the drawing and the tables so a shape
 	   can be matched to its row. Eight, then they repeat. No red - that is a broken ring - and no
@@ -240,8 +238,6 @@
 		--channel-green: #55a74b;
 		--channel-blue: #5a82e6;
 		--map-bg: #1b1f22;
-		--map-grid: #fff;
-		--map-grid-halo: #0007;
 		--map-feature: #6fa8dc;
 		--layer-1: #74a9e8;
 		--layer-2: #ffa94d;

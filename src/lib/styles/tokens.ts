@@ -13,8 +13,6 @@
 /** The map's own colours, named here so a caller cannot invent a fifth blue. */
 export type MapToken =
 	| '--map-bg'
-	| '--map-grid'
-	| '--map-grid-halo'
 	| '--map-feature'
 	| '--map-pending'
 	| '--map-label'
@@ -69,3 +67,18 @@ export function token(name: MapToken): string {
  * rather than beside the background so every colour the map is given still comes from this folder.
  */
 export const PURE = { black: '#000000', gray: '#808080', white: '#ffffff' } as const;
+
+/**
+ * The tile grid's two tones: dark lines on a light map, light lines on a dark one or on imagery.
+ *
+ * **Chosen, not themed.** The grid followed the window's theme, which says nothing about the map
+ * under it: white lines in a dark window vanished over a white map or a bright satellite tile. What
+ * decides is the tiles, so the user does. The halo is nearly opaque, so a label still reads where
+ * the tiles are the grid's own colour.
+ */
+export const GRID_TONES = {
+	dark: { line: PURE.black, halo: 'rgb(255 255 255 / 0.85)' },
+	light: { line: PURE.white, halo: 'rgb(0 0 0 / 0.85)' }
+} as const;
+
+export type GridTone = keyof typeof GRID_TONES;

@@ -2,8 +2,7 @@
 	import { untrack } from 'svelte';
 	import type { Map as MaplibreMap } from 'maplibre-gl';
 	import { gridFeatures } from './tile-grid';
-	import { token } from '../styles/tokens';
-	import { role } from './theme';
+	import { GRID_TONES, type GridTone } from '../styles/tokens';
 	import { mapOverlay, type Overlay } from './overlay';
 
 	// A5 - the grid of the tiles MapLibre is actually asking for.
@@ -15,14 +14,21 @@
 	//
 	// The source, the layers and putting them back are `mapOverlay`'s ([Q46]); what is left here is
 	// what the grid *is* - which tiles are on screen, and when to ask again.
+	//
+	// **Its colour is a tone the user picks**, not the theme's - see `GRID_TONES`. The labels' halo is
+	// wider than a label elsewhere needs, because these sit on whatever the tiles are.
 	let {
 		map,
 		visible,
 		/** Which zoom level to draw, already resolved from the source and any nudge. */
-		level
-	}: { map: MaplibreMap | undefined; visible: boolean; level: number } = $props();
+		level,
+		tone
+	}: { map: MaplibreMap | undefined; visible: boolean; level: number; tone: GridTone } = $props();
 
 	const SOURCE = 'studio:tile-grid';
+
+	/// `untrack`ed like the level below: the layers are built from it, not owned by it.
+	const colours = () => GRID_TONES[untrack(() => tone)];
 
 	/// Held so a level change redraws rather than rebuilding the overlay, the same split
 	/// `TileActivity` makes: tearing the layers down and adding them again to change one number
@@ -41,14 +47,12 @@
 					id: `${SOURCE}:lines`,
 					type: 'line',
 					source: SOURCE,
-					metadata: role('grid-line'),
-					paint: { 'line-color': token('--map-grid'), 'line-width': 0.7, 'line-opacity': 0.45 }
+					paint: { 'line-color': colours().line, 'line-width': 0.7, 'line-opacity': 0.45 }
 				},
 				{
 					id: `${SOURCE}:labels`,
 					type: 'symbol',
 					source: SOURCE,
-					metadata: role('grid-label'),
 					layout: {
 						'text-field': ['get', 'label'],
 						'text-font': ['noto_sans_regular'],
@@ -56,9 +60,9 @@
 						'symbol-placement': 'point'
 					},
 					paint: {
-						'text-color': token('--map-grid'),
-						'text-halo-color': token('--map-grid-halo'),
-						'text-halo-width': 1.2
+						'text-color': colours().line,
+						'text-halo-color': colours().halo,
+						'text-halo-width': 2
 					}
 				}
 			],
@@ -88,5 +92,16 @@
 	$effect(() => {
 		void level;
 		overlay?.draw();
+	});
+
+	// And a tone is repainted in place, for the same reason.
+	$effect(() => {
+		const { line, halo } = GRID_TONES[tone];
+		if (!map || !overlay) return;
+		if (map.getLayer(`${SOURCE}:lines`)) map.setPaintProperty(`${SOURCE}:lines`, 'line-color', line);
+		if (map.getLayer(`${SOURCE}:labels`)) {
+			map.setPaintProperty(`${SOURCE}:labels`, 'text-color', line);
+			map.setPaintProperty(`${SOURCE}:labels`, 'text-halo-color', halo);
+		}
 	});
 </script>

@@ -175,11 +175,28 @@ describe('the background picker', () => {
 	});
 });
 
+describe('the grid colour', () => {
+	// The window's theme says nothing about the tiles: white lines vanished over a white map.
+	it('switches between a dark and a light grid', () => {
+		const onGridTone = vi.fn();
+		open({ gridTone: 'dark', onGridTone });
+		const tone = screen.getByRole('button', { name: 'Light grid' });
+		expect(tone.getAttribute('aria-pressed')).toBe('false');
+		tone.click();
+		expect(onGridTone).toHaveBeenCalledWith('light');
+		cleanup();
+		open({ gridTone: 'light', onGridTone });
+		expect(screen.getByRole('button', { name: 'Light grid' }).getAttribute('aria-pressed')).toBe('true');
+		screen.getByRole('button', { name: 'Light grid' }).click();
+		expect(onGridTone).toHaveBeenLastCalledWith('dark');
+	});
+});
+
 describe('the grid level stepper', () => {
 	// Off, the cluster is one button doing one thing - which is what it was before this existed.
 	it('is not there while the grid is off', () => {
 		open({ showGrid: false });
-		expect(screen.queryByRole('group', { name: 'Grid zoom level' })).toBeNull();
+		expect(screen.queryByRole('group', { name: 'Grid level and colour' })).toBeNull();
 	});
 
 	it('shows the level the grid is drawing', () => {

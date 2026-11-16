@@ -33,6 +33,8 @@
 	import MapCanvas from './lib/map/MapCanvas.svelte';
 	import FeaturePopup from './lib/map/FeaturePopup.svelte';
 	import TileGrid from './lib/map/TileGrid.svelte';
+	import { theme } from './lib/styles/theme.svelte';
+	import type { GridTone } from './lib/styles/tokens';
 	import HeatMap from './lib/map/HeatMap.svelte';
 	import HeatLegend from './lib/map/HeatLegend.svelte';
 	import { heat, squareLevel } from './lib/state/heat.svelte';
@@ -59,6 +61,9 @@
 	// window is in the module it is about ([Svelte Components](docs/components.md)).
 
 	let showGrid = $state(false);
+	/// The grid's tone, once somebody has picked one; until then the one that suits the window.
+	let pickedGridTone = $state<GridTone | null>(null);
+	const gridTone = $derived<GridTone>(pickedGridTone ?? (theme.dark ? 'light' : 'dark'));
 
 	/// What the heat map is drawn for (S14.3): the selected source as it is built now, and the levels
 	/// its squares can stand for. `null` hides the control - nothing is selected, or nothing built.
@@ -304,7 +309,7 @@
 					if (workbench.selected) void tileDialog.open(workbench.selected.id, z, x, y);
 				}}
 			/>
-			<TileGrid {map} visible={showGrid} level={gridLevel} />
+			<TileGrid {map} visible={showGrid} level={gridLevel} tone={gridTone} />
 			<HeatMap
 				{map}
 				mount={heat.on ? heat.mount : null}
@@ -377,6 +382,8 @@
 					{showGrid}
 					{gridLevel}
 					gridNudged={gridOffset !== 0}
+					{gridTone}
+					onGridTone={(tone) => (pickedGridTone = tone)}
 					canReset={Boolean(composition.editedBuild?.info.bbox)}
 					onBackground={(id) => layout.current && void layout.change({ ...layout.current, background: id })}
 					backgroundLabels={layout.backgroundLabels}

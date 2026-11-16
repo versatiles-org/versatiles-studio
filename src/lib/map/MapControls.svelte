@@ -5,6 +5,7 @@
 	import Dropdown from './Dropdown.svelte';
 	import Icon from '../common/Icon.svelte';
 	import Group from '../common/Group.svelte';
+	import { GRID_TONES, type GridTone } from '../styles/tokens';
 
 	// The controls that act on the map rather than on the pipeline.
 	//
@@ -31,6 +32,8 @@
 		showGrid,
 		gridLevel,
 		gridNudged = false,
+		gridTone = 'dark',
+		onGridTone = () => {},
 		canReset,
 		onBackground,
 		backgroundLabels = true,
@@ -55,6 +58,9 @@
 		gridLevel: number;
 		/** Whether that is off the level MapLibre is actually requesting. */
 		gridNudged?: boolean;
+		/** Whether the grid is drawn dark or light - for a light map or a dark one. */
+		gridTone?: GridTone;
+		onGridTone?: (tone: GridTone) => void;
 		/** False when there is nothing open, so there is no extent to return to. */
 		canReset: boolean;
 		onBackground: (id: BackgroundId) => void;
@@ -224,7 +230,7 @@
 					<!-- Three targets and no mode names, because the offset is not a constant: one level for
 					     a 256px source, nought or one for imagery depending on the zoom, and no single right
 					     answer for a stack whose sources disagree. A nudge covers every case. -->
-					<div class="stepper" role="group" aria-label="Grid zoom level">
+					<div class="stepper" role="group" aria-label="Grid level and colour">
 						<!-- Named, because its − and + sit right above the map's own and step something else:
 						     the grid's level, not the camera's. -->
 						<span class="tag" aria-hidden="true">grid</span>
@@ -243,6 +249,24 @@
 							z{gridLevel}
 						</button>
 						<button type="button" onclick={() => onGridLevel(1)} title="One level in">+</button>
+						<!-- The colour the grid is drawn in, as a swatch: no theme can know whether the tiles
+						     under it are light or dark, so this is the user's. -->
+						<button
+							type="button"
+							class="tone"
+							aria-label="Light grid"
+							aria-pressed={gridTone === 'light'}
+							title={gridTone === 'light'
+								? 'Draw the grid dark, for light maps'
+								: 'Draw the grid light, for dark maps and imagery'}
+							onclick={() => onGridTone(gridTone === 'light' ? 'dark' : 'light')}
+						>
+							<span
+								class="tone-swatch"
+								style:background={GRID_TONES[gridTone].line}
+								style:border-color={GRID_TONES[gridTone].halo}
+							></span>
+						</button>
 					</div>
 				{/if}
 				<button
@@ -481,6 +505,15 @@
 			top: calc(2rem + var(--space-2));
 			right: calc(100% + var(--space-2));
 		}
+	}
+
+	/* The grid's colour, as the colour: a square of the lines' tone edged in its halo's. */
+	.tone-swatch {
+		display: block;
+		width: 0.8rem;
+		height: 0.8rem;
+		border: 2px solid;
+		border-radius: var(--radius);
 	}
 
 	/* One control, not three: the buttons share one border and shadow, so the group reads as a single

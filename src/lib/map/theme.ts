@@ -20,8 +20,6 @@ import { token, type MapToken } from '../styles/tokens';
 /** What a layer is for, as far as colour is concerned. */
 export type LayerRole =
 	| 'background'
-	| 'grid-line'
-	| 'grid-label'
 	| 'container-feature'
 	| 'pending-fill'
 	| 'pending-line'
@@ -42,18 +40,11 @@ type ColourProperty = Extract<keyof AllPaintProperties, `${string}-color`>;
 
 const PAINT: Record<LayerRole, [property: ColourProperty, token: MapToken][]> = {
 	background: [['background-color', '--map-bg']],
-	'grid-line': [['line-color', '--map-grid']],
-	'grid-label': [
-		['text-color', '--map-grid'],
-		['text-halo-color', '--map-grid-halo']
-	],
 	'container-feature': [['line-color', '--map-feature']],
 	// Two roles for one overlay, because a fill and a line take differently named properties and
 	// this table is typed against MapLibre's own names (S2.16).
 	'pending-fill': [['fill-color', '--map-pending']],
 	'pending-line': [['line-color', '--map-pending']],
-	// The halo token is named for the grid and is simply the map's halo - the colour a label needs
-	// behind it to stay legible over arbitrary tiles. Two overlays want it now.
 	'pending-label': [['text-color', '--map-label']],
 	// The edge drawn inside a tile the map gave up on (S2.16).
 	'failed-edge': [['line-color', '--map-failed']],

@@ -46,18 +46,18 @@ Both stylesheets are imported by each page's entry point - `main.ts` and `landin
 
 ## The tokens
 
-| Set      | Tokens                                                                                                                                          |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Colour   | `--ink`, `--ink-2`, `--rule`, `--surface`, `--chrome`, `--accent`, `--accent-ink`                                                               |
-| Semantic | `--error`, `--error-bg`, `--scrim` - behind a modal                                                                                             |
-| Map      | `--map-bg`, `--map-grid`, `--map-grid-halo`, `--map-feature`, `--map-pending`, `--map-label`, `--map-crop-dim`, `--map-crop-edge`, `--float-bg` |
-| Pipeline | `--pipe`, `--pipe-width` - the chain's connectors and its node outlines are one line, so they are one pair of tokens                            |
-| Type     | `--text-xs` 12 · `--text-sm` 13 · `--text-md` 14 (default) · `--text-lg` 17 · `--text-xl` 22, plus `--text-mono-adjust`                         |
-| Syntax   | `--vpl-value` - operation names take the accent; only values need a colour of their own                                                         |
-| Fonts    | `--font-ui`, `--font-mono`                                                                                                                      |
-| Space    | `--space-1` … `--space-6`                                                                                                                       |
-| Rhythm   | `--gap-group`, `--gap-section` - what a gap _separates_ rather than how wide it is, for a pane's own layout                                     |
-| Shape    | `--radius`, `--radius-lg`, `--shadow`, `--focus-width`                                                                                          |
+| Set      | Tokens                                                                                                                  |
+| -------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Colour   | `--ink`, `--ink-2`, `--rule`, `--surface`, `--chrome`, `--accent`, `--accent-ink`                                       |
+| Semantic | `--error`, `--error-bg`, `--scrim` - behind a modal                                                                     |
+| Map      | `--map-bg`, `--map-feature`, `--map-pending`, `--map-label`, `--map-crop-dim`, `--map-crop-edge`, `--float-bg`          |
+| Pipeline | `--pipe`, `--pipe-width` - the chain's connectors and its node outlines are one line, so they are one pair of tokens    |
+| Type     | `--text-xs` 12 · `--text-sm` 13 · `--text-md` 14 (default) · `--text-lg` 17 · `--text-xl` 22, plus `--text-mono-adjust` |
+| Syntax   | `--vpl-value` - operation names take the accent; only values need a colour of their own                                 |
+| Fonts    | `--font-ui`, `--font-mono`                                                                                              |
+| Space    | `--space-1` … `--space-6`                                                                                               |
+| Rhythm   | `--gap-group`, `--gap-section` - what a gap _separates_ rather than how wide it is, for a pane's own layout             |
+| Shape    | `--radius`, `--radius-lg`, `--shadow`, `--focus-width`                                                                  |
 
 Each set is small and closed **on purpose**. That is the whole mechanism: picking from five type sizes is faster than inventing a sixth, so the constraint holds itself up without anyone policing it.
 
@@ -189,7 +189,7 @@ things and shared a name for a release.
 
 Chrome colours follow the theme because they are `var()` references, re-resolved by the browser. Map colours are **values copied into a layer when it is added**, so a layer created under the light theme keeps its light colours forever.
 
-`src/lib/map/theme.ts` re-applies them. Layers declare what they are through `metadata['studio:role']` - `background`, `grid-line`, `grid-label`, `container-feature` - rather than being recognised by their id, because ids encode where a layer came from and would break this whenever a naming scheme changed elsewhere. **A new themed map layer must be tagged with `role()`, or it will not follow the theme.** `MapCanvas` triggers the repaint by reading `theme.dark` from `styles/theme.svelte.ts`.
+`src/lib/map/theme.ts` re-applies them. Layers declare what they are through `metadata['studio:role']` - `background`, `container-feature`, `failed-edge`, … - rather than being recognised by their id, because ids encode where a layer came from and would break this whenever a naming scheme changed elsewhere. **A new themed map layer must be tagged with `role()`, or it will not follow the theme.** `MapCanvas` triggers the repaint by reading `theme.dark` from `styles/theme.svelte.ts`.
 
 The same reason gives layers a second tag. `metadata['studio:mount']` names the mount a layer was added for, so `add-source.ts` can take its own layers off again without matching ids - a mount's name is also the style's source name ([Q32]), so the recipe's layers and Studio's fallback hairlines share both the source and, when one source is drawn, the id.
 
