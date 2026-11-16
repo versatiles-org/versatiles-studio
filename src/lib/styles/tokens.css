@@ -204,9 +204,9 @@
 /*
  * Dark theme.
  *
- * Follows the operating system. There is no in-app switch: a desktop application that disagrees
- * with the system it runs on is the thing users complain about, and an override would need a
- * preference to store and a settings surface to put it in, neither of which exists yet.
+ * Follows the operating system by default, and View → Appearance can pin it to light or dark. The
+ * pin is the window's appearance rather than a class on the page: the core hands it to the platform,
+ * and `prefers-color-scheme` answers for the window - so this block is still the only switch.
  *
  * **Only tokens are redefined here.** No component rule belongs in this block - that is what makes
  * the theme one edit rather than thirteen, and what stops the two themes drifting apart.

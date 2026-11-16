@@ -5,8 +5,8 @@
  * It exists for the map, whose colours are copied into layers rather than referenced, and so has to
  * be told when to re-read them.
  *
- * A single listener for the whole application, registered once at module load. There is no in-app
- * override: see the note in tokens.css.
+ * A single listener for the whole application, registered once at module load. View → Appearance
+ * needs nothing here: it sets the window's appearance, and this query answers for the window.
  */
 
 const query = window.matchMedia('(prefers-color-scheme: dark)');

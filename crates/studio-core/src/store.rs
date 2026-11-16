@@ -30,6 +30,7 @@ const VIEWS_FILE: &str = "views.json";
 /// written.
 const LEGACY_VIEWS_FILE: &str = "bookmarks.json";
 const LAYOUT_FILE: &str = "layout.json";
+const APPEARANCE_FILE: &str = "appearance.json";
 
 // ---------------------------------------------------------------------------------------------
 // Atomic writes
@@ -554,9 +555,64 @@ impl Views {
 	}
 }
 
+// ---------------------------------------------------------------------------------------------
+// Appearance
+// ---------------------------------------------------------------------------------------------
+
+/// Light or dark, or whatever the system is (View → Appearance).
+///
+/// **Application-wide**, unlike the layout: it is about Studio, not about a project, and one menu
+/// on macOS shows one answer for every window. Disposable like the layout - a file that will not
+/// parse is the system's appearance, which is what Studio did before there was a choice.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum Appearance {
+	#[default]
+	System,
+	Light,
+	Dark,
+}
+
+impl Appearance {
+	#[must_use]
+	pub fn load(dir: &Path) -> Self {
+		std::fs::read_to_string(dir.join(APPEARANCE_FILE))
+			.ok()
+			.and_then(|text| serde_json::from_str(&text).ok())
+			.unwrap_or_default()
+	}
+
+	pub fn save(self, dir: &Path) -> Result<()> {
+		write_atomically(
+			&dir.join(APPEARANCE_FILE),
+			&serde_json::to_string(&self).context("serialising the appearance")?,
+		)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn an_appearance_survives_a_round_trip() -> Result<()> {
+		let dir = crate::testing::dir("appearance-roundtrip");
+		assert_eq!(
+			Appearance::load(&dir),
+			Appearance::System,
+			"nothing chosen is the system's"
+		);
+		Appearance::Dark.save(&dir)?;
+		assert_eq!(Appearance::load(&dir), Appearance::Dark);
+		Ok(())
+	}
+
+	#[test]
+	fn a_corrupt_appearance_is_the_systems() {
+		let dir = crate::testing::dir("appearance-corrupt");
+		std::fs::write(dir.join("appearance.json"), "\"purple\"").unwrap();
+		assert_eq!(Appearance::load(&dir), Appearance::System);
+	}
 
 	/// A clean directory per test, so they cannot tread on each other.
 	#[test]

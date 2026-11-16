@@ -18,8 +18,9 @@
 //! happened to have focus.
 
 use anyhow::{Context, Result};
-use tauri::menu::{Menu, MenuId, Submenu, SubmenuBuilder};
-use tauri::{AppHandle, Emitter, Manager, Wry};
+use studio_core::store::Appearance;
+use tauri::menu::{CheckMenuItemBuilder, Menu, MenuId, Submenu, SubmenuBuilder};
+use tauri::{AppHandle, Emitter, Manager, Theme, Wry};
 
 /// What the webview hears when something is chosen. The payload is the item's id.
 pub const EVENT: &str = "studio://menu";
@@ -27,6 +28,15 @@ pub const EVENT: &str = "studio://menu";
 /// The submenus whose items are enabled and disabled, by id, so they can be found again.
 const FILE: &str = "file";
 const HELP: &str = "help";
+const VIEW: &str = "view";
+const APPEARANCE: &str = "appearance";
+
+/// View → Appearance's three items, by id, and what each one chooses.
+const APPEARANCES: [(&str, Appearance); 3] = [
+	("appearance-system", Appearance::System),
+	("appearance-light", Appearance::Light),
+	("appearance-dark", Appearance::Dark),
+];
 
 /// Items whose availability depends on what is open, named once so both ends agree.
 const SAVE_PROJECT: &str = "save-project";
@@ -41,13 +51,13 @@ const CHECK_UPDATES: &str = "check-updates";
 ///
 /// App-wide rather than per-window: on macOS that is the only kind there is, and elsewhere Tauri
 /// gives it to every window that has not asked for one of its own - including windows opened later.
-pub fn install(app: &AppHandle) -> Result<()> {
-	let menu = build(app).context("building the menu")?;
+pub fn install(app: &AppHandle, appearance: Appearance) -> Result<()> {
+	let menu = build(app, appearance).context("building the menu")?;
 	app.set_menu(menu).context("setting the menu")?;
 	Ok(())
 }
 
-fn build(app: &AppHandle) -> Result<Menu<Wry>> {
+fn build(app: &AppHandle, appearance: Appearance) -> Result<Menu<Wry>> {
 	let menu = Menu::new(app)?;
 
 	// The application submenu, which on macOS is the one holding About and Quit. Elsewhere there is
@@ -65,12 +75,15 @@ fn build(app: &AppHandle) -> Result<Menu<Wry>> {
 	// submenu of their own rather than being wedged into File, which is about documents.
 	#[cfg(not(target_os = "macos"))]
 	{
+		menu.append(&view(app, appearance)?)?;
 		menu.append(&tools(app)?)?;
 	}
 
+	// View after Edit, where a Mac puts it.
 	#[cfg(target_os = "macos")]
 	{
 		menu.append(&edit(app)?)?;
+		menu.append(&view(app, appearance)?)?;
 		menu.append(&window(app)?)?;
 	}
 
@@ -142,6 +155,58 @@ fn map(app: &AppHandle) -> Result<Submenu<Wry>> {
 		.build()?;
 	accelerate(&map, "reload-map", "CmdOrCtrl+R")?;
 	Ok(map)
+}
+
+/// How Studio looks: light, dark, or as the system is.
+///
+/// **The window's appearance, not a stylesheet's.** The choice is handed to the platform
+/// ([`apply_appearance`]), and the webview's `prefers-color-scheme` follows it - so the tokens' dark
+/// block, the map's colours that `theme.svelte.ts` re-reads and the native scrollbars all switch the
+/// way they do for the system's own setting, with nothing in the webview knowing there was a choice.
+fn view(app: &AppHandle, current: Appearance) -> Result<Submenu<Wry>> {
+	let item = |index: usize, label: &str| {
+		let (id, value) = APPEARANCES[index];
+		CheckMenuItemBuilder::with_id(id, label)
+			.checked(value == current)
+			.build(app)
+	};
+	let appearance = SubmenuBuilder::with_id(app, APPEARANCE, "Appearance")
+		.item(&item(0, "Use System Setting")?)
+		.separator()
+		.item(&item(1, "Light")?)
+		.item(&item(2, "Dark")?)
+		.build()?;
+	Ok(SubmenuBuilder::with_id(app, VIEW, "View").item(&appearance).build()?)
+}
+
+/// Gives the application the appearance chosen, or the system's for [`Appearance::System`].
+pub fn apply_appearance(app: &AppHandle, appearance: Appearance) {
+	app.set_theme(match appearance {
+		Appearance::System => None,
+		Appearance::Light => Some(Theme::Light),
+		Appearance::Dark => Some(Theme::Dark),
+	});
+}
+
+/// Applies a choice from View → Appearance, ticks it, and keeps it for the next launch.
+fn choose_appearance(app: &AppHandle, appearance: Appearance) -> Result<()> {
+	apply_appearance(app, appearance);
+	// All three set, not just the one chosen: a check item flips itself when clicked, so the one
+	// clicked twice would otherwise end up unticked while still being the choice.
+	let menu = app.menu().context("the application has no menu")?;
+	let view = menu.get(VIEW).context("the menu has no View submenu")?;
+	let view = view.as_submenu().context("View is not a submenu")?;
+	let submenu = view.get(APPEARANCE).context("View has no Appearance submenu")?;
+	let submenu = submenu.as_submenu().context("Appearance is not a submenu")?;
+	for (id, value) in APPEARANCES {
+		let item = submenu.get(id).with_context(|| format!("no menu item {id:?}"))?;
+		item
+			.as_check_menuitem()
+			.with_context(|| format!("{id:?} is not a check item"))?
+			.set_checked(value == appearance)?;
+	}
+	let state = app.state::<crate::state::AppState>();
+	appearance.save(&state.data_dir)
 }
 
 /// What is about Studio rather than about the project. macOS puts these in the application submenu.
@@ -225,6 +290,15 @@ pub fn chosen(app: &AppHandle, id: &MenuId) {
 
 	// Answered here for the same reason as the one below it: showing a file in the file manager is
 	// the shell's errand, and the file is the application's own - no window is involved in either.
+	// The appearance is the application's, not a window's: every window changes with it.
+	if let Some((_, appearance)) = APPEARANCES.iter().find(|(item, _)| *item == id.0) {
+		if let Err(error) = choose_appearance(app, *appearance) {
+			let state = app.state::<crate::state::AppState>();
+			crate::warn(&state.diagnostics, "Could not change the appearance", &error);
+		}
+		return;
+	}
+
 	if id.0 == "show-log" {
 		if let Err(error) = crate::commands::diagnostics::reveal_log(app) {
 			let state = app.state::<crate::state::AppState>();

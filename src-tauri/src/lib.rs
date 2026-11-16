@@ -17,7 +17,7 @@ use state::AppState;
 use studio_core::{
 	diagnostics::{Diagnostics, Level, NewProblem, Origin},
 	server::ServerManager,
-	store::{Layout, Recents, Views},
+	store::{Appearance, Layout, Recents, Views},
 };
 use tokio::sync::Mutex;
 
@@ -257,6 +257,9 @@ pub fn run() {
 			}
 			let recents = Recents::load(&data_dir);
 			let layout = Layout::load(&data_dir);
+			// Before any window opens, so none of them opens in the other appearance and then flips.
+			let appearance = Appearance::load(&data_dir);
+			menu::apply_appearance(app.handle(), appearance);
 			let views = match Views::load(&data_dir) {
 				Ok(loaded) => loaded,
 				Err(error) => {
@@ -288,7 +291,7 @@ pub fn run() {
 
 			// Before any window opens, so the first one gets it on Windows and Linux - where the menu
 			// belongs to a window rather than to the application (S0.1).
-			menu::install(app.handle())?;
+			menu::install(app.handle(), appearance)?;
 
 			// **Nothing is declared in `tauri.conf.json` any more**, so what opens is decided here
 			// (S7.7). A file passed on the command line opens a project window for itself; anything
