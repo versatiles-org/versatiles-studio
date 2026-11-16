@@ -81,3 +81,24 @@ for (const scheme of ['light', 'dark'] as const) {
 		expectAllAnswered(core);
 	});
 }
+
+// A document that arrived after the map was built by `mountAll` alone, which settles nothing: the bar
+// said "Opening osm.versatiles…" for as long as the window was open. With a slow open too, which is
+// what a remote source is, and with the source built once rather than twice.
+for (const delay of [0, 1500]) {
+	test(`settles the status bar once the source is open and drawn, opening in ${delay} ms`, async ({ page }) => {
+		const core = new FakeCore({
+			...OSM_PROJECT,
+			openContainer: async (args) => {
+				await new Promise((resolve) => setTimeout(resolve, delay));
+				return OSM_PROJECT.openContainer!(args);
+			}
+		});
+		await open(page, '/', 'window-1', core);
+		await expect(page.locator('.maplibregl-canvas')).toBeVisible();
+		await expect(page.getByText(/Opening osm\.versatiles/)).toBeVisible();
+		await expect(page.getByText(/Opening osm\.versatiles/)).toBeHidden({ timeout: 10_000 });
+		expect(core.argsOf('mountGraph')).toHaveLength(1);
+		expectAllAnswered(core);
+	});
+}

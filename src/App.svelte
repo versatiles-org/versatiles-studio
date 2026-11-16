@@ -172,6 +172,12 @@
 			// it, so after a reload the inspector had nothing to show about a container the pipeline
 			// was plainly using (A6, A4).
 			await workbench.syncContainers();
+			// **And the graph being edited is built the way every other path builds it**, through the
+			// workbench - which puts its hairlines on the map and settles the "Opening …" the sync just
+			// set. The effect below only does this for a document that is there when the map arrives;
+			// a document arriving after the map was built by `mountAll` alone, and the bar stayed on
+			// "Opening …" for good. With no map yet this returns at once, and the effect takes over.
+			if (document.current) await workbench.refresh();
 			await graphs.mountAll();
 		});
 		void exporting.loadFormats();
