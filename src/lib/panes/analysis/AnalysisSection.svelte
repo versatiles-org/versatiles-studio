@@ -7,11 +7,16 @@
 	import { tileDialog } from '../../state/tile-dialog.svelte';
 	import { scans } from '../../state/contents.svelte';
 	import { document } from '../../state/document.svelte';
+	import { renderableAs } from '../../map/tile-format';
 
 	// The Analysis pane, connected (S14.2): the selected graph's figures, and the build they are about.
 
 	const selected = $derived(workbench.selected);
 	const build = $derived(composition.editedBuild?.tileUrl ?? null);
+	/// Taken as vector until the build has said what its tiles are, so the Layers group does not
+	/// appear only once a vector source has finished building.
+	const info = $derived(composition.editedBuild?.info);
+	const vector = $derived(info ? renderableAs(info.tileFormat) === 'vector' : true);
 </script>
 
 <Analysis
@@ -35,9 +40,9 @@
 		// The edit lands in the open document, which is the selected source's - checked, not assumed.
 		if (selected && document.current?.graph === selected.id) void workbench.appendRepair(drop);
 	}}
+	{vector}
 	heatOn={heat.on}
 	onToggleHeat={() => {
-		const info = composition.editedBuild?.info;
 		if (heat.on) void heat.hide();
 		else if (selected && info) void heat.show(selected.id, build, info.maxZoom);
 	}}

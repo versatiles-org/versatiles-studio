@@ -250,6 +250,14 @@ describe('the heat map switch', () => {
 				.slice(1)
 				.map((row) => row.querySelector('.name')?.textContent);
 
+		// A raster tile has no layers, so there is nothing for the button to read.
+		it('are not offered for a raster source', () => {
+			show({ vector: false, scan: scanned });
+			expect(screen.queryByRole('button', { name: 'Read layers' })).toBeNull();
+			expect(screen.queryByRole('table', { name: 'Layers' })).toBeNull();
+			expect(screen.queryByRole('heading', { name: 'Checks' })).toBeNull();
+		});
+
 		it('reads them only when asked', async () => {
 			const onScan = vi.fn();
 			show({ onScan });

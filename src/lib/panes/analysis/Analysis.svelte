@@ -32,6 +32,7 @@
 		onMeasure,
 		onShowTile,
 		onInspectTile,
+		vector = true,
 		heatOn = false,
 		onToggleHeat,
 		scan,
@@ -50,6 +51,8 @@
 		onShowTile: (z: number, x: number, y: number) => void;
 		/** Opens the tile dialog on a tile (S14.5). */
 		onInspectTile: (z: number, x: number, y: number) => void;
+		/** Whether the source's tiles are vector tiles - `true` until its build says otherwise. */
+		vector?: boolean;
 		/** Whether the heat map is on - the same switch as the one on the map (S14.3). */
 		heatOn?: boolean;
 		onToggleHeat?: () => void;
@@ -237,40 +240,43 @@
 			</Group>
 		{/if}
 
-		<Group title="Layers" action={read}>
-			<span class="visually-hidden" role="status">{scan.running ? 'Decoding tiles…' : ''}</span>
-			{#if scan.error}
-				<Note tone="problem">{scan.error}</Note>
-			{/if}
-			{#if scan.contents}
-				{#if scanStale}
-					<Note tone="aside">Read before the last change to this source.</Note>
+		<!-- Layers and their checks are a vector tile's: a raster one has no layers to read. -->
+		{#if vector}
+			<Group title="Layers" action={read}>
+				<span class="visually-hidden" role="status">{scan.running ? 'Decoding tiles…' : ''}</span>
+				{#if scan.error}
+					<Note tone="problem">{scan.error}</Note>
 				{/if}
-				<LayerShares contents={scan.contents} />
-				{#if scan.contents.sampled}
-					<!-- Disabled rather than gone while reading, so the checks below stay where they are. -->
-					<button type="button" class="link alone" disabled={scan.running} onclick={() => onScan(true)}
-						>Read every tile</button
+				{#if scan.contents}
+					{#if scanStale}
+						<Note tone="aside">Read before the last change to this source.</Note>
+					{/if}
+					<LayerShares contents={scan.contents} />
+					{#if scan.contents.sampled}
+						<!-- Disabled rather than gone while reading, so the checks below stay where they are. -->
+						<button type="button" class="link alone" disabled={scan.running} onclick={() => onScan(true)}
+							>Read every tile</button
+						>
+					{/if}
+				{:else if !scan.error}
+					<Note
+						>Read layers decodes a sample of the tiles the map draws, splits each layer's bytes and checks them against
+						the spec.</Note
 					>
 				{/if}
-			{:else if !scan.error}
-				<Note
-					>Read layers decodes a sample of the tiles the map draws, splits each layer's bytes and checks them against
-					the spec.</Note
-				>
-			{/if}
-		</Group>
-
-		{#if scan.contents}
-			<Group title="Checks">
-				<SpecChecks
-					checks={scan.contents.checks}
-					sampled={scan.contents.sampled}
-					{endsInRepair}
-					onInspect={onInspectTile}
-					{onRepair}
-				/>
 			</Group>
+
+			{#if scan.contents}
+				<Group title="Checks">
+					<SpecChecks
+						checks={scan.contents.checks}
+						sampled={scan.contents.sampled}
+						{endsInRepair}
+						onInspect={onInspectTile}
+						{onRepair}
+					/>
+				</Group>
+			{/if}
 		{/if}
 	{/if}
 </div>
