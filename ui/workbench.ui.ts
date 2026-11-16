@@ -96,7 +96,9 @@ for (const delay of [0, 1500]) {
 		});
 		await open(page, '/', 'window-1', core);
 		await expect(page.locator('.maplibregl-canvas')).toBeVisible();
-		await expect(page.getByText(/Opening osm\.versatiles/)).toBeVisible();
+		// Seen on the way only when the open takes long enough to: an instant one may have settled
+		// before the map is up, and the slow one is what proves the bar says it at all.
+		if (delay > 0) await expect(page.getByText(/Opening osm\.versatiles/)).toBeVisible();
 		await expect(page.getByText(/Opening osm\.versatiles/)).toBeHidden({ timeout: 10_000 });
 		expect(core.argsOf('mountGraph')).toHaveLength(1);
 		expectAllAnswered(core);

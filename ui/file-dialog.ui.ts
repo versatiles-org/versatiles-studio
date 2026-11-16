@@ -110,13 +110,19 @@ test('fades Open while there is nothing to open', async ({ page }) => {
 	await expect(openButton(page)).toHaveCSS('opacity', '1');
 });
 
-// A long folder took all but a few pixels of the headers' height.
+// A long folder took all but a few pixels of the headers' height. Asked of the row against its own
+// content rather than against a number of pixels, which is the fonts' to decide.
 test('keeps the column headers readable above a long folder', async ({ page }) => {
 	await openDialog(page);
-	const name = page.getByRole('button', { name: /^Name/ });
-	await expect(name).toBeVisible();
-	const box = await name.boundingBox();
-	expect(box?.height ?? 0).toBeGreaterThan(14);
+	const head = page.getByRole('group', { name: 'Sort by' });
+	await expect(head.getByRole('button', { name: /^Name/ })).toBeVisible();
+	const [height, content, text] = await head.evaluate((row) => [
+		row.clientHeight,
+		row.scrollHeight,
+		parseFloat(getComputedStyle(row).fontSize)
+	]);
+	expect(height).toBeGreaterThanOrEqual(content);
+	expect(height).toBeGreaterThan(text);
 });
 
 // **WebKit's Tab, which is the app's**: as in Safari, Tab stops at form fields and at what sets its
