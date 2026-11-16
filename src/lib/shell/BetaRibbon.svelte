@@ -3,7 +3,7 @@
 	import { REPOSITORY } from '../common/repository';
 
 	// What state this is in, said once, in the corner (G8-ish: honesty about maturity is cheaper than
-	// a support thread). It links to the repository, because "alpha" is only useful next to somewhere
+	// a support thread). It links to the repository, because "beta" is only useful next to somewhere
 	// to read what that means and file what you found.
 	//
 	// **Opened in the system browser, not here.** A webview that navigated to GitHub would be a
@@ -35,9 +35,9 @@
 	class="ribbon"
 	class:failed
 	onclick={() => void open()}
-	title={failed ? `Could not open a browser - ${REPO}` : `Alpha - read more at ${REPO}`}
+	title={failed ? `Could not open a browser - ${REPO}` : `Beta - read more at ${REPO}`}
 >
-	alpha
+	beta
 </button>
 
 <style>
@@ -52,10 +52,11 @@
 		top: 0;
 		right: 0;
 		z-index: 7;
-		/* 8rem across the diagonal puts the band over the corner and its ends off both edges, so
-		   neither shows a cut. */
-		width: 8rem;
-		transform: translate(2.1rem, 1.35rem) rotate(45deg);
+		/* **Tight in the corner**, so it covers as little of the pane beneath as it can: its middle
+		   about 2rem from the corner along the diagonal, which still leaves "BETA" room between the
+		   edges. 6rem across puts both ends off the window's edges, so neither shows a cut. */
+		width: 6rem;
+		transform: translate(1.6rem, 0.8rem) rotate(45deg);
 		transform-origin: center;
 		padding: var(--space-1) 0;
 		background: var(--accent);

@@ -22,7 +22,7 @@
 	import { PANES, isPaneId, paneDetail } from './lib/panes/registry';
 	import Sidebar from './lib/shell/Sidebar.svelte';
 	import { windowEvents } from './lib/shell/window-events.svelte';
-	import AlphaRibbon from './lib/shell/AlphaRibbon.svelte';
+	import BetaRibbon from './lib/shell/BetaRibbon.svelte';
 	import AssetsDialog from './lib/shell/AssetsDialog.svelte';
 	import UpdateDialog from './lib/shell/UpdateDialog.svelte';
 	import TileDialog from './lib/shell/TileDialog.svelte';
@@ -491,7 +491,7 @@
 {/if}
 
 <!-- Outside the shell, like the modals: it belongs to the window rather than to a cell of the grid. -->
-<AlphaRibbon />
+<BetaRibbon />
 
 <Help />
 
