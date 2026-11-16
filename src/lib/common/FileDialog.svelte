@@ -14,7 +14,7 @@
 		type Opening,
 		type Browsing,
 		type SavedServer,
-		type SftpServer
+		type Server
 	} from '../ipc/commands';
 	import { fetchCatalog, type Shortcut } from './catalog';
 
@@ -22,10 +22,11 @@
 	export interface BrowseApi {
 		places: () => Promise<BrowsePlace[]>;
 		local: (path: string | null) => Promise<BrowseListing>;
-		remote: (server: SftpServer, path: string | null) => Promise<BrowseListing>;
+		/** `password` and `remember` are a WebDAV server's; `null` signs in with the one kept. */
+		remote: (server: Server, path: string | null, password: string | null, remember: boolean) => Promise<BrowseListing>;
 		browsing: () => Promise<Browsing>;
 		remember: (tab: string, folder: string | null, server: SavedServer | null) => Promise<null>;
-		forget: (server: SftpServer) => Promise<null>;
+		forget: (server: Server) => Promise<null>;
 		/** Addresses opened before, most recent first, for the Web address tab. */
 		addresses: () => Promise<string[]>;
 		/** What an address opens as, for the Web address tab's check. */
@@ -47,9 +48,20 @@
 			(await recentSources()).map((entry) => entry.source).filter((source) => /^(https?|sftp):\/\//i.test(source))
 	};
 
-	/** How a server is named in a list: `anna@box.example.org`, with the port when it is not 22. */
-	export const login = (server: SftpServer) =>
-		`${server.user}@${server.host}${server.port === 22 ? '' : `:${server.port}`}`;
+	/**
+	 * How a server is named in a list: `anna@box.example.org`, with the port when it is not 22 - and a
+	 * WebDAV server by its address, without the `https://` every one of them has.
+	 */
+	export const login = (server: Server) =>
+		server.protocol === 'sftp'
+			? `${server.user}@${server.host}${server.port === 22 ? '' : `:${server.port}`}`
+			: `${server.user}@${server.address
+					.trim()
+					.replace(/^https:\/\//i, '')
+					.replace(/\/+$/, '')}`;
+
+	/** What tells two servers apart in the list: an SFTP and a WebDAV login may read the same. */
+	const key = (server: Server) => `${server.protocol}:${login(server)}`;
 </script>
 
 <script lang="ts">
@@ -63,15 +75,16 @@
 	import AddressPanel from './AddressPanel.svelte';
 	import type { FileRequest } from '../state/file-dialog.svelte';
 
-	// Studio's own file dialog: a file on this computer or on an SFTP server, in one look.
+	// Studio's own file dialog: a file on this computer or on an SFTP or WebDAV server, in one look.
 	//
 	// **Not the system's**, because the system's cannot reach a server, and a dialog for each would put
 	// "where is the file" and "which file" in two different places that look nothing alike. Both tabs
 	// list the same way - folders first, the path above, Up beside it - so a server is walked exactly
-	// as a disk is.
+	// as a disk is. **One Server tab for both protocols**, and one list of the servers used before.
 	//
-	// **Signing in is the SSH agent's, `~/.ssh`'s, or a key file's** - never a password, which would
-	// have to be written into the pipeline's text to be used again (see `browse.rs`).
+	// **No password in any URL** (Q73): SFTP signs in through the SSH agent, `~/.ssh` or a key file,
+	// and WebDAV with a password the core keeps for the session, and in the keychain when asked
+	// (`webdav.rs`). The field is emptied once it has signed in, so the webview does not hold it.
 	//
 	// **Nothing moves while it works**: the list is a fixed height and scrolls, and what the dialog
 	// is doing - reading, connecting, why a file was refused - is one line of its own under it.
@@ -91,7 +104,7 @@
 	/// clip polygon or key file cannot.
 	const TABS = $derived([
 		{ id: 'local', label: 'This computer' },
-		{ id: 'remote', label: 'SFTP server' },
+		{ id: 'remote', label: 'Server' },
 		...(request.addresses ? [{ id: 'address', label: 'Web address' }] : [])
 	]);
 
@@ -101,8 +114,21 @@
 	let local = $state<BrowseListing | null>(null);
 	let remote = $state<BrowseListing | null>(null);
 	/// The server the remote tab is browsing, once a connection has listed something.
-	let server = $state<SftpServer | null>(null);
-	let draft = $state({ host: '', port: '22', user: '', identity: '' });
+	let server = $state<Server | null>(null);
+	type Protocol = Server['protocol'];
+	let draft = $state({
+		protocol: 'sftp' as Protocol,
+		host: '',
+		port: '22',
+		user: '',
+		identity: '',
+		address: '',
+		password: '',
+		remember: true
+	});
+	/// Whether the drafted WebDAV server came from the list, so its password may already be kept and
+	/// an empty field signs in with that one rather than with none.
+	let fromList = $state(false);
 	let selected = $state<BrowseEntry | null>(null);
 	/// What each tab is doing, in one line: nothing, working, or why not. **One per tab**, so a local
 	/// folder arriving late cannot wipe out why a server refused, on the tab being looked at.
@@ -148,19 +174,26 @@
 
 	const goLocal = (path: string | null) => load('local', () => api.local(path), path ? `Reading ${path}…` : 'Reading…');
 
-	async function goRemote(to: SftpServer, path: string | null): Promise<void> {
+	async function goRemote(
+		to: Server,
+		path: string | null,
+		password: string | null = null,
+		remember = false
+	): Promise<void> {
 		const listed = await load(
 			'remote',
-			() => api.remote(to, path),
+			() => api.remote(to, path, password, remember),
 			path ? `Reading ${path}…` : `Connecting to ${login(to)}…`
 		);
 		if (!listed) return;
 		server = to;
+		// The core has it now, for this session and the keychain; the webview has no use for it.
+		draft.password = '';
 		// **Kept as soon as it works**, not only once a file is chosen: a server that signed in is
 		// one worth offering next time, even if this visit was to look around. With the folder, so
 		// the next visit starts where this one got to.
 		const saved: SavedServer = { server: to, folder: remote?.path ?? null };
-		servers = [saved, ...servers.filter((each) => login(each.server) !== login(to))];
+		servers = [saved, ...servers.filter((each) => key(each.server) !== key(to))];
 		await api.remember('remote', null, saved).catch(() => null);
 	}
 
@@ -178,19 +211,50 @@
 		await goLocal(null);
 	});
 
-	function fill(from: SftpServer): void {
-		draft = { host: from.host, port: String(from.port), user: from.user, identity: from.identity ?? '' };
+	function fill(from: Server): void {
+		const blank = { ...draft, host: '', port: '22', identity: '', address: '', password: '', remember: true };
+		draft =
+			from.protocol === 'sftp'
+				? {
+						...blank,
+						protocol: 'sftp',
+						host: from.host,
+						port: String(from.port),
+						user: from.user,
+						identity: from.identity ?? ''
+					}
+				: { ...blank, protocol: 'webdav', address: from.address, user: from.user };
+		fromList = from.protocol === 'webdav';
 	}
 
 	function connect(event: SubmitEvent): void {
 		event.preventDefault();
+		if (draft.protocol === 'webdav') {
+			if (!draft.address.trim() || !draft.user.trim()) {
+				say('remote', false, true, 'A WebDAV server needs an address and a user name.');
+				return;
+			}
+			void goRemote(
+				{ protocol: 'webdav', address: draft.address.trim(), user: draft.user.trim() },
+				null,
+				draft.password || null,
+				draft.remember
+			);
+			return;
+		}
 		const port = Number(draft.port.trim() || '22');
 		if (!draft.host.trim() || !draft.user.trim() || !Number.isInteger(port) || port < 1 || port > 65535) {
 			say('remote', false, true, 'A server needs a host, a user name and a port from 1 to 65535.');
 			return;
 		}
 		void goRemote(
-			{ host: draft.host.trim(), port, user: draft.user.trim(), identity: draft.identity.trim() || null },
+			{
+				protocol: 'sftp',
+				host: draft.host.trim(),
+				port,
+				user: draft.user.trim(),
+				identity: draft.identity.trim() || null
+			},
 			null
 		);
 	}
@@ -318,7 +382,7 @@
 			{#if servers.length > 0}
 				<section aria-label="Servers used before">
 					<ul class="servers">
-						{#each servers as saved (login(saved.server))}
+						{#each servers as saved (key(saved.server))}
 							<li>
 								<button type="button" class="server" onclick={() => fill(saved.server)}>
 									<Icon name="server" />
@@ -337,27 +401,70 @@
 				</section>
 			{/if}
 			<form class="server-form" onsubmit={connect}>
-				<Field label="Host"
-					><input
-						bind:value={draft.host}
-						placeholder="storage.example.org"
-						spellcheck="false"
-						autocomplete="off"
-					/></Field
-				>
-				<Field label="Port"><input bind:value={draft.port} inputmode="numeric" autocomplete="off" /></Field>
-				<Field label="User"><input bind:value={draft.user} spellcheck="false" autocomplete="off" /></Field>
-				<Field label="Key file"
-					><input
-						bind:value={draft.identity}
-						placeholder="optional, such as ~/.ssh/id_ed25519"
-						spellcheck="false"
-						autocomplete="off"
-					/></Field
-				>
-				<Note>
-					The SSH agent, <code>~/.ssh/config</code> and your default keys are tried first. Passwords are not supported.
-				</Note>
+				<Field label="Protocol" as="group">
+					<span class="choices" role="radiogroup" aria-label="Protocol">
+						<label class="choice"
+							><input type="radio" bind:group={draft.protocol} value="sftp" onchange={() => (fromList = false)} />
+							SFTP</label
+						>
+						<label class="choice"
+							><input type="radio" bind:group={draft.protocol} value="webdav" onchange={() => (fromList = false)} />
+							WebDAV</label
+						>
+					</span>
+				</Field>
+				{#if draft.protocol === 'sftp'}
+					<Field label="Host"
+						><input
+							bind:value={draft.host}
+							placeholder="storage.example.org"
+							spellcheck="false"
+							autocomplete="off"
+						/></Field
+					>
+					<Field label="Port"><input bind:value={draft.port} inputmode="numeric" autocomplete="off" /></Field>
+					<Field label="User"><input bind:value={draft.user} spellcheck="false" autocomplete="off" /></Field>
+					<Field label="Key file"
+						><input
+							bind:value={draft.identity}
+							placeholder="optional, such as ~/.ssh/id_ed25519"
+							spellcheck="false"
+							autocomplete="off"
+						/></Field
+					>
+					<Note>
+						The SSH agent, <code>~/.ssh/config</code> and your default keys are tried first. SFTP takes no password.
+					</Note>
+				{:else}
+					<Field label="Address"
+						><input
+							bind:value={draft.address}
+							placeholder="cloud.example.org/remote.php/dav/files/anna"
+							spellcheck="false"
+							autocomplete="off"
+						/></Field
+					>
+					<Field label="User"><input bind:value={draft.user} spellcheck="false" autocomplete="off" /></Field>
+					<Field label="Password"
+						><input
+							type="password"
+							bind:value={draft.password}
+							placeholder={fromList ? 'the one kept, if there is one' : ''}
+							autocomplete="off"
+						/></Field
+					>
+					<Field label="Remember"
+						><input
+							type="checkbox"
+							bind:checked={draft.remember}
+							title="Keep the password in this computer's keychain for next time"
+						/></Field
+					>
+					<Note>
+						Over https only. The password is kept in this computer's keychain if you ask - never in a pipeline or a
+						project, which name only the user.
+					</Note>
+				{/if}
 				<div class="toolbar"><button type="submit" class="button" disabled={status.busy}>Connect</button></div>
 			</form>
 		</div>
@@ -491,6 +598,17 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
+	}
+
+	.choices {
+		display: flex;
+		gap: var(--space-4);
+	}
+
+	.choice {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
 	}
 
 	.status {

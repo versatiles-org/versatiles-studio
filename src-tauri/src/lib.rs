@@ -8,6 +8,7 @@ mod assets;
 mod bindings;
 mod commands;
 mod events;
+mod keychain;
 mod menu;
 mod opened;
 mod state;
@@ -180,7 +181,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 /// **stderr *and* the panel.** A developer running `cargo tauri dev` reads the terminal, and a user
 /// with a bundled build has no terminal to read - the `.app` a double-click launches has nowhere for
 /// stderr to go. Neither audience is the other's fallback (S6.8).
-fn warn(diagnostics: &Diagnostics, what: &str, error: &anyhow::Error) {
+pub(crate) fn warn(diagnostics: &Diagnostics, what: &str, error: &anyhow::Error) {
 	eprintln!("{what}: {error:#}");
 	diagnostics.record(NewProblem {
 		level: Level::Warn,
@@ -265,6 +266,8 @@ pub fn run() {
 			let recents = Recents::load(&data_dir);
 			let layout = Layout::load(&data_dir);
 			let browsing = Browsing::load(&data_dir);
+			let passwords = std::sync::Arc::new(studio_core::webdav::Passwords::new(keychain::SystemKeychain));
+			commands::browse::restore_passwords(passwords.clone(), &browsing, diagnostics.clone());
 			// Before any window opens, so none of them opens in the other appearance and then flips.
 			let appearance = Appearance::load(&data_dir);
 			menu::apply_appearance(app.handle(), appearance);
@@ -291,6 +294,7 @@ pub fn run() {
 					layout: Mutex::new(layout),
 					browsing: Mutex::new(browsing),
 					sessions: Default::default(),
+					passwords,
 					// One project per window, each created when its window first asks (S7.1, [Q48]).
 					projects: state::Projects::default(),
 					jobs: studio_core::jobs::Jobs::new(),

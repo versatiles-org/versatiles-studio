@@ -251,7 +251,8 @@ describe('documentation size', () => {
 		// Raised for Q72, which supersedes Q12 and settles where cluster B and a single tile are shown.
 		// Raised for Q73, the file dialog of Studio's own, and why it signs in without passwords.
 		// Raised for Q74, Tab following the platform rather than reaching every button on a Mac.
-		'docs/decisions.md': 6550,
+		// Raised for Q73's WebDAV: how its password stays out of every URL.
+		'docs/decisions.md': 6600,
 		// Raised for Release 6, which records S10 as built and S11 as planned.
 		// Raised for S13, the kit everywhere, which names what every excluded surface had drifted to.
 		// Raised for Release 7, which plans S14: the pane's tables, the heat map and the tile dialog.

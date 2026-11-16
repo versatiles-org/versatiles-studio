@@ -178,6 +178,9 @@ pub struct AppState {
 	pub browsing: Mutex<Browsing>,
 	/// The SFTP connections the file dialog is browsing through, kept between folders.
 	pub sessions: studio_core::browse::RemoteSessions,
+	/// The passwords WebDAV servers are signed in to with (#30): this session's, and the keychain's.
+	/// Shared, because the keychain is asked off the async threads.
+	pub passwords: std::sync::Arc<studio_core::webdav::Passwords>,
 	/// Every open project, one per window ([Q48], S7.1).
 	pub projects: Projects,
 	/// The last preview built for each graph, so an edit that changes nothing rebuilds nothing

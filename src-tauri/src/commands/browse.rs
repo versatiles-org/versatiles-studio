@@ -1,13 +1,16 @@
-//! Studio's own file dialog: folders on this computer and on SFTP servers, and where it was.
+//! Studio's own file dialog: folders on this computer and on SFTP and WebDAV servers, and where it
+//! was.
 //!
-//! The listing is the core's ([`studio_core::browse`]); what is here is where to start - the folder
-//! the dialog was last in, or the home folder - and keeping that for next time.
+//! The listing is the core's ([`studio_core::browse`], [`studio_core::webdav`]); what is here is
+//! where to start - the folder the dialog was last in, or the home folder - keeping that for next
+//! time, and the passwords a WebDAV server is signed in to with.
 
 use crate::state::AppState;
 use serde::Serialize;
 use std::path::PathBuf;
-use studio_core::browse::{Listing, Server};
+use studio_core::browse::{Listing, Server, SftpServer};
 use studio_core::store::{Browsing, SavedServer};
+use studio_core::webdav::{self, Passwords, WebdavServer};
 use tauri::{AppHandle, Manager, State};
 
 /// A folder offered beside the listing, by the name a person knows it by.
@@ -62,39 +65,102 @@ pub async fn browse_local(app: AppHandle, state: State<'_, AppState>, path: Opti
 
 /// Lists a folder on a server - or, given none, the one the dialog was last in there, or the folder
 /// the server signs in to.
+///
+/// `password` and `remember` are a WebDAV server's: what was typed into the dialog's field, and
+/// whether to keep it in the keychain. An empty field signs in with the password this session or the
+/// keychain already has. An SFTP server ignores both (Q73).
 #[tauri::command]
 #[specta::specta]
 pub async fn browse_remote(
 	state: State<'_, AppState>,
 	server: Server,
 	path: Option<String>,
+	password: Option<String>,
+	remember: bool,
 ) -> Result<Listing, String> {
-	if path.is_some() {
-		return state
-			.sessions
-			.list(&server, path.as_deref())
-			.await
-			.map_err(|e| format!("{e:#}"));
-	}
-	let remembered = state
-		.browsing
-		.lock()
-		.await
-		.servers
-		.iter()
-		.find(|saved| same_login(&saved.server, &server))
-		.and_then(|saved| saved.folder.clone());
 	// A remembered folder that has gone since is not worth an error: start where the server does.
+	let remembered = match path {
+		Some(_) => None,
+		None => state
+			.browsing
+			.lock()
+			.await
+			.servers
+			.iter()
+			.find(|saved| saved.server.same_login(&server))
+			.and_then(|saved| saved.folder.clone()),
+	};
+	match server {
+		Server::Sftp(sftp) => list_sftp(&state, &sftp, path, remembered).await,
+		Server::Webdav(webdav) => list_webdav(&state, webdav, path, remembered, password, remember).await,
+	}
+	.map_err(|e| format!("{e:#}"))
+}
+
+async fn list_sftp(
+	state: &AppState,
+	server: &SftpServer,
+	path: Option<String>,
+	remembered: Option<String>,
+) -> anyhow::Result<Listing> {
 	if let Some(folder) = remembered
-		&& let Ok(listing) = state.sessions.list(&server, Some(&folder)).await
+		&& let Ok(listing) = state.sessions.list(server, Some(&folder)).await
 	{
 		return Ok(listing);
 	}
-	state.sessions.list(&server, None).await.map_err(|e| format!("{e:#}"))
+	state.sessions.list(server, path.as_deref()).await
 }
 
-fn same_login(a: &Server, b: &Server) -> bool {
-	a.host == b.host && a.port == b.port && a.user == b.user
+async fn list_webdav(
+	state: &AppState,
+	server: WebdavServer,
+	path: Option<String>,
+	remembered: Option<String>,
+	password: Option<String>,
+	remember: bool,
+) -> anyhow::Result<Listing> {
+	let typed = password.filter(|password| !password.is_empty());
+	let signing = match &typed {
+		Some(password) => Some(password.clone()),
+		// A keychain that cannot be read is a sign-in without a password, which the server answers
+		// with a request for one - more use to the person than the keychain's own error.
+		None => match with_passwords(state, server.clone(), |passwords, server| passwords.password(&server)).await {
+			Ok(found) => found,
+			Err(error) => {
+				crate::warn(&state.diagnostics, "A kept WebDAV password could not be read", &error);
+				None
+			}
+		},
+	};
+	let listing = match remembered {
+		Some(folder) => match webdav::list(&server, signing.as_deref(), Some(&folder)).await {
+			Ok(listing) => Ok(listing),
+			Err(_) => webdav::list(&server, signing.as_deref(), path.as_deref()).await,
+		},
+		None => webdav::list(&server, signing.as_deref(), path.as_deref()).await,
+	}?;
+	// **Kept once it has signed in**, not before: a password the server refused is not one to keep.
+	// The listing stands even if keeping it fails, and the problem log says why.
+	if let Some(password) = typed {
+		let kept = with_passwords(state, server, move |passwords, server| {
+			passwords.signed_in(&server, &password, remember)
+		})
+		.await;
+		if let Err(error) = kept {
+			crate::warn(&state.diagnostics, "The WebDAV password could not be kept", &error);
+		}
+	}
+	Ok(listing)
+}
+
+/// Runs `work` on the passwords off the async threads: a keychain may block, or ask the person.
+async fn with_passwords<T: Send + 'static>(
+	state: &AppState,
+	server: WebdavServer,
+	work: impl FnOnce(&Passwords, WebdavServer) -> anyhow::Result<T> + Send + 'static,
+) -> anyhow::Result<T> {
+	let passwords = state.passwords.clone();
+	tauri::async_runtime::spawn_blocking(move || work(&passwords, server)).await?
 }
 
 /// Where the dialog was, for it to open there again.
@@ -130,13 +196,49 @@ pub async fn remember_browsing(
 	Ok(())
 }
 
-/// Takes a server off the dialog's list.
+/// Takes a server off the dialog's list - and a WebDAV server's password out of this session and
+/// the keychain, since a server forgotten is not one to sign in to again unasked.
 #[tauri::command]
 #[specta::specta]
 pub async fn forget_server(state: State<'_, AppState>, server: Server) -> Result<(), String> {
-	let mut browsing = state.browsing.lock().await;
-	browsing.servers.retain(|saved| !same_login(&saved.server, &server));
-	browsing.save(&state.data_dir).map_err(|e| format!("{e:#}"))
+	{
+		let mut browsing = state.browsing.lock().await;
+		browsing.servers.retain(|saved| !saved.server.same_login(&server));
+		browsing.save(&state.data_dir).map_err(|e| format!("{e:#}"))?;
+	}
+	if let Server::Webdav(webdav) = server {
+		with_passwords(&state, webdav, |passwords, server| passwords.forget(&server))
+			.await
+			.map_err(|e| format!("{e:#}"))?;
+	}
+	Ok(())
+}
+
+/// Hands the passwords kept for the saved WebDAV servers to versatiles-rs, so a source on one opens
+/// without the dialog having been used this session. On a thread of its own: a keychain may ask the
+/// person first, and start-up should not wait for the answer.
+pub fn restore_passwords(
+	passwords: std::sync::Arc<Passwords>,
+	browsing: &Browsing,
+	diagnostics: studio_core::diagnostics::Diagnostics,
+) {
+	let servers: Vec<WebdavServer> = browsing
+		.servers
+		.iter()
+		.filter_map(|saved| match &saved.server {
+			Server::Webdav(webdav) => Some(webdav.clone()),
+			Server::Sftp(_) => None,
+		})
+		.collect();
+	// None saved, no keychain asked - which is also what keeps a test run off the Secret Service.
+	if servers.is_empty() {
+		return;
+	}
+	std::thread::spawn(move || {
+		for error in passwords.restore(&servers) {
+			crate::warn(&diagnostics, "A kept WebDAV password could not be read", &error);
+		}
+	});
 }
 
 /// The key file a saved server signs in with, for a source on it - see [`studio_core::browse::identity_for`].

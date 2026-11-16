@@ -43,6 +43,11 @@ url = "2"
 # so asking it for more bytes than a small document has costs seven seconds of sleeping to learn
 # nothing. Already in the tree through versatiles.
 reqwest = { version = "0.13", default-features = false, features = ["rustls", "http2", "charset"] }
+# A WebDAV folder's `PROPFIND` reply (`webdav.rs`): the XML, its dates, and its percent-encoded
+# links. All three already in the tree, through versatiles and reqwest.
+quick-xml = "0.41"
+httpdate = "1"
+percent-encoding = "2"
 
 # Type reflection for the generated TypeScript bindings (S0.3). Optional, because the core has no
 # other reason to know the binding layer exists - `--features bindings` is only on when generating.

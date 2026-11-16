@@ -1,14 +1,14 @@
 // @vitest-environment jsdom
 
 /**
- * Studio's own file dialog: a file on this computer or on an SFTP server, walked the same way.
+ * Studio's own file dialog: a file on this computer or on an SFTP or WebDAV server, walked the same way.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/svelte';
 import FileDialog, { type BrowseApi } from './FileDialog.svelte';
 import { fileDialog, type FileRequest } from '../state/file-dialog.svelte';
-import type { BrowseEntry, BrowseListing, SftpServer } from '../ipc/commands';
+import type { BrowseEntry, BrowseListing, Server } from '../ipc/commands';
 
 // jsdom has no `showModal`, and `Modal` calls it on mount.
 beforeEach(() => {
@@ -48,7 +48,7 @@ const MAPS: BrowseListing = {
 	parent: '/home/anna',
 	entries: [file('alps.pmtiles', '/home/anna/maps/alps.pmtiles')]
 };
-const BOX: SftpServer = { host: 'box.example.org', port: 23, user: 'anna', identity: null };
+const BOX: Server = { protocol: 'sftp', host: 'box.example.org', port: 23, user: 'anna', identity: null };
 const ON_BOX: BrowseListing = {
 	path: '/home',
 	parent: '/',
@@ -216,7 +216,7 @@ describe('the file dialog on an SFTP server', () => {
 		await vi.waitFor(() => expect((screen.getByLabelText('Host') as HTMLInputElement).value).toBe('box.example.org'));
 		await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
 		await vi.waitFor(() => expect(row('reunion.versatiles')).toBeTruthy());
-		expect(api.remote).toHaveBeenCalledWith(BOX, null);
+		expect(api.remote).toHaveBeenCalledWith(BOX, null, null, false);
 		expect(screen.getByText('anna@box.example.org:23')).toBeTruthy();
 		// Kept as soon as the connection works, with the folder it is in - not only once a file is chosen.
 		expect(api.remember).toHaveBeenCalledWith('remote', null, { server: BOX, folder: '/home' });
@@ -231,7 +231,7 @@ describe('the file dialog on an SFTP server', () => {
 	it('takes a key file, and says why a connection failed without leaving the form', async () => {
 		const remote = vi.fn().mockRejectedValue('SSH handshake with box.example.org:22 failed');
 		const { api } = show({ api: { remote } });
-		await fireEvent.click(await screen.findByRole('tab', { name: 'SFTP server' }));
+		await fireEvent.click(await screen.findByRole('tab', { name: 'Server' }));
 		await fireEvent.input(screen.getByLabelText('Host'), { target: { value: 'box.example.org' } });
 		await fireEvent.input(screen.getByLabelText('User'), { target: { value: 'anna' } });
 		await fireEvent.input(screen.getByLabelText('Key file'), { target: { value: '~/.ssh/box' } });
@@ -240,8 +240,10 @@ describe('the file dialog on an SFTP server', () => {
 			expect(screen.getByRole('status').textContent).toBe('SSH handshake with box.example.org:22 failed')
 		);
 		expect(remote).toHaveBeenCalledWith(
-			{ host: 'box.example.org', port: 22, user: 'anna', identity: '~/.ssh/box' },
-			null
+			{ protocol: 'sftp', host: 'box.example.org', port: 22, user: 'anna', identity: '~/.ssh/box' },
+			null,
+			null,
+			false
 		);
 		expect(screen.getByLabelText('Host')).toBeTruthy();
 		// A server that did not sign in is not one to offer again.
@@ -250,7 +252,7 @@ describe('the file dialog on an SFTP server', () => {
 
 	it('asks for a host and a user before connecting', async () => {
 		const { api } = show();
-		await fireEvent.click(await screen.findByRole('tab', { name: 'SFTP server' }));
+		await fireEvent.click(await screen.findByRole('tab', { name: 'Server' }));
 		await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
 		expect(screen.getByRole('status').textContent).toMatch(/needs a host, a user name/);
 		expect(api.remote).not.toHaveBeenCalled();
@@ -279,11 +281,132 @@ describe('the file dialog on an SFTP server', () => {
 	});
 });
 
+describe('the file dialog on a WebDAV server', () => {
+	const CLOUD: Server = { protocol: 'webdav', address: 'https://cloud.example.org/dav/', user: 'anna' };
+	const ON_CLOUD: BrowseListing = {
+		path: '/dav',
+		parent: null,
+		entries: [file('alps.pmtiles', 'https://anna@cloud.example.org/dav/alps.pmtiles')]
+	};
+	const field = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
+
+	async function choose(protocol: 'SFTP' | 'WebDAV'): Promise<void> {
+		await fireEvent.click(await screen.findByRole('tab', { name: 'Server' }));
+		await fireEvent.click(screen.getByRole('radio', { name: protocol }));
+	}
+
+	it('signs in with the password typed, keeping it when asked, and hands back a URL without it', async () => {
+		const { api, onAnswer } = show({ api: { remote: vi.fn().mockResolvedValue(ON_CLOUD) } });
+		await choose('WebDAV');
+		expect(screen.queryByLabelText('Host'), 'the SFTP fields go').toBeNull();
+		await fireEvent.input(field('Address'), { target: { value: ' https://cloud.example.org/dav/ ' } });
+		await fireEvent.input(field('User'), { target: { value: 'anna' } });
+		await fireEvent.input(field('Password'), { target: { value: 'secret' } });
+		expect(field('Remember').checked, 'kept unless the person says not to').toBe(true);
+		await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+
+		await vi.waitFor(() => expect(row('alps.pmtiles')).toBeTruthy());
+		expect(api.remote).toHaveBeenCalledWith(CLOUD, null, 'secret', true);
+		expect(api.remember).toHaveBeenCalledWith('remote', null, { server: CLOUD, folder: '/dav' });
+		await fireEvent.dblClick(row('alps.pmtiles'));
+		await vi.waitFor(() => expect(onAnswer).toHaveBeenCalledWith('https://anna@cloud.example.org/dav/alps.pmtiles'));
+	});
+
+	// The core has it once it has signed in; the webview keeps no copy for anyone to find.
+	it('empties the password field once it has signed in, and lists further folders without it', async () => {
+		const remote = vi.fn().mockResolvedValue({
+			...ON_CLOUD,
+			entries: [folder('maps', '/dav/maps'), ...ON_CLOUD.entries]
+		});
+		show({ api: { remote } });
+		await choose('WebDAV');
+		await fireEvent.input(field('Address'), { target: { value: 'cloud.example.org/dav' } });
+		await fireEvent.input(field('User'), { target: { value: 'anna' } });
+		await fireEvent.input(field('Password'), { target: { value: 'secret' } });
+		await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+		await vi.waitFor(() => expect(row('maps')).toBeTruthy());
+
+		await fireEvent.dblClick(row('maps'));
+		await vi.waitFor(() => expect(remote).toHaveBeenCalledTimes(2));
+		expect(remote).toHaveBeenLastCalledWith(
+			{ protocol: 'webdav', address: 'cloud.example.org/dav', user: 'anna' },
+			'/dav/maps',
+			null,
+			false
+		);
+		await fireEvent.click(screen.getByRole('button', { name: 'Disconnect' }));
+		expect(field('Password').value).toBe('');
+	});
+
+	it('fills in a saved server, where an empty password means the one kept', async () => {
+		const { api } = show({
+			api: {
+				browsing: vi
+					.fn()
+					.mockResolvedValue({ tab: 'remote', folder: null, servers: [{ server: CLOUD, folder: null }] }),
+				remote: vi.fn().mockResolvedValue(ON_CLOUD)
+			}
+		});
+		await vi.waitFor(() => expect(field('Address').value).toBe('https://cloud.example.org/dav/'));
+		expect((screen.getByRole('radio', { name: 'WebDAV' }) as HTMLInputElement).checked).toBe(true);
+		expect(field('Password').placeholder).toMatch(/the one kept/);
+		expect(screen.getByRole('button', { name: 'anna@cloud.example.org/dav' })).toBeTruthy();
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+		await vi.waitFor(() => expect(api.remote).toHaveBeenCalledWith(CLOUD, null, null, true));
+	});
+
+	it('says why a sign-in was refused, and stays on the form', async () => {
+		const remote = vi.fn().mockRejectedValue('cloud.example.org did not accept the password for anna.');
+		const { api } = show({ api: { remote } });
+		await choose('WebDAV');
+		await fireEvent.input(field('Address'), { target: { value: 'cloud.example.org/dav' } });
+		await fireEvent.input(field('User'), { target: { value: 'anna' } });
+		await fireEvent.input(field('Password'), { target: { value: 'wrong' } });
+		await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+		await vi.waitFor(() => expect(screen.getByRole('status').textContent).toMatch(/did not accept the password/));
+		expect(field('Address')).toBeTruthy();
+		expect(api.remember).not.toHaveBeenCalled();
+	});
+
+	it('asks for an address and a user before signing in', async () => {
+		const { api } = show();
+		await choose('WebDAV');
+		await fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+		expect(screen.getByRole('status').textContent).toMatch(/needs an address and a user name/);
+		expect(api.remote).not.toHaveBeenCalled();
+	});
+
+	// One list for both, and a WebDAV server forgotten takes its password with it (the core's half).
+	it('lists SFTP and WebDAV servers together, and forgets one', async () => {
+		const { api } = show({
+			api: {
+				browsing: vi.fn().mockResolvedValue({
+					tab: 'remote',
+					folder: null,
+					servers: [
+						{ server: CLOUD, folder: null },
+						{ server: BOX, folder: null }
+					]
+				})
+			}
+		});
+		await screen.findByRole('button', { name: 'anna@box.example.org:23' });
+		await fireEvent.click(screen.getByRole('button', { name: 'Forget anna@cloud.example.org/dav' }));
+		expect(api.forget).toHaveBeenCalledWith(CLOUD);
+		await vi.waitFor(() => expect(screen.queryByRole('button', { name: 'anna@cloud.example.org/dav' })).toBeNull());
+
+		// Back to SFTP from the list: its own fields, filled in.
+		await fireEvent.click(screen.getByRole('button', { name: 'anna@box.example.org:23' }));
+		expect(field('Host').value).toBe('box.example.org');
+	});
+});
+
 describe('the file dialog on the web', () => {
 	// A node's clip polygon is not something an address can be; a source is.
 	it('offers a Web address tab only where an address can be opened', async () => {
 		show();
-		await screen.findByRole('tab', { name: 'SFTP server' });
+		await screen.findByRole('tab', { name: 'Server' });
 		expect(screen.queryByRole('tab', { name: 'Web address' })).toBeNull();
 		cleanup();
 

@@ -1,17 +1,18 @@
-//! Folders listed for Studio's own file dialog - on this computer, or on an SFTP server.
+//! Folders listed for Studio's own file dialog - on this computer, or on an SFTP or WebDAV server.
 //!
-//! **One shape for both**, because the dialog is one dialog: a tab for this computer and one for a
-//! server, drawn the same and walked the same. A [`Listing`] is a folder and what is in it, and every
-//! [`Entry`] carries the `location` that choosing it hands back - a path, or an `sftp://` URL - so
-//! the webview never builds either and cannot get one wrong.
+//! **One shape for all three**, because the dialog is one dialog: a tab for this computer and one for
+//! a server, drawn the same and walked the same. A [`Listing`] is a folder and what is in it, and
+//! every [`Entry`] carries the `location` that choosing it hands back - a path, an `sftp://` URL or
+//! an `https://` one - so the webview never builds any of them and cannot get one wrong.
 //!
 //! **Hidden files are not listed.** A name starting with a dot is configuration, not data, and a
 //! home folder lists more of those than of anything worth opening. A folder can still be typed.
 //!
-//! **Signing in is versatiles-rs's.** A [`Server`] names a host, a user and at most a key file; the
-//! SSH agent, `~/.ssh/config` and the default keys are tried by `sftp_utils::open_session` without
-//! being asked. No password is ever held here: one in an `sftp://` URL would be written into the
-//! pipeline's text, the project and the recents.
+//! **Signing in to SFTP is versatiles-rs's.** An [`SftpServer`] names a host, a user and at most a
+//! key file; the SSH agent, `~/.ssh/config` and the default keys are tried by
+//! `sftp_utils::open_session` without being asked. No password is ever held for one: one in an
+//! `sftp://` URL would be written into the pipeline's text, the project and the recents. WebDAV is
+//! signed in to with a password, kept out of every URL by [`crate::webdav`].
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
@@ -52,11 +53,39 @@ pub struct Listing {
 	pub entries: Vec<Entry>,
 }
 
+/// A server the dialog browses, by how it is reached.
+///
+/// **One type for both**, so the dialog keeps one list of the servers it has used rather than one
+/// per protocol, and a saved server says which it is. Tagged in its JSON, `"protocol": "sftp"`: a
+/// server saved before WebDAV existed has no tag, and `store::Browsing::load` gives it this one.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(tag = "protocol", rename_all = "lowercase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub enum Server {
+	Sftp(SftpServer),
+	Webdav(crate::webdav::WebdavServer),
+}
+
+impl Server {
+	/// Whether two servers are the same login, whatever else differs - the key file, say - so a
+	/// server used again replaces its entry in the list rather than appearing twice.
+	#[must_use]
+	pub fn same_login(&self, other: &Server) -> bool {
+		match (self, other) {
+			(Server::Sftp(a), Server::Sftp(b)) => {
+				a.host.trim() == b.host.trim() && a.port == b.port && a.user.trim() == b.user.trim()
+			}
+			(Server::Webdav(a), Server::Webdav(b)) => a.same_login(b),
+			_ => false,
+		}
+	}
+}
+
 /// An SFTP server, as the dialog connects to it.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "bindings", derive(specta::Type))]
-pub struct Server {
+pub struct SftpServer {
 	pub host: String,
 	pub port: u16,
 	pub user: String,
@@ -64,7 +93,7 @@ pub struct Server {
 	pub identity: Option<String>,
 }
 
-impl Server {
+impl SftpServer {
 	/// The `sftp://` URL of a path on this server - never with a password, since there is none.
 	pub fn url(&self, path: &str) -> Result<Url> {
 		let mut url = Url::parse(&format!("sftp://{}", self.host.trim()))
@@ -126,8 +155,11 @@ impl Server {
 pub fn identity_for<'a>(location: &str, servers: impl IntoIterator<Item = &'a Server>) -> Option<String> {
 	servers
 		.into_iter()
-		.find(|server| server.serves(location))
-		.and_then(Server::identity_path)
+		.find_map(|server| match server {
+			Server::Sftp(sftp) if sftp.serves(location) => Some(sftp),
+			_ => None,
+		})
+		.and_then(SftpServer::identity_path)
 }
 
 /// Lists a folder on this computer.
@@ -165,7 +197,7 @@ pub fn list_local(dir: &Path) -> Result<Listing> {
 }
 
 /// Folders first, then by name as a person reads it: case aside.
-fn sort(entries: &mut [Entry]) {
+pub(crate) fn sort(entries: &mut [Entry]) {
 	entries.sort_by(|a, b| {
 		b.folder
 			.cmp(&a.folder)
@@ -174,12 +206,12 @@ fn sort(entries: &mut [Entry]) {
 	});
 }
 
-fn seconds(time: SystemTime) -> Option<u64> {
+pub(crate) fn seconds(time: SystemTime) -> Option<u64> {
 	time.duration_since(UNIX_EPOCH).ok().map(|since| since.as_secs())
 }
 
 /// The folder above a remote one, or `None` at `/`.
-fn remote_parent(path: &str) -> Option<String> {
+pub(crate) fn remote_parent(path: &str) -> Option<String> {
 	let trimmed = path.trim_end_matches('/');
 	if trimmed.is_empty() {
 		return None;
@@ -222,7 +254,7 @@ pub struct RemoteSessions {
 
 impl RemoteSessions {
 	/// Lists a folder on a server, or the folder it signs in to when `path` is `None`.
-	pub async fn list(&self, server: &Server, path: Option<&str>) -> Result<Listing> {
+	pub async fn list(&self, server: &SftpServer, path: Option<&str>) -> Result<Listing> {
 		let key = server.key();
 		let mut held = self.held.lock().await;
 		held.retain(|_, each| each.used.elapsed() < IDLE);
@@ -254,7 +286,7 @@ impl RemoteSessions {
 	}
 }
 
-async fn connect(server: &Server) -> Result<Held> {
+async fn connect(server: &SftpServer) -> Result<Held> {
 	let url = server.url("/")?;
 	let identity = server.identity_path();
 	let handle = sftp_utils::open_session(&url, identity.as_deref().map(Path::new)).await?;
@@ -266,7 +298,7 @@ async fn connect(server: &Server) -> Result<Held> {
 	})
 }
 
-async fn list_remote(server: &Server, sftp: &Sftp, path: Option<&str>) -> Result<Listing> {
+async fn list_remote(server: &SftpServer, sftp: &Sftp, path: Option<&str>) -> Result<Listing> {
 	// Where the server puts someone who signs in, when nothing more particular was asked for.
 	let dir = match path {
 		Some(path) if !path.trim().is_empty() => path.trim().to_string(),
@@ -320,8 +352,8 @@ async fn list_remote(server: &Server, sftp: &Sftp, path: Option<&str>) -> Result
 mod tests {
 	use super::*;
 
-	fn server(identity: Option<&str>) -> Server {
-		Server {
+	fn server(identity: Option<&str>) -> SftpServer {
+		SftpServer {
 			host: "box.example.org".into(),
 			port: 23,
 			user: "anna".into(),
@@ -336,7 +368,7 @@ mod tests {
 			url.as_str(),
 			"sftp://anna@box.example.org:23/home/maps/la%20r%C3%A9union.versatiles"
 		);
-		let default_port = Server {
+		let default_port = SftpServer {
 			port: 22,
 			..server(None)
 		};
@@ -348,11 +380,11 @@ mod tests {
 	#[test]
 	fn a_url_finds_the_key_of_the_server_it_is_on() {
 		let servers = [
-			server(Some("/keys/box")),
-			Server {
+			Server::Sftp(server(Some("/keys/box"))),
+			Server::Sftp(SftpServer {
 				user: "ben".into(),
 				..server(Some("/keys/ben"))
-			},
+			}),
 		];
 		assert_eq!(
 			identity_for("sftp://anna@box.example.org:23/x.versatiles", &servers).as_deref(),
@@ -369,7 +401,10 @@ mod tests {
 			None
 		);
 		assert_eq!(identity_for("/home/anna/x.versatiles", &servers), None);
-		assert_eq!(identity_for("sftp://anna@box.example.org:23/x", &[server(None)]), None);
+		assert_eq!(
+			identity_for("sftp://anna@box.example.org:23/x", &[Server::Sftp(server(None))]),
+			None
+		);
 	}
 
 	#[test]
@@ -433,7 +468,7 @@ mod tests {
 		struct Connected {
 			_handle: SshHandle,
 			sftp: Sftp,
-			server: Server,
+			server: SftpServer,
 		}
 
 		async fn connect(test: &TestSftpServer) -> Connected {
@@ -442,7 +477,7 @@ mod tests {
 				.await
 				.expect("signing in to the test server");
 			let sftp = sftp_utils::open_sftp(&handle).await.expect("opening SFTP");
-			let server = Server {
+			let server = SftpServer {
 				host: "127.0.0.1".into(),
 				port: url.port().expect("the test server's port"),
 				user: "testuser".into(),

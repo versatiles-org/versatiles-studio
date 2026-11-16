@@ -90,7 +90,8 @@ versatiles-studio/
 │           ├── dissect.rs      one drawn tile, taken apart               (A4, Q72)
 │           ├── assets.rs       install, pin, verify; glyph generation    (G7, D9)
 │           ├── paths.rs        the guard on a path assembled from data
-│           ├── browse.rs       folders for the file dialog, local and SFTP
+│           ├── browse.rs       folders for the file dialog, local and SFTP (Q73)
+│           ├── webdav.rs       WebDAV folders, and the passwords for them (Q73)
 │           ├── store.rs        recents and named views, outliving a window (A7, Q21)
 │           └── server.rs       embedded server lifecycle, named mounts   (Q16)
 │
@@ -111,6 +112,7 @@ versatiles-studio/
 │       ├── assets.rs           locating the bundled tier                 (S0.6)
 │       ├── bindings.rs         generating bindings.ts from the commands  (S0.3)
 │       ├── ui_fixtures.rs      the core's answers for the UI suite's fake core
+│       ├── keychain.rs         the system keychain, for WebDAV passwords (Q73)
 │       └── state.rs            state owned by the Tauri process
 │
 ├── public/

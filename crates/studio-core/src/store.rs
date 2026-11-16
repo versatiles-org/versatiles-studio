@@ -626,7 +626,9 @@ impl Browsing {
 	pub fn load(dir: &Path) -> Self {
 		std::fs::read_to_string(dir.join(BROWSING_FILE))
 			.ok()
-			.and_then(|text| serde_json::from_str(&text).ok())
+			.and_then(|text| serde_json::from_str::<serde_json::Value>(&text).ok())
+			.map(tag_sftp_servers)
+			.and_then(|value| serde_json::from_value(value).ok())
 			.unwrap_or_default()
 	}
 
@@ -639,12 +641,26 @@ impl Browsing {
 
 	/// Puts a server first, with the folder it is now in - replacing an entry for the same login.
 	pub fn record(&mut self, server: crate::browse::Server, folder: Option<String>) {
-		self.servers.retain(|saved| {
-			!(saved.server.host == server.host && saved.server.port == server.port && saved.server.user == server.user)
-		});
+		self.servers.retain(|saved| !saved.server.same_login(&server));
 		self.servers.insert(0, SavedServer { server, folder });
 		self.servers.truncate(SERVERS_CAPACITY);
 	}
+}
+
+/// Gives a server saved before there was more than one protocol the one it was: SFTP.
+///
+/// **Here, not in the type,** because serde's tagged enums take no default tag - and losing every
+/// saved server to an upgrade is what "disposable" was never meant to cover.
+fn tag_sftp_servers(mut browsing: serde_json::Value) -> serde_json::Value {
+	let servers = browsing.get_mut("servers").and_then(serde_json::Value::as_array_mut);
+	for saved in servers.into_iter().flatten() {
+		if let Some(server) = saved.get_mut("server").and_then(serde_json::Value::as_object_mut)
+			&& !server.contains_key("protocol")
+		{
+			server.insert("protocol".into(), "sftp".into());
+		}
+	}
+	browsing
 }
 
 #[cfg(test)]
@@ -652,12 +668,57 @@ mod tests {
 	use super::*;
 
 	fn login(host: &str, user: &str) -> crate::browse::Server {
-		crate::browse::Server {
+		crate::browse::Server::Sftp(crate::browse::SftpServer {
 			host: host.into(),
 			port: 22,
 			user: user.into(),
 			identity: None,
+		})
+	}
+
+	fn host(saved: &SavedServer) -> &str {
+		match &saved.server {
+			crate::browse::Server::Sftp(sftp) => &sftp.host,
+			crate::browse::Server::Webdav(webdav) => &webdav.address,
 		}
+	}
+
+	/// Saved servers from before WebDAV have no `protocol`. They are SFTP servers, and an upgrade must
+	/// not lose them - nor the WebDAV ones saved beside them since.
+	#[test]
+	fn servers_saved_before_webdav_come_back_as_sftp() {
+		let dir = crate::testing::dir("browsing-untagged");
+		std::fs::write(
+			dir.join("browsing.json"),
+			r#"{"tab":"remote","folder":null,"servers":[
+				{"server":{"host":"box.example","port":23,"user":"anna","identity":null},"folder":"/maps"},
+				{"server":{"protocol":"webdav","address":"https://cloud.example/dav/","user":"anna"},"folder":null}
+			]}"#,
+		)
+		.unwrap();
+		let loaded = Browsing::load(&dir);
+		assert_eq!(loaded.servers.len(), 2);
+		assert!(matches!(&loaded.servers[0].server, crate::browse::Server::Sftp(sftp) if sftp.port == 23));
+		assert_eq!(loaded.servers[0].folder.as_deref(), Some("/maps"));
+		assert!(matches!(&loaded.servers[1].server, crate::browse::Server::Webdav(_)));
+	}
+
+	/// A WebDAV server and an SFTP one on the same host are two logins, and neither replaces the other.
+	#[test]
+	fn a_webdav_server_and_an_sftp_server_are_kept_apart() {
+		let mut browsing = Browsing::default();
+		browsing.record(login("cloud.example", "anna"), None);
+		let webdav = || {
+			crate::browse::Server::Webdav(crate::webdav::WebdavServer {
+				address: "cloud.example/dav".into(),
+				user: "anna".into(),
+			})
+		};
+		browsing.record(webdav(), None);
+		browsing.record(webdav(), Some("/dav/maps".into()));
+		let hosts: Vec<_> = browsing.servers.iter().map(host).collect();
+		assert_eq!(hosts, ["cloud.example/dav", "cloud.example"]);
+		assert_eq!(browsing.servers[0].folder.as_deref(), Some("/dav/maps"));
 	}
 
 	#[test]
@@ -676,7 +737,7 @@ mod tests {
 		browsing.save(&dir)?;
 
 		let loaded = Browsing::load(&dir);
-		let hosts: Vec<_> = loaded.servers.iter().map(|saved| saved.server.host.as_str()).collect();
+		let hosts: Vec<_> = loaded.servers.iter().map(host).collect();
 		assert_eq!(hosts, ["a.example", "b.example"]);
 		assert_eq!(loaded.servers[0].folder.as_deref(), Some("/tiles"));
 		assert_eq!(loaded, browsing);

@@ -271,8 +271,12 @@ export const commands = {
 	/**
 	 *  Lists a folder on a server - or, given none, the one the dialog was last in there, or the folder
 	 *  the server signs in to.
+	 * 
+	 *  `password` and `remember` are a WebDAV server's: what was typed into the dialog's field, and
+	 *  whether to keep it in the keychain. An empty field signs in with the password this session or the
+	 *  keychain already has. An SFTP server ignores both (Q73).
 	 */
-	browseRemote: (server: Server, path: string | null) => typedError<Listing, string>(__TAURI_INVOKE("browse_remote", { server, path })),
+	browseRemote: (server: Server, path: string | null, password: string | null, remember: boolean) => typedError<Listing, string>(__TAURI_INVOKE("browse_remote", { server, path, password, remember })),
 	/**  Where the dialog was, for it to open there again. */
 	browsing: () => typedError<Browsing, string>(__TAURI_INVOKE("browsing")),
 	/**
@@ -285,7 +289,10 @@ export const commands = {
 	server: Server,
 	folder: string | null,
 } | null) => typedError<null, string>(__TAURI_INVOKE("remember_browsing", { tab, folder, server })),
-	/**  Takes a server off the dialog's list. */
+	/**
+	 *  Takes a server off the dialog's list - and a WebDAV server's password out of this session and
+	 *  the keychain, since a server forgotten is not one to sign in to again unasked.
+	 */
 	forgetServer: (server: Server) => typedError<null, string>(__TAURI_INVOKE("forget_server", { server })),
 	listViews: () => typedError<View[], string>(__TAURI_INVOKE("list_views")),
 	/**  Saves a view, replacing any of the same name. */
@@ -2749,8 +2756,21 @@ export type Segment_Serialize = {
 	from?: string | null,
 };
 
-/**  An SFTP server, as the dialog connects to it. */
+/**
+ *  A server the dialog browses, by how it is reached.
+ * 
+ *  **One type for both**, so the dialog keeps one list of the servers it has used rather than one
+ *  per protocol, and a saved server says which it is. Tagged in its JSON, `"protocol": "sftp"`: a
+ *  server saved before WebDAV existed has no tag, and `store::Browsing::load` gives it this one.
+ */
 export type Server = {
+	protocol: "sftp",
+} & SftpServer | {
+	protocol: "webdav",
+} & WebdavServer;
+
+/**  An SFTP server, as the dialog connects to it. */
+export type SftpServer = {
 	host: string,
 	port: number,
 	user: string,
@@ -2985,6 +3005,16 @@ export type View = {
 export type VplError = {
 	message: string,
 	span: Span,
+};
+
+/**  A WebDAV server, as the dialog signs in to it. */
+export type WebdavServer = {
+	/**
+	 *  The folder to start in, as it was typed: `https://cloud.example.org/remote.php/dav/files/anna/`.
+	 *  Nextcloud and ownCloud serve nothing above a user's own folder, so this is also the top.
+	 */
+	address: string,
+	user: string,
 };
 
 /* Tauri Specta runtime */

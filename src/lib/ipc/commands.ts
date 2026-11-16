@@ -77,7 +77,9 @@ export type {
 	Listing as BrowseListing,
 	Place as BrowsePlace,
 	SavedServer,
-	Server as SftpServer,
+	Server,
+	SftpServer,
+	WebdavServer,
 	SourceKind,
 	Hillshade_Serialize as Hillshade,
 	DemEncoding,
@@ -416,8 +418,14 @@ export const browsePlaces = () => commands.browsePlaces();
 /** A folder on this computer, or - given `null` - the one the dialog was last in, or home. */
 export const browseLocal = (path: string | null) => unwrap(commands.browseLocal(path));
 
-/** A folder on a server, or - given `null` - the one last browsed there, or where it signs in to. */
-export const browseRemote = (server: Server, path: string | null) => unwrap(commands.browseRemote(server, path));
+/**
+ * A folder on a server, or - given `null` - the one last browsed there, or where it signs in to.
+ *
+ * `password` and `remember` are for a WebDAV server: what was typed, `null` to sign in with the one
+ * already kept, and whether to keep it in the keychain.
+ */
+export const browseRemote = (server: Server, path: string | null, password: string | null = null, remember = false) =>
+	unwrap(commands.browseRemote(server, path, password, remember));
 
 /** Where the file dialog was, and the servers it knows. */
 export const browsing = () => unwrap(commands.browsing());

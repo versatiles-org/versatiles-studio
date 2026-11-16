@@ -53,6 +53,7 @@ pub mod tabular;
 #[cfg(test)]
 mod testing;
 pub mod vpl;
+pub mod webdav;
 
 #[cfg(test)]
 mod identity_tests {

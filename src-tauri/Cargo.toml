@@ -47,6 +47,9 @@ tokio.workspace = true
 tauri-plugin-updater = "2.14.1"
 tauri-plugin-process = "2.4.0"
 tauri-plugin-opener = "2.7.3"
+# The WebDAV passwords a person asks Studio to keep (#30): Keychain, Credential Manager, or the
+# Secret Service - through `zbus`, already in the tree, so Linux needs no libdbus to build.
+keyring = "4.2"
 tauri-plugin-wdio-webdriver = { version = "1.5", optional = true }
 
 [lints.clippy]

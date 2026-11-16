@@ -42,11 +42,11 @@ describe('every surface, photographed', () => {
 		await $('button.door*=Open a file').click();
 		await $('[role="listbox"]').waitForDisplayed({ timeout: 10_000, timeoutMsg: 'the file dialog never appeared' });
 		await shot('02a-file-dialog-this-computer');
-		await clickNamed('[role="tab"]', 'SFTP server');
+		await clickNamed('[role="tab"]', 'Server');
 		// The sign-in form, or - for a server connected to before - its folder.
 		await $('form.server-form, input[aria-label="Folder"]').waitForDisplayed({
 			timeout: 10_000,
-			timeoutMsg: 'the SFTP tab never showed its form or its folder'
+			timeoutMsg: 'the Server tab never showed its form or its folder'
 		});
 		await shot('02b-file-dialog-sftp');
 		await clickNamed('[role="tab"]', 'Web address');

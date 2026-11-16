@@ -559,16 +559,19 @@ degenerate ring anyway, and the dialog has the width a feature table needs.
 **Findings are not diagnostics.** That panel is the session's own errors and its report; findings
 about the data go in the pane, with the fix inline where the chain ends.
 
-### Q73 - Files are chosen in a dialog of Studio's own, on this computer or an SFTP server
+### Q73 - Files are chosen in a dialog of Studio's own, on this computer or a server
 
 The system's file dialog cannot reach a server, and a second dialog for servers would put one
 question in two places that look nothing alike. So a file is chosen in `FileDialog`: a tab for this
-computer and one for an SFTP server, listed and walked the same way, by the core (`browse.rs`). A
-project folder is still chosen in the system's dialog: Studio writes into it, and it stays local.
+computer and one for a server - SFTP or WebDAV, with one list of servers used before - listed and
+walked the same way, by the core (`browse.rs`, `webdav.rs`). A project folder is still chosen in the
+system's dialog: Studio writes into it, and it stays local.
 
-**No passwords.** A server signs in through the SSH agent, `~/.ssh/config`, the default keys or a
-key file. A password would have to live in the `sftp://` URL, which is written into the pipeline,
-the project and the recents. A key file goes into `from_container`'s `ssh_identity` instead.
+**No password in a URL.** A URL is written into the pipeline, the project and the recents. SFTP
+signs in through the SSH agent, `~/.ssh/config`, the default keys or a key file, which goes into
+`from_container`'s `ssh_identity`. WebDAV signs in with a password, over https only, and a chosen
+file comes back as `https://user@host/…`: the password goes into versatiles-rs's credential store
+for the session, and into the system keychain if asked, from which it is handed over at start-up.
 
 Signing in, host keys and reading stay versatiles-rs's: it trusts and records a server it has not
 seen, and the dialog cannot ask first until upstream can report a fingerprint without recording it.

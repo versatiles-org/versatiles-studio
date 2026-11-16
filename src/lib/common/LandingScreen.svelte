@@ -13,7 +13,7 @@
 	// and it scrolls without moving anything else.
 	//
 	// **Three doors** - a file, a project folder, and nothing at all. A file is one door wherever it
-	// is: the file dialog has a tab for this computer, an SFTP server and a web address ([Q73]), and
+	// is: the file dialog has a tab for this computer, a server and a web address ([Q73]), and
 	// a second door that opened the same dialog on another tab was a choice made twice. It was seven
 	// once: one card per import kind, plus a project card, plus a URL form.
 	// Those five differed only in which extensions the file dialog would show, which is not a
@@ -81,7 +81,7 @@
 				<div class="local">
 					<button type="button" class="door" onclick={onOpenFile}>
 						<strong>Open a file</strong>
-						<span>On this computer, an SFTP server or the web - tiles, or data to build them from</span>
+						<span>On this computer, a server or the web - tiles, or data to build them from</span>
 						<!-- From the core's catalogue, so this cannot name something the build lacks (S3.2). -->
 						{#if kinds.length}
 							<span class="kinds">{kinds.map((kind) => kind.label).join(' · ')}</span>

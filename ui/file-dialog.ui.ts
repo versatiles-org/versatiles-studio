@@ -70,10 +70,10 @@ test('opens on this computer, with the place it starts in listed', async ({ page
 // one tab and switches to the tab it was last on once that has loaded.
 test('puts the focus on the tab it was last on, not the first', async ({ page }) => {
 	const core = await openDialog(page, { browsing: () => ({ tab: 'remote', folder: null, servers: [] }) });
-	await expect(tab(page, 'SFTP server')).toHaveAttribute('aria-selected', 'true');
+	await expect(tab(page, 'Server')).toHaveAttribute('aria-selected', 'true');
 	await page.keyboard.press('Tab');
 	await page.keyboard.press('Shift+Tab');
-	await expect(tab(page, 'SFTP server')).toBeFocused();
+	await expect(tab(page, 'Server')).toBeFocused();
 	await expect(tab(page, 'This computer')).not.toBeFocused();
 	expectAllAnswered(core);
 });
@@ -176,7 +176,7 @@ test.describe('in the dark theme', () => {
 // list of servers left the form pushed halfway across an empty dialog.
 test('lays the sign-in form across the dialog when no server is saved yet', async ({ page }) => {
 	await openDialog(page);
-	await tab(page, 'SFTP server').click();
+	await tab(page, 'Server').click();
 	const host = page.getByLabel('Host');
 	await expect(host).toBeVisible();
 	const [tabs, form] = await Promise.all([
@@ -192,7 +192,12 @@ test('lists the servers used before beside the form', async ({ page }) => {
 		browsing: () => ({
 			tab: 'remote',
 			folder: null,
-			servers: [{ server: { host: 'box.example.org', port: 23, user: 'anna', identity: null }, folder: '/home' }]
+			servers: [
+				{
+					server: { protocol: 'sftp', host: 'box.example.org', port: 23, user: 'anna', identity: null },
+					folder: '/home'
+				}
+			]
 		})
 	});
 	await expect(page.getByRole('button', { name: 'anna@box.example.org:23', exact: true })).toBeVisible();
@@ -204,6 +209,18 @@ test('lists the servers used before beside the form', async ({ page }) => {
 	await page.screenshot({ path: `${SHOTS}/file-dialog-sftp-servers.png` });
 });
 
+// The same form, another protocol: its own fields in the same column, and the password not shown.
+test('asks a WebDAV server for an address, a user and a password', async ({ page }) => {
+	await openDialog(page);
+	await tab(page, 'Server').click();
+	await page.getByRole('radio', { name: 'WebDAV' }).check();
+	await expect(page.getByLabel('Host')).toBeHidden();
+	await expect(page.getByLabel('Address')).toBeVisible();
+	await expect(page.getByLabel('Password')).toHaveAttribute('type', 'password');
+	await expect(page.getByLabel('Remember')).toBeChecked();
+	await page.screenshot({ path: `${SHOTS}/file-dialog-webdav.png` });
+});
+
 // A filled-in field read exactly like an empty one's placeholder: both took the label's grey.
 for (const scheme of ['light', 'dark'] as const) {
 	test(`writes what is in a field darker than its placeholder, ${scheme}`, async ({ page }) => {
@@ -212,7 +229,12 @@ for (const scheme of ['light', 'dark'] as const) {
 			browsing: () => ({
 				tab: 'remote',
 				folder: null,
-				servers: [{ server: { host: 'box.example.org', port: 23, user: 'anna', identity: null }, folder: null }]
+				servers: [
+					{
+						server: { protocol: 'sftp', host: 'box.example.org', port: 23, user: 'anna', identity: null },
+						folder: null
+					}
+				]
 			})
 		});
 		const host = page.getByLabel('Host');
