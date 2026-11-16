@@ -17,13 +17,13 @@ describe('the heat map legend', () => {
 		render(HeatLegend, base);
 		expect(screen.getByText('0')).toBeTruthy();
 		expect(screen.getByText('500 kB and over')).toBeTruthy();
-		expect(screen.getByText(/each square a tile of zoom 14/)).toBeTruthy();
+		expect(screen.getByText(/Each square a tile of zoom 14/)).toBeTruthy();
 	});
 
 	/** Far out, a square is a tile eight levels below the map's, not the deepest level. */
 	it('names a shallower level when the map is zoomed out', () => {
 		render(HeatLegend, { ...base, zoom: 1 });
-		expect(screen.getByText(/each square a tile of zoom 9/)).toBeTruthy();
+		expect(screen.getByText(/Each square a tile of zoom 9/)).toBeTruthy();
 	});
 
 	it('sets the maximum in kilobytes, the opacity, and the heat map alone', async () => {
@@ -50,6 +50,7 @@ describe('the heat map legend', () => {
 	it('shows the figures when the source has been measured', () => {
 		render(HeatLegend, {
 			...base,
+			measured: true,
 			figures: {
 				level: 14,
 				tiles: 9,
@@ -62,6 +63,19 @@ describe('the heat map legend', () => {
 		});
 		expect(screen.getByText('340 kB')).toBeTruthy();
 		expect(screen.getByText('610 kB')).toBeTruthy();
+	});
+
+	// The legend hangs from the map's controls: rows that came and went with the level moved the
+	// fields under them as the map was zoomed.
+	it('keeps the rows of figures at a level without any, with a dash', () => {
+		render(HeatLegend, { ...base, measured: true, figures: null });
+		expect(screen.getByText('Median')).toBeTruthy();
+		expect(screen.getAllByText('–')).toHaveLength(3);
+	});
+
+	it('has no rows of figures for a source that has not been measured', () => {
+		render(HeatLegend, base);
+		expect(screen.queryByText('Median')).toBeNull();
 	});
 
 	it('says why there is no heat map instead of a key to nothing', () => {

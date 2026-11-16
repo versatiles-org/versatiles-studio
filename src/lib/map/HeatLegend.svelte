@@ -12,6 +12,12 @@
 	// It is committed on change rather than on each keystroke, since each value redraws every square.
 	//
 	// **The level a square stands for moves with the zoom**, so the sentence that names it does too.
+	//
+	// **Zooming never changes the legend's height** (the invariant in docs/ui.md). The legend hangs
+	// from the map's controls, so anything that grew it moved the fields under it - and the figures
+	// came and went with the level, since a level the source has no tiles at has none. Once the
+	// source is measured the three rows are always there, with a dash where a level has nothing; the
+	// source's name and the level are a line each, so a level with one more digit cannot wrap them.
 	let {
 		source,
 		deepest,
@@ -19,6 +25,7 @@
 		max,
 		opacity,
 		only,
+		measured = false,
 		figures = null,
 		error = null,
 		onMax = () => {},
@@ -37,7 +44,9 @@
 		opacity: number;
 		/** Whether the source's own layers are hidden. */
 		only: boolean;
-		/** The figures of the level a square is now, when the source has been measured. */
+		/** Whether the source has been measured, so there are figures to show for some level. */
+		measured?: boolean;
+		/** The figures of the level a square is now, or `null` when that level has none. */
 		figures?: LevelSizes | null;
 		error?: string | null;
 		onMax?: (bytes: number) => void;
@@ -53,21 +62,22 @@
 		<Note tone="problem">{error}</Note>
 	{:else if level !== null}
 		<p class="what">
-			{#if source}<strong>{source}</strong>,{/if} each square a tile of zoom {level}
+			{#if source}<strong class="readout">{source}</strong>{/if}
+			<span class="readout">Each square a tile of zoom {level}</span>
 		</p>
 		<div class="ramp" aria-hidden="true"></div>
 		<div class="ends">
 			<span>0</span>
 			<span>{kilobytes(max)} and over</span>
 		</div>
-		{#if figures}
+		{#if measured}
 			<dl class="facts">
 				<dt>Median</dt>
-				<dd>{kilobytes(figures.p50)}</dd>
+				<dd>{figures ? kilobytes(figures.p50) : '–'}</dd>
 				<dt>95%</dt>
-				<dd>{kilobytes(figures.p95)}</dd>
+				<dd>{figures ? kilobytes(figures.p95) : '–'}</dd>
 				<dt>Largest</dt>
-				<dd>{kilobytes(figures.max)}</dd>
+				<dd>{figures ? kilobytes(figures.max) : '–'}</dd>
 			</dl>
 		{/if}
 		{#snippet unit()}kB{/snippet}
@@ -115,6 +125,7 @@
 	}
 
 	.what {
+		display: grid;
 		margin: 0;
 		color: var(--ink-2);
 	}

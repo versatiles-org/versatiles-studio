@@ -81,13 +81,16 @@
 		composition.rows.filter((row) => row.source === composition.editedName && !row.hidden).map((row) => row.id)
 	);
 
-	/// The figures of the level a square stands for now, when the source has been measured and the
-	/// figures still apply.
+	/// The heat map's source's sizes, when it has been measured and the figures still apply - and
+	/// below, those of the level a square stands for now, `null` at a level the source has no tiles at.
+	const heatSizes = $derived(
+		heatOf && heat.drawn && !analysis.stale(heatOf.graph, heatOf.build) ? analysis.of(heatOf.graph).sizes : null
+	);
 	const heatFigures = $derived.by(() => {
 		const drawn = heat.drawn;
-		if (!heatOf || !drawn || analysis.stale(heatOf.graph, heatOf.build)) return null;
+		if (!heatSizes || !drawn) return null;
 		const level = squareLevel(mapZoom, drawn.deepest);
-		return analysis.of(heatOf.graph).sizes?.levels.find((sizes) => sizes.level === level) ?? null;
+		return heatSizes.levels.find((sizes) => sizes.level === level) ?? null;
 	});
 
 	/// The map's zoom, as of the last gesture that ended.
@@ -406,6 +409,7 @@
 							max={heat.max}
 							opacity={heat.opacity}
 							only={heat.only}
+							measured={!!heatSizes}
 							figures={heatFigures}
 							error={heat.error}
 							onMax={(bytes) => void heat.setMax(bytes)}
