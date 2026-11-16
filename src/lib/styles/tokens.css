@@ -40,8 +40,12 @@
 	--pipe: var(--accent);
 	--surface: #fbfcfb; /* panels and cards that sit above the chrome */
 	--chrome: #f2f4f3; /* application background, inset wells */
-	--accent: #0e7c7b; /* focus, selection, the one emphatic colour */
+	--accent: #0e7c7b; /* selection, the one emphatic colour */
 	--accent-ink: #ffffff; /* text on --accent */
+	/* Where the keyboard is. **Not the accent**, which says what is chosen: a ring in the colour of
+	   the selected tab's underline made the focused tab look selected, wherever the two differed.
+	   A blue, the hue a desktop already uses for keyboard focus, at 3:1 or more on every surface. */
+	--focus: #2f6fe0;
 	/* A button's face and edge. Not --chrome and --rule: those are a surface and a hairline, and a
 	   button made of them was 1.04:1 against the panel with a 1.3:1 outline - text with a faint box
 	   round it. The edge is 3:1 against --surface, the contrast a control's boundary needs to be
@@ -225,6 +229,7 @@
 		--chrome: #121917;
 		--accent: #35b3a4;
 		--accent-ink: #06201d;
+		--focus: #7aa7ff;
 		--control-face: #26302e;
 		--control-face-hover: #303b39;
 		--control-edge: #63706d;

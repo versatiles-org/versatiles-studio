@@ -268,7 +268,8 @@ describe('documentation size', () => {
 		'docs/architecture.md': 2200,
 		// Raised for S13: the kit table grew from ten parts to eighteen, and the two meanings of a
 		// highlight and the two error presentations are written where a component author looks first.
-		'docs/styling.md': 2750,
+		// Raised for the button's own colours and `--focus`, the ring that is not the accent.
+		'docs/styling.md': 2800,
 		// Raised for the two-halves rule (S10.10): every pane is a Pane and a Section, and the inventory
 		// names both.
 		'docs/components.md': 1250,

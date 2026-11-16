@@ -42,22 +42,22 @@ Both stylesheets are imported by each page's entry point - `main.ts` and `landin
 
 **2. Never write `var(--token, fallback)`.** The fallback is only reachable when the token is missing, which cannot happen. They are dead code that drifts: we carried `var(--ink-2, #667)` in one file and `var(--ink-2, #66716f)` in another, so the "same" colour had two definitions.
 
-**3. Focus is not yours to design.** `base.css` styles `:focus-visible` once for the whole application. A component may set `outline-offset` when its control sits flush against an edge and the ring would be clipped. It may not set the colour or the width.
+**3. Focus is not yours to design.** `base.css` styles `:focus-visible` once for the whole application, in `--focus` rather than the accent, which marks what is selected. A component may set `outline-offset` when its control sits flush against an edge and the ring would be clipped. It may not set the colour or the width.
 
 ## The tokens
 
-| Set      | Tokens                                                                                                                                        |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| Colour   | `--ink`, `--ink-2`, `--rule`, `--surface`, `--chrome`, `--accent`, `--accent-ink`, `--control-face`, `--control-face-hover`, `--control-edge` |
-| Semantic | `--error`, `--error-bg`, `--scrim` - behind a modal                                                                                           |
-| Map      | `--map-bg`, `--map-feature`, `--map-pending`, `--map-label`, `--map-crop-dim`, `--map-crop-edge`, `--float-bg`                                |
-| Pipeline | `--pipe`, `--pipe-width` - the chain's connectors and its node outlines are one line, so they are one pair of tokens                          |
-| Type     | `--text-xs` 12 · `--text-sm` 13 · `--text-md` 14 (default) · `--text-lg` 17 · `--text-xl` 22, plus `--text-mono-adjust`                       |
-| Syntax   | `--vpl-value` - operation names take the accent; only values need a colour of their own                                                       |
-| Fonts    | `--font-ui`, `--font-mono`                                                                                                                    |
-| Space    | `--space-1` … `--space-6`                                                                                                                     |
-| Rhythm   | `--gap-group`, `--gap-section` - what a gap _separates_ rather than how wide it is, for a pane's own layout                                   |
-| Shape    | `--radius`, `--radius-lg`, `--shadow`, `--focus-width`                                                                                        |
+| Set      | Tokens                                                                                                                                                   |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Colour   | `--ink`, `--ink-2`, `--rule`, `--surface`, `--chrome`, `--accent`, `--accent-ink`, `--focus`, `--control-face`, `--control-face-hover`, `--control-edge` |
+| Semantic | `--error`, `--error-bg`, `--scrim` - behind a modal                                                                                                      |
+| Map      | `--map-bg`, `--map-feature`, `--map-pending`, `--map-label`, `--map-crop-dim`, `--map-crop-edge`, `--float-bg`                                           |
+| Pipeline | `--pipe`, `--pipe-width` - the chain's connectors and its node outlines are one line, so they are one pair of tokens                                     |
+| Type     | `--text-xs` 12 · `--text-sm` 13 · `--text-md` 14 (default) · `--text-lg` 17 · `--text-xl` 22, plus `--text-mono-adjust`                                  |
+| Syntax   | `--vpl-value` - operation names take the accent; only values need a colour of their own                                                                  |
+| Fonts    | `--font-ui`, `--font-mono`                                                                                                                               |
+| Space    | `--space-1` … `--space-6`                                                                                                                                |
+| Rhythm   | `--gap-group`, `--gap-section` - what a gap _separates_ rather than how wide it is, for a pane's own layout                                              |
+| Shape    | `--radius`, `--radius-lg`, `--shadow`, `--focus-width`                                                                                                   |
 
 Each set is small and closed **on purpose**. That is the whole mechanism: picking from five type sizes is faster than inventing a sixth, so the constraint holds itself up without anyone policing it.
 

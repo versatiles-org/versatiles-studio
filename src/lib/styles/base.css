@@ -47,9 +47,12 @@ body {
  * elements had no visible focus at all, and the ones that did had each decided separately. A
  * component overrides `outline-offset` when its control sits flush against an edge; it should not
  * be redefining the colour or width.
+ *
+ * **In `--focus`, not the accent.** The accent marks what is selected or on; a ring in it made a
+ * focused control look like the chosen one.
  */
 :focus-visible {
-	outline: var(--focus-width) solid var(--accent);
+	outline: var(--focus-width) solid var(--focus);
 	outline-offset: 1px;
 }
 
