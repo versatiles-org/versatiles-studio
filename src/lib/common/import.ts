@@ -1,6 +1,10 @@
 /**
  * The file dialog's filters, from the core's catalogue of ways in (E1-E3, S3.2).
  *
+ * **Studio's own dialog for files, the system's for a project folder.** A file can be on an SFTP
+ * server, which only Studio's dialog can reach (`FileDialog`); a project is a folder Studio writes
+ * into, and stays on this computer.
+ *
  * **Here rather than in `App.svelte`, because there are two callers now** ([S7.5]): the workbench's
  * File → Open, and the launcher window, which is a page of its own with no access to the other's
  * functions. Two copies of "which extensions can Studio open" is the shape of bug where a launcher
@@ -10,7 +14,8 @@
  */
 
 import { open } from '@tauri-apps/plugin-dialog';
-import type { ImportKind } from '../ipc/commands';
+import { importOpening, type ImportKind } from '../ipc/commands';
+import { fileDialog } from '../state/file-dialog.svelte';
 
 /** Every extension this build accepts, for a catch-all filter and for the drop handler. */
 export function anyExtension(kinds: ImportKind[]): string[] {
@@ -27,19 +32,23 @@ export function anyExtension(kinds: ImportKind[]): string[] {
  * `null` when the dialog was cancelled, which is ordinary and worth nothing being said about.
  */
 export async function askForSource(kinds: ImportKind[], kind?: ImportKind): Promise<string | null> {
-	const filters = kind
-		? [{ name: kind.label, extensions: kind.extensions }]
-		: [
-				{ name: 'Everything Studio can open', extensions: anyExtension(kinds) },
-				// A kind with no extensions is not something a dialog can offer: `tilejson` is
-				// reached by reading a `.json`, never by its name, so a filter for it would be an
-				// entry that matches nothing.
-				...kinds
-					.filter((each) => each.extensions.length > 0)
-					.map((each) => ({ name: each.label, extensions: each.extensions }))
-			];
-	const picked = await open({ multiple: false, filters });
-	return typeof picked === 'string' ? picked : null;
+	return fileDialog.ask({
+		title: kind ? `Open ${kind.label}` : 'Open a Source',
+		extensions: kind ? kind.extensions : anyExtension(kinds),
+		check: refusal
+	});
+}
+
+/**
+ * Why a file on a server cannot be opened, said in the dialog rather than after it closes - an
+ * `.mbtiles` or a GeoJSON has no reader over the network, and the window would open only to fail.
+ * A local file is left to the import that follows, which already says what it turned out to be.
+ */
+async function refusal(location: string): Promise<string | null> {
+	if (!location.toLowerCase().startsWith('sftp://')) return null;
+	const opening = await importOpening(location).catch(() => null);
+	if (!opening) return null;
+	return opening.refused ?? (opening.kind ? null : 'Studio does not know this kind of file.');
 }
 
 /** Asks for a project directory. `null` when the dialog was cancelled. */
@@ -62,21 +71,11 @@ export async function askForProject(): Promise<string | null> {
  * offers everything, which is the honest answer for a private key or for GDAL, neither of whose
  * accepted set is ours to state.
  *
- * **No "All files" alongside it**, deliberately: macOS flattens every filter into one
- * allow-everything list rather than a menu to choose between (`rfd`'s `setAllowedFileTypes`), so
- * such an entry would not be a choice anyone could make there, and on GTK it becomes `*.*`, which
- * hides files without an extension. The field is still typable, which is the escape hatch for a
- * container that does not wear one of its extensions.
+ * A file of another kind is shown dimmed and cannot be chosen. The field is still typable, which is
+ * the escape hatch for a container that does not wear one of its extensions.
  *
  * `null` when the dialog was cancelled, which is ordinary and worth nothing being said about.
  */
 export async function askForPath(extensions: string[], title?: string): Promise<string | null> {
-	const picked = await open({
-		multiple: false,
-		title,
-		// Named by the extensions themselves. A field has no label of its own, and inventing one -
-		// "Vector data" for a `cutline` - would say more than upstream does.
-		filters: extensions.length > 0 ? [{ name: extensions.join(', '), extensions }] : undefined
-	});
-	return typeof picked === 'string' ? picked : null;
+	return fileDialog.ask({ title: title ?? 'Choose a File', extensions });
 }

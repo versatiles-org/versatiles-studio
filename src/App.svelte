@@ -26,6 +26,8 @@
 	import AssetsDialog from './lib/shell/AssetsDialog.svelte';
 	import UpdateDialog from './lib/shell/UpdateDialog.svelte';
 	import TileDialog from './lib/shell/TileDialog.svelte';
+	import FileDialog from './lib/common/FileDialog.svelte';
+	import { fileDialog } from './lib/state/file-dialog.svelte';
 	import { tileDialog } from './lib/state/tile-dialog.svelte';
 	import { scans } from './lib/state/contents.svelte';
 	import ExportDialog from './lib/panes/pipeline/ExportDialog.svelte';
@@ -466,6 +468,10 @@
 
 {#if assets}
 	<AssetsDialog onClose={() => (assets = false)} />
+{/if}
+
+{#if fileDialog.request}
+	<FileDialog request={fileDialog.request} onAnswer={(location) => fileDialog.answer(location)} />
 {/if}
 
 {#if tileDialog.at}

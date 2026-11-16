@@ -3,6 +3,8 @@
 	import { openUrl } from '@tauri-apps/plugin-opener';
 	import LandingScreen from './lib/common/LandingScreen.svelte';
 	import { askForProject, askForSource } from './lib/common/import';
+	import FileDialog from './lib/common/FileDialog.svelte';
+	import { fileDialog } from './lib/state/file-dialog.svelte';
 	import { REPOSITORY } from './lib/common/repository';
 	import {
 		appVersion,
@@ -177,6 +179,10 @@
 	     changed. -->
 	{#if problem}<p class="band" role="alert">{problem}</p>{/if}
 </main>
+
+{#if fileDialog.request}
+	<FileDialog request={fileDialog.request} onAnswer={(location) => fileDialog.answer(location)} />
+{/if}
 
 <style>
 	/* The window is the launcher, so the launcher fills the window. */

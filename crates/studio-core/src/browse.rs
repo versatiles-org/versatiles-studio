@@ -89,6 +89,23 @@ impl Server {
 			&& url.username() == self.user.trim()
 	}
 
+	/// The key file as a path the SSH code can open: `~/` is the home folder, and an empty field is
+	/// no key at all.
+	///
+	/// **Expanded here, not by whoever typed it**, because a shell is not involved: `~/.ssh/box` is a
+	/// folder called `~` to everything but a shell, and that is what `from_container` would be told.
+	#[must_use]
+	pub fn identity_path(&self) -> Option<String> {
+		let identity = self.identity.as_deref()?.trim();
+		if identity.is_empty() {
+			return None;
+		}
+		match identity.strip_prefix("~/") {
+			Some(rest) => std::env::home_dir().map(|home| home.join(rest).to_string_lossy().into_owned()),
+			None => Some(identity.to_string()),
+		}
+	}
+
 	/// What tells two connections apart: the same server reached with another key is another login.
 	fn key(&self) -> String {
 		format!(
@@ -110,8 +127,7 @@ pub fn identity_for<'a>(location: &str, servers: impl IntoIterator<Item = &'a Se
 	servers
 		.into_iter()
 		.find(|server| server.serves(location))
-		.and_then(|server| server.identity.clone())
-		.filter(|identity| !identity.trim().is_empty())
+		.and_then(Server::identity_path)
 }
 
 /// Lists a folder on this computer.
@@ -240,11 +256,8 @@ impl RemoteSessions {
 
 async fn connect(server: &Server) -> Result<Held> {
 	let url = server.url("/")?;
-	let identity = server
-		.identity
-		.as_deref()
-		.filter(|identity| !identity.trim().is_empty());
-	let handle = sftp_utils::open_session(&url, identity.map(Path::new)).await?;
+	let identity = server.identity_path();
+	let handle = sftp_utils::open_session(&url, identity.as_deref().map(Path::new)).await?;
 	let sftp = sftp_utils::open_sftp(&handle).await?;
 	Ok(Held {
 		_handle: handle,
@@ -357,6 +370,16 @@ mod tests {
 		);
 		assert_eq!(identity_for("/home/anna/x.versatiles", &servers), None);
 		assert_eq!(identity_for("sftp://anna@box.example.org:23/x", &[server(None)]), None);
+	}
+
+	#[test]
+	fn a_key_file_in_the_home_folder_is_written_out_in_full() {
+		let home = std::env::home_dir().expect("a home folder");
+		let expanded = server(Some("~/.ssh/box")).identity_path();
+		assert_eq!(expanded, Some(home.join(".ssh/box").to_string_lossy().into_owned()));
+		assert_eq!(server(Some("/keys/box")).identity_path().as_deref(), Some("/keys/box"));
+		assert_eq!(server(Some("  ")).identity_path(), None, "an empty field is no key");
+		assert_eq!(server(None).identity_path(), None);
 	}
 
 	#[test]

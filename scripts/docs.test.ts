@@ -249,7 +249,8 @@ describe('documentation size', () => {
 		// Raised for Q71, the kit for every surface: seven decisions made once, each of which a reader
 		// arriving from a component has to be able to find.
 		// Raised for Q72, which supersedes Q12 and settles where cluster B and a single tile are shown.
-		'docs/decisions.md': 6200,
+		// Raised for Q73, the file dialog of Studio's own, and why it signs in without passwords.
+		'docs/decisions.md': 6400,
 		// Raised for Release 6, which records S10 as built and S11 as planned.
 		// Raised for S13, the kit everywhere, which names what every excluded surface had drifted to.
 		// Raised for Release 7, which plans S14: the pane's tables, the heat map and the tile dialog.

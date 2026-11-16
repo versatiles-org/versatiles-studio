@@ -26,6 +26,9 @@
 		| 'redo'
 		| 'format'
 		| 'browse'
+		// A folder and a file, for the file dialog's rows.
+		| 'folder'
+		| 'file'
 		| 'steps'
 		| 'draw'
 		| 'chevron'
@@ -120,6 +123,10 @@
 		<path d="M10 4l2.5 2.5L10 9" />
 	{:else if name === 'format'}
 		<path d="M3 4h10M3 8h7M3 12h10" />
+	{:else if name === 'folder'}
+		<path d="M2 4.5h4l1.5 1.5H14v6.5H2z" />
+	{:else if name === 'file'}
+		<path d="M4 2h5l3 3v9H4zM9 2v3h3" />
 	{:else if name === 'browse'}
 		<circle cx="4" cy="8" r="1.1" fill="currentColor" stroke="none" />
 		<circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none" />

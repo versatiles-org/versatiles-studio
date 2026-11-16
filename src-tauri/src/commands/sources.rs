@@ -48,7 +48,11 @@ pub async fn open_container(
 
 	// Opening a container *is* adding a read node at the head of the pipeline (Q22). The core builds
 	// the VPL so the quoting rules stay next to the parser that defines them.
-	let vpl = studio_core::vpl::read_node("from_container", &source);
+	// With the key of the saved server it is on, as `import_read_node` writes it.
+	let vpl = match crate::commands::browse::identity_for(&state, &source).await {
+		Some(identity) => studio_core::vpl::read_node_with("from_container", &source, &[("ssh_identity", &identity)]),
+		None => studio_core::vpl::read_node("from_container", &source),
+	};
 	let node = studio_core::vpl::Document::parse(&vpl)
 		.map_err(|e| format!("{e:#}"))?
 		.to_pipeline()

@@ -30,6 +30,14 @@ vi.mock('@tauri-apps/plugin-opener', () => ({ openUrl: vi.fn().mockResolvedValue
 
 const ipc = vi.hoisted(() => ({
 	appVersion: vi.fn().mockResolvedValue('0.2.0'),
+	// Studio's own file dialog, which the launcher mounts; nothing here opens it.
+	browseLocal: vi.fn(),
+	browsePlaces: vi.fn().mockResolvedValue([]),
+	browseRemote: vi.fn(),
+	browsing: vi.fn().mockResolvedValue({}),
+	forgetServer: vi.fn(),
+	importOpening: vi.fn(),
+	rememberBrowsing: vi.fn(),
 	forgetRecent: vi.fn().mockResolvedValue(undefined),
 	importKinds: vi.fn().mockResolvedValue([]),
 	openEmptyWindow: vi.fn().mockResolvedValue(undefined),

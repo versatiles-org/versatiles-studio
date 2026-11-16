@@ -557,6 +557,20 @@ degenerate ring anyway, and the dialog has the width a feature table needs.
 **Findings are not diagnostics.** That panel is the session's own errors and its report; findings
 about the data go in the pane, with the fix inline where the chain ends.
 
+### Q73 - Files are chosen in a dialog of Studio's own, on this computer or an SFTP server
+
+The system's file dialog cannot reach a server, and a second dialog for servers would put one
+question in two places that look nothing alike. So a file is chosen in `FileDialog`: a tab for this
+computer and one for an SFTP server, listed and walked the same way, by the core (`browse.rs`). A
+project folder is still chosen in the system's dialog: Studio writes into it, and it stays local.
+
+**No passwords.** A server signs in through the SSH agent, `~/.ssh/config`, the default keys or a
+key file. A password would have to live in the `sftp://` URL, which is written into the pipeline,
+the project and the recents. A key file goes into `from_container`'s `ssh_identity` instead.
+
+Signing in, host keys and reading stay versatiles-rs's: it trusts and records a server it has not
+seen, and the dialog cannot ask first until upstream can report a fingerprint without recording it.
+
 ## Dependencies and packaging
 
 ### Q8 - Release early under v0.x

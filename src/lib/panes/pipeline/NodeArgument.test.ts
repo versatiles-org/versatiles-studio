@@ -18,6 +18,7 @@ import { fireEvent } from '@testing-library/dom';
 import NodeArgument from './NodeArgument.svelte';
 import { stubTauri, type TauriStub } from '../../testing/tauri';
 import { bboxField } from '../../state/bbox.svelte';
+import { fileDialog } from '../../state/file-dialog.svelte';
 import { flushSync } from 'svelte';
 
 // jsdom has no `showModal`, and `Modal` calls it on mount. Stubbed so the curve helper can open.
@@ -89,8 +90,6 @@ afterEach(() => {
 });
 
 /** What the dialog will answer with - `null` stands for a cancelled picker. */
-const picks = (path: string | null) => tauri.answer('plugin:dialog|open', path);
-
 describe('which parameters offer a file picker', () => {
 	it('offers one for a path field', () => {
 		render(NodeArgument, { name: 'filename', field: PATH_FIELD('filename'), value: '', onCommit: () => {} });
@@ -182,6 +181,10 @@ describe('a number', () => {
 });
 
 describe('what the picker does with what it gets', () => {
+	/// Studio's own dialog, answered as if someone had chosen `path` - or cancelled, for `null`.
+	const picks = (path: string | null) => vi.spyOn(fileDialog, 'ask').mockResolvedValue(path);
+	afterEach(() => vi.restoreAllMocks());
+
 	it('commits the picked path the same way a typed one is committed', async () => {
 		const onCommit = vi.fn();
 		picks('/tmp/berlin.versatiles');
@@ -195,7 +198,7 @@ describe('what the picker does with what it gets', () => {
 	// parameter from the document, which is a deletion nobody asked for.
 	it('leaves the field alone when the dialog is cancelled', async () => {
 		const onCommit = vi.fn();
-		picks(null);
+		const ask = picks(null);
 		render(NodeArgument, {
 			name: 'filename',
 			field: PATH_FIELD('filename'),
@@ -204,16 +207,14 @@ describe('what the picker does with what it gets', () => {
 		});
 
 		screen.getByLabelText('Choose a file for filename').click();
-		await vi.waitFor(() => expect(tauri.calls.some((call) => call.cmd === 'plugin:dialog|open')).toBe(true));
+		await vi.waitFor(() => expect(ask).toHaveBeenCalled());
 		expect(onCommit).not.toHaveBeenCalled();
 	});
 
 	// **The field says which files are worth offering, not the node.** A clip polygon beside a raster
-	// wants GeoJSON, and taking the filter from the operation gave it the raster's extensions. One
-	// filter and no "All files" beside it: macOS flattens the list rather than offering a menu, so a
-	// second entry would be a choice nobody could make there.
+	// wants GeoJSON, and taking the filter from the operation gave it the raster's extensions.
 	it('filters to what the field accepts', async () => {
-		picks('/tmp/clip.geojson');
+		const ask = picks('/tmp/clip.geojson');
 		render(NodeArgument, {
 			name: 'cutline',
 			field: PATH_FIELD('cutline', ['geojson', 'json']),
@@ -222,27 +223,19 @@ describe('what the picker does with what it gets', () => {
 		});
 
 		screen.getByLabelText('Choose a file for cutline').click();
-		await vi.waitFor(() => expect(tauri.calls.some((call) => call.cmd === 'plugin:dialog|open')).toBe(true));
-
-		const options = tauri.calls.find((call) => call.cmd === 'plugin:dialog|open')?.args.options as {
-			filters: { name: string; extensions: string[] }[];
-		};
-		expect(options.filters).toEqual([{ name: 'geojson, json', extensions: ['geojson', 'json'] }]);
+		await vi.waitFor(() => expect(ask).toHaveBeenCalled());
+		expect(ask.mock.calls[0][0].extensions).toEqual(['geojson', 'json']);
 	});
 
 	// An empty list is upstream saying the set is not its to state - a private key has no conventional
 	// extension, and GDAL decides its own. Offering everything is the honest answer to both.
 	it('offers every file when the field accepts anything', async () => {
-		picks('/tmp/anything.txt');
+		const ask = picks('/tmp/anything.txt');
 		render(NodeArgument, { name: 'sprite_file', field: PATH_FIELD('sprite_file'), value: '', onCommit: () => {} });
 
 		screen.getByLabelText('Choose a file for sprite_file').click();
-		await vi.waitFor(() => expect(tauri.calls.some((call) => call.cmd === 'plugin:dialog|open')).toBe(true));
-
-		const options = tauri.calls.find((call) => call.cmd === 'plugin:dialog|open')?.args.options as {
-			filters?: unknown;
-		};
-		expect(options.filters).toBeUndefined();
+		await vi.waitFor(() => expect(ask).toHaveBeenCalled());
+		expect(ask.mock.calls[0][0].extensions).toEqual([]);
 	});
 });
 
