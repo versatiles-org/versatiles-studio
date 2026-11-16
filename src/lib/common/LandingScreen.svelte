@@ -138,7 +138,7 @@
 	</div>
 
 	<footer>
-		VersaTiles Studio {version} · alpha ·
+		VersaTiles Studio {version} · beta ·
 		<button type="button" class="link" onclick={onOpenRepository}>github</button>
 	</footer>
 </div>

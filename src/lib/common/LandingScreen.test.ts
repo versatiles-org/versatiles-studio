@@ -121,13 +121,13 @@ describe('the recent list', () => {
 /**
  * The footer, which is the only place the application says what it is.
  *
- * Version from the core rather than from `package.json`, and "alpha" beside it - the word is only
+ * Version from the core rather than from `package.json`, and "beta" beside it - the word is only
  * useful next to somewhere to report things, which is what the link is for.
  */
 describe('the footer', () => {
-	it('names the version, says alpha, and links to the repository', async () => {
+	it('names the version, says beta, and links to the repository', async () => {
 		const calls = show();
-		expect(screen.getByText(/VersaTiles Studio 0\.2\.0 · alpha/)).toBeTruthy();
+		expect(screen.getByText(/VersaTiles Studio 0\.2\.0 · beta/)).toBeTruthy();
 
 		(await screen.findByRole('button', { name: 'github' })).click();
 		expect(calls.onOpenRepository).toHaveBeenCalledTimes(1);

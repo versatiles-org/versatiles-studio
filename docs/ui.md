@@ -115,7 +115,7 @@ Three regions, always present - **left pane, map, right pane** - over the status
 │  New empty project                                         │
 │  A window with nothing in it yet                           │
 │                                                            │
-│  VersaTiles Studio 0.2.0 · alpha · github                  │
+│  VersaTiles Studio 0.2.0 · beta · github                   │
 └────────────────────────────────────────────────────────────┘
 ```
 
