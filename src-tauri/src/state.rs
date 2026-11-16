@@ -29,7 +29,7 @@ use studio_core::{
 	history::History,
 	jobs::Jobs,
 	server::ServerManager,
-	store::{Layout, Recents, Views},
+	store::{Browsing, Layout, Recents, Views},
 	style::Recipe,
 };
 use tauri::Window;
@@ -174,6 +174,10 @@ pub struct AppState {
 	/// is only what the next window inherits, which is also all that `layout.json` was ever able to
 	/// mean once there was more than one window.
 	pub layout: Mutex<Layout>,
+	/// Where the file dialog was, and the servers it knows.
+	pub browsing: Mutex<Browsing>,
+	/// The SFTP connections the file dialog is browsing through, kept between folders.
+	pub sessions: studio_core::browse::RemoteSessions,
 	/// Every open project, one per window ([Q48], S7.1).
 	pub projects: Projects,
 	/// The last preview built for each graph, so an edit that changes nothing rebuilds nothing

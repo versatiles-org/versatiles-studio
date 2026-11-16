@@ -263,7 +263,8 @@ describe('documentation size', () => {
 		'docs/ecosystem.md': 2000,
 		// Raised for the second principle. The first had been the only one written down, and the
 		// reverse test it describes is cited from the code (`analysis.rs`) but was never stated here.
-		'docs/architecture.md': 2150,
+		// Raised for `browse.rs`, the file dialog's folders on this computer and on SFTP servers.
+		'docs/architecture.md': 2200,
 		// Raised for S13: the kit table grew from ten parts to eighteen, and the two meanings of a
 		// highlight and the two error presentations are written where a component author looks first.
 		'docs/styling.md': 2750,

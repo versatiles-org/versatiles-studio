@@ -17,7 +17,7 @@ use state::AppState;
 use studio_core::{
 	diagnostics::{Diagnostics, Level, NewProblem, Origin},
 	server::ServerManager,
-	store::{Appearance, Layout, Recents, Views},
+	store::{Appearance, Browsing, Layout, Recents, Views},
 };
 use tokio::sync::Mutex;
 
@@ -105,6 +105,12 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
 		commands::analysis::dissect_tile,
 		commands::analysis::summarise_tile,
 		commands::analysis::scan_contents,
+		commands::browse::browse_places,
+		commands::browse::browse_local,
+		commands::browse::browse_remote,
+		commands::browse::browsing,
+		commands::browse::remember_browsing,
+		commands::browse::forget_server,
 		commands::views::list_views,
 		commands::views::save_view,
 		commands::views::delete_view,
@@ -257,6 +263,7 @@ pub fn run() {
 			}
 			let recents = Recents::load(&data_dir);
 			let layout = Layout::load(&data_dir);
+			let browsing = Browsing::load(&data_dir);
 			// Before any window opens, so none of them opens in the other appearance and then flips.
 			let appearance = Appearance::load(&data_dir);
 			menu::apply_appearance(app.handle(), appearance);
@@ -281,6 +288,8 @@ pub fn run() {
 					recents: Mutex::new(recents),
 					views: Mutex::new(views),
 					layout: Mutex::new(layout),
+					browsing: Mutex::new(browsing),
+					sessions: Default::default(),
 					// One project per window, each created when its window first asks (S7.1, [Q48]).
 					projects: state::Projects::default(),
 					jobs: studio_core::jobs::Jobs::new(),

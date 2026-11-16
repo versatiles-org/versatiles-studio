@@ -35,6 +35,8 @@ import type {
 	Bounds,
 	Compression,
 	NewProblem,
+	SavedServer,
+	Server,
 	OpenedContainer,
 	OpenProgress,
 	SourceKind,
@@ -56,6 +58,7 @@ export * from './bindings';
  */
 export type {
 	Bounds,
+	Browsing,
 	Carried,
 	Compression,
 	CopyPlan,
@@ -70,6 +73,11 @@ export type {
 	Recolor_Serialize as Recolor,
 	RasterAdjust_Serialize as RasterAdjust,
 	Resampling,
+	Entry as BrowseEntry,
+	Listing as BrowseListing,
+	Place as BrowsePlace,
+	SavedServer,
+	Server as SftpServer,
 	SourceKind,
 	Hillshade_Serialize as Hillshade,
 	DemEncoding,
@@ -400,6 +408,27 @@ export const summariseTile = (graph: number, z: number, x: number, y: number) =>
 export const dissectTile = (graph: number, z: number, x: number, y: number) =>
 	unwrap(commands.dissectTile(graph, z, x, y));
 
+// -- the file dialog ---------------------------------------------------------------------------
+
+/** Home, the desktop, documents and downloads - those that exist. */
+export const browsePlaces = () => commands.browsePlaces();
+
+/** A folder on this computer, or - given `null` - the one the dialog was last in, or home. */
+export const browseLocal = (path: string | null) => unwrap(commands.browseLocal(path));
+
+/** A folder on a server, or - given `null` - the one last browsed there, or where it signs in to. */
+export const browseRemote = (server: Server, path: string | null) => unwrap(commands.browseRemote(server, path));
+
+/** Where the file dialog was, and the servers it knows. */
+export const browsing = () => unwrap(commands.browsing());
+
+/** Keeps where the dialog was when something was chosen. */
+export const rememberBrowsing = (tab: string, folder: string | null, server: SavedServer | null) =>
+	unwrap(commands.rememberBrowsing(tab, folder, server));
+
+/** Takes a server off the dialog's list. */
+export const forgetServer = (server: Server) => unwrap(commands.forgetServer(server));
+
 // -- views -----------------------------------------------------------------------------------
 
 export const listViews = () => unwrap(commands.listViews());
@@ -491,7 +520,7 @@ export const importOpening = (source: string) => commands.importOpening(source);
  * The read node a chosen file becomes, quoting included - and, for a CSV, its coordinate columns
  * already filled in when the header names them unambiguously (S3.4). Both are the core's decisions.
  */
-export const importReadNode = (kindId: string, path: string) => commands.importReadNode(kindId, path);
+export const importReadNode = (kindId: string, path: string) => unwrap(commands.importReadNode(kindId, path));
 
 /** What every node's fields could be set to, keyed by the node's path (S3.4). */
 export const fieldSuggestions = (graph: number) => unwrap(commands.fieldSuggestions(graph));

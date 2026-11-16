@@ -90,6 +90,7 @@ versatiles-studio/
 │           ├── dissect.rs      one drawn tile, taken apart               (A4, Q72)
 │           ├── assets.rs       install, pin, verify; glyph generation    (G7, D9)
 │           ├── paths.rs        the guard on a path assembled from data
+│           ├── browse.rs       folders for the file dialog, local and SFTP
 │           ├── store.rs        recents and named views, outliving a window (A7, Q21)
 │           └── server.rs       embedded server lifecycle, named mounts   (Q16)
 │

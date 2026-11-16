@@ -264,6 +264,29 @@ export const commands = {
 	 *  lane for the reason [`measure_sizes`] is.
 	 */
 	scanContents: (graph: number, full: boolean) => typedError<Contents, string>(__TAURI_INVOKE("scan_contents", { graph, full })),
+	/**  The folders everybody has: home, the desktop, documents, downloads - those that exist. */
+	browsePlaces: () => __TAURI_INVOKE<Place[]>("browse_places"),
+	/**  Lists a folder on this computer - or, given none, the one the dialog was last in, or home. */
+	browseLocal: (path: string | null) => typedError<Listing, string>(__TAURI_INVOKE("browse_local", { path })),
+	/**
+	 *  Lists a folder on a server - or, given none, the one the dialog was last in there, or the folder
+	 *  the server signs in to.
+	 */
+	browseRemote: (server: Server, path: string | null) => typedError<Listing, string>(__TAURI_INVOKE("browse_remote", { server, path })),
+	/**  Where the dialog was, for it to open there again. */
+	browsing: () => typedError<Browsing, string>(__TAURI_INVOKE("browsing")),
+	/**
+	 *  Keeps where the dialog was when something was chosen: the tab, the local folder, and the server
+	 *  with its folder, which moves to the top of the list.
+	 * 
+	 *  A failed write is logged and swallowed, like the layout's: losing a folder costs one more click.
+	 */
+	rememberBrowsing: (tab: string, folder: string | null, server: {
+	server: Server,
+	folder: string | null,
+} | null) => typedError<null, string>(__TAURI_INVOKE("remember_browsing", { tab, folder, server })),
+	/**  Takes a server off the dialog's list. */
+	forgetServer: (server: Server) => typedError<null, string>(__TAURI_INVOKE("forget_server", { server })),
 	listViews: () => typedError<View[], string>(__TAURI_INVOKE("list_views")),
 	/**  Saves a view, replacing any of the same name. */
 	saveView: (view: View) => typedError<null, string>(__TAURI_INVOKE("save_view", { view })),
@@ -614,7 +637,7 @@ export const commands = {
 	 *  arrives with its coordinate columns already set when its header names them unambiguously
 	 *  (S3.4), which is the difference between an import that runs and one that opens a form.
 	 */
-	importReadNode: (kindId: string, path: string) => __TAURI_INVOKE<string>("import_read_node", { kindId, path }),
+	importReadNode: (kindId: string, path: string) => typedError<string, string>(__TAURI_INVOKE("import_read_node", { kindId, path })),
 	/**
 	 *  What every node's fields could be set to, read from what each node points at (S3.4).
 	 * 
@@ -917,6 +940,19 @@ export type Bounds = {
 	bbox?: [number, number, number, number] | null,
 	minZoom?: number | null,
 	maxZoom?: number | null,
+};
+
+/**
+ *  Where the file dialog was: its tab, the local folder, and the servers, most recent first.
+ * 
+ *  **Disposable**, like the layout: a server is a host and a user name, quicker to type again than a
+ *  view is to make again, so a file that will not parse is an empty list rather than an error.
+ */
+export type Browsing = {
+	/**  `remote` for the server tab; anything else is this computer. */
+	tab?: string,
+	folder?: string | null,
+	servers?: SavedServer[],
 };
 
 /**
@@ -1279,6 +1315,19 @@ export type Elevation = {
 	mean: number,
 	/**  How many pixels fall in each of [`HEIGHT_BINS`] equal steps from `min` to `max`. */
 	histogram: number[],
+};
+
+/**  One thing in a folder. */
+export type Entry = {
+	name: string,
+	/**  A folder to go into, rather than a file to choose. */
+	folder: boolean,
+	/**  Bytes, for a file whose size is known. */
+	size: number | null,
+	/**  Seconds since the Unix epoch. */
+	modified: number | null,
+	/**  What choosing it means: an absolute path, or an `sftp://` URL. For a folder, what to list next. */
+	location: string,
 };
 
 /**
@@ -2000,6 +2049,15 @@ export type LevelSizes = {
 	histogram: Histogram,
 };
 
+/**  A folder and what is in it: folders first, then files, each by name. */
+export type Listing = {
+	/**  The folder, as its own system writes it. */
+	path: string,
+	/**  The folder above it, to list for "up" - `None` at the top. */
+	parent: string | null,
+	entries: Entry[],
+};
+
 /**
  *  What a build of one graph came to.
  * 
@@ -2157,6 +2215,12 @@ export type Part = {
 export type Pipeline = {
 	nodes: Node[],
 	span: Span,
+};
+
+/**  A folder offered beside the listing, by the name a person knows it by. */
+export type Place = {
+	label: string,
+	path: string,
 };
 
 /**  The pipeline's output, mounted on the embedded server and ready for the map (S2.7, C3). */
@@ -2642,6 +2706,12 @@ export type Review = {
 	diagnostics: Diagnostic[],
 };
 
+/**  A server the file dialog has connected to, and the folder it was last in there. */
+export type SavedServer = {
+	server: Server,
+	folder: string | null,
+};
+
 /**
  *  One run of one source's layers, at a place in the stack.
  * 
@@ -2677,6 +2747,15 @@ export type Segment_Serialize = {
 	source: string,
 	/**  The layer id it starts at, or `None` for the whole source from its first layer. */
 	from?: string | null,
+};
+
+/**  An SFTP server, as the dialog connects to it. */
+export type Server = {
+	host: string,
+	port: number,
+	user: string,
+	/**  A private key to sign in with, when it is not one the agent or `~/.ssh` already offers. */
+	identity: string | null,
 };
 
 /**  Which sidebar a pane sits in. */

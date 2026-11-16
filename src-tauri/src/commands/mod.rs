@@ -6,6 +6,7 @@
 
 pub mod analysis;
 pub mod assets;
+pub mod browse;
 pub mod diagnostics;
 pub mod export;
 pub mod jobs;

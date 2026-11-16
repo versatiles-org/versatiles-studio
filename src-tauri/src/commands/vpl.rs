@@ -1068,14 +1068,25 @@ pub async fn import_opening(source: String) -> studio_core::import::Opening {
 /// (S3.4), which is the difference between an import that runs and one that opens a form.
 #[tauri::command]
 #[specta::specta]
-pub fn import_read_node(kind_id: String, path: String) -> String {
+pub async fn import_read_node(state: State<'_, AppState>, kind_id: String, path: String) -> Result<String, String> {
 	// Looked up rather than passed whole: the catalogue is the core's, and a webview that could
 	// hand back a kind it had edited would be deciding which operation a file becomes.
-	studio_core::import::kinds()
-		.iter()
-		.find(|kind| kind.id == kind_id)
-		.map(|kind| studio_core::import::read_node(kind, &path))
-		.unwrap_or_default()
+	let kinds = studio_core::import::kinds();
+	let Some(kind) = kinds.iter().find(|kind| kind.id == kind_id) else {
+		return Ok(String::new());
+	};
+	// **A file on a server signed in to with a key takes the key along**, so the pipeline opens it
+	// the way the file dialog did. Only `from_container` reads over SFTP, so only it is told.
+	if kind.operation.as_deref() == Some("from_container")
+		&& let Some(identity) = crate::commands::browse::identity_for(&state, &path).await
+	{
+		return Ok(studio_core::vpl::read_node_with(
+			"from_container",
+			&path,
+			&[("ssh_identity", &identity)],
+		));
+	}
+	Ok(studio_core::import::read_node(kind, &path))
 }
 
 /// What every node's fields could be set to, read from what each node points at (S3.4).

@@ -31,6 +31,7 @@ const VIEWS_FILE: &str = "views.json";
 const LEGACY_VIEWS_FILE: &str = "bookmarks.json";
 const LAYOUT_FILE: &str = "layout.json";
 const APPEARANCE_FILE: &str = "appearance.json";
+const BROWSING_FILE: &str = "browsing.json";
 
 // ---------------------------------------------------------------------------------------------
 // Atomic writes
@@ -590,9 +591,104 @@ impl Appearance {
 	}
 }
 
+// ---------------------------------------------------------------------------------------------
+// Browsing
+// ---------------------------------------------------------------------------------------------
+
+/// A server the file dialog has connected to, and the folder it was last in there.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct SavedServer {
+	pub server: crate::browse::Server,
+	pub folder: Option<String>,
+}
+
+/// Where the file dialog was: its tab, the local folder, and the servers, most recent first.
+///
+/// **Disposable**, like the layout: a server is a host and a user name, quicker to type again than a
+/// view is to make again, so a file that will not parse is an empty list rather than an error.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase", default)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct Browsing {
+	/// `remote` for the server tab; anything else is this computer.
+	pub tab: String,
+	pub folder: Option<String>,
+	pub servers: Vec<SavedServer>,
+}
+
+/// How many servers to remember. More than anyone keeps, few enough to list without scrolling.
+const SERVERS_CAPACITY: usize = 8;
+
+impl Browsing {
+	#[must_use]
+	pub fn load(dir: &Path) -> Self {
+		std::fs::read_to_string(dir.join(BROWSING_FILE))
+			.ok()
+			.and_then(|text| serde_json::from_str(&text).ok())
+			.unwrap_or_default()
+	}
+
+	pub fn save(&self, dir: &Path) -> Result<()> {
+		write_atomically(
+			&dir.join(BROWSING_FILE),
+			&serde_json::to_string_pretty(self).context("serialising the file dialog's state")?,
+		)
+	}
+
+	/// Puts a server first, with the folder it is now in - replacing an entry for the same login.
+	pub fn record(&mut self, server: crate::browse::Server, folder: Option<String>) {
+		self.servers.retain(|saved| {
+			!(saved.server.host == server.host && saved.server.port == server.port && saved.server.user == server.user)
+		});
+		self.servers.insert(0, SavedServer { server, folder });
+		self.servers.truncate(SERVERS_CAPACITY);
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	fn login(host: &str, user: &str) -> crate::browse::Server {
+		crate::browse::Server {
+			host: host.into(),
+			port: 22,
+			user: user.into(),
+			identity: None,
+		}
+	}
+
+	#[test]
+	fn the_file_dialog_remembers_its_servers_most_recent_first() -> Result<()> {
+		let dir = crate::testing::dir("browsing-roundtrip");
+		assert_eq!(Browsing::load(&dir), Browsing::default());
+		let mut browsing = Browsing {
+			tab: "remote".into(),
+			folder: Some("/home/anna".into()),
+			servers: vec![],
+		};
+		browsing.record(login("a.example", "anna"), Some("/maps".into()));
+		browsing.record(login("b.example", "anna"), None);
+		// The same login again moves up and takes its new folder, rather than appearing twice.
+		browsing.record(login("a.example", "anna"), Some("/tiles".into()));
+		browsing.save(&dir)?;
+
+		let loaded = Browsing::load(&dir);
+		let hosts: Vec<_> = loaded.servers.iter().map(|saved| saved.server.host.as_str()).collect();
+		assert_eq!(hosts, ["a.example", "b.example"]);
+		assert_eq!(loaded.servers[0].folder.as_deref(), Some("/tiles"));
+		assert_eq!(loaded, browsing);
+		Ok(())
+	}
+
+	#[test]
+	fn a_corrupt_file_dialog_state_starts_empty() {
+		let dir = crate::testing::dir("browsing-corrupt");
+		std::fs::write(dir.join("browsing.json"), "[").unwrap();
+		assert_eq!(Browsing::load(&dir), Browsing::default());
+	}
 
 	#[test]
 	fn an_appearance_survives_a_round_trip() -> Result<()> {

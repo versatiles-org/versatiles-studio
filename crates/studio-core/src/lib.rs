@@ -27,6 +27,7 @@ pub fn identify(version: &str) -> anyhow::Result<()> {
 pub mod analysis;
 pub mod archive;
 pub mod assets;
+pub mod browse;
 pub mod bundle;
 pub mod checks;
 pub mod contents;
