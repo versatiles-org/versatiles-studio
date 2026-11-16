@@ -129,7 +129,7 @@ test('keeps the column headers readable above a long folder', async ({ page }) =
 // own `tabindex`, and passes plain buttons by - they are reached with macOS's Keyboard navigation
 // setting on. WebKit on Linux, where CI runs this, stops at them too. So what matters is that the
 // three stops a default Mac gives come in reading order - the chosen tab, where to go, and the list -
-// and on a Mac, that they are the only ones.
+// and on a Mac, that they are the only ones (Q74).
 test('walks the dialog in reading order with the Tab key', async ({ page }) => {
 	const stops = ['This computer', 'Folder', 'Files on this computer'];
 	await openDialog(page);

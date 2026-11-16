@@ -573,6 +573,16 @@ the project and the recents. A key file goes into `from_container`'s `ssh_identi
 Signing in, host keys and reading stay versatiles-rs's: it trusts and records a server it has not
 seen, and the dialog cannot ask first until upstream can report a fingerprint without recording it.
 
+### Q74 - Tab follows the platform: on a Mac, it passes plain buttons by
+
+The macOS webview keeps the system's rule: with Keyboard navigation off, the default, Tab stops at
+fields, lists and tabs, and passes plain buttons by - as Safari and native Mac apps do. Linux and
+Windows stop at every button. Studio keeps both rather than adding `tabindex` to every button: a Mac
+app whose Tab walks every toolbar is not one, and whoever needs every button turns the setting on.
+
+What Tab passes by has a key where it is used instead: in a folder list, Enter opens and Backspace
+goes up. The UI suite asserts the Mac's stops exactly and, elsewhere, that they come in that order.
+
 ## Dependencies and packaging
 
 ### Q8 - Release early under v0.x
