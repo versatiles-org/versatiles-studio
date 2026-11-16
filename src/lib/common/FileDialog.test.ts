@@ -87,6 +87,16 @@ describe('the file dialog on this computer', () => {
 		expect((screen.getByLabelText('Folder') as HTMLInputElement).value).toBe('/home/anna');
 	});
 
+	// To the minute, in this computer's time: the day alone cannot tell two exports of one day apart.
+	it('says when each file last changed, with the time', async () => {
+		show();
+		await vi.waitFor(() => expect(row('berlin.versatiles')).toBeTruthy());
+		const at = new Date(1_790_000_000 * 1000);
+		const two = (value: number) => String(value).padStart(2, '0');
+		const expected = `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
+		expect(row('berlin.versatiles').textContent).toContain(expected);
+	});
+
 	// Shown rather than left out: a folder that seems empty reads as the wrong folder.
 	it('shows a file of another kind, dimmed, and will not choose it', async () => {
 		const { onAnswer } = show();

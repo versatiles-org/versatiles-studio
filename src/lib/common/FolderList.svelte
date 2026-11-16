@@ -70,8 +70,13 @@
 		return `${(bytes / scale).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ${unit}`;
 	}
 
-	/// A day, in the one spelling that sorts and reads the same everywhere.
-	const day = (seconds: number) => new Date(seconds * 1000).toISOString().slice(0, 10);
+	/// When a file last changed, to the minute and in this computer's time: `2026-11-16 14:32`. The
+	/// day alone could not tell this morning's export from last night's.
+	function when(seconds: number): string {
+		const at = new Date(seconds * 1000);
+		const two = (value: number) => String(value).padStart(2, '0');
+		return `${at.getFullYear()}-${two(at.getMonth() + 1)}-${two(at.getDate())} ${two(at.getHours())}:${two(at.getMinutes())}`;
+	}
 </script>
 
 <div
@@ -101,7 +106,7 @@
 			<Icon name={entry.folder ? 'folder' : 'file'} />
 			<span class="name truncate">{entry.name}</span>
 			<span class="size">{entry.folder || entry.size === null ? '' : size(entry.size)}</span>
-			<span class="day">{entry.modified === null ? '' : day(entry.modified)}</span>
+			<span class="when">{entry.modified === null ? '' : when(entry.modified)}</span>
 		</button>
 	{:else}
 		{#if listing}<div class="vacant"><Note tone="empty">This folder is empty.</Note></div>{/if}
@@ -143,7 +148,7 @@
 	}
 
 	.size,
-	.day {
+	.when {
 		color: var(--ink-2);
 		font-variant-numeric: tabular-nums;
 		text-align: right;
