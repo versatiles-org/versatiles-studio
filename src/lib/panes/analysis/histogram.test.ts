@@ -34,7 +34,7 @@ group('the buckets (#23)', () => {
 
 group('what a bar says', () => {
 	it('says how many tiles, and between which sizes', () => {
-		expect(describe({ bucket: 30, low: 32_769, high: 46_340, tiles: 2341 })).toBe('2,341 tiles from 33 to 46 kB');
+		expect(describe({ bucket: 30, low: 32_769, high: 46_340, tiles: 2341 })).toBe('2,341 tiles from 32.8 to 46.3 kB');
 	});
 
 	it('gives each end its unit when they differ', () => {

@@ -3,7 +3,7 @@
 	import Note from '../../common/Note.svelte';
 	import SortHeader from '../../common/SortHeader.svelte';
 	import { sortRows, type Sort } from '../../common/sort';
-	import { bytes, count } from '../../common/format';
+	import { count, kilobytes } from '../../common/format';
 	import type { Contents } from '../../ipc/commands';
 	import { combine } from '../../state/contents.svelte';
 
@@ -102,7 +102,7 @@
 						</span>
 					</th>
 					<td>{share(layer.bytes)}</td>
-					<td>{bytes(layer.bytes)}</td>
+					<td>{kilobytes(layer.bytes)}</td>
 					<td>{count(layer.features)}</td>
 				</tr>
 			{/each}

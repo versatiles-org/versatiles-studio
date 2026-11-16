@@ -95,8 +95,8 @@ describe('the tile dialog', () => {
 		show();
 		expect(screen.getByRole('dialog', { name: 'Tile 14/8800/5373' })).toBeTruthy();
 		expect((screen.getByLabelText('Tile address') as HTMLInputElement).value).toBe('14/8800/5373');
-		expect(screen.getByText('610 kB stored').classList.contains('over')).toBe(true);
-		expect(screen.getByText(/1200 kB decompressed/)).toBeTruthy();
+		expect(screen.getByText('610.0 kB stored').classList.contains('over')).toBe(true);
+		expect(screen.getByText(/1,200.0 kB decompressed/)).toBeTruthy();
 	});
 
 	it('lists the layers, and shows where a picked one spends its bytes', async () => {
@@ -111,7 +111,7 @@ describe('the tile dialog', () => {
 		show();
 		await fireEvent.click(screen.getByRole('tab', { name: /Issues/ }));
 		expect(screen.getByText('a ring winds the wrong way')).toBeTruthy();
-		expect(screen.getByText(/A repair would leave 1100 kB decompressed, and no issues/)).toBeTruthy();
+		expect(screen.getByText(/A repair would leave 1,100.0 kB decompressed, and no issues/)).toBeTruthy();
 		await fireEvent.click(screen.getByRole('button', { name: '#1' }));
 		expect(screen.getByRole('tab', { name: 'Features' }).getAttribute('aria-selected')).toBe('true');
 		expect(screen.getByRole('button', { name: 'buildings #1' }).getAttribute('aria-pressed')).toBe('true');
@@ -234,7 +234,7 @@ describe('the tile dialog', () => {
 			});
 			const facts = within(screen.getByLabelText("The tile's pixels"));
 			expect(facts.getByText('dem/terrarium')).toBeTruthy();
-			expect(facts.getByText('-12.5 m to 1,843.3 m, mean 402 m')).toBeTruthy();
+			expect(facts.getByText('-12.5 m to 1,843.3 m, mean 402.0 m')).toBeTruthy();
 			expect((screen.getByLabelText('Draw the heights') as HTMLInputElement).checked).toBe(true);
 			expect(screen.getByText('Point at a pixel for its value and height.')).toBeTruthy();
 		});
@@ -308,13 +308,13 @@ describe('the tile dialog', () => {
 			expect(screen.queryByRole('table', { name: 'Channels' })).toBeNull();
 			const chart = screen.getByRole('slider', { name: 'Pixels by height' });
 			await fireEvent.keyDown(chart, { key: 'Home' });
-			expect(chart.getAttribute('aria-valuetext')).toBe('0 m to 100 m: 5 pixels');
+			expect(chart.getAttribute('aria-valuetext')).toBe('0.0 m to 100.0 m: 5 pixels');
 			const rows = within(screen.getByRole('table', { name: 'Pixels by height' }))
 				.getAllByRole('row')
 				.slice(1);
 			expect(rows.map((row) => [...row.children].map((cell) => cell.textContent?.trim()).join(' '))).toEqual([
-				'0 m – 100 m 5',
-				'200 m – 300 m 1'
+				'0.0 m – 100.0 m 5',
+				'200.0 m – 300.0 m 1'
 			]);
 		});
 

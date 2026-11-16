@@ -120,11 +120,11 @@ describe('the analysis pane', () => {
 		const rows = within(table).getAllByRole('row').slice(1);
 		// Zoom, tiles, total, mean, max - the total in megabytes, one unit down its column.
 		expect(rows.map((row) => [...row.children].map((cell) => cell.textContent?.trim()).join(' '))).toEqual([
-			'0 1 0.2 MB 200 kB 200 kB',
-			'1 2 1.1 MB 550 kB 900 kB'
+			'0 1 0.2 MB 200.0 kB 200.0 kB',
+			'1 2 1.1 MB 550.0 kB 900.0 kB'
 		]);
-		expect(within(rows[1]).getByText('900 kB').classList.contains('over')).toBe(true);
-		expect(within(rows[0]).getAllByText('200 kB')[1].classList.contains('over')).toBe(false);
+		expect(within(rows[1]).getByText('900.0 kB').classList.contains('over')).toBe(true);
+		expect(within(rows[0]).getAllByText('200.0 kB')[1].classList.contains('over')).toBe(false);
 	});
 
 	// Five columns are wider than the pane, so the table scrolls - and a keyboard has to be able to
@@ -148,8 +148,9 @@ describe('the analysis pane', () => {
 		it('charts every level once measured, with a table of the same counts', () => {
 			show({ measurement: measured({ sizes }) });
 			expect(chart().getAttribute('aria-label')).toBe('Tile sizes, all levels');
-			// The 900 kB tile falls in 741 kB to 1.0 MB, two doublings above the two of 200 kB.
-			expect(rows()).toEqual(['185 kB – 262 kB 2', '741 kB – 1.0 MB 1']);
+			// The 900 kB tile falls in 741 kB to 1.0 MB, two doublings above the two of 200 kB - in one
+			// unit down the column, as every column of sizes is.
+			expect(rows()).toEqual(['185.4 kB – 262.1 kB 2', '741.5 kB – 1,048.6 kB 1']);
 		});
 
 		it('is not drawn before anything is measured', () => {
@@ -161,7 +162,7 @@ describe('the analysis pane', () => {
 			show({ measurement: measured({ sizes }) });
 			await fireEvent.change(screen.getByLabelText('Sizes of'), { target: { value: '0' } });
 			expect(chart().getAttribute('aria-label')).toBe('Tile sizes, zoom 0');
-			expect(rows()).toEqual(['185 kB – 262 kB 1']);
+			expect(rows()).toEqual(['185.4 kB – 262.1 kB 1']);
 
 			await fireEvent.click(screen.getByRole('button', { name: 'Chart the sizes at zoom 1' }));
 			expect(chart().getAttribute('aria-label')).toBe('Tile sizes, zoom 1');
@@ -173,12 +174,12 @@ describe('the analysis pane', () => {
 		// One stop for the keyboard, and the arrows walk the bars; what is said is the readout.
 		it('reads out a bar at a time from the keyboard', async () => {
 			show({ measurement: measured({ sizes }) });
-			expect(chart().getAttribute('aria-valuetext')).toMatch(/^all levels: median 200 kB, 95% 900 kB/);
+			expect(chart().getAttribute('aria-valuetext')).toMatch(/^all levels: median 200.0 kB, 95% 900.0 kB/);
 			await fireEvent.keyDown(chart(), { key: 'ArrowRight' });
-			expect(chart().getAttribute('aria-valuetext')).toBe('2 tiles from 185 to 262 kB');
+			expect(chart().getAttribute('aria-valuetext')).toBe('2 tiles from 185.4 to 262.1 kB');
 			await fireEvent.keyDown(chart(), { key: 'End' });
 			await fireEvent.keyDown(chart(), { key: 'ArrowLeft' });
-			expect(chart().getAttribute('aria-valuetext')).toBe('0 tiles from 524 to 741 kB');
+			expect(chart().getAttribute('aria-valuetext')).toBe('0 tiles from 524.3 to 741.5 kB');
 			await fireEvent.keyDown(chart(), { key: 'Escape' });
 			expect(chart().getAttribute('aria-valuetext')).toMatch(/^all levels/);
 		});
@@ -189,9 +190,9 @@ describe('the analysis pane', () => {
 			const { container } = show({ measurement: measured({ sizes }) });
 			const caption = () => container.querySelector('figcaption')!;
 			expect(caption().classList.contains('readout')).toBe(true);
-			expect(caption().textContent).toBe('median 200 kB, 95% 900 kB');
+			expect(caption().textContent).toBe('median 200.0 kB, 95% 900.0 kB');
 			await fireEvent.keyDown(chart(), { key: 'ArrowRight' });
-			expect(caption().textContent).toBe('2 tiles from 185 to 262 kB');
+			expect(caption().textContent).toBe('2 tiles from 185.4 to 262.1 kB');
 		});
 	});
 
@@ -279,8 +280,8 @@ describe('the heat map switch', () => {
 			const table = screen.getByRole('table', { name: 'Layers' });
 			const rows = within(table).getAllByRole('row').slice(1);
 			expect(rows.map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent))).toEqual([
-				['63%', '5 kB', '16'],
-				['38%', '3 kB', '5']
+				['63%', '5.0 kB', '16'],
+				['38%', '3.0 kB', '5']
 			]);
 			expect(screen.getByText(/A sample: 4 of 20 tiles read/)).toBeTruthy();
 		});

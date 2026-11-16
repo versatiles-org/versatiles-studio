@@ -12,7 +12,7 @@
 	import RasterTile, { type PointedPixel } from './RasterTile.svelte';
 	import PixelHistogram, { type Series } from './PixelHistogram.svelte';
 	import { pixelLines, share as part, step, summarise } from './pixel-stats';
-	import { bytes, kilobytes, count, ordinal } from '../common/format';
+	import { exactBytes, kilobytes, count, ordinal } from '../common/format';
 	import type { Dissection } from '../ipc/commands';
 	import { parseAddress, type TileAt } from '../state/tile-dialog.svelte';
 	import { pixelPosition } from '../map/tile-grid';
@@ -82,8 +82,10 @@
 
 	const vector = $derived(dissection !== null && dissection.layers.length > 0);
 	const raster = $derived(dissection?.raster ?? null);
-	/// A height as the dialog writes it: to the decimetre, which is what Mapbox's encoding resolves.
-	const metres = (value: number) => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} m`;
+	/// A height as the dialog writes it: to the decimetre, which is what Mapbox's encoding resolves -
+	/// and always to it, so `100.0 m` lines up under `-12.5 m` in the table of heights.
+	const metres = (value: number) =>
+		`${value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} m`;
 	/// What a vector tile's drawing marks, under it - in full in its title when the square is too narrow.
 	const KEY = "Dashed: the tile's edge and a hole. Red: a ring that encloses nothing.";
 	const pixelReadout = $derived(
@@ -394,7 +396,7 @@
 													<th scope="row">{attribute.key}</th>
 													<td>{count(attribute.features)}</td>
 													<td>{count(attribute.distinct)}</td>
-													<td>{bytes(attribute.bytes)}</td>
+													<td>{exactBytes(attribute.bytes)}</td>
 												</tr>
 											{/each}
 										</tbody>
@@ -438,7 +440,7 @@
 												</th>
 												<td>{feature.kind}</td>
 												<td>{count(feature.vertices)}</td>
-												<td>{bytes(feature.geometryBytes)}</td>
+												<td>{exactBytes(feature.geometryBytes)}</td>
 											</tr>
 										{/each}
 									</tbody>

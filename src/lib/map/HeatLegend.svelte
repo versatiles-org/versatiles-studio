@@ -68,7 +68,8 @@
 		<div class="ramp" aria-hidden="true"></div>
 		<div class="ends">
 			<span>0</span>
-			<span>{kilobytes(max)} and over</span>
+			<!-- In whole kilobytes, as the field below sets it. -->
+			<span>{Math.round(max / 1000)} kB and over</span>
 		</div>
 		{#if measured}
 			<dl class="facts">

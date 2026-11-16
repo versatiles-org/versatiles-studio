@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bytes, count, duration, kilobytes, megabytes, ordinal } from './format';
+import { bytes, count, duration, exactBytes, kilobytes, megabytes, ordinal } from './format';
 
 describe('duration', () => {
 	it('stops pretending to be precise as it gets further away', () => {
@@ -23,7 +23,7 @@ describe('megabytes', () => {
 	it('holds the unit steady across the whole range', () => {
 		expect(megabytes(900_000)).toBe('0.9 MB');
 		expect(megabytes(2_300_000)).toBe('2.3 MB');
-		expect(megabytes(1_200_000_000)).toBe('1200.0 MB');
+		expect(megabytes(1_200_000_000)).toBe('1,200.0 MB');
 	});
 
 	it('does not round a real size away to nothing it can be confused with', () => {
@@ -32,11 +32,20 @@ describe('megabytes', () => {
 });
 
 describe('kilobytes', () => {
-	it('holds the unit for a column of tile sizes, a decimal only where it says something', () => {
+	// One precision down a column: `9.8 kB` over `12 kB` did not line up or compare at a glance.
+	it('holds the unit and one decimal for a whole column of tile sizes', () => {
 		expect(kilobytes(380)).toBe('0.4 kB');
 		expect(kilobytes(9_400)).toBe('9.4 kB');
-		expect(kilobytes(38_200)).toBe('38 kB');
-		expect(kilobytes(1_250_000)).toBe('1250 kB');
+		expect(kilobytes(38_200)).toBe('38.2 kB');
+		expect(kilobytes(500_000)).toBe('500.0 kB');
+		expect(kilobytes(1_250_000)).toBe('1,250.0 kB');
+	});
+});
+
+describe('exactBytes', () => {
+	it('counts every byte, for sizes kilobytes would round to nothing', () => {
+		expect(exactBytes(12)).toBe('12 B');
+		expect(exactBytes(12_345)).toBe('12,345 B');
 	});
 });
 

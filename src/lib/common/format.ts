@@ -34,18 +34,30 @@ export function bytes(count: number): string {
 /// and the eye has to parse a unit per row to find the big one. One unit for the column makes the
 /// digits line up and the comparison free.
 export function megabytes(count: number): string {
-	return `${(count / 1e6).toFixed(1)} MB`;
+	return `${tenths(count / 1e6)} MB`;
 }
 
 /// Always kilobytes, for a column of **tile** sizes (S14.2).
 ///
 /// The same argument as `megabytes`, one unit down: a tile is tens of kilobytes, and the budget a
-/// vector tile is held to - 500 kB - is quoted in this unit. One decimal below ten, where the digit
-/// still says something; none above, where it would only be noise in a column.
+/// vector tile is held to - 500 kB - is quoted in this unit.
+///
+/// **One decimal, always.** It used to be one below ten and none above, which put `9.8 kB` over
+/// `12 kB` in the same column: the digits no longer lined up, and two numbers rounded two ways do
+/// not compare at a glance. The same holds for every column of figures - one unit and one precision
+/// down it, or the comparison the column is for has to be done in the reader's head.
 export function kilobytes(count: number): string {
-	const kb = count / 1e3;
-	return `${kb < 10 ? kb.toFixed(1) : Math.round(kb)} kB`;
+	return `${tenths(count / 1e3)} kB`;
 }
+
+/// Every byte, for a column of sizes too small for kilobytes to tell apart - an attribute, one
+/// feature's geometry - where `0.0 kB` would be three rows of the same nothing.
+export function exactBytes(value: number): string {
+	return `${count(value)} B`;
+}
+
+/// One decimal, thousands separated: `1,234.5`.
+const tenths = (value: number) => value.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /// Thousands separated, for counts that are read rather than compared - "1,048,576 tiles".
 export function count(value: number): string {

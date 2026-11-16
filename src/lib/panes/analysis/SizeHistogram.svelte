@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Histogram } from '../../ipc/commands';
+	import { kilobytes } from '../../common/format';
 	import { bars, ceiling, compact, describe, lowerBound, size, STEPS, ticks, type Bar } from './histogram';
 
 	// How many tiles there are of each size (#23): one bar per bucket of the core's, on a log scale,
@@ -191,7 +192,8 @@
 			<tbody>
 				{#each list.filter((bar) => bar.tiles > 0) as bar (bar.bucket ?? 'empty')}
 					<tr>
-						<th scope="row">{bar.bucket === null ? '0 B' : `${size(bar.low)} – ${size(bar.high)}`}</th>
+						<!-- In kilobytes all the way down, as the pane's other columns of sizes are. -->
+						<th scope="row">{bar.bucket === null ? '0 B' : `${kilobytes(bar.low)} – ${kilobytes(bar.high)}`}</th>
 						<td>{bar.tiles.toLocaleString('en-US')}</td>
 					</tr>
 				{/each}

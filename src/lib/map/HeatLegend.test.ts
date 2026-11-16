@@ -61,8 +61,8 @@ describe('the heat map legend', () => {
 				histogram: { empty: 0, first: 0, counts: [] }
 			}
 		});
-		expect(screen.getByText('340 kB')).toBeTruthy();
-		expect(screen.getByText('610 kB')).toBeTruthy();
+		expect(screen.getByText('340.0 kB')).toBeTruthy();
+		expect(screen.getByText('610.0 kB')).toBeTruthy();
 	});
 
 	// The legend hangs from the map's controls: rows that came and went with the level moved the

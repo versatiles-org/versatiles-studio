@@ -86,7 +86,7 @@ describe('the tile under a click', () => {
 		show(fake);
 		await fake.click();
 		expect(ipc.summariseTile).toHaveBeenCalledWith(4, 13, 4400, 2686);
-		expect(screen.getByText('216 kB stored').getAttribute('title')).toBe('469 kB decompressed');
+		expect(screen.getByText('216.0 kB stored').getAttribute('title')).toBe('469.0 kB decompressed');
 		expect(screen.getByText('streets')).toBeTruthy();
 	});
 
