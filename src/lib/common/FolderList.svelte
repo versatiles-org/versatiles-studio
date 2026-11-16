@@ -192,6 +192,9 @@
 
 	/* The scroller's gutter on both, so a scrollbar does not shift the rows out from under the headers. */
 	.head {
+		/* Never shrunk: a flex item with `overflow: hidden` may be squeezed below its content, and a
+		   long folder in the list below took all but a few pixels of the headers' height. */
+		flex: none;
 		overflow: hidden;
 		scrollbar-gutter: stable;
 		border-bottom: 1px solid var(--rule);
