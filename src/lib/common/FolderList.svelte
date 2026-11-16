@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import Note from './Note.svelte';
+	import { nextSort, sortRows, type Direction, type Sort } from './sort';
 	import type { BrowseEntry, BrowseListing } from '../ipc/commands';
 
 	// One folder, a row per thing in it (the file dialog): folders first, then files.
@@ -14,6 +15,12 @@
 	//
 	// **A file that cannot be chosen is shown, dimmed**, rather than left out: a folder that seems to
 	// hold nothing reads as the wrong folder, and the reason is the file's kind, not its absence.
+	//
+	// **Sorted by any column, folders still first** - the kit's three clicks (`sort.ts`): a column, the
+	// other way, and back to by name. Folders stay above the files whichever column it is, as they do
+	// in every file manager: sorting by size is a question about files. Not `SortHeader`, which is a
+	// table's `<th>`; this is a list of options, so the headers are a row of buttons above it, kept
+	// for the next folder.
 
 	let {
 		listing,
@@ -36,7 +43,30 @@
 		onUp: () => void;
 	} = $props();
 
-	const entries = $derived(listing?.entries ?? []);
+	const COLUMNS: { column: string; label: string; first: Direction }[] = [
+		{ column: 'name', label: 'Name', first: 'ascending' },
+		{ column: 'size', label: 'Size', first: 'descending' },
+		{ column: 'modified', label: 'Modified', first: 'descending' }
+	];
+	let sort = $state<Sort | null>({ by: 'name', direction: 'ascending' });
+
+	const value = (entry: BrowseEntry, column: string) =>
+		column === 'size' ? entry.size : column === 'modified' ? entry.modified : entry.name;
+	const entries = $derived.by(() => {
+		const all = listing?.entries ?? [];
+		return [
+			...sortRows(
+				all.filter((entry) => entry.folder),
+				sort,
+				value
+			),
+			...sortRows(
+				all.filter((entry) => !entry.folder),
+				sort,
+				value
+			)
+		];
+	});
 	const at = $derived(entries.findIndex((entry) => entry.location === selected));
 	const usable = (entry: BrowseEntry) => entry.folder || accepts(entry);
 
@@ -79,57 +109,126 @@
 	}
 </script>
 
-<div
-	bind:this={list}
-	class="list"
-	role="listbox"
-	tabindex="0"
-	aria-label={label}
-	aria-activedescendant={at >= 0 ? `entry-${at}` : undefined}
-	onkeydown={key}
->
-	{#each entries as entry, index (entry.location)}
-		<button
-			type="button"
-			id="entry-{index}"
-			data-index={index}
-			class="row"
-			class:selected={index === at}
-			role="option"
-			aria-selected={index === at}
-			aria-disabled={!usable(entry)}
-			tabindex="-1"
-			title={usable(entry) ? undefined : 'Not a kind of file this can open'}
-			onclick={() => usable(entry) && onSelect(entry)}
-			ondblclick={() => usable(entry) && onOpen(entry)}
-		>
-			<Icon name={entry.folder ? 'folder' : 'file'} />
-			<span class="name truncate">{entry.name}</span>
-			<span class="size">{entry.folder || entry.size === null ? '' : size(entry.size)}</span>
-			<span class="when">{entry.modified === null ? '' : when(entry.modified)}</span>
-		</button>
-	{:else}
-		{#if listing}<div class="vacant"><Note tone="empty">This folder is empty.</Note></div>{/if}
-	{/each}
+<div class="table">
+	<div class="head" role="group" aria-label="Sort by">
+		<span class="glyph" aria-hidden="true"><Icon name="file" /></span>
+		{#each COLUMNS as { column, label: name, first } (column)}
+			{@const on = sort?.by === column ? sort.direction : null}
+			<button
+				type="button"
+				class="column {column}"
+				class:on
+				aria-pressed={on !== null}
+				title="Sort by {name.toLowerCase()}"
+				onclick={() => (sort = nextSort(sort, column, first))}
+			>
+				{name}{#if on}<span class="visually-hidden">, {on}</span><Icon
+						name={on === 'ascending' ? 'up' : 'down'}
+						size="0.85em"
+					/>{/if}
+			</button>
+		{/each}
+	</div>
+	<div
+		bind:this={list}
+		class="list"
+		role="listbox"
+		tabindex="0"
+		aria-label={label}
+		aria-activedescendant={at >= 0 ? `entry-${at}` : undefined}
+		onkeydown={key}
+	>
+		{#each entries as entry, index (entry.location)}
+			<button
+				type="button"
+				id="entry-{index}"
+				data-index={index}
+				class="row"
+				class:selected={index === at}
+				role="option"
+				aria-selected={index === at}
+				aria-disabled={!usable(entry)}
+				tabindex="-1"
+				title={usable(entry) ? undefined : 'Not a kind of file this can open'}
+				onclick={() => usable(entry) && onSelect(entry)}
+				ondblclick={() => usable(entry) && onOpen(entry)}
+			>
+				<Icon name={entry.folder ? 'folder' : 'file'} />
+				<span class="name truncate">{entry.name}</span>
+				<span class="size">{entry.folder || entry.size === null ? '' : size(entry.size)}</span>
+				<span class="when">{entry.modified === null ? '' : when(entry.modified)}</span>
+			</button>
+		{:else}
+			{#if listing}<div class="vacant"><Note tone="empty">This folder is empty.</Note></div>{/if}
+		{/each}
+	</div>
 </div>
 
 <style>
+	/* The headers above the list and the rows in it share one set of columns. Widths rather than
+	   `auto`, because every row is a grid of its own and would otherwise size its columns to itself. */
+	.table {
+		--columns: auto minmax(0, 1fr) var(--size-width) var(--when-width);
+		--size-width: 5.5rem;
+		--when-width: 8.5rem;
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		min-height: 0;
+		border: 1px solid var(--rule);
+		border-radius: var(--radius);
+		background: var(--surface);
+		overflow: hidden;
+	}
+
+	.head,
+	.row {
+		display: grid;
+		grid-template-columns: var(--columns);
+		align-items: center;
+		gap: var(--space-3);
+		padding: var(--space-1) var(--space-3);
+	}
+
+	/* The scroller's gutter on both, so a scrollbar does not shift the rows out from under the headers. */
+	.head {
+		overflow: hidden;
+		scrollbar-gutter: stable;
+		border-bottom: 1px solid var(--rule);
+		font-size: var(--text-xs);
+		color: var(--ink-2);
+	}
+
+	.glyph {
+		visibility: hidden;
+	}
+
+	.column {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		min-width: 0;
+
+		&:hover,
+		&.on {
+			color: var(--ink);
+		}
+
+		&.size,
+		&.modified {
+			justify-content: flex-end;
+		}
+	}
+
 	.list {
 		flex: 1 1 auto;
 		min-height: 0;
 		overflow-y: auto;
-		border: 1px solid var(--rule);
-		border-radius: var(--radius);
-		background: var(--surface);
+		scrollbar-gutter: stable;
 	}
 
 	.row {
-		display: grid;
-		grid-template-columns: auto minmax(0, 1fr) auto auto;
-		align-items: center;
-		gap: var(--space-3);
 		width: 100%;
-		padding: var(--space-1) var(--space-3);
 		text-align: left;
 		font-size: var(--text-sm);
 		cursor: default;
@@ -153,10 +252,6 @@
 		font-variant-numeric: tabular-nums;
 		text-align: right;
 		white-space: nowrap;
-	}
-
-	.size {
-		min-width: 5rem;
 	}
 
 	.vacant {

@@ -97,6 +97,41 @@ describe('the file dialog on this computer', () => {
 		expect(row('berlin.versatiles').textContent).toContain(expected);
 	});
 
+	// The kit's three clicks, with the folders kept above the files whichever column it is.
+	it('sorts by a column header, folders still first', async () => {
+		const MIXED: BrowseListing = {
+			path: '/data',
+			parent: '/',
+			entries: [
+				folder('a-folder', '/data/a-folder'),
+				folder('b-folder', '/data/b-folder'),
+				{ ...file('big.versatiles', '/data/big.versatiles', 9_000), modified: 100 },
+				{ ...file('mid.versatiles', '/data/mid.versatiles', 5_000), modified: 300 },
+				{ ...file('small.versatiles', '/data/small.versatiles', 1_000), modified: 200 }
+			]
+		};
+		show({ api: { local: vi.fn().mockResolvedValue(MIXED) } });
+		await vi.waitFor(() => expect(row('big.versatiles')).toBeTruthy());
+		const order = () => screen.getAllByRole('option').map((option) => option.textContent?.trim().split(/\s+/)[0]);
+		const header = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}`) });
+
+		expect(order()).toEqual(['a-folder', 'b-folder', 'big.versatiles', 'mid.versatiles', 'small.versatiles']);
+		expect(header('Name').getAttribute('aria-pressed')).toBe('true');
+
+		await fireEvent.click(header('Size'));
+		expect(order()).toEqual(['a-folder', 'b-folder', 'big.versatiles', 'mid.versatiles', 'small.versatiles']);
+		await fireEvent.click(header('Size'));
+		expect(order()).toEqual(['a-folder', 'b-folder', 'small.versatiles', 'mid.versatiles', 'big.versatiles']);
+
+		await fireEvent.click(header('Modified'));
+		expect(order()).toEqual(['a-folder', 'b-folder', 'mid.versatiles', 'small.versatiles', 'big.versatiles']);
+
+		await fireEvent.click(header('Name'));
+		await fireEvent.click(header('Name'));
+		expect(order()).toEqual(['b-folder', 'a-folder', 'small.versatiles', 'mid.versatiles', 'big.versatiles']);
+		expect(header('Name').textContent).toContain('descending');
+	});
+
 	// Shown rather than left out: a folder that seems empty reads as the wrong folder.
 	it('shows a file of another kind, dimmed, and will not choose it', async () => {
 		const { onAnswer } = show();
