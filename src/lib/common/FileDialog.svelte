@@ -5,14 +5,18 @@
 		browseRemote,
 		browsing,
 		forgetServer,
+		importOpening,
+		recentSources,
 		rememberBrowsing,
 		type BrowseEntry,
 		type BrowseListing,
 		type BrowsePlace,
+		type Opening,
 		type Browsing,
 		type SavedServer,
 		type SftpServer
 	} from '../ipc/commands';
+	import { fetchCatalog, type Shortcut } from './catalog';
 
 	/** What the dialog asks the core. A parameter so a test needs no core. */
 	export interface BrowseApi {
@@ -22,6 +26,12 @@
 		browsing: () => Promise<Browsing>;
 		remember: (tab: string, folder: string | null, server: SavedServer | null) => Promise<null>;
 		forget: (server: SftpServer) => Promise<null>;
+		/** Addresses opened before, most recent first, for the Web address tab. */
+		addresses: () => Promise<string[]>;
+		/** What an address opens as, for the Web address tab's check. */
+		opening: (url: string) => Promise<Opening>;
+		/** The download catalogue's shortcuts, `null` when it cannot be had. */
+		shortcuts: () => Promise<Shortcut[] | null>;
 	}
 
 	const CORE: BrowseApi = {
@@ -30,7 +40,11 @@
 		remote: browseRemote,
 		browsing,
 		remember: rememberBrowsing,
-		forget: forgetServer
+		forget: forgetServer,
+		opening: importOpening,
+		shortcuts: fetchCatalog,
+		addresses: async () =>
+			(await recentSources()).map((entry) => entry.source).filter((source) => /^(https?|sftp):\/\//i.test(source))
 	};
 
 	/** How a server is named in a list: `anna@box.example.org`, with the port when it is not 22. */
@@ -46,6 +60,7 @@
 	import Field from './Field.svelte';
 	import Icon from './Icon.svelte';
 	import FolderList from './FolderList.svelte';
+	import AddressPanel from './AddressPanel.svelte';
 	import type { FileRequest } from '../state/file-dialog.svelte';
 
 	// Studio's own file dialog: a file on this computer or on an SFTP server, in one look.
@@ -71,11 +86,14 @@
 		api?: BrowseApi;
 	} = $props();
 
-	type Where = 'local' | 'remote';
-	const TABS = [
+	type Where = 'local' | 'remote' | 'address';
+	/// The Web address tab only where an address is something to open: a source can be one, a node's
+	/// clip polygon or key file cannot.
+	const TABS = $derived([
 		{ id: 'local', label: 'This computer' },
-		{ id: 'remote', label: 'SFTP server' }
-	];
+		{ id: 'remote', label: 'SFTP server' },
+		...(request.addresses ? [{ id: 'address', label: 'Web address' }] : [])
+	]);
 
 	let tab = $state<Where>('local');
 	let places = $state<BrowsePlace[]>([]);
@@ -90,20 +108,23 @@
 	/// folder arriving late cannot wipe out why a server refused, on the tab being looked at.
 	type Status = { busy: boolean; problem: boolean; text: string };
 	const IDLE: Status = { busy: false, problem: false, text: '' };
-	let statuses = $state<Record<Where, Status>>({ local: IDLE, remote: IDLE });
+	let statuses = $state<Record<Where, Status>>({ local: IDLE, remote: IDLE, address: IDLE });
 	const status = $derived(statuses[tab]);
 	const say = (where: Where, busy: boolean, problem: boolean, text: string) =>
 		(statuses[where] = { busy, problem, text });
 
-	const listing = $derived(tab === 'local' ? local : remote);
-	const connected = $derived(tab === 'local' || server !== null);
+	const listing = $derived(tab === 'local' ? local : tab === 'remote' ? remote : null);
+	const connected = $derived(tab === 'local' || (tab === 'remote' && server !== null));
+	/// On the Web address tab: the address Open would open, once the check says it will.
+	let address = $state<string | null>(null);
+	let addresses = $state<string[]>([]);
 
 	// The path field shows the folder listed, and is typed into to go somewhere else.
 	let typed = $derived(listing?.path ?? '');
 
 	/// Only the latest answer is kept, per tab: a slow folder arriving after a quick one is a folder
 	/// left - but a server connecting is no reason to drop the local folder on its way.
-	const asked: Record<Where, number> = { local: 0, remote: 0 };
+	const asked: Record<Where, number> = { local: 0, remote: 0, address: 0 };
 	async function load(where: Where, read: () => Promise<BrowseListing>, saying: string): Promise<boolean> {
 		const mine = ++asked[where];
 		say(where, true, false, saying);
@@ -146,7 +167,8 @@
 		const [known, found] = await Promise.all([api.browsing().catch(() => null), api.places().catch(() => [])]);
 		places = found;
 		servers = known?.servers ?? [];
-		if (known?.tab === 'remote') tab = 'remote';
+		if (known?.tab === 'remote' || (known?.tab === 'address' && request.addresses)) tab = known.tab;
+		if (request.addresses) addresses = await api.addresses().catch(() => []);
 		// The last server, filled in rather than connected to: signing in is the person's to start.
 		const last = servers[0]?.server;
 		if (last) fill(last);
@@ -212,6 +234,12 @@
 		onAnswer(entry.location);
 	}
 
+	/// An address the panel has already checked, kept like a file is: the tab is remembered too.
+	async function chooseAddress(url: string): Promise<void> {
+		await api.remember('address', local?.path ?? null, null).catch(() => null);
+		onAnswer(url);
+	}
+
 	const choosable = $derived(selected !== null && (selected.folder || accepts(selected)));
 </script>
 
@@ -220,13 +248,21 @@
 		items={TABS}
 		selected={tab}
 		onSelect={(id) => {
-			tab = id === 'remote' ? 'remote' : 'local';
+			tab = id === 'remote' || id === 'address' ? id : 'local';
 			selected = null;
 		}}
 		label="Where the file is"
 	/>
 
-	{#if connected}
+	{#if tab === 'address'}
+		<AddressPanel
+			recents={addresses}
+			check={api.opening}
+			loadShortcuts={api.shortcuts}
+			onChange={(url) => (address = url)}
+			onOpen={(url) => void chooseAddress(url)}
+		/>
+	{:else if connected}
 		<div class="where">
 			<button
 				type="button"
@@ -331,8 +367,12 @@
 		<button
 			type="button"
 			class="button primary"
-			disabled={!choosable || status.busy}
-			onclick={() => selected && open(selected)}>{selected?.folder ? 'Open Folder' : 'Open'}</button
+			disabled={tab === 'address' ? address === null : !choosable || status.busy}
+			onclick={() => {
+				if (tab === 'address') {
+					if (address) void chooseAddress(address);
+				} else if (selected) open(selected);
+			}}>{tab !== 'address' && selected?.folder ? 'Open Folder' : 'Open'}</button
 		>
 	{/snippet}
 </Modal>

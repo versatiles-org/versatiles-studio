@@ -63,6 +63,9 @@ function show(over: { request?: Partial<FileRequest>; api?: Partial<BrowseApi> }
 		browsing: vi.fn().mockResolvedValue({ tab: '', folder: null, servers: [] }),
 		remember: vi.fn().mockResolvedValue(null),
 		forget: vi.fn().mockResolvedValue(null),
+		addresses: vi.fn().mockResolvedValue([]),
+		opening: vi.fn().mockResolvedValue({ kind: { label: 'Tile container' }, refused: null }),
+		shortcuts: vi.fn().mockResolvedValue([]),
 		...over.api
 	};
 	const onAnswer = vi.fn();
@@ -72,7 +75,7 @@ function show(over: { request?: Partial<FileRequest>; api?: Partial<BrowseApi> }
 }
 
 const row = (name: string) => screen.getByRole('option', { name: new RegExp(name) });
-const openButton = () => screen.getByRole('button', { name: /^Open/ });
+const openButton = () => screen.getByRole('button', { name: /^Open( Folder)?$/ });
 
 describe('the file dialog on this computer', () => {
 	it('starts in the folder it was last in, folders first, with the places beside it', async () => {
@@ -273,6 +276,37 @@ describe('the file dialog on an SFTP server', () => {
 		await fireEvent.click(await screen.findByRole('button', { name: 'Forget anna@box.example.org:23' }));
 		expect(api.forget).toHaveBeenCalledWith(BOX);
 		await vi.waitFor(() => expect(screen.queryByRole('button', { name: 'anna@box.example.org:23' })).toBeNull());
+	});
+});
+
+describe('the file dialog on the web', () => {
+	// A node's clip polygon is not something an address can be; a source is.
+	it('offers a Web address tab only where an address can be opened', async () => {
+		show();
+		await screen.findByRole('tab', { name: 'SFTP server' });
+		expect(screen.queryByRole('tab', { name: 'Web address' })).toBeNull();
+		cleanup();
+
+		show({ request: { addresses: true } });
+		expect(await screen.findByRole('tab', { name: 'Web address' })).toBeTruthy();
+	});
+
+	it('opens an address once it is checked, offering the ones opened before', async () => {
+		const { api, onAnswer } = show({
+			request: { addresses: true },
+			api: { addresses: vi.fn().mockResolvedValue(['https://example.org/mine.pmtiles']) }
+		});
+		await fireEvent.click(await screen.findByRole('tab', { name: 'Web address' }));
+		expect((openButton() as HTMLButtonElement).disabled, 'nothing typed').toBe(true);
+
+		await vi.waitFor(() => expect(api.addresses).toHaveBeenCalled());
+		await fireEvent.click(screen.getByRole('tab', { name: 'Recent' }));
+		await fireEvent.click(await screen.findByTitle('https://example.org/mine.pmtiles'));
+		await vi.waitFor(() => expect((openButton() as HTMLButtonElement).disabled).toBe(false));
+		expect(api.opening).toHaveBeenCalledWith('https://example.org/mine.pmtiles');
+		await fireEvent.click(openButton());
+		await vi.waitFor(() => expect(onAnswer).toHaveBeenCalledWith('https://example.org/mine.pmtiles'));
+		expect(api.remember).toHaveBeenCalledWith('address', '/home/anna', null);
 	});
 });
 

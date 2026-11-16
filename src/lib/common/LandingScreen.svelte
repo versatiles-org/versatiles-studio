@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Icon from './Icon.svelte';
 	import type { ImportKind, RecentEntry } from '../ipc/commands';
-	import RemoteDialog from './RemoteDialog.svelte';
 	import Note from './Note.svelte';
 	import logo from '../../../src-tauri/icons/128x128.png';
 
@@ -13,12 +12,14 @@
 	// wait behind the first. On an 880×580 window the list is a list rather than a preview of one,
 	// and it scrolls without moving anything else.
 	//
-	// **Four doors, by where the thing is** - a local file, a remote one, a project folder, and
-	// nothing at all. It was seven: one card per import kind, plus a project card, plus a URL form.
+	// **Three doors** - a file, a project folder, and nothing at all. A file is one door wherever it
+	// is: the file dialog has a tab for this computer, an SFTP server and a web address ([Q73]), and
+	// a second door that opened the same dialog on another tab was a choice made twice. It was seven
+	// once: one card per import kind, plus a project card, plus a URL form.
 	// Those five differed only in which extensions the file dialog would show, which is not a
 	// decision anyone arrives wanting to make - `importOpening` reads the kind off the extension, and off the document where three formats share one
-	// anyway. What is left differ in mechanism: a file dialog, an address dialog, a directory dialog, and
-	// a window with nothing in it. The last is under a rule because it is the only one that opens
+	// anyway. What is left differ in mechanism: a file dialog, a directory dialog, and a
+	// window with nothing in it. The last is under a rule because it is the only one that opens
 	// nothing, and it is last because it is the rarest way to start.
 	//
 	// **The catalogue did not go away, it changed job.** It still decides which extensions the
@@ -27,6 +28,7 @@
 	// workbench, where it becomes a `from_*` node; that is `ImportCards`, and it stayed there.
 	//
 	// [Q48]: ../../../docs/decisions.md
+	// [Q73]: ../../../docs/decisions.md
 
 	let {
 		kinds,
@@ -51,21 +53,6 @@
 		onForget: (source: string) => void;
 		onOpenRepository: () => void;
 	} = $props();
-
-	/// Whether the remote dialog is showing. A dialog rather than a field under the door: what opens
-	/// from an address is narrower than what opens from disk, and the field had no room to say so,
-	/// nor anything to offer a person who arrived without an address (see `RemoteDialog`).
-	let asking = $state(false);
-
-	/// The recents that are addresses, for the dialog to offer again.
-	const remoteRecents = $derived(
-		recents.map((entry) => entry.source).filter((source) => /^(https?|sftp):\/\//i.test(source))
-	);
-
-	function openRemote(url: string) {
-		asking = false;
-		onOpenUrl(url);
-	}
 
 	const filename = (source: string) => source.split(/[/\\]/).pop() || source;
 
@@ -93,8 +80,8 @@
 				     leave it floating exactly between two doors and belonging to neither. -->
 				<div class="local">
 					<button type="button" class="door" onclick={onOpenFile}>
-						<strong>Open a local file</strong>
-						<span>Tiles you have, or data to build them from</span>
+						<strong>Open a file</strong>
+						<span>On this computer, an SFTP server or the web - tiles, or data to build them from</span>
 						<!-- From the core's catalogue, so this cannot name something the build lacks (S3.2). -->
 						{#if kinds.length}
 							<span class="kinds">{kinds.map((kind) => kind.label).join(' · ')}</span>
@@ -106,11 +93,6 @@
 					     the recent list only because that is where the window happened to end. -->
 					<div class="drop"><Note tone="lead">…or drop a file anywhere in this window.</Note></div>
 				</div>
-
-				<button type="button" class="door" aria-haspopup="dialog" onclick={() => (asking = true)}>
-					<strong>Open a remote file</strong>
-					<span>HTTPS or SFTP - a planet file opens from its index</span>
-				</button>
 
 				<button type="button" class="door" onclick={onOpenProject}>
 					<strong>Open a project folder</strong>
@@ -154,10 +136,6 @@
 			{/if}
 		</section>
 	</div>
-
-	{#if asking}
-		<RemoteDialog recents={remoteRecents} onOpen={openRemote} onCancel={() => (asking = false)} />
-	{/if}
 
 	<footer>
 		VersaTiles Studio {version} · alpha ·

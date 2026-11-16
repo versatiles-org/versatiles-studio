@@ -48,10 +48,10 @@ function show(over: { kinds?: ImportKind[]; recents?: RecentEntry[] } = {}) {
 	return calls;
 }
 
-describe('the four doors', () => {
-	it('opens a local file', async () => {
+describe('the three doors', () => {
+	it('opens a file', async () => {
 		const calls = show();
-		(await screen.findByRole('button', { name: /Open a local file/ })).click();
+		(await screen.findByRole('button', { name: /Open a file/ })).click();
 		expect(calls.onOpenFile).toHaveBeenCalledTimes(1);
 	});
 
@@ -68,24 +68,11 @@ describe('the four doors', () => {
 		expect(calls.onNewProject).toHaveBeenCalledTimes(1);
 	});
 
-	/**
-	 * The remote door opens a dialog: what opens from an address is narrower than what opens from
-	 * disk, and a field under the door had no room to say so. The dialog has its own tests.
-	 */
-	it('opens a dialog for a remote file, offering the remote recents only', async () => {
-		show({
-			recents: [
-				{ source: '/data/berlin.versatiles', openedAt: 0 },
-				{ source: 'https://example.org/planet.versatiles', openedAt: 0 }
-			] as RecentEntry[]
-		});
-		expect(screen.queryByLabelText('Address of a remote file')).toBeNull();
-
-		(await screen.findByRole('button', { name: /Open a remote file/ })).click();
-
-		const dialog = await screen.findByRole('dialog', { name: 'Open a remote file' });
-		expect(dialog.querySelector('[title="https://example.org/planet.versatiles"]')).not.toBeNull();
-		expect(dialog.querySelector('[title="/data/berlin.versatiles"]')).toBeNull();
+	// A file is one door wherever it is: the file dialog has its own tabs for a server and the web.
+	it('has no second door for a remote file', async () => {
+		show();
+		await screen.findByRole('button', { name: /Open a file/ });
+		expect(screen.queryByRole('button', { name: /remote/i })).toBeNull();
 	});
 });
 
@@ -101,7 +88,7 @@ describe('what the build can read', () => {
 	// same character, and a build with no catalogue still has a version.
 	it('says nothing when the catalogue is empty', async () => {
 		show({ kinds: [] });
-		const door = await screen.findByRole('button', { name: /Open a local file/ });
+		const door = await screen.findByRole('button', { name: /Open a file/ });
 		expect(door.textContent).not.toContain('·');
 	});
 });
@@ -168,7 +155,7 @@ describe('the drop hint', () => {
 		});
 
 		const hint = screen.getByText(/drop a file anywhere/);
-		const start = screen.getByRole('button', { name: /Open a local file/ }).closest('section');
+		const start = screen.getByRole('button', { name: /Open a file/ }).closest('section');
 		expect(start?.contains(hint)).toBe(true);
 
 		unmount();

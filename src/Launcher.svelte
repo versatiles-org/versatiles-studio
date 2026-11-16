@@ -96,7 +96,7 @@
 	/// it cannot read is one to ignore. This hands the path to a *new* window, and [S7.6] is explicit
 	/// that the path is inspected at neither end - a file, a project directory and a URL are all the
 	/// same to it. Filtering by extension here would refuse a dropped project folder, which has none
-	/// and is one of the four doors beside it.
+	/// and is one of the three doors beside it.
 	///
 	/// **The first path only.** `openInNewWindow` closes this window, so a second call would be made
 	/// from a window that is going away; opening one thing is also what every other door here does.

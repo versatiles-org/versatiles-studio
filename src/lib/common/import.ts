@@ -35,7 +35,8 @@ export async function askForSource(kinds: ImportKind[], kind?: ImportKind): Prom
 	return fileDialog.ask({
 		title: kind ? `Open ${kind.label}` : 'Open a Source',
 		extensions: kind ? kind.extensions : anyExtension(kinds),
-		check: refusal
+		check: refusal,
+		addresses: true
 	});
 }
 

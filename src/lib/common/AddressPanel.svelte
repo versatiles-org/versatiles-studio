@@ -1,5 +1,4 @@
 <script lang="ts">
-	import Modal from './Modal.svelte';
 	import Group from './Group.svelte';
 	import Note from './Note.svelte';
 	import Tabs from './Tabs.svelte';
@@ -9,7 +8,11 @@
 
 	// Opening a remote source: an address, what it can be, and somewhere to start if you have none.
 	//
-	// **A dialog rather than a field under the door**, because the field could say nothing. What opens
+	// **The file dialog's Web address tab** ([Q73](../../../docs/decisions.md)). It was a dialog of its
+	// own behind a second door on the start screen; a file is now opened through one dialog, wherever
+	// it is, and this is where it is when it is an address.
+	//
+	// **A panel with a check rather than a bare field**, because the field could say nothing. What opens
 	// from a URL is narrower than what opens from disk - a `.mbtiles` or a GeoJSON fails, but only once
 	// a window has opened and a pipeline has been built - and a person arriving with no address had
 	// nowhere to get one. The hints say what works, the check says whether *this* address will, before
@@ -18,14 +21,16 @@
 	let {
 		recents = [],
 		onOpen,
-		onCancel,
+		onChange,
 		check = importOpening,
 		loadShortcuts = fetchCatalog
 	}: {
 		/** Remote sources opened before, most recent first. */
 		recents?: string[];
+		/** Enter in the field, on an address that opens. */
 		onOpen: (url: string) => void;
-		onCancel: () => void;
+		/** The address the dialog's Open would open now, or `null` while there is none that will. */
+		onChange: (url: string | null) => void;
 		/** What the core makes of an address. A parameter so a test needs no core. */
 		check?: (url: string) => Promise<Opening>;
 		/** The catalogue's shortcuts, `null` when it cannot be had. A parameter so a test needs no network. */
@@ -114,6 +119,8 @@
 		if (verdict.state === 'opens') onOpen(url.trim());
 	}
 
+	$effect(() => onChange(verdict.state === 'opens' ? url.trim() : null));
+
 	/// What a shortcut is, in the space of one line: kind, size and age, whichever it has.
 	const meta = (shortcut: Shortcut) =>
 		[shortcut.tileType, shortcut.size === null ? 'tile server' : bytes(shortcut.size), shortcut.date]
@@ -121,7 +128,7 @@
 			.join(' · ');
 </script>
 
-<Modal title="Open a remote file" width="40rem" onClose={onCancel}>
+<div class="panel-body">
 	<form class="address" onsubmit={submit}>
 		<input
 			bind:this={field}
@@ -208,16 +215,18 @@
 			{/if}
 		{/if}
 	</div>
-
-	{#snippet actions()}
-		<button type="button" class="button" onclick={onCancel}>Cancel</button>
-		<button type="button" class="button primary" disabled={verdict.state !== 'opens'} onclick={() => submit()}>
-			Open
-		</button>
-	{/snippet}
-</Modal>
+</div>
 
 <style>
+	/* The tab's whole height, with the list below the field the part that gives way. */
+	.panel-body {
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		gap: var(--space-4);
+		min-height: 0;
+	}
+
 	.address {
 		display: flex;
 		flex-direction: column;
@@ -236,7 +245,7 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
-		flex: 0 1 16rem;
+		flex: 1 1 auto;
 		min-height: 0;
 		overflow-y: auto;
 		margin-top: calc(-1 * var(--space-2));

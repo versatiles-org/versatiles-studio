@@ -106,11 +106,9 @@ Three regions, always present - **left pane, map, right pane** - over the status
 │  ◆  VersaTiles Studio                                      │
 │                                                            │
 │  START                      RECENT                         │
-│  Open a local file      (A1) osm.versatiles       2 h ago  │
-│  Tile container · Vector…    MyProject/          yesterday │
+│  Open a file        (A1, A2) osm.versatiles       2 h ago  │
+│  this computer, SFTP, web    MyProject/          yesterday │
 │  …or drop a file anywhere    berlin.vpl           3 d ago  │
-│  Open a remote file     (A2) …                             │
-│  HTTPS or SFTP                                             │
 │  Open a project folder  (G1)                               │
 │  pipelines, style, manifest                                │
 │  ──────────────────────                                    │

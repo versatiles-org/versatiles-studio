@@ -1,17 +1,11 @@
 // @vitest-environment jsdom
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/svelte';
-import RemoteDialog from './RemoteDialog.svelte';
+import AddressPanel from './AddressPanel.svelte';
 import type { Opening } from '../ipc/commands';
 import type { Shortcut } from './catalog';
 
-// jsdom has no `showModal`, and `Modal` calls it on mount.
-beforeEach(() => {
-	HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
-		this.open = true;
-	};
-});
 afterEach(cleanup);
 
 const OSM: Shortcut = {
@@ -27,11 +21,11 @@ const OSM: Shortcut = {
 const opens = (label = 'Tile container'): Opening => ({ kind: { label } as Opening['kind'], refused: null });
 
 function show(over: Record<string, unknown> = {}) {
-	const calls = { onOpen: vi.fn(), onCancel: vi.fn() };
+	const calls = { onOpen: vi.fn(), onChange: vi.fn() };
 	const check = vi.fn(async (url: string): Promise<Opening> =>
 		url.endsWith('.mbtiles') ? { kind: null, refused: 'MBTiles … can only be opened from disk' } : opens()
 	);
-	render(RemoteDialog, { check, loadShortcuts: async () => [OSM], ...calls, ...over });
+	render(AddressPanel, { check, loadShortcuts: async () => [OSM], ...calls, ...over });
 	return { ...calls, check };
 }
 
@@ -41,8 +35,6 @@ async function type(text: string) {
 	return field;
 }
 
-const openButton = () => screen.getByRole('button', { name: 'Open' }) as HTMLButtonElement;
-
 describe('the address', () => {
 	it('starts with the caret in the field', async () => {
 		show();
@@ -50,22 +42,25 @@ describe('the address', () => {
 		await vi.waitFor(() => expect(document.activeElement).toBe(field));
 	});
 
-	// The check is what OK waits for: an address that would fail in the reader fails here instead.
-	it('opens only what the check says will open', async () => {
-		const { onOpen } = show();
-		expect(openButton().disabled, 'nothing typed').toBe(true);
+	// The check is what Open waits for: an address that would fail in the reader fails here instead.
+	it('offers only what the check says will open', async () => {
+		const { onOpen, onChange } = show();
+		expect(onChange).toHaveBeenLastCalledWith(null);
 
-		await type('https://example.org/planet.versatiles');
+		const field = await type('https://example.org/planet.versatiles');
 		await vi.waitFor(() => expect(screen.getByText('Opens as: Tile container')).toBeTruthy());
-		openButton().click();
+		expect(onChange).toHaveBeenLastCalledWith('https://example.org/planet.versatiles');
+		await fireEvent.submit(field.closest('form')!);
 		expect(onOpen).toHaveBeenCalledWith('https://example.org/planet.versatiles');
 	});
 
 	it('says why an address will not open, and does not offer to', async () => {
-		show();
-		await type('https://example.org/berlin.mbtiles');
+		const { onOpen, onChange } = show();
+		const field = await type('https://example.org/berlin.mbtiles');
 		await vi.waitFor(() => expect(screen.getByText(/can only be opened from disk/)).toBeTruthy());
-		expect(openButton().disabled).toBe(true);
+		expect(onChange).toHaveBeenLastCalledWith(null);
+		await fireEvent.submit(field.closest('form')!);
+		expect(onOpen).not.toHaveBeenCalled();
 	});
 
 	it('asks nothing of the core for something that is not an address', async () => {
@@ -143,10 +138,4 @@ describe('the shortcuts', () => {
 		expect(await screen.findByText(/could not be loaded - Studio may be offline/)).toBeTruthy();
 		expect(screen.getByText('OpenFreeMap')).toBeTruthy();
 	});
-});
-
-it('cancels', async () => {
-	const { onCancel } = show();
-	(await screen.findByRole('button', { name: 'Cancel' })).click();
-	expect(onCancel).toHaveBeenCalled();
 });

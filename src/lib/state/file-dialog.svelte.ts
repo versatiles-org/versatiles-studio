@@ -13,6 +13,8 @@ export interface FileRequest {
 	extensions: string[];
 	/** Why a chosen file cannot be used, or `null` when it can - asked before the dialog closes. */
 	check?: (location: string) => Promise<string | null>;
+	/** Whether an `https://` or `sftp://` address may be typed in, on a Web address tab. */
+	addresses?: boolean;
 }
 
 class FileDialog {
