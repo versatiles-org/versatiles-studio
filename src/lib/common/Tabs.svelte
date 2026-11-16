@@ -48,6 +48,16 @@
 
 	let buttons = $state<HTMLButtonElement[]>([]);
 
+	// **Focus follows a selection made elsewhere.** A dialog that opens on one tab and then switches
+	// to the one it was last on left the focus on the first - and a focused tab looks chosen, so the
+	// strip said one thing with its underline and another with its ring. Only while the focus is in
+	// the strip: a selection made from a menu must not pull the focus out of the panel below.
+	$effect(() => {
+		const at = items.findIndex((tab) => tab.id === selected);
+		const focused = buttons.findIndex((button) => button === document.activeElement);
+		if (focused >= 0 && focused !== at) buttons[at]?.focus();
+	});
+
 	function onKey(event: KeyboardEvent) {
 		const at = items.findIndex((tab) => tab.id === selected);
 		let next: number;
