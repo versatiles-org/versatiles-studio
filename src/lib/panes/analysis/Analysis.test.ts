@@ -101,7 +101,7 @@ describe('the analysis pane', () => {
 		cleanup();
 		show({ measurement: measured({ sizes, running: true }) });
 		expect(screen.getByRole('button', { name: 'Measuring…' })).toBeTruthy();
-		expect(screen.getByRole('status').textContent).toBe("Reading every tile's size…");
+		expect(within(group()).getByRole('status').textContent).toBe("Reading every tile's size…");
 		expect(parts()).toEqual(before);
 	});
 
@@ -294,6 +294,16 @@ describe('the heat map switch', () => {
 			show({ measurement: measured(), scan: scanned, onScan });
 			await fireEvent.click(screen.getByRole('button', { name: 'Read every tile' }));
 			expect(onScan).toHaveBeenCalledWith(true);
+		});
+
+		// A note over the layers while reading, and the link gone, moved everything below twice.
+		it('says it is reading at the button, leaving the layers where they are', () => {
+			show({ measurement: measured(), scan: { ...scanned, running: true } });
+			const group = screen.getByRole('table', { name: 'Layers' }).closest('section')!;
+			expect(within(group).getByRole('button', { name: 'Reading…' })).toBeTruthy();
+			expect(within(group).getByRole('status').textContent).toBe('Decoding tiles…');
+			expect(within(group).queryByText('Decoding tiles…', { selector: '.note' })).toBeNull();
+			expect((within(group).getByRole('button', { name: 'Read every tile' }) as HTMLButtonElement).disabled).toBe(true);
 		});
 	});
 

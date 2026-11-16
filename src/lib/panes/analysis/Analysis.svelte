@@ -24,7 +24,7 @@
 	// note above them while a measurement ran pushed every figure down when it started and pulled it
 	// back when it ended - twice for one click, and with the pointer likely on the table. Now the
 	// button says it is measuring, a screen reader hears it from a status that takes no room, and the
-	// figures change once: when the new ones arrive.
+	// figures change once: when the new ones arrive. Reading the layers works the same way.
 	let {
 		graph,
 		measurement,
@@ -85,7 +85,7 @@
 
 {#snippet read()}
 	<button type="button" class="button" disabled={scan.running} onclick={() => onScan(false)}>
-		{scan.contents ? 'Read again' : 'Read layers'}
+		{scan.running ? 'Reading…' : scan.contents ? 'Read again' : 'Read layers'}
 	</button>
 {/snippet}
 
@@ -238,9 +238,7 @@
 		{/if}
 
 		<Group title="Layers" action={read}>
-			{#if scan.running}
-				<Note live>Decoding tiles…</Note>
-			{/if}
+			<span class="visually-hidden" role="status">{scan.running ? 'Decoding tiles…' : ''}</span>
 			{#if scan.error}
 				<Note tone="problem">{scan.error}</Note>
 			{/if}
@@ -249,10 +247,13 @@
 					<Note tone="aside">Read before the last change to this source.</Note>
 				{/if}
 				<LayerShares contents={scan.contents} />
-				{#if scan.contents.sampled && !scan.running}
-					<button type="button" class="link alone" onclick={() => onScan(true)}>Read every tile</button>
+				{#if scan.contents.sampled}
+					<!-- Disabled rather than gone while reading, so the checks below stay where they are. -->
+					<button type="button" class="link alone" disabled={scan.running} onclick={() => onScan(true)}
+						>Read every tile</button
+					>
 				{/if}
-			{:else if !scan.running && !scan.error}
+			{:else if !scan.error}
 				<Note
 					>Read layers decodes a sample of the tiles the map draws, splits each layer's bytes and checks them against
 					the spec.</Note
