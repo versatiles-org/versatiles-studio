@@ -57,3 +57,13 @@ A job of its own in `ci.yml`, on `ubuntu-latest`, on pull requests as well as `m
 Three rules, two of them enforced by `guards.test.ts` rather than by intention.
 
 **Every wait says what it was waiting for.** Without a message a timeout reports the wait's own source, which names the helper and not the seam - "waitUntil condition timed out" reads the same whether the window never opened or the export never finished. A guard checks every `waitUntil`, `waitForExist`, `waitForDisplayed` and `waitForClickable` in `e2e/` for a `timeoutMsg`.
+
+## The other suite: pages in a browser
+
+`npm run ui` runs [Playwright](https://playwright.dev) against the Vite dev server, in WebKit, with the Rust core replaced by `ui/core.ts`. It is for what a page looks like and how it behaves - screenshots, the accessibility tree, computed styles, the keyboard - in seconds and without building the application. The stories above stay the place for the seams: windows, the menu, opening, exporting.
+
+**The fake core is strict.** Its answers are typed against the generated bindings, so a renamed command or a changed return type does not type-check; a command it has no answer for, and a problem the page reports through `log_diagnostic`, fail the test.
+
+**Screenshots land in `target/ui-shots/`** for a person to look at. They are not compared against anything yet.
+
+**WebKit's Tab is the app's.** As in Safari, Tab passes plain buttons by unless macOS's Keyboard navigation setting is on, so a test of the tab order asserts the stops a default Mac gives.

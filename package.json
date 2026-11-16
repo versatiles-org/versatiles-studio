@@ -18,7 +18,7 @@
 		"check:format": "tsx scripts/run.ts check:format",
 		"check:format:web": "prettier --check .",
 		"check:format:rust": "cargo fmt --all --check",
-		"check:types": "svelte-check --tsconfig ./tsconfig.json && tsc --noEmit -p scripts/tsconfig.json && tsc --noEmit -p e2e/tsconfig.json",
+		"check:types": "svelte-check --tsconfig ./tsconfig.json && tsc --noEmit -p scripts/tsconfig.json && tsc --noEmit -p e2e/tsconfig.json && tsc --noEmit -p ui/tsconfig.json",
 		"check:lint": "tsx scripts/run.ts check:lint",
 		"check:lint:web": "eslint .",
 		"check:lint:rust": "cargo clippy --workspace --all-targets -- -D warnings",
@@ -47,10 +47,12 @@
 		"e2e": "tsx scripts/run.ts e2e",
 		"e2e:build": "tauri build --debug --no-bundle --features e2e",
 		"e2e:run": "wdio run wdio.conf.ts",
-		"e2e:shots": "STUDIO_SHOW=1 wdio run wdio.conf.ts --spec e2e/screens.shots.ts"
+		"e2e:shots": "STUDIO_SHOW=1 wdio run wdio.conf.ts --spec e2e/screens.shots.ts",
+		"ui": "playwright test"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
+		"@playwright/test": "^1.65.1",
 		"@sveltejs/vite-plugin-svelte": "^7.3.1",
 		"@tauri-apps/cli": "^2.12.4",
 		"@testing-library/svelte": "^5.4.2",

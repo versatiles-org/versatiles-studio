@@ -275,7 +275,8 @@ describe('documentation size', () => {
 		'docs/components.md': 1250,
 		// Raised for the stale-binary papercut, which is a running instruction rather than a scope
 		// decision - but it belongs beside "how it runs", and an afternoon was lost to not having it.
-		'docs/scope-e2e.md': 820,
+		// Raised for the Playwright suite beside the WebdriverIO one.
+		'docs/scope-e2e.md': 1000,
 		'docs/roadmap.md': 650,
 		'docs/vision.md': 400,
 		'docs/audiences.md': 350
