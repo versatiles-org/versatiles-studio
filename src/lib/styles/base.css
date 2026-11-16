@@ -224,7 +224,18 @@ button:disabled {
 	border-color: var(--ink-2);
 }
 
-.button:disabled:hover {
+/*
+ * **Faded as a whole, not by its text.** `button:disabled` greys the text, which `.primary` sets
+ * again with a more specific rule - so a disabled Open or Export was full accent with dark text,
+ * the look of the one button to press. The fade is the shared one icons already have.
+ */
+.button:disabled {
+	opacity: var(--disabled-opacity);
+}
+
+/* Pointing at a disabled button changes nothing. Not the primary one, which this would turn grey:
+   the selector outranks `.primary`'s own colours. */
+.button:disabled:not(.primary):hover {
 	background: var(--control-face);
 	border-color: var(--control-edge);
 }
