@@ -314,7 +314,7 @@
 			/>
 		</div>
 	{:else}
-		<div class="sign-in">
+		<div class="sign-in" class:with-servers={servers.length > 0}>
 			{#if servers.length > 0}
 				<section aria-label="Servers used before">
 					<ul class="servers">
@@ -441,12 +441,19 @@
 		}
 	}
 
+	/* The servers used before beside the form, when there are any - and the form alone across the
+	   dialog when there are none, rather than a column kept empty for a list that is not there. */
 	.sign-in {
 		display: grid;
-		grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 1fr);
+		align-content: start;
 		flex: 1 1 auto;
 		gap: var(--space-5);
 		min-height: 0;
+
+		&.with-servers {
+			grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+		}
 	}
 
 	.servers {
@@ -484,7 +491,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: var(--space-3);
-		grid-column: 2;
 	}
 
 	.status {

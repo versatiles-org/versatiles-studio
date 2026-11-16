@@ -162,3 +162,35 @@ test.describe('in the dark theme', () => {
 		await page.screenshot({ path: `${SHOTS}/file-dialog-local-dark.png` });
 	});
 });
+
+// With no server saved, the form starts where the dialog's content does: a column kept for the
+// list of servers left the form pushed halfway across an empty dialog.
+test('lays the sign-in form across the dialog when no server is saved yet', async ({ page }) => {
+	await openDialog(page);
+	await tab(page, 'SFTP server').click();
+	const host = page.getByLabel('Host');
+	await expect(host).toBeVisible();
+	const [tabs, form] = await Promise.all([
+		page.getByRole('tablist', { name: 'Where the file is' }).boundingBox(),
+		page.locator('form.server-form').boundingBox()
+	]);
+	expect(Math.abs((form?.x ?? 0) - (tabs?.x ?? 0))).toBeLessThan(2);
+	await page.screenshot({ path: `${SHOTS}/file-dialog-sftp-empty.png` });
+});
+
+test('lists the servers used before beside the form', async ({ page }) => {
+	await openDialog(page, {
+		browsing: () => ({
+			tab: 'remote',
+			folder: null,
+			servers: [{ server: { host: 'box.example.org', port: 23, user: 'anna', identity: null }, folder: '/home' }]
+		})
+	});
+	await expect(page.getByRole('button', { name: 'anna@box.example.org:23', exact: true })).toBeVisible();
+	const [list, form] = await Promise.all([
+		page.getByRole('region', { name: 'Servers used before' }).boundingBox(),
+		page.locator('form.server-form').boundingBox()
+	]);
+	expect((form?.x ?? 0) - (list?.x ?? 0)).toBeGreaterThan(100);
+	await page.screenshot({ path: `${SHOTS}/file-dialog-sftp-servers.png` });
+});
