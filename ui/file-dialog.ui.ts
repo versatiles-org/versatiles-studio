@@ -194,3 +194,36 @@ test('lists the servers used before beside the form', async ({ page }) => {
 	expect((form?.x ?? 0) - (list?.x ?? 0)).toBeGreaterThan(100);
 	await page.screenshot({ path: `${SHOTS}/file-dialog-sftp-servers.png` });
 });
+
+// A filled-in field read exactly like an empty one's placeholder: both took the label's grey.
+for (const scheme of ['light', 'dark'] as const) {
+	test(`writes what is in a field darker than its placeholder, ${scheme}`, async ({ page }) => {
+		await page.emulateMedia({ colorScheme: scheme });
+		await openDialog(page, {
+			browsing: () => ({
+				tab: 'remote',
+				folder: null,
+				servers: [{ server: { host: 'box.example.org', port: 23, user: 'anna', identity: null }, folder: null }]
+			})
+		});
+		const host = page.getByLabel('Host');
+		await expect(host).toHaveValue('box.example.org');
+		const [text, placeholder, ink, ink2] = await host.evaluate((input) => {
+			const token = (name: string) => {
+				const probe = document.body.appendChild(document.createElement('i'));
+				probe.style.color = `var(${name})`;
+				const colour = getComputedStyle(probe).color;
+				probe.remove();
+				return colour;
+			};
+			return [
+				getComputedStyle(input).color,
+				getComputedStyle(input, '::placeholder').color,
+				token('--ink'),
+				token('--ink-2')
+			];
+		});
+		expect(text).toBe(ink);
+		expect(placeholder).toBe(ink2);
+	});
+}

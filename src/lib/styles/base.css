@@ -91,6 +91,15 @@ textarea {
 	border: 1px solid var(--rule);
 	border-radius: var(--radius);
 	padding: var(--space-2) var(--space-3);
+	/* **The value in the text's own colour, whatever surrounds it.** Inherited, it took the grey of
+	   the label beside it - a `Field` is a grey row - so a filled-in field read exactly like an empty
+	   one's placeholder. What someone typed is content; the placeholder is the hint. */
+	color: var(--ink);
+
+	&::placeholder {
+		color: var(--ink-2);
+		opacity: 1;
+	}
 }
 
 /*
