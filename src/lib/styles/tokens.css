@@ -42,6 +42,13 @@
 	--chrome: #f2f4f3; /* application background, inset wells */
 	--accent: #0e7c7b; /* focus, selection, the one emphatic colour */
 	--accent-ink: #ffffff; /* text on --accent */
+	/* A button's face and edge. Not --chrome and --rule: those are a surface and a hairline, and a
+	   button made of them was 1.04:1 against the panel with a 1.3:1 outline - text with a faint box
+	   round it. The edge is 3:1 against --surface, the contrast a control's boundary needs to be
+	   seen, and the face a step off the panel so the shape reads before the outline does. */
+	--control-face: #e8ecea;
+	--control-face-hover: #dce2e0;
+	--control-edge: #87928f;
 	/* Map colours. Read from JavaScript via styles/tokens.ts, because MapLibre paint takes strings
 	   rather than CSS. Deliberately separate from the chrome palette above - a grid over a dark
 	   basemap is a different decision from a focus ring, even where the value matches today. */
@@ -218,6 +225,9 @@
 		--chrome: #121917;
 		--accent: #35b3a4;
 		--accent-ink: #06201d;
+		--control-face: #26302e;
+		--control-face-hover: #303b39;
+		--control-edge: #63706d;
 
 		--vpl-value: #e0a06a;
 

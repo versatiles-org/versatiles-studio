@@ -194,8 +194,9 @@ button:disabled {
 /*
  * A button drawn as a button.
  *
- * They all sit on --surface, so the face is --chrome: a step away from the panel behind them in
- * both themes, in the same direction.
+ * They sit on --surface, and their face and edge are their own (--control-*): --chrome and --rule,
+ * which they used to borrow, are a surface and a hairline, and a button drawn in them read as text
+ * with a faint box round it.
  *
  * **Padding is here, and it did not used to be.** The argument against it was that a global value
  * would inflate every small icon button that only wanted the appearance - but that was written when
@@ -209,18 +210,20 @@ button:disabled {
  * asks for more - see `Modal`, which owns the row its buttons sit in.
  */
 .button {
-	background: var(--chrome);
-	border: 1px solid var(--rule);
+	background: var(--control-face);
+	border: 1px solid var(--control-edge);
 	border-radius: var(--radius);
 	padding: var(--space-2) var(--space-3);
 }
 
 .button:hover {
+	background: var(--control-face-hover);
 	border-color: var(--ink-2);
 }
 
 .button:disabled:hover {
-	border-color: var(--rule);
+	background: var(--control-face);
+	border-color: var(--control-edge);
 }
 
 /*
@@ -242,7 +245,7 @@ button:disabled {
  */
 .button.on {
 	border-color: var(--accent);
-	background: color-mix(in srgb, var(--accent) 12%, var(--chrome));
+	background: color-mix(in srgb, var(--accent) 12%, var(--control-face));
 }
 
 /*
