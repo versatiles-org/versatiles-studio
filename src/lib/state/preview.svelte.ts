@@ -132,7 +132,17 @@ function empty() {
 		 * styled preview counts even though this module drew none of it, so asking whether the
 		 * hairlines are on the map would refit the map the moment a style was switched off.
 		 */
-		framed: false
+		framed: false,
+
+		/**
+		 * Whether someone has just opened data, so the next build that draws should frame it - over
+		 * whatever the camera was doing ([`frameNext`]).
+		 *
+		 * **Held until a build draws, not spent on the next call.** A build superseded on its way is
+		 * not the one that shows the data, and a source whose node is still missing a field shows
+		 * nothing until the field is filled in: the first sight of it is the moment to look at it.
+		 */
+		reframe: false
 	};
 }
 
@@ -317,6 +327,7 @@ export const preview = {
 		// **Whether anything was already drawn, read before it is cleared.** It decides the camera
 		// below, and two lines from now the answer is gone.
 		const wasFramed = held.framed;
+		const asked = held.reframe;
 
 		// Off the map before the record is overwritten - afterwards there is nothing left to remove it
 		// with, and the layer stays on the map for the rest of the session.
@@ -327,6 +338,7 @@ export const preview = {
 		// edit rather than what this graph looked like when the project opened.
 		held.built = { ...held.built, [result.name]: result };
 		held.framed = true;
+		held.reframe = false;
 
 		// **The camera moves when tiles first appear, and never again on its own.** Every edit to
 		// the VPL rebuilds the preview, so refitting here would drag the map back to the data's
@@ -342,7 +354,12 @@ export const preview = {
 		//
 		// **And not over a camera the window already has.** A reloaded window comes back to where it
 		// was looking; a new one has nothing to come back to, so the data decides.
-		if (!wasFramed && !restored && result.info.bbox) fitToBounds(map, result.info.bbox, false, result.info);
+		//
+		// **Unless someone just opened it** ([`frameNext`]): opening a source is asking to look at it,
+		// in a window that has been looking elsewhere as much as in a new one. Animated when the map
+		// was already showing something, so the move reads as one; instant onto an empty map.
+		const frame = asked || (!wasFramed && !restored);
+		if (frame && result.info.bbox) fitToBounds(map, result.info.bbox, asked && wasFramed, result.info);
 
 		// The hairlines are what a *styled* map does not need: when the recipe renders these tiles,
 		// its own layers draw them and a line over the top would be a second opinion (S4.3). Asked
@@ -410,6 +427,15 @@ export const preview = {
 		const { preview } = held.hairlines;
 		held.hairlines = { preview, onMap: false };
 		if (map && !styled && addContainerToMap(map, preview)) held.hairlines = { preview, onMap: true };
+	},
+
+	/**
+	 * Frames the data the next build draws, whatever came before - for opening a source, which is
+	 * asking to look at it. Without it, only a window's first data was framed, and a source opened
+	 * into a window already showing something left the map where it was.
+	 */
+	frameNext(): void {
+		held.reframe = true;
 	},
 
 	/**

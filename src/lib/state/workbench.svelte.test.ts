@@ -103,7 +103,8 @@ vi.mock('./preview.svelte', () => ({
 		syncContainers: note('preview.syncContainers', Promise.resolve()),
 		mount: note('preview.mount', Promise.resolve({ vpl: 'from_container filename=x' })),
 		clear: note('preview.clear'),
-		forgetContainers: note('preview.forgetContainers')
+		forgetContainers: note('preview.forgetContainers'),
+		frameNext: note('preview.frameNext')
 	}
 }));
 vi.mock('./layout.svelte', () => ({ layout: { current: null } }));
@@ -230,6 +231,25 @@ describe('opening a file', () => {
 		await workbench.open('/maps/berlin.versatiles');
 
 		expect(calls.indexOf('preview.mount')).toBeLessThan(calls.indexOf('document.show'));
+	});
+
+	// Opening is asking to look: the build that draws it frames it, even in a window that was already
+	// showing something - asked once the document holds it, so the request is about this data.
+	it('asks for the opened source to be framed before it is built', async () => {
+		ipc.importOpening.mockResolvedValue({ refused: null, kind: { id: 'container', operation: 'from_container' } });
+		ipc.addGraph.mockResolvedValue(doc(1));
+		await workbench.open('/maps/berlin.versatiles');
+
+		expect(calls.indexOf('document.show')).toBeLessThan(calls.indexOf('preview.frameNext'));
+		expect(calls.indexOf('preview.frameNext')).toBeLessThan(calls.lastIndexOf('preview.refresh'));
+	});
+
+	// A request left behind by a file that never opened would throw the camera at the next edit.
+	it('asks for no framing when the file is refused', async () => {
+		ipc.importOpening.mockResolvedValue({ refused: 'that is a TileJSON', kind: null });
+		await workbench.open('/maps/tiles.json');
+
+		expect(calls).not.toContain('preview.frameNext');
 	});
 
 	/**

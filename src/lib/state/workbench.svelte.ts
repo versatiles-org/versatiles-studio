@@ -361,6 +361,7 @@ export const workbench = {
 			const relief = `${read} | dem_hillshade ramp=default`;
 			const opened = await this.setText(relief, 'replaced', source, 'new');
 			document.show(opened);
+			preview.frameNext();
 			// A container that holds no elevation is refused by the hillshade, and says so here.
 			if (opened.diagnostics.length > 0) return status.fail(opened.diagnostics[0].message);
 			await this.refresh();
@@ -667,13 +668,19 @@ export const workbench = {
 				// that did not know about it. Everything downstream of "there is now a graph" then behaved
 				// as though there were none - including the landing screen, which stayed up over the
 				// pipeline it had just opened.
-				await this.applyDocument(await openVpl(source));
+				const opened = await openVpl(source);
+				preview.frameNext();
+				await this.applyDocument(opened);
 			} else if (kind.id === 'container') {
 				const result = await preview.mount(source, ({ step, fraction }) => status.advance(step, fraction));
 				document.show(await this.setText(result.vpl, 'replaced', source, into));
+				preview.frameNext();
 			} else {
 				const opened = await this.setText(await importReadNode(kind.id, source), 'replaced', source, into);
 				document.show(opened);
+				// Asked before the fields are complete: the data is framed when it first draws, which for
+				// a node still missing a field is once it has been filled in.
+				preview.frameNext();
 				// Whether the node is complete is the *document's* answer, not the kind's. A CSV whose
 				// header named its coordinate columns arrives with them already set (S3.4), so asking the
 				// kind - which needs them for every CSV - would tell someone to fill in fields that are

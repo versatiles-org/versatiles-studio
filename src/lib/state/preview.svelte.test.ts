@@ -11,11 +11,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const added: unknown[] = [];
 const removed: string[] = [];
 const fitted: unknown[] = [];
+/** Whether each of `fitted` was animated, in the same order. */
+const animated: boolean[] = [];
 
 vi.mock('../map/add-source', () => ({
 	addContainerToMap: (_map: unknown, p: unknown) => (added.push(p), true),
 	removeContainerFromMap: (_map: unknown, name: string) => void removed.push(name),
-	fitToBounds: (_map: unknown, bbox: unknown) => void fitted.push(bbox)
+	fitToBounds: (_map: unknown, bbox: unknown, animate = false) => {
+		fitted.push(bbox);
+		animated.push(animate);
+	}
 }));
 
 const ipc = vi.hoisted(() => ({
@@ -57,6 +62,7 @@ beforeEach(() => {
 	added.length = 0;
 	removed.length = 0;
 	fitted.length = 0;
+	animated.length = 0;
 	vi.resetAllMocks();
 });
 
@@ -277,6 +283,59 @@ describe('the preview on the map', () => {
 
 		expect(fitted).toEqual([]);
 		expect(added, 'and still draws what it built').toHaveLength(1);
+	});
+
+	/**
+	 * Opening a source is asking to look at it. Only a window's first data used to be framed, so a
+	 * source opened into a window already showing something - or one whose camera had come back -
+	 * left the map where it was, often nowhere near the data.
+	 */
+	describe('when a source has just been opened', () => {
+		it('frames it in a window already showing something, and animates the move', async () => {
+			ipc.mountGraph.mockResolvedValueOnce(mounted('first'));
+			await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: false });
+
+			preview.frameNext();
+			ipc.mountGraph.mockResolvedValueOnce(mounted('opened'));
+			await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: true });
+			expect(fitted).toHaveLength(2);
+			expect(animated).toEqual([false, true]);
+		});
+
+		it('frames it over a camera the window came back with, onto an empty map at once', async () => {
+			preview.frameNext();
+			ipc.mountGraph.mockResolvedValueOnce(mounted('opened'));
+			await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: true });
+			expect(animated).toEqual([false]);
+		});
+
+		it('frames it once, and leaves the edits after it alone', async () => {
+			preview.frameNext();
+			for (const name of ['opened', 'edited']) {
+				ipc.mountGraph.mockResolvedValueOnce(mounted(name));
+				await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: true });
+			}
+			expect(fitted).toHaveLength(1);
+		});
+
+		// The request is about the data being shown, so a build that shows nothing does not spend it:
+		// one superseded on its way, or a node still missing a field.
+		it('keeps the request for the build that draws', async () => {
+			preview.frameNext();
+			ipc.mountGraph.mockResolvedValueOnce({ type: 'superseded' });
+			await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: true });
+			await preview.refresh({
+				map,
+				pipeline: document([{ message: 'lon_column is not set' }]),
+				styled: unstyled,
+				restored: true
+			});
+			expect(fitted).toEqual([]);
+
+			ipc.mountGraph.mockResolvedValueOnce(mounted('opened'));
+			await preview.refresh({ map, pipeline: document(), styled: unstyled, restored: true });
+			expect(fitted).toHaveLength(1);
+		});
 	});
 
 	it('leaves the camera alone when a style is switched off', async () => {
