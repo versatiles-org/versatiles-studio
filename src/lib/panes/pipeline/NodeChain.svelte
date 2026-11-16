@@ -463,12 +463,13 @@
 		font-size: var(--text-xs);
 		color: var(--ink-2);
 
+		/* The parameter the sources go into - `sources`, `overlay` - so an identifier, in its own face.
+		   **Not bold capitals**, which is the pane title's look (Q70): inside a node card it made a
+		   slot read as the top of the pane. Under the node's name by where it is, not by its weight. */
 		.name {
 			flex: none;
+			font-family: var(--font-mono);
 			color: var(--ink);
-			font-weight: 700;
-			text-transform: uppercase;
-			letter-spacing: 0.07em;
 		}
 	}
 

@@ -97,6 +97,23 @@ describe('the kit', () => {
 		expect(offenders, 'use <Group title="…"> - the uppercase label is a title’s').toEqual([]);
 	});
 
+	/// A side panel's hierarchy is the kit's (Q70): the pane title in bold capitals on its band, a
+	/// `Group` heading in bold sentence case, an item - a `Disclosure`, a node - in the regular
+	/// weight. A pane that sets its own bold or capitals draws a level the kit does not have, and it
+	/// was a node card's bold name and a slot's bold capitals that turned the pipeline upside down.
+	/// The VPL editor's bold is syntax colouring, not a level.
+	it('leaves the weight and the capitals of a side panel to the kit', () => {
+		const SYNTAX = new Set(['lib/panes/pipeline/VplEditor.svelte']);
+		const offenders = users
+			.filter((path) => path.startsWith('lib/panes/') && !SYNTAX.has(path))
+			.flatMap((path) =>
+				[...styles(read(path)).matchAll(/font-weight:\s*(?:[6-9]00|bold)|text-transform:\s*uppercase/g)].map(
+					(m) => `${path}: ${m[0]}`
+				)
+			);
+		expect(offenders, 'a title is .section-label, a heading is <Group>, an item is <Disclosure>').toEqual([]);
+	});
+
 	/// A button that is a word in the accent is `.quiet`, a glyph is `.icon`, a word that goes
 	/// somewhere is `.link`, and the "+ …" that adds something is `.add`. None is a class of the
 	/// component's own.

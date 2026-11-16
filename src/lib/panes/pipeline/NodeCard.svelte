@@ -350,12 +350,13 @@
 		}
 	}
 
+	/* An item's title, in the regular weight as the kit's `Disclosure` is (Q70): bold made each node
+	   a heading stronger than the pane's own. The card's outline is what sets a node apart. */
 	.nm {
 		flex: none;
 		max-width: 100%;
 		font-family: var(--font-mono);
 		font-size: var(--text-sm);
-		font-weight: 600;
 		text-align: left;
 	}
 
