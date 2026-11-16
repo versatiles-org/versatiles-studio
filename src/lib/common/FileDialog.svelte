@@ -110,8 +110,11 @@
 	const IDLE: Status = { busy: false, problem: false, text: '' };
 	let statuses = $state<Record<Where, Status>>({ local: IDLE, remote: IDLE, address: IDLE });
 	const status = $derived(statuses[tab]);
-	const say = (where: Where, busy: boolean, problem: boolean, text: string) =>
-		(statuses[where] = { busy, problem, text });
+	// A block, not an expression: the value of an assignment to state is not the state, and Svelte
+	// warns about every call that returns it.
+	function say(where: Where, busy: boolean, problem: boolean, text: string): void {
+		statuses[where] = { busy, problem, text };
+	}
 
 	const listing = $derived(tab === 'local' ? local : tab === 'remote' ? remote : null);
 	const connected = $derived(tab === 'local' || (tab === 'remote' && server !== null));
