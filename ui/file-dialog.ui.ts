@@ -121,22 +121,25 @@ test('keeps the column headers readable above a long folder', async ({ page }) =
 
 // **WebKit's Tab, which is the app's**: as in Safari, Tab stops at form fields and at what sets its
 // own `tabindex`, and passes plain buttons by - they are reached with macOS's Keyboard navigation
-// setting on. So what matters is that the three stops a default Mac gives come in reading order:
-// the chosen tab, where to go, and the list.
+// setting on. WebKit on Linux, where CI runs this, stops at them too. So what matters is that the
+// three stops a default Mac gives come in reading order - the chosen tab, where to go, and the list -
+// and on a Mac, that they are the only ones.
 test('walks the dialog in reading order with the Tab key', async ({ page }) => {
+	const stops = ['This computer', 'Folder', 'Files on this computer'];
 	await openDialog(page);
 	await expect(page.getByRole('option', { name: /berlin\.versatiles/ })).toBeVisible();
 	await tab(page, 'This computer').focus();
-	const order: string[] = [];
-	for (let step = 0; step < 3; step++) {
-		order.push(
-			await page.evaluate(
-				() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.textContent?.trim() ?? ''
-			)
+	const focused = () =>
+		page.evaluate(
+			() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.textContent?.trim() ?? ''
 		);
+	const order = [await focused()];
+	while (order.length < 10 && order.at(-1) !== stops.at(-1)) {
 		await page.keyboard.press('Tab');
+		order.push(await focused());
 	}
-	expect(order).toEqual(['This computer', 'Folder', 'Files on this computer']);
+	expect(order.filter((stop) => stops.includes(stop))).toEqual(stops);
+	if (process.platform === 'darwin') expect(order).toEqual(stops);
 });
 
 test('offers the download catalogue on the Web address tab', async ({ page }) => {

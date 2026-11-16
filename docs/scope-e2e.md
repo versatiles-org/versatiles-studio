@@ -68,4 +68,6 @@ Three rules, two of them enforced by `guards.test.ts` rather than by intention.
 
 **Screenshots land in `target/ui-shots/`** for a person to look at. They are not compared against anything yet.
 
-**WebKit's Tab is the app's.** As in Safari, Tab passes plain buttons by unless macOS's Keyboard navigation setting is on, so a test of the tab order asserts the stops a default Mac gives.
+**In CI as its own job**, `UI`, on pull requests too: no build, and the `versatiles` release `Cargo.lock` names, so the tiles come from the crates Studio is built on.
+
+**WebKit's Tab is the app's.** As in Safari, Tab passes plain buttons by unless macOS's Keyboard navigation setting is on, so a test of the tab order asserts the stops a default Mac gives. Linux's WebKit, in CI, stops at buttons too.

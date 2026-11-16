@@ -198,6 +198,45 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  ui:
+    name: UI
+    runs-on: ubuntu-latest
+    # The pages in a browser, with the core faked (`npm run ui`, docs/scope-e2e.md) - so no Rust
+    # toolchain and no build: a few minutes, most of them installing WebKit.
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # The glyphs and sprites `versatiles serve` hands the map, as Studio's embedded server does.
+      - run: npm run assets:fetch
+      # **The release the lockfile names**, not the latest: the CLI then serves tiles with the same
+      # crates Studio is built on, and moves when Dependabot moves them. A release binary rather than
+      # `cargo install`, which would compile for longer than the suite runs.
+      - name: Install the versatiles command line
+        run: |
+          set -euo pipefail
+          version=$(awk '/^name = "versatiles"$/ { getline; gsub(/"/, "", $3); print $3 }' Cargo.lock)
+          curl -fLsS "https://github.com/versatiles-org/versatiles-rs/releases/download/v$version/install-unix.sh" -o "$RUNNER_TEMP/install-versatiles.sh"
+          sudo sh "$RUNNER_TEMP/install-versatiles.sh" "v$version"
+          versatiles --version
+      - run: npx playwright install --with-deps webkit
+      - run: npm run ui
+      # The screenshots are what a failure is easiest to read from, and Playwright's traces after.
+      - name: Keep what failed
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-results
+          path: |
+            target/ui-shots
+            target/ui-results
+          if-no-files-found: ignore
+          retention-days: 7
+
   bundle:
     # `Bundle Linux arm64` rather than `Bundle (ubuntu-24.04-arm)`: the runner label is an
     # implementation detail, and the Actions UI truncates a long job name exactly where the part
