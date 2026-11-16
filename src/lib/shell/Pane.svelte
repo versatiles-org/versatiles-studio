@@ -88,12 +88,14 @@
 		gap: var(--space-3);
 		width: 100%;
 		padding: var(--space-3) var(--space-4);
-		color: var(--ink-2);
+		/* **On a band**, the top level of the pane's hierarchy (see `.section-label`): a step off the
+		   panel, edge to edge, so where a pane starts is seen before its title is read. */
+		background: var(--pane-band);
+		color: var(--ink);
 		text-align: left;
 
 		&:hover {
-			background: var(--chrome);
-			color: var(--ink);
+			background: var(--control-face-hover);
 		}
 
 		/* Inset, because the header runs the full width of the pane and a ring outside it would be
@@ -107,14 +109,16 @@
 		flex: none;
 	}
 
-	/* Quieter than the title and after it, so the row reads "STYLE · osm". Truncates rather than
-	   wrapping: a long graph name must not make the header two lines tall. */
+	/* Quieter than the title and after it, so the row reads "STYLE · osm" - quieter by its regular
+	   weight, its case and its face, **not by grey**: on the band, the secondary grey is under the
+	   4.5:1 small text needs. Truncates rather than wrapping: a long graph name must not make the
+	   header two lines tall. */
 	.detail {
 		flex: 1;
 		min-width: 0;
 		font-size: var(--text-xs);
 		font-family: var(--font-mono);
-		color: var(--ink-2);
+		color: var(--ink);
 	}
 
 	/* The tab strip's badge, on the header: one look for "this many things are wrong". */

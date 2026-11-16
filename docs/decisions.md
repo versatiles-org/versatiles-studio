@@ -506,7 +506,9 @@ two widths. **A kit of ten parts**, written once in `lib/common/` and `base.css`
 styling rules were missing, and a test refuses a pane that spells a part by hand - the same mechanism
 as the token test, one level up. **Two levels of heading**: the pane title, uppercase, in the header;
 a group heading, sentence case, inside. A third level was considered for the Style pane's seven
-headings and refused - a field has a label, not a heading. Amends
+headings and refused - a field has a label, not a heading. **Nor an item**: what folds open
+under a group is a `Disclosure`, in the regular weight. The pane title is the strongest text, bold
+capitals on a band; grey means secondary, never higher up. Amends
 [Q18](#q18---svelte-components-are-written-from-scratch) only in where the components live: still
 written here, now shared.
 

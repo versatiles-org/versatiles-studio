@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Icon from '../../common/Icon.svelte';
+	import Disclosure from '../../common/Disclosure.svelte';
 	import type { ContainerInfo } from '../../ipc/commands';
 	import JsonTree from '../../common/JsonTree.svelte';
 	import Group from '../../common/Group.svelte';
@@ -43,15 +43,6 @@
 	}
 </script>
 
-<!-- **Drawn, not `::marker`.** A `<summary>` whose only child is a block - the heading, which has to
-     be a block to truncate - generates no line box for the native marker to sit in, so the triangle
-     silently is not there. `JsonTree` keeps its own because its summaries hold inline spans. One
-     glyph rotated rather than two swapped, so the state change is continuous.
-     `aria-hidden`: `<details>` already announces expanded or collapsed. -->
-{#snippet fold()}
-	<span class="chevron" aria-hidden="true"><Icon name="chevron" size="1em" /></span>
-{/snippet}
-
 <!-- The same figures on both sides, which is what makes them comparable at a glance: a
      `0-12` above a `0-14` answers "did the zoom_extend work" without reading either label twice.
 
@@ -91,13 +82,9 @@
 	{#if containers.length > 0}
 		<Group title={containers.length === 1 ? 'Input' : 'Inputs'}>
 			{#each containers as info (info.source)}
-				<details>
-					<summary>
-						{@render fold()}
-						<h2 class="truncate" title={info.source}>{info.source.split('/').pop()}</h2>
-					</summary>
+				<Disclosure title={info.source.split('/').pop() ?? info.source} tooltip={info.source} mono>
 					{@render facts(info)}
-				</details>
+				</Disclosure>
 			{/each}
 		</Group>
 	{/if}
@@ -106,13 +93,9 @@
 		<Group title="Result">
 			<!-- Open: this is what the pane was opened to find out. Open even when there is nothing to
 			     report, because then the absence *is* the answer and a fold would hide it. -->
-			<details open>
-				<!-- The graph's name, not `info.source`: `describe` labels a pipeline's output
-				     `preview`, which names the mount rather than the thing anyone is looking at. -->
-				<summary>
-					{@render fold()}
-					<h2 class="truncate" title={graph}>{graph}</h2>
-				</summary>
+			<!-- The graph's name, not `info.source`: `describe` labels a pipeline's output
+			     `preview`, which names the mount rather than the thing anyone is looking at. -->
+			<Disclosure title={graph} open mono>
 				{#if result}
 					{@render facts(result)}
 				{:else}
@@ -121,48 +104,13 @@
 					     say". -->
 					<Note>Not built.</Note>
 				{/if}
-			</details>
+			</Disclosure>
 		</Group>
 	{/if}
 </div>
 
 <style>
-	/* What is this pane's own: a container as a disclosure with its name as the title, and the facts
-	   under it as a definition list. */
-	summary {
-		/* Not a <button>, so base.css's button cursor does not reach it. */
-		cursor: pointer;
-		display: flex;
-		align-items: baseline;
-		gap: var(--space-2);
-		/* Firefox and WebKit spell "no native marker" differently, and the marker here is drawn. */
-		list-style: none;
-
-		&::-webkit-details-marker {
-			display: none;
-		}
-	}
-
-	/* `<details>` has no class to toggle, so the kit's chevron is turned by the element's own state. */
-	details[open] > summary .chevron {
-		transform: rotate(90deg);
-	}
-
-	/* Room between the name and what it says, once it is saying it. */
-	details[open] > summary {
-		margin-bottom: var(--space-3);
-	}
-
-	/* A title, but at body size: the browser's own `h2` is half again as big as the group heading
-	   above it, which put the hierarchy the wrong way up - seen in the S13 screenshots. */
-	h2 {
-		margin: 0;
-		font-size: inherit;
-		font-weight: 600;
-		/* Or the name pushes the row wider than the pane instead of ellipsing. */
-		min-width: 0;
-	}
-
+	/* What is this pane's own: the facts under each item, as a definition list. */
 	/* The facts are the kit's; a value here is an identifier or a number, so it is read in mono. */
 	dl {
 		margin-bottom: var(--space-3);

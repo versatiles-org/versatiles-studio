@@ -288,19 +288,22 @@ samp {
  */
 
 /*
- * The small uppercase label that titles a section.
+ * The small uppercase label that titles a section: a pane, or the launcher's two columns.
  *
  * Six identical declarations in two components, four of them repeated in a third. It is a class
  * rather than an `h2` rule because it is not tied to one element: two uses are headings, one is a
- * span inside a button, and Studio's other `h2` - the container name in the inspector - is a title
- * rather than a label and must not pick this up.
+ * span inside a button.
+ *
+ * **The top of the hierarchy, so the strongest text in a pane** - bold, in the text's own colour.
+ * It was in the secondary grey to keep it quiet, which made the group heading under it look like
+ * the more important of the two. Grey says "secondary" (a label, a detail), never "higher up".
  */
 .section-label {
 	font-size: var(--text-sm);
-	font-weight: 600;
+	font-weight: 700;
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: var(--ink-2);
+	color: var(--ink);
 }
 
 /*

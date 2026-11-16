@@ -38,6 +38,7 @@ const KIT = new Set([
 	'lib/common/Field.svelte',
 	'lib/common/Note.svelte',
 	'lib/common/Tabs.svelte',
+	'lib/common/Disclosure.svelte',
 	'lib/common/Icon.svelte',
 	'lib/shell/BarPanel.svelte',
 	'lib/shell/BarRow.svelte'

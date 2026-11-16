@@ -46,6 +46,14 @@ describe('the inspector', () => {
 		expect(screen.getByText('0-14')).toBeTruthy();
 	});
 
+	// An item under a group's `h3`, not an `h2` above it: the outline a screen reader walks was upside
+	// down, as the look was.
+	it('names an item one level under its group', () => {
+		render(Inspector, { containers: [], graph: 'berlin', result: info({ container: 'pipeline' }) });
+		expect(screen.getByRole('heading', { name: 'Result', level: 3 })).toBeTruthy();
+		expect(screen.getByRole('heading', { name: 'berlin', level: 4 })).toBeTruthy();
+	});
+
 	/**
 	 * `describe` labels a pipeline's output `preview` - a name for the mount, not for the thing.
 	 * Printing it would put a word in the pane that means nothing to the person reading it.
