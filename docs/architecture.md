@@ -110,6 +110,7 @@ versatiles-studio/
 │       ├── opened.rs           files the OS asks Studio to open          (S0.1)
 │       ├── assets.rs           locating the bundled tier                 (S0.6)
 │       ├── bindings.rs         generating bindings.ts from the commands  (S0.3)
+│       ├── ui_fixtures.rs      the core's answers for the UI suite's fake core
 │       └── state.rs            state owned by the Tauri process
 │
 ├── public/

@@ -11,6 +11,7 @@ mod events;
 mod menu;
 mod opened;
 mod state;
+mod ui_fixtures;
 mod windows;
 
 use state::AppState;

@@ -1,0 +1,3319 @@
+{
+  "importKinds": [
+    {
+      "detail": "Tiles that have already been built",
+      "extensions": [
+        "versatiles",
+        "mbtiles",
+        "pmtiles",
+        "tar"
+      ],
+      "id": "container",
+      "label": "Tile container",
+      "needs": [],
+      "operation": "from_container"
+    },
+    {
+      "detail": "GeoJSON, line-delimited GeoJSON, or a shapefile",
+      "extensions": [
+        "geojson",
+        "json",
+        "ndjson",
+        "geojsonl",
+        "ndgeojson",
+        "geojsonseq",
+        "shp"
+      ],
+      "id": "vector",
+      "label": "Vector data",
+      "needs": [],
+      "operation": "from_geo"
+    },
+    {
+      "detail": "A TileJSON endpoint describing where tiles are served",
+      "extensions": [],
+      "id": "tilejson",
+      "label": "Tile server",
+      "needs": [],
+      "operation": "from_tilejson"
+    },
+    {
+      "detail": "A CSV with longitude and latitude columns",
+      "extensions": [
+        "csv"
+      ],
+      "id": "table",
+      "label": "Table of points",
+      "needs": [
+        "lon_column",
+        "lat_column"
+      ],
+      "operation": "from_csv"
+    },
+    {
+      "detail": "GeoTIFF or COG, a VRT mosaic, a scanned PNG or JPEG",
+      "extensions": [
+        "tif",
+        "tiff",
+        "vrt",
+        "png",
+        "jpg",
+        "jpeg"
+      ],
+      "id": "raster",
+      "label": "Raster image",
+      "needs": [],
+      "operation": "from_gdal_raster"
+    },
+    {
+      "detail": "A .vpl written here or by the CLI",
+      "extensions": [
+        "vpl"
+      ],
+      "id": "pipeline",
+      "label": "Pipeline file",
+      "needs": [],
+      "operation": null
+    }
+  ],
+  "layout": {
+    "background": "none",
+    "backgroundLabels": true,
+    "leftWidth": 264.0,
+    "panes": [
+      {
+        "id": "sources",
+        "open": true,
+        "side": "left"
+      },
+      {
+        "id": "pipeline",
+        "open": true,
+        "side": "left"
+      },
+      {
+        "id": "style",
+        "open": false,
+        "side": "left"
+      },
+      {
+        "id": "layers",
+        "open": false,
+        "side": "left"
+      },
+      {
+        "id": "inspector",
+        "open": true,
+        "side": "right"
+      },
+      {
+        "id": "analysis",
+        "open": false,
+        "side": "right"
+      }
+    ],
+    "rightWidth": 304.0,
+    "view": null
+  },
+  "osm": {
+    "graph": {
+      "canRedo": false,
+      "canUndo": false,
+      "diagnostics": [],
+      "dirty": true,
+      "graph": 1,
+      "name": "osm",
+      "path": null,
+      "pipeline": {
+        "nodes": [
+          {
+            "name": "from_container",
+            "nameSpan": {
+              "end": 14,
+              "start": 0
+            },
+            "properties": [
+              {
+                "key": "filename",
+                "keySpan": {
+                  "end": 23,
+                  "start": 15
+                },
+                "span": {
+                  "end": 72,
+                  "start": 15
+                },
+                "value": {
+                  "kind": "single",
+                  "quote": "double",
+                  "span": {
+                    "end": 72,
+                    "start": 24
+                  },
+                  "value": "https://download.versatiles.org/osm.versatiles"
+                }
+              }
+            ],
+            "sources": [],
+            "sourcesSpan": null,
+            "span": {
+              "end": 72,
+              "start": 0
+            }
+          }
+        ],
+        "span": {
+          "end": 72,
+          "start": 0
+        }
+      },
+      "text": "from_container filename=\"https://download.versatiles.org/osm.versatiles\"",
+      "tokens": [
+        {
+          "kind": "operation",
+          "span": {
+            "end": 14,
+            "start": 0
+          }
+        },
+        {
+          "kind": "key",
+          "span": {
+            "end": 23,
+            "start": 15
+          }
+        },
+        {
+          "kind": "punctuation",
+          "span": {
+            "end": 24,
+            "start": 23
+          }
+        },
+        {
+          "kind": "value",
+          "span": {
+            "end": 72,
+            "start": 24
+          }
+        }
+      ]
+    },
+    "graphs": [
+      {
+        "crop": {
+          "bbox": null,
+          "maxZoom": null,
+          "minZoom": null
+        },
+        "dirty": true,
+        "disabled": [],
+        "enabled": true,
+        "id": 1,
+        "name": "osm",
+        "nodes": 1,
+        "path": null,
+        "running": 1
+      }
+    ]
+  },
+  "style": {
+    "order": [],
+    "sources": {}
+  },
+  "vplOperations": [
+    {
+      "details": "The ramp is a list of stops, `elevation:colour`, ascending by elevation in meters, such as `ramp=\"0:00a000,1000:c8b464,3000:ffffff\"`. Between two stops the colour is interpolated linearly, and outside the ramp it is the colour of the nearest end. A colour is `RRGGBB` or, translucent, `RRGGBBAA`; a ramp with a translucent stop gives RGBA tiles, and one without gives RGB tiles. A JPEG source becomes PNG when the ramp is translucent.\n\nInstead of stops, `ramp` takes the name of a ready-made ramp. Each is muted, so that a hillshade on top of it stays legible:\n\n- `default`, the default: a hypsometric tint, shades of blue up to sea level, then green, yellow and brown up to white peaks. Sea level itself is blue, for DEMs that store the sea as 0 m, and so is land below it: `-11000:24507e,-200:8cb4d8,0:bcd8ec,0.01:a8c896,300:cad6a2,800:e4dcae,1500:d6bf98,2500:bea58a,4000:e4e0dc,6000:ffffff`.\n- `alpine`: land only, for mountains, from valley green over meadows and brown rock to snow from about 3800 m, and valley green below sea level: `0:a9c39a,500:c6d4a4,1000:dcd9a8,1500:cdbb8f,2000:b7a184,2500:a99c93,3000:cfcbc7,3800:f4f3f1,4500:ffffff`.\n- `bathymetry`: sea only, pale blue at the coast to dark blue in the deep sea, and transparent on land, to lie under a ramp for the land: `-11000:0b2545,-6000:13315c,-4000:1d4e89,-2000:3a74b0,-500:6fa3d4,-200:9cc3e6,0:cfe3f3,0.01:cfe3f300`.\n- `grayscale`: black in the deep sea, dark grey at sea level and white from 4000 m: `-11000:000000,0:333333,4000:ffffff`.\n\nFor a coloured relief, give `dem_hillshade` a `ramp`, which reads and decodes the source once. To draw something between the colours and the shading, stack this under a `dem_hillshade` with `from_stacked_raster`, which lays its first source over the others.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "ramp",
+            "presets": [
+              {
+                "name": "default",
+                "stops": "-11000:24507e,-200:8cb4d8,0:bcd8ec,0.01:a8c896,300:cad6a2,800:e4dcae,1500:d6bf98,2500:bea58a,4000:e4e0dc,6000:ffffff"
+              },
+              {
+                "name": "alpine",
+                "stops": "0:a9c39a,500:c6d4a4,1000:dcd9a8,1500:cdbb8f,2000:b7a184,2500:a99c93,3000:cfcbc7,3800:f4f3f1,4500:ffffff"
+              },
+              {
+                "name": "bathymetry",
+                "stops": "-11000:0b2545,-6000:13315c,-4000:1d4e89,-2000:3a74b0,-500:6fa3d4,-200:9cc3e6,0:cfe3f3,0.01:cfe3f300"
+              },
+              {
+                "name": "grayscale",
+                "stops": "-11000:000000,0:333333,4000:ffffff"
+              }
+            ]
+          },
+          "default": "default",
+          "doc": "Colour stops, as `elevation:colour,…`, or a ramp name such as `alpine`. Defaults to `default`.",
+          "maxSources": null,
+          "name": "ramp",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "mapbox",
+              "terrarium"
+            ]
+          },
+          "default": null,
+          "doc": "DEM encoding of the source. Defaults to the encoding its tile schema implies.",
+          "maxSources": null,
+          "name": "encoding",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "dem_colorize",
+      "summary": "Colours DEM tiles by elevation, the way MapLibre's `color-relief` layer colours them."
+    },
+    {
+      "details": "The result is RGBA tiles that are transparent on flat ground and shade slopes by their steepness and the direction they face. They are an ordinary raster source for any map client. Unlike elevation tiles, they can be encoded lossily: with a following `raster_format format=webp quality=70`, a mountain tile at zoom 8 comes out about a quarter smaller than the elevation tile it is computed from, and with `format=avif quality=50` about 60 % smaller. Flat land is the exception: its faint alpha comes out smaller lossless, so for a large area add `lossless_if_smaller=true` to the WebP one, which picks lossy or lossless tile by tile.\n\nThe shading is MapLibre's default `standard` method, including the slope exaggeration it applies below zoom 15 and its correction for latitude, so a tile looks as a live `hillshade` layer would at the same zoom. The colours are given as `RRGGBB`, `RRGGBBAA` or `[r,g,b,a]`, and an alpha below `FF` makes that part of the shading lighter.\n\nWith a `ramp`, each pixel is the colour for its elevation with the shading drawn over it, which gives a coloured relief in one step. The ramp is written as in `dem_colorize`, which lists the ramps it can name, such as `default`, a hypsometric tint, or `alpine`. A ramp with only opaque stops gives RGB tiles, and a JPEG source stays JPEG; one with a translucent stop gives RGBA tiles, and a JPEG source becomes PNG.\n\nThe slopes at a tile's edge are computed with the pixels of the adjacent tiles, so there are no seams. The tiles are read in chunks, several ahead of the ones being shaded, and the edges of every tile are kept for the chunks next to it. Across the antimeridian the neighbour wraps around. Where there is none, at the poles or the edge of the data, the edge pixels are repeated.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "335",
+          "doc": "Direction the light comes from, in degrees clockwise from north. Defaults to `335`.",
+          "maxSources": null,
+          "name": "azimuth",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": 1.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": 0.05
+          },
+          "default": "0.5",
+          "doc": "Intensity of the shading, from 0 to 1. Defaults to `0.5`.",
+          "maxSources": null,
+          "name": "exaggeration",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "hex": true,
+            "kind": "color"
+          },
+          "default": "000000",
+          "doc": "Colour of slopes facing away from the light. Defaults to `000000`.",
+          "maxSources": null,
+          "name": "shadow_color",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "hex": true,
+            "kind": "color"
+          },
+          "default": "FFFFFF",
+          "doc": "Colour of slopes facing the light. Defaults to `FFFFFF`.",
+          "maxSources": null,
+          "name": "highlight_color",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "hex": true,
+            "kind": "color"
+          },
+          "default": "000000",
+          "doc": "Colour that accentuates steep terrain, such as cliffs and gorges. Defaults to `000000`.",
+          "maxSources": null,
+          "name": "accent_color",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "ramp",
+            "presets": [
+              {
+                "name": "default",
+                "stops": "-11000:24507e,-200:8cb4d8,0:bcd8ec,0.01:a8c896,300:cad6a2,800:e4dcae,1500:d6bf98,2500:bea58a,4000:e4e0dc,6000:ffffff"
+              },
+              {
+                "name": "alpine",
+                "stops": "0:a9c39a,500:c6d4a4,1000:dcd9a8,1500:cdbb8f,2000:b7a184,2500:a99c93,3000:cfcbc7,3800:f4f3f1,4500:ffffff"
+              },
+              {
+                "name": "bathymetry",
+                "stops": "-11000:0b2545,-6000:13315c,-4000:1d4e89,-2000:3a74b0,-500:6fa3d4,-200:9cc3e6,0:cfe3f3,0.01:cfe3f300"
+              },
+              {
+                "name": "grayscale",
+                "stops": "-11000:000000,0:333333,4000:ffffff"
+              }
+            ]
+          },
+          "default": null,
+          "doc": "Colours under the shading, as `elevation:colour,…` or a ramp name. Defaults to none.",
+          "maxSources": null,
+          "name": "ramp",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "mapbox",
+              "terrarium"
+            ]
+          },
+          "default": null,
+          "doc": "DEM encoding of the source. Defaults to the encoding its tile schema implies.",
+          "maxSources": null,
+          "name": "encoding",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "dem_hillshade",
+      "summary": "Renders DEM tiles as hillshading, the way MapLibre's `hillshade` layer shades them."
+    },
+    {
+      "details": "A tile the source has is passed on untouched. A tile it lacks is created from the nearest tile it has at a lower zoom level: the area is cut out and its heights are interpolated up to a full tile, then encoded without loss. This is how a DEM reaches the zoom levels a map asks for when its data ends lower, for a hillshade or contour lines that stay sharp at the edge of the data instead of disappearing.\n\nIt is `raster_overscale` for elevation tiles, with the same rules for where tiles are created: inside the source's bounds, up to `level_max`, and never below the source's lowest level. Unlike `raster_overscale`, it always scales heights, never colours, so a source without a DEM tile schema needs `encoding` rather than being scaled as an image; the result carries the tile schema of that encoding.\n\nA following `raster_format` must keep `quality=100`, since a lossy encoder changes the heights.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Highest zoom level to create tiles at. Defaults to the source's highest.",
+          "maxSources": null,
+          "name": "level_max",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "mapbox",
+              "terrarium"
+            ]
+          },
+          "default": null,
+          "doc": "DEM encoding of the source. Defaults to the encoding its tile schema implies.",
+          "maxSources": null,
+          "name": "encoding",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "dem_overscale",
+      "summary": "Creates the DEM tiles a source lacks by upscaling the tiles it has, as heights."
+    },
+    {
+      "details": "`raster_overview` averages the R, G and B channels independently, which is meaningless for a DEM: the channels are one number split across three bytes, so averaging them separately mixes the high byte of one pixel with the low byte of another. This operation decodes each pixel to its 24-bit raw elevation, averages that, and re-encodes.\n\nOnly the averaging differs. Read order, what a tile costs to build on demand, and the memory the intermediate levels use are all as described for [`raster_overview`](#raster_overview).",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Zoom level to build the overview from. Defaults to the source's highest.",
+          "maxSources": null,
+          "name": "level",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "mapbox",
+              "terrarium"
+            ]
+          },
+          "default": null,
+          "doc": "DEM encoding of the source. Defaults to the encoding its tile schema implies.",
+          "maxSources": null,
+          "name": "encoding",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "dem_overview",
+      "summary": "Generates lower-zoom DEM overview tiles by averaging 24-bit elevation values."
+    },
+    {
+      "details": "Discarding low bits that carry no usable signal makes the tiles compress much better. The step is derived per tile from two physical criteria — `elevation_error` relative to the pixel's ground size, and `slope_error` — and the stricter of the two wins. The slope criterion applies to the slope as MapLibre shades it, which exaggerates slopes below zoom 15 (64× at zoom 0).\n\nValues are rounded to the nearest multiple of the step rather than truncated, which halves the worst-case elevation error and removes the downward bias at no cost in size. Single-pass: no scan of the data first.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": 0.01
+          },
+          "default": "0.1",
+          "doc": "Allowed elevation error as a fraction of the pixel's ground size. Defaults to `0.1`.",
+          "maxSources": null,
+          "name": "elevation_error",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": 0.1
+          },
+          "default": "1.0",
+          "doc": "Largest slope change in degrees, as MapLibre shades it, quantization may add. Defaults to `1.0`.",
+          "maxSources": null,
+          "name": "slope_error",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "mapbox",
+              "terrarium"
+            ]
+          },
+          "default": null,
+          "doc": "DEM encoding of the source. Defaults to the encoding its tile schema implies.",
+          "maxSources": null,
+          "name": "encoding",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "dem_quantize",
+      "summary": "Quantizes DEM raster tiles by rounding elevations to a per-tile power-of-two step."
+    },
+    {
+      "details": "The counterpart to `raster_tile_resize` for elevation data: downscaling averages the decoded 24-bit elevation rather than the R, G and B channels separately, which for a DEM would mix the high byte of one pixel with the low byte of another.\n\nThe zoom levels shift as in `raster_tile_resize`: splitting moves each tile one level up, except level 0, which is downscaled; merging moves four tiles one level down, so the source's level 0 is not used — level 0 of the result is merged from the source's level 1.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "256",
+              "512"
+            ]
+          },
+          "default": null,
+          "doc": "Target tile size in pixels, which must differ from the source's.",
+          "maxSources": null,
+          "name": "tile_size",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "mapbox",
+              "terrarium"
+            ]
+          },
+          "default": null,
+          "doc": "DEM encoding of the source. Defaults to the encoding its tile schema implies.",
+          "maxSources": null,
+          "name": "encoding",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "dem_tile_resize",
+      "summary": "Converts DEM tiles between 256 and 512 pixels by splitting or merging them."
+    },
+    {
+      "details": "Every parameter narrows the tile set, except `bbox_border`, which widens it. A `bbox_border=2` keeps a ring of tiles the bbox alone would have dropped; those tiles lie outside the crop, so the advertised bounds are extended to cover them and a client actually requests them.\n\nThat ring matters wherever a cropped tileset is rendered rather than just stored: without it, labels and geometry near the edge have no neighbouring tiles to be laid out against.\n\n`filename` takes the same path and URL syntax as `from_container`. Opening it to build the allow-list costs I/O when the pipeline is built, unlike every other parameter here.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "bbox"
+          },
+          "default": null,
+          "doc": "Area to keep, in WGS84 degrees. Defaults to the source's own bounds.",
+          "maxSources": null,
+          "name": "bbox",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 4294967295.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "0",
+          "doc": "Ring of extra tiles kept around `bbox`, per zoom level. Requires `bbox`. Defaults to `0`.",
+          "maxSources": null,
+          "name": "bbox_border",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Lowest zoom level to keep. Defaults to the source's lowest.",
+          "maxSources": null,
+          "name": "level_min",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Highest zoom level to keep. Defaults to the source's highest.",
+          "maxSources": null,
+          "name": "level_max",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [
+            "versatiles",
+            "mbtiles",
+            "pmtiles",
+            "tar"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Tile container whose coordinates act as an allow-list. Defaults to no allow-list.",
+          "maxSources": null,
+          "name": "filename",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "filter",
+      "summary": "Filters tiles by bounding box, zoom range, or the coordinates present in another container."
+    },
+    {
+      "details": "",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "hex": true,
+            "kind": "color"
+          },
+          "default": "000000",
+          "doc": "Hex colour, `RRGGBB` or `RRGGBBAA`. Defaults to `000000`.",
+          "maxSources": null,
+          "name": "color",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "256",
+              "512"
+            ]
+          },
+          "default": "512",
+          "doc": "Tile size in pixels. Defaults to `512`.",
+          "maxSources": null,
+          "name": "tile_size",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "avif",
+              "jpg",
+              "png",
+              "webp"
+            ]
+          },
+          "default": "png",
+          "doc": "Format to encode the tiles in. Defaults to `png`.",
+          "maxSources": null,
+          "name": "format",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_color",
+      "summary": "Generates raster tiles of a single solid colour."
+    },
+    {
+      "details": "`filename` takes a local path or a URL — `filename=\"world.versatiles\"` as readily as `filename=\"https://example.com/world.versatiles\"`. Run `versatiles help source` for the URL and authentication syntax.\n\n`ssh_identity` names a key for this source alone, overriding `--ssh-identity` and `VERSATILES_SSH_IDENTITY`, so one pipeline can read from two SFTP hosts that need different keys. It is ignored for every other scheme, and naming a key ties the `.vpl` file to machines that have it.",
+      "fields": [
+        {
+          "accepts": [
+            "versatiles",
+            "mbtiles",
+            "pmtiles",
+            "tar"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path to the container, or an `http`, `https` or `sftp` URL.",
+          "maxSources": null,
+          "name": "filename",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Private key for this one `sftp://` source. Defaults to the global setting.",
+          "maxSources": null,
+          "name": "ssh_identity",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_container",
+      "summary": "Reads a tile container, such as a `*.versatiles`, `*.mbtiles`, `*.pmtiles` or `*.tar` file."
+    },
+    {
+      "details": "Left to itself, `max_zoom` picks the level at which the median feature spans roughly 4 tile-pixels, capped at 14. Points count as size zero, so a CSV of points always lands on the cap.\n\n`properties_include` and `properties_exclude` act on what is left after the coordinate and id columns are consumed, so naming `lon_column`, `lat_column` or `id_column` in either has no effect.\n\nA tile over `max_tile_bytes` is dropped while streaming and an error when a single tile is requested. Raise the cap when a legitimate low-zoom tile exceeds it, or set `max_tile_bytes=none` to emit tiles at any size; the soft-cap warning threshold, 200 KB at the default, scales with it.\n\n`bbox` is `[west, south, east, north]` in degrees, and crops while reading: rows outside it are dropped before anything is built, and the tile pyramid is clipped to it. That turns a large CSV into one region's tiles in a single pass, where cropping afterwards with `versatiles convert --bbox` means writing the whole thing out first. The crop is tile-granular, as it is there.",
+      "fields": [
+        {
+          "accepts": [
+            "csv",
+            "tsv"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path or URL of the CSV file.",
+          "maxSources": null,
+          "name": "filename",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Column holding the longitude, in WGS84 degrees.",
+          "maxSources": null,
+          "name": "lon_column",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Column holding the latitude, in WGS84 degrees.",
+          "maxSources": null,
+          "name": "lat_column",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Column to expose as the feature id. Defaults to emitting no id.",
+          "maxSources": null,
+          "name": "id_column",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "char"
+          },
+          "default": ",",
+          "doc": "Character separating a row's fields. Defaults to `,`.",
+          "maxSources": null,
+          "name": "delimiter",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "true",
+          "doc": "Whether the first row holds column names; `false` is not supported yet. Defaults to `true`.",
+          "maxSources": null,
+          "name": "has_header",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Name of the layer to write into. Defaults to the file's stem.",
+          "maxSources": null,
+          "name": "layer_name",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "0",
+          "doc": "Lowest zoom level to emit. Defaults to `0`.",
+          "maxSources": null,
+          "name": "min_zoom",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Highest zoom level to emit. Defaults to a heuristic capped at `14`.",
+          "maxSources": null,
+          "name": "max_zoom",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "bbox"
+          },
+          "default": null,
+          "doc": "Area to restrict the output to, in WGS84 degrees. Defaults to the input's extent.",
+          "maxSources": null,
+          "name": "bbox",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "list"
+          },
+          "default": null,
+          "doc": "Columns to keep as properties. Mutually exclusive with `properties_exclude`. Defaults to all.",
+          "maxSources": null,
+          "name": "properties_include",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "list"
+          },
+          "default": null,
+          "doc": "Columns to drop. Mutually exclusive with `properties_include`. Defaults to none.",
+          "maxSources": null,
+          "name": "properties_exclude",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "none",
+              "drop_rate",
+              "min_distance"
+            ]
+          },
+          "default": "min_distance",
+          "doc": "How to thin out points too close to distinguish. Defaults to `min_distance`.",
+          "maxSources": null,
+          "name": "point_reduction",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Distance in tile-pixels for `min_distance`, keep-fraction for `drop_rate`. Defaults to `16`/`0.5`.",
+          "maxSources": null,
+          "name": "point_reduction_value",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "none",
+              "gzip",
+              "brotli",
+              "zstd"
+            ]
+          },
+          "default": "gzip",
+          "doc": "Compression applied before the tiles leave. Defaults to `gzip`.",
+          "maxSources": null,
+          "name": "compression",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": "1048576",
+          "doc": "Size in bytes above which a tile counts as broken. Defaults to `1048576`.",
+          "maxSources": null,
+          "name": "max_tile_bytes",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_csv",
+      "summary": "Reads a CSV file with longitude and latitude columns and emits MVT point tiles."
+    },
+    {
+      "details": "",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "mvt",
+              "avif",
+              "jpg",
+              "png",
+              "webp"
+            ]
+          },
+          "default": "mvt",
+          "doc": "Format to generate the tiles in. Defaults to `mvt`.",
+          "maxSources": null,
+          "name": "format",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_debug",
+      "summary": "Generates tiles that draw their own coordinates, for inspecting a pipeline."
+    },
+    {
+      "details": "### Placing an unreferenced raster\n\nA scanned map or a plain image export carries no georeferencing, and GDAL cannot place it at all. `crs` supplies the coordinate system and one of `bounds` or `geo_transform` supplies the position; `crs` on its own is not enough, because a coordinate system says nothing about where the pixels sit.\n\n`bounds` is the north-up shorthand: `west,south,east,north` in the units of `crs` — metres for a projected system, degrees for `4326`. Pixel size is derived from the raster's own dimensions, exactly as `gdal_translate -a_ullr` does, so it cannot disagree with the image.\n\n`geo_transform` takes the six GDAL coefficients verbatim, which is what a rotated or skewed raster needs:\n\n```text\norigin_x, pixel_width, row_rotation, origin_y, column_rotation, pixel_height\n```\n\n`origin_y` is the fourth number rather than the second, and `pixel_height` is normally negative. `gdalinfo -json` prints this array as its `geoTransform` field, which is the safest thing to copy. World files (`.tfw`, `.wld`) hold the same six values in a different order and measure the origin from the pixel centre rather than its corner, so their numbers cannot be pasted in unchanged.\n\nThe two are mutually exclusive, and neither writes anything to the file on disk.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path to the DEM dataset.",
+          "maxSources": null,
+          "name": "filename",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "mapbox",
+              "terrarium"
+            ]
+          },
+          "default": "mapbox",
+          "doc": "How elevation is packed into the RGB channels. Defaults to `mapbox`.",
+          "maxSources": null,
+          "name": "encoding",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "256",
+              "512"
+            ]
+          },
+          "default": "512",
+          "doc": "Tile size in pixels. Defaults to `512`.",
+          "maxSources": null,
+          "name": "tile_size",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Highest zoom level to generate. Defaults to the dataset's native resolution.",
+          "maxSources": null,
+          "name": "level_max",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Lowest zoom level to generate. Defaults to `level_max`.",
+          "maxSources": null,
+          "name": "level_min",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 4294967295.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "100",
+          "doc": "How many tiles a GDAL instance renders before being replaced. Defaults to `100`.",
+          "maxSources": null,
+          "name": "gdal_reuse_limit",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 255.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "4",
+          "doc": "How many GDAL instances may run at once. Defaults to `4`.",
+          "maxSources": null,
+          "name": "gdal_concurrency_limit",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [
+            "geojson",
+            "json"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "GeoJSON polygon outside which pixels become nodata. Defaults to the whole dataset.",
+          "maxSources": null,
+          "name": "cutline",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 32766.0,
+            "maxExclusive": false,
+            "min": 1024.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "EPSG code to read the dataset with. Defaults to the dataset's own.",
+          "maxSources": null,
+          "name": "crs",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Extent as `west,south,east,north` in the units of `crs`. Defaults to the dataset's own.",
+          "maxSources": null,
+          "name": "bounds",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "The six GDAL geotransform coefficients. Defaults to the dataset's own.",
+          "maxSources": null,
+          "name": "geo_transform",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_gdal_dem",
+      "summary": "Reads a GDAL elevation dataset and encodes it as terrain RGB tiles."
+    },
+    {
+      "details": "When building a virtual raster with `gdalbuildvrt`, pass `-addalpha` — without it the VRT carries no alpha channel and nothing outside the data becomes transparent.\n\n### Placing an unreferenced raster\n\nA scanned map or a plain image export carries no georeferencing, and GDAL cannot place it at all. `crs` supplies the coordinate system and one of `bounds` or `geo_transform` supplies the position; `crs` on its own is not enough, because a coordinate system says nothing about where the pixels sit.\n\n`bounds` is the north-up shorthand: `west,south,east,north` in the units of `crs` — metres for a projected system, degrees for `4326`. Pixel size is derived from the raster's own dimensions, exactly as `gdal_translate -a_ullr` does, so it cannot disagree with the image.\n\n`geo_transform` takes the six GDAL coefficients verbatim, which is what a rotated or skewed raster needs:\n\n```text\norigin_x, pixel_width, row_rotation, origin_y, column_rotation, pixel_height\n```\n\n`origin_y` is the fourth number rather than the second, and `pixel_height` is normally negative. `gdalinfo -json` prints this array as its `geoTransform` field, which is the safest thing to copy. World files (`.tfw`, `.wld`) hold the same six values in a different order and measure the origin from the pixel centre rather than its corner, so their numbers cannot be pasted in unchanged.\n\nThe two are mutually exclusive, and neither writes anything to the file on disk.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path to the raster dataset.",
+          "maxSources": null,
+          "name": "filename",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "256",
+              "512"
+            ]
+          },
+          "default": "512",
+          "doc": "Tile size in pixels. Defaults to `512`.",
+          "maxSources": null,
+          "name": "tile_size",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Highest zoom level to generate. Defaults to the dataset's native resolution.",
+          "maxSources": null,
+          "name": "level_max",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Lowest zoom level to generate. Defaults to `level_max`.",
+          "maxSources": null,
+          "name": "level_min",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 4294967295.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "100",
+          "doc": "How many tiles a GDAL instance renders before being replaced. Defaults to `100`.",
+          "maxSources": null,
+          "name": "gdal_reuse_limit",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 255.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "4",
+          "doc": "How many GDAL instances may run at once. Defaults to `4`.",
+          "maxSources": null,
+          "name": "gdal_concurrency_limit",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "avif",
+              "jpg",
+              "png",
+              "webp"
+            ]
+          },
+          "default": "png",
+          "doc": "Format to encode the tiles in. Defaults to `png`.",
+          "maxSources": null,
+          "name": "tile_format",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [
+            "geojson",
+            "json"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "GeoJSON polygon outside which pixels become transparent. Defaults to the whole dataset.",
+          "maxSources": null,
+          "name": "cutline",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Band indices to read as colour channels, 1-based. Defaults to the colour interpretation.",
+          "maxSources": null,
+          "name": "bands",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Pixel values to render as transparent. Defaults to the dataset's own.",
+          "maxSources": null,
+          "name": "nodata",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 32766.0,
+            "maxExclusive": false,
+            "min": 1024.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "EPSG code to read the dataset with. Defaults to the dataset's own.",
+          "maxSources": null,
+          "name": "crs",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Extent as `west,south,east,north` in the units of `crs`. Defaults to the dataset's own.",
+          "maxSources": null,
+          "name": "bounds",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "The six GDAL geotransform coefficients. Defaults to the dataset's own.",
+          "maxSources": null,
+          "name": "geo_transform",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_gdal_raster",
+      "summary": "Reads a GDAL raster dataset and reprojects it into tiles."
+    },
+    {
+      "details": "The input format is detected from the file extension:\n\n| Extension                                          | Format                                |\n| -------------------------------------------------- | ------------------------------------- |\n| `.geojson`, `.json`                                | GeoJSON `FeatureCollection`           |\n| `.ndjson`, `.geojsonl`, `.ndgeojson`, `.geojsonseq` | line-delimited GeoJSON, one feature per line |\n| `.shp`                                             | Esri Shapefile                        |\n\nA `.geojsonseq` file may prefix each record with the RFC 8142 record separator `U+001E`.\n\nInput must be **EPSG:4326 lon/lat in degrees, longitude first** — reprojection is not performed. Coordinates outside that range are refused, as is a GeoJSON `crs` member naming another projection, but lat/lon input with the axes swapped is in range and cannot be detected: it produces valid tiles of the wrong place. Reproject first if needed, e.g. `ogr2ogr -t_srs EPSG:4326 out.geojson in.geojson`. A shapefile without a `.prj` is read as WGS84 with a warning, since it carries no CRS of its own.\n\nLeft to itself, `max_zoom` picks the level at which the median feature spans roughly 4 tile-pixels, capped at 14. Points count as size zero, so a mostly-point dataset lands on the cap.\n\nA tile over `max_tile_bytes` is dropped while streaming and an error when a single tile is requested. Raise the cap when a legitimate low-zoom tile exceeds it, or set `max_tile_bytes=none` to emit tiles at any size; the soft-cap warning threshold, 200 KB at the default, scales with it.\n\n`bbox` is `[west, south, east, north]` in degrees, and crops while reading: features outside it are dropped before anything is built, and the tile pyramid is clipped to it. That turns a planet-scale extract into one city's tiles in a single pass, where cropping afterwards with `versatiles convert --bbox` means writing the whole thing out first. The crop is tile-granular, as it is there — a boundary tile keeps whatever falls inside it, including the parts of a feature that reach past the box.\n\n`ignore_id` exists because MVT requires a `uint64` feature id. A string id — as USGS earthquake data has — is dropped at encode time anyway, so setting this makes that explicit; it is also the way to discard an id that is just noise.",
+      "fields": [
+        {
+          "accepts": [
+            "geojson",
+            "json",
+            "ndjson",
+            "ndgeojson",
+            "geojsonl",
+            "geojsonseq",
+            "shp"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path or URL of the input file; its format comes from the extension.",
+          "maxSources": null,
+          "name": "filename",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Name of the layer to write into. Defaults to the file's stem.",
+          "maxSources": null,
+          "name": "layer_name",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "0",
+          "doc": "Lowest zoom level to emit. Defaults to `0`.",
+          "maxSources": null,
+          "name": "min_zoom",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Highest zoom level to emit. Defaults to a heuristic capped at `14`.",
+          "maxSources": null,
+          "name": "max_zoom",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "bbox"
+          },
+          "default": null,
+          "doc": "Area to restrict the output to, in WGS84 degrees. Defaults to the input's extent.",
+          "maxSources": null,
+          "name": "bbox",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "list"
+          },
+          "default": null,
+          "doc": "Properties to keep. Mutually exclusive with `properties_exclude`. Defaults to all.",
+          "maxSources": null,
+          "name": "properties_include",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "list"
+          },
+          "default": null,
+          "doc": "Properties to drop. Mutually exclusive with `properties_include`. Defaults to none.",
+          "maxSources": null,
+          "name": "properties_exclude",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "4",
+          "doc": "Area in square tile-pixels below which a polygon is dropped. Defaults to `4`.",
+          "maxSources": null,
+          "name": "polygon_min_area",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "4",
+          "doc": "Douglas-Peucker tolerance for polygons, in tile-pixels. Defaults to `4`.",
+          "maxSources": null,
+          "name": "polygon_simplify",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "4",
+          "doc": "Length in tile-pixels below which a line is dropped. Defaults to `4`.",
+          "maxSources": null,
+          "name": "line_min_length",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "4",
+          "doc": "Douglas-Peucker tolerance for lines, in tile-pixels. Defaults to `4`.",
+          "maxSources": null,
+          "name": "line_simplify",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "none",
+              "drop_rate",
+              "min_distance"
+            ]
+          },
+          "default": "min_distance",
+          "doc": "How to thin out points too close to distinguish. Defaults to `min_distance`.",
+          "maxSources": null,
+          "name": "point_reduction",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Distance in tile-pixels for `min_distance`, keep-fraction for `drop_rate`. Defaults to `16`/`0.5`.",
+          "maxSources": null,
+          "name": "point_reduction_value",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "none",
+              "gzip",
+              "brotli",
+              "zstd"
+            ]
+          },
+          "default": "gzip",
+          "doc": "Compression applied before the tiles leave. Defaults to `gzip`.",
+          "maxSources": null,
+          "name": "compression",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": "1048576",
+          "doc": "Size in bytes above which a tile counts as broken. Defaults to `1048576`.",
+          "maxSources": null,
+          "name": "max_tile_bytes",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to drop each feature's `id` before encoding. Defaults to `false`.",
+          "maxSources": null,
+          "name": "ignore_id",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_geo",
+      "summary": "Reads a GeoJSON or Shapefile and emits MVT vector tiles."
+    },
+    {
+      "details": "Gridded statistics are published as a table keyed on a cell id, without the geometry that id refers to. This generates that geometry, so the table can be joined onto it with `vector_update_properties`.\n\nWithout GDAL, `epsg` accepts `3035` (ETRS89-LAEA, what European gridded statistics use), `3857` (web mercator) and `4326` (WGS84 lon/lat). A build with the `gdal` feature accepts any code, at roughly ten times the cost per coordinate — and released binaries ship without GDAL, so a `.vpl` naming another code will not run on one.\n\n`bbox` is required: a grid of squares has no extent beyond the one it is given, and in a projected CRS an extent outside the projection's own area is not so much wrong as meaningless.\n\nWithin that bbox the grid covers every zoom from the level its cells become legible at up to level 30. Nothing is generated until a tile is asked for, so bound the work where it is done: `versatiles convert --max-zoom`, or a `filter` operation.\n\n`id_template` builds the cell id from literal text and placeholders: `{x}` and `{y}` for the corner, `{epsg}` and `{size}` for the grid's own arguments, each taking an optional divisor (`{x/1000}`), a sign style and a zero-padded width (`{x/100:h04}`). The sign style is `-` for a minus sign when negative (the default), `+` for one either way, `h` for a hemisphere letter — N/S for `y`, E/W for `x` — before the digits, and `H` for one after them.\n\n| Published as | `id_template` |\n| --- | --- |\n| `CRS3035RES1000mN2691000E4341000` (INSPIRE, the default) | `CRS{epsg}RES{size}m{y:h}{x:h}` |\n| `1kmN2689E4337` (GEOSTAT short form) | `{size/1000}km{y/1000:h}{x/1000:h}` |\n| `E0643N4567` (CBS Netherlands) | `{x/100:h04}{y/100:h04}` |\n| `250mN674400E31725` (Statistics Finland) | `{size}m{y/10:h}{x/10:h}` |\n\nCell size is fixed by `size` and does not change with zoom — that is what keeps an id stable enough to join against — so low zoom levels are unusable, and the pyramid starts at the level where a tile holds at most `max_cells_per_tile` cells.\n\nA cell reaching into several tiles is drawn in each of them, clipped to the tile it is in. The same id therefore recurs across tiles, which is what a join expects — but the geometry carrying it in any one tile is only the part inside that tile, so it is not something to measure areas from.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 32766.0,
+            "maxExclusive": false,
+            "min": 1024.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "EPSG code of the grid's coordinate reference system.",
+          "maxSources": null,
+          "name": "epsg",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Edge length of a cell, in the CRS's units — meters, or degrees for `epsg=4326`.",
+          "maxSources": null,
+          "name": "size",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "bbox"
+          },
+          "default": null,
+          "doc": "Area to cover, in WGS84 degrees.",
+          "maxSources": null,
+          "name": "bbox",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "count": 2,
+            "kind": "numbers"
+          },
+          "default": "[0,0]",
+          "doc": "Lower-left corner of cell `(0, 0)`, in CRS units. Defaults to `[0,0]`.",
+          "maxSources": null,
+          "name": "offset",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 4294967295.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "1024",
+          "doc": "Roughly how many cells one tile may hold. Defaults to `1024`.",
+          "maxSources": null,
+          "name": "max_cells_per_tile",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": "CRS{epsg}RES{size}m{y:h}{x:h}",
+          "doc": "Cell id format. Defaults to `CRS{epsg}RES{size}m{y:h}{x:h}`.",
+          "maxSources": null,
+          "name": "id_template",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": "id",
+          "doc": "Property holding the cell id. Defaults to `id`.",
+          "maxSources": null,
+          "name": "id_field",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": "x",
+          "doc": "Property holding the corner's easting. Defaults to `x`.",
+          "maxSources": null,
+          "name": "x_field",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": "y",
+          "doc": "Property holding the corner's northing. Defaults to `y`.",
+          "maxSources": null,
+          "name": "y_field",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": 0.1
+          },
+          "default": "0.5",
+          "doc": "How far a cell edge may stray from its true curve, in tile pixels. Defaults to `0.5`.",
+          "maxSources": null,
+          "name": "densify_tolerance",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": "grid",
+          "doc": "Name of the layer to write into. Defaults to `grid`.",
+          "maxSources": null,
+          "name": "layer_name",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_grid",
+      "summary": "Generates vector tiles holding the cells of a projected square grid."
+    },
+    {
+      "details": "The hexagonal counterpart to `from_grid`: data published as a table keyed on an H3 index gets the geometry that index refers to, ready to be joined onto with `vector_update_properties`.\n\nResolution `0` gives cells of about 4,250,000 km² and `15` about 0.9 m²; `resolution=8` lands near 0.7 km². The full table of cell areas and edge lengths is at <https://h3geo.org/docs/core-library/restable/>.\n\nThe source covers the whole planet, from the zoom its cells become legible at up to level 30. Nothing is generated until a tile is asked for, so bound the work where it is done instead: `versatiles convert --bbox --max-zoom`, or a `filter` operation.\n\nCell size is fixed by the resolution and does not change with zoom — that is what keeps an id stable enough to join against — so low zoom levels are unusable, and the pyramid starts at the level where a tile holds at most `max_cells_per_tile` cells. Cells are measured at the equator, where mercator stretches them least, so the level it starts at holds everywhere.\n\nA cell reaching into several tiles is drawn in each of them, clipped to the tile it is in. The same id therefore recurs across tiles, which is what a join expects — but the geometry carrying it in any one tile is only the part inside that tile, so it is not something to measure areas from.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 15.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "H3 resolution, `0` is coarsest and `15` finest.",
+          "maxSources": null,
+          "name": "resolution",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 4294967295.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "1024",
+          "doc": "Roughly how many cells one tile may hold. Defaults to `1024`.",
+          "maxSources": null,
+          "name": "max_cells_per_tile",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": "grid",
+          "doc": "Name of the layer to write into. Defaults to `grid`.",
+          "maxSources": null,
+          "name": "layer_name",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": "h3",
+          "doc": "Property holding the H3 index. Defaults to `h3`.",
+          "maxSources": null,
+          "name": "id_field",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_h3",
+      "summary": "Generates vector tiles holding H3 hexagons."
+    },
+    {
+      "details": "Each output tile carries the features and properties of all the sources at that coordinate, so layers with the same name end up side by side rather than one replacing the other.\n\n### Sources\n\nThe sources to merge, all of which must provide vector tiles.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "The sources to merge, all of which must provide vector tiles.",
+          "maxSources": null,
+          "name": "sources",
+          "required": true,
+          "sources": true
+        }
+      ],
+      "kind": "read",
+      "name": "from_merged_vector",
+      "summary": "Merges several vector tile sources into one, keeping every feature."
+    },
+    {
+      "details": "### Sources\n\nThe sources to stack, in priority order, all with the same format.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "The sources to stack, in priority order, all with the same format.",
+          "maxSources": null,
+          "name": "sources",
+          "required": true,
+          "sources": true
+        }
+      ],
+      "kind": "read",
+      "name": "from_stacked",
+      "summary": "Overlays several tile sources, taking each tile from the first source that has it."
+    },
+    {
+      "details": "Unlike `from_stacked`, which picks one source's tile whole, this composites them pixel by pixel, so a translucent source lets the ones beneath it show through.\n\nWith `auto_overscale=true`, a request that no source covers natively returns an empty stream rather than a blank tile. Put a `raster_overscale` *after* `from_stacked_raster` to fill those in — upscaling one blended tile is cheaper than upscaling each source separately. It fills them up to the highest level any of the sources has, from the nearest level below that has a blended tile.\n\nElevation sources (tile schema `dem/…`) can be stacked with each other if they all have the same schema; the result keeps it, and is encoded without loss. They cannot be stacked with images, or written as `jpg` or `avif`.\n\n### Sources\n\nThe sources to blend, with the first on top. All must provide raster tiles at the same resolution.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "The sources to blend, with the first on top. All must provide raster tiles at the same resolution.",
+          "maxSources": null,
+          "name": "sources",
+          "required": true,
+          "sources": true
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "avif",
+              "jpg",
+              "png",
+              "webp"
+            ]
+          },
+          "default": null,
+          "doc": "Format to encode the blended tiles in. Defaults to the first source's.",
+          "maxSources": null,
+          "name": "format",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to wrap each source in `raster_overscale`. Defaults to `false`.",
+          "maxSources": null,
+          "name": "auto_overscale",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_stacked_raster",
+      "summary": "Blends several raster tile sources into one by alpha-compositing them."
+    },
+    {
+      "details": "",
+      "fields": [
+        {
+          "accepts": [
+            "avif",
+            "bin",
+            "geojson",
+            "jpeg",
+            "jpg",
+            "json",
+            "mvt",
+            "pbf",
+            "png",
+            "svg",
+            "topojson",
+            "webp"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path or URL of the tile file; its format comes from the extension.",
+          "maxSources": null,
+          "name": "filename",
+          "required": true,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_tile",
+      "summary": "Reads one tile file and returns it for every requested coordinate."
+    },
+    {
+      "details": "The TileJSON document is fetched once when the pipeline is built, and each tile is then requested individually through the URL template in its `tiles` array. A relative template is resolved against the TileJSON's own URL.\n\nA URL that points at something other than a TileJSON, such as a tile container, is refused after its first bytes, with what it appears to be; a container is read with `from_container`.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "URL of the TileJSON endpoint.",
+          "maxSources": null,
+          "name": "url",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 65535.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "3",
+          "doc": "How often to retry a failed tile request. Defaults to `3`.",
+          "maxSources": null,
+          "name": "max_retries",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 65535.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "4",
+          "doc": "How many tile requests may be in flight, at least 1. Defaults to `4`.",
+          "maxSources": null,
+          "name": "max_concurrent_requests",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "read",
+      "name": "from_tilejson",
+      "summary": "Reads tiles from a remote tile server described by a TileJSON endpoint."
+    },
+    {
+      "details": "Three ways to supply the new values, applied in that order: a whole document via `tilejson` or `tilejson_file` replaces the source's, `tilejson_update` or `tilejson_update_file` is laid over it, and the individual parameters below override whatever the first two produced.\n\nEach of those pairs is mutually exclusive: `tilejson` with `tilejson_file`, `tilejson_update` with `tilejson_update_file`, `vector_layers` with `vector_layers_file`. The `_file` form exists to avoid quoting JSON inline.\n\nEvery field the update carries replaces the one below it, including `bounds` and the zoom range — an update that could only widen them would not be able to narrow a tileset's declared extent. Fields the update does not mention are left as they were. `vector_layers` named in the update replace the ones below; layers it does not name are kept.\n\nA `schema` need not be one of the listed values. Any other written as `<family>[/<subtype>][@<version>]` in lowercase is kept as it is, with a warning in case it is a typo, as it is when it comes from a TileJSON document.\n\nThe fields and their meaning follow the TileJSON 3.0.0 specification: <https://github.com/mapbox/tilejson-spec/tree/master/3.0.0>",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Attribution text. Defaults to the source's.",
+          "maxSources": null,
+          "name": "attribution",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "bbox"
+          },
+          "default": null,
+          "doc": "Area covered, in WGS84 degrees. Defaults to the source's.",
+          "maxSources": null,
+          "name": "bounds",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "count": 3,
+            "kind": "numbers"
+          },
+          "default": null,
+          "doc": "Where a client should open the map, as `[lon, lat, zoom]`. Defaults to the source's.",
+          "maxSources": null,
+          "name": "center",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Description text. Defaults to the source's.",
+          "maxSources": null,
+          "name": "description",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Zoom level from which clients should fill from the parent tile. Defaults to the source's.",
+          "maxSources": null,
+          "name": "fillzoom",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Legend text. Defaults to the source's.",
+          "maxSources": null,
+          "name": "legend",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Name of the tileset. Defaults to the source's.",
+          "maxSources": null,
+          "name": "name",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "rgb",
+              "rgba",
+              "dem/mapbox",
+              "dem/terrarium",
+              "dem/versatiles",
+              "openmaptiles",
+              "shortbread@1.0",
+              "shortbread@1.1",
+              "versatiles/landcover@1.0",
+              "other"
+            ]
+          },
+          "default": null,
+          "doc": "What the tiles contain. Defaults to the source's.",
+          "maxSources": null,
+          "name": "schema",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Complete TileJSON document, as a JSON string. Defaults to the source's metadata.",
+          "maxSources": null,
+          "name": "tilejson",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [
+            "json"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path or URL of a complete TileJSON document. Defaults to the source's metadata.",
+          "maxSources": null,
+          "name": "tilejson_file",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Partial TileJSON document to merge on, as a JSON string. Defaults to merging nothing.",
+          "maxSources": null,
+          "name": "tilejson_update",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [
+            "json"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path or URL of a partial TileJSON document. Defaults to merging nothing.",
+          "maxSources": null,
+          "name": "tilejson_update_file",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "The `vector_layers` array as a JSON string. Defaults to the source's.",
+          "maxSources": null,
+          "name": "vector_layers",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [
+            "json"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path or URL of the `vector_layers` array as JSON. Defaults to the source's.",
+          "maxSources": null,
+          "name": "vector_layers_file",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "meta_update",
+      "summary": "Overwrites fields of the source's TileJSON metadata."
+    },
+    {
+      "details": "",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "hex": true,
+            "kind": "color"
+          },
+          "default": "FFFFFF",
+          "doc": "Background colour, as `RRGGBB` or `[r,g,b]`. Defaults to `FFFFFF`.",
+          "maxSources": null,
+          "name": "color",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "raster_flatten",
+      "summary": "Composites translucent raster tiles onto an opaque background colour."
+    },
+    {
+      "details": "The settings apply to every tile that has to be encoded anyway: one in another format, and one that an earlier step of the pipeline created or changed — upscaled, blended, resized, flattened. A tile that is already encoded in the target format is passed through untouched, which costs no time and, for a lossy format, no detail. So `… | raster_overscale | raster_format quality=70 effort=0` encodes the upscaled tiles quickly and leaves the tiles of the source as they are.\n\nSet `force_reencode=true` to re-encode those tiles as well, e.g. to shrink an existing tileset with a lower `quality`.\n\n`quality` and `quality_translucent` take a zoom-dependent list as well as a single number. In `quality=\"70,14:50,15:20\"` the first value is the default and each `zoom:value` pair applies from that zoom level upwards — so zoom 0 to 13 use 70, zoom 14 uses 50, and zoom 15 and above use 20. A value without a zoom applies to the zoom after the previous one: `\"70,50\"` is 70 at zoom 0 and 50 from zoom 1 upwards. `quality` is ignored for PNG, which is always lossless.\n\nIn place of a number, a zoom level can take a range that a quality map chooses from: with `quality=\"70,16:30-50\" quality_map=\"quality.png\"`, zoom 16 and above use 30 where the map is black, 50 where it is white, and an interpolated quality in between. The map is an 8-bit grayscale PNG covering the Web Mercator world, square, with a power of two as its side, so that a pixel is a tile: in a map of 16384 pixels, a tile at zoom 14. A finer tile takes the pixel it lies in. A coarser tile covers several pixels and takes the highest quality any of them gives, so a tile with one white pixel in it is encoded as if it were all white. A plain number ignores the map.\n\nFor elevation tiles (tile schema `dem/…`), `quality` defaults to `100`: their channels are heights, and a lossy encoder would change them. `avif` and `jpg` have no lossless encoding, so converting elevation tiles into one of them needs a `quality` for every zoom level.\n\nAt a zoom level its list does not name, `quality_translucent` falls back to `quality`. `quality_translucent` is typically `100`: lossy encoders handle an alpha channel badly. Setting it makes every tile that is encoded be checked for opacity.\n\nWith `lossless_if_smaller=true`, each tile that is encoded is encoded twice, lossy with its `quality` and lossless, and the smaller of the two is kept. Which one wins depends on the tile, not the zoom level: hillshading of flat land, almost all of it faint alpha, comes out smaller lossless, and that of high relief smaller lossy. In a sample of the planet's hillshading at zoom 10 to 12, `quality=70 lossless_if_smaller=true` took 59 % of the bytes of `quality=70` alone, and the tiles came out lossless nine times out of ten. Encoding takes about 1.7 times as long. It needs `format=webp`, the only format that has both a lossy and a lossless encoding. A tile whose quality is `100` is encoded lossless only, once.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "avif",
+              "jpg",
+              "png",
+              "webp"
+            ]
+          },
+          "default": null,
+          "doc": "Format to encode the tiles into. Defaults to the source's.",
+          "maxSources": null,
+          "name": "format",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "steps",
+            "max": 100,
+            "maxZoom": 31,
+            "min": 0
+          },
+          "default": null,
+          "doc": "Encoder quality, `0` (worst) to `100` (lossless). Defaults to the encoder's own.",
+          "maxSources": null,
+          "name": "quality",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "steps",
+            "max": 100,
+            "maxZoom": 31,
+            "min": 0
+          },
+          "default": null,
+          "doc": "Encoder quality for tiles with translucent pixels. Defaults to using `quality` throughout.",
+          "maxSources": null,
+          "name": "quality_translucent",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [
+            "png"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Grayscale PNG that chooses a value within each quality range. Defaults to none.",
+          "maxSources": null,
+          "name": "quality_map",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 100.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Encoder effort, `0` is fastest and `100` smallest. Defaults to the encoder's own.",
+          "maxSources": null,
+          "name": "effort",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to re-encode tiles that are already encoded in the target format. Defaults to `false`.",
+          "maxSources": null,
+          "name": "force_reencode",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to also encode each tile lossless and keep the smaller of the two. Defaults to `false`.",
+          "maxSources": null,
+          "name": "lossless_if_smaller",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "raster_format",
+      "summary": "Sets the image format, quality and effort that raster tiles are encoded with."
+    },
+    {
+      "details": "They apply in that order, whichever of them are given, so a set of values always means the same.\n\n```vpl\nfrom_container filename=\"satellite.versatiles\" | raster_levels saturation=0.65 brightness=65 gamma=1.1\n```\n\nSaturation moves each colour channel towards the pixel's grey value, its Rec. 709 luma `0.2126 r + 0.7152 g + 0.0722 b`, or away from it above `1`. Greyscale images have no colour to change. Alpha is never changed.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": 255.0,
+            "maxExclusive": false,
+            "min": -255.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "0.0",
+          "doc": "Offset added to every channel. Defaults to `0.0`.",
+          "maxSources": null,
+          "name": "brightness",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": true,
+            "step": 0.1
+          },
+          "default": "1.0",
+          "doc": "Factor applied around mid-grey. Defaults to `1.0`.",
+          "maxSources": null,
+          "name": "contrast",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": true,
+            "step": 0.1
+          },
+          "default": "1.0",
+          "doc": "Gamma exponent. Defaults to `1.0`.",
+          "maxSources": null,
+          "name": "gamma",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": 0.1
+          },
+          "default": "1.0",
+          "doc": "Factor applied to each colour's distance from grey; `0` gives greyscale. Defaults to `1.0`.",
+          "maxSources": null,
+          "name": "saturation",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "raster_levels",
+      "summary": "Adjusts the saturation, contrast, brightness and gamma of raster tiles."
+    },
+    {
+      "details": "With `invert=true` the pixels inside it become transparent instead, which cuts a hole into the map:\n\n```vpl\nfrom_container filename=\"satellite.versatiles\" | raster_mask geojson=\"city.geojson\" invert=true\n```\n\nThe buffer always grows what stays visible, so inverted, a positive buffer shrinks the hole and a negative one widens it. The blur band stays where it is, its ramp reversed.\n\nThe mask is not reprojected: coordinates outside the WGS84 range are refused, as is a `crs` member naming another projection. A mask written lat,lon is in range and cannot be detected — it masks the wrong part of the world.\n\nOverlapping polygons in the GeoJSON are merged first, so an area covered twice stays inside.",
+      "fields": [
+        {
+          "accepts": [
+            "geojson",
+            "json"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path or URL of a GeoJSON file holding a Polygon or MultiPolygon, in EPSG:4326 lon/lat degrees.",
+          "maxSources": null,
+          "name": "geojson",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "0",
+          "doc": "Distance in meters by which to grow the mask, or shrink it when negative. Defaults to `0`.",
+          "maxSources": null,
+          "name": "buffer",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": false,
+            "kind": "number",
+            "max": null,
+            "maxExclusive": false,
+            "min": null,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "0",
+          "doc": "Width in meters of the soft transition at the mask edge. Defaults to `0`.",
+          "maxSources": null,
+          "name": "blur",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "linear",
+              "cosine"
+            ]
+          },
+          "default": "linear",
+          "doc": "Falloff curve across the `blur` band. Defaults to `linear`.",
+          "maxSources": null,
+          "name": "blur_function",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to keep what lies outside the polygon instead of what lies inside. Defaults to `false`.",
+          "maxSources": null,
+          "name": "invert",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "raster_mask",
+      "summary": "Makes raster pixels outside a GeoJSON polygon transparent."
+    },
+    {
+      "details": "A tile the source has is passed on untouched. A tile it lacks is created from the nearest tile it has at a lower zoom level: the area is cut out and scaled up. The result is blurry rather than detailed — the point is that every tile up to `level_max` has an answer, from the best data there is at that place. For a source with worldwide imagery at its low levels and aerial imagery for some regions on top, that fills in everything between.\n\nTiles are only created inside the bounds of the source, so set them with `meta_update bounds=…` in front if they are missing or too wide. A tile that would be completely transparent is not created; a transparent tile the source has is passed on like any other. Nothing is created below the source's lowest level.\n\nElevation tiles are scaled as heights, not as colors, and encoded without loss. They are recognised by the tile schema of the source, `dem/mapbox` or `dem/terrarium`; set it with `meta_update schema=…` in front if the source does not declare it. A source with the schema `dem/versatiles` is refused: its tiles cannot be scaled as heights. `dem_overscale` does the same for elevation tiles only, and takes the encoding as a parameter instead.\n\nA source whose bounds are the whole world is filled for the whole world, which is fine for serving and far too many tiles to write to a file at a high `level_max`.\n\nThe tiles created are encoded with the encoder's own settings, which aim at keeping detail these tiles do not have: at the default quality a created WebP tile is as large as one of the source's, and most of the time it takes to create goes into encoding it. Put `raster_format` behind this operation to change that, e.g. `raster_format quality=75 effort=0`. It reaches the created tiles only; the tiles of the source keep their bytes. Not for elevation tiles: a quality below 100 changes their heights.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Highest zoom level to create tiles at. Defaults to the source's highest.",
+          "maxSources": null,
+          "name": "level_max",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "raster_overscale",
+      "summary": "Creates the raster tiles a source lacks by upscaling the tiles it has."
+    },
+    {
+      "details": "Every zoom level is built from the four tiles above it, down to zoom 0. Read depth-first — which is what a conversion does, unless the destination insists on another order — each tile is built exactly once.\n\nAny other order produces the same tiles, at a different price. Tiles are built a 16x16 block at a time, so one tile at zoom `z` built from a cold start costs `256 * 4^(level - z)` source tiles — bounded by however many the source actually has under it, which for anything short of global coverage is far fewer. The block is not waste: its neighbours come out of it for free.\n\nThe consequence is that the first request into a region of a dense, deep pyramid is expensive and the rest are not. Over a zoom-14 world, one cold zoom-6 tile reads some sixteen million source tiles; over a city-sized source, the same request reads a handful. Serving a dense deep pyramid live is therefore not what this is for — convert once, serve the result.\n\nWriting `.pmtiles` is the same situation, because that format stores tiles in an order this cannot produce for free; it succeeds, and says in the log what it is costing.\n\nLevels are held in memory between being built and being consumed, within `VERSATILES_OVERVIEW_CACHE_MB` megabytes (default `2048`).",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Zoom level to build the overview from. Defaults to the source's highest.",
+          "maxSources": null,
+          "name": "level",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "raster_overview",
+      "summary": "Generates the lower zoom levels of a raster pyramid by downscaling."
+    },
+    {
+      "details": "Changing the tile size shifts the zoom levels with it, because the ground resolution of a pixel has to stay the same. `tile_size=256` splits each 512-pixel tile into four 256-pixel tiles one zoom level higher, except at level 0, which has no level below it to move to and is downscaled instead. `tile_size=512` merges four 256-pixel tiles into one 512-pixel tile one zoom level lower, so the result ends one level below the source. The source's level 0 would have to move to level −1 and is not used: level 0 of the result is merged from the source's level 1, the same area in more detail.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "choice",
+            "options": [
+              "256",
+              "512"
+            ]
+          },
+          "default": null,
+          "doc": "Target tile size in pixels, which must differ from the source's.",
+          "maxSources": null,
+          "name": "tile_size",
+          "required": true,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "raster_tile_resize",
+      "summary": "Converts raster tiles between 256 and 512 pixels by splitting or merging them."
+    },
+    {
+      "details": "The three flags are applied in a fixed order — `flip_x`, then `flip_y`, then `swap_xy` — and between them reach all eight symmetries of the square: four rotations and four reflections, which is every relabelling that maps the tile grid onto itself. Because that set is closed, chaining two of these operations is never necessary; some single combination of the three flags does the same thing.\n\nThe combinations most likely to be wanted:\n\n| `flip_x` | `flip_y` | `swap_xy` | result                    |\n| -------- | -------- | --------- | ------------------------- |\n| false    | true     | false     | TMS ↔ XYZ row order       |\n| false    | false    | true      | `z/y/x` ↔ `z/x/y` layouts |\n| true     | true     | false     | rotate 180°               |\n| true     | false    | true      | rotate 90°                |\n\nUnlike a global `--flip-y` flag, this applies to one source, so a pipeline can combine sources that disagree about their conventions.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to mirror horizontally, so `x` becomes `2^z - 1 - x`. Defaults to `false`.",
+          "maxSources": null,
+          "name": "flip_x",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to mirror vertically, so `y` becomes `2^z - 1 - y`. Defaults to `false`.",
+          "maxSources": null,
+          "name": "flip_y",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to exchange the axes, so `(x, y)` becomes `(y, x)`. Defaults to `false`.",
+          "maxSources": null,
+          "name": "swap_xy",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "remap_coords",
+      "summary": "Relabels tile coordinates, correcting a source that uses TMS row order or `z/y/x` paths."
+    },
+    {
+      "details": "The features for which `expr` is true go through the first source, the `then` branch. The others go through the second, the `else` branch, or pass through unchanged when there is none. Both halves are then put back together into one tile, with the features of each layer in their original order.\n\n```vpl\nfrom_container filename=\"osm.versatiles\"\n  | vector_branch expr=\"$layer == 'place_labels'\" [\n      vector_mask geojson=\"berlin.geojson\"\n    ]\n```\n\nThat cuts the place labels to Berlin and leaves every other layer as it was.\n\n`expr` is written as in `vector_filter_features`, with names such as `$zoom`, `$layer`, `$type` and `$props` beside the feature's own properties; see there for the full list. It is answered for as much of a tile at once as it can be: an expression reading only `$zoom`, `$x` and `$y` sends each tile to one branch without decoding it, and one that also reads `$layer` but nothing of the feature sends whole layers.\n\nA branch begins with a transform rather than a read, because it starts from the tiles arriving here. It may only contain operations that make each tile from that tile alone, such as filtering, masking or changing properties. An operation that reads other tiles, such as `vector_overzoom`, is refused; put it before or after the branch.\n\nBranches nest, which is how to write an \"else if\". This keeps motorways in Germany, other streets in Berlin, and everything else everywhere:\n\n```vpl\nfrom_container filename=\"osm.versatiles\"\n  | vector_branch expr=\"$layer == 'streets' && kind == 'motorway'\" [\n      vector_mask geojson=\"germany.geojson\",\n      vector_branch expr=\"$layer == 'streets'\" [\n        vector_mask geojson=\"berlin.geojson\"\n      ]\n    ]\n```\n\n### Sources\n\nThe branch for the features `expr` chooses, then optionally the branch for the others. Each begins with a transform and starts from the tiles arriving at this operation.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "expression",
+            "names": [
+              {
+                "doc": "The zoom level of the tile.",
+                "name": "$zoom"
+              },
+              {
+                "doc": "The column of the tile.",
+                "name": "$x"
+              },
+              {
+                "doc": "The row of the tile.",
+                "name": "$y"
+              },
+              {
+                "doc": "The name of the feature's layer.",
+                "name": "$layer"
+              },
+              {
+                "doc": "The feature's geometry type: 'Point', 'LineString' or 'Polygon', as in MapLibre.",
+                "name": "$type"
+              },
+              {
+                "doc": "The feature's id, or null if it has none.",
+                "name": "$id"
+              },
+              {
+                "doc": "All of the feature's properties, as a map: $props.name is the same as name.",
+                "name": "$props"
+              }
+            ]
+          },
+          "default": null,
+          "doc": "Boolean expression choosing the features for the first branch.",
+          "maxSources": null,
+          "name": "expr",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": true,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "The branch for the features `expr` chooses, then optionally the branch for the others. Each begins with a transform and starts from the tiles arriving at this operation.",
+          "maxSources": 2,
+          "name": "sources",
+          "required": true,
+          "sources": true
+        }
+      ],
+      "kind": "transform",
+      "name": "vector_branch",
+      "summary": "Runs part of each vector tile through other operations, chosen by an expression."
+    },
+    {
+      "details": "The expression is evaluated for every feature of every layer. Most filters are written for one layer, so they go in a `vector_branch` that hands that layer over and leaves the others as they are:\n\n```vpl\nfrom_container filename=\"osm.versatiles\"\n  | vector_branch expr=\"$layer == 'place'\" [\n      vector_filter_features expr=\"name == 'Berlin'\"\n    ]\n```\n\nThe same in one expression is `$layer != 'place' || name == 'Berlin'`, which keeps every feature of the other layers. The branch costs less, because it hands over whole layers without evaluating the expression for each of their features.\n\n### Examples\n\nThe examples below show the operation on its own, as it would stand inside such a branch:\n\n```vpl\nvector_filter_features expr=\"name == 'Berlin'\"\nvector_filter_features expr=\"population >= 1000\"\nvector_filter_features expr=\"highway in ['primary','secondary']\"\nvector_filter_features expr=\"name.matches('^St\\\\.')\"\nvector_filter_features expr=\"name != null && name != ''\"\nvector_filter_features expr=\"$props['addr:street'] == 'Hauptstr.'\"\n```\n\n### Expression language\n\n`expr` is a boolean [CEL (Common Expression Language)](https://github.com/google/cel-spec) expression, evaluated once per feature.\n\n**Types** — bool (`true`, `false`), int / uint (`42`, `-7`, `1000u`), double (`3.14`, `-0.5`, `1e-6`), string (`'hello'` or `\"hello\"`), list (`[1, 2, 3]`, `['a', 'b']`), map (`m['key']` or `m.key`), and `null`.\n\n**Operators** — equality `==` `!=`, ordering `<` `<=` `>` `>=`, logical `&&` `||` `!`, membership `x in [1, 2, 3]`, and `s.matches('pattern')` for a regex in RE2 syntax, matched anywhere in `s`.\n\n### Accessing feature properties\n\nProperties whose names are valid CEL identifiers — letters, digits and underscore — are exposed as top-level variables:\n\n```vpl\nvector_filter_features expr=\"name == 'Berlin'\"\n```\n\nFor keys containing `:`, `-`, `.`, or anything else that is not an identifier, use the `$props` map:\n\n```vpl\nvector_filter_features expr=\"$props['addr:street'] == 'Hauptstr.'\"\n```\n\n### Names starting with `$`\n\nSome names describe a feature and where it is rather than the properties it carries. They start with `$`, which no property name can, so they never collide with one:\n\n- `$zoom` — the zoom level of the tile being filtered, as an integer.\n- `$x` and `$y` — the column and row of that tile, as integers.\n- `$layer` — the name of the feature's layer, as a string.\n- `$type` — the feature's geometry type: `'Point'`, `'LineString'` or `'Polygon'`, as in MapLibre's `geometry-type`, or `null` if the tile does not say. A tile does not tell one point from several, so a multipoint is `'Point'` too.\n- `$id` — the feature's id, as an integer, or `null` if it has none.\n- `$props` — all of the feature's properties, as a map.\n\n`$type` and `$id` are stored beside the feature's geometry, so reading them does not decode it.\n\n`$zoom` lets one expression keep different features at different zooms — which is how cartography actually reads a layer:\n\n```vpl\nvector_filter_features expr=\"kind in ['motorway','trunk'] || $zoom >= 12\"\n```\n\nThat keeps motorways everywhere and every other street only from z12. An expression that reads only `$zoom`, `$x` and `$y` is answered once per tile, and one that also reads `$layer` once per layer, rather than once per feature, so a plain zoom range is cheap:\n\n```vpl\nvector_filter_features expr=\"$zoom >= 14\"\n```\n\nThe bare words `zoom` and `props` are refused, because they meant `$zoom` and `$props` before the `$` was required. A feature property of either name is `$props.zoom` or `$props.props`. So are `_zoom`, `_x`, `_y`, `_layer`, `_type`, `_id` and `_props`, which are reserved because the names starting with `$` are read through them. Any other property, including ones named `layer`, `type`, `id`, `x` or `y`, is a bare identifier as usual.\n\n### Missing keys\n\nA property a feature does not carry resolves to `null` for identifier-safe access, so compare against `null` to say explicitly whether such features are kept or dropped:\n\n```vpl\nvector_filter_features expr=\"name != null && name != ''\"\n```\n\nThe `has()` macro asks the same question of an identifier-safe key, and `in` of any key:\n\n```vpl\nvector_filter_features expr=\"has($props.name)\"\nvector_filter_features expr=\"'addr:street' in $props\"\n```\n\n### Evaluation failures\n\nA feature is kept only when the expression evaluates to `true`. An expression that fails to evaluate, or that returns something other than a boolean, drops the feature — there is no separate error channel per feature, so a filter that cannot be answered filters nothing in.\n\nThe common way to reach that is an ordering comparison against a property that is absent or is not a number:\n\n```vpl\nvector_filter_features expr=\"population >= 1000\"\n```\n\nA feature with no `population` compares `null` against a number and is dropped. Guard the comparison to say so deliberately:\n\n```vpl\nvector_filter_features expr=\"has($props.population) && $props.population >= 1000\"\n```\n\nEquality and membership are safe without a guard: `==`, `!=` and `in` compare across types and return `false` rather than failing. Ordering comparisons — `<` `<=` `>` `>=` — are the ones that fail, and a `has()` guard does not rescue a property that is *present* but holds a string, because `&&` short-circuits only on `false`.\n\n`is_num(x)` closes that gap. It asks whether a value is a number and answers rather than failing, so an ordering comparison can be made total:\n\n```vpl\nvector_filter_features expr=\"is_num($props.population) && $props.population >= 1000\"\n```\n\nThis is an extension rather than standard CEL, added because there is no other way to write the guard — `type()` does not exist here, and `int()` and `double()` answer by failing, which costs exactly what the guard was meant to avoid.\n\nThe [CEL language spec](https://github.com/google/cel-spec/blob/master/doc/langdef.md) has the full grammar, built-in functions and string methods.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "expression",
+            "names": [
+              {
+                "doc": "The zoom level of the tile.",
+                "name": "$zoom"
+              },
+              {
+                "doc": "The column of the tile.",
+                "name": "$x"
+              },
+              {
+                "doc": "The row of the tile.",
+                "name": "$y"
+              },
+              {
+                "doc": "The name of the feature's layer.",
+                "name": "$layer"
+              },
+              {
+                "doc": "The feature's geometry type: 'Point', 'LineString' or 'Polygon', as in MapLibre.",
+                "name": "$type"
+              },
+              {
+                "doc": "The feature's id, or null if it has none.",
+                "name": "$id"
+              },
+              {
+                "doc": "All of the feature's properties, as a map: $props.name is the same as name.",
+                "name": "$props"
+              }
+            ]
+          },
+          "default": null,
+          "doc": "Boolean CEL expression over the feature's properties.",
+          "maxSources": null,
+          "name": "expr",
+          "required": true,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "vector_filter_features",
+      "summary": "Drops vector features that do not satisfy a boolean expression."
+    },
+    {
+      "details": "",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "list"
+          },
+          "default": null,
+          "doc": "Layer names to remove, for example `filter=[\"pois\",\"ocean\"]`.",
+          "maxSources": null,
+          "name": "filter",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to keep the named layers instead of removing them. Defaults to `false`.",
+          "maxSources": null,
+          "name": "invert",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "vector_filter_layers",
+      "summary": "Removes whole layers from vector tiles by name."
+    },
+    {
+      "details": "A property's name is matched with its layer as a prefix, in the form `layer_name/property_name`. That makes it possible to target one layer — `regex=\"^places/\"` drops every property of the `places` layer — or to reach across all of them, as `regex=\"/name_.*$\"` does for every property starting with `name_`.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Regular expression matched against each property's prefixed name.",
+          "maxSources": null,
+          "name": "regex",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to keep the matching properties instead of removing them. Defaults to `false`.",
+          "maxSources": null,
+          "name": "invert",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "vector_filter_properties",
+      "summary": "Removes feature properties from vector tiles by matching their names against a regex."
+    },
+    {
+      "details": "Points outside the polygon are dropped, and lines and polygons are cut at its edge. A point exactly on the edge counts as inside. Properties are kept as they are.\n\n```vpl\nfrom_container filename=\"osm.versatiles\" | vector_mask geojson=\"berlin.geojson\"\n```\n\nEvery layer is cut, and tiles outside the polygon are not produced at all. To cut only some layers, put the mask in a `vector_branch`. This keeps place names inside the region while country and state names stay on the whole map:\n\n```vpl\nfrom_container filename=\"osm.versatiles\"\n  | vector_branch expr=\"$layer == 'place_labels'\" [\n      vector_mask geojson=\"berlin-brandenburg.geojson\"\n    ]\n```\n\nWith `invert=true` it keeps what lies outside the polygon instead, exactly what is dropped without it: a point or line on the edge is dropped, and so are the tiles the polygon covers. This leaves a hole for an overlay:\n\n```vpl\nfrom_container filename=\"osm.versatiles\" | vector_mask geojson=\"city.geojson\" invert=true\n```\n\nTiles entirely on the kept side pass through without being decoded, and tiles entirely on the other side are dropped without being decoded, so only tiles on the edge are. Geometry in a tile's buffer is cut where it really lies, up to one tile beyond the tile's edge.\n\nCut geometry is rounded back to the tile grid, and a sliver that rounding collapses is dropped.\n\nThe mask is not reprojected: coordinates outside the WGS84 range are refused, as is a `crs` member naming another projection. Overlapping polygons in the GeoJSON are merged first, so an area covered twice stays inside.",
+      "fields": [
+        {
+          "accepts": [
+            "geojson",
+            "json"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path or URL of a GeoJSON file holding a Polygon or MultiPolygon, in EPSG:4326 lon/lat degrees.",
+          "maxSources": null,
+          "name": "geojson",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to keep what lies outside the polygon instead of what lies inside. Defaults to `false`.",
+          "maxSources": null,
+          "name": "invert",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "vector_mask",
+      "summary": "Cuts vector tiles to a GeoJSON polygon, keeping only what lies inside it."
+    },
+    {
+      "details": "A tile the source has is passed through unchanged. A tile above the source's highest level is clipped out of the source's tile at that level and its coordinates rescaled. No detail is added — the geometry is the parent's — but a client can keep zooming instead of hitting a blank map. A tile that would hold no features is not created.\n\nNothing is created at or below the source's highest level, and nothing from a tile further down: a vector tile the source lacks is a place with nothing in it. To overzoom from a lower level than the source's highest, put `filter level_max=…` in front.\n\n`level_max` has to be set, and above the source's highest level: left out or lower, the operation has nothing to do and is refused. Each extra level quadruples the tile count.",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 30.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": null,
+          "doc": "Highest zoom level to serve, capped at `30`. Defaults to the source's highest, which is refused.",
+          "maxSources": null,
+          "name": "level_max",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "integer": true,
+            "kind": "number",
+            "max": 4294967295.0,
+            "maxExclusive": false,
+            "min": 0.0,
+            "minExclusive": false,
+            "step": null
+          },
+          "default": "80",
+          "doc": "Clip buffer in tile-extent units, so edge-straddling features survive. Defaults to `80`.",
+          "maxSources": null,
+          "name": "buffer",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "vector_overzoom",
+      "summary": "Serves vector tiles above the source's highest zoom level by clipping and rescaling."
+    },
+    {
+      "details": "Reads the style, works out which source-layers it draws, which properties it reads and which features it filters to, then drops everything else. A Shortbread tileset reduced to a style that only ever reads `name` loses every `name_*` translation, and a layer drawn as plain geometry loses all of its properties while keeping its shapes.\n\nThe same reduction can be written by hand as `vector_filter_layers`, one `vector_filter_features` per layer, and `vector_filter_properties`. This does it in one pass instead: chaining twenty operations would decode and re-encode every tile twenty times to touch one layer each time.\n\n**What it reads from the style**, for every visible style layer of this tileset:\n\n- its `source-layer` and its `filter`;\n- its `minzoom` and `maxzoom`, as the tile zooms MapLibre loads for them: rounded down, no lower than the style source's `minzoom`, and clamped to the lower of the tileset's maximum and the style source's `maxzoom`. MapLibre overzooms, so a style drawing addresses from z17 keeps them in the z14 tiles of a tileset that stops there;\n- every property its `filter`, `paint` and `layout` read — through `get`, legacy filters, `{token}` strings and legacy `{\"property\": …}` functions — at the zooms it is drawn at, and the source's `promoteId` at every zoom.\n\nA `ref` layer counts with what it takes from the layer it names, as MapLibre resolves it. Hidden style layers (`\"visibility\": \"none\"`) count for nothing: a map that shows one at runtime needs a style with it visible for the reduction.\n\n**Which tileset.** Only the style layers drawing this tileset count. A style that draws a single vector tileset uses that one; style sources with the same `url` or `tiles` are one tileset, and naming one names all of them. A style drawing several needs `source`, because nothing in it says which of them this tileset is.\n\n**The reduction may keep features the style never draws; it never drops one it does.** Anything in the style that cannot be read widens toward keeping:\n\n- a filter it cannot read keeps every feature in that layer's zoom range — `match`, `case`, `coalesce`, the geometry type (`$type`, `[\"geometry-type\"]`), the feature ID, `zoom`, string operations, and a modern `in` that tests a substring;\n- a property read by a computed name (`[\"get\", [\"concat\", …]]`) or through `[\"properties\"]` keeps every property of that source-layer;\n- a feature that passes the filter but draws nothing, such as an icon that resolves to none, is kept, and so is every geometry type, whichever the layer type draws;\n- a property is kept on every feature of its source-layer, not only on the features of the style layer that reads it, and `to-boolean` keeps `\"\"`, `0` and `false`.\n\nWhat would reduce the tileset to nothing is refused instead: a style that draws none of the tileset's layers, several tilesets without `source`, or only hidden layers.",
+      "fields": [
+        {
+          "accepts": [
+            "json"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path or URL of the MapLibre style JSON the tileset should be reduced to.",
+          "maxSources": null,
+          "name": "style",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "list"
+          },
+          "default": null,
+          "doc": "IDs of the style sources this tileset is. Defaults to the style's only vector tileset.",
+          "maxSources": null,
+          "name": "source",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "vector_reduce_to_style",
+      "summary": "Reduces vector tiles to what one MapLibre style actually draws."
+    },
+    {
+      "details": "Always fixed: missing `extent` and `version` fields, duplicate layer names, inverted polygon winding, and degenerate rings.\n\nTiles the validator considers clean pass through unchanged — the original encoded blob is forwarded without re-encoding — so this operation is cheap on conformant input.\n\nWithout `drop_offenders`, a layer holding a feature whose geometry cannot be decoded keeps its original geometry bytes, while the structural fixes are still applied to it.\n\n### Example\n\n```vpl\nfrom_container filename=\"bad.versatiles\" | vector_repair\nfrom_container filename=\"bad.versatiles\" | vector_repair drop_offenders=true\n```",
+      "fields": [
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to remove features whose geometry cannot be decoded. Defaults to `false`.",
+          "maxSources": null,
+          "name": "drop_offenders",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "vector_repair",
+      "summary": "Repairs vector tiles so that they conform to MVT 2.1."
+    },
+    {
+      "details": "Each row of a CSV or TSV file is matched to the features whose `id_field_tiles` property equals the row's `id_field_data` column, and the row's remaining columns become properties on those features. This is how a published statistics table is attached to the geometry it refers to — see `from_grid` and `from_h3` for generating that geometry.",
+      "fields": [
+        {
+          "accepts": [
+            "csv",
+            "tsv"
+          ],
+          "branches": false,
+          "control": {
+            "kind": "path"
+          },
+          "default": null,
+          "doc": "Path or URL of the CSV or TSV file, which must have a header row.",
+          "maxSources": null,
+          "name": "data_source_path",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Name of the layer whose features are updated.",
+          "maxSources": null,
+          "name": "layer_name",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Feature property holding the id to match on.",
+          "maxSources": null,
+          "name": "id_field_tiles",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "text"
+          },
+          "default": null,
+          "doc": "Column in the data file holding the id to match on.",
+          "maxSources": null,
+          "name": "id_field_data",
+          "required": true,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to replace a feature's properties instead of merging. Defaults to `false`.",
+          "maxSources": null,
+          "name": "replace_properties",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to drop features that match no row, or lack the id field. Defaults to `false`.",
+          "maxSources": null,
+          "name": "remove_non_matching",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "boolean"
+          },
+          "default": "false",
+          "doc": "Whether to keep the id column among the written properties. Defaults to `false`.",
+          "maxSources": null,
+          "name": "include_id",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "char"
+          },
+          "default": null,
+          "doc": "Character separating a row's fields. Defaults to `,` for `.csv` and a tab for `.tsv`.",
+          "maxSources": null,
+          "name": "field_separator",
+          "required": false,
+          "sources": false
+        },
+        {
+          "accepts": [],
+          "branches": false,
+          "control": {
+            "kind": "char"
+          },
+          "default": ".",
+          "doc": "Decimal separator for parsing numbers, so `,` reads `1.234,56`. Defaults to `.`.",
+          "maxSources": null,
+          "name": "decimal_separator",
+          "required": false,
+          "sources": false
+        }
+      ],
+      "kind": "transform",
+      "name": "vector_update_properties",
+      "summary": "Joins tabular data onto vector features, matching on an id column."
+    }
+  ],
+  "writableFormats": [
+    "versatiles",
+    "mbtiles",
+    "pmtiles"
+  ]
+}

@@ -79,7 +79,7 @@ pub struct DocumentView {
 }
 
 impl DocumentView {
-	fn of(graph: &studio_core::graphs::Graph, history: &studio_core::history::History) -> Self {
+	pub(crate) fn of(graph: &studio_core::graphs::Graph, history: &studio_core::history::History) -> Self {
 		let info = graph.info();
 		Self {
 			graph: info.id,

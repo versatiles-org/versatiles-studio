@@ -64,6 +64,8 @@ Three rules, two of them enforced by `guards.test.ts` rather than by intention.
 
 **The fake core is strict.** Its answers are typed against the generated bindings, so a renamed command or a changed return type does not type-check; a command it has no answer for, and a problem the page reports through `log_diagnostic`, fail the test.
 
+**Real tiles.** The map fetches over HTTP, not IPC, so the suite starts `versatiles serve` reading OpenStreetMap from download.versatiles.org, with Studio's bundled glyphs and sprites; `OFFLINE=1` skips what needs it. **The core's own data** - its catalogue, a new project's layout and style, a one-source project - is written out by `src-tauri/src/ui_fixtures.rs`, which fails when stale.
+
 **Screenshots land in `target/ui-shots/`** for a person to look at. They are not compared against anything yet.
 
 **WebKit's Tab is the app's.** As in Safari, Tab passes plain buttons by unless macOS's Keyboard navigation setting is on, so a test of the tab order asserts the stops a default Mac gives.

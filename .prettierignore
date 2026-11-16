@@ -12,6 +12,8 @@ coverage/
 lcov.info
 # Generated - its formatting is the generator's, and reformatting it makes the staleness test fail.
 src/lib/ipc/bindings.ts
+# Generated the same way, by `src-tauri/src/ui_fixtures.rs`, and checked the same way.
+ui/fixtures/
 # Test data - fixtures, not source. Reformatting one changes the bytes a test reads, and only the
 # `.geojson` is a format prettier even recognises, which would leave one file in the folder written
 # by something other than GDAL. The README beside them is prose and stays formatted.
