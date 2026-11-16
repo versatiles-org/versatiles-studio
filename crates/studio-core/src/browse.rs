@@ -419,6 +419,133 @@ mod tests {
 		Ok(())
 	}
 
+	/// What the dialog lists on a server, against the in-process server versatiles-rs tests its own
+	/// SFTP with (versatiles-rs#333): a change in `russh-sftp` or in how versatiles-rs opens a session
+	/// would otherwise break browsing without anything noticing.
+	///
+	/// **Through [`list_remote`], not [`RemoteSessions::list`].** The test server signs in with a
+	/// password and the dialog never sends one (Q73), so the session is opened here from the server's
+	/// own URL - and what is under test is everything after signing in.
+	mod over_sftp {
+		use super::*;
+		use versatiles_core::io::test_sftp_server::TestSftpServer;
+
+		struct Connected {
+			_handle: SshHandle,
+			sftp: Sftp,
+			server: Server,
+		}
+
+		async fn connect(test: &TestSftpServer) -> Connected {
+			let url = test.url("/");
+			let handle = sftp_utils::open_session(&url, None)
+				.await
+				.expect("signing in to the test server");
+			let sftp = sftp_utils::open_sftp(&handle).await.expect("opening SFTP");
+			let server = Server {
+				host: "127.0.0.1".into(),
+				port: url.port().expect("the test server's port"),
+				user: "testuser".into(),
+				identity: None,
+			};
+			Connected {
+				_handle: handle,
+				sftp,
+				server,
+			}
+		}
+
+		fn names(listing: &Listing) -> Vec<&str> {
+			listing.entries.iter().map(|entry| entry.name.as_str()).collect()
+		}
+
+		#[tokio::test]
+		async fn a_folder_lists_folders_first_with_sizes_and_urls_without_a_password() {
+			let test = TestSftpServer::start().await;
+			test.create_dir("/maps/Zeta").await;
+			test.write_file("/maps/b.versatiles", b"12345").await;
+			test.write_file("/maps/A.pmtiles", b"1").await;
+			test.write_file("/maps/alpha/inside.versatiles", b"").await;
+			test.write_file("/maps/.hidden", b"").await;
+			let connected = connect(&test).await;
+
+			let listing = list_remote(&connected.server, &connected.sftp, Some("/maps"))
+				.await
+				.unwrap();
+			// More entries than one `readdir` reply carries, so a listing that stops after the first
+			// reply is caught here.
+			assert_eq!(names(&listing), ["alpha", "Zeta", "A.pmtiles", "b.versatiles"]);
+			assert_eq!(listing.path, "/maps");
+			assert_eq!(listing.parent.as_deref(), Some("/"));
+
+			let [alpha, _, _, file] = &listing.entries[..] else {
+				unreachable!()
+			};
+			assert!(alpha.folder, "a folder implied by a file in it is a folder");
+			assert_eq!(alpha.size, None);
+			assert_eq!(
+				alpha.location, "/maps/alpha",
+				"a folder's location is what to list next"
+			);
+			assert_eq!(file.size, Some(5));
+			assert_eq!(file.modified, Some(1_704_067_200));
+			let port = connected.server.port;
+			assert_eq!(
+				file.location,
+				format!("sftp://testuser@127.0.0.1:{port}/maps/b.versatiles")
+			);
+		}
+
+		#[tokio::test]
+		async fn with_no_folder_asked_for_it_lists_where_the_server_signs_in() {
+			let test = TestSftpServer::start().await;
+			test.write_file("/top.versatiles", b"").await;
+			let connected = connect(&test).await;
+
+			let listing = list_remote(&connected.server, &connected.sftp, None).await.unwrap();
+			assert_eq!(listing.path, "/");
+			assert_eq!(listing.parent, None, "nothing is above the top");
+			assert_eq!(names(&listing), ["top.versatiles"]);
+		}
+
+		// Like a local link: a link to a folder is a folder, a link to a file has the file's size, and a
+		// link to nothing is left out, since there is nothing behind it to open.
+		#[tokio::test]
+		async fn links_are_followed_and_a_link_to_nothing_is_left_out() {
+			let test = TestSftpServer::start().await;
+			test.create_dir("/data/tiles").await;
+			test.write_file("/data/big.versatiles", b"123").await;
+			test.create_dir("/home").await;
+			test.create_symlink("/home/tiles", "/data/tiles").await;
+			test
+				.create_symlink("/home/big.versatiles", "/data/big.versatiles")
+				.await;
+			test.create_symlink("/home/gone.versatiles", "/data/nothing").await;
+			let connected = connect(&test).await;
+
+			let listing = list_remote(&connected.server, &connected.sftp, Some("/home"))
+				.await
+				.unwrap();
+			assert_eq!(names(&listing), ["tiles", "big.versatiles"]);
+			assert!(listing.entries[0].folder);
+			assert_eq!(listing.entries[1].size, Some(3));
+		}
+
+		#[tokio::test]
+		async fn a_missing_folder_on_a_server_says_so() {
+			let test = TestSftpServer::start().await;
+			let connected = connect(&test).await;
+
+			let error = list_remote(&connected.server, &connected.sftp, Some("/nowhere"))
+				.await
+				.unwrap_err();
+			assert!(
+				format!("{error:#}").contains("/nowhere cannot be read on 127.0.0.1"),
+				"{error:#}"
+			);
+		}
+	}
+
 	#[test]
 	fn a_missing_folder_says_so() {
 		let error = list_local(Path::new("/nowhere/at/all")).unwrap_err();

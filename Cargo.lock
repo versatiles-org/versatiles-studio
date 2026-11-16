@@ -8313,6 +8313,7 @@ dependencies = [
  "enumset",
  "flate2",
  "futures",
+ "getrandom 0.4.3",
  "itertools 0.15.0",
  "libc",
  "log",

@@ -72,3 +72,5 @@ reqwest = { version = "0.13", default-features = false }
 # Already in the tree via `versatiles_geometry`; builds the vector tiles the dissection tests take apart.
 geo-types = "0.7"
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "time"] }
+# `TestSftpServer`, which the file dialog's SFTP listing is tested against (versatiles-rs#333).
+versatiles_core = { workspace = true, features = ["sftp", "test"] }
