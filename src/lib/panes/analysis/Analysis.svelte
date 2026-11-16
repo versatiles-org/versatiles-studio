@@ -25,6 +25,11 @@
 	// back when it ended - twice for one click, and with the pointer likely on the table. Now the
 	// button says it is measuring, a screen reader hears it from a status that takes no room, and the
 	// figures change once: when the new ones arrive. Reading the layers works the same way.
+	//
+	// **The buttons open their group, not its heading.** A group's heading has room for a `.quiet`
+	// word acting on it, such as "reset"; Measure and Read layers sat there in the heading's weight,
+	// and read as more of its title rather than as the thing to press. First in the body, so they
+	// stay where they are whatever comes below them.
 	let {
 		graph,
 		measurement,
@@ -102,7 +107,8 @@
 	{#if !graph}
 		<Note tone="empty">No source selected.</Note>
 	{:else}
-		<Group title="Tile sizes" action={measure}>
+		<Group title="Tile sizes">
+			<div class="toolbar">{@render measure()}</div>
 			<span class="visually-hidden" role="status">{measurement.running ? "Reading every tile's size…" : ''}</span>
 			{#if measurement.error}
 				<Note tone="problem">{measurement.error}</Note>
@@ -242,7 +248,8 @@
 
 		<!-- Layers and their checks are a vector tile's: a raster one has no layers to read. -->
 		{#if vector}
-			<Group title="Layers" action={read}>
+			<Group title="Layers">
+				<div class="toolbar">{@render read()}</div>
 				<span class="visually-hidden" role="status">{scan.running ? 'Decoding tiles…' : ''}</span>
 				{#if scan.error}
 					<Note tone="problem">{scan.error}</Note>

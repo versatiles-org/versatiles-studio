@@ -87,6 +87,15 @@ describe('the analysis pane', () => {
 		expect(onMeasure).toHaveBeenCalledOnce();
 	});
 
+	// In the heading, in its weight, the buttons read as more of the title.
+	it('puts its buttons in the groups rather than in their headings', () => {
+		show();
+		expect(screen.getByRole('heading', { name: 'Tile sizes' }).querySelector('button')).toBeNull();
+		expect(screen.getByRole('heading', { name: 'Layers' }).querySelector('button')).toBeNull();
+		expect(screen.getByRole('button', { name: 'Measure' }).closest('.toolbar')).toBeTruthy();
+		expect(screen.getByRole('button', { name: 'Read layers' }).closest('.toolbar')).toBeTruthy();
+	});
+
 	it('cannot be pressed twice while a walk is running', () => {
 		show({ measurement: measured({ running: true }) });
 		expect((screen.getByRole('button', { name: 'Measuring…' }) as HTMLButtonElement).disabled).toBe(true);
