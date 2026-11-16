@@ -26,9 +26,10 @@
 		| 'redo'
 		| 'format'
 		| 'browse'
-		// A folder and a file, for the file dialog's rows.
+		// A folder and a file, for the file dialog's rows, and a server it has connected to.
 		| 'folder'
 		| 'file'
+		| 'server'
 		| 'steps'
 		| 'draw'
 		| 'chevron'
@@ -127,6 +128,12 @@
 		<path d="M2 4.5h4l1.5 1.5H14v6.5H2z" />
 	{:else if name === 'file'}
 		<path d="M4 2h5l3 3v9H4zM9 2v3h3" />
+	{:else if name === 'server'}
+		<!-- Two units of a rack, each with its light: a machine, where a folder is a place on one. -->
+		<rect x="2.5" y="2.5" width="11" height="4.5" rx="1" />
+		<rect x="2.5" y="9" width="11" height="4.5" rx="1" />
+		<circle cx="5" cy="4.75" r="0.75" fill="currentColor" stroke="none" />
+		<circle cx="5" cy="11.25" r="0.75" fill="currentColor" stroke="none" />
 	{:else if name === 'browse'}
 		<circle cx="4" cy="8" r="1.1" fill="currentColor" stroke="none" />
 		<circle cx="8" cy="8" r="1.1" fill="currentColor" stroke="none" />

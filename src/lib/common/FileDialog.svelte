@@ -321,7 +321,7 @@
 						{#each servers as saved (login(saved.server))}
 							<li>
 								<button type="button" class="server" onclick={() => fill(saved.server)}>
-									<Icon name="folder" />
+									<Icon name="server" />
 									<span class="truncate">{login(saved.server)}</span>
 								</button>
 								<button
