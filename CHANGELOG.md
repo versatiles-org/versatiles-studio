@@ -3,6 +3,74 @@
 What changed in each release. Written for someone deciding whether
 to update, not for the next developer - the commit log is that.
 
+## v0.8.0 - 2026-11-16
+
+### Features
+
+- browse and open files on a WebDAV server in the file dialog, its password kept in the keychain and out of every URL, closes #30
+- draw pane titles in bold capitals on a band and an Inspector item in the regular weight, so the panel's hierarchy reads top down
+- one Open a file door, with web addresses as a tab of the file dialog rather than a door of their own
+- give the file list column headers that sort it, folders still first
+- show when a file last changed to the minute, not only the day
+- say beta rather than alpha, on a ribbon tucked closer into the corner
+- choose files in a dialog of Studio's own, with tabs for this computer and an SFTP server
+- list folders on this computer and on SFTP servers for a file dialog of Studio's own, and keep where it was
+- choose light, dark or the system's appearance from View → Appearance, kept across launches
+- draw the tile grid dark or light by choice rather than by the window's theme, with a wider label halo
+- offer to read layers only for vector sources, since a raster tile has none
+- offer plain black, gray and white backgrounds, exact in either theme and fetching nothing
+- mark only the tiles of the level being drawn, and edge a failed tile in red instead of ringing it
+- reload the map from Map → Reload Map (⌘R), reading every source again and asking for every tile
+
+### Fixes
+
+- frame a source when it is opened, also in a window already showing something or one whose camera came back
+- build the graph being edited through the workbench when a window opens, so the status bar no longer stays on "Opening …"
+- mark a saved server with a server icon rather than a folder's
+- write what is in a text field in the text's colour, not the grey of its label, so a value no longer reads as a placeholder
+- lay the SFTP sign-in form across the dialog when no server is saved, instead of beside an empty column
+- set the dialog's status in a statement, not an expression, so Svelte stops warning on every folder listed
+- fade a disabled button as a whole, so a disabled Open or Export no longer looks like the one to press
+- draw node and slot names in the regular weight, and refuse a side panel that sets its own bold or capitals
+- draw the focus ring in a colour of its own, so focus no longer looks like selection
+- move the focus to a tab selected from elsewhere, so a focused tab is never another than the chosen one
+- say beta in the start screen's footer too, as the ribbon does
+- keep the file list's column headers their full height above a long folder
+- remember a server as soon as it signs in, with the folder it is in, not only once a file is chosen
+- draw buttons with a face and an edge of their own, at 3:1 against the panel, so they no longer read as text
+- round every column of sizes and heights to one unit and one decimal, so its values compare at a glance
+- put Measure and Read layers in their groups as buttons, not in the headings where they read as title
+- give the caption under the tile a fixed height and two lines, so stepping between tiles no longer resizes it
+- keep the heat legend one height while zooming, with a dash at a level without figures
+- say the layers are being read at the button, and keep Read every tile in place while they are
+- say a measurement is running at its button, so the figures no longer move down and back up
+- read out the pointed pixel on two lines that never wrap, so its caption stays one height
+- keep the pixel histogram's caption to one line, so pointing at it no longer moves the tables below
+- keep the size histogram's caption to one line, so pointing at the chart no longer moves the table below
+- show a tile that is asked for again as waiting, not as the failure before it
+- time a tile's deadline from when it gets a queue slot, so waiting behind other tiles no longer condemns a zoom
+- turn the tile spinner, whose animation named the keyframes with Svelte's -global- prefix
+
+### Documentation
+
+- Q74, Tab follows the platform and passes plain buttons by on a Mac
+
+### Tests
+
+- list SFTP folders against versatiles-rs's TestSftpServer, links and the sign-in folder included
+- ask the column headers against their own content rather than a pixel count, and see "Opening …" only when the open is slow enough to show it
+- open the workbench in the UI suite, with real OSM tiles from download.versatiles.org and the core's own data written out by the core
+- add a Playwright suite that renders Studio's pages in WebKit against a typed fake core, starting with the launcher and the file dialog
+- expect the launcher's three doors and beta, and photograph the file dialog on each tab
+
+### CI
+
+- run the UI suite on every push and pull request, with the versatiles release Cargo.lock names, and let Linux's WebKit stop at buttons on Tab
+
+### Chores
+
+- upgrade versatiles-rs to 5.13.0
+
 ## v0.7.0 - 2026-11-13
 
 ### Features
