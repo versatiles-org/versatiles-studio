@@ -84,6 +84,8 @@
 	const raster = $derived(dissection?.raster ?? null);
 	/// A height as the dialog writes it: to the decimetre, which is what Mapbox's encoding resolves.
 	const metres = (value: number) => `${value.toLocaleString('en-US', { maximumFractionDigits: 1 })} m`;
+	/// What a vector tile's drawing marks, under it - in full in its title when the square is too narrow.
+	const KEY = "Dashed: the tile's edge and a hole. Red: a ring that encloses nothing.";
 	const pixelReadout = $derived(
 		pixelLines(
 			pointed && raster
@@ -288,15 +290,19 @@
 					</div>
 					{#if dissection && vector}
 						<figcaption>
+							<span class="lines">
+								<span class="readout" title={KEY}>{KEY}</span>
+								<span class="readout"
+									>{beyond > 0
+										? `${count(beyond)} ${beyond === 1 ? 'feature reaches' : 'features reach'} past the buffer shown.`
+										: ''}</span
+								>
+							</span>
 							<label><input type="checkbox" bind:checked={showVertices} /> Vertices</label>
-							<span>Dashed: the tile's edge and a hole. Red: a ring that encloses nothing.</span>
-							{#if beyond > 0}<span
-									>{count(beyond)} {beyond === 1 ? 'feature reaches' : 'features reach'} past the buffer shown.</span
-								>{/if}
 						</figcaption>
 					{:else if raster}
-						<figcaption class="pixel">
-							<span class="pointed" aria-live="polite">
+						<figcaption>
+							<span class="lines" aria-live="polite">
 								<span class="readout">{pixelReadout[0]}</span>
 								<span class="readout">{pixelReadout[1]}</span>
 							</span>
@@ -709,9 +715,12 @@
 		container-type: size;
 	}
 
+	/* `--caption` is the room under the square, and the caption is exactly that tall: the square is
+	   sized from the same number, so the two cannot drift apart. */
 	.split {
+		--caption: 2.5rem;
 		display: grid;
-		grid-template-columns: min(calc(100cqh - 2.5rem), 60cqw) minmax(0, 1fr);
+		grid-template-columns: min(calc(100cqh - var(--caption)), 60cqw) minmax(0, 1fr);
 		gap: var(--space-5);
 		height: 100%;
 	}
@@ -741,27 +750,25 @@
 		background: var(--map-bg);
 	}
 
+	/* Two lines beside a switch, never wrapped under it - a third row would not fit under the square.
+	   A fixed height rather than a reserved one, so a tile with a caption and one without (a missing
+	   tile, one still loading) leave the dialog the same. */
 	figcaption {
 		display: flex;
-		flex-wrap: wrap;
+		align-items: start;
 		gap: var(--space-1) var(--space-3);
-		margin-top: var(--space-2);
+		height: var(--caption);
+		padding-top: var(--space-2);
+		overflow: hidden;
 		font-size: var(--text-xs);
 		color: var(--ink-2);
 
-		/* The pixel's two lines beside the switch, never under it: three rows would not fit the room
-		   the square leaves its caption. */
-		&.pixel {
-			flex-wrap: nowrap;
-			align-items: start;
-
-			label {
-				white-space: nowrap;
-			}
+		label {
+			white-space: nowrap;
 		}
 	}
 
-	.pointed {
+	.lines {
 		display: grid;
 		flex: 1 1 auto;
 		min-width: 0;

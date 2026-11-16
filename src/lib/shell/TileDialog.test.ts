@@ -341,6 +341,21 @@ describe('the tile dialog', () => {
 		expect(screen.getByText('1 feature reaches past the buffer shown.')).toBeTruthy();
 	});
 
+	// The count came and went as a third line, which wrapped the caption out of the room the square
+	// leaves it whenever the next tile had something past the buffer and this one had not.
+	it('captions a tile in the same two lines whether or not anything reaches past the buffer', () => {
+		const lines = () => [...document.querySelectorAll('figcaption .lines > .readout')].map((line) => line.textContent);
+		show({ dissection: tile });
+		expect(lines()).toEqual(["Dashed: the tile's edge and a hole. Red: a ring that encloses nothing.", '']);
+		cleanup();
+		const stray: FeatureDissection = { ...square(0, 2), parts: [{ points: [[9000, 100]], closed: false, area: null }] };
+		show({ dissection: { ...tile, features: [...tile.features, stray] } });
+		expect(lines()).toEqual([
+			"Dashed: the tile's edge and a hole. Red: a ring that encloses nothing.",
+			'1 feature reaches past the buffer shown.'
+		]);
+	});
+
 	/** The square stays for a missing tile, with the grid in its corner, so nothing moves under the pointer. */
 	it('keeps the grid where it was when there is no tile', () => {
 		show({ dissection: null });
