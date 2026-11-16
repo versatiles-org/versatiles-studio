@@ -170,6 +170,8 @@ describe('the file dialog on an SFTP server', () => {
 		await vi.waitFor(() => expect(row('reunion.versatiles')).toBeTruthy());
 		expect(api.remote).toHaveBeenCalledWith(BOX, null);
 		expect(screen.getByText('anna@box.example.org:23')).toBeTruthy();
+		// Kept as soon as the connection works, with the folder it is in - not only once a file is chosen.
+		expect(api.remember).toHaveBeenCalledWith('remote', null, { server: BOX, folder: '/home' });
 
 		await fireEvent.dblClick(row('reunion.versatiles'));
 		await vi.waitFor(() =>
@@ -180,7 +182,7 @@ describe('the file dialog on an SFTP server', () => {
 
 	it('takes a key file, and says why a connection failed without leaving the form', async () => {
 		const remote = vi.fn().mockRejectedValue('SSH handshake with box.example.org:22 failed');
-		show({ api: { remote } });
+		const { api } = show({ api: { remote } });
 		await fireEvent.click(await screen.findByRole('tab', { name: 'SFTP server' }));
 		await fireEvent.input(screen.getByLabelText('Host'), { target: { value: 'box.example.org' } });
 		await fireEvent.input(screen.getByLabelText('User'), { target: { value: 'anna' } });
@@ -194,6 +196,8 @@ describe('the file dialog on an SFTP server', () => {
 			null
 		);
 		expect(screen.getByLabelText('Host')).toBeTruthy();
+		// A server that did not sign in is not one to offer again.
+		expect(api.remember).not.toHaveBeenCalled();
 	});
 
 	it('asks for a host and a user before connecting', async () => {

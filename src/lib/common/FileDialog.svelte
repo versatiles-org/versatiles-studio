@@ -130,7 +130,14 @@
 			() => api.remote(to, path),
 			path ? `Reading ${path}…` : `Connecting to ${login(to)}…`
 		);
-		if (listed) server = to;
+		if (!listed) return;
+		server = to;
+		// **Kept as soon as it works**, not only once a file is chosen: a server that signed in is
+		// one worth offering next time, even if this visit was to look around. With the folder, so
+		// the next visit starts where this one got to.
+		const saved: SavedServer = { server: to, folder: remote?.path ?? null };
+		servers = [saved, ...servers.filter((each) => login(each.server) !== login(to))];
+		await api.remember('remote', null, saved).catch(() => null);
 	}
 
 	const go = (path: string | null) => (tab === 'local' ? goLocal(path) : server && goRemote(server, path));
