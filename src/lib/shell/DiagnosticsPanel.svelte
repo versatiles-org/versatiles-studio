@@ -31,6 +31,8 @@
 	// was writing as it went. That run is a tab here rather than a separate feature, because a
 	// person looking for what went wrong should not have to know which kind of wrong it was.
 
+	let { onClose }: { onClose?: () => void } = $props();
+
 	/// Which session is being shown. `this` is the ordinary case and the one the bar's count is
 	/// about; `previous` is read from disk the first time it is asked for.
 	let showing = $state<'this' | 'previous'>('this');
@@ -201,7 +203,7 @@
 {/snippet}
 
 <!-- The panel and its rows are the kit's (S13); what is this list's own is what a problem's row says. -->
-<BarPanel {tools} {footer} {empty} bind:list={region}>
+<BarPanel label="Problems" {onClose} {tools} {footer} {empty} bind:list={region}>
 	{#each list as problem (problem.id)}
 		<BarRow
 			state={problem.level === 'error' ? 'error' : 'warn'}

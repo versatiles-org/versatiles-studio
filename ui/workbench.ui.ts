@@ -4,14 +4,14 @@
  */
 
 import { expect, test, type Page } from '@playwright/test';
-import { FakeCore, OSM_PROJECT } from './core';
+import { FakeCore, OSM_PROJECT, type Answers } from './core';
 import { SHOTS, expectAllAnswered, open } from './harness';
 
 test.skip(!!process.env.OFFLINE, 'draws tiles from download.versatiles.org');
 
 /** Opens the workbench on the OSM project, and waits until the map has drawn tiles from the server. */
-async function openWorkbench(page: Page): Promise<FakeCore> {
-	const core = new FakeCore(OSM_PROJECT);
+async function openWorkbench(page: Page, answers: Answers = {}): Promise<FakeCore> {
+	const core = new FakeCore({ ...OSM_PROJECT, ...answers });
 	const tiles = page.waitForResponse(
 		(response) => /\/tiles\/osm\/\d+\/\d+\/\d+/.test(response.url()) && response.ok(),
 		{
@@ -104,3 +104,45 @@ for (const delay of [0, 1500]) {
 		expectAllAnswered(core);
 	});
 }
+
+// The bar's button is not always there to close a panel with - the problem count's goes once the
+// list is cleared - so each carries an × in its top right corner, which stays there however far the
+// list under it has scrolled, and hands the keyboard back to the bar.
+test('closes a status bar panel with the × in its corner, scrolled or not', async ({ page }) => {
+	const done = Array.from({ length: 30 }, (_, index) => ({
+		id: index + 1,
+		label: `Converting part-${index + 1}.mbtiles`,
+		lane: 'queued' as const,
+		state: { kind: 'finished' as const },
+		fraction: 1,
+		done: null,
+		total: null,
+		rate: null,
+		etaSeconds: null,
+		message: '',
+		logLines: 0
+	}));
+	const core = await openWorkbench(page, { subscribeJobs: () => done as never });
+	const jobs = page.getByRole('button', { name: 'Jobs', exact: true });
+	await jobs.click();
+	const panel = page.getByRole('region', { name: 'Jobs' });
+	const close = panel.getByRole('button', { name: 'Close Jobs' });
+	await expect(close).toBeVisible();
+	await page.screenshot({ path: `${SHOTS}/status-bar-jobs.png` });
+
+	const corner = async () => {
+		const [box, button] = await Promise.all([panel.boundingBox(), close.boundingBox()]);
+		return { top: button!.y - box!.y, right: box!.x + box!.width - (button!.x + button!.width) };
+	};
+	const before = await corner();
+	expect(before.top).toBeLessThan(16);
+	expect(before.right).toBeLessThan(32);
+	await panel.evaluate((element) => element.scrollTo(0, element.scrollHeight));
+	expect(await panel.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+	expect(await corner()).toEqual(before);
+
+	await close.click();
+	await expect(panel).toBeHidden();
+	await expect(jobs).toBeFocused();
+	expectAllAnswered(core);
+});

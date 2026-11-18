@@ -46,6 +46,9 @@
 		},
 		toggle(which: 'jobs' | 'problems'): void {
 			expanded = expanded === which ? null : which;
+		},
+		close(): void {
+			expanded = null;
 		}
 	};
 </script>
@@ -57,6 +60,7 @@
 	import DiagnosticsPanel from './DiagnosticsPanel.svelte';
 	import { duration } from '../common/format';
 	import { tiles } from '../state/tiles.svelte';
+	import { tick } from 'svelte';
 
 	let { status, onDismiss }: { status: Status; onDismiss?: () => void } = $props();
 
@@ -123,12 +127,25 @@
 	);
 
 	const waiting = $derived(jobs.active.length);
+
+	let jobsButton = $state<HTMLButtonElement>();
+	let problemsButton = $state<HTMLButtonElement>();
+
+	/// The panel's ×. **The focus goes back to the bar's button** for the panel, where the keyboard
+	/// came from - left on the × it would fall to the page as the panel goes. The problem count's
+	/// button may have gone with a cleared list; Jobs is always there.
+	async function close() {
+		const was = open;
+		panels.close();
+		await tick();
+		(was === 'problems' ? (problemsButton ?? jobsButton) : jobsButton)?.focus();
+	}
 </script>
 
 {#if open === 'jobs'}
-	<JobsPanel list={jobs.all} />
+	<JobsPanel list={jobs.all} onClose={close} />
 {:else if open === 'problems'}
-	<DiagnosticsPanel />
+	<DiagnosticsPanel onClose={close} />
 {/if}
 
 <!-- Always present, even when idle. A bar that appears and disappears moves everything else with
@@ -174,6 +191,7 @@
 		<button
 			type="button"
 			class="action jobs problems"
+			bind:this={problemsButton}
 			aria-expanded={open === 'problems'}
 			onclick={() => panels.toggle('problems')}
 		>
@@ -183,7 +201,13 @@
 
 	<!-- The way into the history, and the only thing here that is always visible. Its count is
 	     what is still running, which is the number worth knowing at a glance. -->
-	<button type="button" class="action jobs" aria-expanded={open === 'jobs'} onclick={() => panels.toggle('jobs')}>
+	<button
+		type="button"
+		class="action jobs"
+		bind:this={jobsButton}
+		aria-expanded={open === 'jobs'}
+		onclick={() => panels.toggle('jobs')}
+	>
 		Jobs{waiting > 0 ? ` (${waiting})` : ''}
 	</button>
 </div>

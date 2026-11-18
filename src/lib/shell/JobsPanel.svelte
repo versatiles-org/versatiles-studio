@@ -10,7 +10,7 @@
 	// Expanded *upward from the bar*, not into a window. A conversion is something you glance at
 	// while working on the next thing; a modal that has to be dismissed makes checking on it cost
 	// more than it is worth, and a separate window makes it something to go and find.
-	let { list }: { list: Job[] } = $props();
+	let { list, onClose }: { list: Job[]; onClose?: () => void } = $props();
 
 	/// Which job's log is open, and the lines of it. One at a time - a stack of open logs is a
 	/// scroll problem rather than a feature.
@@ -48,7 +48,7 @@
 </script>
 
 <!-- The panel and its rows are the kit's (S13); what is this list's own is what a job's row says. -->
-<BarPanel empty={newestFirst.length === 0 ? 'Nothing has run yet.' : null}>
+<BarPanel label="Jobs" {onClose} empty={newestFirst.length === 0 ? 'Nothing has run yet.' : null}>
 	{#each newestFirst as job (job.id)}
 		{@const active = job.state.kind === 'queued' || job.state.kind === 'running'}
 		<!-- The log is fetched on open and shown under the row, preformatted. -->
