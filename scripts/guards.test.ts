@@ -404,7 +404,10 @@ describe('Cargo.lock', () => {
 		const { text, changed } = withCargoLockVersion(real, '9.9.9');
 		expect(changed).toBe(2);
 		// And nothing else moved: two lines differ, no more.
-		const differing = text.split('\n').filter((line, i) => line !== real.split('\n')[i]);
+		// Split once: splitting the real file again for each of its lines is quadratic, and took
+		// this test past its time limit once the lockfile grew.
+		const before = real.split('\n');
+		const differing = text.split('\n').filter((line, i) => line !== before[i]);
 		expect(differing).toEqual(['version = "9.9.9"', 'version = "9.9.9"']);
 	});
 });
