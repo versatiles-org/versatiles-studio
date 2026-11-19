@@ -35,12 +35,20 @@ export default defineConfig({
 	outputDir: 'target/ui-results',
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
+	/**
+	 * **Once more on CI**, for the tiles: the runner has twice gone a minute without an answer from
+	 * download.versatiles.org, where a local run has not. A test that passes on its second go is
+	 * reported flaky, not hidden; a retry that fails as well leaves a trace of what it waited for in
+	 * the results the job uploads.
+	 */
+	retries: process.env.CI ? 1 : 0,
 	reporter: 'list',
 	use: {
 		baseURL: `http://localhost:${PORT}`,
 		browserName: 'webkit',
 		viewport: { width: 1280, height: 800 },
-		colorScheme: 'light'
+		colorScheme: 'light',
+		trace: 'on-first-retry'
 	},
 	webServer: [
 		{
