@@ -235,111 +235,115 @@
 		{/if}
 	</div>
 
-	<Group title="Names">
-		<div class="chips">
-			{#each names as entry (entry.name)}
-				<button
-					type="button"
-					class="chip"
-					class:picked={picked === entry.name}
-					title={entry.doc}
-					onclick={() => {
-						picked = entry.name;
-						void insert(entry.name);
-					}}
-				>
-					{entry.name}
-				</button>
-			{/each}
-		</div>
-	</Group>
-
-	{#each [{ title: 'Operators', call: false }, { title: 'Functions', call: true }] as group (group.title)}
-		<Group title={group.title}>
+	<!-- **What gives way when the window is short.** Everything that can be picked, in one scroller,
+	     so the box, its verdict and the buttons stay on screen - see `.palette`. -->
+	<div class="palette">
+		<Group title="Names">
 			<div class="chips">
-				{#each chips.filter((entry) => entry.call === group.call) as entry (entry.label)}
+				{#each names as entry (entry.name)}
 					<button
 						type="button"
 						class="chip"
-						title={entry.title}
-						onclick={() => void insert(entry.piece, { attach: entry.attach, caret: entry.caret })}
+						class:picked={picked === entry.name}
+						title={entry.doc}
+						onclick={() => {
+							picked = entry.name;
+							void insert(entry.name);
+						}}
 					>
-						{entry.label}
+						{entry.name}
 					</button>
 				{/each}
 			</div>
 		</Group>
-	{/each}
 
-	<Group title="Properties">
-		{#if vocabulary.layers.length > 1}
-			<label class="layer">
-				<span>Of</span>
-				<select value={layer ?? ''} onchange={(event) => (layer = event.currentTarget.value || null)}>
-					<option value="">every layer</option>
-					{#each vocabulary.layers as entry (entry.layer)}
-						<option value={entry.layer}>{entry.layer}</option>
+		{#each [{ title: 'Operators', call: false }, { title: 'Functions', call: true }] as group (group.title)}
+			<Group title={group.title}>
+				<div class="chips">
+					{#each chips.filter((entry) => entry.call === group.call) as entry (entry.label)}
+						<button
+							type="button"
+							class="chip"
+							title={entry.title}
+							onclick={() => void insert(entry.piece, { attach: entry.attach, caret: entry.caret })}
+						>
+							{entry.label}
+						</button>
 					{/each}
-				</select>
-			</label>
-		{/if}
-		{#if keys.length === 0}
-			<Note tone="empty">No properties known yet.</Note>
-		{:else}
-			<div class="chips">
-				{#each keys as key (key.key)}
-					<button
-						type="button"
-						class="chip"
-						class:picked={picked === key.key}
-						title={key.features > 0 ? `${key.features} features` : undefined}
-						onclick={() => {
-							picked = key.key;
-							void insert(propertyRef(key.key));
-						}}
-					>
-						{key.key}
-					</button>
-				{/each}
-			</div>
-		{/if}
-	</Group>
+				</div>
+			</Group>
+		{/each}
 
-	<Group title={picked ? `Values of ${picked}` : 'Values'}>
-		{#if picked === null}
-			<Note tone="empty">Pick a name or a property to see what it holds.</Note>
-		{:else if values.length > 0}
-			<div class="chips">
-				{#each values as entry (entry.literal)}
-					<button
-						type="button"
-						class="chip value"
-						title={entry.count === null ? undefined : `${entry.count} features`}
-						onclick={() => void insert(valuePiece(draft.slice(0, selection.start), entry.literal))}
-					>
-						{entry.literal}
-					</button>
-				{/each}
-			</div>
-			{#if pickedMore}
-				<Note tone="aside">The commonest of more values.</Note>
+		<Group title="Properties">
+			{#if vocabulary.layers.length > 1}
+				<label class="layer">
+					<span>Of</span>
+					<select value={layer ?? ''} onchange={(event) => (layer = event.currentTarget.value || null)}>
+						<option value="">every layer</option>
+						{#each vocabulary.layers as entry (entry.layer)}
+							<option value={entry.layer}>{entry.layer}</option>
+						{/each}
+					</select>
+				</label>
 			{/if}
-		{:else if vocabulary.read === 'none'}
-			<Note tone="hint">
-				Values come from reading the layers.
-				{#snippet action()}
-					<button type="button" class="quiet" disabled={vocabulary.scanning} onclick={onScan}>
-						{vocabulary.scanning ? 'Reading…' : 'Read layers'}
-					</button>
-				{/snippet}
-			</Note>
-		{:else}
-			<Note tone="empty">No values read for it.</Note>
-		{/if}
-		{#if vocabulary.read === 'sampled' && values.length > 0}
-			<Note tone="aside">From a sample of the tiles.</Note>
-		{/if}
-	</Group>
+			{#if keys.length === 0}
+				<Note tone="empty">No properties known yet.</Note>
+			{:else}
+				<div class="chips">
+					{#each keys as key (key.key)}
+						<button
+							type="button"
+							class="chip"
+							class:picked={picked === key.key}
+							title={key.features > 0 ? `${key.features} features` : undefined}
+							onclick={() => {
+								picked = key.key;
+								void insert(propertyRef(key.key));
+							}}
+						>
+							{key.key}
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</Group>
+
+		<Group title={picked ? `Values of ${picked}` : 'Values'}>
+			{#if picked === null}
+				<Note tone="empty">Pick a name or a property to see what it holds.</Note>
+			{:else if values.length > 0}
+				<div class="chips">
+					{#each values as entry (entry.literal)}
+						<button
+							type="button"
+							class="chip value"
+							title={entry.count === null ? undefined : `${entry.count} features`}
+							onclick={() => void insert(valuePiece(draft.slice(0, selection.start), entry.literal))}
+						>
+							{entry.literal}
+						</button>
+					{/each}
+				</div>
+				{#if pickedMore}
+					<Note tone="aside">The commonest of more values.</Note>
+				{/if}
+			{:else if vocabulary.read === 'none'}
+				<Note tone="hint">
+					Values come from reading the layers.
+					{#snippet action()}
+						<button type="button" class="quiet" disabled={vocabulary.scanning} onclick={onScan}>
+							{vocabulary.scanning ? 'Reading…' : 'Read layers'}
+						</button>
+					{/snippet}
+				</Note>
+			{:else}
+				<Note tone="empty">No values read for it.</Note>
+			{/if}
+			{#if vocabulary.read === 'sampled' && values.length > 0}
+				<Note tone="aside">From a sample of the tiles.</Note>
+			{/if}
+		</Group>
+	</div>
 
 	{#snippet actions()}
 		<button type="button" class="button" onclick={onClose}>Cancel</button>
@@ -350,7 +354,11 @@
 <style>
 	/* The box, as `VplEditor`'s: a transparent textarea over a layer that draws the same text,
 	   coloured. Both take every metric from the same place, or the colours drift off the text. */
+	/* **Never the one to give way.** The modal's body is a flex column, and an element that clips
+	   its overflow may shrink to nothing in one - so once the values filled the dialog, the box being
+	   written in collapsed to a line. `.palette` gives way instead. */
 	.editor {
+		flex-shrink: 0;
 		position: relative;
 		border: 1px solid var(--rule);
 		border-radius: var(--radius);
@@ -459,6 +467,8 @@
 
 	/* Six lines, scrolling inside rather than growing. */
 	.status {
+		/* Its fixed height is the point of it; see `.editor` for why that needs saying. */
+		flex-shrink: 0;
 		box-sizing: border-box;
 		line-height: 1.4;
 		height: calc(6 * 1.4em + 2 * var(--space-3));
@@ -473,6 +483,17 @@
 		&.changed {
 			opacity: 0.45;
 		}
+	}
+
+	/* The one child `Modal` lets shrink (`min-height: 0`, its own scroller), as its comment asks:
+	   when the window is short this scrolls, and the box above and the buttons below stay put. */
+	.palette {
+		display: flex;
+		flex: 1 1 auto;
+		flex-direction: column;
+		gap: var(--space-4);
+		min-height: 0;
+		overflow-y: auto;
 	}
 
 	.problems {
