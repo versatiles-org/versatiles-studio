@@ -267,7 +267,7 @@ fn parse(xml: &str, asked: &Url) -> Result<Vec<Found>> {
 	loop {
 		match reader.read_event()? {
 			Event::Start(element) => {
-				let name = String::from_utf8_lossy(element.local_name().as_ref()).into_owned();
+				let name = element.local_name().as_ref().to_string();
 				match name.as_str() {
 					"response" => {
 						href = None;
@@ -285,18 +285,18 @@ fn parse(xml: &str, asked: &Url) -> Result<Vec<Found>> {
 				text.clear();
 			}
 			Event::Empty(element) => {
-				if element.local_name().as_ref() == b"collection"
+				if element.local_name().as_ref() == "collection"
 					&& open.last().is_some_and(|parent| parent == "resourcetype")
 					&& let Some(props) = props.as_mut()
 				{
 					props.folder = true;
 				}
 			}
-			Event::Text(part) => text.push_str(&part.decode()?),
-			Event::CData(part) => text.push_str(&part.decode()?),
+			Event::Text(part) => text.push_str(&part.xml10_content()),
+			Event::CData(part) => text.push_str(&part.xml10_content()),
 			Event::GeneralRef(reference) => match reference.resolve_char_ref()? {
 				Some(character) => text.push(character),
-				None => text.push(match reference.decode()?.as_ref() {
+				None => text.push(match &*reference {
 					"amp" => '&',
 					"lt" => '<',
 					"gt" => '>',
