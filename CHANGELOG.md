@@ -3,6 +3,23 @@
 What changed in each release. Written for someone deciding whether
 to update, not for the next developer - the commit log is that.
 
+## v0.9.0 - 2026-11-26
+
+### Features
+
+- Close a status bar panel with the × in its corner, even when the bar's button for it is gone.
+
+### Fixes (from VersaTiles 5.16)
+
+- Elevation mosaics are composited as heights and encoded without loss. AVIF elevation inputs are refused, because their seams would change heights.
+- `from_gdal_dem` is transparent where there is no height, including the dataset's nodata voids, instead of 0 m or -10000 m.
+- Mosaics are encoded in the format of their inputs, not always as WebP.
+- Container names in brackets may contain `-` and `.`, such as `[osm-vector]`.
+
+### Updates
+
+- VersaTiles 5.13 → 5.16, sprites from versatiles-style v9.1.3, Latin glyphs from versatiles-frontend v3.20.1.
+
 ## v0.8.0 - 2026-11-16
 
 ### Features
