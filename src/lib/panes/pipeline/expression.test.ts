@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { insertAt, keysOf, paint, propertyRef, quoted, readsLine, valuePiece } from './expression';
+import { insertAt, keysOf, operatorChip, paint, propertyRef, quoted, readsLine, valuePiece } from './expression';
+import type { ExpressionOperatorKind } from '../../ipc/commands';
 
 describe('propertyRef', () => {
 	it('names a property by itself where it can', () => {
@@ -27,6 +28,58 @@ describe('insertAt', () => {
 		expect(insertAt('kind', 4, 4, "== 'primary'")).toEqual({ text: "kind == 'primary'", caret: 17 });
 		expect(insertAt('(', 1, 1, 'kind')).toEqual({ text: '(kind', caret: 5 });
 		expect(insertAt('a ', 2, 2, '&&')).toEqual({ text: 'a &&', caret: 4 });
+	});
+
+	it('joins an attached piece to the word before it, and puts the caret where it is told', () => {
+		expect(insertAt('name', 4, 4, '.contains()', { attach: true, caret: 10 })).toEqual({
+			text: 'name.contains()',
+			caret: 14
+		});
+		expect(insertAt('a', 1, 1, 'size()', { caret: 5 })).toEqual({ text: 'a size()', caret: 7 });
+		expect(insertAt('size() x', 5, 5, 'name')).toEqual({ text: 'size(name) x', caret: 9 });
+	});
+});
+
+describe('operatorChip', () => {
+	const chipOf = (written: string, kind: ExpressionOperatorKind, example = '') =>
+		operatorChip({ written, kind, doc: '', example });
+
+	it('writes what goes between operands with room after it', () => {
+		expect(chipOf('==', 'comparison')).toEqual({ label: '==', piece: '== ', attach: false, caret: 3 });
+		expect(chipOf('in', 'comparison')).toEqual({ label: 'in', piece: 'in ', attach: false, caret: 3 });
+		expect(chipOf('&&', 'logic')).toEqual({ label: '&&', piece: '&& ', attach: false, caret: 3 });
+		expect(chipOf('%', 'arithmetic')).toEqual({ label: '%', piece: '% ', attach: false, caret: 2 });
+	});
+
+	it('writes a negation before its operand, and the conditional around two', () => {
+		expect(chipOf('!', 'logic')).toEqual({ label: '!', piece: '!', attach: false, caret: 1 });
+		expect(chipOf('? :', 'logic')).toEqual({ label: '? :', piece: '?  : ', attach: false, caret: 2 });
+	});
+
+	it('writes a function and a method with the caret between the brackets', () => {
+		expect(chipOf('size', 'function')).toEqual({ label: 'size()', piece: 'size()', attach: false, caret: 5 });
+		expect(chipOf('startsWith', 'method')).toEqual({
+			label: '.startsWith()',
+			piece: '.startsWith()',
+			attach: true,
+			caret: 12
+		});
+	});
+
+	// Upstream's one kind for both shapes; its example says which a macro is.
+	it('writes a macro the way its example does', () => {
+		expect(chipOf('has', 'macro', "has({'a': 1}.a)")).toEqual({
+			label: 'has()',
+			piece: 'has()',
+			attach: false,
+			caret: 4
+		});
+		expect(chipOf('exists_one', 'macro', '[1, 2].exists_one(x, x > 1)')).toEqual({
+			label: '.exists_one()',
+			piece: '.exists_one(x, )',
+			attach: true,
+			caret: 15
+		});
 	});
 });
 

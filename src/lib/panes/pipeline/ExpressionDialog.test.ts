@@ -7,7 +7,7 @@ import { cleanup, render, screen } from '@testing-library/svelte';
 import { fireEvent } from '@testing-library/dom';
 import ExpressionDialog from './ExpressionDialog.svelte';
 import type { Vocabulary } from '../../state/vocabulary.svelte';
-import type { ExpressionCheck } from '../../ipc/commands';
+import type { ExpressionCheck, ExpressionOperator } from '../../ipc/commands';
 
 // jsdom has no `showModal`, and the dialog's own effect calls it.
 HTMLDialogElement.prototype.showModal = vi.fn();
@@ -16,6 +16,24 @@ HTMLDialogElement.prototype.close = vi.fn();
 const NAMES = [
 	{ name: '$zoom', doc: 'The zoom level of the tile.' },
 	{ name: '$layer', doc: "The name of the feature's layer." }
+];
+
+/** One of each way an operator is written, as upstream lists them. */
+const OPERATORS: ExpressionOperator[] = [
+	{ written: '>=', kind: 'comparison', doc: 'Whether a value is at least another.', example: '1 >= 1' },
+	{ written: 'size', kind: 'function', doc: 'The length of a string, list or map.', example: "size('abc') == 3" },
+	{
+		written: 'startsWith',
+		kind: 'method',
+		doc: 'Whether a string starts with another.',
+		example: "'abc'.startsWith('a')"
+	},
+	{
+		written: 'all',
+		kind: 'macro',
+		doc: 'Whether a condition holds for every element.',
+		example: '[1, 2].all(x, x > 0)'
+	}
 ];
 
 const READ: Vocabulary = {
@@ -44,6 +62,7 @@ function open(over: { value?: string; vocabulary?: Vocabulary; check?: (text: st
 		value: over.value ?? '',
 		name: 'expr',
 		names: NAMES,
+		operators: OPERATORS,
 		vocabulary: over.vocabulary ?? READ,
 		...spies
 	});
@@ -168,6 +187,52 @@ describe('what it offers', () => {
 		await fireEvent.click(chip('$layer'));
 		await fireEvent.click(chip("'pois'"));
 		expect(box().value).toBe("$layer == 'pois'");
+	});
+
+	// An operator goes in with room after it, so a name, then `>=`, then a value reads as one.
+	it('writes an operator between what is before it and what comes next', async () => {
+		open();
+		await fireEvent.click(chip('$zoom'));
+		await fireEvent.click(chip('>='));
+		expect(box().value).toBe('$zoom >= ');
+		await vi.advanceTimersByTimeAsync(0);
+		expect(box().selectionStart).toBe(9);
+		expect(chip('>=').title).toBe('Whether a value is at least another.\nFor example: 1 >= 1');
+	});
+
+	it('writes a function with the caret between its brackets', async () => {
+		open();
+		await fireEvent.click(chip('size()'));
+		expect(box().value).toBe('size()');
+		await vi.advanceTimersByTimeAsync(0);
+		expect(box().selectionStart).toBe(5);
+	});
+
+	// A method is called on what is before it, so it is joined to it rather than spaced.
+	it('writes a method onto the value before it', async () => {
+		open();
+		await fireEvent.click(chip('kind'));
+		await fireEvent.click(chip('.startsWith()'));
+		expect(box().value).toBe('kind.startsWith()');
+		await vi.advanceTimersByTimeAsync(0);
+		expect(box().selectionStart).toBe(16);
+	});
+
+	it('writes a list macro with its variable, ready for the condition', async () => {
+		open();
+		await fireEvent.click(chip('.all()'));
+		expect(box().value).toBe('.all(x, )');
+		await vi.advanceTimersByTimeAsync(0);
+		expect(box().selectionStart).toBe(8);
+	});
+
+	it('groups operators apart from functions', () => {
+		open();
+		const group = (text: string) => chip(text).closest('section.group');
+		expect(group('>=')?.querySelector('h3')?.textContent).toContain('Operators');
+		expect(group('size()')?.querySelector('h3')?.textContent).toContain('Functions');
+		expect(group('.startsWith()')).toBe(group('size()'));
+		expect(group('.all()')).toBe(group('size()'));
 	});
 
 	it('offers to read the layers when no values have been read', async () => {

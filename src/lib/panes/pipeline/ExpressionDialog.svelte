@@ -3,16 +3,27 @@
 	import Group from '../../common/Group.svelte';
 	import Modal from '../../common/Modal.svelte';
 	import Note from '../../common/Note.svelte';
-	import type { ExpressionCheck, ExpressionName } from '../../ipc/commands';
+	import type { ExpressionCheck, ExpressionName, ExpressionOperator } from '../../ipc/commands';
 	import type { Vocabulary } from '../../state/vocabulary.svelte';
-	import { GEOMETRY_TYPES, insertAt, keysOf, paint, propertyRef, quoted, readsLine, valuePiece } from './expression';
+	import {
+		GEOMETRY_TYPES,
+		insertAt,
+		keysOf,
+		operatorChip,
+		paint,
+		propertyRef,
+		quoted,
+		readsLine,
+		valuePiece,
+		type Placement
+	} from './expression';
 
 	// The helper behind an expression - `vector_branch`'s and `vector_filter_features`'s `expr`.
 	//
 	// **A helper, not the field**, and it commits once, on Use, for the reasons `StepsDialog` gives.
-	// What it shows that the line hides is what an expression can say: the `$` names, the source's
-	// properties, and the values those hold - each a click away from being written where the caret
-	// is.
+	// What it shows that the line hides is what an expression can say: the `$` names, the operators
+	// and functions, the source's properties, and the values those hold - each a click away from
+	// being written where the caret is.
 	//
 	// **Checked when asked, not while typed.** It checked after every pause, and a pause is mostly
 	// a thought half-finished - `$layer ==` on its way to a value was called wrong each time. Now it
@@ -27,6 +38,7 @@
 		value,
 		name,
 		names,
+		operators,
 		vocabulary,
 		check,
 		onScan,
@@ -39,6 +51,8 @@
 		name: string;
 		/** The `$` names an expression reads, as the field's control carries them. */
 		names: ExpressionName[];
+		/** The operators, functions and macros it can use, as the field's control carries them. */
+		operators: ExpressionOperator[];
 		/** What the selected source's tiles hold - see `vocabulary.svelte.ts`. */
 		vocabulary: Vocabulary;
 		/** Upstream's check of an expression: what is wrong and where, its tokens, what it reads. */
@@ -140,9 +154,19 @@
 	});
 	const pickedMore = $derived(keys.find((candidate) => candidate.key === picked)?.more ?? false);
 
-	/// Writes `piece` where the caret was, and puts the caret after it.
-	async function insert(piece: string): Promise<void> {
-		const next = insertAt(draft, selection.start, selection.end, piece);
+	/// Upstream's operators as chips, in its order: those between or around operands, then those
+	/// with brackets.
+	const chips = $derived(
+		operators.map((operator) => ({
+			...operatorChip(operator),
+			title: `${operator.doc}\nFor example: ${operator.example}`,
+			call: ['function', 'method', 'macro'].includes(operator.kind)
+		}))
+	);
+
+	/// Writes `piece` where the caret was, and puts the caret after it - or where `placement` says.
+	async function insert(piece: string, placement?: Placement): Promise<void> {
+		const next = insertAt(draft, selection.start, selection.end, piece, placement);
 		draft = next.text;
 		selection = { start: next.caret, end: next.caret };
 		recolour();
@@ -229,6 +253,23 @@
 			{/each}
 		</div>
 	</Group>
+
+	{#each [{ title: 'Operators', call: false }, { title: 'Functions', call: true }] as group (group.title)}
+		<Group title={group.title}>
+			<div class="chips">
+				{#each chips.filter((entry) => entry.call === group.call) as entry (entry.label)}
+					<button
+						type="button"
+						class="chip"
+						title={entry.title}
+						onclick={() => void insert(entry.piece, { attach: entry.attach, caret: entry.caret })}
+					>
+						{entry.label}
+					</button>
+				{/each}
+			</div>
+		</Group>
+	{/each}
 
 	<Group title="Properties">
 		{#if vocabulary.layers.length > 1}

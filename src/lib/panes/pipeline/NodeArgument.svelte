@@ -384,6 +384,7 @@
 				{value}
 				{name}
 				names={control.names}
+				operators={control.operators}
 				vocabulary={vocabulary.current}
 				check={vplCheckExpression}
 				onScan={() => vocabulary.scan()}

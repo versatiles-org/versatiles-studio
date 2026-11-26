@@ -453,7 +453,13 @@ describe('an expression', () => {
 		maxSources: null,
 		accepts: [],
 		default: null,
-		control: { kind: 'expression' as const, names: [{ name: '$zoom', doc: 'The zoom level of the tile.' }] }
+		control: {
+			kind: 'expression' as const,
+			names: [{ name: '$zoom', doc: 'The zoom level of the tile.' }],
+			operators: [
+				{ written: '>=', kind: 'comparison' as const, doc: 'Whether a value is at least another.', example: '1 >= 1' }
+			]
+		}
 	};
 
 	it('is edited as text, and opens its helper with the names it can read', async () => {

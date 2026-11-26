@@ -161,9 +161,11 @@ pub enum Control {
 	///
 	/// Text with a helper beside it, like [`Control::Ramp`]: the expression is what the VPL holds and
 	/// what `check` reports on, and the helper is where it is written with the names it can use in
-	/// front of you. `names` are the `$` names an expression reads besides a feature's properties.
+	/// front of you. `names` are the `$` names an expression reads besides a feature's properties;
+	/// `operators` are the operators, functions and macros it can use on them.
 	Expression {
 		names: Vec<ExpressionName>,
+		operators: Vec<ExpressionOperator>,
 	},
 	/// A fixed-size numeric array: a bbox is four, a colour or a centre three.
 	Numbers {
@@ -197,6 +199,54 @@ pub struct ExpressionName {
 	/// As written, `$` included.
 	pub name: String,
 	pub doc: String,
+}
+
+/// An operator, function or macro an expression can use: upstream's `expression_operators()`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub struct ExpressionOperator {
+	/// As inserted, without its operands: `>=`, `size`, `startsWith`. The conditional is `? :`.
+	pub written: String,
+	pub kind: ExpressionOperatorKind,
+	/// What it does, in one sentence.
+	pub doc: String,
+	/// An expression using it that holds, such as `size('abc') == 3`.
+	pub example: String,
+}
+
+/// Where an operator's operands go, which is what the helper needs to write one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "bindings", derive(specta::Type))]
+pub enum ExpressionOperatorKind {
+	/// Between two values: `a == b`.
+	Comparison,
+	/// `a && b`, `!a`, `c ? a : b`.
+	Logic,
+	/// Between two values: `a + b`.
+	Arithmetic,
+	/// Arguments in brackets: `size(x)`.
+	Function,
+	/// Called on a value: `x.startsWith('a')`.
+	Method,
+	/// Called on a list, `list.all(x, x > 0)`, or testing a field, `has(m.f)`.
+	Macro,
+}
+
+impl From<versatiles_pipeline::ExpressionOperatorKind> for ExpressionOperatorKind {
+	/// **Matched, not passed through as a string**, so a kind upstream adds is a build error here
+	/// rather than a chip the helper does not know how to write.
+	fn from(kind: versatiles_pipeline::ExpressionOperatorKind) -> Self {
+		use versatiles_pipeline::ExpressionOperatorKind as Upstream;
+		match kind {
+			Upstream::Comparison => Self::Comparison,
+			Upstream::Logic => Self::Logic,
+			Upstream::Arithmetic => Self::Arithmetic,
+			Upstream::Function => Self::Function,
+			Upstream::Method => Self::Method,
+			Upstream::Macro => Self::Macro,
+		}
+	}
 }
 
 /// A ramp upstream knows by name, and the stops it stands for - what `ramp=default` means.
@@ -258,6 +308,17 @@ fn control_for(field: &VPLFieldMeta) -> Control {
 					.map(|(name, doc)| ExpressionName {
 						name: (*name).to_string(),
 						doc: (*doc).to_string(),
+					})
+					.collect(),
+				// Upstream's too (vt#334), each with an example a test there evaluates, so an
+				// operator offered here is one this build of the language has.
+				operators: versatiles_pipeline::expression_operators()
+					.iter()
+					.map(|operator| ExpressionOperator {
+						written: operator.written.to_string(),
+						kind: operator.kind.into(),
+						doc: operator.doc.to_string(),
+						example: operator.example.to_string(),
 					})
 					.collect(),
 			};
@@ -741,11 +802,12 @@ mod tests {
 		);
 	}
 
-	/// An expression has a helper of its own, and carries upstream's names with their docs.
+	/// An expression has a helper of its own, and carries upstream's names and operators with their
+	/// docs.
 	#[test]
 	fn an_expression_has_its_own_control() {
 		for (operation, field_name) in [("vector_branch", "expr"), ("vector_filter_features", "expr")] {
-			let Control::Expression { names } = field(operation, field_name).control else {
+			let Control::Expression { names, operators } = field(operation, field_name).control else {
 				panic!("{operation}.{field_name} is an expression");
 			};
 			assert_eq!(names.len(), versatiles_pipeline::expression_names().len());
@@ -754,6 +816,15 @@ mod tests {
 				names
 					.iter()
 					.all(|name| name.name.starts_with('$') && !name.doc.is_empty())
+			);
+
+			assert_eq!(operators.len(), versatiles_pipeline::expression_operators().len());
+			assert_eq!(operators[0].written, "==");
+			assert_eq!(operators[0].kind, ExpressionOperatorKind::Comparison);
+			assert!(
+				operators
+					.iter()
+					.all(|operator| !operator.doc.is_empty() && !operator.example.is_empty())
 			);
 		}
 	}

@@ -8,6 +8,7 @@
  */
 
 import type {
+	ExpressionOperator,
 	ExpressionProblem,
 	ExpressionReads,
 	ExpressionToken,
@@ -31,15 +32,76 @@ export function propertyRef(key: string): string {
 	return `$props['${key.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}']`;
 }
 
+/**
+ * How a piece goes in: `attach` joins it to what is before it with no space, as a method call
+ * must, and `caret` is where in the piece the caret lands - its end unless said otherwise.
+ */
+export type Placement = { attach?: boolean; caret?: number };
+
 /** The text with `piece` in place of the selection, and where the caret goes after it. */
-export function insertAt(text: string, start: number, end: number, piece: string): { text: string; caret: number } {
+export function insertAt(
+	text: string,
+	start: number,
+	end: number,
+	piece: string,
+	{ attach = false, caret = piece.length }: Placement = {}
+): { text: string; caret: number } {
 	const before = text.slice(0, start);
 	const after = text.slice(end);
 	// A space where the piece would otherwise run into a word or a value before it: `a` then `== 1`
 	// should read `a == 1`, not `a== 1` - and nothing is added after an opening bracket or a space.
-	const gap = before.length > 0 && /[\w'")\]]$/.test(before) ? ' ' : '';
-	const written = `${before}${gap}${piece}`;
-	return { text: `${written}${after}`, caret: written.length };
+	const gap = !attach && before.length > 0 && /[\w'")\]]$/.test(before) ? ' ' : '';
+	const head = `${before}${gap}`;
+	return { text: `${head}${piece}${after}`, caret: head.length + caret };
+}
+
+/** An operator as the helper offers it: its chip, and what clicking the chip writes. */
+export type OperatorChip = { label: string; piece: string } & Required<Placement>;
+
+/**
+ * How upstream's operator is written into the text, from where its operands go.
+ *
+ * Between two operands it goes with a space after it, so the next pick lands clear of it. A
+ * function or a method goes in with its brackets and the caret between them. A macro is written
+ * like whichever of the two its example shows - `has(m.f)` is a function, `list.all(x, x > 0)` a
+ * method, already naming the variable its condition reads.
+ */
+export function operatorChip({ written, kind, example }: ExpressionOperator): OperatorChip {
+	const between = (): OperatorChip => ({
+		label: written,
+		piece: `${written} `,
+		attach: false,
+		caret: written.length + 1
+	});
+	const call = (): OperatorChip => ({
+		label: `${written}()`,
+		piece: `${written}()`,
+		attach: false,
+		caret: written.length + 1
+	});
+	const method = (args = ''): OperatorChip => ({
+		label: `.${written}()`,
+		piece: `.${written}(${args})`,
+		attach: true,
+		caret: written.length + 2 + args.length
+	});
+
+	switch (kind) {
+		case 'comparison':
+		case 'arithmetic':
+			return between();
+		case 'logic':
+			// The two that are not written between two operands: `!` before one, `? :` around two.
+			if (written === '!') return { label: written, piece: written, attach: false, caret: 1 };
+			if (written === '? :') return { label: written, piece: '?  : ', attach: false, caret: 2 };
+			return between();
+		case 'function':
+			return call();
+		case 'method':
+			return method();
+		case 'macro':
+			return example.includes(`.${written}(`) ? method('x, ') : call();
+	}
 }
 
 /**

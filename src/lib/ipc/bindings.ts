@@ -1187,9 +1187,10 @@ maxZoom: number } |
  * 
  *  Text with a helper beside it, like [`Control::Ramp`]: the expression is what the VPL holds and
  *  what `check` reports on, and the helper is where it is written with the names it can use in
- *  front of you. `names` are the `$` names an expression reads besides a feature's properties.
+ *  front of you. `names` are the `$` names an expression reads besides a feature's properties;
+ *  `operators` are the operators, functions and macros it can use on them.
  */
-{ kind: "expression"; names: ExpressionName[] } | 
+{ kind: "expression"; names: ExpressionName[]; operators: ExpressionOperator[] } | 
 /**  A fixed-size numeric array: a bbox is four, a colour or a centre three. */
 { kind: "numbers"; count: number } | 
 /**
@@ -1406,6 +1407,32 @@ export type ExpressionName = {
 	name: string,
 	doc: string,
 };
+
+/**  An operator, function or macro an expression can use: upstream's `expression_operators()`. */
+export type ExpressionOperator = {
+	/**  As inserted, without its operands: `>=`, `size`, `startsWith`. The conditional is `? :`. */
+	written: string,
+	kind: ExpressionOperatorKind,
+	/**  What it does, in one sentence. */
+	doc: string,
+	/**  An expression using it that holds, such as `size('abc') == 3`. */
+	example: string,
+};
+
+/**  Where an operator's operands go, which is what the helper needs to write one. */
+export type ExpressionOperatorKind = 
+/**  Between two values: `a == b`. */
+"comparison" | 
+/**  `a && b`, `!a`, `c ? a : b`. */
+"logic" | 
+/**  Between two values: `a + b`. */
+"arithmetic" | 
+/**  Arguments in brackets: `size(x)`. */
+"function" | 
+/**  Called on a value: `x.startsWith('a')`. */
+"method" | 
+/**  Called on a list, `list.all(x, x > 0)`, or testing a field, `has(m.f)`. */
+"macro";
 
 /**  Something wrong with an expression, and the text it covers. */
 export type ExpressionProblem = {
