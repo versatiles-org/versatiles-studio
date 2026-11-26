@@ -121,8 +121,10 @@
 					class="icon danger drop"
 					title="Remove"
 					aria-label="Remove the step at zoom {step.zoom}"
-					onclick={() => (steps = steps.filter((_, at) => at !== index))}><Icon name="remove" size="1em" /></button
+					onclick={() => (steps = steps.filter((_, at) => at !== index))}
 				>
+					<Icon name="remove" size="1em" />
+				</button>
 			</div>
 		{/each}
 

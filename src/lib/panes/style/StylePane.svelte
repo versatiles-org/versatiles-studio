@@ -259,8 +259,10 @@
 		aria-hidden={!changed}
 		aria-label="Reset {what}"
 		title="Reset"
-		onclick={clear}><Icon name="undo" size="1em" /></button
+		onclick={clear}
 	>
+		<Icon name="undo" size="1em" />
+	</button>
 {/snippet}
 
 {#snippet resetShade()}
@@ -406,8 +408,9 @@
 			<Group title="Theme">
 				{#if basis === 'fallback'}
 					{#snippet readAsOther()}
-						<button type="button" class="quiet" onclick={() => chooseKind('vectorOther')}>Read as Vector · other</button
-						>
+						<button type="button" class="quiet" onclick={() => chooseKind('vectorOther')}>
+							Read as Vector · other
+						</button>
 					{/snippet}
 					<!-- S6.2: the theme is still what the recipe says, and it is not what the map is
 					     showing. Saying so here is cheaper than leaving someone to compare the two - and

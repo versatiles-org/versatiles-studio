@@ -133,11 +133,19 @@
 					onclick={() => {
 						removing = null;
 						onRemove(graph.id);
-					}}>Delete</button
+					}}
 				>
-				<button type="button" class="icon" aria-label="Keep {graph.name}" title="Keep" onclick={() => (removing = null)}
-					><Icon name="remove" size="1em" /></button
+					Delete
+				</button>
+				<button
+					type="button"
+					class="icon"
+					aria-label="Keep {graph.name}"
+					title="Keep"
+					onclick={() => (removing = null)}
 				>
+					<Icon name="remove" size="1em" />
+				</button>
 			{:else}
 				<button type="button" class="name truncate" title={graph.name} onclick={() => onSelect(graph.id)}>
 					{graph.name}
@@ -151,16 +159,18 @@
 					</span>
 				{/if}
 				{#if graph.dirty}<span class="dirty" title="unsaved changes" aria-label="unsaved changes">•</span>{/if}
-				<button type="button" class="icon" title="Rename {graph.name}" aria-label="Rename" onclick={() => start(graph)}
-					><Icon name="rename" size="1em" /></button
-				>
+				<button type="button" class="icon" title="Rename {graph.name}" aria-label="Rename" onclick={() => start(graph)}>
+					<Icon name="rename" size="1em" />
+				</button>
 				<button
 					type="button"
 					class="icon danger"
 					title="Delete {graph.name}"
 					aria-label="Delete {graph.name}"
-					onclick={() => (removing = graph.id)}><Icon name="remove" size="1em" /></button
+					onclick={() => (removing = graph.id)}
 				>
+					<Icon name="remove" size="1em" />
+				</button>
 			{/if}
 		</li>
 	{/each}

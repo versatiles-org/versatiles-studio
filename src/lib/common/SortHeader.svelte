@@ -29,9 +29,9 @@
 
 <th scope="col" aria-sort={direction ?? 'none'}>
 	<button type="button" class="sort" class:on={direction} onclick={() => onSort(nextSort(sort, column, first))}>
-		{label}{#if direction}<span class="arrow" aria-hidden="true"
-				><Icon name={direction === 'ascending' ? 'up' : 'down'} size="0.85em" /></span
-			>{/if}
+		{label}{#if direction}<span class="arrow" aria-hidden="true">
+				<Icon name={direction === 'ascending' ? 'up' : 'down'} size="0.85em" />
+			</span>{/if}
 	</button>
 </th>
 

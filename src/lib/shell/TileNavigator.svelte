@@ -72,8 +72,9 @@
 						title={target ? `${label}: ${name(target)}` : `${label}: past the edge of the world`}
 						disabled={!target}
 						onclick={() => go(target)}
-						>{#if ARROWS[label]}<Icon name={ARROWS[label]} size="0.9em" />{/if}</button
 					>
+						{#if ARROWS[label]}<Icon name={ARROWS[label]} size="0.9em" />{/if}
+					</button>
 				{/if}
 			{/each}
 		{/each}
@@ -84,8 +85,10 @@
 		aria-label="Parent"
 		title={up ? `Zoom out: ${name(up)}` : 'Zoom out: this is the whole world'}
 		disabled={!up}
-		onclick={() => go(up)}><Icon name="minus" size="0.9em" /></button
+		onclick={() => go(up)}
 	>
+		<Icon name="minus" size="0.9em" />
+	</button>
 </div>
 
 <style>

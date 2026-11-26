@@ -123,8 +123,10 @@
 					class="axis"
 					x={x(tick.at)}
 					y={HEIGHT - 4}
-					text-anchor={tick.at === 0 ? 'start' : tick.at === steps - 1 ? 'end' : 'middle'}>{tick.text}</text
+					text-anchor={tick.at === 0 ? 'start' : tick.at === steps - 1 ? 'end' : 'middle'}
 				>
+					{tick.text}
+				</text>
 			{/each}
 		</svg>
 	</div>

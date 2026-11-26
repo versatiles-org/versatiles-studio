@@ -124,26 +124,26 @@
      is its summary while folded. What is this section's own below is the four-corner box. -->
 <Group title="Crop" {open} onToggle={(next) => (open = next)} summary={cropped ? summary : null}>
 	<Field label="Zoom" as="group">
-		<label class="bound"
-			>from <input
+		<label class="bound">
+			from <input
 				value={shown.minZoom}
 				oninput={(e) => commit('minZoom', e.currentTarget.value)}
 				type="number"
 				min="0"
 				max="30"
 				inputmode="numeric"
-			/></label
-		>
-		<label class="bound"
-			>to <input
+			/>
+		</label>
+		<label class="bound">
+			to <input
 				value={shown.maxZoom}
 				oninput={(e) => commit('maxZoom', e.currentTarget.value)}
 				type="number"
 				min="0"
 				max="30"
 				inputmode="numeric"
-			/></label
-		>
+			/>
+		</label>
 	</Field>
 
 	<div class="box" role="group" aria-label="Bounding box">

@@ -190,23 +190,29 @@
 							disabled={index === 0}
 							aria-label="Move {view.name} up"
 							title="Move up"
-							onclick={() => nudge(index, index - 1)}><Icon name="up" size="1em" /></button
+							onclick={() => nudge(index, index - 1)}
 						>
+							<Icon name="up" size="1em" />
+						</button>
 						<button
 							type="button"
 							class="icon"
 							disabled={index === views.length - 1}
 							aria-label="Move {view.name} down"
 							title="Move down"
-							onclick={() => nudge(index, index + 1)}><Icon name="down" size="1em" /></button
+							onclick={() => nudge(index, index + 1)}
 						>
+							<Icon name="down" size="1em" />
+						</button>
 						<button
 							type="button"
 							class="icon danger"
 							aria-label="Delete {view.name}"
 							title="Delete"
-							onclick={() => remove(view)}><Icon name="remove" size="1em" /></button
+							onclick={() => remove(view)}
 						>
+							<Icon name="remove" size="1em" />
+						</button>
 					</li>
 				{/each}
 			</ul>

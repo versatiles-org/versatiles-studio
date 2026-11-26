@@ -158,17 +158,17 @@
 		bind:clientHeight={height}
 		style="left: clamp(10rem, {screen.x}px, calc(100% - 10rem)); top: {screen.y}px"
 	>
-		<button type="button" class="icon close" onclick={close} aria-label="Close"
-			><Icon name="remove" size="1em" /></button
-		>
+		<button type="button" class="icon close" onclick={close} aria-label="Close">
+			<Icon name="remove" size="1em" />
+		</button>
 		{#if address}
 			{@const at = address}
 			<article class="tile">
 				<h3>
 					tile {at.z}/{at.x}/{at.y}
-					{#if tile}<span class="id" title="{kilobytes(tile.rawBytes)} decompressed"
-							>{kilobytes(tile.storedBytes)} stored</span
-						>{/if}
+					{#if tile}<span class="id" title="{kilobytes(tile.rawBytes)} decompressed">
+							{kilobytes(tile.storedBytes)} stored
+						</span>{/if}
 				</h3>
 				{#if tile}
 					<ul class="layers">
@@ -189,8 +189,10 @@
 						const { z, x, y } = at;
 						close();
 						onInspect(z, x, y);
-					}}>Inspect tile…</button
+					}}
 				>
+					Inspect tile…
+				</button>
 			</article>
 		{/if}
 

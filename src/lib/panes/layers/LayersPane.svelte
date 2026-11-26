@@ -183,16 +183,20 @@
 						disabled={up === null}
 						aria-label="Move {node.label} up"
 						title="Move {node.label} up the list, so it is drawn over the run above it"
-						onclick={() => up && actions.reorder(up.range, up.at)}><Icon name="up" size="1em" /></button
+						onclick={() => up && actions.reorder(up.range, up.at)}
 					>
+						<Icon name="up" size="1em" />
+					</button>
 					<button
 						type="button"
 						class="icon"
 						disabled={down === null}
 						aria-label="Move {node.label} down"
 						title="Move {node.label} down the list, so it is drawn under the run below it"
-						onclick={() => down && actions.reorder(down.range, down.at)}><Icon name="down" size="1em" /></button
+						onclick={() => down && actions.reorder(down.range, down.at)}
 					>
+						<Icon name="down" size="1em" />
+					</button>
 				</div>
 				{#if shown}
 					{@render nodes(node.children, key, depth + 1)}

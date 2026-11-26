@@ -124,8 +124,10 @@
 								class="icon danger forget"
 								title="Forget"
 								aria-label="Forget {filename(entry.source)}"
-								onclick={() => onForget(entry.source)}><Icon name="remove" size="1em" /></button
+								onclick={() => onForget(entry.source)}
 							>
+								<Icon name="remove" size="1em" />
+							</button>
 						</li>
 					{/each}
 				</ul>

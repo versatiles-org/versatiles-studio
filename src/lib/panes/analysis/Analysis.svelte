@@ -166,33 +166,35 @@
 				<div class="scroll" role="region" aria-label="Sizes per zoom level" tabindex="0">
 					<table class="figures" aria-label="Sizes per zoom level">
 						<thead>
-							<tr
-								><th scope="col">Zoom</th><th scope="col">Tiles</th><th scope="col">Total</th><th scope="col">Mean</th
-								><th scope="col">Max</th></tr
-							>
+							<tr>
+								<th scope="col">Zoom</th><th scope="col">Tiles</th><th scope="col">Total</th><th scope="col">
+									Mean
+								</th><th scope="col">Max</th>
+							</tr>
 						</thead>
 						<tbody>
 							{#each sizes.levels as level (level.level)}
 								<tr>
 									<!-- The level is also the way to chart it: the row is where the question comes up. -->
-									<th scope="row"
-										><button
+									<th scope="row">
+										<button
 											type="button"
 											class="link"
 											aria-pressed={shownLevel === level.level}
 											aria-label="Chart the sizes at zoom {level.level}"
 											onclick={() => (chartLevel = shownLevel === level.level ? null : level.level)}
-											>{level.level}</button
-										></th
-									>
+										>
+											{level.level}
+										</button>
+									</th>
 									<td>{count(level.tiles)}</td>
 									<!-- One unit down the column, so the levels compare at a glance - see `megabytes`. -->
 									<td>{megabytes(level.bytes)}</td>
 									<td>{kilobytes(level.tiles === 0 ? 0 : level.bytes / level.tiles)}</td>
 									<!-- Marked rather than coloured whole: the row is fine, one tile in it is not. -->
-									<td class:over={level.max > BUDGET} title={level.max > BUDGET ? 'over 500 kB' : undefined}
-										>{kilobytes(level.max)}</td
-									>
+									<td class:over={level.max > BUDGET} title={level.max > BUDGET ? 'over 500 kB' : undefined}>
+										{kilobytes(level.max)}
+									</td>
 								</tr>
 							{/each}
 						</tbody>
@@ -213,11 +215,11 @@
 			<Group title="Biggest tiles">
 				<table class="figures" aria-label="Biggest tiles">
 					<thead>
-						<tr
-							><th scope="col">Tile</th><th scope="col">Size</th><th scope="col"
-								><span class="visually-hidden">Inspect</span></th
-							></tr
-						>
+						<tr>
+							<th scope="col">Tile</th><th scope="col">Size</th><th scope="col">
+								<span class="visually-hidden">Inspect</span>
+							</th>
+						</tr>
 					</thead>
 					<tbody>
 						{#each sizes.biggest as tile (`${tile.z}/${tile.x}/${tile.y}`)}
@@ -227,8 +229,10 @@
 										type="button"
 										class="link"
 										title="Show this tile on the map"
-										onclick={() => onShowTile(tile.z, tile.x, tile.y)}>{tile.z}/{tile.x}/{tile.y}</button
+										onclick={() => onShowTile(tile.z, tile.x, tile.y)}
 									>
+										{tile.z}/{tile.x}/{tile.y}
+									</button>
 								</th>
 								<td class:over={tile.bytes > BUDGET}>{kilobytes(tile.bytes)}</td>
 								<td>
@@ -236,8 +240,10 @@
 										type="button"
 										class="link"
 										aria-label="Inspect {tile.z}/{tile.x}/{tile.y}"
-										onclick={() => onInspectTile(tile.z, tile.x, tile.y)}>Inspect</button
+										onclick={() => onInspectTile(tile.z, tile.x, tile.y)}
 									>
+										Inspect
+									</button>
 								</td>
 							</tr>
 						{/each}
@@ -261,15 +267,15 @@
 					<LayerShares contents={scan.contents} />
 					{#if scan.contents.sampled}
 						<!-- Disabled rather than gone while reading, so the checks below stay where they are. -->
-						<button type="button" class="link alone" disabled={scan.running} onclick={() => onScan(true)}
-							>Read every tile</button
-						>
+						<button type="button" class="link alone" disabled={scan.running} onclick={() => onScan(true)}>
+							Read every tile
+						</button>
 					{/if}
 				{:else if !scan.error}
-					<Note
-						>Read layers decodes a sample of the tiles the map draws, splits each layer's bytes and checks them against
-						the spec.</Note
-					>
+					<Note>
+						Read layers decodes a sample of the tiles the map draws, splits each layer's bytes and checks them against
+						the spec.
+					</Note>
 				{/if}
 			</Group>
 

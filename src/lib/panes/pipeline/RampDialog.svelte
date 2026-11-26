@@ -197,8 +197,10 @@
 					class="icon danger drop"
 					title="Remove"
 					aria-label="Remove the stop at {stop.meters} m"
-					onclick={() => replace(stops.filter((_, at) => at !== index))}><Icon name="remove" size="1em" /></button
+					onclick={() => replace(stops.filter((_, at) => at !== index))}
 				>
+					<Icon name="remove" size="1em" />
+				</button>
 			</div>
 		{/each}
 
@@ -210,9 +212,9 @@
 	{/if}
 	{#if translucent}
 		<!-- Said because it is invisible in the preview and shows up in the file size. -->
-		<Note tone="aside"
-			>Transparent colours make RGBA tiles, and a JPEG source's tiles become PNG, which are larger.</Note
-		>
+		<Note tone="aside">
+			Transparent colours make RGBA tiles, and a JPEG source's tiles become PNG, which are larger.
+		</Note>
 	{/if}
 
 	<dl class="facts reading">

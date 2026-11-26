@@ -50,11 +50,11 @@
 	</Note>
 	<table class="figures" aria-label="Checks">
 		<thead>
-			<tr
-				><th scope="col">Issue</th><th scope="col">Count</th><th scope="col">Tiles</th><th scope="col"
-					><span class="visually-hidden">Example</span></th
-				></tr
-			>
+			<tr>
+				<th scope="col">Issue</th><th scope="col">Count</th><th scope="col">Tiles</th><th scope="col">
+					<span class="visually-hidden">Example</span>
+				</th>
+			</tr>
 		</thead>
 		<tbody>
 			{#each checks.issues as check (check.kind)}
@@ -70,8 +70,10 @@
 							class="link"
 							aria-label="Inspect an example of: {check.label}"
 							title="{check.example.z}/{check.example.x}/{check.example.y}, {check.example.layer}"
-							onclick={() => onInspect(check.example.z, check.example.x, check.example.y)}>Inspect</button
+							onclick={() => onInspect(check.example.z, check.example.x, check.example.y)}
 						>
+							Inspect
+						</button>
 					</td>
 				</tr>
 			{/each}

@@ -222,8 +222,10 @@
 					onclick={() => {
 						picked = entry.name;
 						void insert(entry.name);
-					}}>{entry.name}</button
+					}}
 				>
+					{entry.name}
+				</button>
 			{/each}
 		</div>
 	</Group>
@@ -253,8 +255,10 @@
 						onclick={() => {
 							picked = key.key;
 							void insert(propertyRef(key.key));
-						}}>{key.key}</button
+						}}
 					>
+						{key.key}
+					</button>
 				{/each}
 			</div>
 		{/if}
@@ -271,8 +275,9 @@
 						class="chip value"
 						title={entry.count === null ? undefined : `${entry.count} features`}
 						onclick={() => void insert(valuePiece(draft.slice(0, selection.start), entry.literal))}
-						>{entry.literal}</button
 					>
+						{entry.literal}
+					</button>
 				{/each}
 			</div>
 			{#if pickedMore}
@@ -282,9 +287,9 @@
 			<Note tone="hint">
 				Values come from reading the layers.
 				{#snippet action()}
-					<button type="button" class="quiet" disabled={vocabulary.scanning} onclick={onScan}
-						>{vocabulary.scanning ? 'Reading…' : 'Read layers'}</button
-					>
+					<button type="button" class="quiet" disabled={vocabulary.scanning} onclick={onScan}>
+						{vocabulary.scanning ? 'Reading…' : 'Read layers'}
+					</button>
 				{/snippet}
 			</Note>
 		{:else}

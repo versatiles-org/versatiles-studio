@@ -312,8 +312,10 @@
 											class="problem"
 											role="img"
 											aria-label={trouble.map((p) => p.message).join('\n')}
-											title={trouble.map((p) => p.message).join('\n')}><Icon name="problem" size="1em" /></span
+											title={trouble.map((p) => p.message).join('\n')}
 										>
+											<Icon name="problem" size="1em" />
+										</span>
 									{/if}
 								{:else if slot.caption}
 									<span class="caption">{slot.caption}</span>

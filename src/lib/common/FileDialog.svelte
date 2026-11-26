@@ -337,8 +337,10 @@
 				aria-label="Up one folder"
 				title="Up one folder"
 				disabled={!listing?.parent}
-				onclick={() => listing?.parent && void go(listing.parent)}><Icon name="up" /></button
+				onclick={() => listing?.parent && void go(listing.parent)}
 			>
+				<Icon name="up" />
+			</button>
 			<form
 				class="path"
 				onsubmit={(event) => {
@@ -362,8 +364,10 @@
 							type="button"
 							class="place"
 							class:here={local?.path === place.path}
-							onclick={() => void goLocal(place.path)}>{place.label}</button
+							onclick={() => void goLocal(place.path)}
 						>
+							{place.label}
+						</button>
 					{/each}
 				</nav>
 			{/if}
@@ -393,8 +397,10 @@
 									class="icon"
 									aria-label="Forget {login(saved.server)}"
 									title="Forget this server"
-									onclick={() => void forget(saved)}><Icon name="remove" /></button
+									onclick={() => void forget(saved)}
 								>
+									<Icon name="remove" />
+								</button>
 							</li>
 						{/each}
 					</ul>
@@ -403,63 +409,58 @@
 			<form class="server-form" onsubmit={connect}>
 				<Field label="Protocol" as="group">
 					<span class="choices" role="radiogroup" aria-label="Protocol">
-						<label class="choice"
-							><input type="radio" bind:group={draft.protocol} value="sftp" onchange={() => (fromList = false)} />
-							SFTP</label
-						>
-						<label class="choice"
-							><input type="radio" bind:group={draft.protocol} value="webdav" onchange={() => (fromList = false)} />
-							WebDAV</label
-						>
+						<label class="choice">
+							<input type="radio" bind:group={draft.protocol} value="sftp" onchange={() => (fromList = false)} />
+							SFTP
+						</label>
+						<label class="choice">
+							<input type="radio" bind:group={draft.protocol} value="webdav" onchange={() => (fromList = false)} />
+							WebDAV
+						</label>
 					</span>
 				</Field>
 				{#if draft.protocol === 'sftp'}
-					<Field label="Host"
-						><input
-							bind:value={draft.host}
-							placeholder="storage.example.org"
-							spellcheck="false"
-							autocomplete="off"
-						/></Field
-					>
+					<Field label="Host">
+						<input bind:value={draft.host} placeholder="storage.example.org" spellcheck="false" autocomplete="off" />
+					</Field>
 					<Field label="Port"><input bind:value={draft.port} inputmode="numeric" autocomplete="off" /></Field>
 					<Field label="User"><input bind:value={draft.user} spellcheck="false" autocomplete="off" /></Field>
-					<Field label="Key file"
-						><input
+					<Field label="Key file">
+						<input
 							bind:value={draft.identity}
 							placeholder="optional, such as ~/.ssh/id_ed25519"
 							spellcheck="false"
 							autocomplete="off"
-						/></Field
-					>
+						/>
+					</Field>
 					<Note>
 						The SSH agent, <code>~/.ssh/config</code> and your default keys are tried first. SFTP takes no password.
 					</Note>
 				{:else}
-					<Field label="Address"
-						><input
+					<Field label="Address">
+						<input
 							bind:value={draft.address}
 							placeholder="cloud.example.org/remote.php/dav/files/anna"
 							spellcheck="false"
 							autocomplete="off"
-						/></Field
-					>
+						/>
+					</Field>
 					<Field label="User"><input bind:value={draft.user} spellcheck="false" autocomplete="off" /></Field>
-					<Field label="Password"
-						><input
+					<Field label="Password">
+						<input
 							type="password"
 							bind:value={draft.password}
 							placeholder={fromList ? 'the one kept, if there is one' : ''}
 							autocomplete="off"
-						/></Field
-					>
-					<Field label="Remember"
-						><input
+						/>
+					</Field>
+					<Field label="Remember">
+						<input
 							type="checkbox"
 							bind:checked={draft.remember}
 							title="Keep the password in this computer's keychain for next time"
-						/></Field
-					>
+						/>
+					</Field>
 					<Note>
 						Over https only. The password is kept in this computer's keychain if you ask - never in a pipeline or a
 						project, which name only the user.
@@ -482,8 +483,10 @@
 				if (tab === 'address') {
 					if (address) void chooseAddress(address);
 				} else if (selected) open(selected);
-			}}>{tab !== 'address' && selected?.folder ? 'Open Folder' : 'Open'}</button
+			}}
 		>
+			{tab !== 'address' && selected?.folder ? 'Open Folder' : 'Open'}
+		</button>
 	{/snippet}
 </Modal>
 

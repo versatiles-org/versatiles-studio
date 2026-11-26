@@ -209,8 +209,10 @@
 						disabled={!pipeline}
 						title="Tidy the layout, keeping comments"
 						aria-label="Format"
-						onclick={documentActions.format}><Icon name="format" size="1em" /></button
+						onclick={documentActions.format}
 					>
+						<Icon name="format" size="1em" />
+					</button>
 				{/if}
 				<button
 					type="button"
@@ -218,16 +220,20 @@
 					disabled={!pipeline?.canUndo}
 					title="Undo (⌘Z)"
 					aria-label="Undo"
-					onclick={documentActions.undo}><Icon name="undo" size="1em" /></button
+					onclick={documentActions.undo}
 				>
+					<Icon name="undo" size="1em" />
+				</button>
 				<button
 					type="button"
 					class="icon"
 					disabled={!pipeline?.canRedo}
 					title="Redo (⇧⌘Z)"
 					aria-label="Redo"
-					onclick={documentActions.redo}><Icon name="redo" size="1em" /></button
+					onclick={documentActions.redo}
 				>
+					<Icon name="redo" size="1em" />
+				</button>
 			{/snippet}
 		</Tabs>
 
@@ -296,16 +302,16 @@
 		>
 			Save{#if pipeline?.dirty && pipeline.path}<span class="dot" aria-label="unsaved changes">•</span>{/if}
 		</button>
-		<button type="button" class="button" disabled={!pipeline} onclick={() => documentActions.save(true)}
-			>Save as…</button
-		>
+		<button type="button" class="button" disabled={!pipeline} onclick={() => documentActions.save(true)}>
+			Save as…
+		</button>
 		<!-- Exporting is per graph ([Q32]): this writes what *this* chain produces, and the modal is
 		     where the run is committed. The primary one: it is what the other two lead to. Named for
 		     what it writes, because the Style pane below has an export too and it writes the map's
 		     style (S10.6). -->
-		<button type="button" class="button primary" disabled={!pipeline} onclick={documentActions.export}
-			>Export tiles…</button
-		>
+		<button type="button" class="button primary" disabled={!pipeline} onclick={documentActions.export}>
+			Export tiles…
+		</button>
 	</div>
 </div>
 

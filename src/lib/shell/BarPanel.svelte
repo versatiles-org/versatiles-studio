@@ -46,9 +46,9 @@
 		<div class="tools">
 			{#if tools}{@render tools()}{:else}<span class="title">{label}</span>{/if}
 			{#if onClose}
-				<button type="button" class="icon close" aria-label="Close {label}" title="Close" onclick={onClose}
-					><Icon name="remove" /></button
-				>
+				<button type="button" class="icon close" aria-label="Close {label}" title="Close" onclick={onClose}>
+					<Icon name="remove" />
+				</button>
 			{/if}
 		</div>
 	{/if}

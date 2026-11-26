@@ -215,8 +215,10 @@
 				class="problem"
 				role="img"
 				aria-label={problems.map((p) => p.message).join('\n')}
-				title={problems.map((p) => p.message).join('\n')}><Icon name="problem" size="1em" /></span
+				title={problems.map((p) => p.message).join('\n')}
 			>
+				<Icon name="problem" size="1em" />
+			</span>
 		{/if}
 
 		{#if !isHead}
@@ -225,8 +227,10 @@
 				class="icon danger drop"
 				title="Remove this operation"
 				aria-label="Remove"
-				onclick={() => onRemoveNode(node.nameSpan)}><Icon name="remove" size="1em" /></button
+				onclick={() => onRemoveNode(node.nameSpan)}
 			>
+				<Icon name="remove" size="1em" />
+			</button>
 		{/if}
 	</div>
 

@@ -174,8 +174,10 @@
 						class:budget={mark.key === 'budget'}
 						x={mark.side === 'end' ? mark.x - 3 : mark.x + 3}
 						y={mark.y}
-						text-anchor={mark.side}>{mark.text}</text
+						text-anchor={mark.side}
 					>
+						{mark.text}
+					</text>
 				{/each}
 			</svg>
 		</div>

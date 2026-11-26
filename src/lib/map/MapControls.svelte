@@ -294,8 +294,10 @@
 								type="button"
 								onclick={() => onHeatLevel(-1)}
 								disabled={heat.level <= heat.min}
-								title="Squares for a level further out">&minus;</button
+								title="Squares for a level further out"
 							>
+								&minus;
+							</button>
 							<span class="level" title="The level each square is a tile of">z{heat.level}</span>
 							<button
 								type="button"
@@ -303,8 +305,10 @@
 								disabled={heat.level >= heat.max}
 								title={heat.level >= heat.max && heat.max < (heat.deepest ?? heat.max)
 									? 'Zoom in for squares of a deeper level'
-									: 'Squares for a level further in'}>+</button
+									: 'Squares for a level further in'}
 							>
+								+
+							</button>
 						</div>
 					{/if}
 					<button

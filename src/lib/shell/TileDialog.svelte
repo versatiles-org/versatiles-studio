@@ -283,8 +283,9 @@
 									<Note tone="empty">This source has no tile at {at.z}/{at.x}/{at.y}.</Note>
 								{:else}
 									<!-- A vector tile with no layers: a raster one has its pixels drawn above. -->
-									<Note tone="aside">This tile holds no layers, so there is nothing to take apart beyond its size.</Note
-									>
+									<Note tone="aside">
+										This tile holds no layers, so there is nothing to take apart beyond its size.
+									</Note>
 								{/if}
 							</div>
 						{/if}
@@ -294,11 +295,11 @@
 						<figcaption>
 							<span class="lines">
 								<span class="readout" title={KEY}>{KEY}</span>
-								<span class="readout"
-									>{beyond > 0
+								<span class="readout">
+									{beyond > 0
 										? `${count(beyond)} ${beyond === 1 ? 'feature reaches' : 'features reach'} past the buffer shown.`
-										: ''}</span
-								>
+										: ''}
+								</span>
 							</span>
 							<label><input type="checkbox" bind:checked={showVertices} /> Vertices</label>
 						</figcaption>
@@ -356,8 +357,9 @@
 														class="link"
 														aria-pressed={focus === i}
 														onclick={() => (focus = focus === i ? null : i)}
-														><span class="swatch" style:background={layerColour(i)}></span>{layer.name}</button
 													>
+														<span class="swatch" style:background={layerColour(i)}></span>{layer.name}
+													</button>
 												</th>
 												<td>{count(layer.features)}</td>
 												<td>{count(layer.vertices)}</td>
@@ -433,10 +435,11 @@
 														class="link"
 														aria-pressed={selected?.layer === feature.layer && selected.index === feature.index}
 														onclick={() => select(feature.layer, feature.index)}
-														><span class="swatch" style:background={layerColour(feature.layer)}></span>{layerName(
-															feature.layer
-														)} #{feature.index}</button
 													>
+														<span class="swatch" style:background={layerColour(feature.layer)}></span>{layerName(
+															feature.layer
+														)} #{feature.index}
+													</button>
 												</th>
 												<td>{feature.kind}</td>
 												<td>{count(feature.vertices)}</td>
@@ -481,9 +484,9 @@
 												<th scope="row">{issue.layer}</th>
 												<td>
 													{#if issue.feature !== null && layer >= 0}
-														<button type="button" class="link" onclick={() => select(layer, issue.feature ?? 0)}
-															>#{issue.feature}</button
-														>
+														<button type="button" class="link" onclick={() => select(layer, issue.feature ?? 0)}>
+															#{issue.feature}
+														</button>
 													{:else}
 														layer
 													{/if}
@@ -628,11 +631,13 @@
 								<!-- The chart's twin, and where clipping shows: the share of a channel at either end. -->
 								<table class="figures" aria-label="Channels">
 									<thead>
-										<tr
-											><th scope="col">Channel</th><th scope="col">Lowest</th><th scope="col">Highest</th><th
-												scope="col">Mean</th
-											><th scope="col">At 0</th><th scope="col">At 255</th></tr
-										>
+										<tr>
+											<th scope="col">Channel</th><th scope="col">Lowest</th><th scope="col">Highest</th><th
+												scope="col"
+											>
+												Mean
+											</th><th scope="col">At 0</th><th scope="col">At 255</th>
+										</tr>
 									</thead>
 									<tbody>
 										{#each channelSeries as one (one.name)}

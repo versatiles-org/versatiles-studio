@@ -52,9 +52,9 @@
 			<span class="name">{shown.content.title}</span>
 			{#if shown.content.summary}<span class="summary">{shown.content.summary}</span>{/if}
 			{#if shown.pinned}
-				<button type="button" class="icon" aria-label="Close help" onclick={dismiss}
-					><Icon name="remove" size="1em" /></button
-				>
+				<button type="button" class="icon" aria-label="Close help" onclick={dismiss}>
+					<Icon name="remove" size="1em" />
+				</button>
 			{/if}
 		</div>
 		{#if shown.content.body}<p class="body">{shown.content.body}</p>{/if}
