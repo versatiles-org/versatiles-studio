@@ -143,6 +143,20 @@
 	let layer = $state<string | null>(null);
 	const keys = $derived(keysOf(vocabulary.layers, layer));
 
+	/// What the properties are narrowed to, as typed - OpenStreetMap alone has dozens of `name_*`.
+	/// **Only what is shown**: a picked property keeps its values when the filter hides its chip.
+	let query = $state('');
+	const needle = $derived(query.trim().toLowerCase());
+	const shownKeys = $derived(needle ? keys.filter(({ key }) => key.toLowerCase().includes(needle)) : keys);
+
+	/// The list's height as drawn, and as it was last drawn unfiltered - which it keeps while a
+	/// filter is typed (see the markup).
+	let listHeight = $state(0);
+	let fullHeight = $state(0);
+	$effect(() => {
+		if (!needle) fullHeight = listHeight;
+	});
+
 	/// What was picked last, whose values are offered: a property, or `$layer` and `$type`, whose
 	/// values are the layers' names and the geometry types.
 	let picked = $state<string | null>(null);
@@ -159,10 +173,37 @@
 	const chips = $derived(
 		operators.map((operator) => ({
 			...operatorChip(operator),
-			title: `${operator.doc}\nFor example: ${operator.example}`,
 			call: ['function', 'method', 'macro'].includes(operator.kind)
 		}))
 	);
+
+	// -- what a chip means ----------------------------------------------------------------------
+
+	/// What a name or an operator does, by its chip's label, for the line under the chips.
+	///
+	/// **A line, not a tooltip.** A native tooltip waits a second, shows for one chip at a time,
+	/// and never for the keyboard; thirty-odd operators were each a hover and a wait away from
+	/// saying what they do. The line answers for whichever chip the pointer or the focus is on.
+	type Doc = { label: string; doc: string; example: string | null };
+	const docs = $derived(
+		new Map<string, Doc>([
+			...names.map((entry): [string, Doc] => [entry.name, { label: entry.name, doc: entry.doc, example: null }]),
+			...operators.map((operator): [string, Doc] => {
+				const label = operatorChip(operator).label;
+				return [label, { label, doc: operator.doc, example: operator.example }];
+			})
+		])
+	);
+
+	/// The chip the line is about, or `null` for the hint.
+	let described = $state<Doc | null>(null);
+
+	/// Whichever chip `target` is on: its doc, or none for a property or a value. **Between chips
+	/// nothing changes**, so passing over the gaps does not make the line flicker back to the hint.
+	function describe(target: EventTarget | null): void {
+		const chip = target instanceof Element ? target.closest<HTMLElement>('.chip') : null;
+		if (chip) described = docs.get(chip.dataset.doc ?? '') ?? null;
+	}
 
 	/// Writes `piece` where the caret was, and puts the caret after it - or where `placement` says.
 	async function insert(piece: string, placement?: Placement): Promise<void> {
@@ -176,7 +217,7 @@
 	}
 </script>
 
-<Modal title="Expression: {name}" width="34rem" {onClose}>
+<Modal title="Expression: {name}" width="48rem" {onClose}>
 	<div class="editor">
 		<pre bind:this={paintLayer} aria-hidden="true">{#each pieces as piece, index (index)}<span
 					class={piece.kind}
@@ -237,7 +278,16 @@
 
 	<!-- **What gives way when the window is short.** Everything that can be picked, in one scroller,
 	     so the box, its verdict and the buttons stay on screen - see `.palette`. -->
-	<div class="palette">
+	<div
+		class="palette"
+		role="presentation"
+		onpointerover={(event) => describe(event.target)}
+		onfocusin={(event) => describe(event.target)}
+		onpointerleave={() => (described = null)}
+		onfocusout={(event) => {
+			if (!event.currentTarget.contains(event.relatedTarget as Node | null)) described = null;
+		}}
+	>
 		<Group title="Names">
 			<div class="chips">
 				{#each names as entry (entry.name)}
@@ -245,7 +295,7 @@
 						type="button"
 						class="chip"
 						class:picked={picked === entry.name}
-						title={entry.doc}
+						data-doc={entry.name}
 						onclick={() => {
 							picked = entry.name;
 							void insert(entry.name);
@@ -257,6 +307,111 @@
 			</div>
 		</Group>
 
+		<!-- **Side by side, because one is about the other.** Picking a property shows its values; a
+		     list below it, past every other chip, put the answer out of sight of the question. -->
+		<div class="data">
+			<Group title="Properties">
+				<div class="narrow">
+					{#if keys.length > 0}
+						<!-- Escape empties it first, and closes the dialog only once it is empty. -->
+						<input
+							type="text"
+							class="filter"
+							placeholder="Filter properties…"
+							aria-label="Filter properties"
+							spellcheck="false"
+							autocomplete="off"
+							autocapitalize="off"
+							bind:value={query}
+							onkeydown={(event) => {
+								if (event.key === 'Escape' && query !== '') {
+									event.preventDefault();
+									event.stopPropagation();
+									query = '';
+								}
+							}}
+						/>
+					{/if}
+					{#if vocabulary.layers.length > 1}
+						<label class="layer">
+							<span>Of</span>
+							<select value={layer ?? ''} onchange={(event) => (layer = event.currentTarget.value || null)}>
+								<option value="">every layer</option>
+								{#each vocabulary.layers as entry (entry.layer)}
+									<option value={entry.layer}>{entry.layer}</option>
+								{/each}
+							</select>
+						</label>
+					{/if}
+				</div>
+				{#if keys.length === 0}
+					<Note tone="empty">No properties known yet.</Note>
+				{:else}
+					<!-- **As tall while filtering as before it.** The dialog centres itself, so a list
+					     that shrank with each key typed moved the whole dialog, the field being typed in
+					     included. -->
+					<div bind:clientHeight={listHeight} style:min-height={needle ? `${fullHeight}px` : null}>
+						{#if shownKeys.length === 0}
+							<Note tone="empty">No property matches “{query.trim()}”.</Note>
+						{:else}
+							<div class="chips">
+								{#each shownKeys as key (key.key)}
+									<button
+										type="button"
+										class="chip"
+										class:picked={picked === key.key}
+										title={key.features > 0 ? `${key.features} features` : undefined}
+										onclick={() => {
+											picked = key.key;
+											void insert(propertyRef(key.key));
+										}}
+									>
+										{key.key}
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/if}
+			</Group>
+
+			<Group title={picked ? `Values of ${picked}` : 'Values'}>
+				{#if picked === null}
+					<Note tone="empty">Pick a name or a property to see what it holds.</Note>
+				{:else if values.length > 0}
+					<div class="chips">
+						{#each values as entry (entry.literal)}
+							<button
+								type="button"
+								class="chip value"
+								title={entry.count === null ? undefined : `${entry.count} features`}
+								onclick={() => void insert(valuePiece(draft.slice(0, selection.start), entry.literal))}
+							>
+								{entry.literal}
+							</button>
+						{/each}
+					</div>
+					{#if pickedMore}
+						<Note tone="aside">The commonest of more values.</Note>
+					{/if}
+				{:else if vocabulary.read === 'none'}
+					<Note tone="hint">
+						Values come from reading the layers.
+						{#snippet action()}
+							<button type="button" class="quiet" disabled={vocabulary.scanning} onclick={onScan}>
+								{vocabulary.scanning ? 'Reading…' : 'Read layers'}
+							</button>
+						{/snippet}
+					</Note>
+				{:else}
+					<Note tone="empty">No values read for it.</Note>
+				{/if}
+				{#if vocabulary.read === 'sampled' && values.length > 0}
+					<Note tone="aside">From a sample of the tiles.</Note>
+				{/if}
+			</Group>
+		</div>
+
 		{#each [{ title: 'Operators', call: false }, { title: 'Functions', call: true }] as group (group.title)}
 			<Group title={group.title}>
 				<div class="chips">
@@ -264,7 +419,7 @@
 						<button
 							type="button"
 							class="chip"
-							title={entry.title}
+							data-doc={entry.label}
 							onclick={() => void insert(entry.piece, { attach: entry.attach, caret: entry.caret })}
 						>
 							{entry.label}
@@ -273,76 +428,20 @@
 				</div>
 			</Group>
 		{/each}
+	</div>
 
-		<Group title="Properties">
-			{#if vocabulary.layers.length > 1}
-				<label class="layer">
-					<span>Of</span>
-					<select value={layer ?? ''} onchange={(event) => (layer = event.currentTarget.value || null)}>
-						<option value="">every layer</option>
-						{#each vocabulary.layers as entry (entry.layer)}
-							<option value={entry.layer}>{entry.layer}</option>
-						{/each}
-					</select>
-				</label>
+	<!-- **Outside the scroller, of one height.** Under the chips it was scrolled out of sight while
+	     the operators were in it; and a line that grew and shrank would move the buttons. -->
+	<div class="doc" aria-live="polite">
+		{#if described}
+			<code class="label">{described.label}</code>
+			<span>{described.doc}</span>
+			{#if described.example}
+				<span class="example">For example: <code>{described.example}</code></span>
 			{/if}
-			{#if keys.length === 0}
-				<Note tone="empty">No properties known yet.</Note>
-			{:else}
-				<div class="chips">
-					{#each keys as key (key.key)}
-						<button
-							type="button"
-							class="chip"
-							class:picked={picked === key.key}
-							title={key.features > 0 ? `${key.features} features` : undefined}
-							onclick={() => {
-								picked = key.key;
-								void insert(propertyRef(key.key));
-							}}
-						>
-							{key.key}
-						</button>
-					{/each}
-				</div>
-			{/if}
-		</Group>
-
-		<Group title={picked ? `Values of ${picked}` : 'Values'}>
-			{#if picked === null}
-				<Note tone="empty">Pick a name or a property to see what it holds.</Note>
-			{:else if values.length > 0}
-				<div class="chips">
-					{#each values as entry (entry.literal)}
-						<button
-							type="button"
-							class="chip value"
-							title={entry.count === null ? undefined : `${entry.count} features`}
-							onclick={() => void insert(valuePiece(draft.slice(0, selection.start), entry.literal))}
-						>
-							{entry.literal}
-						</button>
-					{/each}
-				</div>
-				{#if pickedMore}
-					<Note tone="aside">The commonest of more values.</Note>
-				{/if}
-			{:else if vocabulary.read === 'none'}
-				<Note tone="hint">
-					Values come from reading the layers.
-					{#snippet action()}
-						<button type="button" class="quiet" disabled={vocabulary.scanning} onclick={onScan}>
-							{vocabulary.scanning ? 'Reading…' : 'Read layers'}
-						</button>
-					{/snippet}
-				</Note>
-			{:else}
-				<Note tone="empty">No values read for it.</Note>
-			{/if}
-			{#if vocabulary.read === 'sampled' && values.length > 0}
-				<Note tone="aside">From a sample of the tiles.</Note>
-			{/if}
-		</Group>
+		{:else}
+			<span class="idle">Point at a name, an operator or a function to see what it does.</span>
+		{/if}
 	</div>
 
 	{#snippet actions()}
@@ -496,10 +595,69 @@
 		overflow-y: auto;
 	}
 
+	/* Properties on the left, the picked one's values on the right, each its own scroller of one
+	   height - so a long list of keys does not push the values away, nor the values the keys.
+	   `minmax(0, …)` lets a chip with a long name wrap the column rather than widen it. */
+	.data {
+		display: grid;
+		grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+		gap: var(--space-5);
+		align-items: start;
+
+		.chips {
+			max-height: 11rem;
+		}
+	}
+
+	/* Two lines, always: a long doc and its example wrap into the second, and nothing moves. */
+	.doc {
+		flex-shrink: 0;
+		box-sizing: border-box;
+		height: calc(2 * 1.4em + 2 * var(--space-2));
+		overflow: hidden;
+		padding: var(--space-2) 0;
+		border-top: 1px solid var(--rule);
+		line-height: 1.4;
+		font-size: var(--text-xs);
+		color: var(--ink);
+
+		code {
+			font-family: var(--font-mono);
+		}
+
+		.label {
+			margin-right: var(--space-2);
+			color: var(--accent);
+		}
+
+		.example,
+		.idle {
+			color: var(--ink-2);
+		}
+
+		.example {
+			margin-left: var(--space-2);
+		}
+	}
+
 	.problems {
 		margin: 0;
 		padding-left: 1.2em;
 		color: var(--ink);
+	}
+
+	/* The filter and the layer, on one line above the chips they narrow. */
+	.narrow {
+		display: flex;
+		align-items: center;
+		gap: var(--space-3);
+		margin-bottom: var(--space-2);
+
+		.filter {
+			flex: 1 1 auto;
+			min-width: 0;
+			font-size: var(--text-sm);
+		}
 	}
 
 	.layer {
@@ -508,6 +666,11 @@
 		gap: var(--space-3);
 		font-size: var(--text-xs);
 		color: var(--ink-2);
+
+		/* Narrow enough to leave the filter beside it most of the line. */
+		select {
+			max-width: 10rem;
+		}
 	}
 
 	/* Small, wrapping, and as many as there are - they are a vocabulary, read across. */

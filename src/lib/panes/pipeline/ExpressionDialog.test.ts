@@ -9,6 +9,13 @@ import ExpressionDialog from './ExpressionDialog.svelte';
 import type { Vocabulary } from '../../state/vocabulary.svelte';
 import type { ExpressionCheck, ExpressionOperator } from '../../ipc/commands';
 
+// jsdom has no `ResizeObserver`, and the property list measures its height with one.
+globalThis.ResizeObserver ??= class {
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+} as unknown as typeof ResizeObserver;
+
 // jsdom has no `showModal`, and the dialog's own effect calls it.
 HTMLDialogElement.prototype.showModal = vi.fn();
 HTMLDialogElement.prototype.close = vi.fn();
@@ -197,7 +204,6 @@ describe('what it offers', () => {
 		expect(box().value).toBe('$zoom >= ');
 		await vi.advanceTimersByTimeAsync(0);
 		expect(box().selectionStart).toBe(9);
-		expect(chip('>=').title).toBe('Whether a value is at least another.\nFor example: 1 >= 1');
 	});
 
 	it('writes a function with the caret between its brackets', async () => {
@@ -235,6 +241,46 @@ describe('what it offers', () => {
 		expect(group('.all()')).toBe(group('size()'));
 	});
 
+	describe('the property filter', () => {
+		const filter = () => screen.getByLabelText('Filter properties') as HTMLInputElement;
+		const shown = (text: string) => screen.queryByText(text, { selector: 'button' }) !== null;
+
+		it('narrows the properties to those containing what is typed, whatever its case', async () => {
+			open();
+			await fireEvent.input(filter(), { target: { value: ' NAME ' } });
+			expect(shown('name:de')).toBe(true);
+			expect(shown('kind')).toBe(false);
+		});
+
+		it('says when nothing matches', async () => {
+			open();
+			await fireEvent.input(filter(), { target: { value: 'zzz' } });
+			expect(screen.getByText('No property matches “zzz”.')).toBeTruthy();
+		});
+
+		// The filter is about finding a property, not about what was picked.
+		it('keeps the values of a picked property it hides', async () => {
+			open();
+			await fireEvent.click(chip('kind'));
+			await fireEvent.input(filter(), { target: { value: 'zzz' } });
+			expect(shown('kind')).toBe(false);
+			expect(chip("'primary'")).toBeTruthy();
+		});
+
+		// The dialog closes on Escape; with a filter typed, Escape empties it first.
+		it('empties on Escape, and leaves the dialog alone while doing so', async () => {
+			const { onClose } = open();
+			await fireEvent.input(filter(), { target: { value: 'name' } });
+			const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+			filter().dispatchEvent(event);
+			await vi.advanceTimersByTimeAsync(0);
+			expect(event.defaultPrevented).toBe(true);
+			expect(filter().value).toBe('');
+			expect(shown('kind')).toBe(true);
+			expect(onClose).not.toHaveBeenCalled();
+		});
+	});
+
 	it('offers to read the layers when no values have been read', async () => {
 		const { onScan } = open({
 			vocabulary: {
@@ -246,6 +292,56 @@ describe('what it offers', () => {
 		await fireEvent.click(chip('kind'));
 		await fireEvent.click(chip('Read layers'));
 		expect(onScan).toHaveBeenCalledOnce();
+	});
+});
+
+describe('the line that says what a chip does', () => {
+	const line = () => document.querySelector('.doc') as HTMLElement;
+	const palette = () => document.querySelector('.palette') as HTMLElement;
+
+	it('hints at itself until something is pointed at', () => {
+		open();
+		expect(line().textContent).toContain('Point at a name, an operator or a function');
+	});
+
+	it('says what an operator does, and how it is used, for the pointer', async () => {
+		open();
+		await fireEvent.pointerOver(chip('size()'));
+		expect(line().textContent).toContain('size()');
+		expect(line().textContent).toContain('The length of a string, list or map.');
+		expect(line().textContent).toContain("For example: size('abc') == 3");
+	});
+
+	// A tooltip never answered the keyboard; the line follows the focus as it follows the pointer.
+	it('follows the focus too', async () => {
+		open();
+		await fireEvent.focusIn(chip('.startsWith()'));
+		expect(line().textContent).toContain('Whether a string starts with another.');
+	});
+
+	it('says what a name holds, without an example it does not have', async () => {
+		open();
+		await fireEvent.pointerOver(chip('$layer'));
+		expect(line().textContent).toContain("The name of the feature's layer.");
+		expect(line().textContent).not.toContain('For example');
+	});
+
+	it('keeps its answer between chips, and gives it up for a property or on leaving', async () => {
+		open();
+		await fireEvent.pointerOver(chip('>='));
+		await fireEvent.pointerOver(palette());
+		expect(line().textContent).toContain('Whether a value is at least another.');
+		await fireEvent.pointerOver(chip('kind'));
+		expect(line().textContent).toContain('Point at');
+		await fireEvent.pointerOver(chip('>='));
+		await fireEvent.pointerLeave(palette());
+		expect(line().textContent).toContain('Point at');
+	});
+
+	it('leaves the chips without tooltips of their own', () => {
+		open();
+		expect(chip('>=').title).toBe('');
+		expect(chip('$zoom').title).toBe('');
 	});
 });
 
